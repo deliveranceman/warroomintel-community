@@ -43,6 +43,7 @@ export function Header() {
         {[
           { label: 'Arsenal', href: '#features' },
           { label: 'Database', href: '#database' },
+          { label: 'Assessment', href: '/assessment' },
           { label: 'Membership', href: '#pricing' },
           { label: 'FAQ', href: '#faq' },
         ].map((item) => (
