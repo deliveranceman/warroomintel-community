@@ -375,7 +375,7 @@ export const Route = createFileRoute('/api/submit-assessment')({
           const newRecord = await res.json()
           const recordId = newRecord.id
 
-          // Generate AI summary — awaited so it completes within the function lifetime
+          // Generate AI content — summary, title, and draft response all in one call
           try {
             const ownWordsText = cleanFields['Own Words'] || ''
             const flaggedSpiritsText = cleanFields['Flagged Spirits'] || ''
@@ -391,33 +391,55 @@ export const Route = createFileRoute('/api/submit-assessment')({
                 },
                 body: JSON.stringify({
                   model: 'claude-haiku-4-5-20251001',
-                  max_tokens: 500,
-                  messages: [{ role: 'user', content: `You are assisting a deliverance ministry team. Below is an anonymous intake from someone seeking help. Write a compassionate 2-3 paragraph summary of what this person appears to be dealing with spiritually and emotionally.
+                  max_tokens: 1500,
+                  messages: [{ role: 'user', content: `You are a seasoned deliverance minister writing intake notes. A person submitted an anonymous assessment. Generate three things.
 
-Rules: Write in third person. Remove ALL identifying details. Be compassionate. Focus on spiritual/emotional patterns. Do not reproduce explicit sexual or trauma details. End with a sentence about hope through deliverance.
-
+INTAKE:
 Their own words: ${ownWordsText}
+Spiritual patterns: ${flaggedSpiritsText}
 
-Flagged patterns: ${flaggedSpiritsText}
+Generate ALL THREE sections separated exactly as shown:
 
-Write the summary:` }],
-                }),
+===TITLE===
+8-12 word plain-spoken title for this case — the way a pastor would label a file. No quotes. Direct. Example: "Years of rejection and rage with a wall in prayer"
+
+===SUMMARY===
+Write 2-3 short paragraphs about what this person is going through. Write like a pastor's handwritten notes — plain, warm, direct. No clinical phrases like "This individual presents with." Use natural language: "They are carrying...", "There is a pattern here of...", "This looks like..." — real minister voice. No bullet points. No headers. Leave out identifying details and explicit trauma/sexual specifics — name the spiritual root instead. End with one genuine sentence of hope.
+
+===DRAFT RESPONSE===
+A draft letter the minister can edit before sending. Pastoral tone — like a letter from a real person who prayed over this. Warm opening, plain identification of what appears to be at work spiritually (mention the spirits/strongmen naturally in the text, not as a list), 2-3 Scripture references woven in naturally like a pastor would mention them in conversation, a clear next step, and a real closing. Under 300 words. Not formal. Not AI-sounding.` }],                }),
               })
 
               if (aiRes.ok) {
                 const aiData = await aiRes.json()
-                const summary = aiData.content?.[0]?.text || ''
-                if (summary) {
+                const fullText = aiData.content?.[0]?.text || ''
+
+                // Parse the three sections
+                const titleMatch = fullText.match(/===TITLE===\s*([\s\S]*?)(?===SUMMARY===|$)/)
+                const summaryMatch = fullText.match(/===SUMMARY===\s*([\s\S]*?)(?===DRAFT RESPONSE===|$)/)
+                const responseMatch = fullText.match(/===DRAFT RESPONSE===\s*([\s\S]*?)$/)
+
+                const aiTitle = titleMatch?.[1]?.trim() || ''
+                const aiSummary = summaryMatch?.[1]?.trim() || ''
+                const aiDraftResponse = responseMatch?.[1]?.trim() || ''
+
+                // Save all three fields to Airtable
+                const updateFields: Record<string, string> = {}
+                if (aiSummary) updateFields['AI Summary'] = aiSummary
+                if (aiTitle) updateFields['Published Title'] = aiTitle
+                if (aiDraftResponse) updateFields['Your Response'] = aiDraftResponse
+
+                if (Object.keys(updateFields).length > 0) {
                   await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}/${recordId}`, {
                     method: 'PATCH',
                     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fields: { 'AI Summary': summary } }),
+                    body: JSON.stringify({ fields: updateFields }),
                   })
                 }
               }
             }
           } catch (_) {
-            // AI summary failed silently — submission still succeeds
+            // AI generation failed silently — submission still succeeds
           }
 
           return Response.json({ success: true })
