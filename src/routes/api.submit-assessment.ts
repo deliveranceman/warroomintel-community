@@ -84,10 +84,15 @@ export const Route = createFileRoute('/api/submit-assessment')({
           const data = await request.json()
           const flaggedSpirits = diagnoseFlaggedSpirits(data)
 
-          // Build Airtable fields — convert arrays to comma-separated strings
-          const fields: Record<string, string> = { Status: 'New', 'Submitted At': new Date().toISOString().split('T')[0], 'Flagged Spirits': flaggedSpirits }
+          // Build Airtable fields safely — only send non-empty text fields
+          const fields: Record<string, string> = {}
+          
+          // Always include these core fields
+          fields['Status'] = 'New'
+          fields['Flagged Spirits'] = flaggedSpirits
 
-          const stringFields = [
+          // All other fields — convert everything to plain text strings
+          const allFields = [
             'First Name','Email','Age Range','How Long Saved','Church Background',
             'Conversion Experience','Prayer Life Description','Assurance of Salvation',
             'Satisfied With Walk','A - Father Relationship','A - Mother Relationship',
@@ -98,16 +103,20 @@ export const Route = createFileRoute('/api/submit-assessment')({
             'D - Sexual Notes','E - Family Addiction History','E - Addiction Notes',
             'F - Country of Birth','G - Chronic Illness','G - Trauma History',
             'G - Blood Transfusion','Own Words','Anything Else',
-          ]
-          stringFields.forEach(f => { if (data[f]) fields[f] = String(data[f]) })
-
-          const arrayFields = [
             'A - Self Image','B - Anxiety Depression','B - Fears','B - Occult Mind States',
             'C - Occult Activities','C - Cult Involvement','D - Lust Struggles',
             'E - Addictions','F - Counter Culture',
           ]
-          arrayFields.forEach(f => {
-            if (data[f] && Array.isArray(data[f])) fields[f] = data[f].join(', ')
+          
+          allFields.forEach(f => {
+            const val = data[f]
+            if (!val) return
+            if (Array.isArray(val)) {
+              const joined = val.filter((v: string) => v !== 'None').join(', ')
+              if (joined) fields[f] = joined
+            } else if (String(val).trim()) {
+              fields[f] = String(val).trim()
+            }
           })
 
           const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}`, {
@@ -118,7 +127,12 @@ export const Route = createFileRoute('/api/submit-assessment')({
 
           if (!res.ok) {
             const err = await res.text()
-            return Response.json({ error: `Airtable error: ${res.status}`, detail: err }, { status: 502 })
+            let parsed: any = {}
+            try { parsed = JSON.parse(err) } catch {}
+            return Response.json({ 
+              error: `Airtable error: ${res.status}`,
+              detail: parsed?.error?.message || err,
+            }, { status: 502 })
           }
 
           return Response.json({ success: true })
