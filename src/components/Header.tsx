@@ -73,11 +73,14 @@ export function Header() {
         .wr-nav-desktop { display: flex; }
         .wr-nav-cta { display: inline-block; }
         .wr-hamburger { display: none; }
-        .wr-mobile-menu { display: none; }
         @media (max-width: 767px) {
           .wr-nav-desktop { display: none !important; }
           .wr-nav-cta { display: none !important; }
           .wr-hamburger { display: flex !important; }
+        }
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .wr-nav-link { font-size: 10px !important; letter-spacing: 0.07em !important; }
+          .wr-nav-gap { gap: 1rem !important; }
         }
       `}</style>
 
@@ -102,15 +105,15 @@ export function Header() {
         </a>
 
         {/* ── Desktop Nav ── */}
-        <ul className="wr-nav-desktop" style={{
+        <ul className="wr-nav-desktop wr-nav-gap" style={{
           gap: '1.5rem', listStyle: 'none', margin: 0, padding: 0,
-          alignItems: 'center',
+          alignItems: 'center', height: '100%',
         }}>
-          <li>{navLink('/#features', 'Arsenal')}</li>
-          <li>{navLink('/#database', 'Database')}</li>
+          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#features', 'Arsenal')}</li>
+          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#database', 'Database')}</li>
 
           {/* Assessment dropdown */}
-          <li ref={dropdownRef} style={{ position: 'relative' }}>
+          <li ref={dropdownRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <button
               onClick={() => setAssessmentOpen(o => !o)}
               onMouseEnter={() => setAssessmentOpen(true)}
@@ -119,7 +122,8 @@ export function Header() {
                 color: assessmentOpen ? gold : textDim,
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: 0, display: 'flex', alignItems: 'center', gap: '4px',
-                transition: 'color 0.2s',
+                transition: 'color 0.2s', lineHeight: 1,
+                verticalAlign: 'middle',
               }}>
               Assessment
               <span style={{
@@ -172,8 +176,8 @@ export function Header() {
             )}
           </li>
 
-          <li>{navLink('/#pricing', 'Membership')}</li>
-          <li>{navLink('/#faq', 'FAQ')}</li>
+          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#pricing', 'Membership')}</li>
+          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#faq', 'FAQ')}</li>
         </ul>
 
         {/* Desktop CTA */}
