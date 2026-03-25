@@ -113,7 +113,10 @@ function DatabaseSection() {
 
   useEffect(() => {
     fetch('/api/demons')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error: ${r.status}`)
+        return r.json()
+      })
       .then(data => {
         if (data.error) throw new Error(data.error)
         setDemons(data.demons)
