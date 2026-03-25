@@ -21,6 +21,7 @@ interface BoardPost {
   id: string
   title: string
   response: string
+  aiSummary: string
   submittedAt: string
 }
 
@@ -82,7 +83,22 @@ function AssessmentBoard() {
 
               {expanded === post.id && (
                 <div style={{ borderTop: `1px solid ${border}`, padding: '20px 24px' }}>
-                  <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.15em', color: gold, marginBottom: '12px' }}>⚔ Ministry Response</div>
+                  {/* AI Summary */}
+                  {post.aiSummary && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.15em', color: textDim, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(138,80,255,0.6)', display: 'inline-block' }} />
+                        About This Case
+                      </div>
+                      <div style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, fontFamily: crimson, fontStyle: 'italic', background: 'rgba(138,80,255,0.05)', border: '1px solid rgba(138,80,255,0.15)', borderRadius: '6px', padding: '16px 18px' }}>
+                        {post.aiSummary}
+                      </div>
+                    </div>
+                  )}
+                  {/* Ministry Response */}
+                  <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.15em', color: gold, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: gold }}>⚔</span> Ministry Response
+                  </div>
                   <div style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, fontFamily: crimson, whiteSpace: 'pre-wrap' as const }}>{post.response}</div>
                   <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '12px' }}>
                     <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Does this describe your situation? Submit your own assessment for a personal response.</div>

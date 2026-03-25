@@ -27,6 +27,7 @@ export const Route = createFileRoute('/api/assessment-board')({
               id: r.id,
               title: r.fields['Published Title'],
               response: r.fields['Your Response'],
+              aiSummary: r.fields['AI Summary'] || '',
               submittedAt: r.fields['Submitted At'] || r.createdTime,
             }))
 
