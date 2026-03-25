@@ -36,17 +36,21 @@ export const Route = createFileRoute('/api/demons')({
             offset = data.offset
           } while (offset)
 
+          // Expose raw field names from first record for debugging
+          const debugFields = records.length > 0 ? Object.keys(records[0].fields) : []
+          const debugSample = records.length > 0 ? records[0].fields : {}
+
           const demons = records
             .map((r: any, i: number) => ({
               id: i + 1,
-              name: r.fields['Primary Name'] || '',
-              aka: r.fields['Also Known As'] || '',
-              type: r.fields['Type / Rank'] || '',
-              function: r.fields['Function / Role'] || '',
+              name: r.fields['Primary Name'] || r.fields['Name'] || Object.values(r.fields)[0] || '',
+              aka: r.fields['Also Known As'] || r.fields['AKA'] || '',
+              type: r.fields['Type / Rank'] || r.fields['Type'] || '',
+              function: r.fields['Function / Role'] || r.fields['Function'] || '',
             }))
             .filter((d: any) => d.name)
 
-          return Response.json({ demons, total: demons.length })
+          return Response.json({ demons, total: demons.length, debug: { fieldNames: debugFields, sampleRecord: debugSample } })
         } catch (err: any) {
           return Response.json({ error: err.message }, { status: 500 })
         }
