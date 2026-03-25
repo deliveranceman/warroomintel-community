@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
+
 export const Route = createFileRoute('/api/demons')({
   server: {
     handlers: {
@@ -36,21 +38,18 @@ export const Route = createFileRoute('/api/demons')({
             offset = data.offset
           } while (offset)
 
-          // Expose raw field names from first record for debugging
-          const debugFields = records.length > 0 ? Object.keys(records[0].fields) : []
-          const debugSample = records.length > 0 ? records[0].fields : {}
-
           const demons = records
             .map((r: any, i: number) => ({
               id: i + 1,
-              name: r.fields['Primary Name'] || r.fields['Name'] || Object.values(r.fields)[0] || '',
-              aka: r.fields['Also Known As'] || r.fields['AKA'] || '',
-              type: r.fields['Type / Rank'] || r.fields['Type'] || '',
-              function: r.fields['Function / Role'] || r.fields['Function'] || '',
+              name: r.fields[NAME_FIELD] || '',
+              aka: r.fields['Also Known As'] || '',
+              type: r.fields['Type / Rank'] || '',
+              function: r.fields['Function / Role'] || '',
             }))
-            .filter((d: any) => d.name)
+            // Skip the header row (first record has "Primary Name" as the name value)
+            .filter((d: any) => d.name && d.name !== 'Primary Name')
 
-          return Response.json({ demons, total: demons.length, debug: { fieldNames: debugFields, sampleRecord: debugSample } })
+          return Response.json({ demons, total: demons.length })
         } catch (err: any) {
           return Response.json({ error: err.message }, { status: 500 })
         }
