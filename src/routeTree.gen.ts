@@ -9,11 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
+import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
+import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
+import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
 
+const AssessmentBoardRoute = AssessmentBoardRouteImport.update({
+  id: '/assessment-board',
+  path: '/assessment-board',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssessmentRoute = AssessmentRouteImport.update({
+  id: '/assessment',
+  path: '/assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -29,53 +43,113 @@ const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
   path: '/api/warroom-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSubmitAssessmentRoute = ApiSubmitAssessmentRouteImport.update({
+  id: '/api/submit-assessment',
+  path: '/api/submit-assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDemonsRoute = ApiDemonsRouteImport.update({
   id: '/api/demons',
   path: '/api/demons',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAssessmentBoardRoute = ApiAssessmentBoardRouteImport.update({
+  id: '/api/assessment-board',
+  path: '/api/assessment-board',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/assessment': typeof AssessmentRoute
+  '/assessment-board': typeof AssessmentBoardRoute
+  '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/assessment': typeof AssessmentRoute
+  '/assessment-board': typeof AssessmentBoardRoute
+  '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/assessment': typeof AssessmentRoute
+  '/assessment-board': typeof AssessmentBoardRoute
+  '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/demons' | '/api/warroom-chat' | '/products/$productId'
+  fullPaths:
+    | '/'
+    | '/assessment'
+    | '/assessment-board'
+    | '/api/assessment-board'
+    | '/api/demons'
+    | '/api/submit-assessment'
+    | '/api/warroom-chat'
+    | '/products/$productId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/demons' | '/api/warroom-chat' | '/products/$productId'
+  to:
+    | '/'
+    | '/assessment'
+    | '/assessment-board'
+    | '/api/assessment-board'
+    | '/api/demons'
+    | '/api/submit-assessment'
+    | '/api/warroom-chat'
+    | '/products/$productId'
   id:
     | '__root__'
     | '/'
+    | '/assessment'
+    | '/assessment-board'
+    | '/api/assessment-board'
     | '/api/demons'
+    | '/api/submit-assessment'
     | '/api/warroom-chat'
     | '/products/$productId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AssessmentRoute: typeof AssessmentRoute
+  AssessmentBoardRoute: typeof AssessmentBoardRoute
+  ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
+  ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/assessment-board': {
+      id: '/assessment-board'
+      path: '/assessment-board'
+      fullPath: '/assessment-board'
+      preLoaderRoute: typeof AssessmentBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assessment': {
+      id: '/assessment'
+      path: '/assessment'
+      fullPath: '/assessment'
+      preLoaderRoute: typeof AssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -97,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWarroomChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/submit-assessment': {
+      id: '/api/submit-assessment'
+      path: '/api/submit-assessment'
+      fullPath: '/api/submit-assessment'
+      preLoaderRoute: typeof ApiSubmitAssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/demons': {
       id: '/api/demons'
       path: '/api/demons'
@@ -104,12 +185,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDemonsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/assessment-board': {
+      id: '/api/assessment-board'
+      path: '/api/assessment-board'
+      fullPath: '/api/assessment-board'
+      preLoaderRoute: typeof ApiAssessmentBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AssessmentRoute: AssessmentRoute,
+  AssessmentBoardRoute: AssessmentBoardRoute,
+  ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
   ApiDemonsRoute: ApiDemonsRoute,
+  ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
 }
