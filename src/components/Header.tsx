@@ -10,11 +10,12 @@ const textDim = '#A89FC0'
 const cinzel = "'Cinzel', serif"
 
 const NAV_ITEMS = [
-  { label: 'Arsenal',    href: '/#features' },
-  { label: 'Database',   href: '/#database' },
-  { label: 'Assessment', href: '/assessment' },
-  { label: 'Membership', href: '/#pricing' },
-  { label: 'FAQ',        href: '/#faq' },
+  { label: 'Arsenal',        href: '/#features' },
+  { label: 'Database',       href: '/#database' },
+  { label: 'Assessment',     href: '/assessment' },
+  { label: 'Response Board', href: '/assessment-board' },
+  { label: 'Membership',     href: '/#pricing' },
+  { label: 'FAQ',            href: '/#faq' },
 ]
 
 export function Header() {
