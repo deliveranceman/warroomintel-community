@@ -378,10 +378,10 @@ function PlanCard({ plan }: { plan: typeof plans[0] }) {
           </li>
         ))}
       </ul>
-      <a href="#" style={{ width: '100%', padding: '12px', fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', borderRadius: '3px', border: plan.featured ? 'none' : '1px solid var(--border-bright)', background: plan.featured ? 'var(--gold)' : 'transparent', color: plan.featured ? 'var(--deep)' : 'var(--gold)', transition: 'all 0.2s', textDecoration: 'none', display: 'block', textAlign: 'center', boxSizing: 'border-box' }}
+      <a href={plan.stripeUrl} target="_blank" rel="noopener noreferrer" style={{ width: '100%', padding: '12px', fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', borderRadius: '3px', border: plan.featured ? 'none' : '1px solid var(--border-bright)', background: plan.featured ? 'var(--gold)' : 'transparent', color: plan.featured ? 'var(--deep)' : 'var(--gold)', transition: 'all 0.2s', textDecoration: 'none', display: 'block', textAlign: 'center', boxSizing: 'border-box' }}
         onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
         onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
-        Start Free Trial
+        Start Free Trial →
       </a>
     </div>
   )
