@@ -109,7 +109,7 @@ function DatabaseSection() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [expanded, setExpanded] = useState<number | null>(null)
   const [page, setPage] = useState(0)
-  const PAGE_SIZE = 50
+  const PAGE_SIZE = 5
 
   useEffect(() => {
     fetch('/api/demons')
