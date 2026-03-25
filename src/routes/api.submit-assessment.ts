@@ -371,51 +371,54 @@ export const Route = createFileRoute('/api/submit-assessment')({
             }, { status: 502 })
           }
 
-          // Get the new record ID and trigger AI summary generation
+          // Get the new record ID
           const newRecord = await res.json()
           const recordId = newRecord.id
 
-          // Generate AI summary in background (don't await — don't block the response)
-          const ownWordsText = cleanFields['Own Words'] || ''
-          const flaggedSpiritsText = cleanFields['Flagged Spirits'] || ''
+          // Generate AI summary — awaited so it completes within the function lifetime
+          try {
+            const ownWordsText = cleanFields['Own Words'] || ''
+            const flaggedSpiritsText = cleanFields['Flagged Spirits'] || ''
+            const anthropicKey = process.env.ANTHROPIC_API_KEY || ''
 
-          fetch(`https://api.anthropic.com/v1/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': process.env.ANTHROPIC_API_KEY || '',
-              'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-              model: 'claude-haiku-4-5-20251001',
-              max_tokens: 600,
-              messages: [{ role: 'user', content: `You are assisting a deliverance ministry team. Below is an anonymous intake from someone seeking help. Write a compassionate, insightful 2-3 paragraph summary of what this person appears to be dealing with spiritually and emotionally.
+            if (anthropicKey && recordId) {
+              const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-api-key': anthropicKey,
+                  'anthropic-version': '2023-06-01',
+                },
+                body: JSON.stringify({
+                  model: 'claude-haiku-4-5-20251001',
+                  max_tokens: 500,
+                  messages: [{ role: 'user', content: `You are assisting a deliverance ministry team. Below is an anonymous intake from someone seeking help. Write a compassionate 2-3 paragraph summary of what this person appears to be dealing with spiritually and emotionally.
 
-IMPORTANT RULES:
-- Write in third person ("This individual...", "This person...")
-- Remove ALL identifying details — no names, locations, specific people  
-- Be compassionate and non-judgmental
-- Focus on spiritual and emotional patterns
-- Do not reproduce sensitive sexual or trauma details explicitly
-- Use ministry language appropriate for a deliverance context
-- End with a sentence about hope and freedom available through deliverance
+Rules: Write in third person. Remove ALL identifying details. Be compassionate. Focus on spiritual/emotional patterns. Do not reproduce explicit sexual or trauma details. End with a sentence about hope through deliverance.
 
 Their own words: ${ownWordsText}
 
-Flagged spiritual patterns: ${flaggedSpiritsText}
+Flagged patterns: ${flaggedSpiritsText}
 
-Write the summary now:` }],
-            }),
-          }).then(r => r.json()).then(aiData => {
-            const summary = aiData.content?.[0]?.text || ''
-            if (summary && recordId) {
-              return fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}/${recordId}`, {
-                method: 'PATCH',
-                headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fields: { 'AI Summary': summary } }),
+Write the summary:` }],
+                }),
               })
+
+              if (aiRes.ok) {
+                const aiData = await aiRes.json()
+                const summary = aiData.content?.[0]?.text || ''
+                if (summary) {
+                  await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}/${recordId}`, {
+                    method: 'PATCH',
+                    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fields: { 'AI Summary': summary } }),
+                  })
+                }
+              }
             }
-          }).catch(() => {}) // Fail silently — don't affect the user experience
+          } catch (_) {
+            // AI summary failed silently — submission still succeeds
+          }
 
           return Response.json({ success: true })
         } catch (err: any) {
