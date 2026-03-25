@@ -12,6 +12,7 @@ interface DemonEntry {
   aka: string
   type: string
   function: string
+  manifestation: string
 }
 
 /* ── Ornament ── */
@@ -178,25 +179,24 @@ function DatabaseSection() {
               disabled={loading}
               style={{ width: '100%', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: '4px', padding: '9px 14px', fontFamily: "'Crimson Pro', serif", fontSize: '15px', color: 'var(--text-dim)', outline: 'none', boxSizing: 'border-box', opacity: loading ? 0.5 : 1 }}
             />
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {filterGroups.map(f => (
-                <button key={f} onClick={() => handleFilter(f)} disabled={loading}
-                  style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.08em', padding: '5px 12px', borderRadius: '3px', border: activeFilter === f ? '1px solid var(--gold)' : '1px solid var(--border)', color: activeFilter === f ? 'var(--gold)' : 'var(--text-dim)', background: activeFilter === f ? 'var(--gold-dim)' : 'transparent', cursor: loading ? 'default' : 'pointer', transition: 'all 0.15s' }}>
-                  {f}
-                </button>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingBottom: '2px', flex: 1 }}>
+                {filterGroups.map(f => (
+                  <button key={f} onClick={() => handleFilter(f)} disabled={loading}
+                    style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.08em', padding: '5px 12px', borderRadius: '3px', border: activeFilter === f ? '1px solid var(--gold)' : '1px solid var(--border)', color: activeFilter === f ? 'var(--gold)' : 'var(--text-dim)', background: activeFilter === f ? 'var(--gold-dim)' : 'transparent', cursor: loading ? 'default' : 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    {f}
+                  </button>
+                ))}
+              </div>
               {!loading && !error && (
-                <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--muted)', alignSelf: 'center' }}>
+                <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Column headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr 28px', gap: '0 12px', padding: '8px 16px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', fontSize: '10px', fontFamily: "'Cinzel', serif", letterSpacing: '0.1em', color: 'var(--muted)' }}>
-            <span>Name / Also Known As</span><span>Type</span><span>Function / Role</span><span></span>
-          </div>
+
 
           {/* Loading state */}
           {loading && (
@@ -270,21 +270,37 @@ function DatabaseRow({ entry, isExpanded, onToggle }: { entry: DemonEntry; isExp
   return (
     <div style={{ borderBottom: '1px solid var(--border)' }}>
       <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={onToggle}
-        style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr 28px', gap: '0 12px', padding: '11px 16px', fontSize: '14px', transition: 'background 0.15s', cursor: 'pointer', background: isExpanded ? 'var(--surface2)' : hovered ? 'rgba(201,168,76,0.04)' : 'transparent', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontFamily: "'Cinzel', serif", fontSize: '13px', color: 'var(--text)', fontWeight: 600 }}>{entry.name}</div>
-          {entry.aka && <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px', fontStyle: 'italic' }}>{entry.aka}</div>}
+        style={{ padding: '11px 16px', fontSize: '14px', transition: 'background 0.15s', cursor: 'pointer', background: isExpanded ? 'var(--surface2)' : hovered ? 'rgba(201,168,76,0.04)' : 'transparent' }}>
+        {/* Top row: name + type badge + toggle */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: '13px', color: 'var(--text)', fontWeight: 600 }}>{entry.name}</div>
+            {entry.aka && <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.aka}</div>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <span style={{ fontSize: '10px', letterSpacing: '0.06em', padding: '3px 8px', borderRadius: '3px', border: `1px solid ${ts.border}`, color: ts.color, background: ts.bg, whiteSpace: 'nowrap', lineHeight: 1.4, display: 'inline-block' }}>
+              {entry.type}
+            </span>
+            <div style={{ color: 'var(--gold)', fontSize: '16px', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(45deg)' : 'rotate(0)', opacity: 0.7 }}>+</div>
+          </div>
         </div>
-        <span style={{ fontSize: '10px', letterSpacing: '0.06em', padding: '3px 8px', borderRadius: '3px', border: `1px solid ${ts.border}`, color: ts.color, background: ts.bg, whiteSpace: 'normal', lineHeight: 1.4, display: 'inline-block' }}>
-          {entry.type}
-        </span>
+        {/* Function row */}
         <div style={{ fontSize: '13px', color: 'var(--text-dim)', lineHeight: 1.5 }}>{entry.function}</div>
-        <div style={{ color: 'var(--gold)', fontSize: '16px', textAlign: 'center', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(45deg)' : 'rotate(0)', opacity: 0.7 }}>+</div>
       </div>
       {isExpanded && (
         <div style={{ padding: '12px 16px 16px', background: 'var(--surface2)', borderTop: '1px solid var(--border)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-            {['Biblical References', 'Entry Points', 'Manifestation Patterns', 'Deliverance Protocol'].map(label => (
+          {/* Manifestation — public */}
+          {entry.manifestation && (
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ fontSize: '10px', fontFamily: "'Cinzel', serif", letterSpacing: '0.1em', color: 'var(--gold)', marginBottom: '6px' }}>⚠ Manifestation Patterns</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-dim)', lineHeight: 1.6, background: 'var(--surface3)', border: '1px solid var(--border)', borderRadius: '4px', padding: '10px 14px' }}>
+                {entry.manifestation}
+              </div>
+            </div>
+          )}
+          {/* Locked member fields */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+            {['Biblical References', 'Entry Points', 'Deliverance Protocol', 'Source / Origin'].map(label => (
               <div key={label} style={{ background: 'var(--surface3)', border: '1px solid var(--border)', borderRadius: '4px', padding: '10px 12px' }}>
                 <div style={{ fontSize: '10px', fontFamily: "'Cinzel', serif", letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: '6px' }}>{label}</div>
                 <div style={{ display: 'flex', gap: '4px' }}>
