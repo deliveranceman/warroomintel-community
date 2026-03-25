@@ -105,15 +105,13 @@ export const Route = createFileRoute('/api/submit-assessment')({
             'A - Planned Child':        bool(data['A - Planned Child']),
           }
 
-          // Remove empty string values — Airtable rejects empty strings on some field types
+          // Build clean fields — only non-empty values
           const cleanFields: Record<string, any> = {}
           Object.entries(fields).forEach(([k, v]) => {
-            if (v === '' || v === null || v === undefined) return
+            if (v === null || v === undefined) return
+            if (typeof v === 'string' && v.trim() === '') return
             cleanFields[k] = v
           })
-          // Always keep booleans even if false
-          cleanFields['A - Childhood Home Happy'] = bool(data['A - Childhood Home Happy'])
-          cleanFields['A - Planned Child'] = bool(data['A - Planned Child'])
 
           const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}`, {
             method: 'POST',
@@ -125,7 +123,13 @@ export const Route = createFileRoute('/api/submit-assessment')({
             const err = await res.text()
             let parsed: any = {}
             try { parsed = JSON.parse(err) } catch {}
-            return Response.json({ error: `Airtable error: ${res.status}`, detail: parsed?.error?.message || err }, { status: 502 })
+            // Return the FULL Airtable error so we can see exactly what field is failing
+            return Response.json({ 
+              error: parsed?.error?.message || `Airtable ${res.status}`,
+              type: parsed?.error?.type,
+              raw: err,
+              fieldsSent: Object.keys(cleanFields),
+            }, { status: 502 })
           }
 
           return Response.json({ success: true })
