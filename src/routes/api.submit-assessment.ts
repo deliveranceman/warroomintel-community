@@ -118,7 +118,16 @@ export const Route = createFileRoute('/api/submit-assessment')({
 
           if (!res.ok) {
             const err = await res.text()
-            return Response.json({ error: `Airtable error: ${res.status}`, detail: err }, { status: 502 })
+            let errDetail = err
+            try { errDetail = JSON.stringify(JSON.parse(err), null, 2) } catch {}
+            return Response.json({ 
+              error: `Airtable error: ${res.status}`, 
+              detail: errDetail,
+              tokenPresent: !!token,
+              tokenPrefix: token ? token.substring(0, 12) + '...' : 'MISSING',
+              baseId: BASE_ID,
+              tableId: ASSESSMENTS_TABLE,
+            }, { status: 502 })
           }
 
           return Response.json({ success: true })
