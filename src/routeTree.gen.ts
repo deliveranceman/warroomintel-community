@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
+import { Route as ApiDemonsRouteImport } from './routes/api.demons'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,33 +29,47 @@ const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
   path: '/api/warroom-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDemonsRoute = ApiDemonsRouteImport.update({
+  id: '/api/demons',
+  path: '/api/demons',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/demons': typeof ApiDemonsRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/demons': typeof ApiDemonsRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/demons': typeof ApiDemonsRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/warroom-chat' | '/products/$productId'
+  fullPaths: '/' | '/api/demons' | '/api/warroom-chat' | '/products/$productId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/warroom-chat' | '/products/$productId'
-  id: '__root__' | '/' | '/api/warroom-chat' | '/products/$productId'
+  to: '/' | '/api/demons' | '/api/warroom-chat' | '/products/$productId'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/demons'
+    | '/api/warroom-chat'
+    | '/products/$productId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiDemonsRoute: typeof ApiDemonsRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
 }
@@ -82,11 +97,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWarroomChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/demons': {
+      id: '/api/demons'
+      path: '/api/demons'
+      fullPath: '/api/demons'
+      preLoaderRoute: typeof ApiDemonsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiDemonsRoute: ApiDemonsRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
 }
