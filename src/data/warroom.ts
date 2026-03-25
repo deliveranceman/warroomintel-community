@@ -3,6 +3,7 @@ export interface Plan {
   tier: string
   price: number
   featured?: boolean
+  stripeUrl: string
   features: string[]
 }
 
@@ -12,20 +13,12 @@ export interface Feature {
   description: string
 }
 
-export interface DemonEntry {
-  id: number
-  name: string
-  type: 'spirit' | 'principality' | 'stronghold'
-  function: string
-  reference: string
-  locked: boolean
-}
-
 export const plans: Plan[] = [
   {
     id: 'soldier',
     tier: 'Soldier',
     price: 19,
+    stripeUrl: 'https://buy.stripe.com/aFabITdtW0Hr8BO7xC1RC00',
     features: [
       'Full demon database access',
       'Prayer arsenal library',
@@ -39,6 +32,7 @@ export const plans: Plan[] = [
     tier: 'Commander',
     price: 39,
     featured: true,
+    stripeUrl: 'https://buy.stripe.com/28EbIT9dG2Pz6tGbNS1RC01',
     features: [
       'Everything in Soldier',
       'Monthly Zoom training calls',
@@ -51,6 +45,7 @@ export const plans: Plan[] = [
     id: 'general',
     tier: 'General',
     price: 97,
+    stripeUrl: 'https://buy.stripe.com/fZudR1fC4eyhdW87xC1RC02',
     features: [
       'Everything in Commander',
       'Weekly live calls',
@@ -100,73 +95,6 @@ export const features: Feature[] = [
   },
 ]
 
-export const demonDatabase: DemonEntry[] = [
-  {
-    id: 1,
-    name: 'Jezebel',
-    type: 'principality',
-    function: 'Control, manipulation, sexual immorality, false prophecy',
-    reference: '1 Kgs 21 · Rev 2:20',
-    locked: false,
-  },
-  {
-    id: 2,
-    name: 'Leviathan',
-    type: 'principality',
-    function: 'Pride, twisting, marine realm, neck stiffness',
-    reference: 'Job 41 · Isa 27:1',
-    locked: false,
-  },
-  {
-    id: 3,
-    name: 'Python',
-    type: 'spirit',
-    function: 'Divination, constriction, prophetic suppression',
-    reference: 'Acts 16:16',
-    locked: false,
-  },
-  {
-    id: 4,
-    name: 'Jezebel (Ahab pair)',
-    type: 'stronghold',
-    function: 'Passivity, weakness, enabling control',
-    reference: '1 Kgs 21:1–16',
-    locked: false,
-  },
-  {
-    id: 5,
-    name: 'Beelzebub',
-    type: 'principality',
-    function: 'Lord of the flies, corruption, defilement, infestation',
-    reference: 'Matt 12:24',
-    locked: false,
-  },
-  {
-    id: 6,
-    name: 'Abaddon',
-    type: 'spirit',
-    function: 'Destruction, the abyss, torment',
-    reference: 'Rev 9:11',
-    locked: true,
-  },
-  {
-    id: 7,
-    name: 'Asmodeus',
-    type: 'spirit',
-    function: 'Lust, marital destruction, perversion',
-    reference: 'Tobit 3:8',
-    locked: true,
-  },
-  {
-    id: 8,
-    name: 'Spirit of Infirmity',
-    type: 'stronghold',
-    function: 'Chronic illness, weakness, bent body, hopelessness',
-    reference: 'Luke 13:11',
-    locked: true,
-  },
-]
-
 export const faqItems = [
   {
     q: 'How does the 30-day trial work?',
@@ -178,7 +106,7 @@ export const faqItems = [
   },
   {
     q: 'How searchable is the demon database?',
-    a: 'Every entry is indexed by name, type (spirit, principality, stronghold), function, biblical reference, and manifestation patterns. You can search by symptom — e.g. "what spirits are associated with anger and control" — and get targeted results.',
+    a: 'Every entry is indexed by name, type, also-known-as names, and function. You can search by symptom or name and get targeted results instantly.',
   },
   {
     q: 'When are the live Zoom calls?',
