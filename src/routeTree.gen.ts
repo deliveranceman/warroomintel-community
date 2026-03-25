@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
+import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
 
@@ -48,6 +49,11 @@ const ApiSubmitAssessmentRoute = ApiSubmitAssessmentRouteImport.update({
   path: '/api/submit-assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGenerateSummaryRoute = ApiGenerateSummaryRouteImport.update({
+  id: '/api/generate-summary',
+  path: '/api/generate-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDemonsRoute = ApiDemonsRouteImport.update({
   id: '/api/demons',
   path: '/api/demons',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/assessment-board': typeof AssessmentBoardRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/assessment-board': typeof AssessmentBoardRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/assessment-board': typeof AssessmentBoardRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/api/assessment-board'
     | '/api/demons'
+    | '/api/generate-summary'
     | '/api/submit-assessment'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/api/assessment-board'
     | '/api/demons'
+    | '/api/generate-summary'
     | '/api/submit-assessment'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/api/assessment-board'
     | '/api/demons'
+    | '/api/generate-summary'
     | '/api/submit-assessment'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   AssessmentBoardRoute: typeof AssessmentBoardRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
+  ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSubmitAssessmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/generate-summary': {
+      id: '/api/generate-summary'
+      path: '/api/generate-summary'
+      fullPath: '/api/generate-summary'
+      preLoaderRoute: typeof ApiGenerateSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/demons': {
       id: '/api/demons'
       path: '/api/demons'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentBoardRoute: AssessmentBoardRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
   ApiDemonsRoute: ApiDemonsRoute,
+  ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
