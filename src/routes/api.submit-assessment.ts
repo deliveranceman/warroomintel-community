@@ -84,40 +84,82 @@ export const Route = createFileRoute('/api/submit-assessment')({
           const data = await request.json()
           const flaggedSpirits = diagnoseFlaggedSpirits(data)
 
-          // Build Airtable fields safely — only send non-empty text fields
+          // Build fields — send everything as plain long text
+          // Use a single consolidated text field approach to avoid field type issues
           const fields: Record<string, string> = {}
-          
-          // Always include these core fields
-          fields['Status'] = 'New'
-          fields['Flagged Spirits'] = flaggedSpirits
 
-          // All other fields — convert everything to plain text strings
-          const allFields = [
-            'First Name','Email','Age Range','How Long Saved','Church Background',
-            'Conversion Experience','Prayer Life Description','Assurance of Salvation',
-            'Satisfied With Walk','A - Father Relationship','A - Mother Relationship',
-            'A - Planned Child','A - Adopted','A - Parents Divorced','A - Childhood Home Happy',
-            'A - Lonely As Teenager','A - Rejection Notes','B - Suicide History','B - Mental Notes',
-            'B - Dreams Sleep','C - Devil Pact','C - Freemasonry','C - Occult Objects',
-            'C - Curses','C - Occult Notes','D - Pornography History','D - Abuse History',
-            'D - Sexual Notes','E - Family Addiction History','E - Addiction Notes',
-            'F - Country of Birth','G - Chronic Illness','G - Trauma History',
-            'G - Blood Transfusion','Own Words','Anything Else',
-            'A - Self Image','B - Anxiety Depression','B - Fears','B - Occult Mind States',
-            'C - Occult Activities','C - Cult Involvement','D - Lust Struggles',
-            'E - Addictions','F - Counter Culture',
-          ]
+          // Core identity fields
+          if (data['First Name']) fields['First Name'] = String(data['First Name']).trim()
+          if (data['Email']) fields['Email'] = String(data['Email']).trim()
           
-          allFields.forEach(f => {
-            const val = data[f]
-            if (!val) return
-            if (Array.isArray(val)) {
-              const joined = val.filter((v: string) => v !== 'None').join(', ')
-              if (joined) fields[f] = joined
-            } else if (String(val).trim()) {
-              fields[f] = String(val).trim()
-            }
-          })
+          // Build a single comprehensive notes field with all answers
+          const sections: string[] = []
+          
+          sections.push('=== ABOUT YOU ===')
+          sections.push(`Age Range: ${data['Age Range'] || 'Not provided'}`)
+          sections.push(`How Long Saved: ${data['How Long Saved'] || 'Not provided'}`)
+          
+          sections.push('\n=== SPIRITUAL FOUNDATION ===')
+          if (data['Church Background']) sections.push(`Church Background: ${data['Church Background']}`)
+          if (data['Conversion Experience']) sections.push(`Conversion: ${data['Conversion Experience']}`)
+          if (data['Prayer Life Description']) sections.push(`Prayer Life: ${data['Prayer Life Description']}`)
+          if (data['Assurance of Salvation']) sections.push(`Assurance of Salvation: ${data['Assurance of Salvation']}`)
+          if (data['Satisfied With Walk']) sections.push(`Satisfied With Walk: ${data['Satisfied With Walk']}`)
+          
+          sections.push('\n=== CATEGORY A: REJECTION ===')
+          if (data['A - Father Relationship']) sections.push(`Father Relationship: ${data['A - Father Relationship']}`)
+          if (data['A - Mother Relationship']) sections.push(`Mother Relationship: ${data['A - Mother Relationship']}`)
+          if (data['A - Planned Child']) sections.push(`Planned Child: ${data['A - Planned Child']}`)
+          if (data['A - Adopted']) sections.push(`Adopted: ${data['A - Adopted']}`)
+          if (data['A - Parents Divorced']) sections.push(`Parents Divorced: ${data['A - Parents Divorced']}`)
+          if (data['A - Childhood Home Happy']) sections.push(`Happy Childhood: ${data['A - Childhood Home Happy']}`)
+          if (data['A - Lonely As Teenager']) sections.push(`Lonely As Teenager: ${data['A - Lonely As Teenager']}`)
+          if (data['A - Self Image']?.length) sections.push(`Self Image: ${(data['A - Self Image'] as string[]).join(', ')}`)
+          if (data['A - Rejection Notes']) sections.push(`Notes: ${data['A - Rejection Notes']}`)
+          
+          sections.push('\n=== CATEGORY B: MENTAL & EMOTIONAL ===')
+          if (data['B - Anxiety Depression']?.length) sections.push(`Struggles: ${(data['B - Anxiety Depression'] as string[]).join(', ')}`)
+          if (data['B - Suicide History']) sections.push(`Suicide History: ${data['B - Suicide History']}`)
+          if (data['B - Fears']?.length) sections.push(`Fears: ${(data['B - Fears'] as string[]).join(', ')}`)
+          if (data['B - Occult Mind States']?.length) sections.push(`Mind States: ${(data['B - Occult Mind States'] as string[]).join(', ')}`)
+          if (data['B - Dreams Sleep']) sections.push(`Dreams/Sleep: ${data['B - Dreams Sleep']}`)
+          if (data['B - Mental Notes']) sections.push(`Notes: ${data['B - Mental Notes']}`)
+          
+          sections.push('\n=== CATEGORY C: OCCULT & WITCHCRAFT ===')
+          if (data['C - Devil Pact']) sections.push(`Devil Pact: ${data['C - Devil Pact']}`)
+          if (data['C - Occult Activities']?.length) sections.push(`Occult Activities: ${(data['C - Occult Activities'] as string[]).join(', ')}`)
+          if (data['C - Cult Involvement']?.length) sections.push(`Cult Involvement: ${(data['C - Cult Involvement'] as string[]).join(', ')}`)
+          if (data['C - Freemasonry']) sections.push(`Freemasonry: ${data['C - Freemasonry']}`)
+          if (data['C - Occult Objects']) sections.push(`Occult Objects: ${data['C - Occult Objects']}`)
+          if (data['C - Curses']) sections.push(`Curses: ${data['C - Curses']}`)
+          if (data['C - Occult Notes']) sections.push(`Notes: ${data['C - Occult Notes']}`)
+          
+          sections.push('\n=== CATEGORY D: SEXUAL STRUGGLES ===')
+          if (data['D - Lust Struggles']?.length) sections.push(`Struggles: ${(data['D - Lust Struggles'] as string[]).join(', ')}`)
+          if (data['D - Pornography History']) sections.push(`Pornography: ${data['D - Pornography History']}`)
+          if (data['D - Abuse History']) sections.push(`Abuse History: ${data['D - Abuse History']}`)
+          if (data['D - Sexual Notes']) sections.push(`Notes: ${data['D - Sexual Notes']}`)
+          
+          sections.push('\n=== CATEGORY E: ADDICTIONS ===')
+          if (data['E - Addictions']?.length) sections.push(`Addictions: ${(data['E - Addictions'] as string[]).join(', ')}`)
+          if (data['E - Family Addiction History']) sections.push(`Family History: ${data['E - Family Addiction History']}`)
+          if (data['E - Addiction Notes']) sections.push(`Notes: ${data['E - Addiction Notes']}`)
+          
+          sections.push('\n=== CATEGORY F/G: BACKGROUND & HEALTH ===')
+          if (data['F - Country of Birth']) sections.push(`Country: ${data['F - Country of Birth']}`)
+          if (data['F - Counter Culture']?.length) sections.push(`Counter Culture: ${(data['F - Counter Culture'] as string[]).join(', ')}`)
+          if (data['G - Chronic Illness']) sections.push(`Chronic Illness: ${data['G - Chronic Illness']}`)
+          if (data['G - Trauma History']) sections.push(`Trauma: ${data['G - Trauma History']}`)
+          if (data['G - Blood Transfusion']) sections.push(`Blood Transfusion: ${data['G - Blood Transfusion']}`)
+          
+          sections.push('\n=== IN THEIR OWN WORDS ===')
+          if (data['Own Words']) sections.push(data['Own Words'] as string)
+          if (data['Anything Else']) sections.push(`Additional: ${data['Anything Else']}`)
+          
+          sections.push('\n=== FLAGGED SPIRITS (AUTO-GENERATED) ===')
+          sections.push(flaggedSpirits)
+          
+          fields['Own Words'] = sections.join('\n')
 
           const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}`, {
             method: 'POST',
