@@ -1,412 +1,603 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, useEffect } from 'react'
-import { features, plans, faqItems } from '@/data/warroom'
+import { useState, useEffect, useRef } from 'react'
 
-export const Route = createFileRoute('/')(({
+export const Route = createFileRoute('/')({
   component: WarRoomHome,
-}))
+})
 
+// ── TYPES ────────────────────────────────────────────────
 interface DemonEntry {
-  id: number
+  id: string
   name: string
   aka: string
   type: string
   function: string
-  manifestation: string
+  manifestation?: string
+  scripture?: string
+  entryPoints?: string
+  protocol?: string
 }
 
-/* ── Ornament ── */
-function Ornament() {
+// ── CONSTANTS ────────────────────────────────────────────
+const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
+
+const FEATURES = [
+  { icon: '⚔', title: 'Master Demon Database', desc: '251+ documented spirits — names, aliases, types, functions, and manifestations. Free members see full entries. Locked fields unlock with membership.' },
+  { icon: '📋', title: 'Ministry Assessment Tool', desc: 'A confidential 9-step intake wizard. Submit your situation and receive a personal response from our deliverance team.' },
+  { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman — Freemasonry, soul ties, occult doorways, lust, addiction and more.' },
+  { icon: '🗣', title: 'Live Ministry Calls', desc: 'Monthly group calls for Soldier members. Bi-weekly Q&A for Commander. Weekly intimate sessions for General members.' },
+  { icon: '✦', title: 'Scripture Arsenal', desc: 'Community-built warfare scripture library organized by battle category — fear, rejection, witchcraft, identity and more.' },
+  { icon: '🗡', title: 'Community Submissions', desc: 'Submit new demon entries, suggest corrections, and contribute to the most comprehensive spiritual warfare database available.' },
+]
+
+const FAQ = [
+  { q: 'Is this a replacement for professional mental health care?', a: 'No. War Room Intel is a spiritual ministry resource only. We are not licensed therapists or medical practitioners. If you are experiencing a mental health crisis please seek professional support. We encourage maintaining any current medical or therapeutic treatment alongside ministry.' },
+  { q: 'How is my assessment information kept confidential?', a: 'All assessment information is seen only by our ministry team and is never published, shared, or sold. Anything posted to the public response board is fully anonymized with your permission.' },
+  { q: 'What denominations or theological traditions does this represent?', a: 'War Room Intel is rooted in Scripture and Charismatic/Pentecostal ministry tradition. We operate under the pastoral oversight of Staffordtown Church, Copperhill TN. We welcome all Spirit-filled believers regardless of denomination.' },
+  { q: 'When will paid membership be available?', a: 'We are currently building out the full membership platform. Sign up for our email list to be notified the moment we launch. In the meantime the database, assessment tool, and response board are fully available.' },
+  { q: 'Can I submit a demon that is not in the database?', a: 'Yes! Use the Submit a Demon form in the Assessment menu. All submissions are reviewed by our ministry team before being added. We credit contributors where possible.' },
+  { q: 'How do I get a personal ministry response?', a: 'Take the free assessment at warroomintel.com/assessment. Our ministry team personally reviews every submission and responds to the email address you provide.' },
+]
+
+// ── HELPERS ──────────────────────────────────────────────
+const cinzel = "'Cinzel', serif"
+const crimson = "'Crimson Pro', serif"
+const gold = 'var(--gold)'
+const deep = 'var(--deep)'
+const surface = 'var(--surface)'
+const surface2 = 'var(--surface2)'
+const border = 'var(--border)'
+const borderBright = 'var(--border-bright)'
+const text = 'var(--text)'
+const textDim = 'var(--text-dim)'
+const muted = 'var(--muted)'
+
+function typeColor(type: string) {
+  const map: Record<string, string> = {
+    'Principality': '#7C5CBF', 'Power': '#5C7CBF', 'Strongman': '#C9A84C',
+    'Fallen Angel': '#8B5E3C', 'Spirit': '#4B8C6E', 'Duke of Hell': '#8C4B4B',
+    'Female Demon': '#9B4B8C', 'Spirit of Divination': '#5B8C8C',
+    'Familiar Spirit': '#6B7C8C', 'Spirit of Infirmity': '#7C6B4B',
+  }
+  return map[type] || '#6B6480'
+}
+
+// ── COMPONENTS ───────────────────────────────────────────
+
+function Divider({ label }: { label?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '2.5rem 2.5rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '0 2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, var(--border-bright), transparent)' }} />
-      <span style={{ fontFamily: "'Cinzel', serif", fontSize: '20px', color: 'var(--gold)', opacity: 0.6 }}>✦</span>
+      {label && <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.25em', color: muted, whiteSpace: 'nowrap' as const }}>{label}</span>}
       <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, var(--border-bright), transparent)' }} />
     </div>
   )
 }
 
-/* ── Hero ── */
+// ── HERO ─────────────────────────────────────────────────
 function Hero() {
   return (
-    <section id="hero" style={{ minHeight: '92vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '5rem 2rem 4rem', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(138,80,255,0.09) 0%, transparent 65%), radial-gradient(ellipse 40% 30% at 50% 100%, rgba(201,168,76,0.05) 0%, transparent 60%)', pointerEvents: 'none' }} />
-      <p style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', letterSpacing: '0.3em', color: 'var(--gold)', marginBottom: '1.75rem', animation: 'fadeUp 0.8s 0.1s both' }}>
-        ✦ &nbsp; Staffordtown Deliverance Ministry &nbsp; ✦
-      </p>
-      <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(38px, 7vw, 72px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '0.02em', marginBottom: '1rem', animation: 'fadeUp 0.8s 0.25s both' }}>
-        The{' '}<em style={{ color: 'var(--gold)', fontStyle: 'normal', display: 'block' }}>War Room</em>{' '}Community
-      </h1>
-      <p style={{ fontSize: 'clamp(17px, 2.2vw, 21px)', color: 'var(--text-dim)', fontWeight: 300, fontStyle: 'italic', maxWidth: '580px', margin: '0 auto 2.5rem', animation: 'fadeUp 0.8s 0.4s both' }}>
-        A members-only arsenal for deliverance ministers — searchable demon database, prayer strategies, Scripture-anchored resources, and live training calls.
-      </p>
-      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.5rem', animation: 'fadeUp 0.8s 0.55s both' }}>
-        <a href="#pricing" style={{ background: 'var(--gold)', color: 'var(--deep)', fontFamily: "'Cinzel', serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', border: 'none', padding: '14px 34px', borderRadius: '3px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block', transition: 'background 0.2s, transform 0.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--gold-light)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--gold)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-          Start 30-Day Free Trial
-        </a>
-        <a href="#database" style={{ background: 'transparent', color: 'var(--gold)', fontFamily: "'Cinzel', serif", fontSize: '12px', letterSpacing: '0.08em', border: '1px solid var(--border-bright)', padding: '14px 34px', borderRadius: '3px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block', transition: 'border-color 0.2s, color 0.2s, transform 0.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold-light)'; e.currentTarget.style.color = 'var(--gold-light)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-bright)'; e.currentTarget.style.color = 'var(--gold)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-          Explore the Database
-        </a>
+    <section style={{ minHeight: '94vh', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '5rem 2rem 4rem', position: 'relative', overflow: 'hidden' }}>
+      {/* Background */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,168,76,0.07) 0%, transparent 65%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(138,80,255,0.04) 0%, transparent 60%)', pointerEvents: 'none' }} />
+      {/* Grid */}
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(201,168,76,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.03) 1px, transparent 1px)', backgroundSize: '60px 60px', maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 100%)', pointerEvents: 'none' }} />
+
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: '820px' }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px', animation: 'fadeUp 0.8s 0s both' }}>
+          <img src="/logo.png" alt="War Room Intel" style={{ height: '140px', width: '140px', objectFit: 'contain', filter: 'drop-shadow(0 0 40px rgba(201,168,76,0.3))' }} />
+        </div>
+
+        <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.35em', color: gold, marginBottom: '20px', animation: 'fadeUp 0.8s 0.1s both' }}>
+          ✦ &nbsp; A Ministry of Staffordtown Church · Copperhill, TN &nbsp; ✦
+        </p>
+
+        <h1 style={{ fontFamily: cinzel, fontSize: 'clamp(36px, 7vw, 78px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '0.02em', marginBottom: '20px', animation: 'fadeUp 0.8s 0.2s both' }}>
+          The <em style={{ color: gold, fontStyle: 'normal' }}>War Room</em><br />Intelligence
+        </h1>
+
+        <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', color: textDim, fontWeight: 300, fontStyle: 'italic', fontFamily: crimson, maxWidth: '600px', margin: '0 auto 36px', lineHeight: 1.7, animation: 'fadeUp 0.8s 0.3s both' }}>
+          The most comprehensive spiritual warfare resource available — a searchable demon database, ministry assessment tool, deliverance protocols, and a growing community of warriors.
+        </p>
+
+        {/* CTAs */}
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' as const, justifyContent: 'center', marginBottom: '20px', animation: 'fadeUp 0.8s 0.4s both' }}>
+          <a href="#database" style={{ background: gold, color: deep, fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', textDecoration: 'none', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--gold-light)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = gold; e.currentTarget.style.transform = 'translateY(0)' }}>
+            Search the Database ⚔
+          </a>
+          <a href="/assessment" style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid ${borderBright}`, textDecoration: 'none', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+            Take the Assessment →
+          </a>
+        </div>
+
+        <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: muted, animation: 'fadeUp 0.8s 0.5s both' }}>
+          Free to use · No account required · Membership coming soon
+        </p>
+
+        {/* Stats */}
+        <div style={{ display: 'flex', gap: '40px', justifyContent: 'center', marginTop: '52px', paddingTop: '40px', borderTop: `1px solid ${border}`, flexWrap: 'wrap' as const, animation: 'fadeUp 0.8s 0.55s both' }}>
+          {[
+            { n: '251+', l: 'Database Entries' },
+            { n: 'Free', l: 'To Use' },
+            { n: 'Personal', l: 'Ministry Response' },
+            { n: 'Live', l: 'Community' },
+          ].map(({ n, l }) => (
+            <div key={l} style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 700, color: gold }}>{n}</div>
+              <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.18em', color: muted, marginTop: '4px' }}>{l}</div>
+            </div>
+          ))}
+        </div>
       </div>
-      <p style={{ fontSize: '13px', color: 'var(--muted)', letterSpacing: '0.04em', animation: 'fadeUp 0.8s 0.7s both' }}>
-        30 days free &nbsp;·&nbsp; <span style={{ color: 'var(--gold)' }}>then from $19/month</span> &nbsp;·&nbsp; cancel anytime
-      </p>
     </section>
   )
 }
 
-/* ── Features ── */
+// ── WHAT YOU GET ─────────────────────────────────────────
 function FeaturesSection() {
   return (
-    <section id="features" style={{ padding: '0 2.5rem 4rem' }}>
-      <p style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.25em', color: 'var(--gold)', textAlign: 'center', marginBottom: '0.5rem' }}>The Arsenal</p>
-      <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 600, textAlign: 'center', marginBottom: '0.5rem' }}>Everything You Need for Deliverance Ministry</h2>
-      <p style={{ fontSize: '17px', color: 'var(--text-dim)', fontWeight: 300, fontStyle: 'italic', textAlign: 'center', maxWidth: '500px', margin: '0 auto 2.5rem' }}>One place for every resource, protocol, and community connection.</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1px', background: 'var(--border)', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', maxWidth: '1100px', margin: '0 auto' }}>
-        {features.map((f) => <FeatureCard key={f.name} {...f} />)}
+    <section style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+        <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ What's Inside</p>
+        <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '12px' }}>
+          Built for Those Who Are <em style={{ color: gold, fontStyle: 'normal' }}>Serious About the Fight</em>
+        </h2>
+        <p style={{ fontSize: '17px', color: textDim, fontStyle: 'italic', fontFamily: crimson, maxWidth: '520px', margin: '0 auto' }}>
+          Not theory. Not inspiration content. Real tools for real spiritual warfare.
+        </p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1px', background: border, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+        {FEATURES.map(f => (
+          <div key={f.title} style={{ background: surface, padding: '2rem', transition: 'background 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = surface2)}
+            onMouseLeave={e => (e.currentTarget.style.background = surface)}>
+            <div style={{ fontSize: '26px', marginBottom: '12px' }}>{f.icon}</div>
+            <div style={{ fontFamily: cinzel, fontSize: '13px', fontWeight: 600, color: text, marginBottom: '10px' }}>{f.title}</div>
+            <p style={{ fontSize: '14px', color: textDim, lineHeight: 1.7, fontWeight: 300 }}>{f.desc}</p>
+          </div>
+        ))}
       </div>
     </section>
   )
 }
 
-function FeatureCard({ icon, name, description }: { icon: string; name: string; description: string }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ background: hovered ? 'var(--surface2)' : 'var(--surface)', padding: '2rem 1.75rem', transition: 'background 0.2s', cursor: 'default' }}>
-      <div style={{ fontSize: '22px', marginBottom: '12px' }}>{icon}</div>
-      <div style={{ fontFamily: "'Cinzel', serif", fontSize: '14px', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '8px' }}>{name}</div>
-      <div style={{ fontSize: '15px', color: 'var(--text-dim)', fontWeight: 300, lineHeight: 1.6 }}>{description}</div>
-    </div>
-  )
-}
-
-/* ── Database ── */
-const TYPE_GROUPS: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  'Principality':   { label: 'Principality',  color: '#E08080', bg: 'rgba(200,60,60,0.15)',   border: 'rgba(200,60,60,0.35)' },
-  'Spirit':         { label: 'Spirit',         color: '#B08CF0', bg: 'rgba(138,80,255,0.15)',  border: 'rgba(138,80,255,0.35)' },
-  'Fallen Angel':   { label: 'Fallen Angel',   color: '#93C5FD', bg: 'rgba(59,130,246,0.15)',  border: 'rgba(59,130,246,0.35)' },
-  'Duke of Hell':   { label: 'Duke of Hell',   color: '#F97316', bg: 'rgba(249,115,22,0.13)',  border: 'rgba(249,115,22,0.35)' },
-  'King of Hell':   { label: 'King of Hell',   color: '#F43F5E', bg: 'rgba(244,63,94,0.13)',   border: 'rgba(244,63,94,0.35)' },
-  'Prince of Hell': { label: 'Prince of Hell', color: '#C084FC', bg: 'rgba(192,132,252,0.13)', border: 'rgba(192,132,252,0.35)' },
-}
-
-function getTypeStyle(type: string) {
-  for (const key of Object.keys(TYPE_GROUPS)) {
-    if (type.toLowerCase().includes(key.toLowerCase())) return TYPE_GROUPS[key]
-  }
-  return { label: type, color: '#E8A860', bg: 'rgba(201,140,76,0.13)', border: 'rgba(201,140,76,0.35)' }
-}
-
+// ── DATABASE ─────────────────────────────────────────────
 function DatabaseSection() {
-  const [demons, setDemons] = useState<DemonEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [entries, setEntries] = useState<DemonEntry[]>([])
+  const [filtered, setFiltered] = useState<DemonEntry[]>([])
   const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState('All')
-  const [expanded, setExpanded] = useState<number | null>(null)
-  const [page, setPage] = useState(0)
-  const PAGE_SIZE = 5
+  const [typeFilter, setTypeFilter] = useState('All Types')
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const PER_PAGE = 8
+  const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch('/api/demons')
-      .then(r => {
-        if (!r.ok) throw new Error(`Server error: ${r.status}`)
-        return r.json()
-      })
+      .then(r => r.json())
       .then(data => {
-        if (data.error) throw new Error(data.error)
-        setDemons(data.demons)
+        const demons = data.demons || []
+        setEntries(demons)
+        setFiltered(demons)
         setLoading(false)
       })
-      .catch(err => {
-        setError(err.message)
-        setLoading(false)
-      })
+      .catch(() => setLoading(false))
   }, [])
 
-  const filterGroups = ['All', 'Principality', 'Spirit', 'Fallen Angel', 'Duke of Hell', 'King of Hell', 'Prince of Hell', 'Other']
-
-  const filtered = useMemo(() => {
+  useEffect(() => {
     const q = search.toLowerCase()
-    return demons.filter(entry => {
-      const matchText = !q ||
-        entry.name.toLowerCase().includes(q) ||
-        entry.aka.toLowerCase().includes(q) ||
-        entry.function.toLowerCase().includes(q) ||
-        entry.type.toLowerCase().includes(q)
-      let matchFilter = true
-      if (activeFilter !== 'All') {
-        if (activeFilter === 'Other') {
-          matchFilter = !Object.keys(TYPE_GROUPS).some(k => entry.type.toLowerCase().includes(k.toLowerCase()))
-        } else {
-          matchFilter = entry.type.toLowerCase().includes(activeFilter.toLowerCase())
-        }
-      }
-      return matchText && matchFilter
+    const result = entries.filter(d => {
+      const matchesSearch = !q || d.name.toLowerCase().includes(q) || (d.aka || '').toLowerCase().includes(q) || (d.function || '').toLowerCase().includes(q)
+      const matchesType = typeFilter === 'All Types' || d.type === typeFilter
+      return matchesSearch && matchesType
     })
-  }, [demons, search, activeFilter])
+    setFiltered(result)
+    setPage(1)
+  }, [search, typeFilter, entries])
 
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-
-  const handleSearch = (val: string) => { setSearch(val); setPage(0); setExpanded(null) }
-  const handleFilter = (f: string) => { setActiveFilter(f); setPage(0); setExpanded(null) }
+  const total = filtered.length
+  const totalPages = Math.ceil(total / PER_PAGE)
+  const pageEntries = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   return (
-    <section id="database" style={{ padding: '4rem 2.5rem', background: 'var(--surface)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        <p style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.25em', color: 'var(--gold)', textAlign: 'center', marginBottom: '0.5rem' }}>Master Database</p>
-        <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 600, textAlign: 'center', marginBottom: '0.5rem' }}>The Demon Index</h2>
-        <p style={{ fontSize: '17px', color: 'var(--text-dim)', fontWeight: 300, fontStyle: 'italic', textAlign: 'center', maxWidth: '560px', margin: '0 auto 0.75rem' }}>
-          {loading ? 'Loading live database…' : error ? 'Database unavailable' : `${demons.length} entries — live from Airtable. Search by name, alias, type, or function.`}
-        </p>
-        <p style={{ fontSize: '13px', color: 'var(--muted)', textAlign: 'center', marginBottom: '2rem' }}>
-          Members unlock biblical references, entry points, manifestation patterns & full deliverance protocols.
-        </p>
+    <section id="database" style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '16px', marginBottom: '32px' }}>
+        <div>
+          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '10px' }}>✦ Master Database</p>
+          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 700, color: text, marginBottom: '8px' }}>
+            The <em style={{ color: gold, fontStyle: 'normal' }}>Demon Database</em>
+          </h2>
+          <p style={{ fontSize: '15px', color: textDim, fontStyle: 'italic', fontFamily: crimson }}>
+            {loading ? 'Loading...' : `${total} of ${entries.length} entries shown · Full search available · Detailed fields unlock with membership`}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' as const }}>
+          <a href="/submit-demon" style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '9px 18px', borderRadius: '3px', border: `1px solid ${borderBright}`, color: gold, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            🗡 Submit a Demon
+          </a>
+        </div>
+      </div>
 
-        <div style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-          {/* Toolbar */}
-          <div style={{ background: 'var(--surface2)', padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <input
-              value={search}
-              onChange={e => handleSearch(e.target.value)}
-              placeholder="Search by name, alias, type, or function…"
-              disabled={loading}
-              style={{ width: '100%', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: '4px', padding: '9px 14px', fontFamily: "'Crimson Pro', serif", fontSize: '15px', color: 'var(--text-dim)', outline: 'none', boxSizing: 'border-box', opacity: loading ? 0.5 : 1 }}
-            />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingBottom: '2px', flex: 1 }}>
-                {filterGroups.map(f => (
-                  <button key={f} onClick={() => handleFilter(f)} disabled={loading}
-                    style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.08em', padding: '5px 12px', borderRadius: '3px', border: activeFilter === f ? '1px solid var(--gold)' : '1px solid var(--border)', color: activeFilter === f ? 'var(--gold)' : 'var(--text-dim)', background: activeFilter === f ? 'var(--gold-dim)' : 'transparent', cursor: loading ? 'default' : 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    {f}
-                  </button>
-                ))}
-              </div>
-              {!loading && !error && (
-                <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
-                </span>
-              )}
-            </div>
-          </div>
+      {/* Search & Filter Bar */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' as const }}>
+        <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: muted, fontSize: '14px' }}>⚔</span>
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by name, alias, or function..."
+            style={{ width: '100%', background: surface, border: `1px solid ${border}`, borderRadius: '4px', padding: '11px 14px 11px 38px', fontFamily: crimson, fontSize: '15px', color: text, outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}
+          />
+        </div>
+        <select
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value)}
+          style={{ background: surface, border: `1px solid ${border}`, borderRadius: '4px', padding: '11px 14px', fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.06em', color: textDim, outline: 'none', cursor: 'pointer', minWidth: '160px' }}>
+          {DEMON_TYPES.map(t => <option key={t} value={t} style={{ background: '#13101E' }}>{t}</option>)}
+        </select>
+        {(search || typeFilter !== 'All Types') && (
+          <button onClick={() => { setSearch(''); setTypeFilter('All Types') }}
+            style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '9px 16px', background: 'transparent', border: `1px solid ${border}`, borderRadius: '4px', color: muted, cursor: 'pointer' }}>
+            Clear ×
+          </button>
+        )}
+      </div>
 
+      {/* Membership Coming Soon Banner */}
+      <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: '6px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '14px' }}>🔒</span>
+          <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', color: gold }}>Detailed fields (Scripture, Entry Points, Protocols) unlock with membership</span>
+        </div>
+        <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em', color: muted, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px' }}>MEMBERSHIP COMING SOON</span>
+      </div>
 
-
-          {/* Loading state */}
-          {loading && (
-            <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: '13px', color: 'var(--gold)', letterSpacing: '0.1em', marginBottom: '1rem' }}>
-                ⚔ Loading Intelligence Database…
-              </div>
-              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                {[0, 1, 2].map(i => (
-                  <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--gold)', opacity: 0.4, animation: `pulse 1.2s ${i * 0.2}s ease-in-out infinite` }} />
-                ))}
-              </div>
-              <style>{`@keyframes pulse { 0%,100%{opacity:0.2;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }`}</style>
-            </div>
-          )}
-
-          {/* Error state */}
-          {error && !loading && (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontSize: '14px' }}>
-              <div style={{ color: '#E08080', marginBottom: '8px' }}>⚠ Could not load database</div>
-              <div style={{ fontStyle: 'italic', fontSize: '13px' }}>{error}</div>
-            </div>
-          )}
-
-          {/* Empty search */}
-          {!loading && !error && paginated.length === 0 && (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', fontStyle: 'italic', fontSize: '14px' }}>No entries match your search.</div>
-          )}
-
-          {/* Rows */}
-          {!loading && !error && paginated.map(entry => (
-            <DatabaseRow key={entry.id} entry={entry} isExpanded={expanded === entry.id} onToggle={() => setExpanded(expanded === entry.id ? null : entry.id)} />
+      {/* Database Table */}
+      <div style={{ border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+        {/* Table Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', background: surface2, padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
+          {['Name / Alias', 'Type', 'Function', ''].map(h => (
+            <div key={h} style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: muted }}>{h}</div>
           ))}
-
-          {/* Pagination */}
-          {!loading && !error && totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '14px 16px', borderTop: '1px solid var(--border)', background: 'var(--surface2)' }}>
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.08em', padding: '5px 14px', borderRadius: '3px', border: '1px solid var(--border)', color: page === 0 ? 'var(--muted)' : 'var(--gold)', background: 'transparent', cursor: page === 0 ? 'default' : 'pointer', opacity: page === 0 ? 0.4 : 1 }}>
-                ← Prev
-              </button>
-              <span style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: "'Cinzel', serif" }}>{page + 1} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
-                style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.08em', padding: '5px 14px', borderRadius: '3px', border: '1px solid var(--border)', color: page === totalPages - 1 ? 'var(--muted)' : 'var(--gold)', background: 'transparent', cursor: page === totalPages - 1 ? 'default' : 'pointer', opacity: page === totalPages - 1 ? 0.4 : 1 }}>
-                Next →
-              </button>
-            </div>
-          )}
-
-          {/* CTA banner */}
-          <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid var(--border)', background: 'linear-gradient(90deg, rgba(201,168,76,0.06), rgba(138,80,255,0.06))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: '13px', color: 'var(--gold)', fontWeight: 600, marginBottom: '4px' }}>Unlock the Full Intelligence File</div>
-              <div style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: 300 }}>Members get Scripture references, entry points, manifestation patterns & deliverance protocols for every entry.</div>
-            </div>
-            <a href="#pricing" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', padding: '11px 26px', borderRadius: '3px', background: 'var(--gold)', color: 'var(--deep)', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'background 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'var(--gold)')}>
-              Join — 30 Days Free
-            </a>
-          </div>
         </div>
-      </div>
-    </section>
-  )
-}
 
-function DatabaseRow({ entry, isExpanded, onToggle }: { entry: DemonEntry; isExpanded: boolean; onToggle: () => void }) {
-  const [hovered, setHovered] = useState(false)
-  const ts = getTypeStyle(entry.type)
-  return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
-      <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={onToggle}
-        style={{ padding: '11px 16px', fontSize: '14px', transition: 'background 0.15s', cursor: 'pointer', background: isExpanded ? 'var(--surface2)' : hovered ? 'rgba(201,168,76,0.04)' : 'transparent' }}>
-        {/* Top row: name + type badge + toggle */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: '13px', color: 'var(--text)', fontWeight: 600 }}>{entry.name}</div>
-            {entry.aka && <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.aka}</div>}
+        {loading && (
+          <div style={{ padding: '4rem', textAlign: 'center', fontFamily: cinzel, fontSize: '11px', color: gold, letterSpacing: '0.1em' }}>Loading database...</div>
+        )}
+
+        {!loading && filtered.length === 0 && (
+          <div style={{ padding: '4rem', textAlign: 'center' }}>
+            <div style={{ fontFamily: cinzel, fontSize: '13px', color: gold, marginBottom: '8px' }}>No entries found</div>
+            <p style={{ fontSize: '14px', color: textDim, fontStyle: 'italic' }}>Try a different search term or clear the filter.</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <span style={{ fontSize: '10px', letterSpacing: '0.06em', padding: '3px 8px', borderRadius: '3px', border: `1px solid ${ts.border}`, color: ts.color, background: ts.bg, whiteSpace: 'nowrap', lineHeight: 1.4, display: 'inline-block' }}>
-              {entry.type}
-            </span>
-            <div style={{ color: 'var(--gold)', fontSize: '16px', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(45deg)' : 'rotate(0)', opacity: 0.7 }}>+</div>
-          </div>
-        </div>
-        {/* Function row */}
-        <div style={{ fontSize: '13px', color: 'var(--text-dim)', lineHeight: 1.5 }}>{entry.function}</div>
-      </div>
-      {isExpanded && (
-        <div style={{ padding: '12px 16px 16px', background: 'var(--surface2)', borderTop: '1px solid var(--border)' }}>
-          {/* Manifestation — public */}
-          {entry.manifestation && (
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '10px', fontFamily: "'Cinzel', serif", letterSpacing: '0.1em', color: 'var(--gold)', marginBottom: '6px' }}>⚠ Manifestation Patterns</div>
-              <div style={{ fontSize: '14px', color: 'var(--text-dim)', lineHeight: 1.6, background: 'var(--surface3)', border: '1px solid var(--border)', borderRadius: '4px', padding: '10px 14px' }}>
-                {entry.manifestation}
+        )}
+
+        {pageEntries.map((entry, i) => (
+          <div key={entry.id} style={{ borderBottom: i < pageEntries.length - 1 ? `1px solid ${border}` : 'none' }}>
+            {/* Row */}
+            <div
+              onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', padding: '14px 20px', cursor: 'pointer', transition: 'background 0.15s', alignItems: 'start' }}
+              onMouseEnter={e => (e.currentTarget.style.background = surface)}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: '13px', color: text, fontWeight: 600, marginBottom: '3px' }}>{entry.name}</div>
+                {entry.aka && <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{entry.aka}</div>}
               </div>
+              <div>
+                <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '2px', background: typeColor(entry.type) + '22', color: typeColor(entry.type), border: `1px solid ${typeColor(entry.type)}44` }}>
+                  {entry.type || '—'}
+                </span>
+              </div>
+              <div style={{ fontSize: '13px', color: textDim, lineHeight: 1.5, paddingRight: '8px' }}>
+                {entry.function ? (entry.function.length > 120 ? entry.function.slice(0, 120) + '...' : entry.function) : '—'}
+              </div>
+              <div style={{ textAlign: 'center', color: gold, fontSize: '16px', transition: 'transform 0.2s', transform: expanded === entry.id ? 'rotate(45deg)' : 'rotate(0)' }}>+</div>
             </div>
-          )}
-          {/* Locked member fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-            {['Biblical References', 'Entry Points', 'Deliverance Protocol', 'Source / Origin'].map(label => (
-              <div key={label} style={{ background: 'var(--surface3)', border: '1px solid var(--border)', borderRadius: '4px', padding: '10px 12px' }}>
-                <div style={{ fontSize: '10px', fontFamily: "'Cinzel', serif", letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: '6px' }}>{label}</div>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  {[40, 60, 50, 70].map((w, i) => <div key={i} style={{ height: '8px', width: `${w}%`, background: 'rgba(201,168,76,0.12)', borderRadius: '2px', filter: 'blur(1px)' }} />)}
+
+            {/* Expanded detail */}
+            {expanded === entry.id && (
+              <div style={{ padding: '16px 20px 20px', borderTop: `1px solid ${border}`, background: 'rgba(13,11,20,0.4)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+
+                  {/* Function — always visible */}
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>FUNCTION</div>
+                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.function || 'Not documented'}</p>
+                  </div>
+
+                  {/* Manifestations — always visible */}
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>MANIFESTATIONS</div>
+                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.manifestation || 'Not documented'}</p>
+                  </div>
+
+                  {/* Scripture — locked */}
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SCRIPTURE REFERENCES</div>
+                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: '10px 12px' }}>
+                      <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>🔒 Membership Required</div>
+                      <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Scripture refs unlock with Soldier tier</div>
+                    </div>
+                  </div>
+
+                  {/* Entry Points — locked */}
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>ENTRY POINTS</div>
+                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: '10px 12px' }}>
+                      <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>🔒 Membership Required</div>
+                      <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Entry points unlock with Soldier tier</div>
+                    </div>
+                  </div>
+
+                  {/* Protocol — locked */}
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DELIVERANCE PROTOCOL</div>
+                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '12px' }}>
+                      <div>
+                        <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>🔒 Commander Tier Required</div>
+                        <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Full deliverance protocol unlocks with Commander membership</div>
+                      </div>
+                      <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', whiteSpace: 'nowrap' as const }}>COMING SOON</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit correction */}
+                <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Know more about this entry? Help us improve the database.</span>
+                  <a href={`/submit-demon?suggest=${encodeURIComponent(entry.name)}`}
+                    style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid ${border}`, padding: '5px 14px', borderRadius: '3px', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
+                    🗡 Suggest a Change
+                  </a>
                 </div>
               </div>
-            ))}
+            )}
           </div>
-          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '12px', color: 'var(--muted)', fontStyle: 'italic' }}>🔒 Full intelligence file available to members</span>
-            <a href="#pricing" style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.08em', padding: '5px 14px', borderRadius: '3px', border: '1px solid var(--gold)', color: 'var(--gold)', textDecoration: 'none', transition: 'background 0.2s, color 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--gold)'; e.currentTarget.style.color = 'var(--deep)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--gold)' }}>
-              Unlock Access
+        ))}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' as const }}>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+            style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '8px 16px', background: 'transparent', border: `1px solid ${border}`, borderRadius: '3px', color: page === 1 ? muted : textDim, cursor: page === 1 ? 'default' : 'pointer' }}>
+            ← Prev
+          </button>
+          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+            const p = totalPages <= 7 ? i + 1 : page <= 4 ? i + 1 : page >= totalPages - 3 ? totalPages - 6 + i : page - 3 + i
+            return (
+              <button key={p} onClick={() => setPage(p)}
+                style={{ fontFamily: cinzel, fontSize: '10px', padding: '8px 14px', background: p === page ? gold : 'transparent', border: `1px solid ${p === page ? gold : border}`, borderRadius: '3px', color: p === page ? deep : textDim, cursor: 'pointer' }}>
+                {p}
+              </button>
+            )
+          })}
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+            style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '8px 16px', background: 'transparent', border: `1px solid ${border}`, borderRadius: '3px', color: page === totalPages ? muted : textDim, cursor: page === totalPages ? 'default' : 'pointer' }}>
+            Next →
+          </button>
+          <span style={{ fontFamily: cinzel, fontSize: '9px', color: muted, marginLeft: '8px' }}>{total} entries · Page {page} of {totalPages}</span>
+        </div>
+      )}
+
+      {/* Submit CTA */}
+      <div style={{ marginTop: '32px', background: surface, border: `1px solid ${border}`, borderRadius: '8px', padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '16px' }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: '13px', color: text, fontWeight: 600, marginBottom: '6px' }}>Know a spirit that's not in the database?</div>
+          <p style={{ fontSize: '14px', color: textDim, fontStyle: 'italic', fontFamily: crimson }}>Help us build the most complete spiritual warfare reference available. All submissions are reviewed by our ministry team.</p>
+        </div>
+        <a href="/submit-demon"
+          style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', padding: '12px 24px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', whiteSpace: 'nowrap' as const, transition: 'background 0.2s', flexShrink: 0 }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
+          onMouseLeave={e => (e.currentTarget.style.background = gold)}>
+          🗡 Submit a Demon
+        </a>
+      </div>
+    </section>
+  )
+}
+
+// ── ASSESSMENT CTA ────────────────────────────────────────
+function AssessmentCTA() {
+  return (
+    <section style={{ padding: '2rem 2rem 5rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ background: surface, border: `1px solid ${borderBright}`, borderRadius: '8px', padding: 'clamp(2rem, 5vw, 3.5rem)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 80% at 50% 0%, rgba(201,168,76,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto', gap: '32px', alignItems: 'center' }}>
+          <div>
+            <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Free Ministry Tool</p>
+            <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 34px)', fontWeight: 700, color: text, marginBottom: '12px', lineHeight: 1.2 }}>
+              Take the Free <em style={{ color: gold, fontStyle: 'normal' }}>Ministry Assessment</em>
+            </h2>
+            <p style={{ fontSize: '16px', color: textDim, fontFamily: crimson, fontStyle: 'italic', lineHeight: 1.7, maxWidth: '500px', marginBottom: '20px' }}>
+              A confidential 9-step intake. Our diagnostic engine maps your answers to likely spiritual strongholds. Receive a personal response from our ministry team — free, no account required.
+            </p>
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' as const }}>
+              {['Completely confidential', 'Personal ministry response', 'No account required'].map(item => (
+                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: muted }}>
+                  <span style={{ color: gold, fontSize: '10px' }}>✦</span> {item}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', flexShrink: 0 }}>
+            <a href="/assessment"
+              style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', padding: '14px 28px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', textAlign: 'center', transition: 'background 0.2s', whiteSpace: 'nowrap' as const }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
+              onMouseLeave={e => (e.currentTarget.style.background = gold)}>
+              Take Assessment ⚔
+            </a>
+            <a href="/assessment-board"
+              style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '11px 28px', background: 'transparent', color: gold, textDecoration: 'none', borderRadius: '3px', textAlign: 'center', border: `1px solid ${border}`, transition: 'border-color 0.2s', whiteSpace: 'nowrap' as const }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
+              View Response Board →
             </a>
           </div>
         </div>
-      )}
-    </div>
-  )
-}
-
-/* ── About ── */
-function AboutSection() {
-  return (
-    <section style={{ padding: '5rem 2.5rem', background: 'var(--surface)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ maxWidth: '720px', margin: '0 auto', textAlign: 'center' }}>
-        <p style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.25em', color: 'var(--gold)', marginBottom: '0.5rem' }}>Why This Community</p>
-        <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 600, marginBottom: '1.5rem' }}>Built from the Field</h2>
-        <blockquote style={{ fontSize: 'clamp(19px, 2.5vw, 26px)', fontStyle: 'italic', fontWeight: 300, color: 'var(--text-dim)', lineHeight: 1.6, margin: '1.5rem 0', borderLeft: '3px solid var(--gold)', paddingLeft: '1.5rem', textAlign: 'left' }}>
-          "The Church has the authority. What it's often lacked is the organized intelligence to deploy it."
-        </blockquote>
-        <p style={{ fontSize: '16px', color: 'var(--text-dim)', fontWeight: 300, lineHeight: 1.7, marginBottom: '1rem' }}>
-          The War Room Community was built by a practicing deliverance minister — not a theorist. Every database entry, prayer strategy, and protocol comes from real ministry experience and is anchored in Scripture.
-        </p>
-        <p style={{ fontSize: '16px', color: 'var(--text-dim)', fontWeight: 300, lineHeight: 1.7 }}>
-          This is the resource we wished existed when we started. A living database that grows with every member, every session, every breakthrough.
-        </p>
       </div>
     </section>
   )
 }
 
-/* ── Pricing ── */
+// ── PRICING ───────────────────────────────────────────────
 function PricingSection() {
+  const tiers = [
+    {
+      name: 'Free',
+      price: '$0',
+      period: 'forever',
+      badge: null,
+      features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', '25 database entries visible', 'Basic name & type fields', 'Free protocol PDFs'],
+      locked: ['Full 251 entry database', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
+      btn: 'Coming Soon',
+      featured: false,
+    },
+    {
+      name: 'Soldier',
+      price: '$19',
+      period: '/month',
+      badge: null,
+      features: ['Everything in Free', 'Full database — 251 entries', 'Scripture & entry point fields', 'Soldier protocol PDFs (5)', 'Case studies community space', 'Monthly group prayer call'],
+      locked: ['All database fields', "Commander's Circle", 'Bi-weekly calls'],
+      btn: 'Coming Soon',
+      featured: false,
+    },
+    {
+      name: 'Commander',
+      price: '$39',
+      period: '/month',
+      badge: 'Most Popular',
+      features: ['Everything in Soldier', 'All database fields unlocked', 'Full protocol PDF library', 'Personal assessment response', "Commander's Circle space", 'Bi-weekly group call', 'Freemasonry protocol PDF'],
+      locked: ['Weekly intimate calls'],
+      btn: 'Coming Soon',
+      featured: true,
+    },
+    {
+      name: 'General',
+      price: '$97',
+      period: '/month',
+      badge: null,
+      features: ['Everything in Commander', 'Leadership PDF library (17)', 'Weekly intimate group call', 'Direct ministry access', "General's Table space", 'Ministry certification track', 'Priority assessment response'],
+      locked: [],
+      btn: 'Coming Soon',
+      featured: false,
+    },
+  ]
+
   return (
-    <section id="pricing" style={{ padding: '5rem 2.5rem' }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        <p style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.25em', color: 'var(--gold)', textAlign: 'center', marginBottom: '0.5rem' }}>Membership</p>
-        <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 600, textAlign: 'center', marginBottom: '0.5rem' }}>Join the War Room</h2>
-        <p style={{ fontSize: '17px', color: 'var(--text-dim)', fontWeight: 300, fontStyle: 'italic', textAlign: 'center', maxWidth: '500px', margin: '0 auto 2.5rem' }}>All plans include a full 30-day free trial. No charge until day 31.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-          {plans.map(plan => <PlanCard key={plan.id} plan={plan} />)}
+    <section id="pricing" style={{ padding: '5rem 2rem', background: 'var(--surface)' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Coming soon banner */}
+        <div style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '14px 20px', marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' as const }}>
+          <span style={{ fontSize: '20px' }}>⚔</span>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, color: gold, letterSpacing: '0.1em', marginBottom: '4px' }}>MEMBERSHIP LAUNCHING SOON</div>
+            <div style={{ fontSize: '14px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>
+              We are building out the full membership platform. The database, assessment, and response board are fully available now — free, no account needed.
+              Email <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none' }}>exorcist@warroomintel.com</a> to be notified when we launch.
+            </div>
+          </div>
         </div>
+
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Membership</p>
+          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '12px' }}>
+            Choose Your <em style={{ color: gold, fontStyle: 'normal' }}>Level of Access</em>
+          </h2>
+          <p style={{ fontSize: '17px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>30-day free trial on all paid tiers · Cancel anytime · No hidden fees</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0', border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+          {tiers.map((tier, i) => (
+            <div key={tier.name} style={{ padding: '2rem 1.75rem', background: tier.featured ? surface2 : deep, borderRight: i < tiers.length - 1 ? `1px solid ${border}` : 'none', position: 'relative' }}>
+              {tier.badge && (
+                <div style={{ position: 'absolute', top: '-1px', left: '50%', transform: 'translateX(-50%)', background: gold, color: deep, fontFamily: cinzel, fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 14px', borderRadius: '0 0 4px 4px' }}>
+                  {tier.badge}
+                </div>
+              )}
+              {tier.featured && <div style={{ position: 'absolute', inset: 0, border: `2px solid ${gold}`, borderRadius: '0', pointerEvents: 'none' }} />}
+
+              <div style={{ fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.12em', color: gold, marginBottom: '8px' }}>{tier.name}</div>
+              <div style={{ marginBottom: '4px' }}>
+                <span style={{ fontFamily: cinzel, fontSize: '38px', fontWeight: 700, color: text }}>{tier.price}</span>
+                <span style={{ fontSize: '14px', color: muted, marginLeft: '4px' }}>{tier.period}</span>
+              </div>
+              <p style={{ fontSize: '12px', color: gold, fontStyle: 'italic', marginBottom: '20px', fontFamily: crimson }}>
+                {tier.price === '$0' ? 'No card required' : '30 days free to start'}
+              </p>
+
+              <div style={{ height: '1px', background: border, margin: '0 0 16px' }} />
+
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+                {tier.features.map(f => (
+                  <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.4 }}>
+                    <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '4px' }}>✦</span>{f}
+                  </li>
+                ))}
+                {tier.locked.map(f => (
+                  <li key={f} style={{ fontSize: '13px', color: muted, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.4, opacity: 0.5 }}>
+                    <span style={{ fontSize: '8px', flexShrink: 0, marginTop: '4px' }}>○</span>{f}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Coming Soon button */}
+              <div style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.2)`, background: 'rgba(201,168,76,0.05)', color: 'rgba(201,168,76,0.4)', textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'not-allowed' }}>
+                ⚔ Coming Soon
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: muted, fontFamily: crimson, fontStyle: 'italic' }}>
+          Want to be notified when membership launches? Email{' '}
+          <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none' }}>exorcist@warroomintel.com</a>
+        </p>
       </div>
     </section>
   )
 }
 
-function PlanCard({ plan }: { plan: typeof plans[0] }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ border: plan.featured ? '1px solid var(--gold)' : hovered ? '1px solid rgba(201,168,76,0.35)' : '1px solid var(--border)', borderRadius: '6px', padding: '2rem 1.75rem', background: plan.featured ? 'var(--surface2)' : 'var(--surface)', position: 'relative', transition: 'border-color 0.2s' }}>
-      {plan.featured && <div style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'var(--gold)', color: 'var(--deep)', fontFamily: "'Cinzel', serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 14px', borderRadius: '2px', whiteSpace: 'nowrap' }}>Most Popular</div>}
-      <div style={{ fontFamily: "'Cinzel', serif", fontSize: '12px', letterSpacing: '0.1em', color: 'var(--gold)', marginBottom: '12px' }}>{plan.tier}</div>
-      <div style={{ fontSize: '44px', fontWeight: 300, lineHeight: 1, color: 'var(--text)' }}>
-        <sup style={{ fontSize: '20px', verticalAlign: 'super', fontWeight: 400 }}>$</sup>{plan.price}<sub style={{ fontSize: '15px', color: 'var(--text-dim)' }}>/mo</sub>
-      </div>
-      <p style={{ fontSize: '13px', color: 'var(--gold)', fontStyle: 'italic', margin: '8px 0 18px' }}>30 days free to start</p>
-      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1.75rem' }}>
-        {plan.features.map(f => (
-          <li key={f} style={{ fontSize: '14px', color: 'var(--text-dim)', padding: '6px 0', borderBottom: '1px solid rgba(201,168,76,0.08)', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '8px', color: 'var(--gold)', marginTop: '5px', flexShrink: 0 }}>✦</span>{f}
-          </li>
-        ))}
-      </ul>
-      <a href={plan.stripeUrl} target="_blank" rel="noopener noreferrer" style={{ width: '100%', padding: '12px', fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', borderRadius: '3px', border: plan.featured ? 'none' : '1px solid var(--border-bright)', background: plan.featured ? 'var(--gold)' : 'transparent', color: plan.featured ? 'var(--deep)' : 'var(--gold)', transition: 'all 0.2s', textDecoration: 'none', display: 'block', textAlign: 'center', boxSizing: 'border-box' }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
-        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
-        Start Free Trial →
-      </a>
-    </div>
-  )
-}
-
-/* ── FAQ ── */
+// ── FAQ ───────────────────────────────────────────────────
 function FAQSection() {
-  const [openIdx, setOpenIdx] = useState<number | null>(null)
+  const [open, setOpen] = useState<number | null>(null)
   return (
-    <section id="faq" style={{ padding: '5rem 2.5rem' }}>
-      <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-        <p style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.25em', color: 'var(--gold)', textAlign: 'center', marginBottom: '0.5rem' }}>Questions</p>
-        <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 600, textAlign: 'center', marginBottom: '2rem' }}>Common Questions</h2>
-        {faqItems.map((item, i) => (
-          <div key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-            <button onClick={() => setOpenIdx(openIdx === i ? null : i)}
-              style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', padding: '1.25rem 0', fontFamily: "'Cinzel', serif", fontSize: '14px', fontWeight: 600, color: 'var(--text)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', letterSpacing: '0.03em' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}>
-              {item.q}
-              <span style={{ color: 'var(--gold)', fontSize: '18px', flexShrink: 0, transition: 'transform 0.2s', transform: openIdx === i ? 'rotate(45deg)' : 'rotate(0)', display: 'inline-block' }}>+</span>
+    <section id="faq" style={{ padding: '5rem 2rem', maxWidth: '800px', margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Common Questions</p>
+        <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 700, color: text }}>
+          Questions & <em style={{ color: gold, fontStyle: 'normal' }}>Answers</em>
+        </h2>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+        {FAQ.map((item, i) => (
+          <div key={i} style={{ border: `1px solid ${open === i ? borderBright : border}`, borderRadius: '6px', overflow: 'hidden', transition: 'border-color 0.2s' }}>
+            <button onClick={() => setOpen(open === i ? null : i)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', gap: '16px', textAlign: 'left' as const }}>
+              <span style={{ fontFamily: cinzel, fontSize: '12px', fontWeight: 600, color: open === i ? gold : text, letterSpacing: '0.04em', lineHeight: 1.4 }}>{item.q}</span>
+              <span style={{ color: gold, fontSize: '20px', opacity: 0.7, flexShrink: 0, transition: 'transform 0.2s', transform: open === i ? 'rotate(45deg)' : 'rotate(0)', display: 'inline-block' }}>+</span>
             </button>
-            <div style={{ fontSize: '15px', color: 'var(--text-dim)', fontWeight: 300, lineHeight: 1.7, maxHeight: openIdx === i ? '300px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease, padding 0.3s', paddingBottom: openIdx === i ? '1.25rem' : '0' }}>
-              {item.a}
-            </div>
+            {open === i && (
+              <div style={{ padding: '4px 20px 20px', borderTop: `1px solid ${border}` }}>
+                <p style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, fontFamily: crimson, margin: 0 }}>{item.a}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -414,40 +605,155 @@ function FAQSection() {
   )
 }
 
-/* ── Footer ── */
+// ── ABOUT ─────────────────────────────────────────────────
+function AboutSection() {
+  return (
+    <section style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
+        <div>
+          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ About This Ministry</p>
+          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 38px)', fontWeight: 700, color: text, marginBottom: '20px', lineHeight: 1.15 }}>
+            Built by Ministers,<br /><em style={{ color: gold, fontStyle: 'normal' }}>For Ministers</em>
+          </h2>
+          <p style={{ fontSize: '16px', color: textDim, fontFamily: crimson, fontStyle: 'italic', lineHeight: 1.8, marginBottom: '16px' }}>
+            War Room Intel was born out of frustration with the lack of practical, organized spiritual warfare resources available to ministers on the front lines.
+          </p>
+          <p style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, marginBottom: '20px' }}>
+            We are a ministry of Staffordtown Church in Copperhill, Tennessee. Everything here — the database, the assessment tool, the protocols — was built from real ministry experience. We believe in naming what you're dealing with, commanding it by name, and walking in the freedom Christ purchased.
+          </p>
+          <p style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, marginBottom: '28px' }}>
+            This is not academic theology. This is field-tested spiritual warfare intelligence.
+          </p>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' as const }}>
+            <a href="/assessment" style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', padding: '12px 24px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', transition: 'background 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
+              onMouseLeave={e => (e.currentTarget.style.background = gold)}>
+              Take Assessment ⚔
+            </a>
+            <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em', padding: '12px 24px', background: 'transparent', color: gold, textDecoration: 'none', border: `1px solid ${border}`, borderRadius: '3px', transition: 'border-color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
+              Staffordtown Church →
+            </a>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {[
+            { n: '251+', l: 'Documented Spirits', sub: 'And growing' },
+            { n: '7', l: 'Assessment Categories', sub: 'Comprehensive intake' },
+            { n: 'Free', l: 'Ministry Assessment', sub: 'No account needed' },
+            { n: 'Personal', l: 'Ministry Response', sub: 'From our team' },
+          ].map(({ n, l, sub }) => (
+            <div key={l} style={{ background: surface, border: `1px solid ${border}`, borderRadius: '6px', padding: '1.5rem', textAlign: 'center' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 3vw, 34px)', fontWeight: 700, color: gold, marginBottom: '6px' }}>{n}</div>
+              <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', color: text, marginBottom: '4px' }}>{l}</div>
+              <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic', fontFamily: crimson }}>{sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── FOOTER ────────────────────────────────────────────────
 function Footer() {
   return (
-    <footer style={{ borderTop: '1px solid var(--border)', padding: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center' }}>
-      <div style={{ fontFamily: "'Cinzel', serif", fontSize: '14px', fontWeight: 600, letterSpacing: '0.15em', color: 'var(--gold)' }}>⚔ The War Room Community</div>
-      <nav style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {['Arsenal', 'Database', 'Membership', 'FAQ', 'Privacy', 'Terms', 'Contact'].map(label => (
-          <a key={label} href={`#${label.toLowerCase()}`}
-            style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.1em', color: 'var(--muted)', textDecoration: 'none', transition: 'color 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
-            {label}
-          </a>
-        ))}
-      </nav>
-      <p style={{ fontSize: '12px', color: 'var(--muted)' }}>© 2025 The War Room Community · Staffordtown Church · Built for Deliverance Ministry</p>
+    <footer style={{ borderTop: `1px solid ${border}`, padding: '3rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' as const }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <img src="/logo.png" alt="War Room Intel" style={{ height: '40px', width: '40px', objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: '12px', fontWeight: 600, color: gold, letterSpacing: '0.12em' }}>WAR ROOM INTEL</div>
+              <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.2em', color: muted }}>SPIRITUAL WARFARE</div>
+            </div>
+          </div>
+          <p style={{ fontSize: '13px', color: muted, lineHeight: 1.7, maxWidth: '260px', fontFamily: crimson, fontStyle: 'italic', marginBottom: '12px' }}>
+            A spiritual warfare ministry resource. Not a substitute for professional medical or psychological care.
+          </p>
+          <p style={{ fontSize: '12px', color: muted, lineHeight: 1.6 }}>
+            A ministry of <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer" style={{ color: gold, textDecoration: 'none' }}>Staffordtown Church</a><br />
+            Copperhill, TN · Tennessee, USA
+          </p>
+        </div>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Ministry Tools</div>
+          {[
+            { label: 'Demon Database', href: '#database' },
+            { label: 'Take Assessment', href: '/assessment' },
+            { label: 'Response Board', href: '/assessment-board' },
+            { label: 'Submit a Demon', href: '/submit-demon' },
+            { label: 'Scripture Arsenal', href: '/arsenal' },
+          ].map(({ label, href }) => (
+            <div key={label} style={{ marginBottom: '8px' }}>
+              <a href={href} style={{ fontSize: '13px', color: muted, textDecoration: 'none', transition: 'color 0.2s', fontFamily: crimson }}
+                onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
+                {label}
+              </a>
+            </div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Membership</div>
+          {['Free Tier — Coming Soon', 'Soldier $19/mo — Coming Soon', 'Commander $39/mo — Coming Soon', 'General $97/mo — Coming Soon'].map(item => (
+            <div key={item} style={{ marginBottom: '8px', fontSize: '13px', color: muted, fontFamily: crimson }}>{item}</div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Contact</div>
+          <div style={{ marginBottom: '8px' }}>
+            <a href="mailto:exorcist@warroomintel.com" style={{ fontSize: '13px', color: muted, textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = gold)}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
+              exorcist@warroomintel.com
+            </a>
+          </div>
+          <div style={{ marginBottom: '8px' }}>
+            <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: muted, textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = gold)}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
+              churchonfire.com
+            </a>
+          </div>
+          <div style={{ marginTop: '16px', fontSize: '12px', color: muted, fontFamily: cinzel, letterSpacing: '0.06em' }}>
+            Membership Inquiries:<br />
+            <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none', fontSize: '11px' }}>
+              exorcist@warroomintel.com
+            </a>
+          </div>
+        </div>
+      </div>
+      <div style={{ borderTop: `1px solid ${border}`, paddingTop: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '12px' }}>
+        <p style={{ fontSize: '12px', color: muted, fontFamily: crimson, fontStyle: 'italic' }}>
+          © {new Date().getFullYear()} War Room Intel · Staffordtown Church · All rights reserved
+        </p>
+        <p style={{ fontSize: '12px', color: muted, fontFamily: crimson, fontStyle: 'italic', maxWidth: '400px', textAlign: 'right' as const }}>
+          War Room Intel is a spiritual ministry resource only and does not provide medical, psychological, or psychiatric services.
+        </p>
+      </div>
     </footer>
   )
 }
 
-/* ── Page ── */
+// ── PAGE ─────────────────────────────────────────────────
 function WarRoomHome() {
   return (
     <div>
       <Hero />
-      <Ornament />
+      <Divider label="✦ What's Inside ✦" />
       <FeaturesSection />
-      <Ornament />
+      <Divider label="✦ The Database ✦" />
       <DatabaseSection />
-      <Ornament />
+      <Divider label="✦ Ministry Assessment ✦" />
+      <AssessmentCTA />
+      <Divider label="✦ About ✦" />
       <AboutSection />
-      <Ornament />
+      <Divider label="✦ Membership ✦" />
       <PricingSection />
-      <Ornament />
+      <Divider label="✦ Questions ✦" />
       <FAQSection />
       <Footer />
     </div>
