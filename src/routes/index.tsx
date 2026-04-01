@@ -86,7 +86,7 @@ function Hero() {
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '820px' }}>
         {/* Logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px', animation: 'fadeUp 0.8s 0s both' }}>
-          <img src="/logo.png" alt="War Room Intel" style={{ height: '140px', width: '140px', objectFit: 'contain', filter: 'drop-shadow(0 0 40px rgba(201,168,76,0.3))' }} />
+          <img src="/logo.png" alt="War Room Intel" style={{ height: '140px', width: '140px', objectFit: 'contain', background: 'transparent', filter: 'drop-shadow(0 0 40px rgba(201,168,76,0.3))' }} />
         </div>
 
         <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.35em', color: gold, marginBottom: '20px', animation: 'fadeUp 0.8s 0.1s both' }}>
@@ -664,7 +664,7 @@ function Footer() {
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' as const }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-            <img src="/logo.png" alt="War Room Intel" style={{ height: '40px', width: '40px', objectFit: 'contain' }} />
+            <img src="/logo.png" alt="War Room Intel" style={{ height: '40px', width: '40px', objectFit: 'contain', background: 'transparent' }} />
             <div>
               <div style={{ fontFamily: cinzel, fontSize: '12px', fontWeight: 600, color: gold, letterSpacing: '0.12em' }}>WAR ROOM INTEL</div>
               <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.2em', color: muted }}>SPIRITUAL WARFARE</div>
