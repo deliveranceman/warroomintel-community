@@ -96,12 +96,12 @@ export function Header() {
       }}>
 
         {/* Logo */}
-        <a href="/" style={{
-          fontFamily: cinzel, fontSize: '12px', fontWeight: 600,
-          letterSpacing: '0.12em', color: gold, textDecoration: 'none',
-          flexShrink: 0, whiteSpace: 'nowrap',
-        }}>
-          ⚔ THE WAR ROOM
+        <a href="/" style={{ textDecoration: 'none', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src="/logo.png" alt="War Room Intel" style={{ height: '44px', width: '44px', objectFit: 'contain', background: 'transparent' }} />
+          <div style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 600, letterSpacing: '0.12em', color: gold, lineHeight: 1.3 }}>
+            <div>WAR ROOM</div>
+            <div style={{ fontSize: '8px', letterSpacing: '0.22em', color: 'rgba(201,168,76,0.65)', fontWeight: 400 }}>INTEL</div>
+          </div>
         </a>
 
         {/* ── Desktop Nav ── */}
@@ -155,6 +155,7 @@ export function Header() {
                 {[
                   { href: '/assessment', icon: '📋', label: 'Take the Assessment', sub: 'Ministry intake form' },
                   { href: '/assessment-board', icon: '⚔', label: 'Response Board', sub: 'Ministry responses' },
+                  { href: '/submit-demon', icon: '🗡', label: 'Submit a Demon', sub: 'Add to the database' },
                 ].map((item, i) => (
                   <a key={item.href} href={item.href} onClick={closeAll} style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
@@ -293,7 +294,8 @@ export function Header() {
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '14px 1.5rem 14px 2.5rem',
                   fontFamily: cinzel, fontSize: '12px', letterSpacing: '0.07em',
-                  color: textDim, textDecoration: 'none', transition: 'color 0.2s',
+                  color: textDim, textDecoration: 'none',
+                  borderBottom: `1px solid ${border}`, transition: 'color 0.2s',
                 }}
                   onMouseEnter={e => (e.currentTarget.style.color = gold)}
                   onMouseLeave={e => (e.currentTarget.style.color = textDim)}>
@@ -301,6 +303,20 @@ export function Header() {
                   <div>
                     <div>Response Board</div>
                     <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Ministry responses</div>
+                  </div>
+                </a>
+                <a href="/submit-demon" onClick={closeAll} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '14px 1.5rem 14px 2.5rem',
+                  fontFamily: cinzel, fontSize: '12px', letterSpacing: '0.07em',
+                  color: textDim, textDecoration: 'none', transition: 'color 0.2s',
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                  onMouseLeave={e => (e.currentTarget.style.color = textDim)}>
+                  <span style={{ fontSize: '14px' }}>🗡</span>
+                  <div>
+                    <div>Submit a Demon</div>
+                    <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Add to the database</div>
                   </div>
                 </a>
               </div>
