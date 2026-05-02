@@ -22,7 +22,7 @@ interface DemonEntry {
 const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
 
 const FEATURES = [
-  { icon: '⚔', title: 'Master Demon Database', desc: '251+ documented spirits — names, aliases, types, functions, and manifestations. Free members see full entries. Locked fields unlock with membership.' },
+  { icon: '⚔', title: 'Master Demon Database', desc: 'A growing database of documented spirits — names, aliases, types, functions, and manifestations. Free members see full entries. Detailed fields unlock with membership.' },
   { icon: '📋', title: 'Ministry Assessment Tool', desc: 'A confidential 9-step intake wizard. Submit your situation and receive a personal response from our deliverance team.' },
   { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman — Freemasonry, soul ties, occult doorways, lust, addiction and more.' },
   { icon: '🗣', title: 'Live Ministry Calls', desc: 'Monthly group calls for Soldier members. Bi-weekly Q&A for Commander. Weekly intimate sessions for General members.' },
@@ -122,7 +122,7 @@ function Hero() {
         {/* Stats */}
         <div style={{ display: 'flex', gap: '40px', justifyContent: 'center', marginTop: '52px', paddingTop: '40px', borderTop: `1px solid ${border}`, flexWrap: 'wrap' as const, animation: 'fadeUp 0.8s 0.55s both' }}>
           {[
-            { n: '251+', l: 'Database Entries' },
+            { n: 'Growing', l: 'Database Entries' },
             { n: 'Free', l: 'To Use' },
             { n: 'Personal', l: 'Ministry Response' },
             { n: 'Live', l: 'Community' },
@@ -215,7 +215,7 @@ function DatabaseSection() {
             The <em style={{ color: gold, fontStyle: 'normal' }}>Demon Database</em>
           </h2>
           <p style={{ fontSize: '15px', color: textDim, fontStyle: 'italic', fontFamily: crimson }}>
-            {loading ? 'Loading...' : `${total} of ${entries.length} entries shown · Full search available · Detailed fields unlock with membership`}
+            {loading ? 'Loading entries...' : `${total} of ${entries.length} entries · Searchable by name, alias, and function · Detailed fields unlock with membership`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' as const }}>
@@ -425,7 +425,7 @@ function AssessmentCTA() {
               Take the Free <em style={{ color: gold, fontStyle: 'normal' }}>Ministry Assessment</em>
             </h2>
             <p style={{ fontSize: '16px', color: textDim, fontFamily: crimson, fontStyle: 'italic', lineHeight: 1.7, maxWidth: '500px', marginBottom: '20px' }}>
-              A confidential 9-step intake. Our diagnostic engine maps your answers to likely spiritual strongholds. Receive a personal response from our ministry team — free, no account required.
+              A confidential 9-step ministry intake. Your answers are reviewed by our team and mapped to likely spiritual strongholds. Receive a personal response from a real minister — free, no account required.
             </p>
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' as const }}>
               {['Completely confidential', 'Personal ministry response', 'No account required'].map(item => (
@@ -464,7 +464,7 @@ function PricingSection() {
       period: 'forever',
       badge: null,
       features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', '25 database entries visible', 'Basic name & type fields', 'Free protocol PDFs'],
-      locked: ['Full 251 entry database', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
+      locked: ['Full database access', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
       btn: 'Coming Soon',
       featured: false,
     },
@@ -473,7 +473,7 @@ function PricingSection() {
       price: '$19',
       period: '/month',
       badge: null,
-      features: ['Everything in Free', 'Full database — 251 entries', 'Scripture & entry point fields', 'Soldier protocol PDFs (5)', 'Case studies community space', 'Monthly group prayer call'],
+      features: ['Everything in Free', 'Full database access — all entries', 'Scripture & entry point fields', 'Soldier protocol PDFs (5)', 'Case studies community space', 'Monthly group prayer call'],
       locked: ['All database fields', "Commander's Circle", 'Bi-weekly calls'],
       btn: 'Coming Soon',
       featured: false,
@@ -640,7 +640,7 @@ function AboutSection() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {[
-            { n: '251+', l: 'Documented Spirits', sub: 'And growing' },
+            { n: 'Growing', l: 'Documented Spirits', sub: 'New entries added regularly' },
             { n: '7', l: 'Assessment Categories', sub: 'Comprehensive intake' },
             { n: 'Free', l: 'Ministry Assessment', sub: 'No account needed' },
             { n: 'Personal', l: 'Ministry Response', sub: 'From our team' },
