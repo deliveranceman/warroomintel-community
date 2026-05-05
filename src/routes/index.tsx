@@ -581,11 +581,11 @@ function PricingSection() {
               </ul>
 
               {/* Join button */}
-              <a href={plan.url} target="_blank" rel="noopener noreferrer"
-                style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', borderRadius: '3px', border: plan.featured ? 'none' : `1px solid ${borderBright}`, background: plan.featured ? gold : 'transparent', color: plan.featured ? deep : gold, textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'all 0.2s' }}
+              <a href={tier.url} target="_blank" rel="noopener noreferrer"
+                style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', borderRadius: '3px', border: tier.featured ? 'none' : `1px solid ${borderBright}`, background: tier.featured ? gold : 'transparent', color: tier.featured ? deep : gold, textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'all 0.2s' }}
                 onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
-                {plan.btn} ⚔
+                {tier.btn} ⚔
               </a>
             </div>
           ))}
