@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
+const MN_URL = 'https://community.warroomintel.com'
 const gold = '#C9A84C'
 const goldLight = '#E8C97A'
 const goldDim = 'rgba(201,168,76,0.12)'
@@ -112,6 +113,14 @@ export function Header() {
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#features', 'Arsenal')}</li>
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#database', 'Database')}</li>
 
+          <li style={{ display: 'flex', alignItems: 'center' }}>
+            <a href={MN_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: gold, textDecoration: 'none', padding: '6px 14px', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: '3px', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.1)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+              ⚔ Community
+            </a>
+          </li>
+
           {/* Assessment dropdown */}
           <li ref={dropdownRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <button
@@ -157,7 +166,7 @@ export function Header() {
                   { href: '/assessment-board', icon: '⚔', label: 'Response Board', sub: 'Ministry responses' },
                   { href: '/submit-demon', icon: '🗡', label: 'Submit a Demon', sub: 'Add to the database' },
                 ].map((item, i) => (
-                  <a key={item.href} href={item.href} onClick={closeAll} style={{
+                  <a key={item.href} href={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined} onClick={closeAll} style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     padding: '13px 18px', fontFamily: cinzel, fontSize: '11px',
                     letterSpacing: '0.07em', color: textDim, textDecoration: 'none',
@@ -192,6 +201,15 @@ export function Header() {
           onMouseEnter={e => (e.currentTarget.style.background = goldLight)}
           onMouseLeave={e => (e.currentTarget.style.background = gold)}>
           Join Now
+        </a>
+
+        {/* ── Login button ── */}
+        <a href={MN_URL} target="_blank" rel="noopener noreferrer"
+          className="wr-nav-desktop"
+          style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: '#C9A84C', textDecoration: 'none', padding: '8px 16px', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '3px', whiteSpace: 'nowrap' as const, transition: 'all 0.2s', flexShrink: 0 }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          Login
         </a>
 
         {/* ── Hamburger ── */}
