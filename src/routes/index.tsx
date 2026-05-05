@@ -18,6 +18,14 @@ interface DemonEntry {
   protocol?: string
 }
 
+// ── MIGHTY NETWORKS JOIN URLS ───────────────────────────
+// Replace these with your actual Mighty Networks plan join URLs
+const MN_FREE_URL = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=manual'
+const MN_SOLDIER_URL = 'https://community.warroomintel.com/plans/1979759?bundle_token=67933c7357dbc20d893d3d40e08332d5&utm_source=manual'
+const MN_COMMANDER_URL = 'https://community.warroomintel.com/plans/1979761?bundle_token=1645d5abf26050d4d3843a333a24f203&utm_source=manual'
+const MN_GENERAL_URL = 'https://community.warroomintel.com/plans/1979756?bundle_token=09d939d5178febbef62069d50f6089ea&utm_source=manual'
+const MN_LOGIN_URL = 'https://community.warroomintel.com'
+
 // ── CONSTANTS ────────────────────────────────────────────
 const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
 
@@ -112,6 +120,11 @@ function Hero() {
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
             Take the Assessment →
+          </a>
+          <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer" style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.3)`, textDecoration: 'none', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+            Community Login →
           </a>
         </div>
 
@@ -465,7 +478,8 @@ function PricingSection() {
       badge: null,
       features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', '25 database entries visible', 'Basic name & type fields', 'Free protocol PDFs'],
       locked: ['Full database access', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
-      btn: 'Coming Soon',
+      btn: 'Join Free',
+      url: MN_FREE_URL,
       featured: false,
     },
     {
@@ -475,7 +489,8 @@ function PricingSection() {
       badge: null,
       features: ['Everything in Free', 'Full database access — all entries', 'Scripture & entry point fields', 'Soldier protocol PDFs (5)', 'Case studies community space', 'Monthly group prayer call'],
       locked: ['All database fields', "Commander's Circle", 'Bi-weekly calls'],
-      btn: 'Coming Soon',
+      btn: 'Start Free Trial',
+      url: MN_SOLDIER_URL,
       featured: false,
     },
     {
@@ -485,7 +500,8 @@ function PricingSection() {
       badge: 'Most Popular',
       features: ['Everything in Soldier', 'All database fields unlocked', 'Full protocol PDF library', 'Personal assessment response', "Commander's Circle space", 'Bi-weekly group call', 'Freemasonry protocol PDF'],
       locked: ['Weekly intimate calls'],
-      btn: 'Coming Soon',
+      btn: 'Start Free Trial',
+      url: MN_COMMANDER_URL,
       featured: true,
     },
     {
@@ -495,7 +511,8 @@ function PricingSection() {
       badge: null,
       features: ['Everything in Commander', 'Leadership PDF library (17)', 'Weekly intimate group call', 'Direct ministry access', "General's Table space", 'Ministry certification track', 'Priority assessment response'],
       locked: [],
-      btn: 'Coming Soon',
+      btn: 'Start Free Trial',
+      url: MN_GENERAL_URL,
       featured: false,
     },
   ]
@@ -504,15 +521,21 @@ function PricingSection() {
     <section id="pricing" style={{ padding: '5rem 2rem', background: 'var(--surface)' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Coming soon banner */}
-        <div style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '14px 20px', marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' as const }}>
-          <span style={{ fontSize: '20px' }}>⚔</span>
-          <div>
-            <div style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, color: gold, letterSpacing: '0.1em', marginBottom: '4px' }}>MEMBERSHIP LAUNCHING SOON</div>
-            <div style={{ fontSize: '14px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>
-              We are building out the full membership platform. The database, assessment, and response board are fully available now — free, no account needed.
-              Email <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none' }}>exorcist@warroomintel.com</a> to be notified when we launch.
+        <div style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '14px 20px', marginBottom: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <span style={{ fontSize: '20px' }}>⚔</span>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, color: gold, letterSpacing: '0.1em', marginBottom: '4px' }}>THE COMMUNITY IS LIVE</div>
+              <div style={{ fontSize: '14px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>
+                All plans include a 30-day free trial. The Free tier requires no card. Join the community at{' '}
+                <a href={MN_FREE_URL} target="_blank" rel="noopener noreferrer" style={{ color: gold, textDecoration: 'none' }}>community.warroomintel.com</a>
+              </div>
             </div>
           </div>
+          <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer"
+            style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', padding: '10px 20px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+            Login to Community →
+          </a>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
@@ -557,10 +580,13 @@ function PricingSection() {
                 ))}
               </ul>
 
-              {/* Coming Soon button */}
-              <div style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.2)`, background: 'rgba(201,168,76,0.05)', color: 'rgba(201,168,76,0.4)', textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'not-allowed' }}>
-                ⚔ Coming Soon
-              </div>
+              {/* Join button */}
+              <a href={plan.url} target="_blank" rel="noopener noreferrer"
+                style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', borderRadius: '3px', border: plan.featured ? 'none' : `1px solid ${borderBright}`, background: plan.featured ? gold : 'transparent', color: plan.featured ? deep : gold, textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
+                {plan.btn} ⚔
+              </a>
             </div>
           ))}
         </div>
@@ -636,6 +662,12 @@ function AboutSection() {
               onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
               Staffordtown Church →
             </a>
+            <a href={MN_FREE_URL} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em', padding: '12px 24px', background: 'transparent', color: gold, textDecoration: 'none', border: `1px solid ${border}`, borderRadius: '3px', transition: 'border-color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
+              Join the Community →
+            </a>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -698,9 +730,25 @@ function Footer() {
         </div>
         <div>
           <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Membership</div>
-          {['Free Tier — Coming Soon', 'Soldier $19/mo — Coming Soon', 'Commander $39/mo — Coming Soon', 'General $97/mo — Coming Soon'].map(item => (
-            <div key={item} style={{ marginBottom: '8px', fontSize: '13px', color: muted, fontFamily: crimson }}>{item}</div>
+          {[
+            { label: 'Free — The Watchman', url: MN_FREE_URL },
+            { label: 'Soldier — $19/month', url: MN_SOLDIER_URL },
+            { label: 'Commander — $39/month', url: MN_COMMANDER_URL },
+            { label: 'General — $97/month', url: MN_GENERAL_URL },
+          ].map(({ label, url }) => (
+            <div key={label} style={{ marginBottom: '8px' }}>
+              <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: muted, textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
+                {label}
+              </a>
+            </div>
           ))}
+          <div style={{ marginTop: '8px' }}>
+            <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: gold, textDecoration: 'none', fontFamily: cinzel, letterSpacing: '0.08em', fontSize: '10px' }}>
+              ⚔ Community Login →
+            </a>
+          </div>
         </div>
         <div>
           <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Contact</div>
