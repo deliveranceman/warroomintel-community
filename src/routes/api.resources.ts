@@ -61,8 +61,6 @@ export const Route = createFileRoute('/api/resources')({
               `https://api.airtable.com/v0/${AIRTABLE_RESOURCES_BASE}/${AIRTABLE_RESOURCES_TABLE}`
             )
             atUrl.searchParams.set('pageSize', '100')
-            // Only active records
-            atUrl.searchParams.set('filterByFormula', '{Active}=1')
             if (offset) atUrl.searchParams.set('offset', offset)
 
             const res = await fetch(atUrl.toString(), {
@@ -80,7 +78,7 @@ export const Route = createFileRoute('/api/resources')({
           } while (offset)
 
           // ── Map records ──────────────────────────────────────────────────
-          let resources = records.map((r: any) => ({
+          let resources = records.filter((r: any) => r.fields['Active'] === true).map((r: any) => ({
             id:          r.id,
             title:       r.fields['Title']       || '',
             description: r.fields['Description'] || '',
