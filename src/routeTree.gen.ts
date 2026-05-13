@@ -9,16 +9,36 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
+import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
 import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
+import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
+import { Route as ApiResourcesRouteImport } from './routes/api.resources'
+import { Route as ApiResourceDownloadRouteImport } from './routes/api.resource-download'
+import { Route as ApiMnWebhookRouteImport } from './routes/api.mn-webhook'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
+import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
+import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
 
+const SubmitDemonRoute = SubmitDemonRouteImport.update({
+  id: '/submit-demon',
+  path: '/submit-demon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResourcesRoute = ResourcesRouteImport.update({
+  id: '/resources',
+  path: '/resources',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssessmentBoardRoute = AssessmentBoardRouteImport.update({
   id: '/assessment-board',
   path: '/assessment-board',
@@ -32,6 +52,11 @@ const AssessmentRoute = AssessmentRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
@@ -49,6 +74,26 @@ const ApiSubmitAssessmentRoute = ApiSubmitAssessmentRouteImport.update({
   path: '/api/submit-assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiResourcesDebugRoute = ApiResourcesDebugRouteImport.update({
+  id: '/api/resources-debug',
+  path: '/api/resources-debug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResourcesRoute = ApiResourcesRouteImport.update({
+  id: '/api/resources',
+  path: '/api/resources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResourceDownloadRoute = ApiResourceDownloadRouteImport.update({
+  id: '/api/resource-download',
+  path: '/api/resource-download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMnWebhookRoute = ApiMnWebhookRouteImport.update({
+  id: '/api/mn-webhook',
+  path: '/api/mn-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGenerateSummaryRoute = ApiGenerateSummaryRouteImport.update({
   id: '/api/generate-summary',
   path: '/api/generate-summary',
@@ -64,40 +109,85 @@ const ApiAssessmentBoardRoute = ApiAssessmentBoardRouteImport.update({
   path: '/api/assessment-board',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminUploadRoute = ApiAdminUploadRouteImport.update({
+  id: '/api/admin-upload',
+  path: '/api/admin-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminAuthRoute = ApiAdminAuthRouteImport.update({
+  id: '/api/admin-auth',
+  path: '/api/admin-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/resources': typeof ResourcesRoute
+  '/submit-demon': typeof SubmitDemonRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/api/admin-auth': typeof ApiAdminAuthRoute
+  '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/mn-webhook': typeof ApiMnWebhookRoute
+  '/api/resource-download': typeof ApiResourceDownloadRoute
+  '/api/resources': typeof ApiResourcesRoute
+  '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/resources': typeof ResourcesRoute
+  '/submit-demon': typeof SubmitDemonRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/api/admin-auth': typeof ApiAdminAuthRoute
+  '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/mn-webhook': typeof ApiMnWebhookRoute
+  '/api/resource-download': typeof ApiResourceDownloadRoute
+  '/api/resources': typeof ApiResourcesRoute
+  '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/resources': typeof ResourcesRoute
+  '/submit-demon': typeof SubmitDemonRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/api/admin-auth': typeof ApiAdminAuthRoute
+  '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/mn-webhook': typeof ApiMnWebhookRoute
+  '/api/resource-download': typeof ApiResourceDownloadRoute
+  '/api/resources': typeof ApiResourcesRoute
+  '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -105,50 +195,104 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/resources'
+    | '/submit-demon'
+    | '/admin/login'
+    | '/api/admin-auth'
+    | '/api/admin-upload'
     | '/api/assessment-board'
     | '/api/demons'
     | '/api/generate-summary'
+    | '/api/mn-webhook'
+    | '/api/resource-download'
+    | '/api/resources'
+    | '/api/resources-debug'
     | '/api/submit-assessment'
     | '/api/warroom-chat'
     | '/products/$productId'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/resources'
+    | '/submit-demon'
+    | '/admin/login'
+    | '/api/admin-auth'
+    | '/api/admin-upload'
     | '/api/assessment-board'
     | '/api/demons'
     | '/api/generate-summary'
+    | '/api/mn-webhook'
+    | '/api/resource-download'
+    | '/api/resources'
+    | '/api/resources-debug'
     | '/api/submit-assessment'
     | '/api/warroom-chat'
     | '/products/$productId'
+    | '/admin'
   id:
     | '__root__'
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/resources'
+    | '/submit-demon'
+    | '/admin/login'
+    | '/api/admin-auth'
+    | '/api/admin-upload'
     | '/api/assessment-board'
     | '/api/demons'
     | '/api/generate-summary'
+    | '/api/mn-webhook'
+    | '/api/resource-download'
+    | '/api/resources'
+    | '/api/resources-debug'
     | '/api/submit-assessment'
     | '/api/warroom-chat'
     | '/products/$productId'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssessmentRoute: typeof AssessmentRoute
   AssessmentBoardRoute: typeof AssessmentBoardRoute
+  ResourcesRoute: typeof ResourcesRoute
+  SubmitDemonRoute: typeof SubmitDemonRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  ApiAdminAuthRoute: typeof ApiAdminAuthRoute
+  ApiAdminUploadRoute: typeof ApiAdminUploadRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
+  ApiMnWebhookRoute: typeof ApiMnWebhookRoute
+  ApiResourceDownloadRoute: typeof ApiResourceDownloadRoute
+  ApiResourcesRoute: typeof ApiResourcesRoute
+  ApiResourcesDebugRoute: typeof ApiResourcesDebugRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/submit-demon': {
+      id: '/submit-demon'
+      path: '/submit-demon'
+      fullPath: '/submit-demon'
+      preLoaderRoute: typeof SubmitDemonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resources': {
+      id: '/resources'
+      path: '/resources'
+      fullPath: '/resources'
+      preLoaderRoute: typeof ResourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assessment-board': {
       id: '/assessment-board'
       path: '/assessment-board'
@@ -168,6 +312,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/products/$productId': {
@@ -191,6 +342,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSubmitAssessmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/resources-debug': {
+      id: '/api/resources-debug'
+      path: '/api/resources-debug'
+      fullPath: '/api/resources-debug'
+      preLoaderRoute: typeof ApiResourcesDebugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/resources': {
+      id: '/api/resources'
+      path: '/api/resources'
+      fullPath: '/api/resources'
+      preLoaderRoute: typeof ApiResourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/resource-download': {
+      id: '/api/resource-download'
+      path: '/api/resource-download'
+      fullPath: '/api/resource-download'
+      preLoaderRoute: typeof ApiResourceDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mn-webhook': {
+      id: '/api/mn-webhook'
+      path: '/api/mn-webhook'
+      fullPath: '/api/mn-webhook'
+      preLoaderRoute: typeof ApiMnWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/generate-summary': {
       id: '/api/generate-summary'
       path: '/api/generate-summary'
@@ -212,6 +391,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAssessmentBoardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin-upload': {
+      id: '/api/admin-upload'
+      path: '/api/admin-upload'
+      fullPath: '/api/admin-upload'
+      preLoaderRoute: typeof ApiAdminUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin-auth': {
+      id: '/api/admin-auth'
+      path: '/api/admin-auth'
+      fullPath: '/api/admin-auth'
+      preLoaderRoute: typeof ApiAdminAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -219,12 +419,22 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssessmentRoute: AssessmentRoute,
   AssessmentBoardRoute: AssessmentBoardRoute,
+  ResourcesRoute: ResourcesRoute,
+  SubmitDemonRoute: SubmitDemonRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  ApiAdminAuthRoute: ApiAdminAuthRoute,
+  ApiAdminUploadRoute: ApiAdminUploadRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
   ApiDemonsRoute: ApiDemonsRoute,
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
+  ApiMnWebhookRoute: ApiMnWebhookRoute,
+  ApiResourceDownloadRoute: ApiResourceDownloadRoute,
+  ApiResourcesRoute: ApiResourcesRoute,
+  ApiResourcesDebugRoute: ApiResourcesDebugRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
