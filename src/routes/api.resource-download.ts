@@ -12,7 +12,7 @@ export const Route = createFileRoute('/api/resource-download')({
     handlers: {
       POST: async ({ request }) => {
         if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-          return Response.json({ error: 'Supabase not configured' }, { status: 500 })
+          return Response.json({ error: 'Supabase not configured — check env vars' }, { status: 500 })
         }
 
         let body: { filePath: string; memberTier?: string; fileTier: string }
@@ -28,43 +28,57 @@ export const Route = createFileRoute('/api/resource-download')({
           return Response.json({ error: 'filePath required' }, { status: 400 })
         }
 
-        // Verify member tier has access to this file's tier
+        // Tier access check
         const memberLevel = TIER_ORDER[memberTier] ?? 0
         const fileLevel   = TIER_ORDER[fileTier]   ?? 0
-
         if (memberLevel < fileLevel) {
           return Response.json({ error: 'Insufficient tier access' }, { status: 403 })
         }
 
+        // Strip any leading slashes from path
+        const cleanPath = filePath.replace(/^\/+/, '')
+
         try {
-          const res = await fetch(
-            `${SUPABASE_URL}/storage/v1/object/sign/${SUPABASE_BUCKET}/${filePath}`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-                'Content-Type': 'application/json',
-                apikey: SUPABASE_SERVICE_KEY,
-              },
-              body: JSON.stringify({ expiresIn: SIGNED_URL_EXPIRY }),
-            }
-          )
+          const endpoint = `${SUPABASE_URL}/storage/v1/object/sign/${SUPABASE_BUCKET}/${cleanPath}`
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_SERVICE_KEY,
+            },
+            body: JSON.stringify({ expiresIn: SIGNED_URL_EXPIRY }),
+          })
+
+          const responseText = await res.text()
 
           if (!res.ok) {
-            const detail = await res.text()
-            return Response.json({ error: `Supabase ${res.status}`, detail }, { status: 502 })
+            return Response.json({
+              error: `Supabase ${res.status}`,
+              detail: responseText,
+              debug: { endpoint, cleanPath, bucket: SUPABASE_BUCKET },
+            }, { status: 502 })
           }
 
-          const data = await res.json()
-          const signedUrl = data.signedURL
-            ? `${SUPABASE_URL}/storage/v1${data.signedURL}`
-            : null
+          let data: any
+          try { data = JSON.parse(responseText) }
+          catch { return Response.json({ error: 'Supabase non-JSON response', detail: responseText }, { status: 502 }) }
 
-          if (!signedUrl) {
-            return Response.json({ error: 'Failed to generate signed URL' }, { status: 500 })
+          // Handle both signedURL (older SDK) and signedUrl (newer SDK)
+          const signedPath = data.signedURL || data.signedUrl || null
+
+          if (!signedPath) {
+            return Response.json({ error: 'No signed URL in response', detail: data }, { status: 500 })
           }
 
-          return Response.json({ signedUrl, expiresIn: SIGNED_URL_EXPIRY })
+          // Build full URL — signedPath may already be absolute or just a path
+          const fullUrl = signedPath.startsWith('http')
+            ? signedPath
+            : `${SUPABASE_URL}/storage/v1${signedPath}`
+
+          return Response.json({ signedUrl: fullUrl, expiresIn: SIGNED_URL_EXPIRY })
+
         } catch (err: any) {
           return Response.json({ error: err.message }, { status: 500 })
         }
