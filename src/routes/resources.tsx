@@ -5,6 +5,39 @@ export const Route = createFileRoute('/resources')({
   component: ResourcesPage,
 })
 
+// ─── MOBILE STYLES ────────────────────────────────────────────────────────────
+const resourcesMobileStyles = `
+  @media (max-width: 640px) {
+    .res-topbar {
+      flex-direction: column !important;
+      gap: 10px !important;
+      padding: 12px 16px !important;
+      align-items: flex-start !important;
+    }
+    .res-topbar-nav { display: none !important; }
+    .res-topbar-tier { flex-direction: row; align-items: center; gap: 8px; }
+    .res-hero { padding: 24px 16px 16px !important; }
+    .res-search-bar { padding: 14px 16px 0 !important; }
+    .res-filters { padding: 10px 16px 0 !important; }
+    .res-tabs { padding: 0 16px !important; }
+    .res-grid {
+      grid-template-columns: 1fr !important;
+      padding: 20px 16px !important;
+    }
+    .res-footer { padding: 20px 16px !important; }
+    .res-section-header { padding: 0 16px 10px !important; }
+  }
+  @media (min-width: 641px) and (max-width: 900px) {
+    .res-topbar { padding: 12px 20px !important; }
+    .res-topbar-nav a { font-size: 9px !important; }
+    .res-hero { padding: 28px 20px 16px !important; }
+    .res-search-bar { padding: 14px 20px 0 !important; }
+    .res-filters { padding: 10px 20px 0 !important; }
+    .res-tabs { padding: 0 20px !important; }
+    .res-grid { padding: 20px 20px !important; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
+  }
+`
+
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 interface Resource {
   id: string
@@ -298,13 +331,14 @@ function ResourcesPage() {
 
   return (
     <div style={{ background: deep, minHeight: '100vh', color: '#e8e0d0', fontFamily: crimson }}>
+      <style>{resourcesMobileStyles}</style>
 
       {/* ── Topbar ── */}
-      <div style={{ background: deep, borderBottom: `1px solid ${border}`, padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="res-topbar" style={{ background: deep, borderBottom: `1px solid ${border}`, padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <a href="/" style={{ fontFamily: cinzel, fontSize: '13px', letterSpacing: '0.18em', color: gold, textDecoration: 'none', textTransform: 'uppercase' as const }}>
           War Room Intel
         </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+        <div className="res-topbar-nav" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           {(['/', '/assessment', '/arsenal'] as const).map((href, i) => (
             <a key={href} href={href} style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: muted, textDecoration: 'none' }}>
               {['Home', 'Assessment', 'Arsenal'][i]}
@@ -315,7 +349,7 @@ function ResourcesPage() {
           </span>
         </div>
         {/* Tier selector — in production this comes from your auth/token system */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="res-topbar-tier" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: muted }}>YOUR TIER:</span>
           <select
             value={memberTier}
@@ -334,7 +368,7 @@ function ResourcesPage() {
       </div>
 
       {/* ── Hero ── */}
-      <div style={{ padding: '40px 32px 24px', borderBottom: `1px solid ${border}` }}>
+      <div className="res-hero" style={{ padding: '40px 32px 24px', borderBottom: `1px solid ${border}` }}>
         <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.22em', color: muted, marginBottom: '8px', textTransform: 'uppercase' as const }}>
           Ministry Library
         </div>
@@ -347,7 +381,7 @@ function ResourcesPage() {
       </div>
 
       {/* ── Search ── */}
-      <div style={{ padding: '20px 32px 0' }}>
+      <div className="res-search-bar" style={{ padding: '20px 32px 0' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '10px',
           background: surface, border: `1px solid ${border}`,
@@ -372,7 +406,7 @@ function ResourcesPage() {
       </div>
 
       {/* ── Category filter ── */}
-      <div style={{ padding: '12px 32px 0', display: 'flex', gap: '8px', flexWrap: 'wrap' as const }}>
+      <div className="res-filters" style={{ padding: '12px 32px 0', display: 'flex', gap: '8px', flexWrap: 'wrap' as const }}>
         {CATEGORIES.map(cat => (
           <button key={cat} onClick={() => setActiveCategory(cat)} style={{
             fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em',
@@ -389,7 +423,7 @@ function ResourcesPage() {
       </div>
 
       {/* ── Tier tabs ── */}
-      <div style={{ display: 'flex', padding: '0 32px', borderBottom: `1px solid ${border}`, marginTop: '16px' }}>
+      <div className="res-tabs" style={{ display: 'flex', padding: '0 32px', borderBottom: `1px solid ${border}`, marginTop: '16px' }}>
         {TIERS.map(t => {
           const count = t === 'All' ? resources.length : (tierCounts[t] || 0)
           return (
@@ -416,7 +450,7 @@ function ResourcesPage() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{ padding: '28px 32px', maxWidth: '1200px' }}>
+      <div className="res-grid" style={{ padding: '28px 32px', maxWidth: '1200px' }}>
 
         {/* Download error */}
         {downloadError && (
@@ -483,7 +517,7 @@ function ResourcesPage() {
       </div>
 
       {/* ── Footer note ── */}
-      <div style={{ borderTop: `1px solid ${border}`, padding: '24px 32px', textAlign: 'center' as const }}>
+      <div className="res-footer" style={{ borderTop: `1px solid ${border}`, padding: '24px 32px', textAlign: 'center' as const }}>
         <p style={{ fontFamily: crimson, fontStyle: 'italic', fontSize: '13px', color: muted }}>
           Download links expire after 4 hours for security. Refresh the page to generate a new link.
         </p>

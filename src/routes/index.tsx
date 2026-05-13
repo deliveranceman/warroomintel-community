@@ -70,7 +70,60 @@ function typeColor(type: string) {
   return map[type] || '#6B6480'
 }
 
+// ── MOBILE RESPONSIVE STYLES ─────────────────────────────
+const mobileStyles = `
+  /* ── Database table → card layout on mobile ── */
+  @media (max-width: 640px) {
+    .db-table-header { display: none !important; }
+    .db-row {
+      display: block !important;
+      padding: 16px !important;
+    }
+    .db-row-name { margin-bottom: 8px; }
+    .db-row-type { margin-bottom: 8px; }
+    .db-row-func { margin-bottom: 8px; }
+    .db-row-toggle { float: right; margin-top: -52px; }
+    .db-expanded-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .db-expanded-protocol {
+      grid-column: span 1 !important;
+    }
+    /* AssessmentCTA two-column → single column */
+    .cta-grid {
+      grid-template-columns: 1fr !important;
+    }
+    /* Pricing border separators on mobile */
+    .pricing-tier {
+      border-right: none !important;
+      border-bottom: 1px solid rgba(201,168,76,0.18) !important;
+    }
+    /* DB banner flex → wrap tighter */
+    .db-banner {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 6px !important;
+    }
+    /* Features grid minWidth override */
+    .features-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+  @media (min-width: 641px) and (max-width: 900px) {
+    .db-row {
+      grid-template-columns: 1fr 100px 36px !important;
+    }
+    .db-row-func { display: none !important; }
+    .db-table-header { grid-template-columns: 1fr 100px 36px !important; }
+    .db-table-header-func { display: none !important; }
+  }
+`
+
 // ── COMPONENTS ───────────────────────────────────────────
+
+function MobileStyleInjector() {
+  return <style>{mobileStyles}</style>
+}
 
 function Divider({ label }: { label?: string }) {
   return (
@@ -164,7 +217,7 @@ function FeaturesSection() {
           Not theory. Not inspiration content. Real tools for real spiritual warfare.
         </p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1px', background: border, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+      <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1px', background: border, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
         {FEATURES.map(f => (
           <div key={f.title} style={{ background: surface, padding: '2rem', transition: 'background 0.2s' }}
             onMouseEnter={e => (e.currentTarget.style.background = surface2)}
@@ -280,9 +333,9 @@ function DatabaseSection() {
       {/* Database Table */}
       <div style={{ border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
         {/* Table Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', background: surface2, padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
-          {['Name / Alias', 'Type', 'Function', ''].map(h => (
-            <div key={h} style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: muted }}>{h}</div>
+        <div className="db-table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', background: surface2, padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
+          {['Name / Alias', 'Type', 'Function', ''].map((h, i) => (
+            <div key={h} className={i === 2 ? 'db-table-header-func' : ''} style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: muted }}>{h}</div>
           ))}
         </div>
 
@@ -301,29 +354,30 @@ function DatabaseSection() {
           <div key={entry.id} style={{ borderBottom: i < pageEntries.length - 1 ? `1px solid ${border}` : 'none' }}>
             {/* Row */}
             <div
+              className="db-row"
               onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
               style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', padding: '14px 20px', cursor: 'pointer', transition: 'background 0.15s', alignItems: 'start' }}
               onMouseEnter={e => (e.currentTarget.style.background = surface)}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-              <div>
+              <div className="db-row-name">
                 <div style={{ fontFamily: cinzel, fontSize: '13px', color: text, fontWeight: 600, marginBottom: '3px' }}>{entry.name}</div>
                 {entry.aka && <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{entry.aka}</div>}
               </div>
-              <div>
+              <div className="db-row-type">
                 <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '2px', background: typeColor(entry.type) + '22', color: typeColor(entry.type), border: `1px solid ${typeColor(entry.type)}44` }}>
                   {entry.type || '—'}
                 </span>
               </div>
-              <div style={{ fontSize: '13px', color: textDim, lineHeight: 1.5, paddingRight: '8px' }}>
+              <div className="db-row-func" style={{ fontSize: '13px', color: textDim, lineHeight: 1.5, paddingRight: '8px' }}>
                 {entry.function ? (entry.function.length > 120 ? entry.function.slice(0, 120) + '...' : entry.function) : '—'}
               </div>
-              <div style={{ textAlign: 'center', color: gold, fontSize: '16px', transition: 'transform 0.2s', transform: expanded === entry.id ? 'rotate(45deg)' : 'rotate(0)' }}>+</div>
+              <div className="db-row-toggle" style={{ textAlign: 'center', color: gold, fontSize: '16px', transition: 'transform 0.2s', transform: expanded === entry.id ? 'rotate(45deg)' : 'rotate(0)' }}>+</div>
             </div>
 
             {/* Expanded detail */}
             {expanded === entry.id && (
               <div style={{ padding: '16px 20px 20px', borderTop: `1px solid ${border}`, background: 'rgba(13,11,20,0.4)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
 
                   {/* Function — always visible */}
                   <div>
@@ -356,7 +410,7 @@ function DatabaseSection() {
                   </div>
 
                   {/* Protocol — locked */}
-                  <div style={{ gridColumn: 'span 2' }}>
+                  <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DELIVERANCE PROTOCOL</div>
                     <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '12px' }}>
                       <div>
@@ -431,7 +485,7 @@ function AssessmentCTA() {
     <section style={{ padding: '2rem 2rem 5rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ background: surface, border: `1px solid ${borderBright}`, borderRadius: '8px', padding: 'clamp(2rem, 5vw, 3.5rem)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 80% at 50% 0%, rgba(201,168,76,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto', gap: '32px', alignItems: 'center' }}>
+        <div className="cta-grid" style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto', gap: '32px', alignItems: 'center' }}>
           <div>
             <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Free Ministry Tool</p>
             <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 34px)', fontWeight: 700, color: text, marginBottom: '12px', lineHeight: 1.2 }}>
@@ -548,7 +602,7 @@ function PricingSection() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0', border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
           {tiers.map((tier, i) => (
-            <div key={tier.name} style={{ padding: '2rem 1.75rem', background: tier.featured ? surface2 : deep, borderRight: i < tiers.length - 1 ? `1px solid ${border}` : 'none', position: 'relative' }}>
+            <div key={tier.name} className="pricing-tier" style={{ padding: '2rem 1.75rem', background: tier.featured ? surface2 : deep, borderRight: i < tiers.length - 1 ? `1px solid ${border}` : 'none', position: 'relative' }}>
               {tier.badge && (
                 <div style={{ position: 'absolute', top: '-1px', left: '50%', transform: 'translateX(-50%)', background: gold, color: deep, fontFamily: cinzel, fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 14px', borderRadius: '0 0 4px 4px' }}>
                   {tier.badge}
@@ -790,6 +844,7 @@ function Footer() {
 function WarRoomHome() {
   return (
     <div>
+      <MobileStyleInjector />
       <Hero />
       <Divider label="✦ What's Inside ✦" />
       <FeaturesSection />
