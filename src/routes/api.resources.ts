@@ -78,7 +78,7 @@ export const Route = createFileRoute('/api/resources')({
           } while (offset)
 
           // ── Map records ──────────────────────────────────────────────────
-          let resources = records.filter((r: any) => r.fields['Active'] === true).map((r: any) => ({
+          let resources = records.filter((r: any) => !!r.fields['Active']).map((r: any) => ({
             id:          r.id,
             title:       r.fields['Title']       || '',
             description: r.fields['Description'] || '',
