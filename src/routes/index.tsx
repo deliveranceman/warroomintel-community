@@ -450,15 +450,6 @@ function DatabaseSection() {
                 {/* ── FREE TIER ── */}
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                   <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>TYPE</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '6px' }}>
-                      {(entry.type || '—').split('/').map(t => t.trim()).filter(Boolean).map(t => {
-                        const c = typeColor(t)
-                        return <span key={t} style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '2px', background: c + '22', color: c, border: `1px solid ${c}44` }}>{t}</span>
-                      })}
-                    </div>
-                  </div>
-                  <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>KINGDOM</div>
                     <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.kingdom || 'Not documented'}</p>
                   </div>
