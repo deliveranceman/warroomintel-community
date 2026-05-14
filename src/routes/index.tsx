@@ -92,7 +92,7 @@ const mobileStyles = `
       padding: 16px !important;
     }
     .db-row-name { margin-bottom: 8px; }
-    .db-row-type { margin-bottom: 8px; }
+    .db-row-type { display: none !important; }
     .db-row-func { margin-bottom: 8px; }
     .db-row-toggle { float: right; margin-top: -52px; }
     .db-expanded-grid {
@@ -123,10 +123,10 @@ const mobileStyles = `
   }
   @media (min-width: 641px) and (max-width: 900px) {
     .db-row {
-      grid-template-columns: 1fr 100px 36px !important;
+      grid-template-columns: 1fr 90px 36px !important;
     }
     .db-row-func { display: none !important; }
-    .db-table-header { grid-template-columns: 1fr 100px 36px !important; }
+    .db-table-header { grid-template-columns: 1fr 90px 36px !important; }
     .db-table-header-func { display: none !important; }
   }
 `
@@ -396,7 +396,7 @@ function DatabaseSection() {
       {/* Database Table */}
       <div style={{ border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
         {/* Table Header */}
-        <div className="db-table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', background: surface2, padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
+        <div className="db-table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr 36px', gap: '0', background: surface2, padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
           {['Name / Alias', 'Type', 'Assignment', ''].map((h, i) => (
             <div key={h} className={i === 2 ? 'db-table-header-func' : ''} style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: muted }}>{h}</div>
           ))}
@@ -419,7 +419,7 @@ function DatabaseSection() {
             <div
               className="db-row"
               onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
-              style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', padding: '14px 20px', cursor: 'pointer', transition: 'background 0.15s', alignItems: 'start' }}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr 36px', gap: '0', padding: '14px 20px', cursor: 'pointer', transition: 'background 0.15s', alignItems: 'start' }}
               onMouseEnter={e => (e.currentTarget.style.background = surface)}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
               <div className="db-row-name">
@@ -427,9 +427,15 @@ function DatabaseSection() {
                 {entry.aka && <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{entry.aka}</div>}
               </div>
               <div className="db-row-type">
-                <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '2px', background: typeColor(entry.type) + '22', color: typeColor(entry.type), border: `1px solid ${typeColor(entry.type)}44` }}>
-                  {entry.type || '—'}
-                </span>
+                {(() => {
+                  const primary = (entry.type || '').split('/')[0].trim() || '—'
+                  const color = typeColor(primary)
+                  return (
+                    <span title={entry.type || undefined} style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '2px', background: color + '22', color, border: `1px solid ${color}44`, display: 'block', maxWidth: '85px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {primary}
+                    </span>
+                  )
+                })()}
               </div>
               <div className="db-row-func" style={{ fontSize: '13px', color: textDim, lineHeight: 1.5, paddingRight: '8px' }}>
                 {entry.description ? (entry.description.length > 120 ? entry.description.slice(0, 120) + '...' : entry.description) : '—'}
@@ -443,6 +449,15 @@ function DatabaseSection() {
 
                 {/* ── FREE TIER ── */}
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>TYPE</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '6px' }}>
+                      {(entry.type || '—').split('/').map(t => t.trim()).filter(Boolean).map(t => {
+                        const c = typeColor(t)
+                        return <span key={t} style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '2px', background: c + '22', color: c, border: `1px solid ${c}44` }}>{t}</span>
+                      })}
+                    </div>
+                  </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>KINGDOM</div>
                     <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.kingdom || 'Not documented'}</p>
