@@ -45,7 +45,8 @@ export const Route = createFileRoute('/api/mn-verify')({
 
           if (!res.ok) {
             const detail = await res.text()
-            return Response.json({ error: `MN API ${res.status}`, detail }, { status: 502 })
+            console.error('[mn-verify] MN API error', { status: res.status, email, detail })
+            return Response.json({ tier: 'Free', name: '', email, fallback: true })
           }
 
           const data = await res.json()
@@ -68,7 +69,8 @@ export const Route = createFileRoute('/api/mn-verify')({
           })
 
         } catch (err: any) {
-          return Response.json({ error: err.message }, { status: 500 })
+          console.error('[mn-verify] unexpected error', { email, error: err.message, stack: err.stack })
+          return Response.json({ tier: 'Free', name: '', email, fallback: true })
         }
       },
     },
