@@ -265,15 +265,29 @@ function SectionHeader({ tier }: { tier: string }) {
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 function ResourcesPage() {
+  const [session, setSession]         = useState<MemberSession | null>(null)
+  const [sessionChecked, setChecked]  = useState(false)
   const [resources, setResources]     = useState<Resource[]>([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
-  const [memberTier, setMemberTier]   = useState('Free')
   const [activeTab, setActiveTab]     = useState('All')
   const [activeCategory, setActiveCategory] = useState('All')
   const [search, setSearch]           = useState('')
   const [downloading, setDownloading] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  const memberTier = session?.tier || 'Free'
+
+  // Check session on mount
+  useEffect(() => {
+    const s = getSession()
+    setSession(s)
+    setChecked(true)
+  }, [])
+
+  // Show gate if no session
+  if (!sessionChecked) return null
+  if (!session) return <LoginGate onVerified={s => setSession(s)} />
 
   // Fetch all resources on mount
   useEffect(() => {
@@ -348,24 +362,32 @@ function ResourcesPage() {
             Resources
           </span>
         </div>
-        {/* Tier selector — in production this comes from your auth/token system */}
-        <div className="res-topbar-tier" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: muted }}>YOUR TIER:</span>
-          <select
-            value={memberTier}
-            onChange={e => setMemberTier(e.target.value)}
+        {/* Member session display */}
+        <div className="res-topbar-tier" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {session?.name && (
+            <span style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.08em' }}>
+              {session.name.split(' ')[0]}
+            </span>
+          )}
+          <span style={{
+            fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em',
+            color: TIER_COLORS[memberTier] || muted,
+            border: `1px solid ${TIER_COLORS[memberTier]}44`,
+            padding: '3px 10px', borderRadius: '20px',
+          }}>
+            {TIER_ICONS[memberTier]} {memberTier}
+          </span>
+          <button
+            onClick={() => { clearSession(); setSession(null) }}
             style={{
-              background: surface2, border: `1px solid ${gold}44`, color: gold,
-              fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em',
-              padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', outline: 'none',
+              background: 'transparent', border: `1px solid ${border}`,
+              color: muted, fontFamily: cinzel, fontSize: '8px',
+              letterSpacing: '0.1em', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
             }}
           >
-            {['Free', 'Soldier', 'Commander', 'General'].map(t => (
-              <option key={t} value={t}>{TIER_ICONS[t]} {t}</option>
-            ))}
-          </select>
+            LOGOUT
+          </button>
         </div>
-      </div>
 
       {/* ── Hero ── */}
       <div className="res-hero" style={{ padding: '40px 32px 24px', borderBottom: `1px solid ${border}` }}>
@@ -525,6 +547,189 @@ function ResourcesPage() {
           style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: gold, textDecoration: 'none', marginTop: '8px', display: 'inline-block' }}>
           ⚔ Manage Membership →
         </a>
+      </div>
+    </div>
+  )
+}
+
+// ─── SESSION STORAGE KEY ──────────────────────────────────────────────────────
+const SESSION_KEY = 'wri_member'
+
+interface MemberSession {
+  email: string
+  name: string
+  tier: string
+  verified: number // timestamp
+}
+
+function getSession(): MemberSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const s: MemberSession = JSON.parse(raw)
+    // Expire after 8 hours
+    if (Date.now() - s.verified > 8 * 60 * 60 * 1000) {
+      sessionStorage.removeItem(SESSION_KEY)
+      return null
+    }
+    return s
+  } catch { return null }
+}
+
+function saveSession(s: MemberSession) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(s))
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY)
+}
+
+// ─── MN FREE PLAN URL ─────────────────────────────────────────────────────────
+const MN_FREE_SIGNUP = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=resources'
+
+// ─── LOGIN GATE ───────────────────────────────────────────────────────────────
+function LoginGate({ onVerified }: { onVerified: (session: MemberSession) => void }) {
+  const [email, setEmail]     = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+  const [step, setStep]       = useState<'enter' | 'notfound'>('enter')
+
+  async function handleVerify() {
+    const e = email.trim().toLowerCase()
+    if (!e || !e.includes('@')) { setError('Enter a valid email'); return }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/mn-verify?email=${encodeURIComponent(e)}`)
+      const data = await res.json()
+
+      if (res.ok && data.tier) {
+        const session: MemberSession = {
+          email: e,
+          name: data.name || '',
+          tier: data.tier,
+          verified: Date.now(),
+        }
+        saveSession(session)
+        onVerified(session)
+      } else if (res.status === 404) {
+        setStep('notfound')
+      } else {
+        setError(data.error || 'Could not verify — try again')
+      }
+    } catch {
+      setError('Network error — try again')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ background: deep, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: crimson }}>
+      <style>{resourcesMobileStyles}</style>
+      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: '12px', padding: '40px 32px', width: '100%', maxWidth: '420px' }}>
+
+        {/* Logo area */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <img src="/logo.png" alt="War Room Intel" style={{ width: '64px', height: '64px', objectFit: 'contain', marginBottom: '12px' }} />
+          <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.22em', color: gold, marginBottom: '4px' }}>WAR ROOM INTEL</div>
+          <div style={{ fontFamily: cinzel, fontSize: '16px', color: '#e8e0d0', marginBottom: '6px' }}>Resource Arsenal</div>
+          <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>Free and paid resources for active ministers</div>
+        </div>
+
+        <div style={{ height: '1px', background: border, marginBottom: '24px' }} />
+
+        {step === 'enter' && (
+          <>
+            <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.14em', color: muted, marginBottom: '8px' }}>
+              ENTER YOUR COMMUNITY EMAIL
+            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleVerify()}
+              placeholder="you@email.com"
+              autoFocus
+              style={{
+                width: '100%', background: deep, border: `1px solid ${border}`,
+                borderRadius: '6px', padding: '11px 14px', color: '#e8e0d0',
+                fontFamily: crimson, fontSize: '14px', outline: 'none',
+                marginBottom: '12px', boxSizing: 'border-box' as const,
+              }}
+            />
+
+            {error && (
+              <div style={{ background: '#2a1010', border: '1px solid #5a2020', borderRadius: '6px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#e09090' }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handleVerify}
+              disabled={loading || !email}
+              style={{
+                width: '100%', background: gold, color: deep,
+                fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
+                padding: '13px', borderRadius: '6px', border: 'none',
+                cursor: loading || !email ? 'not-allowed' : 'pointer',
+                opacity: loading || !email ? 0.6 : 1,
+                marginBottom: '16px',
+              }}
+            >
+              {loading ? 'VERIFYING...' : 'ACCESS THE ARSENAL →'}
+            </button>
+
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '12px', color: muted, marginBottom: '8px' }}>Not a member yet?</div>
+              <a
+                href={MN_FREE_SIGNUP}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em', color: gold, textDecoration: 'none' }}
+              >
+                CREATE FREE WATCHMAN ACCOUNT →
+              </a>
+            </div>
+          </>
+        )}
+
+        {step === 'notfound' && (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '10px' }}>⚔</div>
+              <div style={{ fontFamily: cinzel, fontSize: '12px', color: gold, marginBottom: '8px' }}>Email Not Found</div>
+              <div style={{ fontSize: '13px', color: textDim, lineHeight: 1.6 }}>
+                <strong style={{ color: '#e8e0d0' }}>{email}</strong> is not in our community yet. Create a free Watchman account to access the resource library.
+              </div>
+            </div>
+
+            <a
+              href={MN_FREE_SIGNUP}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block', width: '100%', background: gold, color: deep,
+                fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
+                padding: '13px', borderRadius: '6px', textAlign: 'center' as const,
+                textDecoration: 'none', marginBottom: '12px', boxSizing: 'border-box' as const,
+              }}
+            >
+              JOIN FREE — WATCHMAN TIER →
+            </a>
+
+            <button
+              onClick={() => { setStep('enter'); setError('') }}
+              style={{
+                width: '100%', background: 'transparent', border: `1px solid ${border}`,
+                color: muted, fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em',
+                padding: '11px', borderRadius: '6px', cursor: 'pointer',
+              }}
+            >
+              TRY A DIFFERENT EMAIL
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
