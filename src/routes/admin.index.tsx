@@ -317,11 +317,7 @@ function ResourceRow({ resource, onUpdate, onDelete }: {
 
         {/* Delete */}
         <button
-          onClick={() => {
-            if (confirm(`Delete "${resource.title}"?\n\nThis will remove the Airtable record. Check "delete file" to also remove from Supabase.`)) {
-              onDelete(resource.id, resource.filePath)
-            }
-          }}
+          onClick={() => onDelete(resource.id, resource.filePath)}
           title="Delete"
           style={{
             background: 'transparent', border: `1px solid ${border}`,
@@ -365,23 +361,39 @@ function AdminDashboard() {
   useEffect(() => { loadResources() }, [])
 
   async function handleUpdate(id: string, fields: any) {
-    await fetch('/api/admin-upload', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, fields }),
-      credentials: 'same-origin',
-    })
+    try {
+      const res = await fetch('/api/admin-upload', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, fields }),
+        credentials: 'same-origin',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Update failed (${res.status})`)
+      }
+    } catch (err: any) {
+      alert(`Failed to update: ${err.message}`)
+    }
     await loadResources()
   }
 
   async function handleDelete(id: string, filePath: string) {
-    const deleteFile = confirm('Also delete the PDF from Supabase Storage?\n\nOK = delete file too\nCancel = remove record only')
-    await fetch('/api/admin-upload', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, filePath, deleteFile }),
-      credentials: 'same-origin',
-    })
+    if (!confirm('Delete this resource? This cannot be undone.')) return
+    try {
+      const res = await fetch('/api/admin-upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, filePath, deleteFile: true }),
+        credentials: 'same-origin',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Delete failed (${res.status})`)
+      }
+    } catch (err: any) {
+      alert(`Failed to delete: ${err.message}`)
+    }
     await loadResources()
   }
 

@@ -285,12 +285,9 @@ function ResourcesPage() {
     setChecked(true)
   }, [])
 
-  // Show gate if no session
-  if (!sessionChecked) return null
-  if (!session) return <LoginGate onVerified={s => setSession(s)} />
-
-  // Fetch all resources on mount
+  // Fetch all resources once session is confirmed
   useEffect(() => {
+    if (!session) return
     fetch('/api/resources')
       .then(r => r.json())
       .then(data => {
@@ -299,7 +296,11 @@ function ResourcesPage() {
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [session])
+
+  // Show gate if no session
+  if (!sessionChecked) return null
+  if (!session) return <LoginGate onVerified={s => setSession(s)} />
 
   // Handle download — calls /api/resource-download to get a signed URL
   const handleDownload = useCallback(async (resource: Resource) => {
@@ -353,9 +354,9 @@ function ResourcesPage() {
           War Room Intel
         </a>
         <div className="res-topbar-nav" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          {(['/', '/assessment', '/arsenal'] as const).map((href, i) => (
+          {(['/', '/assessment'] as const).map((href, i) => (
             <a key={href} href={href} style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: muted, textDecoration: 'none' }}>
-              {['Home', 'Assessment', 'Arsenal'][i]}
+              {['Home', 'Assessment'][i]}
             </a>
           ))}
           <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: gold }}>
@@ -388,6 +389,7 @@ function ResourcesPage() {
             LOGOUT
           </button>
         </div>
+      </div>
 
       {/* ── Hero ── */}
       <div className="res-hero" style={{ padding: '40px 32px 24px', borderBottom: `1px solid ${border}` }}>
