@@ -249,33 +249,38 @@ const TIER_LABELS: Record<string, string> = {
   General: '🔒 General Required',
 }
 
-const TIER_URLS: Record<string, string> = {
-  Soldier: MN_SOLDIER_URL,
-  Commander: MN_COMMANDER_URL,
-  General: MN_GENERAL_URL,
-}
-
-function LockedField({ tier, desc, wide }: { tier: string; desc: string; wide?: boolean }) {
-  const upgradeLink = (
-    <a
-      href={TIER_URLS[tier]}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.35)`, padding: '3px 10px', borderRadius: '2px', whiteSpace: 'nowrap' as const, transition: 'background 0.2s', flexShrink: 0 }}
-      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.12)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-    >
-      Unlock →
-    </a>
-  )
-
+function LockedField({ tier, desc, wide, upgradeUrl }: { tier: string; desc: string; wide?: boolean; upgradeUrl?: string }) {
   return (
     <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: wide ? '12px 16px' : '10px 12px', display: 'flex', alignItems: wide ? 'center' : 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '10px' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>{TIER_LABELS[tier]}</div>
         <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{desc}</div>
       </div>
-      {upgradeLink}
+      {upgradeUrl && (
+        <a href={upgradeUrl} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.35)`, padding: '3px 10px', borderRadius: '2px', whiteSpace: 'nowrap' as const, transition: 'background 0.2s', flexShrink: 0 }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.12)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          Unlock →
+        </a>
+      )}
+    </div>
+  )
+}
+
+function TierCallout({ title, desc, url, btnLabel }: { title: string; desc: string; url: string; btnLabel: string }) {
+  return (
+    <div style={{ background: 'rgba(13,11,20,0.5)', border: `1px solid rgba(201,168,76,0.18)`, borderRadius: '5px', padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '14px' }}>
+      <div>
+        <div style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 600, color: gold, letterSpacing: '0.07em', marginBottom: '4px' }}>{title}</div>
+        <div style={{ fontSize: '13px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>{desc}</div>
+      </div>
+      <a href={url} target="_blank" rel="noopener noreferrer"
+        style={{ fontFamily: cinzel, fontSize: '9px', fontWeight: 700, letterSpacing: '0.09em', color: deep, background: gold, textDecoration: 'none', padding: '7px 16px', borderRadius: '3px', whiteSpace: 'nowrap' as const, flexShrink: 0, transition: 'opacity 0.2s' }}
+        onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+        {btnLabel} →
+      </a>
     </div>
   )
 }
@@ -448,59 +453,77 @@ function DatabaseSection() {
 
                 {/* ── SOLDIER TIER ── */}
                 <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
-                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '12px' }}>🔒 SOLDIER TIER</div>
+                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '10px' }}>🔒 SOLDIER TIER</div>
+                <TierCallout
+                  title="⚔ Upgrade to Soldier — $19/month · 30 days free"
+                  desc="Includes everything in Free plus Manifestations, Scripture References, Strongman, and Rank"
+                  url={MN_SOLDIER_URL}
+                  btnLabel="Upgrade to Soldier"
+                />
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>MANIFESTATIONS</div>
-                    <LockedField tier="Soldier" desc="Physical, emotional, and spiritual signs this spirit produces in those it inhabits." />
+                    <LockedField tier="Soldier" desc="Physical, emotional, and spiritual signs this spirit produces in those it inhabits." upgradeUrl={MN_SOLDIER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SCRIPTURE REFERENCES</div>
-                    <LockedField tier="Soldier" desc="Biblical passages that identify, address, or give authority over this spirit." />
+                    <LockedField tier="Soldier" desc="Biblical passages that identify, address, or give authority over this spirit." upgradeUrl={MN_SOLDIER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>STRONGMAN</div>
-                    <LockedField tier="Soldier" desc="The major strongman this spirit operates under (e.g., Bitterness, Fear, Rejection, Leviathan)." />
+                    <LockedField tier="Soldier" desc="The major strongman this spirit operates under (e.g., Bitterness, Fear, Rejection, Leviathan)." upgradeUrl={MN_SOLDIER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>RANK / CLASSIFICATION</div>
-                    <LockedField tier="Soldier" desc="Hierarchical rank in the demonic order: Principality, Power, Strongman, Spirit, Familiar, Unclean, etc." />
+                    <LockedField tier="Soldier" desc="Hierarchical rank in the demonic order: Principality, Power, Strongman, Spirit, Familiar, Unclean, etc." upgradeUrl={MN_SOLDIER_URL} />
                   </div>
                 </div>
 
                 {/* ── COMMANDER TIER ── */}
                 <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
-                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '12px' }}>🔒 COMMANDER TIER</div>
+                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '10px' }}>🔒 COMMANDER TIER</div>
+                <TierCallout
+                  title="⚔ Upgrade to Commander — $39/month · 30 days free"
+                  desc="Includes everything in Soldier plus Entry Points, Legal Rights, and Deliverance Protocol"
+                  url={MN_COMMANDER_URL}
+                  btnLabel="Upgrade to Commander"
+                />
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>ENTRY POINTS</div>
-                    <LockedField tier="Commander" desc="How this spirit gains access — trauma, generational patterns, sin, occult doorways, soul ties, etc." />
+                    <LockedField tier="Commander" desc="How this spirit gains access — trauma, generational patterns, sin, occult doorways, soul ties, etc." upgradeUrl={MN_COMMANDER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>LEGAL RIGHTS</div>
-                    <LockedField tier="Commander" desc="What gives this spirit legal authority: generational iniquity, blood oaths, trauma, occult involvement, unconfessed sin, etc." />
+                    <LockedField tier="Commander" desc="What gives this spirit legal authority: generational iniquity, blood oaths, trauma, occult involvement, unconfessed sin, etc." upgradeUrl={MN_COMMANDER_URL} />
                   </div>
                   <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DELIVERANCE PROTOCOL</div>
-                    <LockedField tier="Commander" desc="Step-by-step protocol for commanding this spirit out, breaking its legal rights, and maintaining freedom." wide />
+                    <LockedField tier="Commander" desc="Step-by-step protocol for commanding this spirit out, breaking its legal rights, and maintaining freedom." wide upgradeUrl={MN_COMMANDER_URL} />
                   </div>
                 </div>
 
                 {/* ── GENERAL TIER ── */}
                 <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
-                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '12px' }}>🔒 GENERAL TIER</div>
+                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '10px' }}>🔒 GENERAL TIER</div>
+                <TierCallout
+                  title="⚔ Upgrade to General — $97/month · 30 days free"
+                  desc="Includes everything in Commander plus Symptoms, Companion Spirits, and WRI Exorcist Notes"
+                  url={MN_GENERAL_URL}
+                  btnLabel="Upgrade to General"
+                />
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SYMPTOMS</div>
-                    <LockedField tier="General" desc="Physical and mental symptoms this spirit produces (e.g., heart palpitations, insomnia, anxiety attacks, depression, rage episodes, cancer)." />
+                    <LockedField tier="General" desc="Physical and mental symptoms this spirit produces (e.g., heart palpitations, insomnia, anxiety attacks, depression, rage episodes, cancer)." upgradeUrl={MN_GENERAL_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>COMPANION SPIRITS</div>
-                    <LockedField tier="General" desc="Spirits that cluster with this one and almost always appear together in the same person." />
+                    <LockedField tier="General" desc="Spirits that cluster with this one and almost always appear together in the same person." upgradeUrl={MN_GENERAL_URL} />
                   </div>
                   <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>WRI EXORCIST NOTES</div>
-                    <LockedField tier="General" desc="Private ministry notes from the War Room Intel deliverance team — field observations, case patterns, and operational intelligence." wide />
+                    <LockedField tier="General" desc="Private ministry notes from the War Room Intel deliverance team — field observations, case patterns, and operational intelligence." wide upgradeUrl={MN_GENERAL_URL} />
                   </div>
                 </div>
 
