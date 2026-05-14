@@ -395,7 +395,7 @@ function DatabaseSection() {
       <div style={{ border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
         {/* Table Header */}
         <div className="db-table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr 36px', gap: '0', background: surface2, padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
-          {['Name / Alias', 'Type', 'Function', ''].map((h, i) => (
+          {['Name / Alias', 'Type', 'Assignment', ''].map((h, i) => (
             <div key={h} className={i === 2 ? 'db-table-header-func' : ''} style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: muted }}>{h}</div>
           ))}
         </div>
