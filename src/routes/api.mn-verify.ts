@@ -1,21 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 // ─── ENV ─────────────────────────────────────────────────────────────────────
-const MN_API_TOKEN  = process.env.MN_API_TOKEN
-const MN_NETWORK_ID = process.env.MN_NETWORK_ID
-const MN_API_BASE   = 'https://api.mn.co/admin/v1'
-
-const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
-
-// Plan name → WRI tier
-function resolveTier(planName: string | undefined): string {
-  if (!planName) return 'Free'
-  const n = planName.toLowerCase()
-  if (n.includes('general'))   return 'General'
-  if (n.includes('commander')) return 'Commander'
-  if (n.includes('soldier'))   return 'Soldier'
-  return 'Free'
-}
+const AIRTABLE_TOKEN         = process.env.AIRTABLE_TOKEN
+const AIRTABLE_MEMBERS_BASE  = process.env.AIRTABLE_MEMBERS_BASE
+const AIRTABLE_MEMBERS_TABLE = process.env.AIRTABLE_MEMBERS_TABLE
 
 // ─── ROUTE ───────────────────────────────────────────────────────────────────
 // Called with ?email=member@email.com from the client
@@ -31,42 +19,41 @@ export const Route = createFileRoute('/api/mn-verify')({
           return Response.json({ error: 'email required' }, { status: 400 })
         }
 
-        if (!MN_API_TOKEN || !MN_NETWORK_ID) {
-          // MN not configured — allow free access for now
+        if (!AIRTABLE_TOKEN || !AIRTABLE_MEMBERS_BASE || !AIRTABLE_MEMBERS_TABLE) {
+          // Airtable not configured — allow free access
           return Response.json({ tier: 'Free', name: '', email, fallback: true })
         }
 
         try {
-          // Search MN members by email
-          const res = await fetch(
-            `${MN_API_BASE}/networks/${MN_NETWORK_ID}/members?email=${encodeURIComponent(email)}&per_page=1`,
-            { headers: { Authorization: `Bearer ${MN_API_TOKEN}`, 'Content-Type': 'application/json' } }
-          )
+          const formula = `{Email} = "${email}"`
+          const atUrl = `https://api.airtable.com/v0/${AIRTABLE_MEMBERS_BASE}/${AIRTABLE_MEMBERS_TABLE}` +
+            `?filterByFormula=${encodeURIComponent(formula)}&maxRecords=1`
+
+          const res = await fetch(atUrl, {
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          })
 
           if (!res.ok) {
             const detail = await res.text()
-            console.error('[mn-verify] MN API error', { status: res.status, email, detail })
+            console.error('[mn-verify] Airtable error', { status: res.status, email, detail })
             return Response.json({ tier: 'Free', name: '', email, fallback: true })
           }
 
           const data = await res.json()
-          const member = data.members?.[0] || data[0]
+          const record = data.records?.[0]
 
-          if (!member) {
-            // Email not found in MN — offer free signup
+          if (!record) {
+            // Not in Airtable yet — fall back to Free
             return Response.json({ error: 'not_found', email }, { status: 404 })
           }
 
-          // Get their plan if available
-          const planName = member.current_plan?.name || member.plan?.name || ''
-          const tier = resolveTier(planName)
+          const fields    = record.fields
+          const tier      = fields['Tier'] || 'Free'
+          const firstName = fields['First Name'] || ''
+          const lastName  = fields['Last Name']  || ''
+          const name      = [firstName, lastName].filter(Boolean).join(' ')
 
-          return Response.json({
-            tier,
-            name: member.full_name || member.name || '',
-            email,
-            mnId: member.id,
-          })
+          return Response.json({ tier, name, email })
 
         } catch (err: any) {
           console.error('[mn-verify] unexpected error', { email, error: err.message, stack: err.stack })
