@@ -298,10 +298,6 @@ function ResourcesPage() {
       .finally(() => setLoading(false))
   }, [session])
 
-  // Show gate if no session
-  if (!sessionChecked) return null
-  if (!session) return <LoginGate onVerified={s => setSession(s)} />
-
   // Handle download — calls /api/resource-download to get a signed URL
   const handleDownload = useCallback(async (resource: Resource) => {
     setDownloading(resource.id)
@@ -328,6 +324,10 @@ function ResourcesPage() {
       setDownloading(null)
     }
   }, [memberTier])
+
+  // Show gate if no session
+  if (!sessionChecked) return null
+  if (!session) return <LoginGate onVerified={s => setSession(s)} />
 
   // Filter resources
   const filtered = resources.filter(r => {
