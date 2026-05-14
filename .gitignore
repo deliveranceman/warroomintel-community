@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.netlify/
+.tanstack/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
