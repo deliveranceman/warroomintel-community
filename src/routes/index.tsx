@@ -546,12 +546,22 @@ function DatabaseSection() {
                 {/* Submit correction */}
                 <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '8px' }}>
                   <span style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Know more about this entry? Help us improve the database.</span>
-                  <a href={`/submit-demon?suggest=${encodeURIComponent(entry.name)}`}
-                    style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid ${border}`, padding: '5px 14px', borderRadius: '3px', transition: 'border-color 0.2s' }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
-                    🗡 Suggest a Change
-                  </a>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                    {/* Field Card — locked until Soldier auth is wired */}
+                    <a href={MN_SOLDIER_URL} target="_blank" rel="noopener noreferrer"
+                      title="Requires Soldier membership — click to upgrade"
+                      style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.35)`, padding: '5px 14px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px', opacity: 0.65, transition: 'opacity 0.2s, border-color 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.6)' }}
+                      onMouseLeave={e => { e.currentTarget.style.opacity = '0.65'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.35)' }}>
+                      🔒 ⬇ Field Card
+                    </a>
+                    <a href={`/submit-demon?suggest=${encodeURIComponent(entry.name)}`}
+                      style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid ${border}`, padding: '5px 14px', borderRadius: '3px', transition: 'border-color 0.2s' }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
+                      🗡 Suggest a Change
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
