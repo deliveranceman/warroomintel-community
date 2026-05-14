@@ -11,9 +11,11 @@ interface DemonEntry {
   name: string
   aka: string
   type: string
-  function: string
   kingdom?: string
+  description?: string
+  assignment?: string
   // Soldier tier
+  function?: string
   manifestation?: string
   scripture?: string
   strongman?: string
@@ -430,7 +432,7 @@ function DatabaseSection() {
                 </span>
               </div>
               <div className="db-row-func" style={{ fontSize: '13px', color: textDim, lineHeight: 1.5, paddingRight: '8px' }}>
-                {entry.function ? (entry.function.length > 120 ? entry.function.slice(0, 120) + '...' : entry.function) : '—'}
+                {entry.description ? (entry.description.length > 120 ? entry.description.slice(0, 120) + '...' : entry.description) : '—'}
               </div>
               <div className="db-row-toggle" style={{ textAlign: 'center', color: gold, fontSize: '16px', transition: 'transform 0.2s', transform: expanded === entry.id ? 'rotate(45deg)' : 'rotate(0)' }}>+</div>
             </div>
@@ -446,8 +448,12 @@ function DatabaseSection() {
                     <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.kingdom || 'Not documented'}</p>
                   </div>
                   <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>FUNCTION</div>
-                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.function || 'Not documented'}</p>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DESCRIPTION</div>
+                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.description || 'Not documented'}</p>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>ASSIGNMENT</div>
+                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.assignment || 'Not documented'}</p>
                   </div>
                 </div>
 
@@ -461,6 +467,10 @@ function DatabaseSection() {
                   btnLabel="Upgrade to Soldier"
                 />
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>FUNCTION / ROLE</div>
+                    <LockedField tier="Soldier" desc="The specific function or role this spirit plays in the demonic hierarchy and in the life of the host." upgradeUrl={MN_SOLDIER_URL} />
+                  </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>MANIFESTATIONS</div>
                     <LockedField tier="Soldier" desc="Physical, emotional, and spiritual signs this spirit produces in those it inhabits." upgradeUrl={MN_SOLDIER_URL} />
