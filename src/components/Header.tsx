@@ -29,7 +29,10 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [assessmentOpen, setAssessmentOpen] = useState(false)
   const [mobileAssessmentOpen, setMobileAssessmentOpen] = useState(false)
+  const [arsenalOpen, setArsenalOpen] = useState(false)
+  const [mobileArsenalOpen, setMobileArsenalOpen] = useState(false)
   const dropdownRef = useRef<HTMLLIElement>(null)
+  const arsenalRef = useRef<HTMLLIElement>(null)
   const isMobile = useIsMobile()
 
   useEffect(() => {
@@ -42,11 +45,22 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (arsenalRef.current && !arsenalRef.current.contains(e.target as Node)) {
+        setArsenalOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
   // Close menu when resizing to desktop
   useEffect(() => {
     if (!isMobile) {
       setMenuOpen(false)
       setMobileAssessmentOpen(false)
+      setMobileArsenalOpen(false)
     }
   }, [isMobile])
 
@@ -54,6 +68,8 @@ export function Header() {
     setMenuOpen(false)
     setAssessmentOpen(false)
     setMobileAssessmentOpen(false)
+    setArsenalOpen(false)
+    setMobileArsenalOpen(false)
   }
 
   const navLink = (href: string, label: string) => (
@@ -110,7 +126,76 @@ export function Header() {
           gap: '1.5rem', listStyle: 'none', margin: 0, padding: 0,
           alignItems: 'center', height: '100%',
         }}>
-          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#features', 'Arsenal')}</li>
+          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#features', 'Features')}</li>
+
+          {/* Arsenal dropdown */}
+          <li ref={arsenalRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <button
+              onClick={() => setArsenalOpen(o => !o)}
+              onMouseEnter={() => setArsenalOpen(true)}
+              style={{
+                fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em',
+                color: arsenalOpen ? gold : textDim,
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 0, display: 'flex', alignItems: 'center', gap: '4px',
+                transition: 'color 0.2s', lineHeight: 1,
+                verticalAlign: 'middle',
+              }}>
+              Arsenal
+              <span style={{
+                fontSize: '7px', opacity: 0.7,
+                transition: 'transform 0.2s',
+                transform: arsenalOpen ? 'rotate(180deg)' : 'rotate(0)',
+                display: 'inline-block',
+              }}>▼</span>
+            </button>
+
+            {arsenalOpen && (
+              <div onMouseLeave={() => setArsenalOpen(false)} style={{
+                position: 'absolute', top: 'calc(100% + 12px)', left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(13,11,20,0.99)',
+                backdropFilter: 'blur(16px)',
+                border: `1px solid ${borderBright}`,
+                borderRadius: '6px', minWidth: '210px', overflow: 'hidden',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6)', zIndex: 300,
+              }}>
+                <div style={{
+                  position: 'absolute', top: '-6px', left: '50%',
+                  transform: 'translateX(-50%) rotate(45deg)',
+                  width: '10px', height: '10px',
+                  background: 'rgba(13,11,20,0.99)',
+                  border: `1px solid ${borderBright}`,
+                  borderBottom: 'none', borderRight: 'none',
+                }} />
+                {[
+                  { href: 'https://community.warroomintel.com', icon: '⚔', label: 'Community', sub: 'Join the War Room', external: true },
+                  { href: '/resources', icon: '📚', label: 'Resources', sub: 'Ministry resource library', external: false },
+                ].map((item, i) => (
+                  <a key={item.href} href={item.href}
+                    target={item.external ? '_blank' : undefined}
+                    rel={item.external ? 'noopener noreferrer' : undefined}
+                    onClick={closeAll}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      padding: '13px 18px', fontFamily: cinzel, fontSize: '11px',
+                      letterSpacing: '0.07em', color: textDim, textDecoration: 'none',
+                      borderBottom: i === 0 ? `1px solid ${border}` : 'none',
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = goldDim; e.currentTarget.style.color = gold }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textDim }}>
+                    <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: '2px' }}>{item.label}</div>
+                      <div style={{ fontSize: '10px', color: muted, fontFamily: crimson, fontStyle: 'italic' }}>{item.sub}</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </li>
+
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#database', 'Database')}</li>
 
           <li style={{ display: 'flex', alignItems: 'center' }}>
@@ -249,7 +334,7 @@ export function Header() {
           maxHeight: 'calc(100vh - 57px)',
           overflowY: 'auto',
         }}>
-          {/* Arsenal */}
+          {/* Features */}
           <a href="/#features" onClick={closeAll} style={{
             display: 'block', fontFamily: cinzel, fontSize: '13px',
             letterSpacing: '0.1em', color: textDim, textDecoration: 'none',
@@ -257,8 +342,63 @@ export function Header() {
           }}
             onMouseEnter={e => (e.currentTarget.style.color = gold)}
             onMouseLeave={e => (e.currentTarget.style.color = textDim)}>
-            Arsenal
+            Features
           </a>
+
+          {/* Arsenal accordion */}
+          <div>
+            <button onClick={() => setMobileArsenalOpen(o => !o)} style={{
+              width: '100%', background: mobileArsenalOpen ? goldDim : 'transparent',
+              border: 'none', borderBottom: `1px solid ${border}`,
+              cursor: 'pointer', padding: '16px 1.5rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              fontFamily: cinzel, fontSize: '13px', letterSpacing: '0.1em',
+              color: mobileArsenalOpen ? gold : textDim, textAlign: 'left',
+              transition: 'color 0.2s, background 0.2s',
+            }}>
+              Arsenal
+              <span style={{
+                fontSize: '9px', opacity: 0.7,
+                transition: 'transform 0.2s',
+                transform: mobileArsenalOpen ? 'rotate(180deg)' : 'rotate(0)',
+                display: 'inline-block',
+              }}>▼</span>
+            </button>
+
+            {mobileArsenalOpen && (
+              <div style={{ background: 'rgba(201,168,76,0.04)', borderBottom: `1px solid ${border}` }}>
+                <a href="https://community.warroomintel.com" target="_blank" rel="noopener noreferrer" onClick={closeAll} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '14px 1.5rem 14px 2.5rem',
+                  fontFamily: cinzel, fontSize: '12px', letterSpacing: '0.07em',
+                  color: textDim, textDecoration: 'none',
+                  borderBottom: `1px solid ${border}`, transition: 'color 0.2s',
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                  onMouseLeave={e => (e.currentTarget.style.color = textDim)}>
+                  <span style={{ fontSize: '14px' }}>⚔</span>
+                  <div>
+                    <div>Community</div>
+                    <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Join the War Room</div>
+                  </div>
+                </a>
+                <a href="/resources" onClick={closeAll} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '14px 1.5rem 14px 2.5rem',
+                  fontFamily: cinzel, fontSize: '12px', letterSpacing: '0.07em',
+                  color: textDim, textDecoration: 'none', transition: 'color 0.2s',
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                  onMouseLeave={e => (e.currentTarget.style.color = textDim)}>
+                  <span style={{ fontSize: '14px' }}>📚</span>
+                  <div>
+                    <div>Resources</div>
+                    <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Ministry resource library</div>
+                  </div>
+                </a>
+              </div>
+            )}
+          </div>
 
           {/* Database */}
           <a href="/#database" onClick={closeAll} style={{

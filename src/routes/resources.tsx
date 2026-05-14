@@ -587,7 +587,9 @@ function clearSession() {
 }
 
 // ─── MN FREE PLAN URL ─────────────────────────────────────────────────────────
-const MN_FREE_SIGNUP = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=resources'
+const MN_FREE_SIGNUP         = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=resources'
+const MN_FREE_SIGNUP_MANUAL  = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=manual'
+const MN_PRICING             = 'https://warroomintel.com/#pricing'
 
 // ─── LOGIN GATE ───────────────────────────────────────────────────────────────
 function LoginGate({ onVerified }: { onVerified: (session: MemberSession) => void }) {
@@ -698,27 +700,52 @@ function LoginGate({ onVerified }: { onVerified: (session: MemberSession) => voi
 
         {step === 'notfound' && (
           <>
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '10px' }}>⚔</div>
-              <div style={{ fontFamily: cinzel, fontSize: '12px', color: gold, marginBottom: '8px' }}>Email Not Found</div>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚔</div>
+              <div style={{ fontFamily: cinzel, fontSize: '13px', color: '#e8e0d0', marginBottom: '10px', lineHeight: 1.5 }}>
+                You don't have a War Room Intel account yet.
+              </div>
               <div style={{ fontSize: '13px', color: textDim, lineHeight: 1.6 }}>
-                <strong style={{ color: '#e8e0d0' }}>{email}</strong> is not in our community yet. Create a free Watchman account to access the resource library.
+                No account was found for <strong style={{ color: '#e8e0d0' }}>{email}</strong>.
               </div>
             </div>
 
             <a
-              href={MN_FREE_SIGNUP}
+              href={MN_FREE_SIGNUP_MANUAL}
               target="_blank"
               rel="noopener noreferrer"
               style={{
                 display: 'block', width: '100%', background: gold, color: deep,
                 fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
                 padding: '13px', borderRadius: '6px', textAlign: 'center' as const,
-                textDecoration: 'none', marginBottom: '12px', boxSizing: 'border-box' as const,
+                textDecoration: 'none', marginBottom: '10px', boxSizing: 'border-box' as const,
               }}
             >
-              JOIN FREE — WATCHMAN TIER →
+              JOIN FREE — NO CARD REQUIRED →
             </a>
+
+            <a
+              href={MN_PRICING}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block', width: '100%', background: 'transparent',
+                border: `1px solid ${gold}66`, color: gold,
+                fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
+                padding: '13px', borderRadius: '6px', textAlign: 'center' as const,
+                textDecoration: 'none', marginBottom: '20px', boxSizing: 'border-box' as const,
+              }}
+            >
+              VIEW MEMBERSHIP PLANS →
+            </a>
+
+            <div style={{
+              fontSize: '12px', color: muted, fontStyle: 'italic',
+              lineHeight: 1.6, textAlign: 'center' as const, marginBottom: '16px',
+              padding: '12px 8px', borderTop: `1px solid ${border}`,
+            }}>
+              Already a member? Make sure you use the same email address you signed up with at community.warroomintel.com
+            </div>
 
             <button
               onClick={() => { setStep('enter'); setError('') }}
