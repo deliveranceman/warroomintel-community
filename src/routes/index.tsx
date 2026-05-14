@@ -12,10 +12,20 @@ interface DemonEntry {
   aka: string
   type: string
   function: string
+  kingdom?: string
+  // Soldier tier
   manifestation?: string
   scripture?: string
+  strongman?: string
+  rank?: string
+  // Commander tier
   entryPoints?: string
+  legalRights?: string
   protocol?: string
+  // General tier
+  symptoms?: string
+  companionSpirits?: string
+  wriNotes?: string
 }
 
 // ── MIGHTY NETWORKS JOIN URLS ───────────────────────────
@@ -232,6 +242,25 @@ function FeaturesSection() {
   )
 }
 
+// ── LOCKED FIELD ─────────────────────────────────────────
+const TIER_LABELS: Record<string, string> = {
+  Soldier: '🔒 Soldier Required',
+  Commander: '🔒 Commander Required',
+  General: '🔒 General Required',
+}
+
+function LockedField({ tier, desc, wide }: { tier: string; desc: string; wide?: boolean }) {
+  return (
+    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: wide ? '12px 16px' : '10px 12px', display: wide ? 'flex' : undefined, alignItems: wide ? 'center' : undefined, justifyContent: wide ? 'space-between' : undefined, flexWrap: wide ? 'wrap' as const : undefined, gap: wide ? '12px' : undefined }}>
+      <div>
+        <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>{TIER_LABELS[tier]}</div>
+        <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{desc}</div>
+      </div>
+      {wide && <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', whiteSpace: 'nowrap' as const }}>MEMBERS ONLY</span>}
+    </div>
+  )
+}
+
 // ── DATABASE ─────────────────────────────────────────────
 function DatabaseSection() {
   const [entries, setEntries] = useState<DemonEntry[]>([])
@@ -321,13 +350,21 @@ function DatabaseSection() {
         )}
       </div>
 
-      {/* Membership Coming Soon Banner */}
-      <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: '6px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      {/* Membership Info Banner */}
+      <div className="db-banner" style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: '6px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' as const }}>
           <span style={{ fontSize: '14px' }}>🔒</span>
-          <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', color: gold }}>Detailed fields (Scripture, Entry Points, Protocols) unlock with membership</span>
+          <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.07em', color: gold }}>
+            <span style={{ color: textDim }}>Free:</span> Name, Type, Kingdom, Function&nbsp;&nbsp;
+            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
+            <span style={{ color: textDim }}>Soldier:</span> + Manifestations, Scripture, Strongman, Rank&nbsp;&nbsp;
+            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
+            <span style={{ color: textDim }}>Commander:</span> + Entry Points, Legal Rights, Protocol&nbsp;&nbsp;
+            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
+            <span style={{ color: textDim }}>General:</span> + Symptoms, Companion Spirits, Exorcist Notes
+          </span>
         </div>
-        <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em', color: muted, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px' }}>MEMBERSHIP COMING SOON</span>
+        <a href={MN_SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>JOIN TO UNLOCK →</a>
       </div>
 
       {/* Database Table */}
@@ -377,53 +414,79 @@ function DatabaseSection() {
             {/* Expanded detail */}
             {expanded === entry.id && (
               <div style={{ padding: '16px 20px 20px', borderTop: `1px solid ${border}`, background: 'rgba(13,11,20,0.4)' }}>
-                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
 
-                  {/* Function — always visible */}
+                {/* ── FREE TIER ── */}
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>KINGDOM</div>
+                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.kingdom || 'Not documented'}</p>
+                  </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>FUNCTION</div>
                     <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.function || 'Not documented'}</p>
                   </div>
+                </div>
 
-                  {/* Manifestations — always visible */}
+                {/* ── SOLDIER TIER ── */}
+                <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
+                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '12px' }}>🔒 SOLDIER TIER</div>
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>MANIFESTATIONS</div>
-                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.manifestation || 'Not documented'}</p>
+                    <LockedField tier="Soldier" desc="Physical, emotional, and spiritual signs this spirit produces in those it inhabits." />
                   </div>
-
-                  {/* Scripture — locked */}
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SCRIPTURE REFERENCES</div>
-                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: '10px 12px' }}>
-                      <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>🔒 Membership Required</div>
-                      <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Scripture refs unlock with Soldier tier</div>
-                    </div>
+                    <LockedField tier="Soldier" desc="Biblical passages that identify, address, or give authority over this spirit." />
                   </div>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>STRONGMAN</div>
+                    <LockedField tier="Soldier" desc="The major strongman this spirit operates under (e.g., Bitterness, Fear, Rejection, Leviathan)." />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>RANK / CLASSIFICATION</div>
+                    <LockedField tier="Soldier" desc="Hierarchical rank in the demonic order: Principality, Power, Strongman, Spirit, Familiar, Unclean, etc." />
+                  </div>
+                </div>
 
-                  {/* Entry Points — locked */}
+                {/* ── COMMANDER TIER ── */}
+                <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
+                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '12px' }}>🔒 COMMANDER TIER</div>
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>ENTRY POINTS</div>
-                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: '10px 12px' }}>
-                      <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>🔒 Membership Required</div>
-                      <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Entry points unlock with Soldier tier</div>
-                    </div>
+                    <LockedField tier="Commander" desc="How this spirit gains access — trauma, generational patterns, sin, occult doorways, soul ties, etc." />
                   </div>
-
-                  {/* Protocol — locked */}
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>LEGAL RIGHTS</div>
+                    <LockedField tier="Commander" desc="What gives this spirit legal authority: generational iniquity, blood oaths, trauma, occult involvement, unconfessed sin, etc." />
+                  </div>
                   <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DELIVERANCE PROTOCOL</div>
-                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '12px' }}>
-                      <div>
-                        <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>🔒 Commander Tier Required</div>
-                        <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Full deliverance protocol unlocks with Commander membership</div>
-                      </div>
-                      <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', whiteSpace: 'nowrap' as const }}>COMING SOON</span>
-                    </div>
+                    <LockedField tier="Commander" desc="Step-by-step protocol for commanding this spirit out, breaking its legal rights, and maintaining freedom." wide />
+                  </div>
+                </div>
+
+                {/* ── GENERAL TIER ── */}
+                <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
+                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '12px' }}>🔒 GENERAL TIER</div>
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SYMPTOMS</div>
+                    <LockedField tier="General" desc="Physical and mental symptoms this spirit produces (e.g., heart palpitations, insomnia, anxiety attacks, depression, rage episodes, cancer)." />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>COMPANION SPIRITS</div>
+                    <LockedField tier="General" desc="Spirits that cluster with this one and almost always appear together in the same person." />
+                  </div>
+                  <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
+                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>WRI EXORCIST NOTES</div>
+                    <LockedField tier="General" desc="Private ministry notes from the War Room Intel deliverance team — field observations, case patterns, and operational intelligence." wide />
                   </div>
                 </div>
 
                 {/* Submit correction */}
-                <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '8px' }}>
+                <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '8px' }}>
                   <span style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Know more about this entry? Help us improve the database.</span>
                   <a href={`/submit-demon?suggest=${encodeURIComponent(entry.name)}`}
                     style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid ${border}`, padding: '5px 14px', borderRadius: '3px', transition: 'border-color 0.2s' }}
