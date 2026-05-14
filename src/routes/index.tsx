@@ -249,14 +249,33 @@ const TIER_LABELS: Record<string, string> = {
   General: '🔒 General Required',
 }
 
+const TIER_URLS: Record<string, string> = {
+  Soldier: MN_SOLDIER_URL,
+  Commander: MN_COMMANDER_URL,
+  General: MN_GENERAL_URL,
+}
+
 function LockedField({ tier, desc, wide }: { tier: string; desc: string; wide?: boolean }) {
+  const upgradeLink = (
+    <a
+      href={TIER_URLS[tier]}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.35)`, padding: '3px 10px', borderRadius: '2px', whiteSpace: 'nowrap' as const, transition: 'background 0.2s', flexShrink: 0 }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.12)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      Unlock →
+    </a>
+  )
+
   return (
-    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: wide ? '12px 16px' : '10px 12px', display: wide ? 'flex' : undefined, alignItems: wide ? 'center' : undefined, justifyContent: wide ? 'space-between' : undefined, flexWrap: wide ? 'wrap' as const : undefined, gap: wide ? '12px' : undefined }}>
-      <div>
+    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: wide ? '12px 16px' : '10px 12px', display: 'flex', alignItems: wide ? 'center' : 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '10px' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>{TIER_LABELS[tier]}</div>
         <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{desc}</div>
       </div>
-      {wide && <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', whiteSpace: 'nowrap' as const }}>MEMBERS ONLY</span>}
+      {upgradeLink}
     </div>
   )
 }
