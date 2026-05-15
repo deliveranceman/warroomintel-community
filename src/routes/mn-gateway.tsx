@@ -3,7 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 
 export const Route = createFileRoute('/mn-gateway')({
-  validateSearch: z.object({ email: z.string().optional() }),
+  validateSearch: z.object({
+    token: z.string().optional(),
+    email: z.string().optional(),
+  }),
   head: () => ({
     meta: [
       { title: 'Resource Arsenal — War Room Intel' },
@@ -21,28 +24,67 @@ export const Route = createFileRoute('/mn-gateway')({
   component: MNGateway,
 })
 
-const gold = '#C9A84C'
-const bg = '#0D0B14'
+const SESSION_KEY = 'wri_member'
+const TOKEN_KEY   = 'wri_token'
+
+const gold    = '#C9A84C'
+const bg      = '#0D0B14'
 const surface = '#13101E'
-const border = 'rgba(201,168,76,0.35)'
+const border  = 'rgba(201,168,76,0.35)'
 
 type VerifyState = 'idle' | 'loading' | 'not_found' | 'error'
 
+function storeSession(data: { tier: string; name: string; email: string }, token?: string) {
+  const session = { email: data.email, name: data.name || '', tier: data.tier, verified: Date.now() }
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  if (token) sessionStorage.setItem(TOKEN_KEY, token)
+}
+
 function MNGateway() {
-  const { email: emailParam } = Route.useSearch()
+  const { token: tokenParam, email: emailParam } = Route.useSearch()
   const navigate = useNavigate()
 
-  const [email, setEmail] = useState(emailParam ?? '')
-  const [state, setState] = useState<VerifyState>('idle')
-  const autoSubmitted = useRef(false)
+  const [email, setEmail]   = useState(emailParam ?? '')
+  const [state, setState]   = useState<VerifyState>('idle')
+  const attempted           = useRef(false)
 
-  async function verify(target: string) {
+  // Token path: silent — no UI state change, just redirect or fall through
+  useEffect(() => {
+    if (!tokenParam || attempted.current) return
+    attempted.current = true
+
+    fetch(`/api/mn-verify?token=${encodeURIComponent(tokenParam)}`)
+      .then(res => res.ok ? res.json() : Promise.reject(res.status))
+      .then(data => {
+        if (data.tier) {
+          storeSession(data, tokenParam)
+          navigate({ to: '/resources' })
+        } else {
+          // Token invalid — fall through to email form (show it now)
+          setState('idle')
+        }
+      })
+      .catch(() => {
+        // Token failed — fall through to email form silently
+        setState('idle')
+      })
+  }, [tokenParam])
+
+  // Email path: show "Verifying…" spinner
+  useEffect(() => {
+    if (tokenParam) return   // token path takes priority
+    if (!emailParam || attempted.current) return
+    attempted.current = true
+    verifyEmail(emailParam)
+  }, [emailParam, tokenParam])
+
+  async function verifyEmail(target: string) {
     setState('loading')
     try {
-      const res = await fetch(`/api/mn-verify?email=${encodeURIComponent(target.trim().toLowerCase())}`)
+      const res  = await fetch(`/api/mn-verify?email=${encodeURIComponent(target.trim().toLowerCase())}`)
       const data = await res.json()
       if (res.ok && data.tier) {
-        sessionStorage.setItem('wri_session', JSON.stringify(data))
+        storeSession(data)
         navigate({ to: '/resources' })
       } else if (res.status === 404 || data.error === 'not_found') {
         setState('not_found')
@@ -54,17 +96,13 @@ function MNGateway() {
     }
   }
 
-  useEffect(() => {
-    if (emailParam && !autoSubmitted.current) {
-      autoSubmitted.current = true
-      verify(emailParam)
-    }
-  }, [emailParam])
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (email.trim()) verify(email)
+    if (email.trim()) verifyEmail(email)
   }
+
+  // While a token is being silently checked, render nothing (no flash of UI)
+  if (tokenParam && state === 'idle' && !attempted.current) return null
 
   const isLoading = state === 'loading'
 
@@ -88,14 +126,12 @@ function MNGateway() {
         boxSizing: 'border-box',
         textAlign: 'center',
       }}>
-        {/* Logo */}
         <img
           src="/logo.png"
           alt="War Room Intel"
           style={{ width: 80, height: 80, objectFit: 'contain', marginBottom: 24 }}
         />
 
-        {/* Title */}
         <h1 style={{
           fontFamily: "'Cinzel', serif",
           fontSize: 26,
@@ -107,17 +143,14 @@ function MNGateway() {
           Resource Arsenal
         </h1>
 
-        {/* Subtitle */}
         <p style={{ color: '#A89FC0', fontSize: 14, margin: '0 0 28px', lineHeight: 1.6 }}>
           Enter your community email to access your tier resources
         </p>
 
-        {/* Auto-verifying spinner */}
         {isLoading && (
           <p style={{ color: gold, fontSize: 14, marginBottom: 20 }}>Verifying…</p>
         )}
 
-        {/* Form */}
         {!isLoading && (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <input
@@ -138,7 +171,6 @@ function MNGateway() {
                 boxSizing: 'border-box',
               }}
             />
-
             <button
               type="submit"
               style={{
@@ -160,7 +192,6 @@ function MNGateway() {
           </form>
         )}
 
-        {/* Error states */}
         {state === 'not_found' && (
           <div style={{ marginTop: 20 }}>
             <p style={{ color: '#E88C8C', fontSize: 14, marginBottom: 10 }}>
@@ -186,7 +217,6 @@ function MNGateway() {
           </p>
         )}
 
-        {/* Footer note */}
         <p style={{ color: '#6B6480', fontSize: 12, marginTop: 28, lineHeight: 1.5 }}>
           Use the same email you joined{' '}
           <span style={{ color: '#A89FC0' }}>community.warroomintel.com</span> with

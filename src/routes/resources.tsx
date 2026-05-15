@@ -278,11 +278,37 @@ function ResourcesPage() {
 
   const memberTier = session?.tier || 'Free'
 
-  // Check session on mount
+  // Check session on mount — fall back to stored token if session has expired
   useEffect(() => {
-    const s = getSession()
-    setSession(s)
-    setChecked(true)
+    async function check() {
+      const s = getSession()
+      if (s) { setSession(s); setChecked(true); return }
+
+      const token = sessionStorage.getItem('wri_token')
+      if (token) {
+        try {
+          const res  = await fetch(`/api/mn-verify?token=${encodeURIComponent(token)}`)
+          const data = await res.json()
+          if (res.ok && data.tier) {
+            const renewed: MemberSession = {
+              email:    data.email,
+              name:     data.name || '',
+              tier:     data.tier,
+              verified: Date.now(),
+            }
+            saveSession(renewed)
+            setSession(renewed)
+            setChecked(true)
+            return
+          }
+        } catch {}
+        // Token no longer valid — clear it
+        sessionStorage.removeItem('wri_token')
+      }
+
+      setChecked(true)
+    }
+    check()
   }, [])
 
   // Fetch all resources once session is confirmed

@@ -150,6 +150,13 @@ async function assignTierTag(memberId: number, tier: string, previousTier?: stri
   }
 }
 
+// ─── TOKEN GENERATION ────────────────────────────────────────────────────────
+function generateToken(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 // ─── AIRTABLE MEMBER SYNC ────────────────────────────────────────────────────
 async function upsertAirtableMember(data: {
   mn_member_id: number
@@ -191,7 +198,10 @@ async function upsertAirtableMember(data: {
   }
 
   if (existing) {
-    // Update existing record
+    // Backfill Access Token if the record was created before this feature
+    if (!existing.fields['Access Token']) {
+      fields['Access Token'] = generateToken()
+    }
     await fetch(
       `https://api.airtable.com/v0/${AIRTABLE_MEMBERS_BASE}/${AIRTABLE_MEMBERS_TABLE}/${existing.id}`,
       {
@@ -201,13 +211,13 @@ async function upsertAirtableMember(data: {
       }
     )
   } else {
-    // Create new record — add join date on first creation
+    // Create new record — assign permanent access token and join date
     await fetch(
       `https://api.airtable.com/v0/${AIRTABLE_MEMBERS_BASE}/${AIRTABLE_MEMBERS_TABLE}`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: { ...fields, 'Join Date': data.event_timestamp } }),
+        body: JSON.stringify({ fields: { ...fields, 'Join Date': data.event_timestamp, 'Access Token': generateToken() } }),
       }
     )
   }
