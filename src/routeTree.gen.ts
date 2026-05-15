@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
+import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
 import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
@@ -27,6 +28,7 @@ import { Route as ApiMnVerifyRouteImport } from './routes/api.mn-verify'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
 import { Route as ApiGenerateFieldCardRouteImport } from './routes/api.generate-field-card'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
+import { Route as ApiClerkWebhookRouteImport } from './routes/api.clerk-webhook'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
 import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
@@ -77,6 +79,11 @@ const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
   path: '/api/warroom-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUserTierRoute = ApiUserTierRouteImport.update({
+  id: '/api/user-tier',
+  path: '/api/user-tier',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSubmitAssessmentRoute = ApiSubmitAssessmentRouteImport.update({
   id: '/api/submit-assessment',
   path: '/api/submit-assessment',
@@ -122,6 +129,11 @@ const ApiDemonsRoute = ApiDemonsRouteImport.update({
   path: '/api/demons',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiClerkWebhookRoute = ApiClerkWebhookRouteImport.update({
+  id: '/api/clerk-webhook',
+  path: '/api/clerk-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAssessmentBoardRoute = ApiAssessmentBoardRouteImport.update({
   id: '/api/assessment-board',
   path: '/api/assessment-board',
@@ -154,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
+  '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
@@ -163,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
+  '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -178,6 +192,7 @@ export interface FileRoutesByTo {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
+  '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
@@ -187,6 +202,7 @@ export interface FileRoutesByTo {
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
+  '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
@@ -203,6 +219,7 @@ export interface FileRoutesById {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
+  '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
@@ -212,6 +229,7 @@ export interface FileRoutesById {
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
+  '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -229,6 +247,7 @@ export interface FileRouteTypes {
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
+    | '/api/clerk-webhook'
     | '/api/demons'
     | '/api/generate-field-card'
     | '/api/generate-summary'
@@ -238,6 +257,7 @@ export interface FileRouteTypes {
     | '/api/resources'
     | '/api/resources-debug'
     | '/api/submit-assessment'
+    | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
     | '/admin/'
@@ -253,6 +273,7 @@ export interface FileRouteTypes {
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
+    | '/api/clerk-webhook'
     | '/api/demons'
     | '/api/generate-field-card'
     | '/api/generate-summary'
@@ -262,6 +283,7 @@ export interface FileRouteTypes {
     | '/api/resources'
     | '/api/resources-debug'
     | '/api/submit-assessment'
+    | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
     | '/admin'
@@ -277,6 +299,7 @@ export interface FileRouteTypes {
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
+    | '/api/clerk-webhook'
     | '/api/demons'
     | '/api/generate-field-card'
     | '/api/generate-summary'
@@ -286,6 +309,7 @@ export interface FileRouteTypes {
     | '/api/resources'
     | '/api/resources-debug'
     | '/api/submit-assessment'
+    | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
     | '/admin/'
@@ -302,6 +326,7 @@ export interface RootRouteChildren {
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
+  ApiClerkWebhookRoute: typeof ApiClerkWebhookRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
   ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
@@ -311,6 +336,7 @@ export interface RootRouteChildren {
   ApiResourcesRoute: typeof ApiResourcesRoute
   ApiResourcesDebugRoute: typeof ApiResourcesDebugRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
+  ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -381,6 +407,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWarroomChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/user-tier': {
+      id: '/api/user-tier'
+      path: '/api/user-tier'
+      fullPath: '/api/user-tier'
+      preLoaderRoute: typeof ApiUserTierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/submit-assessment': {
       id: '/api/submit-assessment'
       path: '/api/submit-assessment'
@@ -444,6 +477,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDemonsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/clerk-webhook': {
+      id: '/api/clerk-webhook'
+      path: '/api/clerk-webhook'
+      fullPath: '/api/clerk-webhook'
+      preLoaderRoute: typeof ApiClerkWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/assessment-board': {
       id: '/api/assessment-board'
       path: '/api/assessment-board'
@@ -486,6 +526,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminAuthRoute: ApiAdminAuthRoute,
   ApiAdminUploadRoute: ApiAdminUploadRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
+  ApiClerkWebhookRoute: ApiClerkWebhookRoute,
   ApiDemonsRoute: ApiDemonsRoute,
   ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
@@ -495,6 +536,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiResourcesRoute: ApiResourcesRoute,
   ApiResourcesDebugRoute: ApiResourcesDebugRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
+  ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
   AdminIndexRoute: AdminIndexRoute,
