@@ -1,7 +1,9 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
 import { Header } from '@/components/Header'
 import { AIAssistant } from '@/components/AIAssistant'
 import '../styles.css'
+
+const BARE_ROUTES = ['/mn-gateway']
 
 export const Route = createRootRoute({
   head: () => ({
@@ -16,15 +18,17 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: s => s.location.pathname })
+  const bare = BARE_ROUTES.includes(pathname)
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        <Header />
+        {!bare && <Header />}
         {children}
-        <AIAssistant />
+        {!bare && <AIAssistant />}
         <Scripts />
       </body>
     </html>

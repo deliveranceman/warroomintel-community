@@ -11,10 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
 import { Route as ResourcesRouteImport } from './routes/resources'
+import { Route as MnGatewayRouteImport } from './routes/mn-gateway'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
 import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
@@ -22,12 +23,14 @@ import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-de
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
 import { Route as ApiResourceDownloadRouteImport } from './routes/api.resource-download'
 import { Route as ApiMnWebhookRouteImport } from './routes/api.mn-webhook'
+import { Route as ApiMnVerifyRouteImport } from './routes/api.mn-verify'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
+import { Route as ApiGenerateFieldCardRouteImport } from './routes/api.generate-field-card'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
 import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
-import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
 const SubmitDemonRoute = SubmitDemonRouteImport.update({
   id: '/submit-demon',
@@ -37,6 +40,11 @@ const SubmitDemonRoute = SubmitDemonRouteImport.update({
 const ResourcesRoute = ResourcesRouteImport.update({
   id: '/resources',
   path: '/resources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MnGatewayRoute = MnGatewayRouteImport.update({
+  id: '/mn-gateway',
+  path: '/mn-gateway',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentBoardRoute = AssessmentBoardRouteImport.update({
@@ -94,9 +102,19 @@ const ApiMnWebhookRoute = ApiMnWebhookRouteImport.update({
   path: '/api/mn-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMnVerifyRoute = ApiMnVerifyRouteImport.update({
+  id: '/api/mn-verify',
+  path: '/api/mn-verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGenerateSummaryRoute = ApiGenerateSummaryRouteImport.update({
   id: '/api/generate-summary',
   path: '/api/generate-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGenerateFieldCardRoute = ApiGenerateFieldCardRouteImport.update({
+  id: '/api/generate-field-card',
+  path: '/api/generate-field-card',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDemonsRoute = ApiDemonsRouteImport.update({
@@ -129,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/admin/login': typeof AdminLoginRoute
@@ -136,7 +155,9 @@ export interface FileRoutesByFullPath {
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/mn-verify': typeof ApiMnVerifyRoute
   '/api/mn-webhook': typeof ApiMnWebhookRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
@@ -150,6 +171,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/admin/login': typeof AdminLoginRoute
@@ -157,7 +179,9 @@ export interface FileRoutesByTo {
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/mn-verify': typeof ApiMnVerifyRoute
   '/api/mn-webhook': typeof ApiMnWebhookRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
@@ -172,6 +196,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/admin/login': typeof AdminLoginRoute
@@ -179,7 +204,9 @@ export interface FileRoutesById {
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/mn-verify': typeof ApiMnVerifyRoute
   '/api/mn-webhook': typeof ApiMnWebhookRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
@@ -195,6 +222,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/mn-gateway'
     | '/resources'
     | '/submit-demon'
     | '/admin/login'
@@ -202,7 +230,9 @@ export interface FileRouteTypes {
     | '/api/admin-upload'
     | '/api/assessment-board'
     | '/api/demons'
+    | '/api/generate-field-card'
     | '/api/generate-summary'
+    | '/api/mn-verify'
     | '/api/mn-webhook'
     | '/api/resource-download'
     | '/api/resources'
@@ -216,6 +246,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/mn-gateway'
     | '/resources'
     | '/submit-demon'
     | '/admin/login'
@@ -223,7 +254,9 @@ export interface FileRouteTypes {
     | '/api/admin-upload'
     | '/api/assessment-board'
     | '/api/demons'
+    | '/api/generate-field-card'
     | '/api/generate-summary'
+    | '/api/mn-verify'
     | '/api/mn-webhook'
     | '/api/resource-download'
     | '/api/resources'
@@ -237,6 +270,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/mn-gateway'
     | '/resources'
     | '/submit-demon'
     | '/admin/login'
@@ -244,7 +278,9 @@ export interface FileRouteTypes {
     | '/api/admin-upload'
     | '/api/assessment-board'
     | '/api/demons'
+    | '/api/generate-field-card'
     | '/api/generate-summary'
+    | '/api/mn-verify'
     | '/api/mn-webhook'
     | '/api/resource-download'
     | '/api/resources'
@@ -259,6 +295,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssessmentRoute: typeof AssessmentRoute
   AssessmentBoardRoute: typeof AssessmentBoardRoute
+  MnGatewayRoute: typeof MnGatewayRoute
   ResourcesRoute: typeof ResourcesRoute
   SubmitDemonRoute: typeof SubmitDemonRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -266,7 +303,9 @@ export interface RootRouteChildren {
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
+  ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
+  ApiMnVerifyRoute: typeof ApiMnVerifyRoute
   ApiMnWebhookRoute: typeof ApiMnWebhookRoute
   ApiResourceDownloadRoute: typeof ApiResourceDownloadRoute
   ApiResourcesRoute: typeof ApiResourcesRoute
@@ -291,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/resources'
       fullPath: '/resources'
       preLoaderRoute: typeof ResourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mn-gateway': {
+      id: '/mn-gateway'
+      path: '/mn-gateway'
+      fullPath: '/mn-gateway'
+      preLoaderRoute: typeof MnGatewayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessment-board': {
@@ -370,11 +416,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMnWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mn-verify': {
+      id: '/api/mn-verify'
+      path: '/api/mn-verify'
+      fullPath: '/api/mn-verify'
+      preLoaderRoute: typeof ApiMnVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/generate-summary': {
       id: '/api/generate-summary'
       path: '/api/generate-summary'
       fullPath: '/api/generate-summary'
       preLoaderRoute: typeof ApiGenerateSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/generate-field-card': {
+      id: '/api/generate-field-card'
+      path: '/api/generate-field-card'
+      fullPath: '/api/generate-field-card'
+      preLoaderRoute: typeof ApiGenerateFieldCardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/demons': {
@@ -419,6 +479,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssessmentRoute: AssessmentRoute,
   AssessmentBoardRoute: AssessmentBoardRoute,
+  MnGatewayRoute: MnGatewayRoute,
   ResourcesRoute: ResourcesRoute,
   SubmitDemonRoute: SubmitDemonRoute,
   AdminLoginRoute: AdminLoginRoute,
@@ -426,7 +487,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminUploadRoute: ApiAdminUploadRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
   ApiDemonsRoute: ApiDemonsRoute,
+  ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
+  ApiMnVerifyRoute: ApiMnVerifyRoute,
   ApiMnWebhookRoute: ApiMnWebhookRoute,
   ApiResourceDownloadRoute: ApiResourceDownloadRoute,
   ApiResourcesRoute: ApiResourcesRoute,
