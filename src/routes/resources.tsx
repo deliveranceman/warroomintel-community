@@ -322,11 +322,67 @@ function ResourcesPage() {
   }, [memberTier])
 
   if (!isLoaded) return (
-    <div style={{ background: deep, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.22em', color: gold }}>LOADING...</div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--deep)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'var(--gold)',
+      fontFamily: 'Cinzel, serif',
+      letterSpacing: '0.1em',
+      fontSize: '12px',
+    }}>
+      LOADING...
     </div>
   )
-  if (!isSignedIn) return <ClerkLoginGate />
+
+  if (!isSignedIn) return (
+    <div style={{ minHeight: '100vh', background: 'var(--deep)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '8px',
+        padding: '48px',
+        maxWidth: '420px',
+        width: '100%',
+        textAlign: 'center' as const,
+      }}>
+        <img src="/logo.png" alt="War Room Intel" style={{ width: '80px', marginBottom: '24px' }} />
+        <div style={{ fontFamily: 'Cinzel, serif', color: 'var(--gold)', fontSize: '10px', letterSpacing: '0.15em', marginBottom: '12px' }}>
+          WAR ROOM INTEL
+        </div>
+        <div style={{ fontFamily: 'Cinzel, serif', color: 'var(--text)', fontSize: '20px', marginBottom: '8px' }}>
+          Resource Arsenal
+        </div>
+        <div style={{ color: 'var(--text-dim)', fontSize: '13px', marginBottom: '32px', lineHeight: 1.6 }}>
+          Sign in to access your tier resources
+        </div>
+        <SignInButton mode="modal">
+          <button style={{
+            width: '100%', padding: '12px',
+            background: 'var(--gold)', color: 'var(--deep)',
+            border: 'none', borderRadius: '4px',
+            fontFamily: 'Cinzel, serif', fontSize: '11px',
+            letterSpacing: '0.12em', cursor: 'pointer', marginBottom: '12px',
+          }}>
+            SIGN IN ⚔
+          </button>
+        </SignInButton>
+        <SignUpButton mode="modal">
+          <button style={{
+            width: '100%', padding: '12px',
+            background: 'transparent', color: 'var(--gold)',
+            border: '1px solid var(--border)', borderRadius: '4px',
+            fontFamily: 'Cinzel, serif', fontSize: '11px',
+            letterSpacing: '0.12em', cursor: 'pointer',
+          }}>
+            CREATE FREE ACCOUNT ⚔
+          </button>
+        </SignUpButton>
+      </div>
+    </div>
+  )
 
   // Filter resources
   const filtered = resources.filter(r => {
@@ -553,60 +609,3 @@ function ResourcesPage() {
   )
 }
 
-// ─── CLERK LOGIN GATE ─────────────────────────────────────────────────────────
-function ClerkLoginGate() {
-  return (
-    <div style={{ background: deep, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: crimson }}>
-      <style>{resourcesMobileStyles}</style>
-      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: '12px', padding: '40px 32px', width: '100%', maxWidth: '420px', textAlign: 'center' }}>
-
-        <img src="/logo.png" alt="War Room Intel" style={{ width: '64px', height: '64px', objectFit: 'contain', marginBottom: '12px' }} />
-        <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.22em', color: gold, marginBottom: '4px' }}>WAR ROOM INTEL</div>
-        <div style={{ fontFamily: cinzel, fontSize: '16px', color: 'var(--text)', marginBottom: '8px' }}>Resource Arsenal</div>
-        <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic', marginBottom: '28px' }}>
-          Sign in to access your Resource Arsenal
-        </div>
-
-        <div style={{ height: '1px', background: border, marginBottom: '24px' }} />
-
-        <SignInButton mode="modal">
-          <button style={{
-            width: '100%', background: gold, color: deep,
-            fontFamily: cinzel, fontSize: '10px', fontWeight: 700,
-            letterSpacing: '0.14em', padding: '13px', borderRadius: '6px',
-            border: 'none', cursor: 'pointer', marginBottom: '12px',
-            transition: 'opacity 0.2s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            SIGN IN →
-          </button>
-        </SignInButton>
-
-        <div style={{ fontSize: '12px', color: muted, marginBottom: '10px' }}>Don't have an account?</div>
-
-        <SignUpButton mode="modal">
-          <button style={{
-            width: '100%', background: 'transparent',
-            border: `1px solid ${borderBright}`, color: gold,
-            fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
-            padding: '13px', borderRadius: '6px', cursor: 'pointer',
-            transition: 'background 0.2s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            CREATE ACCOUNT →
-          </button>
-        </SignUpButton>
-
-        <div style={{ marginTop: '24px' }}>
-          <a href="/#pricing" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em', color: muted, textDecoration: 'none' }}>
-            View membership plans →
-          </a>
-        </div>
-      </div>
-    </div>
-  )
-}

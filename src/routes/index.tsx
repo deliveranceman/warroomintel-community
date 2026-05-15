@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
+import { SignInButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/')({
   component: WarRoomHome,
@@ -186,15 +187,26 @@ function Hero() {
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
             Take the Assessment →
           </a>
-          <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer" style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.3)`, textDecoration: 'none', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-            Community Login →
-          </a>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.3)`, cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                Member Login →
+              </button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <a href="/resources" style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.3)`, textDecoration: 'none', transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+              My Arsenal →
+            </a>
+          </SignedIn>
         </div>
 
         <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: muted, animation: 'fadeUp 0.8s 0.5s both' }}>
-          Free to use · No account required · Membership coming soon
+          Free to join · No card required · Start exploring today
         </p>
 
         {/* Stats */}
