@@ -53,14 +53,14 @@ interface Resource {
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const cinzel   = "'Cinzel', serif"
 const crimson  = "'Crimson Pro', serif"
-const gold     = '#C9A84C'
-const deep     = '#0D0B14'
-const surface  = '#110f1c'
-const surface2 = '#1a1625'
-const border   = '#2a2440'
-const borderBright = '#3d3460'
-const textDim  = '#9d94b8'
-const muted    = '#6a6080'
+const gold     = 'var(--gold)'
+const deep     = 'var(--deep)'
+const surface  = 'var(--surface)'
+const surface2 = 'var(--surface2)'
+const border   = 'var(--border)'
+const borderBright = 'var(--border-bright)'
+const textDim  = 'var(--text-dim)'
+const muted    = 'var(--muted)'
 
 const TIERS = ['All', 'Free', 'Soldier', 'Commander', 'General'] as const
 const CATEGORIES = ['All', 'Foundational', 'Session', 'Worksheet', 'Protocol', 'Prayer', 'Ministry', 'Occult']

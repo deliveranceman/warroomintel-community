@@ -5,15 +5,15 @@ export const Route = createFileRoute('/assessment-board')({
   component: AssessmentBoard,
 })
 
-const gold = '#C9A84C'
-const deep = '#0D0B14'
-const surface = '#13101E'
-const surface2 = '#1C1828'
-const border = 'rgba(201,168,76,0.18)'
-const borderBright = 'rgba(201,168,76,0.45)'
-const text = '#EDE9F5'
-const textDim = '#A89FC0'
-const muted = '#6B6480'
+const gold = 'var(--gold)'
+const deep = 'var(--deep)'
+const surface = 'var(--surface)'
+const surface2 = 'var(--surface2)'
+const border = 'var(--border)'
+const borderBright = 'var(--border-bright)'
+const text = 'var(--text)'
+const textDim = 'var(--text-dim)'
+const muted = 'var(--muted)'
 const cinzel = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 

@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 
 const MN_URL = 'https://community.warroomintel.com'
-const gold = '#C9A84C'
-const goldLight = '#E8C97A'
-const goldDim = 'rgba(201,168,76,0.12)'
-const deep = '#0D0B14'
-const border = 'rgba(201,168,76,0.18)'
-const borderBright = 'rgba(201,168,76,0.45)'
-const textDim = '#A89FC0'
-const muted = '#6B6480'
+const gold = 'var(--gold)'
+const goldLight = 'var(--gold-light)'
+const goldDim = 'var(--gold-dim)'
+const deep = 'var(--deep)'
+const border = 'var(--border)'
+const borderBright = 'var(--border-bright)'
+const textDim = 'var(--text-dim)'
+const muted = 'var(--muted)'
 const cinzel = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 
@@ -72,6 +72,25 @@ export function Header() {
     setMobileArsenalOpen(false)
   }
 
+  // ── Theme toggle ──────────────────────────────────────────────────────────
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+
+  useEffect(() => {
+    const stored = localStorage.getItem('wri-theme')
+    if (stored === 'dark' || stored === 'light') {
+      setTheme(stored)
+    } else {
+      setTheme(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+    }
+  }, [])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    document.documentElement.dataset.theme = next
+    localStorage.setItem('wri-theme', next)
+    setTheme(next)
+  }
+
   const navLink = (href: string, label: string) => (
     <a href={href} onClick={closeAll} style={{
       fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em',
@@ -105,7 +124,7 @@ export function Header() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '1rem 1.25rem',
         borderBottom: `1px solid ${border}`,
-        background: 'rgba(13,11,20,0.97)',
+        background: 'var(--nav-bg)',
         backdropFilter: 'blur(12px)',
         position: 'sticky', top: 0, zIndex: 200,
         boxSizing: 'border-box',
@@ -154,7 +173,7 @@ export function Header() {
               <div onMouseLeave={() => setArsenalOpen(false)} style={{
                 position: 'absolute', top: 'calc(100% + 12px)', left: '50%',
                 transform: 'translateX(-50%)',
-                background: 'rgba(13,11,20,0.99)',
+                background: 'var(--dropdown-bg)',
                 backdropFilter: 'blur(16px)',
                 border: `1px solid ${borderBright}`,
                 borderRadius: '6px', minWidth: '210px', overflow: 'hidden',
@@ -164,7 +183,7 @@ export function Header() {
                   position: 'absolute', top: '-6px', left: '50%',
                   transform: 'translateX(-50%) rotate(45deg)',
                   width: '10px', height: '10px',
-                  background: 'rgba(13,11,20,0.99)',
+                  background: 'var(--dropdown-bg)',
                   border: `1px solid ${borderBright}`,
                   borderBottom: 'none', borderRight: 'none',
                 }} />
@@ -232,7 +251,7 @@ export function Header() {
               <div onMouseLeave={() => setAssessmentOpen(false)} style={{
                 position: 'absolute', top: 'calc(100% + 12px)', left: '50%',
                 transform: 'translateX(-50%)',
-                background: 'rgba(13,11,20,0.99)',
+                background: 'var(--dropdown-bg)',
                 backdropFilter: 'blur(16px)',
                 border: `1px solid ${borderBright}`,
                 borderRadius: '6px', minWidth: '210px', overflow: 'hidden',
@@ -242,7 +261,7 @@ export function Header() {
                   position: 'absolute', top: '-6px', left: '50%',
                   transform: 'translateX(-50%) rotate(45deg)',
                   width: '10px', height: '10px',
-                  background: 'rgba(13,11,20,0.99)',
+                  background: 'var(--dropdown-bg)',
                   border: `1px solid ${borderBright}`,
                   borderBottom: 'none', borderRight: 'none',
                 }} />
@@ -291,11 +310,29 @@ export function Header() {
         {/* ── Login button ── */}
         <a href={MN_URL} target="_blank" rel="noopener noreferrer"
           className="wr-nav-desktop"
-          style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: '#C9A84C', textDecoration: 'none', padding: '8px 16px', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '3px', whiteSpace: 'nowrap' as const, transition: 'all 0.2s', flexShrink: 0 }}
+          style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: gold, textDecoration: 'none', padding: '8px 16px', border: `1px solid ${borderBright}`, borderRadius: '3px', whiteSpace: 'nowrap' as const, transition: 'all 0.2s', flexShrink: 0 }}
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           Login
         </a>
+
+        {/* ── Theme toggle ── */}
+        <button
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={{
+            background: 'none', border: `1px solid ${border}`,
+            borderRadius: '4px', color: textDim,
+            cursor: 'pointer', padding: '6px 8px',
+            fontSize: '14px', lineHeight: 1, flexShrink: 0,
+            transition: 'border-color 0.2s, color 0.2s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = gold; e.currentTarget.style.color = gold }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = textDim }}
+        >
+          {theme === 'dark' ? '☀' : '🌙'}
+        </button>
 
         {/* ── Hamburger ── */}
         <button
@@ -327,7 +364,7 @@ export function Header() {
       {menuOpen && (
         <div style={{
           position: 'fixed', top: '57px', left: 0, right: 0,
-          background: 'rgba(13,11,20,0.99)',
+          background: 'var(--dropdown-bg)',
           backdropFilter: 'blur(16px)',
           borderBottom: `1px solid ${border}`,
           zIndex: 199,

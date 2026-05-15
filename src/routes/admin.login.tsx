@@ -7,11 +7,11 @@ export const Route = createFileRoute('/admin/login')({
 
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
-const gold    = '#C9A84C'
-const deep    = '#0D0B14'
-const surface = '#110f1c'
-const border  = '#2a2440'
-const muted   = '#6a6080'
+const gold    = 'var(--gold)'
+const deep    = 'var(--deep)'
+const surface = 'var(--surface)'
+const border  = 'var(--border)'
+const muted   = 'var(--muted)'
 
 function AdminLogin() {
   const [password, setPassword] = useState('')

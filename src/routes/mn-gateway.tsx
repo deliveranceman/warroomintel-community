@@ -27,10 +27,10 @@ export const Route = createFileRoute('/mn-gateway')({
 const SESSION_KEY = 'wri_member'
 const TOKEN_KEY   = 'wri_token'
 
-const gold    = '#C9A84C'
-const bg      = '#0D0B14'
-const surface = '#13101E'
-const border  = 'rgba(201,168,76,0.35)'
+const gold    = 'var(--gold)'
+const bg      = 'var(--deep)'
+const surface = 'var(--surface)'
+const border  = 'var(--border-bright)'
 
 type VerifyState = 'idle' | 'loading' | 'not_found' | 'error'
 
@@ -143,7 +143,7 @@ function MNGateway() {
           Resource Arsenal
         </h1>
 
-        <p style={{ color: '#A89FC0', fontSize: 14, margin: '0 0 28px', lineHeight: 1.6 }}>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 28px', lineHeight: 1.6 }}>
           Enter your community email to access your tier resources
         </p>
 
@@ -165,7 +165,7 @@ function MNGateway() {
                 background: bg,
                 border: '1px solid rgba(201,168,76,0.4)',
                 borderRadius: 6,
-                color: '#EDE9F5',
+                color: 'var(--text)',
                 fontSize: 15,
                 outline: 'none',
                 boxSizing: 'border-box',
@@ -177,7 +177,7 @@ function MNGateway() {
                 width: '100%',
                 padding: '13px 0',
                 background: gold,
-                color: '#0D0B14',
+                color: 'var(--deep)',
                 border: 'none',
                 borderRadius: 6,
                 fontFamily: "'Cinzel', serif",
@@ -197,7 +197,7 @@ function MNGateway() {
             <p style={{ color: '#E88C8C', fontSize: 14, marginBottom: 10 }}>
               Email not found in our community records.
             </p>
-            <p style={{ color: '#A89FC0', fontSize: 13 }}>
+            <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>
               Not a member yet?{' '}
               <a
                 href="https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=manual"
@@ -217,9 +217,9 @@ function MNGateway() {
           </p>
         )}
 
-        <p style={{ color: '#6B6480', fontSize: 12, marginTop: 28, lineHeight: 1.5 }}>
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 28, lineHeight: 1.5 }}>
           Use the same email you joined{' '}
-          <span style={{ color: '#A89FC0' }}>community.warroomintel.com</span> with
+          <span style={{ color: 'var(--text-dim)' }}>community.warroomintel.com</span> with
         </p>
       </div>
     </div>

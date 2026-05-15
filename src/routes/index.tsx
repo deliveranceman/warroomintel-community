@@ -930,7 +930,7 @@ function Footer() {
             </div>
           ))}
           <div style={{ marginTop: '8px' }}>
-            <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: gold, textDecoration: 'none', fontFamily: cinzel, letterSpacing: '0.08em', fontSize: '10px' }}>
+            <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: gold, textDecoration: 'none', fontFamily: cinzel, letterSpacing: '0.08em' }}>
               ⚔ Community Login →
             </a>
           </div>
