@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth, useUser, useClerk, SignInButton, SignUpButton } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/resources')({
   component: ResourcesPage,
@@ -265,8 +266,10 @@ function SectionHeader({ tier }: { tier: string }) {
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 function ResourcesPage() {
-  const [session, setSession]         = useState<MemberSession | null>(null)
-  const [sessionChecked, setChecked]  = useState(false)
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
+  const { signOut } = useClerk()
+
   const [resources, setResources]     = useState<Resource[]>([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
@@ -276,44 +279,11 @@ function ResourcesPage() {
   const [downloading, setDownloading] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
-  const memberTier = session?.tier || 'Free'
+  const memberTier = (user?.publicMetadata?.tier as string) || 'Free'
 
-  // Check session on mount — fall back to stored token if session has expired
+  // Fetch resources once signed in
   useEffect(() => {
-    async function check() {
-      const s = getSession()
-      if (s) { setSession(s); setChecked(true); return }
-
-      const token = sessionStorage.getItem('wri_token')
-      if (token) {
-        try {
-          const res  = await fetch(`/api/mn-verify?token=${encodeURIComponent(token)}`)
-          const data = await res.json()
-          if (res.ok && data.tier) {
-            const renewed: MemberSession = {
-              email:    data.email,
-              name:     data.name || '',
-              tier:     data.tier,
-              verified: Date.now(),
-            }
-            saveSession(renewed)
-            setSession(renewed)
-            setChecked(true)
-            return
-          }
-        } catch {}
-        // Token no longer valid — clear it
-        sessionStorage.removeItem('wri_token')
-      }
-
-      setChecked(true)
-    }
-    check()
-  }, [])
-
-  // Fetch all resources once session is confirmed
-  useEffect(() => {
-    if (!session) return
+    if (!isSignedIn) return
     fetch('/api/resources')
       .then(r => r.json())
       .then(data => {
@@ -322,7 +292,7 @@ function ResourcesPage() {
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
-  }, [session])
+  }, [isSignedIn])
 
   // Handle download — calls /api/resource-download to get a signed URL
   const handleDownload = useCallback(async (resource: Resource) => {
@@ -351,9 +321,12 @@ function ResourcesPage() {
     }
   }, [memberTier])
 
-  // Show gate if no session
-  if (!sessionChecked) return null
-  if (!session) return <LoginGate onVerified={s => setSession(s)} />
+  if (!isLoaded) return (
+    <div style={{ background: deep, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.22em', color: gold }}>LOADING...</div>
+    </div>
+  )
+  if (!isSignedIn) return <ClerkLoginGate />
 
   // Filter resources
   const filtered = resources.filter(r => {
@@ -391,9 +364,9 @@ function ResourcesPage() {
         </div>
         {/* Member session display */}
         <div className="res-topbar-tier" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {session?.name && (
+          {user?.firstName && (
             <span style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.08em' }}>
-              {session.name.split(' ')[0]}
+              {user.firstName}
             </span>
           )}
           <span style={{
@@ -405,7 +378,7 @@ function ResourcesPage() {
             {TIER_ICONS[memberTier]} {memberTier}
           </span>
           <button
-            onClick={() => { clearSession(); setSession(null) }}
+            onClick={() => signOut()}
             style={{
               background: 'transparent', border: `1px solid ${border}`,
               color: muted, fontFamily: cinzel, fontSize: '8px',
@@ -580,211 +553,59 @@ function ResourcesPage() {
   )
 }
 
-// ─── SESSION STORAGE KEY ──────────────────────────────────────────────────────
-const SESSION_KEY = 'wri_member'
-
-interface MemberSession {
-  email: string
-  name: string
-  tier: string
-  verified: number // timestamp
-}
-
-function getSession(): MemberSession | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
-    if (!raw) return null
-    const s: MemberSession = JSON.parse(raw)
-    // Expire after 8 hours
-    if (Date.now() - s.verified > 8 * 60 * 60 * 1000) {
-      sessionStorage.removeItem(SESSION_KEY)
-      return null
-    }
-    return s
-  } catch { return null }
-}
-
-function saveSession(s: MemberSession) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(s))
-}
-
-function clearSession() {
-  sessionStorage.removeItem(SESSION_KEY)
-}
-
-// ─── MN FREE PLAN URL ─────────────────────────────────────────────────────────
-const MN_FREE_SIGNUP         = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=resources'
-const MN_FREE_SIGNUP_MANUAL  = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=manual'
-const MN_PRICING             = 'https://warroomintel.com/#pricing'
-
-// ─── LOGIN GATE ───────────────────────────────────────────────────────────────
-function LoginGate({ onVerified }: { onVerified: (session: MemberSession) => void }) {
-  const [email, setEmail]     = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
-  const [step, setStep]       = useState<'enter' | 'notfound'>('enter')
-
-  async function handleVerify() {
-    const e = email.trim().toLowerCase()
-    if (!e || !e.includes('@')) { setError('Enter a valid email'); return }
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch(`/api/mn-verify?email=${encodeURIComponent(e)}`)
-      const data = await res.json()
-
-      if (res.ok && data.tier) {
-        const session: MemberSession = {
-          email: e,
-          name: data.name || '',
-          tier: data.tier,
-          verified: Date.now(),
-        }
-        saveSession(session)
-        onVerified(session)
-      } else if (res.status === 404) {
-        setStep('notfound')
-      } else {
-        setError(data.error || 'Could not verify — try again')
-      }
-    } catch {
-      setError('Network error — try again')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+// ─── CLERK LOGIN GATE ─────────────────────────────────────────────────────────
+function ClerkLoginGate() {
   return (
     <div style={{ background: deep, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: crimson }}>
       <style>{resourcesMobileStyles}</style>
-      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: '12px', padding: '40px 32px', width: '100%', maxWidth: '420px' }}>
+      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: '12px', padding: '40px 32px', width: '100%', maxWidth: '420px', textAlign: 'center' }}>
 
-        {/* Logo area */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <img src="/logo.png" alt="War Room Intel" style={{ width: '64px', height: '64px', objectFit: 'contain', marginBottom: '12px' }} />
-          <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.22em', color: gold, marginBottom: '4px' }}>WAR ROOM INTEL</div>
-          <div style={{ fontFamily: cinzel, fontSize: '16px', color: '#e8e0d0', marginBottom: '6px' }}>Resource Arsenal</div>
-          <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>Free and paid resources for active ministers</div>
+        <img src="/logo.png" alt="War Room Intel" style={{ width: '64px', height: '64px', objectFit: 'contain', marginBottom: '12px' }} />
+        <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.22em', color: gold, marginBottom: '4px' }}>WAR ROOM INTEL</div>
+        <div style={{ fontFamily: cinzel, fontSize: '16px', color: 'var(--text)', marginBottom: '8px' }}>Resource Arsenal</div>
+        <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic', marginBottom: '28px' }}>
+          Sign in to access your Resource Arsenal
         </div>
 
         <div style={{ height: '1px', background: border, marginBottom: '24px' }} />
 
-        {step === 'enter' && (
-          <>
-            <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.14em', color: muted, marginBottom: '8px' }}>
-              ENTER YOUR COMMUNITY EMAIL
-            </div>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleVerify()}
-              placeholder="you@email.com"
-              autoFocus
-              style={{
-                width: '100%', background: deep, border: `1px solid ${border}`,
-                borderRadius: '6px', padding: '11px 14px', color: '#e8e0d0',
-                fontFamily: crimson, fontSize: '14px', outline: 'none',
-                marginBottom: '12px', boxSizing: 'border-box' as const,
-              }}
-            />
+        <SignInButton mode="modal">
+          <button style={{
+            width: '100%', background: gold, color: deep,
+            fontFamily: cinzel, fontSize: '10px', fontWeight: 700,
+            letterSpacing: '0.14em', padding: '13px', borderRadius: '6px',
+            border: 'none', cursor: 'pointer', marginBottom: '12px',
+            transition: 'opacity 0.2s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            SIGN IN →
+          </button>
+        </SignInButton>
 
-            {error && (
-              <div style={{ background: '#2a1010', border: '1px solid #5a2020', borderRadius: '6px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#e09090' }}>
-                {error}
-              </div>
-            )}
+        <div style={{ fontSize: '12px', color: muted, marginBottom: '10px' }}>Don't have an account?</div>
 
-            <button
-              onClick={handleVerify}
-              disabled={loading || !email}
-              style={{
-                width: '100%', background: gold, color: deep,
-                fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
-                padding: '13px', borderRadius: '6px', border: 'none',
-                cursor: loading || !email ? 'not-allowed' : 'pointer',
-                opacity: loading || !email ? 0.6 : 1,
-                marginBottom: '16px',
-              }}
-            >
-              {loading ? 'VERIFYING...' : 'ACCESS THE ARSENAL →'}
-            </button>
+        <SignUpButton mode="modal">
+          <button style={{
+            width: '100%', background: 'transparent',
+            border: `1px solid ${borderBright}`, color: gold,
+            fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
+            padding: '13px', borderRadius: '6px', cursor: 'pointer',
+            transition: 'background 0.2s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            CREATE ACCOUNT →
+          </button>
+        </SignUpButton>
 
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '12px', color: muted, marginBottom: '8px' }}>Not a member yet?</div>
-              <a
-                href={MN_FREE_SIGNUP}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em', color: gold, textDecoration: 'none' }}
-              >
-                CREATE FREE WATCHMAN ACCOUNT →
-              </a>
-            </div>
-          </>
-        )}
-
-        {step === 'notfound' && (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚔</div>
-              <div style={{ fontFamily: cinzel, fontSize: '13px', color: '#e8e0d0', marginBottom: '10px', lineHeight: 1.5 }}>
-                You don't have a War Room Intel account yet.
-              </div>
-              <div style={{ fontSize: '13px', color: textDim, lineHeight: 1.6 }}>
-                No account was found for <strong style={{ color: '#e8e0d0' }}>{email}</strong>.
-              </div>
-            </div>
-
-            <a
-              href={MN_FREE_SIGNUP_MANUAL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'block', width: '100%', background: gold, color: deep,
-                fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
-                padding: '13px', borderRadius: '6px', textAlign: 'center' as const,
-                textDecoration: 'none', marginBottom: '10px', boxSizing: 'border-box' as const,
-              }}
-            >
-              JOIN FREE — NO CARD REQUIRED →
-            </a>
-
-            <a
-              href={MN_PRICING}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'block', width: '100%', background: 'transparent',
-                border: `1px solid ${gold}66`, color: gold,
-                fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
-                padding: '13px', borderRadius: '6px', textAlign: 'center' as const,
-                textDecoration: 'none', marginBottom: '20px', boxSizing: 'border-box' as const,
-              }}
-            >
-              VIEW MEMBERSHIP PLANS →
-            </a>
-
-            <div style={{
-              fontSize: '12px', color: muted, fontStyle: 'italic',
-              lineHeight: 1.6, textAlign: 'center' as const, marginBottom: '16px',
-              padding: '12px 8px', borderTop: `1px solid ${border}`,
-            }}>
-              Already a member? Make sure you use the same email address you signed up with at community.warroomintel.com
-            </div>
-
-            <button
-              onClick={() => { setStep('enter'); setError('') }}
-              style={{
-                width: '100%', background: 'transparent', border: `1px solid ${border}`,
-                color: muted, fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em',
-                padding: '11px', borderRadius: '6px', cursor: 'pointer',
-              }}
-            >
-              TRY A DIFFERENT EMAIL
-            </button>
-          </>
-        )}
+        <div style={{ marginTop: '24px' }}>
+          <a href="/#pricing" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.12em', color: muted, textDecoration: 'none' }}>
+            View membership plans →
+          </a>
+        </div>
       </div>
     </div>
   )
