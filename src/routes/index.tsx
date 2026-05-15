@@ -329,7 +329,7 @@ function DatabaseSection() {
   return (
     <section id="database" style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '16px', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '16px', marginBottom: '24px' }}>
         <div>
           <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '10px' }}>✦ Master Database</p>
           <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 700, color: text, marginBottom: '8px' }}>
@@ -754,12 +754,12 @@ function PricingSection() {
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
                 {tier.features.map(f => (
-                  <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.4 }}>
-                    <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '4px' }}>✦</span>{f}
+                  <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px' }}>
+                    <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>{f}
                   </li>
                 ))}
                 {tier.locked.map(f => (
-                  <li key={f} style={{ fontSize: '13px', color: muted, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.4, opacity: 0.5 }}>
+                  <li key={f} style={{ fontSize: '13px', color: muted, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px', opacity: 0.4 }}>
                     <span style={{ fontSize: '8px', flexShrink: 0, marginTop: '4px' }}>○</span>{f}
                   </li>
                 ))}

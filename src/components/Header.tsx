@@ -307,6 +307,32 @@ export function Header() {
           Join Now
         </a>
 
+        {/* ── Theme toggle ── */}
+        <button
+          onClick={toggleTheme}
+          aria-label="Switch theme"
+          title="Switch theme"
+          style={{
+            width: '32px', height: '32px',
+            background: 'none',
+            border: `1px solid ${borderBright}`,
+            borderRadius: '50%',
+            color: gold,
+            cursor: 'pointer',
+            fontSize: '14px',
+            lineHeight: 1,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = goldDim)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+        >
+          {theme === 'dark' ? '☀' : '🌙'}
+        </button>
+
         {/* ── Login button ── */}
         <a href={MN_URL} target="_blank" rel="noopener noreferrer"
           className="wr-nav-desktop"
@@ -315,24 +341,6 @@ export function Header() {
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           Login
         </a>
-
-        {/* ── Theme toggle ── */}
-        <button
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          style={{
-            background: 'none', border: `1px solid ${border}`,
-            borderRadius: '4px', color: textDim,
-            cursor: 'pointer', padding: '6px 8px',
-            fontSize: '14px', lineHeight: 1, flexShrink: 0,
-            transition: 'border-color 0.2s, color 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = gold; e.currentTarget.style.color = gold }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = textDim }}
-        >
-          {theme === 'dark' ? '☀' : '🌙'}
-        </button>
 
         {/* ── Hamburger ── */}
         <button
