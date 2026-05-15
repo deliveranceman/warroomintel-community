@@ -1,4 +1,5 @@
 import { HeadContent, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
+import { ClerkProvider } from '@clerk/tanstack-start'
 import { Header } from '@/components/Header'
 import { AIAssistant } from '@/components/AIAssistant'
 import '../styles.css'
@@ -28,9 +29,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('wri-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;})()` }} />
       </head>
       <body>
-        {!bare && <Header />}
-        {children}
-        {!bare && <AIAssistant />}
+        <ClerkProvider>
+          {!bare && <Header />}
+          {children}
+          {!bare && <AIAssistant />}
+        </ClerkProvider>
         <Scripts />
       </body>
     </html>

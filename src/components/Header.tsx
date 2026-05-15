@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { SignInButton, SignUpButton, UserButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 
 const MN_URL = 'https://community.warroomintel.com'
 const gold = 'var(--gold)'
@@ -333,14 +334,35 @@ export function Header() {
           {theme === 'dark' ? '☀' : '🌙'}
         </button>
 
-        {/* ── Login button ── */}
-        <a href={MN_URL} target="_blank" rel="noopener noreferrer"
-          className="wr-nav-desktop"
-          style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', color: gold, textDecoration: 'none', padding: '8px 16px', border: `1px solid ${borderBright}`, borderRadius: '3px', whiteSpace: 'nowrap' as const, transition: 'all 0.2s', flexShrink: 0 }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-          Login
-        </a>
+        {/* ── Auth buttons ── */}
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button
+              className="wr-nav-desktop"
+              style={{
+                fontFamily: cinzel, fontSize: '10px', fontWeight: 600,
+                letterSpacing: '0.08em', color: gold,
+                background: 'none', padding: '8px 16px',
+                border: `1px solid ${borderBright}`,
+                borderRadius: '3px', whiteSpace: 'nowrap' as const,
+                transition: 'all 0.2s', flexShrink: 0, cursor: 'pointer',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              Login
+            </button>
+          </SignInButton>
+        </SignedOut>
+        <SignedIn>
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: { width: '32px', height: '32px' },
+              },
+            }}
+          />
+        </SignedIn>
 
         {/* ── Hamburger ── */}
         <button
