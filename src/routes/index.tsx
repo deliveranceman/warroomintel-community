@@ -690,7 +690,7 @@ function PricingSection() {
       badge: null,
       features: [
         'Everything in Free',
-        'Full database access — all 252 entries',
+        'Full database access — all entries',
         'Scripture & entry point fields',
         'Manifestations, Strongman, Rank fields',
         'Soldier protocol PDFs',
