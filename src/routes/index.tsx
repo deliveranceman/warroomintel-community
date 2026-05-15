@@ -33,9 +33,9 @@ interface DemonEntry {
 // ── MIGHTY NETWORKS JOIN URLS ───────────────────────────
 // Replace these with your actual Mighty Networks plan join URLs
 const MN_FREE_URL = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=manual'
-const MN_SOLDIER_URL = 'https://community.warroomintel.com/plans/1979759?bundle_token=67933c7357dbc20d893d3d40e08332d5&utm_source=manual'
-const MN_COMMANDER_URL = 'https://community.warroomintel.com/plans/1979761?bundle_token=1645d5abf26050d4d3843a333a24f203&utm_source=manual'
-const MN_GENERAL_URL = 'https://community.warroomintel.com/plans/1979756?bundle_token=09d939d5178febbef62069d50f6089ea&utm_source=manual'
+const MN_SOLDIER_URL = 'https://buy.stripe.com/aFabITdtW0Hr8BO7xC1RC00'
+const MN_COMMANDER_URL = 'https://buy.stripe.com/28EbIT9dG2Pz6tGbNS1RC01'
+const MN_GENERAL_URL = 'https://buy.stripe.com/fZudR1fC4eyhdW87xC1RC02'
 const MN_LOGIN_URL = 'https://community.warroomintel.com'
 
 // ── CONSTANTS ────────────────────────────────────────────
@@ -272,7 +272,7 @@ function LockedField({ tier, desc, wide, upgradeUrl }: { tier: string; desc: str
 
 function TierCallout({ title, desc, url, btnLabel }: { title: string; desc: string; url: string; btnLabel: string }) {
   return (
-    <div style={{ background: 'rgba(13,11,20,0.5)', border: `1px solid rgba(201,168,76,0.18)`, borderRadius: '5px', padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '14px' }}>
+    <div style={{ background: surface2, border: `1px solid ${border}`, borderRadius: '5px', padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '14px' }}>
       <div>
         <div style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 600, color: gold, letterSpacing: '0.07em', marginBottom: '4px' }}>{title}</div>
         <div style={{ fontSize: '13px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>{desc}</div>
@@ -336,7 +336,12 @@ function DatabaseSection() {
             The <em style={{ color: gold, fontStyle: 'normal' }}>Demon Database</em>
           </h2>
           <p style={{ fontSize: '15px', color: textDim, fontStyle: 'italic', fontFamily: crimson }}>
-            {loading ? 'Loading entries...' : `${total} of ${entries.length} entries · Searchable by name, alias, and function · Detailed fields unlock with membership`}
+            {loading
+              ? 'Loading database...'
+              : (search || typeFilter !== 'All Types')
+                ? `${filtered.length} of ${entries.length} entries matching your search`
+                : `${entries.length} entries · Searchable by name, alias, and function · Detailed fields unlock with membership`
+            }
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' as const }}>
@@ -366,7 +371,7 @@ function DatabaseSection() {
           value={typeFilter}
           onChange={e => setTypeFilter(e.target.value)}
           style={{ background: surface, border: `1px solid ${border}`, borderRadius: '4px', padding: '11px 14px', fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.06em', color: textDim, outline: 'none', cursor: 'pointer', minWidth: '160px' }}>
-          {DEMON_TYPES.map(t => <option key={t} value={t} style={{ background: '#13101E' }}>{t}</option>)}
+          {DEMON_TYPES.map(t => <option key={t} value={t} style={{ background: surface }}>{t}</option>)}
         </select>
         {(search || typeFilter !== 'All Types') && (
           <button onClick={() => { setSearch(''); setTypeFilter('All Types') }}
@@ -445,7 +450,7 @@ function DatabaseSection() {
 
             {/* Expanded detail */}
             {expanded === entry.id && (
-              <div style={{ padding: '16px 20px 20px', borderTop: `1px solid ${border}`, background: 'rgba(13,11,20,0.4)' }}>
+              <div style={{ padding: '16px 20px 20px', borderTop: `1px solid ${border}`, background: surface }}>
 
                 {/* ── FREE TIER ── */}
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '20px' }}>
@@ -661,8 +666,19 @@ function PricingSection() {
       price: '$0',
       period: 'forever',
       badge: null,
-      features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', '25 database entries visible', 'Basic name & type fields', 'Free protocol PDFs'],
-      locked: ['Full database access', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
+      features: [
+        'General community discussion',
+        'Prayer requests board',
+        'Weekly devotional posts',
+        'Demon database — name, type, kingdom, function',
+        'Free protocol PDFs',
+      ],
+      locked: [
+        'Full database fields (Coming Soon)',
+        'Scripture & entry points (Coming Soon)',
+        'Deliverance protocols (Coming Soon)',
+        'Ministry calls (Coming Soon)',
+      ],
       btn: 'Join Free',
       url: MN_FREE_URL,
       featured: false,
@@ -672,8 +688,18 @@ function PricingSection() {
       price: '$19',
       period: '/month',
       badge: null,
-      features: ['Everything in Free', 'Full database access — all entries', 'Scripture & entry point fields', 'Soldier protocol PDFs (5)', 'Case studies community space', 'Monthly group prayer call'],
-      locked: ['All database fields', "Commander's Circle", 'Bi-weekly calls'],
+      features: [
+        'Everything in Free',
+        'Full database access — all 252 entries',
+        'Scripture & entry point fields',
+        'Manifestations, Strongman, Rank fields',
+        'Soldier protocol PDFs',
+        'Monthly group prayer call (Coming Soon)',
+      ],
+      locked: [
+        'Commander fields (Coming Soon)',
+        'Bi-weekly calls (Coming Soon)',
+      ],
       btn: 'Start Free Trial',
       url: MN_SOLDIER_URL,
       featured: false,
@@ -683,8 +709,18 @@ function PricingSection() {
       price: '$39',
       period: '/month',
       badge: 'Most Popular',
-      features: ['Everything in Soldier', 'All database fields unlocked', 'Full protocol PDF library', 'Personal assessment response', "Commander's Circle space", 'Bi-weekly group call', 'Freemasonry protocol PDF'],
-      locked: ['Weekly intimate calls'],
+      features: [
+        'Everything in Soldier',
+        'All database fields unlocked',
+        'Full protocol PDF library',
+        'Personal assessment response',
+        'Entry Points, Legal Rights, Protocol fields',
+        'Freemasonry protocol PDF',
+        'Bi-weekly group call (Coming Soon)',
+      ],
+      locked: [
+        'Weekly intimate calls (Coming Soon)',
+      ],
       btn: 'Start Free Trial',
       url: MN_COMMANDER_URL,
       featured: true,
@@ -694,7 +730,15 @@ function PricingSection() {
       price: '$97',
       period: '/month',
       badge: null,
-      features: ['Everything in Commander', 'Leadership PDF library (17)', 'Weekly intimate group call', 'Direct ministry access', "General's Table space", 'Ministry certification track', 'Priority assessment response'],
+      features: [
+        'Everything in Commander',
+        'Leadership PDF library',
+        'Weekly intimate group call (Coming Soon)',
+        'Direct ministry access',
+        'Symptoms, Companion Spirits, Exorcist Notes',
+        'Ministry certification track (Coming Soon)',
+        'Priority assessment response (Coming Soon)',
+      ],
       locked: [],
       btn: 'Start Free Trial',
       url: MN_GENERAL_URL,
@@ -753,16 +797,32 @@ function PricingSection() {
               <div style={{ height: '1px', background: border, margin: '0 0 16px' }} />
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
-                {tier.features.map(f => (
-                  <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px' }}>
-                    <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>{f}
-                  </li>
-                ))}
-                {tier.locked.map(f => (
-                  <li key={f} style={{ fontSize: '13px', color: muted, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px', opacity: 0.4 }}>
-                    <span style={{ fontSize: '8px', flexShrink: 0, marginTop: '4px' }}>○</span>{f}
-                  </li>
-                ))}
+                {tier.features.map(f => {
+                  const soon = f.includes(' (Coming Soon)')
+                  const label = soon ? f.replace(' (Coming Soon)', '') : f
+                  return (
+                    <li key={f} style={{ fontSize: '13px', color: soon ? muted : textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px' }}>
+                      <span style={{ color: soon ? muted : gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>
+                      <span>
+                        {label}
+                        {soon && <span style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.08em', color: gold, border: `1px solid ${borderBright}`, padding: '1px 6px', borderRadius: '10px', whiteSpace: 'nowrap' as const, marginLeft: '6px', verticalAlign: 'middle', opacity: 0.8 }}>Soon</span>}
+                      </span>
+                    </li>
+                  )
+                })}
+                {tier.locked.map(f => {
+                  const soon = f.includes(' (Coming Soon)')
+                  const label = soon ? f.replace(' (Coming Soon)', '') : f
+                  return (
+                    <li key={f} style={{ fontSize: '13px', color: muted, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px', opacity: 0.4 }}>
+                      <span style={{ fontSize: '8px', flexShrink: 0, marginTop: '4px' }}>○</span>
+                      <span>
+                        {label}
+                        {soon && <span style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.08em', color: gold, border: `1px solid ${borderBright}`, padding: '1px 6px', borderRadius: '10px', whiteSpace: 'nowrap' as const, marginLeft: '6px', verticalAlign: 'middle' }}>Soon</span>}
+                      </span>
+                    </li>
+                  )
+                })}
               </ul>
 
               {/* Join button */}
