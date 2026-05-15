@@ -206,7 +206,7 @@ function Hero() {
         </div>
 
         <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: muted, animation: 'fadeUp 0.8s 0.5s both' }}>
-          Free to join · No card required · Start exploring today
+          Free to join · Sign up in 30 seconds · No card required
         </p>
 
         {/* Stats */}
