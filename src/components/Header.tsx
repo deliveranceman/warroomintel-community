@@ -27,6 +27,9 @@ function useIsMobile() {
 }
 
 export function Header() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const [menuOpen, setMenuOpen] = useState(false)
   const [assessmentOpen, setAssessmentOpen] = useState(false)
   const [mobileAssessmentOpen, setMobileAssessmentOpen] = useState(false)
@@ -335,34 +338,52 @@ export function Header() {
         </button>
 
         {/* ── Auth buttons ── */}
-        <SignedOut>
-          <SignInButton mode="modal">
-            <button
-              className="wr-nav-desktop"
-              style={{
-                fontFamily: cinzel, fontSize: '10px', fontWeight: 600,
-                letterSpacing: '0.08em', color: gold,
-                background: 'none', padding: '8px 16px',
-                border: `1px solid ${borderBright}`,
-                borderRadius: '3px', whiteSpace: 'nowrap' as const,
-                transition: 'all 0.2s', flexShrink: 0, cursor: 'pointer',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              Login
-            </button>
-          </SignInButton>
-        </SignedOut>
-        <SignedIn>
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: { width: '32px', height: '32px' },
-              },
+        {mounted ? (
+          <>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button
+                  className="wr-nav-desktop"
+                  style={{
+                    fontFamily: cinzel, fontSize: '10px', fontWeight: 600,
+                    letterSpacing: '0.08em', color: gold,
+                    background: 'none', padding: '8px 16px',
+                    border: `1px solid ${borderBright}`,
+                    borderRadius: '3px', whiteSpace: 'nowrap' as const,
+                    transition: 'all 0.2s', flexShrink: 0, cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  Login
+                </button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: { width: '32px', height: '32px' },
+                  },
+                }}
+              />
+            </SignedIn>
+          </>
+        ) : (
+          <button
+            className="wr-nav-desktop"
+            style={{
+              fontFamily: cinzel, fontSize: '10px', fontWeight: 600,
+              letterSpacing: '0.08em', color: gold,
+              background: 'transparent', padding: '8px 16px',
+              border: `1px solid ${borderBright}`,
+              borderRadius: '3px', whiteSpace: 'nowrap' as const,
+              flexShrink: 0, cursor: 'pointer', opacity: 0.5,
             }}
-          />
-        </SignedIn>
+          >
+            Login
+          </button>
+        )}
 
         {/* ── Hamburger ── */}
         <button
