@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
-import { SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
+import { SignInButton, SignUpButton, SignedIn, SignedOut, useClerk } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/')({
   component: WarRoomHome,
@@ -1139,6 +1139,16 @@ function Footer() {
 
 // ── PAGE ─────────────────────────────────────────────────
 function WarRoomHome() {
+  const { openSignIn } = useClerk()
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('community') === 'true') {
+      setTimeout(() => openSignIn(), 500)
+    }
+  }, [])
+
   return (
     <div>
       <MobileStyleInjector />
