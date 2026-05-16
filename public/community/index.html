@@ -241,11 +241,14 @@
       <div class="icon">⚔</div>
       <h2>War Room Community</h2>
       <p>Sign in to access the live community — a space for deliverance warriors.</p>
-      <button class="btn-gold" id="sign-in-btn" onclick="window.location.href='https://warroomintel.com/sign-in'">Sign In ⚔</button>
-      <button class="btn-outline" id="sign-up-btn" onclick="window.location.href='https://warroomintel.com/sign-up'">Join Free</button>
-      <p style="color:#8B82A8; font-size:12px; margin-top:16px; font-style:italic;">
-        After signing in, click Community in the navigation to access the War Room.
-      </p>
+      <a href="https://accounts.warroomintel.com/sign-in?redirect_url=https%3A%2F%2Fwarroomintel.com%2Fcommunity%2F"
+         style="display:block; width:100%; padding:14px; background:#C9A84C; color:#0D0B14; border:none; border-radius:4px; font-family:'Cinzel',serif; font-size:11px; letter-spacing:0.12em; cursor:pointer; text-transform:uppercase; text-align:center; text-decoration:none; margin-bottom:10px; box-sizing:border-box;">
+        SIGN IN ⚔
+      </a>
+      <a href="https://accounts.warroomintel.com/sign-up?redirect_url=https%3A%2F%2Fwarroomintel.com%2Fcommunity%2F"
+         style="display:block; width:100%; padding:14px; background:transparent; color:#C9A84C; border:1px solid rgba(201,168,76,0.4); border-radius:4px; font-family:'Cinzel',serif; font-size:11px; letter-spacing:0.12em; cursor:pointer; text-transform:uppercase; text-align:center; text-decoration:none; box-sizing:border-box;">
+        JOIN FREE
+      </a>
     </div>
   </div>
 
@@ -467,12 +470,7 @@
 
       if (!user) {
         show('auth-gate')
-        document.getElementById('sign-in-btn').onclick = () => {
-          window.location.href = 'https://warroomintel.com/sign-in'
-        }
-        document.getElementById('sign-up-btn').onclick = () => {
-          window.location.href = 'https://warroomintel.com/sign-up'
-        }
+        // Sign-in/up handled by plain anchor links — no JS needed
         window.Clerk.addListener(({ user }) => {
           if (user) location.reload()
         })
