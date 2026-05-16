@@ -402,9 +402,7 @@ function DatabaseSection() {
             <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
             <span style={{ color: textDim }}>Soldier:</span> + Manifestations, Scripture, Strongman, Rank&nbsp;&nbsp;
             <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
-            <span style={{ color: textDim }}>Commander:</span> + Entry Points, Legal Rights, Protocol&nbsp;&nbsp;
-            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
-            <span style={{ color: textDim }}>General:</span> + Symptoms, Companion Spirits, Exorcist Notes
+            <span style={{ color: muted }}>Commander &amp; General: Coming Soon</span>
           </span>
         </div>
         <a href={MN_SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>JOIN TO UNLOCK →</a>
@@ -721,6 +719,7 @@ function PricingSection() {
       price: '$39',
       period: '/month',
       badge: 'Most Popular',
+      comingSoon: true,
       features: [
         'Everything in Soldier',
         'All database fields unlocked',
@@ -742,6 +741,7 @@ function PricingSection() {
       price: '$97',
       period: '/month',
       badge: null,
+      comingSoon: true,
       features: [
         'Everything in Commander',
         'Leadership PDF library',
@@ -782,9 +782,9 @@ function PricingSection() {
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Membership</p>
           <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '12px' }}>
-            Choose Your <em style={{ color: gold, fontStyle: 'normal' }}>Level of Access</em>
+            Join the <em style={{ color: gold, fontStyle: 'normal' }}>War Room</em>
           </h2>
-          <p style={{ fontSize: '17px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>30-day free trial on all paid tiers · Cancel anytime · No hidden fees</p>
+          <p style={{ fontSize: '17px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>Start free. Upgrade to Soldier for full database access and protocol PDFs. Commander and General coming soon.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0', border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
@@ -838,12 +838,29 @@ function PricingSection() {
               </ul>
 
               {/* Join button */}
-              <a href={tier.url} target="_blank" rel="noopener noreferrer"
-                style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', borderRadius: '3px', border: tier.featured ? 'none' : `1px solid ${borderBright}`, background: tier.featured ? gold : 'transparent', color: tier.featured ? deep : gold, textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
-                onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
-                {tier.btn} ⚔
-              </a>
+              {tier.comingSoon ? (
+                <div style={{
+                  width: '100%',
+                  padding: '14px',
+                  background: 'rgba(201,168,76,0.08)',
+                  color: 'var(--muted)',
+                  border: '1px solid rgba(201,168,76,0.15)',
+                  borderRadius: '4px',
+                  fontFamily: 'Cinzel, serif',
+                  fontSize: '10px',
+                  letterSpacing: '0.15em',
+                  textAlign: 'center' as const,
+                  cursor: 'default',
+                  boxSizing: 'border-box' as const,
+                }}>COMING SOON</div>
+              ) : (
+                <a href={tier.url} target="_blank" rel="noopener noreferrer"
+                  style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', borderRadius: '3px', border: tier.featured ? 'none' : `1px solid ${borderBright}`, background: tier.featured ? gold : 'transparent', color: tier.featured ? deep : gold, textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
+                  {tier.btn} ⚔
+                </a>
+              )}
             </div>
           ))}
         </div>
