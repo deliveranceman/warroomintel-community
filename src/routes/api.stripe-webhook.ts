@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Lazy getter — avoids top-level new Stripe() which crashes SSR if env var is missing
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!)
+}
 
-// Map price IDs → tier names.
-// Set STRIPE_SOLDIER_PRICE_ID, STRIPE_COMMANDER_PRICE_ID, STRIPE_GENERAL_PRICE_ID in env.
 function buildPriceMap(): Record<string, string> {
   const map: Record<string, string> = {}
   if (process.env.STRIPE_SOLDIER_PRICE_ID)   map[process.env.STRIPE_SOLDIER_PRICE_ID]   = 'Soldier'
@@ -17,7 +18,6 @@ async function setUserTier(email: string, tier: string) {
   const key = process.env.CLERK_SECRET_KEY!
   const base = 'https://api.clerk.com/v1'
 
-  // Find user by email
   const listRes = await fetch(`${base}/users?email_address=${encodeURIComponent(email)}`, {
     headers: { 'Authorization': `Bearer ${key}` },
   })
@@ -25,7 +25,6 @@ async function setUserTier(email: string, tier: string) {
   const users: { id: string }[] = await listRes.json()
   if (!users.length) throw new Error(`No Clerk user found for email: ${email}`)
 
-  // Update public metadata
   const patchRes = await fetch(`${base}/users/${users[0].id}/metadata`, {
     method: 'PATCH',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -38,6 +37,13 @@ export const Route = createFileRoute('/api/stripe-webhook')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const stripeKey = process.env.STRIPE_SECRET_KEY
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+        if (!stripeKey || !webhookSecret) {
+          return Response.json({ error: 'Stripe not configured' }, { status: 500 })
+        }
+
         const body = await request.text()
         const signature = request.headers.get('stripe-signature')
 
@@ -45,13 +51,11 @@ export const Route = createFileRoute('/api/stripe-webhook')({
           return Response.json({ error: 'Missing stripe-signature header' }, { status: 400 })
         }
 
+        const stripe = getStripe()
+
         let event: Stripe.Event
         try {
-          event = stripe.webhooks.constructEvent(
-            body,
-            signature,
-            process.env.STRIPE_WEBHOOK_SECRET!,
-          )
+          event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
         } catch (err: any) {
           console.error('[stripe-webhook] signature verification failed:', err.message)
           return Response.json({ error: `Webhook verification failed: ${err.message}` }, { status: 400 })
@@ -61,7 +65,6 @@ export const Route = createFileRoute('/api/stripe-webhook')({
           if (event.type === 'checkout.session.completed') {
             const session = event.data.object as Stripe.Checkout.Session
 
-            // Expand line_items — not included in the webhook payload by default
             const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
               expand: ['line_items'],
             })
