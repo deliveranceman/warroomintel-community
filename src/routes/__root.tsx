@@ -54,7 +54,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('wri-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;})()` }} />
       </head>
       <body>
-        <ClerkProvider publishableKey={CLERK_KEY}>
+        <ClerkProvider
+          publishableKey={CLERK_KEY}
+          allowedRedirectOrigins={[
+            'https://warroomintel.com',
+            'https://www.warroomintel.com',
+          ]}
+        >
           {!bare && <Header />}
           {children}
           {!bare && <AIAssistant />}
