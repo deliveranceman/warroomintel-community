@@ -192,7 +192,7 @@ export function Header() {
                   borderBottom: 'none', borderRight: 'none',
                 }} />
                 {[
-                  { href: '/community', icon: '⚔', label: 'Community', sub: 'Live chat & war room', external: false },
+                  { href: '/community/', icon: '⚔', label: 'Community', sub: 'Live chat & war room', external: false },
                   { href: '/resources', icon: '📚', label: 'Resources', sub: 'Ministry resource library', external: false },
                 ].map((item, i) => (
                   <a key={item.href} href={item.href}
@@ -456,7 +456,7 @@ export function Header() {
 
             {mobileArsenalOpen && (
               <div style={{ background: 'rgba(201,168,76,0.04)', borderBottom: `1px solid ${border}` }}>
-                <a href="/community" onClick={closeAll} style={{
+                <a href="/community/" onClick={closeAll} style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '14px 1.5rem 14px 2.5rem',
                   fontFamily: cinzel, fontSize: '12px', letterSpacing: '0.07em',

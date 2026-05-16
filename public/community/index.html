@@ -465,10 +465,10 @@
       if (!user) {
         show('auth-gate')
         document.getElementById('sign-in-btn').onclick = () => {
-          window.location.href = 'https://accounts.warroomintel.com/sign-in?redirect_url=' + encodeURIComponent('https://warroomintel.com/community/')
+          window.location.href = 'https://warroomintel.com/?signIn=true'
         }
         document.getElementById('sign-up-btn').onclick = () => {
-          window.location.href = 'https://accounts.warroomintel.com/sign-up?redirect_url=' + encodeURIComponent('https://warroomintel.com/community/')
+          window.location.href = 'https://warroomintel.com/?signUp=true'
         }
         window.Clerk.addListener(({ user }) => {
           if (user) location.reload()
