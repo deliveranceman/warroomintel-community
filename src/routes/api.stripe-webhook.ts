@@ -1,8 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import Stripe from 'stripe'
 
-// Lazy getter — avoids top-level new Stripe() which crashes SSR if env var is missing
-function getStripe() {
+async function getStripe() {
+  const { default: Stripe } = await import('stripe')
   return new Stripe(process.env.STRIPE_SECRET_KEY!)
 }
 

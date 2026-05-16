@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import Anthropic from '@anthropic-ai/sdk'
 
 const SYSTEM_PROMPT = `You are a knowledgeable assistant for The War Room Community, a members-only platform for deliverance ministers run by Staffordtown Deliverance Ministry.
 
@@ -26,6 +25,7 @@ export const Route = createFileRoute('/api/warroom-chat')({
         try {
           const { messages } = await request.json()
 
+          const { default: Anthropic } = await import('@anthropic-ai/sdk')
           const anthropic = new Anthropic()
 
           const stream = await anthropic.messages.create({
