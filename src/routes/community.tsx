@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useAuth, useUser } from '@clerk/tanstack-start'
+import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 export const Route = createFileRoute('/community')({
@@ -22,28 +22,31 @@ const V = {
   dim:  'var(--wri-dim)',
   mut:  'var(--wri-muted)',
   card: 'var(--wri-card)',
+  gold: 'var(--wri-gold)',
 }
 
 const THEME_CSS = `
 :root {
   --wri-bg: #0e0c09;
-  --wri-surface: #161310;
-  --wri-surface2: #1e1a14;
-  --wri-border: rgba(201,168,76,0.18);
-  --wri-text: #ddd5c0;
-  --wri-dim: rgba(221,213,192,0.65);
-  --wri-muted: rgba(221,213,192,0.38);
-  --wri-card: #1a1714;
+  --wri-surface: #1c1814;
+  --wri-surface2: #242018;
+  --wri-border: rgba(201,168,76,0.25);
+  --wri-text: #f0e8d8;
+  --wri-dim: #c8b896;
+  --wri-muted: #9a8c74;
+  --wri-card: #201c16;
+  --wri-gold: #C9A84C;
 }
 :root[data-theme="light"] {
-  --wri-bg: #f5f0e8;
-  --wri-surface: #ffffff;
-  --wri-surface2: #f0ebe0;
-  --wri-border: rgba(140,110,40,0.2);
-  --wri-text: #2a2015;
-  --wri-dim: rgba(42,32,21,0.6);
-  --wri-muted: rgba(42,32,21,0.4);
-  --wri-card: #f8f4ed;
+  --wri-bg: #f0ebe0;
+  --wri-surface: #faf7f2;
+  --wri-surface2: #ede8dc;
+  --wri-border: rgba(100,70,20,0.25);
+  --wri-text: #1a1208;
+  --wri-dim: #3d3020;
+  --wri-muted: #6b5a40;
+  --wri-card: #f5f0e8;
+  --wri-gold: #8a6d20;
 }
 `
 
@@ -56,7 +59,7 @@ function TierBadge({ tier }: { tier: string }) {
     General:   { color: G,         border: `1px solid ${G}`, fontWeight: 700 },
   }
   return (
-    <span style={{ ...(s[tier] || s.Free), fontFamily: cinzel, fontSize: 7, letterSpacing: '0.1em', padding: '1px 6px', borderRadius: 10, whiteSpace: 'nowrap' }}>
+    <span style={{ ...(s[tier] || s.Free), fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '1px 6px', borderRadius: 10, whiteSpace: 'nowrap' }}>
       {tier.toUpperCase()}
     </span>
   )
@@ -245,12 +248,12 @@ function CommunityPage() {
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const sectionLabel = (label: string) => (
-    <div style={{ padding: '14px 16px 4px', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(201,168,76,0.72)' }}>
+    <div style={{ padding: '14px 16px 4px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.25em', color: V.gold }}>
       {label}
     </div>
   )
 
-  const NAV_DEFAULT = '#c8bfa8'
+  const NAV_DEFAULT = V.txt
 
   const navItem = (label: string, section: string, icon?: string) => {
     const active = activeSection === section
@@ -259,18 +262,18 @@ function CommunityPage() {
         onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
         style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          width: '100%', padding: '7px 16px',
-          background: active ? 'rgba(201,168,76,0.08)' : 'transparent',
+          width: '100%', padding: '8px 16px',
+          background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
           border: 'none', borderLeft: `2px solid ${active ? G : 'transparent'}`,
           textAlign: 'left', cursor: 'pointer',
-          fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em',
+          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
           color: active ? G : NAV_DEFAULT,
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.04)'; e.currentTarget.style.color = G } }}
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = G } }}
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
       >
-        {icon && <span style={{ fontSize: 13, width: 18, flexShrink: 0 }}>{icon}</span>}
+        {icon && <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>{icon}</span>}
         {label}
       </button>
     )
@@ -283,26 +286,26 @@ function CommunityPage() {
       rel="noopener noreferrer"
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        width: '100%', padding: '7px 16px',
+        width: '100%', padding: '8px 16px',
         background: 'transparent', textDecoration: 'none',
         borderLeft: '2px solid transparent',
-        fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em',
+        fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
         color: NAV_DEFAULT, transition: 'color 0.15s',
       }}
       onMouseEnter={e => { e.currentTarget.style.color = G }}
       onMouseLeave={e => { e.currentTarget.style.color = NAV_DEFAULT }}
     >
-      {icon && <span style={{ fontSize: 13, width: 18, flexShrink: 0 }}>{icon}</span>}
+      {icon && <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>{icon}</span>}
       <span style={{ flex: 1 }}>{label}</span>
-      <span style={{ fontSize: 9, opacity: 0.5 }}>↗</span>
+      <span style={{ fontSize: 10, opacity: 0.5 }}>↗</span>
     </a>
   )
 
   const dimItem = (label: string, icon?: string) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderLeft: '2px solid transparent', cursor: 'default' }}>
-      {icon && <span style={{ fontSize: 13, width: 18, opacity: 0.4 }}>{icon}</span>}
-      <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', color: 'rgba(201,168,76,0.3)', flex: 1 }}>{label}</span>
-      <span style={{ fontFamily: cinzel, fontSize: 7, color: 'rgba(201,168,76,0.3)', border: '1px solid rgba(201,168,76,0.2)', padding: '1px 5px', borderRadius: 8 }}>SOON</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderLeft: '2px solid transparent', cursor: 'default' }}>
+      {icon && <span style={{ fontSize: 14, width: 20, opacity: 0.5 }}>{icon}</span>}
+      <span style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: V.mut, flex: 1 }}>{label}</span>
+      <span style={{ fontFamily: cinzel, fontSize: 8, color: V.mut, border: `1px solid ${V.bdr}`, padding: '1px 5px', borderRadius: 8 }}>SOON</span>
     </div>
   )
 
@@ -322,22 +325,22 @@ function CommunityPage() {
     const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
     const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
     return (
-      <div style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: isMobile ? 18 : 16, marginBottom: 10 }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 12, color: G, flexShrink: 0, overflow: 'hidden' }}>
+      <div style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
             {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: V.txt }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
-              {pinned && <span style={{ fontFamily: cinzel, fontSize: 7, color: G, border: `1px solid ${BR2}`, padding: '1px 6px', borderRadius: 8 }}>HOST</span>}
-              <span style={{ fontFamily: crimson, fontSize: 11, color: V.mut }}>{time}</span>
+              <span style={{ fontFamily: cinzel, fontSize: 15, letterSpacing: '0.06em', color: V.txt }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
+              {pinned && <span style={{ fontFamily: cinzel, fontSize: 8, color: G, border: `1px solid ${BR2}`, padding: '1px 6px', borderRadius: 8 }}>HOST</span>}
+              <span style={{ fontFamily: crimson, fontSize: 13, color: V.mut }}>{time}</span>
             </div>
-            <p style={{ fontFamily: crimson, fontSize: isMobile ? 16 : 15, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
-            <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
+            <p style={{ fontFamily: crimson, fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
+            <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
               {[['🙏', Math.floor(Math.random() * 20) + 1], ['💬', Math.floor(Math.random() * 8)], ['🔥', Math.floor(Math.random() * 12)]].map(([icon, count]) => (
                 <button key={String(icon)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: crimson, fontSize: isMobile ? 14 : 12, color: V.mut, padding: 0 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: crimson, fontSize: 14, color: V.mut, padding: 0 }}
                   onMouseEnter={e => (e.currentTarget.style.color = G)}
                   onMouseLeave={e => (e.currentTarget.style.color = V.mut)}>
                   {icon} {count}
@@ -724,12 +727,28 @@ function CommunityPage() {
             {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: V.txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.04em', color: V.txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.firstName} {user?.lastName}
             </div>
           </div>
           <TierBadge tier={tier} />
         </div>
+
+        {/* Sign out */}
+        <SignOutButton>
+          <button style={{
+            width: '100%', padding: '9px 16px', marginTop: 8,
+            background: 'transparent', border: `1px solid ${V.bdr}`,
+            borderRadius: 6, fontFamily: cinzel, fontSize: 10,
+            letterSpacing: '0.12em', color: V.mut, cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.color = V.txt; e.currentTarget.style.borderColor = V.dim }}
+            onMouseLeave={e => { e.currentTarget.style.color = V.mut; e.currentTarget.style.borderColor = V.bdr }}
+          >
+            SIGN OUT
+          </button>
+        </SignOutButton>
       </div>
 
       {/* Nav */}
@@ -765,7 +784,7 @@ function CommunityPage() {
     <div style={{
       height: '100vh',
       display: isMobile ? 'block' : 'grid',
-      gridTemplateColumns: isMobile ? undefined : '260px 1fr 280px',
+      gridTemplateColumns: isMobile ? undefined : '280px 1fr 280px',
       background: V.bg,
       overflow: 'hidden',
       position: 'relative',
@@ -819,10 +838,10 @@ function CommunityPage() {
               </div>
               {prayers.slice(-3).reverse().map(p => (
                 <div key={p.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${V.bdr}` }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 8, color: '#c8bfa8', marginBottom: 4 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: V.dim, marginBottom: 4 }}>
                     {(p.user?.name || p.user?.id || 'Warrior').split(' ')[0]}
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: '#c8bfa8', lineHeight: 1.5 }}>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: V.txt, lineHeight: 1.55 }}>
                     {p.text.length > 90 ? p.text.slice(0, 90) + '…' : p.text}
                   </div>
                 </div>
@@ -848,10 +867,10 @@ function CommunityPage() {
               ].map(ev => (
                 <div key={ev.title} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${V.bdr}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: '#c8bfa8' }}>{ev.title}</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{ev.title}</span>
                     <TierBadge tier={ev.badge} />
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut }}>{ev.date}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim }}>{ev.date}</div>
                 </div>
               ))}
             </div>
@@ -870,11 +889,11 @@ function CommunityPage() {
                   <div style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: '#4caf50', border: `2px solid ${V.surf}` }} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: '#c8bfa8' }}>{user?.firstName || 'You'}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{user?.firstName || 'You'}</div>
                   <TierBadge tier={tier} />
                 </div>
               </div>
-              <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut, fontStyle: 'italic', marginTop: 8 }}>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, fontStyle: 'italic', marginTop: 8 }}>
                 More warriors coming online...
               </div>
             </div>
