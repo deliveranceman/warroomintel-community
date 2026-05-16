@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as MnGatewayRouteImport } from './routes/mn-gateway'
 import { Route as HelpRouteImport } from './routes/help'
@@ -41,6 +43,16 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 const SubmitDemonRoute = SubmitDemonRouteImport.update({
   id: '/submit-demon',
   path: '/submit-demon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResourcesRoute = ResourcesRouteImport.update({
@@ -186,6 +198,8 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
@@ -216,6 +230,8 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
@@ -247,6 +263,8 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
@@ -279,6 +297,8 @@ export interface FileRouteTypes {
     | '/help'
     | '/mn-gateway'
     | '/resources'
+    | '/sign-in'
+    | '/sign-up'
     | '/submit-demon'
     | '/admin/login'
     | '/api/admin-auth'
@@ -309,6 +329,8 @@ export interface FileRouteTypes {
     | '/help'
     | '/mn-gateway'
     | '/resources'
+    | '/sign-in'
+    | '/sign-up'
     | '/submit-demon'
     | '/admin/login'
     | '/api/admin-auth'
@@ -339,6 +361,8 @@ export interface FileRouteTypes {
     | '/help'
     | '/mn-gateway'
     | '/resources'
+    | '/sign-in'
+    | '/sign-up'
     | '/submit-demon'
     | '/admin/login'
     | '/api/admin-auth'
@@ -370,6 +394,8 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRoute
   MnGatewayRoute: typeof MnGatewayRoute
   ResourcesRoute: typeof ResourcesRoute
+  SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
   SubmitDemonRoute: typeof SubmitDemonRoute
   AdminLoginRoute: typeof AdminLoginRoute
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
@@ -401,6 +427,20 @@ declare module '@tanstack/react-router' {
       path: '/submit-demon'
       fullPath: '/submit-demon'
       preLoaderRoute: typeof SubmitDemonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resources': {
@@ -602,6 +642,8 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRoute,
   MnGatewayRoute: MnGatewayRoute,
   ResourcesRoute: ResourcesRoute,
+  SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
   SubmitDemonRoute: SubmitDemonRoute,
   AdminLoginRoute: AdminLoginRoute,
   ApiAdminAuthRoute: ApiAdminAuthRoute,
