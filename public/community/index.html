@@ -299,7 +299,7 @@
   </div>
 
   <!-- Clerk CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@4/dist/clerk.browser.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
 
   <script>
     // ── CONFIG ────────────────────────────────────────────
@@ -461,29 +461,26 @@
       const saved = localStorage.getItem('wri-theme')
       if (saved) document.documentElement.dataset.theme = saved
 
-      const ClerkClass = window.Clerk
-      const clerk = new ClerkClass(CLERK_KEY)
-      await clerk.load({
-        standardBrowser: true,
-      })
-      // DO NOT reassign window.Clerk
-      console.log('Clerk user:', clerk.user, 'Session:', clerk.session)
+      await window.Clerk.load()
 
-      if (!clerk.user) {
+      console.log('Clerk user:', window.Clerk.user)
+
+      if (!window.Clerk.user) {
         show('auth-gate')
-        clerk.addListener(({ user }) => {
+        window.Clerk.addListener(({ user }) => {
           if (user) location.reload()
         })
         return
       }
 
-      const user = clerk.user
-      clerk.mountUserButton(document.getElementById('clerk-user-button'))
+      window.Clerk.mountUserButton(document.getElementById('clerk-user-button'))
       hide('auth-gate')
       show('loading-screen')
 
+      const user = window.Clerk.user
+
       try {
-        const session = await clerk.session.getToken()
+        const session = await window.Clerk.session.getToken()
         const res = await fetch('/api/stream-token', {
           headers: { 'Authorization': `Bearer ${session}` }
         })
