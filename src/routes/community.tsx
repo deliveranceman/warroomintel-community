@@ -201,7 +201,14 @@ function CommunityPage() {
     if (!streamToken || !apiKey) return
     try {
       const d = await streamFetch('/channels/messaging/prayer-wall-requests/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 20 } })
-      if (d.messages) setPrayers(d.messages)
+      if (d.messages) {
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+        setPrayers(
+          d.messages.filter((m: StreamMsg) =>
+            new Date(m.created_at).getTime() > cutoff
+          )
+        )
+      }
     } catch {}
   }, [streamToken, apiKey])
 
