@@ -1,18 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-const STREAM_API_KEY    = process.env.STREAM_API_KEY
-const STREAM_API_SECRET = process.env.STREAM_API_SECRET
-const CLERK_SECRET_KEY  = process.env.CLERK_SECRET_KEY
-
 export const Route = createFileRoute('/api/stream-token')({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const STREAM_API_KEY    = process.env.STREAM_API_KEY
+        const STREAM_API_SECRET = process.env.STREAM_API_SECRET
+        const CLERK_SECRET_KEY  = process.env.CLERK_SECRET_KEY
+
         const auth = request.headers.get('Authorization') || ''
         const sessionToken = auth.replace('Bearer ', '').trim()
 
         if (!sessionToken || !CLERK_SECRET_KEY || !STREAM_API_KEY || !STREAM_API_SECRET) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 })
+          return Response.json({ error: 'Unauthorized — check STREAM_API_KEY, STREAM_API_SECRET, CLERK_SECRET_KEY env vars' }, { status: 401 })
         }
 
         try {

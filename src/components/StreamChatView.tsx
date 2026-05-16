@@ -109,7 +109,9 @@ export default function StreamChatView({ userId, fullName, imageUrl, tier, getTo
         const { token, error: tokenError } = await res.json()
         if (tokenError || !token) throw new Error(tokenError || 'Token fetch failed')
 
-        const streamClient = StreamChat.getInstance(import.meta.env.VITE_STREAM_API_KEY)
+        const streamApiKey = import.meta.env.VITE_STREAM_API_KEY
+        if (!streamApiKey) throw new Error('VITE_STREAM_API_KEY is not set in Netlify environment variables')
+        const streamClient = StreamChat.getInstance(streamApiKey)
 
         if (!streamClient.userID) {
           await streamClient.connectUser(
@@ -152,8 +154,10 @@ export default function StreamChatView({ userId, fullName, imageUrl, tier, getTo
       <div style={{ minHeight: 'calc(100vh - 73px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--deep)', padding: '2rem' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: cinzel, fontSize: '13px', color: gold, marginBottom: '8px' }}>Connection error</div>
-          <p style={{ fontFamily: crimson, fontSize: '14px', color: textDim, fontStyle: 'italic' }}>{error}</p>
-          <p style={{ fontFamily: cinzel, fontSize: '10px', color: muted, marginTop: '12px' }}>Check that VITE_STREAM_API_KEY, STREAM_API_KEY, and STREAM_API_SECRET are set.</p>
+          <p style={{ fontFamily: crimson, fontSize: '14px', color: textDim, fontStyle: 'italic', marginBottom: '12px' }}>{error}</p>
+          <p style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.06em' }}>
+            Required env vars: VITE_STREAM_API_KEY (build-time) · STREAM_API_KEY · STREAM_API_SECRET (runtime)
+          </p>
         </div>
       </div>
     )
