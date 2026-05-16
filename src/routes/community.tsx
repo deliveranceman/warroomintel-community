@@ -9,9 +9,9 @@ import {
   Window,
   ChannelHeader,
   MessageList,
-  MessageInput,
+  MessageComposer,
 } from 'stream-chat-react'
-import 'stream-chat-react/dist/css/v2/index.css'
+import 'stream-chat-react/dist/css/index.css'
 
 export const Route = createFileRoute('/community')({
   component: CommunityPage,
@@ -365,7 +365,7 @@ function CommunityPage() {
                 <Window>
                   <ChannelHeader />
                   <MessageList />
-                  <MessageInput />
+                  <MessageComposer />
                 </Window>
               </Channel>
             </Chat>
