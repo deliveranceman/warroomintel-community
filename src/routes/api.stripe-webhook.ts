@@ -13,17 +13,25 @@ function buildPriceMap(): Record<string, string> {
   return map
 }
 
-async function getClerkClient() {
-  const { createClerkClient } = await import('@clerk/backend')
-  return createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! })
-}
-
 async function setUserTier(email: string, tier: string) {
-  const clerkClient = await getClerkClient()
-  const users = await clerkClient.users.getUserList({ emailAddress: [email] })
-  const user = users.data[0]
-  if (!user) throw new Error(`No Clerk user found for email: ${email}`)
-  await clerkClient.users.updateUserMetadata(user.id, { publicMetadata: { tier } })
+  const key = process.env.CLERK_SECRET_KEY!
+  const base = 'https://api.clerk.com/v1'
+
+  // Find user by email
+  const listRes = await fetch(`${base}/users?email_address=${encodeURIComponent(email)}`, {
+    headers: { 'Authorization': `Bearer ${key}` },
+  })
+  if (!listRes.ok) throw new Error(`Clerk user list failed: ${listRes.status}`)
+  const users: { id: string }[] = await listRes.json()
+  if (!users.length) throw new Error(`No Clerk user found for email: ${email}`)
+
+  // Update public metadata
+  const patchRes = await fetch(`${base}/users/${users[0].id}/metadata`, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ public_metadata: { tier } }),
+  })
+  if (!patchRes.ok) throw new Error(`Clerk metadata update failed: ${patchRes.status}`)
 }
 
 export const Route = createFileRoute('/api/stripe-webhook')({
