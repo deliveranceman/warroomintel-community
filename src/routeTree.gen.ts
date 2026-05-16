@@ -21,6 +21,7 @@ import { Route as ProductsProductIdRouteImport } from './routes/products/$produc
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiStreamTokenRouteImport } from './routes/api.stream-token'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
 import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
@@ -84,6 +85,11 @@ const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
 const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
   id: '/api/warroom-chat',
   path: '/api/warroom-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe-webhook',
+  path: '/api/stripe-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStreamTokenRoute = ApiStreamTokenRouteImport.update({
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/api/resources-debug'
     | '/api/submit-assessment'
     | '/api/stream-token'
+    | '/api/stripe-webhook'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -305,6 +315,7 @@ export interface FileRouteTypes {
     | '/api/resources-debug'
     | '/api/submit-assessment'
     | '/api/stream-token'
+    | '/api/stripe-webhook'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '/api/resources-debug'
     | '/api/submit-assessment'
     | '/api/stream-token'
+    | '/api/stripe-webhook'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -363,6 +375,7 @@ export interface RootRouteChildren {
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiStreamTokenRoute: typeof ApiStreamTokenRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -438,6 +451,13 @@ declare module '@tanstack/react-router' {
       path: '/api/warroom-chat'
       fullPath: '/api/warroom-chat'
       preLoaderRoute: typeof ApiWarroomChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stripe-webhook': {
+      id: '/api/stripe-webhook'
+      path: '/api/stripe-webhook'
+      fullPath: '/api/stripe-webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stream-token': {
@@ -579,6 +599,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiUserTierRoute: ApiUserTierRoute,
   ApiStreamTokenRoute: ApiStreamTokenRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
   AdminIndexRoute: AdminIndexRoute,
