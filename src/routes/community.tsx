@@ -479,7 +479,10 @@ function CommunityPage() {
         .then(r => r.json())
         .then(d => {
           setEntries(d.demons || d.records || [])
-          console.log('First demon entry:', d.demons?.[0] || d.records?.[0])
+          console.log('Sample entry fields:', JSON.stringify(
+            d.demons?.[0]?.fields || d.records?.[0]?.fields || d.demons?.[0] || d.records?.[0],
+            null, 2
+          ))
         })
         .catch(console.error)
         .finally(() => setDbLoading(false))
