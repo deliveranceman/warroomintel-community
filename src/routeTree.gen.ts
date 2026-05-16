@@ -15,6 +15,7 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as MnGatewayRouteImport } from './routes/mn-gateway'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
 import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as IndexRouteImport } from './routes/index'
@@ -68,6 +69,11 @@ const MnGatewayRoute = MnGatewayRouteImport.update({
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityRoute = CommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentBoardRoute = AssessmentBoardRouteImport.update({
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/community'
     | '/help'
     | '/mn-gateway'
     | '/resources'
@@ -326,6 +336,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/community'
     | '/help'
     | '/mn-gateway'
     | '/resources'
@@ -358,6 +369,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/community'
     | '/help'
     | '/mn-gateway'
     | '/resources'
@@ -391,6 +403,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssessmentRoute: typeof AssessmentRoute
   AssessmentBoardRoute: typeof AssessmentBoardRoute
+  CommunityRoute: typeof CommunityRoute
   HelpRoute: typeof HelpRoute
   MnGatewayRoute: typeof MnGatewayRoute
   ResourcesRoute: typeof ResourcesRoute
@@ -462,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/help'
       fullPath: '/help'
       preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community': {
+      id: '/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof CommunityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessment-board': {
@@ -639,6 +659,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssessmentRoute: AssessmentRoute,
   AssessmentBoardRoute: AssessmentBoardRoute,
+  CommunityRoute: CommunityRoute,
   HelpRoute: HelpRoute,
   MnGatewayRoute: MnGatewayRoute,
   ResourcesRoute: ResourcesRoute,
