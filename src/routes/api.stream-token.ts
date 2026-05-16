@@ -25,11 +25,10 @@ export const Route = createFileRoute('/api/stream-token')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const CLERK_SECRET_KEY  = process.env.CLERK_SECRET_KEY
         const STREAM_API_KEY    = process.env.STREAM_API_KEY
         const STREAM_API_SECRET = process.env.STREAM_API_SECRET
 
-        if (!CLERK_SECRET_KEY || !STREAM_API_KEY || !STREAM_API_SECRET) {
+        if (!STREAM_API_KEY || !STREAM_API_SECRET) {
           return Response.json({ error: 'Missing env vars' }, { status: 500 })
         }
 
@@ -40,32 +39,21 @@ export const Route = createFileRoute('/api/stream-token')({
         const sessionToken = auth.slice(7)
 
         try {
-          // Verify Clerk session via REST API — no SDK
-          const verify = await fetch('https://api.clerk.com/v1/sessions/verify', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ token: sessionToken }),
-          })
+          // Decode Clerk JWT locally — extract sub claim without a network round-trip
+          const parts = sessionToken.split('.')
+          if (parts.length !== 3) throw new Error('Bad token format')
 
-          if (!verify.ok) {
-            return Response.json({ error: 'Invalid Clerk session' }, { status: 401 })
-          }
-
-          const session = await verify.json()
-          const userId  = session?.user_id ?? session?.sub
-          if (!userId) {
-            return Response.json({ error: 'No user ID' }, { status: 401 })
-          }
+          const payload = JSON.parse(
+            atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
+          )
+          const userId = payload.sub
+          if (!userId) throw new Error('No sub claim in token')
 
           const token = await makeStreamJWT({ user_id: userId }, STREAM_API_SECRET)
           return Response.json({ token, userId, apiKey: STREAM_API_KEY })
 
         } catch (err: any) {
-          console.error('[stream-token]', err.message)
-          return Response.json({ error: err.message }, { status: 500 })
+          return Response.json({ error: 'Invalid token: ' + err.message }, { status: 401 })
         }
       },
     },
