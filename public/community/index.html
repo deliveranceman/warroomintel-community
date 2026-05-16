@@ -463,8 +463,11 @@
 
       const ClerkClass = window.Clerk
       const clerk = new ClerkClass(CLERK_KEY)
-      await clerk.load()
+      await clerk.load({
+        standardBrowser: true,
+      })
       // DO NOT reassign window.Clerk
+      console.log('Clerk user:', clerk.user, 'Session:', clerk.session)
 
       if (!clerk.user) {
         show('auth-gate')
