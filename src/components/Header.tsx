@@ -271,6 +271,7 @@ export function Header() {
                 }} />
                 {[
                   { href: '/assessment', icon: '📋', label: 'Take the Assessment', sub: 'Ministry intake form' },
+                  { href: '/help', icon: '🙏', label: 'Request Help', sub: 'Ministry request form' },
                   { href: '/assessment-board', icon: '⚔', label: 'Response Board', sub: 'Ministry responses' },
                   { href: '/submit-demon', icon: '🗡', label: 'Submit a Demon', sub: 'Add to the database' },
                 ].map((item, i) => (
@@ -278,7 +279,7 @@ export function Header() {
                     display: 'flex', alignItems: 'center', gap: '12px',
                     padding: '13px 18px', fontFamily: cinzel, fontSize: '11px',
                     letterSpacing: '0.07em', color: textDim, textDecoration: 'none',
-                    borderBottom: i === 0 ? `1px solid ${border}` : 'none',
+                    borderBottom: i < 3 ? `1px solid ${border}` : 'none',
                     transition: 'background 0.15s, color 0.15s',
                   }}
                     onMouseEnter={e => { e.currentTarget.style.background = goldDim; e.currentTarget.style.color = gold }}
@@ -534,6 +535,21 @@ export function Header() {
                   <div>
                     <div>Take the Assessment</div>
                     <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Ministry intake form</div>
+                  </div>
+                </a>
+                <a href="/help" onClick={closeAll} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '14px 1.5rem 14px 2.5rem',
+                  fontFamily: cinzel, fontSize: '12px', letterSpacing: '0.07em',
+                  color: textDim, textDecoration: 'none',
+                  borderBottom: `1px solid ${border}`, transition: 'color 0.2s',
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                  onMouseLeave={e => (e.currentTarget.style.color = textDim)}>
+                  <span style={{ fontSize: '14px' }}>🙏</span>
+                  <div>
+                    <div>Request Help</div>
+                    <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Ministry request form</div>
                   </div>
                 </a>
                 <a href="/assessment-board" onClick={closeAll} style={{

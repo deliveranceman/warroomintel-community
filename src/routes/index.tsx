@@ -299,6 +299,66 @@ function TierCallout({ title, desc, url, btnLabel }: { title: string; desc: stri
   )
 }
 
+// ── PATH TO FREEDOM ──────────────────────────────────────
+function PathToFreedomSection() {
+  const pillars = [
+    {
+      icon: '🕊',
+      title: 'Inner Healing',
+      body: 'Unresolved wounds become open doors. Before a spirit can be cast out its legal right must be removed — and legal rights are built on pain, trauma, and lies the enemy has anchored in the soul. Inner healing is not therapy. It is the surrendering of every wounded place to the authority of Jesus Christ.',
+    },
+    {
+      icon: '⚔',
+      title: 'Deliverance',
+      body: 'Once the wound is surrendered and the legal right is broken the spirit must be commanded to go. This is not negotiation — it is authority. The name of Jesus Christ carries all authority in heaven and on earth. Deliverance is the enforcing of what the cross already accomplished.',
+    },
+    {
+      icon: '🔥',
+      title: 'Walking in Freedom',
+      body: 'Deliverance is a door, not a destination. What comes next determines whether the freedom holds. Renewing the mind, building new patterns, staying in community, and maintaining your armor daily — this is how you keep what was won in the session.',
+    },
+  ]
+
+  return (
+    <section style={{ padding: '5rem 2rem', background: 'var(--surface)', borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ The Ministry Framework</p>
+          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '16px' }}>
+            Freedom Is More Than <em style={{ color: gold, fontStyle: 'normal' }}>Deliverance</em>
+          </h2>
+          <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', color: textDim, fontStyle: 'italic', fontFamily: crimson, maxWidth: '580px', margin: '0 auto', lineHeight: 1.7 }}>
+            You cannot cast out what has not been surrendered. True freedom requires the whole man — spirit, soul, and body.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1px', background: border, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden', marginBottom: '48px' }}>
+          {pillars.map(p => (
+            <div key={p.title} style={{ background: surface2, padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column' as const, gap: '16px' }}>
+              <div style={{ fontSize: '32px' }}>{p.icon}</div>
+              <div style={{ fontFamily: cinzel, fontSize: '13px', fontWeight: 700, letterSpacing: '0.1em', color: gold }}>{p.title}</div>
+              <div style={{ height: '1px', background: border }} />
+              <p style={{ fontSize: '14px', color: textDim, lineHeight: 1.9, fontFamily: crimson, fontStyle: 'italic', margin: 0 }}>{p.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: 'center', padding: '0 2rem 40px' }}>
+          <p style={{ fontFamily: crimson, fontSize: 'clamp(20px, 3vw, 28px)', fontStyle: 'italic', color: text, lineHeight: 1.5, maxWidth: '640px', margin: '0 auto 32px', borderLeft: `3px solid ${gold}`, paddingLeft: '24px', textAlign: 'left' as const }}>
+            "You were not set free to survive. You were set free to war."
+          </p>
+          <a href="/assessment"
+            style={{ display: 'inline-block', fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', padding: '14px 32px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', transition: 'background 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
+            onMouseLeave={e => (e.currentTarget.style.background = gold)}>
+            Take the Free Ministry Assessment ⚔
+          </a>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ── DATABASE ─────────────────────────────────────────────
 function DatabaseSection() {
   const [entries, setEntries] = useState<DemonEntry[]>([])
@@ -1085,6 +1145,8 @@ function WarRoomHome() {
       <Hero />
       <Divider label="✦ What's Inside ✦" />
       <FeaturesSection />
+      <Divider label="✦ The Path to Freedom ✦" />
+      <PathToFreedomSection />
       <Divider label="✦ The Database ✦" />
       <DatabaseSection />
       <Divider label="✦ Ministry Assessment ✦" />
