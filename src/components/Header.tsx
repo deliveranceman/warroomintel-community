@@ -605,6 +605,72 @@ export function Header() {
               onMouseLeave={e => (e.currentTarget.style.background = gold)}>
               Join Now — 30 Days Free
             </a>
+
+            {mounted && (
+              <>
+                <SignedOut>
+                  <div style={{
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: '16px',
+                    marginTop: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <SignInButton mode="modal">
+                      <button style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: 'transparent',
+                        color: 'var(--gold)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '4px',
+                        fontFamily: 'Cinzel, serif',
+                        fontSize: '11px',
+                        letterSpacing: '0.12em',
+                        cursor: 'pointer',
+                        textTransform: 'uppercase'
+                      }}>Login</button>
+                    </SignInButton>
+                    <SignUpButton mode="modal">
+                      <button style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: 'var(--gold)',
+                        color: 'var(--deep)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontFamily: 'Cinzel, serif',
+                        fontSize: '11px',
+                        letterSpacing: '0.12em',
+                        cursor: 'pointer',
+                        textTransform: 'uppercase',
+                        fontWeight: '600'
+                      }}>Join Now ⚔</button>
+                    </SignUpButton>
+                  </div>
+                </SignedOut>
+                <SignedIn>
+                  <div style={{
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: '16px',
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <UserButton />
+                    <a href="/resources" style={{
+                      fontFamily: 'Cinzel, serif',
+                      fontSize: '11px',
+                      color: 'var(--gold)',
+                      textDecoration: 'none',
+                      letterSpacing: '0.1em'
+                    }}>My Arsenal →</a>
+                  </div>
+                </SignedIn>
+              </>
+            )}
           </div>
         </div>
       )}
