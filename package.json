@@ -9,6 +9,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
     "@clerk/tanstack-start": "^0.11.5",
+    "@stream-io/node-sdk": "^0.7.57",
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/react-router": "^1.163.3",
     "@tanstack/react-start": "^1.166.1",

@@ -102,7 +102,7 @@ function SignInGate() {
 
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
-  const { isLoaded, isSignedIn, getToken } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
 
   const [theme, setTheme] = useState<'dark' | 'light'>(
@@ -112,8 +112,8 @@ function CommunityPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('war-room')
 
-  const [streamToken, setStreamToken] = useState<string | null>(null)
-  const [apiKey, setApiKey]           = useState<string | null>(null)
+  const [streamToken, setStreamToken] = useState<string>('')
+  const [apiKey, setApiKey]           = useState<string>('')
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
 
@@ -169,25 +169,37 @@ function CommunityPage() {
     }
   }, [])
 
-  // Fetch Stream token
+  // Fetch Stream token — upserts user in Stream then returns a valid token
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return
-    let alive = true
-    getToken().then(jwt => {
-      if (!jwt) return
-      fetch('/api/stream-token', { headers: { Authorization: `Bearer ${jwt}` } })
-        .then(r => r.json())
-        .then(d => {
-          if (!alive) return
-          if (d.error) { setError(d.error); setLoading(false); return }
-          setStreamToken(d.token)
-          setApiKey(d.apiKey)
-          setLoading(false)
-        })
-        .catch(e => { if (alive) { setError(e.message); setLoading(false) } })
+    if (!user?.id) return
+    fetch('/api/stream-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId:    user.id,
+        userName:  user.fullName || user.firstName || 'Warrior',
+        userImage: user.imageUrl || '',
+      }),
     })
-    return () => { alive = false }
-  }, [isLoaded, isSignedIn])
+      .then(r => r.json())
+      .then(data => {
+        if (data.token) {
+          setStreamToken(data.token)
+          setApiKey(data.apiKey)
+          setLoading(false)
+          console.log('Stream token obtained successfully')
+        } else {
+          console.error('No token returned:', data)
+          setError(data.error || 'Stream token error')
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        console.error('stream-token fetch error:', err)
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [user?.id])
 
   const fetchPosts = useCallback(async () => {
     if (!streamToken || !apiKey) return

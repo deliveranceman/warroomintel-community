@@ -14,6 +14,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as MnGatewayRouteImport } from './routes/mn-gateway'
+import { Route as MembershipRouteImport } from './routes/membership'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
@@ -64,6 +65,11 @@ const ResourcesRoute = ResourcesRouteImport.update({
 const MnGatewayRoute = MnGatewayRouteImport.update({
   id: '/mn-gateway',
   path: '/mn-gateway',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MembershipRoute = MembershipRouteImport.update({
+  id: '/membership',
+  path: '/membership',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRoute = HelpRouteImport.update({
@@ -203,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/membership': typeof MembershipRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/membership': typeof MembershipRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/membership': typeof MembershipRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/membership'
     | '/mn-gateway'
     | '/resources'
     | '/sign-in'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/membership'
     | '/mn-gateway'
     | '/resources'
     | '/sign-in'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/membership'
     | '/mn-gateway'
     | '/resources'
     | '/sign-in'
@@ -405,6 +417,7 @@ export interface RootRouteChildren {
   AssessmentBoardRoute: typeof AssessmentBoardRoute
   CommunityRoute: typeof CommunityRoute
   HelpRoute: typeof HelpRoute
+  MembershipRoute: typeof MembershipRoute
   MnGatewayRoute: typeof MnGatewayRoute
   ResourcesRoute: typeof ResourcesRoute
   SignInRoute: typeof SignInRoute
@@ -468,6 +481,13 @@ declare module '@tanstack/react-router' {
       path: '/mn-gateway'
       fullPath: '/mn-gateway'
       preLoaderRoute: typeof MnGatewayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/membership': {
+      id: '/membership'
+      path: '/membership'
+      fullPath: '/membership'
+      preLoaderRoute: typeof MembershipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/help': {
@@ -661,6 +681,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentBoardRoute: AssessmentBoardRoute,
   CommunityRoute: CommunityRoute,
   HelpRoute: HelpRoute,
+  MembershipRoute: MembershipRoute,
   MnGatewayRoute: MnGatewayRoute,
   ResourcesRoute: ResourcesRoute,
   SignInRoute: SignInRoute,
