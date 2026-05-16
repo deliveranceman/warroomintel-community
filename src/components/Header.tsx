@@ -225,13 +225,15 @@ export function Header() {
 
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#database', 'Database')}</li>
 
-          <li style={{ display: 'flex', alignItems: 'center' }}>
-            <a href="/community/" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: gold, textDecoration: 'none', padding: '6px 14px', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: '3px', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.1)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-              ⚔ Community
-            </a>
-          </li>
+          <SignedIn>
+            <li style={{ display: 'flex', alignItems: 'center' }}>
+              <a href="/community/" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: gold, textDecoration: 'none', padding: '6px 14px', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: '3px', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.1)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                ⚔ Community
+              </a>
+            </li>
+          </SignedIn>
 
           {/* Assessment dropdown */}
           <li ref={dropdownRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -299,7 +301,7 @@ export function Header() {
             )}
           </li>
 
-          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#pricing', 'Membership')}</li>
+          <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/membership', 'Membership')}</li>
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#faq', 'FAQ')}</li>
         </ul>
 
@@ -307,7 +309,7 @@ export function Header() {
         <div style={{ flex: 1 }} />
 
         {/* Desktop CTA */}
-        <a href="/#pricing" className="wr-nav-cta"
+        <a href="/membership" className="wr-nav-cta"
           style={{
             fontFamily: cinzel, fontSize: '11px', fontWeight: 600,
             letterSpacing: '0.1em', color: deep, background: gold,
@@ -598,7 +600,7 @@ export function Header() {
           </div>
 
           {/* Membership */}
-          <a href="/#pricing" onClick={closeAll} style={{
+          <a href="/membership" onClick={closeAll} style={{
             display: 'block', fontFamily: cinzel, fontSize: '13px',
             letterSpacing: '0.1em', color: textDim, textDecoration: 'none',
             padding: '16px 1.5rem', borderBottom: `1px solid ${border}`,
@@ -621,7 +623,7 @@ export function Header() {
 
           {/* CTA */}
           <div style={{ padding: '1rem 1.5rem 1.5rem' }}>
-            <a href="/#pricing" onClick={closeAll} style={{
+            <a href="/membership" onClick={closeAll} style={{
               display: 'block', fontFamily: cinzel, fontSize: '12px',
               fontWeight: 700, letterSpacing: '0.12em',
               color: deep, background: gold,

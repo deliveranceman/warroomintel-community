@@ -201,6 +201,7 @@ function CommunityPage() {
     if (!streamToken || !apiKey) return
     try {
       const d = await streamFetch('/channels/messaging/prayer-wall-requests/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 20 } })
+      console.log('FETCH PRAYERS RAW:', d)
       if (d.messages) {
         const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
         setPrayers(
@@ -405,14 +406,24 @@ function CommunityPage() {
     const [draft, setDraft] = useState('')
 
     async function handleSend() {
-      if (!draft.trim() || !streamToken || !apiKey) return
-      await streamFetch(
-        '/channels/messaging/prayer-wall-requests/message',
-        'POST', streamToken, apiKey,
-        { message: { text: draft.trim() } }
-      )
-      setDraft('')
-      await fetchPrayers()
+      if (!draft.trim() || !streamToken || !apiKey) {
+        console.log('PRAYER BLOCKED:', { hasDraft: !!draft.trim(), hasToken: !!streamToken, hasKey: !!apiKey })
+        return
+      }
+      try {
+        console.log('SENDING PRAYER to Stream...')
+        const result = await streamFetch(
+          '/channels/messaging/prayer-wall-requests/message',
+          'POST', streamToken, apiKey,
+          { message: { text: draft.trim() } }
+        )
+        console.log('PRAYER RESULT:', result)
+        setDraft('')
+        await fetchPrayers()
+        console.log('PRAYERS AFTER FETCH:', prayers.length)
+      } catch (err) {
+        console.error('PRAYER ERROR:', err)
+      }
     }
 
     return (
