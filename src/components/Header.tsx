@@ -192,7 +192,7 @@ export function Header() {
                   borderBottom: 'none', borderRight: 'none',
                 }} />
                 {[
-                  { href: 'https://community.warroomintel.com', icon: '⚔', label: 'Community', sub: 'Join the War Room', external: true },
+                  { href: '/community', icon: '⚔', label: 'Community', sub: 'Live chat & war room', external: false },
                   { href: '/resources', icon: '📚', label: 'Resources', sub: 'Ministry resource library', external: false },
                 ].map((item, i) => (
                   <a key={item.href} href={item.href}
@@ -455,7 +455,7 @@ export function Header() {
 
             {mobileArsenalOpen && (
               <div style={{ background: 'rgba(201,168,76,0.04)', borderBottom: `1px solid ${border}` }}>
-                <a href="https://community.warroomintel.com" target="_blank" rel="noopener noreferrer" onClick={closeAll} style={{
+                <a href="/community" onClick={closeAll} style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '14px 1.5rem 14px 2.5rem',
                   fontFamily: cinzel, fontSize: '12px', letterSpacing: '0.07em',
@@ -467,7 +467,7 @@ export function Header() {
                   <span style={{ fontSize: '14px' }}>⚔</span>
                   <div>
                     <div>Community</div>
-                    <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Join the War Room</div>
+                    <div style={{ fontSize: '10px', color: muted, fontStyle: 'italic', fontFamily: crimson, marginTop: '2px' }}>Live chat & war room</div>
                   </div>
                 </a>
                 <a href="/resources" onClick={closeAll} style={{

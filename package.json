@@ -17,6 +17,8 @@
     "lucide-react": "^0.576.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "stream-chat": "^9.44.2",
+    "stream-chat-react": "^14.2.0",
     "svix": "^1.93.0",
     "tailwindcss": "^4.0.6",
     "vite-tsconfig-paths": "^6.0.2",

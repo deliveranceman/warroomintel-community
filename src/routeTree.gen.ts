@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as CommunityRouteImport } from './routes/community'
 import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as MnGatewayRouteImport } from './routes/mn-gateway'
@@ -19,6 +20,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
+import { Route as ApiStreamTokenRouteImport } from './routes/api.stream-token'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
 import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
@@ -34,6 +36,11 @@ import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
+const CommunityRoute = CommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubmitDemonRoute = SubmitDemonRouteImport.update({
   id: '/submit-demon',
   path: '/submit-demon',
@@ -77,6 +84,11 @@ const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
 const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
   id: '/api/warroom-chat',
   path: '/api/warroom-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStreamTokenRoute = ApiStreamTokenRouteImport.update({
+  id: '/api/stream-token',
+  path: '/api/stream-token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUserTierRoute = ApiUserTierRouteImport.update({
@@ -159,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/community': typeof CommunityRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/submit-demon': typeof SubmitDemonRoute
@@ -176,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
+  '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -185,6 +199,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/community': typeof CommunityRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/submit-demon': typeof SubmitDemonRoute
@@ -202,6 +217,7 @@ export interface FileRoutesByTo {
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
+  '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -212,6 +228,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
+  '/community': typeof CommunityRoute
   '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/submit-demon': typeof SubmitDemonRoute
@@ -229,6 +246,7 @@ export interface FileRoutesById {
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
+  '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -240,6 +258,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/community'
     | '/mn-gateway'
     | '/resources'
     | '/submit-demon'
@@ -257,6 +276,7 @@ export interface FileRouteTypes {
     | '/api/resources'
     | '/api/resources-debug'
     | '/api/submit-assessment'
+    | '/api/stream-token'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -266,6 +286,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/community'
     | '/mn-gateway'
     | '/resources'
     | '/submit-demon'
@@ -283,6 +304,7 @@ export interface FileRouteTypes {
     | '/api/resources'
     | '/api/resources-debug'
     | '/api/submit-assessment'
+    | '/api/stream-token'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -292,6 +314,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assessment'
     | '/assessment-board'
+    | '/community'
     | '/mn-gateway'
     | '/resources'
     | '/submit-demon'
@@ -309,6 +332,7 @@ export interface FileRouteTypes {
     | '/api/resources'
     | '/api/resources-debug'
     | '/api/submit-assessment'
+    | '/api/stream-token'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -319,6 +343,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssessmentRoute: typeof AssessmentRoute
   AssessmentBoardRoute: typeof AssessmentBoardRoute
+  CommunityRoute: typeof CommunityRoute
   MnGatewayRoute: typeof MnGatewayRoute
   ResourcesRoute: typeof ResourcesRoute
   SubmitDemonRoute: typeof SubmitDemonRoute
@@ -337,6 +362,7 @@ export interface RootRouteChildren {
   ApiResourcesDebugRoute: typeof ApiResourcesDebugRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiUserTierRoute: typeof ApiUserTierRoute
+  ApiStreamTokenRoute: typeof ApiStreamTokenRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -344,6 +370,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/community': {
+      id: '/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof CommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/submit-demon': {
       id: '/submit-demon'
       path: '/submit-demon'
@@ -405,6 +438,13 @@ declare module '@tanstack/react-router' {
       path: '/api/warroom-chat'
       fullPath: '/api/warroom-chat'
       preLoaderRoute: typeof ApiWarroomChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stream-token': {
+      id: '/api/stream-token'
+      path: '/api/stream-token'
+      fullPath: '/api/stream-token'
+      preLoaderRoute: typeof ApiStreamTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/user-tier': {
@@ -519,6 +559,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssessmentRoute: AssessmentRoute,
   AssessmentBoardRoute: AssessmentBoardRoute,
+  CommunityRoute: CommunityRoute,
   MnGatewayRoute: MnGatewayRoute,
   ResourcesRoute: ResourcesRoute,
   SubmitDemonRoute: SubmitDemonRoute,
@@ -537,6 +578,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiResourcesDebugRoute: ApiResourcesDebugRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiUserTierRoute: ApiUserTierRoute,
+  ApiStreamTokenRoute: ApiStreamTokenRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
   AdminIndexRoute: AdminIndexRoute,
