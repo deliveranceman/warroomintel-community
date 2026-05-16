@@ -34,9 +34,9 @@ interface DemonEntry {
 // ── MIGHTY NETWORKS JOIN URLS ───────────────────────────
 // Replace these with your actual Mighty Networks plan join URLs
 const MN_FREE_URL = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=manual'
-const MN_SOLDIER_URL = 'https://buy.stripe.com/aFabITdtW0Hr8BO7xC1RC00'
-const MN_COMMANDER_URL = 'https://buy.stripe.com/28EbIT9dG2Pz6tGbNS1RC01'
-const MN_GENERAL_URL = 'https://buy.stripe.com/fZudR1fC4eyhdW87xC1RC02'
+const MN_SOLDIER_URL = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
+const MN_COMMANDER_URL = 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01'
+const MN_GENERAL_URL = 'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02'
 const MN_LOGIN_URL = 'https://community.warroomintel.com'
 
 // ── CONSTANTS ────────────────────────────────────────────

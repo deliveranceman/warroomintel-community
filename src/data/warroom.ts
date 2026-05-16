@@ -18,7 +18,7 @@ export const plans: Plan[] = [
     id: 'soldier',
     tier: 'Soldier',
     price: 19,
-    stripeUrl: 'https://buy.stripe.com/aFabITdtW0Hr8BO7xC1RC00',
+    stripeUrl: 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
     features: [
       'Full demon database access',
       'Prayer arsenal library',
@@ -32,7 +32,7 @@ export const plans: Plan[] = [
     tier: 'Commander',
     price: 39,
     featured: true,
-    stripeUrl: 'https://buy.stripe.com/28EbIT9dG2Pz6tGbNS1RC01',
+    stripeUrl: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
     features: [
       'Everything in Soldier',
       'Monthly Zoom training calls',
@@ -45,7 +45,7 @@ export const plans: Plan[] = [
     id: 'general',
     tier: 'General',
     price: 97,
-    stripeUrl: 'https://buy.stripe.com/fZudR1fC4eyhdW87xC1RC02',
+    stripeUrl: 'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
     features: [
       'Everything in Commander',
       'Weekly live calls',
