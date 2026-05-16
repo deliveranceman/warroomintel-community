@@ -460,37 +460,24 @@
 
     // ── INIT ──────────────────────────────────────────────
     window.addEventListener('load', async () => {
-      // Apply saved theme
       const saved = localStorage.getItem('wri-theme')
       if (saved) document.documentElement.dataset.theme = saved
 
-      const Clerk = window.Clerk
-      const clerk = new Clerk(CLERK_KEY)
-      await clerk.load({
-        routerPush:    (to) => { window.location.href = to },
-        routerReplace: (to) => { window.location.replace(to) },
-      })
-      window.__clerk = clerk
+      const clerk = new window.Clerk(CLERK_KEY)
+      await clerk.load()
 
-      const { user } = window.__clerk
-
-      if (!user) {
+      if (!clerk.user) {
         show('auth-gate')
-        // Sign-in/up handled by plain anchor links — no JS needed
-        window.__clerk.addListener(({ user }) => {
-          if (user) location.reload()
-        })
         return
       }
 
-      // Mount Clerk UserButton
-      window.__clerk.mountUserButton(document.getElementById('clerk-user-button'))
-
+      const user = clerk.user
+      clerk.mountUserButton(document.getElementById('clerk-user-button'))
       hide('auth-gate')
       show('loading-screen')
 
       try {
-        const session = await window.__clerk.session.getToken()
+        const session = await clerk.session.getToken()
         const res = await fetch('/api/stream-token', {
           headers: { 'Authorization': `Bearer ${session}` }
         })
