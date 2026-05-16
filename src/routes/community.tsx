@@ -477,7 +477,10 @@ function CommunityPage() {
     useEffect(() => {
       fetch('/api/demons')
         .then(r => r.json())
-        .then(d => setEntries(d.demons || d.records || []))
+        .then(d => {
+          setEntries(d.demons || d.records || [])
+          console.log('First demon entry:', d.demons?.[0] || d.records?.[0])
+        })
         .catch(console.error)
         .finally(() => setDbLoading(false))
     }, [])
