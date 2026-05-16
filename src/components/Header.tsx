@@ -125,8 +125,10 @@ export function Header() {
       `}</style>
 
       <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '1rem 1.25rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+        gap: 8,
+        padding: '0 16px',
+        minHeight: '60px',
         borderBottom: `1px solid ${border}`,
         background: 'var(--nav-bg)',
         backdropFilter: 'blur(12px)',
@@ -301,6 +303,9 @@ export function Header() {
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#faq', 'FAQ')}</li>
         </ul>
 
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
         {/* Desktop CTA */}
         <a href="/#pricing" className="wr-nav-cta"
           style={{
@@ -313,32 +318,6 @@ export function Header() {
           onMouseLeave={e => (e.currentTarget.style.background = gold)}>
           Join Now
         </a>
-
-        {/* ── Theme toggle ── */}
-        <button
-          onClick={toggleTheme}
-          aria-label="Switch theme"
-          title="Switch theme"
-          style={{
-            width: '32px', height: '32px',
-            background: 'none',
-            border: `1px solid ${borderBright}`,
-            borderRadius: '50%',
-            color: gold,
-            cursor: 'pointer',
-            fontSize: '14px',
-            lineHeight: 1,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = goldDim)}
-          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        >
-          {theme === 'dark' ? '☀' : '🌙'}
-        </button>
 
         {/* ── Auth buttons ── */}
         {mounted ? (
@@ -363,13 +342,15 @@ export function Header() {
               </SignInButton>
             </SignedOut>
             <SignedIn>
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: { width: '32px', height: '32px' },
-                  },
-                }}
-              />
+              <div style={{ flexShrink: 0 }}>
+                <UserButton
+                  appearance={{
+                    elements: {
+                      avatarBox: { width: '36px', height: '36px' },
+                    },
+                  }}
+                />
+              </div>
             </SignedIn>
           </>
         ) : (
@@ -387,6 +368,33 @@ export function Header() {
             Login
           </button>
         )}
+
+        {/* ── Theme toggle ── */}
+        <button
+          onClick={toggleTheme}
+          aria-label="Switch theme"
+          title="Switch theme"
+          style={{
+            width: '32px', height: '32px',
+            background: 'none',
+            border: `1px solid ${borderBright}`,
+            borderRadius: '50%',
+            color: gold,
+            cursor: 'pointer',
+            fontSize: '14px',
+            lineHeight: 1,
+            flexShrink: 0,
+            marginLeft: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = goldDim)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+        >
+          {theme === 'dark' ? '☀' : '🌙'}
+        </button>
 
         {/* ── Hamburger ── */}
         <button
