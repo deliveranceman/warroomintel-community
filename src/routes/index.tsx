@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
-import { SignInButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
+import { SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/')({
   component: WarRoomHome,
@@ -853,6 +853,23 @@ function PricingSection() {
                   cursor: 'default',
                   boxSizing: 'border-box' as const,
                 }}>COMING SOON</div>
+              ) : tier.name === 'Free' ? (
+                <SignUpButton mode="modal">
+                  <button style={{
+                    width: '100%',
+                    padding: '14px',
+                    background: 'transparent',
+                    color: 'var(--gold)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    fontFamily: 'Cinzel, serif',
+                    fontSize: '11px',
+                    letterSpacing: '0.12em',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase' as const,
+                    boxSizing: 'border-box' as const,
+                  }}>Join Free ⚔</button>
+                </SignUpButton>
               ) : (
                 <a href={tier.url} target="_blank" rel="noopener noreferrer"
                   style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', borderRadius: '3px', border: tier.featured ? 'none' : `1px solid ${borderBright}`, background: tier.featured ? gold : 'transparent', color: tier.featured ? deep : gold, textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'all 0.2s' }}
