@@ -1,19 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { createHmac } from 'crypto'
 
-// Generate Stream JWT using Node.js built-in crypto — no stream-chat SDK needed
-function base64url(input: string | Buffer): string {
-  const b64 = Buffer.isBuffer(input)
-    ? input.toString('base64')
-    : Buffer.from(input).toString('base64')
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+// Base64url using Web Crypto API only — works in Node.js, Deno, and edge runtimes
+function base64url(bytes: Uint8Array | string): string {
+  const str = typeof bytes === 'string'
+    ? bytes
+    : Array.from(bytes, b => String.fromCharCode(b)).join('')
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
-function makeStreamJWT(payload: Record<string, unknown>, secret: string): string {
-  const header  = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
-  const body    = base64url(JSON.stringify(payload))
-  const sig     = base64url(createHmac('sha256', secret).update(`${header}.${body}`).digest())
-  return `${header}.${body}.${sig}`
+async function makeStreamJWT(payload: Record<string, unknown>, secret: string): Promise<string> {
+  const enc    = new TextEncoder()
+  const header = base64url(enc.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })))
+  const body   = base64url(enc.encode(JSON.stringify(payload)))
+  const input  = `${header}.${body}`
+
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(input))
+  return `${input}.${base64url(new Uint8Array(sig))}`
 }
 
 export const Route = createFileRoute('/api/stream-token')({
@@ -28,11 +35,10 @@ export const Route = createFileRoute('/api/stream-token')({
         const sessionToken = auth.replace('Bearer ', '').trim()
 
         if (!sessionToken || !CLERK_SECRET_KEY || !STREAM_API_KEY || !STREAM_API_SECRET) {
-          return Response.json({ error: 'Unauthorized — check STREAM_API_KEY, STREAM_API_SECRET, CLERK_SECRET_KEY' }, { status: 401 })
+          return Response.json({ error: 'Missing env vars or token' }, { status: 401 })
         }
 
         try {
-          // Verify Clerk session
           const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
             method: 'POST',
             headers: {
@@ -52,12 +58,10 @@ export const Route = createFileRoute('/api/stream-token')({
             return Response.json({ error: 'No user ID in session' }, { status: 401 })
           }
 
-          // Generate Stream user token — pure JWT, no SDK
-          const token = makeStreamJWT({ user_id: userId }, STREAM_API_SECRET)
-
+          const token = await makeStreamJWT({ user_id: userId }, STREAM_API_SECRET)
           return Response.json({ token, userId, apiKey: STREAM_API_KEY })
         } catch (err: any) {
-          console.error('[stream-token] error:', err.message)
+          console.error('[stream-token]', err.message)
           return Response.json({ error: 'Server error' }, { status: 500 })
         }
       },

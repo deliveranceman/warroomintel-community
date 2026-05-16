@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>War Room Community</title>
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #C9A84C;
+      --gold-light: #dfc06e;
+      --gold-dim: rgba(201,168,76,0.12);
+      --deep: #0e0c09;
+      --surface: #161310;
+      --surface2: #1e1a14;
+      --border: rgba(201,168,76,0.18);
+      --border-bright: rgba(201,168,76,0.35);
+      --text: #e8e0d0;
+      --text-dim: rgba(232,224,208,0.65);
+      --muted: rgba(232,224,208,0.38);
+    }
+    [data-theme="light"] {
+      --deep: #f5f0e8;
+      --surface: #ffffff;
+      --surface2: #f0ece0;
+      --border: rgba(140,110,40,0.2);
+      --border-bright: rgba(140,110,40,0.4);
+      --text: #1a1508;
+      --text-dim: rgba(26,21,8,0.65);
+      --muted: rgba(26,21,8,0.38);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Crimson Pro', serif;
+      background: var(--deep);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+    #topbar-logo {
+      display: flex; align-items: center; gap: 8px; text-decoration: none;
+    }
+    #topbar-logo img { height: 32px; width: 32px; object-fit: contain; }
+    #topbar-title {
+      font-family: 'Cinzel', serif; font-size: 10px; font-weight: 600;
+      letter-spacing: 0.14em; color: var(--gold); line-height: 1.3;
+    }
+    #topbar-title span { display: block; font-size: 7px; letter-spacing: 0.22em; opacity: 0.6; font-weight: 400; }
+    #topbar-right { display: flex; align-items: center; gap: 10px; }
+    #back-link {
+      font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.1em;
+      color: var(--text-dim); text-decoration: none; transition: color 0.2s;
+    }
+    #back-link:hover { color: var(--gold); }
+
+    /* ── Auth states ── */
+    #auth-gate {
+      flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem;
+    }
+    #auth-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 3rem 2.5rem; max-width: 400px; width: 100%; text-align: center;
+    }
+    #auth-card .icon { font-size: 40px; margin-bottom: 16px; }
+    #auth-card h2 {
+      font-family: 'Cinzel', serif; font-size: 18px; color: var(--gold);
+      letter-spacing: 0.1em; margin-bottom: 12px;
+    }
+    #auth-card p {
+      font-size: 16px; color: var(--text-dim); font-style: italic;
+      line-height: 1.7; margin-bottom: 28px;
+    }
+    .btn-gold {
+      display: block; width: 100%; padding: 13px;
+      background: var(--gold); color: var(--deep); border: none; border-radius: 4px;
+      font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.12em;
+      cursor: pointer; font-weight: 700; text-transform: uppercase;
+      margin-bottom: 10px; transition: opacity 0.2s;
+    }
+    .btn-gold:hover { opacity: 0.85; }
+    .btn-outline {
+      display: block; width: 100%; padding: 13px;
+      background: transparent; color: var(--gold);
+      border: 1px solid var(--border); border-radius: 4px;
+      font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.12em;
+      cursor: pointer; text-transform: uppercase; transition: border-color 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--border-bright); }
+
+    /* ── Chat layout ── */
+    #chat-app {
+      flex: 1; display: grid; grid-template-columns: 220px 1fr;
+      overflow: hidden; display: none;
+    }
+
+    /* Sidebar */
+    #sidebar {
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    #sidebar-header { padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    #sidebar-header .wri { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.18em; color: var(--gold); }
+    #sidebar-header .sub { font-family: 'Cinzel', serif; font-size: 7px; letter-spacing: 0.2em; color: var(--muted); }
+    #sidebar-tier {
+      margin-top: 6px; display: inline-block;
+      font-family: 'Cinzel', serif; font-size: 7px; letter-spacing: 0.1em; color: var(--muted);
+      padding: 2px 8px; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); border-radius: 2px;
+    }
+    #channel-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+    .channel-section-label {
+      padding: 10px 16px 4px; font-family: 'Cinzel', serif;
+      font-size: 7px; letter-spacing: 0.22em; color: var(--muted);
+    }
+    .channel-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 16px;
+      background: transparent; border: none; border-left: 2px solid transparent;
+      text-align: left; cursor: pointer; transition: background 0.15s;
+      font-size: 9px; letter-spacing: 0.08em;
+      font-family: 'Cinzel', serif; color: var(--text-dim);
+    }
+    .channel-btn:hover { background: rgba(201,168,76,0.06); }
+    .channel-btn.active {
+      border-left-color: var(--gold); background: rgba(201,168,76,0.1); color: var(--gold);
+    }
+    .channel-btn.locked { opacity: 0.35; cursor: default; }
+    .channel-icon { font-size: 13px; flex-shrink: 0; }
+    #sidebar-user {
+      padding: 10px 16px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    #user-avatar {
+      width: 24px; height: 24px; border-radius: 50%; object-fit: cover;
+      background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 10px; color: var(--gold);
+      overflow: hidden; flex-shrink: 0;
+    }
+    #user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    #user-name { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 0.06em; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Main chat */
+    #chat-main { display: flex; flex-direction: column; overflow: hidden; }
+    #chat-header {
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    #chat-header .ch-icon { font-size: 16px; }
+    #chat-header .ch-name { font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 0.1em; color: var(--gold); }
+    #messages {
+      flex: 1; overflow-y: auto; padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .msg { display: flex; gap: 10px; align-items: flex-start; }
+    .msg-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+      background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 10px; color: var(--gold);
+    }
+    .msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .msg-body { flex: 1; min-width: 0; }
+    .msg-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+    .msg-name { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.08em; color: var(--text-dim); }
+    .msg-name.me { color: var(--gold); }
+    .msg-time { font-size: 11px; color: var(--muted); }
+    .msg-text { font-size: 15px; color: var(--text); line-height: 1.6; word-break: break-word; }
+    #empty-state { text-align: center; margin-top: 60px; color: var(--muted); font-style: italic; }
+    #input-bar {
+      padding: 12px 20px; border-top: 1px solid var(--border);
+      background: var(--surface2); display: flex; gap: 10px; align-items: center; flex-shrink: 0;
+    }
+    #msg-input {
+      flex: 1; background: var(--deep); border: 1px solid var(--border); border-radius: 4px;
+      padding: 10px 14px; font-family: 'Crimson Pro', serif; font-size: 15px;
+      color: var(--text); outline: none; transition: border-color 0.2s;
+    }
+    #msg-input:focus { border-color: rgba(201,168,76,0.45); }
+    #send-btn {
+      padding: 10px 18px; background: var(--gold); color: var(--deep);
+      border: none; border-radius: 4px; font-family: 'Cinzel', serif;
+      font-size: 10px; letter-spacing: 0.1em; cursor: pointer; flex-shrink: 0;
+      transition: opacity 0.2s;
+    }
+    #send-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Loading / error */
+    #loading-screen, #error-screen {
+      flex: 1; display: none; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.12em; color: var(--gold);
+    }
+    #error-msg { text-align: center; }
+    #error-msg p:first-child { font-size: 13px; color: var(--gold); margin-bottom: 8px; }
+    #error-msg p:last-child { font-size: 12px; color: var(--muted); font-style: italic; }
+
+    /* Scrollbar */
+    #messages::-webkit-scrollbar, #channel-list::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-track, #channel-list::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb, #channel-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    @media (max-width: 600px) {
+      #chat-app { grid-template-columns: 1fr; }
+      #sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <a href="/" id="topbar-logo">
+      <img src="/logo.png" alt="War Room Intel" />
+      <div id="topbar-title">WAR ROOM <span>INTEL</span></div>
+    </a>
+    <div id="topbar-right">
+      <a href="/" id="back-link">← Back to Site</a>
+      <div id="clerk-user-button"></div>
+    </div>
+  </div>
+
+  <!-- Auth gate -->
+  <div id="auth-gate">
+    <div id="auth-card">
+      <div class="icon">⚔</div>
+      <h2>War Room Community</h2>
+      <p>Sign in to access the live community — a space for deliverance warriors.</p>
+      <button class="btn-gold" id="sign-in-btn">Sign In ⚔</button>
+      <button class="btn-outline" id="sign-up-btn">Join Free</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading-screen" style="display:none;flex:1;align-items:center;justify-content:center;">
+    Connecting to War Room...
+  </div>
+
+  <!-- Error -->
+  <div id="error-screen" style="display:none;flex:1;align-items:center;justify-content:center;padding:2rem;">
+    <div id="error-msg">
+      <p>Connection error</p>
+      <p id="error-text"></p>
+    </div>
+  </div>
+
+  <!-- Chat app -->
+  <div id="chat-app">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <div class="wri">WAR ROOM</div>
+        <div class="sub">INTEL COMMUNITY</div>
+        <div id="sidebar-tier"></div>
+      </div>
+      <div id="channel-list">
+        <div class="channel-section-label">CHANNELS</div>
+        <!-- populated by JS -->
+      </div>
+      <div id="sidebar-user">
+        <div id="user-avatar"></div>
+        <div id="user-name"></div>
+      </div>
+    </div>
+
+    <!-- Main chat -->
+    <div id="chat-main">
+      <div id="chat-header">
+        <span class="ch-icon" id="active-icon">⚔</span>
+        <span class="ch-name" id="active-name">The War Room</span>
+      </div>
+      <div id="messages"><div id="empty-state">No messages yet. Be the first to speak.</div></div>
+      <div id="input-bar">
+        <input id="msg-input" placeholder="Message #the-war-room..." />
+        <button id="send-btn">Send ⚔</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clerk CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
+
+  <script>
+    // ── CONFIG ────────────────────────────────────────────
+    const CLERK_KEY = 'pk_live_Y2xlcmsud2Fycm9vbWludGVsLmNvbSQ'
+    const TIER_ORDER = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
+    const CHANNELS = [
+      { id: 'war-room-general',       name: 'The War Room',           icon: '⚔', minTier: 'Free' },
+      { id: 'intelligence-briefings', name: 'Intelligence Briefings', icon: '📋', minTier: 'Soldier' },
+      { id: 'ministry-operations',    name: 'Ministry Operations',    icon: '🗡', minTier: 'Commander' },
+      { id: 'generals-table',         name: "General's Table",        icon: '✦', minTier: 'General' },
+    ]
+
+    // ── STATE ─────────────────────────────────────────────
+    let streamToken = null, apiKey = null, currentUserId = null
+    let activeChannelId = 'war-room-general'
+    let pollTimer = null
+
+    // ── STREAM API ────────────────────────────────────────
+    function streamFetch(path, method, body) {
+      return fetch(`https://chat.stream-io-api.com${path}?api_key=${apiKey}`, {
+        method,
+        headers: {
+          'Content-Type':     'application/json',
+          'Authorization':    streamToken,
+          'Stream-Auth-Type': 'jwt',
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      }).then(r => r.json())
+    }
+
+    // ── UI HELPERS ────────────────────────────────────────
+    function show(id) { document.getElementById(id).style.display = 'flex' }
+    function hide(id) { document.getElementById(id).style.display = 'none' }
+
+    function showError(msg) {
+      hide('loading-screen'); hide('auth-gate'); hide('chat-app')
+      document.getElementById('error-text').textContent = msg
+      show('error-screen')
+    }
+
+    function renderChannels(tier) {
+      const list = document.getElementById('channel-list')
+      list.innerHTML = '<div class="channel-section-label">CHANNELS</div>'
+      const tierRank = TIER_ORDER[tier] ?? 0
+      let hasLocked = false
+
+      CHANNELS.forEach(ch => {
+        const allowed = tierRank >= (TIER_ORDER[ch.minTier] ?? 0)
+        if (!allowed) { hasLocked = true; return }
+        const btn = document.createElement('button')
+        btn.className = 'channel-btn' + (ch.id === activeChannelId ? ' active' : '')
+        btn.dataset.id = ch.id
+        btn.innerHTML = `<span class="channel-icon">${ch.icon}</span><span>${ch.name}</span>`
+        btn.onclick = () => switchChannel(ch.id, ch.name, ch.icon)
+        list.appendChild(btn)
+      })
+
+      if (hasLocked) {
+        const label = document.createElement('div')
+        label.className = 'channel-section-label'
+        label.style.marginTop = '10px'
+        label.textContent = 'LOCKED'
+        list.appendChild(label)
+        CHANNELS.filter(ch => (TIER_ORDER[ch.minTier] ?? 0) > (TIER_ORDER[tier] ?? 0)).forEach(ch => {
+          const div = document.createElement('div')
+          div.className = 'channel-btn locked'
+          div.innerHTML = `<span class="channel-icon">🔒</span><span>${ch.name}</span>`
+          list.appendChild(div)
+        })
+      }
+    }
+
+    function switchChannel(id, name, icon) {
+      activeChannelId = id
+      document.getElementById('active-name').textContent = name
+      document.getElementById('active-icon').textContent = icon
+      document.getElementById('msg-input').placeholder = `Message ${name}...`
+      document.querySelectorAll('.channel-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.id === id)
+      })
+      startPolling()
+    }
+
+    function renderMessages(messages) {
+      const container = document.getElementById('messages')
+      if (!messages || messages.length === 0) {
+        container.innerHTML = '<div id="empty-state">No messages yet. Be the first to speak.</div>'
+        return
+      }
+      container.innerHTML = ''
+      messages.forEach(msg => {
+        const isMe = msg.user?.id === currentUserId
+        const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
+        const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+        const div = document.createElement('div')
+        div.className = 'msg'
+        div.innerHTML = `
+          <div class="msg-avatar">
+            ${msg.user?.image ? `<img src="${msg.user.image}" alt="" />` : initial}
+          </div>
+          <div class="msg-body">
+            <div class="msg-meta">
+              <span class="msg-name ${isMe ? 'me' : ''}">${msg.user?.name || msg.user?.id || 'Warrior'}</span>
+              <span class="msg-time">${time}</span>
+            </div>
+            <div class="msg-text">${escHtml(msg.text || '')}</div>
+          </div>
+        `
+        container.appendChild(div)
+      })
+      container.scrollTop = container.scrollHeight
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    // ── STREAM OPERATIONS ────────────────────────────────
+    async function loadMessages(channelId) {
+      try {
+        const data = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', {
+          state: true, messages: { limit: 50 }
+        })
+        if (data.messages) renderMessages(data.messages)
+      } catch (e) {
+        console.warn('Poll error:', e)
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer)
+      loadMessages(activeChannelId)
+      pollTimer = setInterval(() => loadMessages(activeChannelId), 5000)
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('msg-input')
+      const text = input.value.trim()
+      if (!text || !streamToken) return
+      const btn = document.getElementById('send-btn')
+      btn.disabled = true
+      try {
+        await streamFetch(`/channels/messaging/${activeChannelId}/message`, 'POST', {
+          message: { text }
+        })
+        input.value = ''
+        await loadMessages(activeChannelId)
+      } catch (e) {
+        console.error('Send error:', e)
+      } finally {
+        btn.disabled = false
+        input.focus()
+      }
+    }
+
+    // ── INIT ──────────────────────────────────────────────
+    window.addEventListener('load', async () => {
+      // Apply saved theme
+      const saved = localStorage.getItem('wri-theme')
+      if (saved) document.documentElement.dataset.theme = saved
+
+      const clerk = new window.Clerk(CLERK_KEY)
+      await clerk.load()
+      window.Clerk = clerk
+
+      const { user } = window.Clerk
+
+      if (!user) {
+        show('auth-gate')
+        document.getElementById('sign-in-btn').onclick = () => window.Clerk.openSignIn()
+        document.getElementById('sign-up-btn').onclick = () => window.Clerk.openSignUp()
+        window.Clerk.addListener(({ user }) => {
+          if (user) location.reload()
+        })
+        return
+      }
+
+      // Mount Clerk UserButton
+      window.Clerk.mountUserButton(document.getElementById('clerk-user-button'))
+
+      hide('auth-gate')
+      show('loading-screen')
+
+      try {
+        const session = await window.Clerk.session.getToken()
+        const res = await fetch('/api/stream-token', {
+          headers: { 'Authorization': `Bearer ${session}` }
+        })
+        const data = await res.json()
+        if (data.error) throw new Error(data.error)
+
+        streamToken  = data.token
+        apiKey       = data.apiKey
+        currentUserId = data.userId
+
+        const tier = user.publicMetadata?.tier || 'Free'
+
+        // Populate sidebar
+        document.getElementById('sidebar-tier').textContent = tier.toUpperCase()
+        const avatarEl = document.getElementById('user-avatar')
+        if (user.imageUrl) avatarEl.innerHTML = `<img src="${user.imageUrl}" alt="" />`
+        else avatarEl.textContent = (user.firstName || 'W')[0].toUpperCase()
+        document.getElementById('user-name').textContent = user.firstName || currentUserId.slice(0, 12)
+
+        renderChannels(tier)
+        hide('loading-screen')
+        document.getElementById('chat-app').style.display = 'grid'
+
+        // Wire input
+        document.getElementById('send-btn').onclick = sendMessage
+        document.getElementById('msg-input').addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+        })
+
+        startPolling()
+
+      } catch (err) {
+        showError(err.message)
+      }
+    })
+  </script>
+</body>
+</html>

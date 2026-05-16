@@ -222,7 +222,7 @@ export function Header() {
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#database', 'Database')}</li>
 
           <li style={{ display: 'flex', alignItems: 'center' }}>
-            <a href={MN_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: gold, textDecoration: 'none', padding: '6px 14px', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: '3px', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}
+            <a href="/community/" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: gold, textDecoration: 'none', padding: '6px 14px', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: '3px', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.1)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
               ⚔ Community
