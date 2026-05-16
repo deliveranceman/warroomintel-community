@@ -463,6 +463,226 @@ function CommunityPage() {
     </div>
   )
 
+  // ── DATABASE VIEW ──────────────────────────────────────────
+  const DatabaseView = () => {
+    const [query, setQuery]         = useState('')
+    const [filter, setFilter]       = useState('All')
+    const [entries, setEntries]     = useState<any[]>([])
+    const [dbLoading, setDbLoading] = useState(true)
+    const [expanded, setExpanded]   = useState<string | null>(null)
+
+    useEffect(() => {
+      fetch('/api/demons')
+        .then(r => r.json())
+        .then(d => setEntries(d.demons || d.records || []))
+        .catch(console.error)
+        .finally(() => setDbLoading(false))
+    }, [])
+
+    const CLASS_COLOR: Record<string, string> = {
+      Strongman:    '#C9A84C',
+      Familiar:     '#4a9eff',
+      Marine:       '#a855f7',
+      Rejection:    '#ff6b6b',
+      Generational: '#22c55e',
+      Religious:    '#f97316',
+      Sexual:       '#ec4899',
+    }
+
+    function getColor(cls: string) {
+      for (const [key, val] of Object.entries(CLASS_COLOR)) {
+        if (cls?.toLowerCase().includes(key.toLowerCase())) return val
+      }
+      return G
+    }
+
+    const FILTERS = ['All', 'Strongman', 'Familiar', 'Marine', 'Generational', 'Religious']
+
+    const filtered = entries.filter(e => {
+      const f = e.fields || e
+      const name           = f.Name || f.name || ''
+      const aliases        = f.Aliases || f.aliases || ''
+      const manifestations = f.Manifestations || f.manifestations || ''
+      const wound          = f['Wound Pattern'] || f.wound || ''
+      const cls            = f.Classification || f.classification || ''
+      const matchesSearch  = !query ||
+        [name, aliases, manifestations, wound].some(s => s.toLowerCase().includes(query.toLowerCase()))
+      const matchesFilter  = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
+      return matchesSearch && matchesFilter
+    })
+
+    const isDark   = theme !== 'light'
+    const dbBg     = isDark ? '#0e0c09' : '#f5f0e8'
+    const dbSurf   = isDark ? '#1a1714' : '#ffffff'
+    const dbBorder = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(140,110,40,0.2)'
+    const dbText   = isDark ? '#ddd5c0' : '#2a2015'
+    const dbDim    = isDark ? '#c8bfa8' : '#4a3f2a'
+
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden' }}>
+
+        {/* Header + search */}
+        <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Hamburger />
+            <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: G }}>⚔ INTEL DATABASE</span>
+          </div>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search spirits, wounds, manifestations, aliases..."
+            style={{
+              width: '100%', padding: '10px 14px',
+              background: dbBg, border: `1px solid ${query ? G : dbBorder}`,
+              borderRadius: 8, fontFamily: crimson, fontSize: 15,
+              color: dbText, outline: 'none', boxSizing: 'border-box',
+              marginBottom: 10, transition: 'border-color 0.2s',
+            }}
+          />
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {FILTERS.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                padding: '4px 12px',
+                background: filter === f ? 'rgba(201,168,76,0.15)' : 'transparent',
+                border: `1px solid ${filter === f ? G : dbBorder}`,
+                borderRadius: 20, fontFamily: cinzel, fontSize: 9,
+                letterSpacing: '0.08em', color: filter === f ? G : dbDim,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}>
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Count bar */}
+        <div style={{ padding: '8px 20px', flexShrink: 0, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: dbDim }}>
+          {dbLoading ? 'Loading database...' : `${filtered.length} ENTRIES`}
+          {!dbLoading && query && ` matching "${query}"`}
+        </div>
+
+        {/* Cards grid */}
+        <div style={{
+          flex: 1, overflowY: 'auto', padding: '8px 16px 16px',
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 12, alignContent: 'start',
+        }}>
+          {dbLoading && (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
+              ACCESSING DATABASE...
+            </div>
+          )}
+          {!dbLoading && filtered.length === 0 && (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: crimson, fontSize: 16, fontStyle: 'italic' }}>
+              No entries found. Try different search terms.
+            </div>
+          )}
+          {filtered.map((entry, i) => {
+            const f              = entry.fields || entry
+            const id             = entry.id || String(i)
+            const name           = f.Name || f.name || 'Unknown'
+            const cls            = f.Classification || f.classification || ''
+            const aliases        = f.Aliases || f.aliases || ''
+            const description    = f['Wound Pattern'] || f['Entry Description'] || f.description || ''
+            const manifestations = f.Manifestations || f.manifestations || ''
+            const companions     = f['Companion Spirits'] || f.companions || ''
+            const scriptures     = f['Key Scriptures'] || f.scriptures || ''
+            const approach       = f['Ministry Approach'] || f.approach || ''
+            const notes          = f["Minister's Notes"] || f.notes || ''
+            const isOpen         = expanded === id
+            const color          = getColor(cls)
+            const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
+
+            return (
+              <div key={id} onClick={() => setExpanded(isOpen ? null : id)} style={{
+                background: dbSurf, border: `1px solid ${color}40`,
+                borderLeft: `3px solid ${color}`, borderRadius: 8,
+                padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
+              }}>
+                {/* Name + classification badge */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 14, color, fontWeight: 600 }}>{name}</div>
+                  {cls && (
+                    <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', background: color + '20', color, padding: '2px 7px', borderRadius: 3, flexShrink: 0, marginLeft: 8 }}>
+                      {cls.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Aliases */}
+                {aliases && (
+                  <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginBottom: 6 }}>
+                    aka {aliases}
+                  </div>
+                )}
+
+                {/* Description (clamped when collapsed) */}
+                <div style={{
+                  fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8,
+                  ...(isOpen ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }),
+                }}>
+                  {description}
+                </div>
+
+                {/* Companion chips */}
+                {companionList.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>COMPANIONS</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {companionList.slice(0, isOpen ? undefined : 3).map((c: string, ci: number) => (
+                        <span key={ci}
+                          onClick={e => { e.stopPropagation(); setQuery(c); setExpanded(null) }}
+                          style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
+                          title={`Search for ${c}`}>
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Expanded detail */}
+                {isOpen && (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${dbBorder}` }}>
+                    {manifestations && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MANIFESTATIONS</div>
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
+                      </div>
+                    )}
+                    {approach && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MINISTRY APPROACH</div>
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{approach}</div>
+                      </div>
+                    )}
+                    {scriptures && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + '88', marginBottom: 4 }}>KEY SCRIPTURES</div>
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: G, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures}</div>
+                      </div>
+                    )}
+                    {notes && (
+                      <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MINISTER'S NOTES</div>
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{notes}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
+                  {isOpen ? '▲ COLLAPSE' : '▼ EXPAND FULL ENTRY'}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // ── SIDEBAR CONTENT (shared between desktop and mobile overlay) ──
   const SidebarContent = () => (
     <>
@@ -579,7 +799,7 @@ function CommunityPage() {
         {activeSection === 'prayer-wall' && <PrayerView />}
         {activeSection === 'messages'    && <PlaceholderView title="Messages" icon="💬" />}
         {activeSection === 'members'     && <PlaceholderView title="Members" icon="👥" />}
-        {activeSection === 'database'    && <LauncherView title="Demon Database"    icon="📖" href="/database" />}
+        {activeSection === 'database'    && <DatabaseView />}
         {activeSection === 'arsenal'     && <LauncherView title="Scripture Arsenal" icon="✦"  href="/arsenal" />}
         {activeSection === 'resources'   && <LauncherView title="Resources"         icon="📚" href="/resources" />}
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
