@@ -25,28 +25,39 @@ export const Route = createFileRoute('/api/stream-token')({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const CLERK_SECRET_KEY  = process.env.CLERK_SECRET_KEY
+        const STREAM_API_KEY    = process.env.STREAM_API_KEY
+        const STREAM_API_SECRET = process.env.STREAM_API_SECRET
+
+        if (!CLERK_SECRET_KEY || !STREAM_API_KEY || !STREAM_API_SECRET) {
+          return Response.json({ error: 'Missing env vars' }, { status: 500 })
+        }
+
+        const auth = request.headers.get('Authorization') ?? ''
+        if (!auth.startsWith('Bearer ')) {
+          return Response.json({ error: 'No token' }, { status: 401 })
+        }
+        const sessionToken = auth.slice(7)
+
         try {
-          const CLERK_SECRET_KEY  = process.env.CLERK_SECRET_KEY
-          const STREAM_API_KEY    = process.env.STREAM_API_KEY
-          const STREAM_API_SECRET = process.env.STREAM_API_SECRET
+          // Verify Clerk session via REST API — no SDK
+          const verify = await fetch('https://api.clerk.com/v1/sessions/verify', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token: sessionToken }),
+          })
 
-          if (!CLERK_SECRET_KEY || !STREAM_API_KEY || !STREAM_API_SECRET) {
-            return Response.json({ error: 'Missing env vars' }, { status: 500 })
+          if (!verify.ok) {
+            return Response.json({ error: 'Invalid Clerk session' }, { status: 401 })
           }
 
-          const authHeader = request.headers.get('Authorization')
-          if (!authHeader?.startsWith('Bearer ')) {
-            return Response.json({ error: 'No token' }, { status: 401 })
-          }
-          const sessionToken = authHeader.slice(7)
-
-          // Verify with Clerk backend SDK
-          const { createClerkClient } = await import('@clerk/backend')
-          const clerk = createClerkClient({ secretKey: CLERK_SECRET_KEY })
-          const payload = await clerk.verifyToken(sessionToken)
-          const userId = payload.sub
+          const session = await verify.json()
+          const userId  = session?.user_id ?? session?.sub
           if (!userId) {
-            return Response.json({ error: 'Invalid session' }, { status: 401 })
+            return Response.json({ error: 'No user ID' }, { status: 401 })
           }
 
           const token = await makeStreamJWT({ user_id: userId }, STREAM_API_SECRET)
