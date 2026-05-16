@@ -1068,7 +1068,6 @@ function Footer() {
             { label: 'Take Assessment', href: '/assessment' },
             { label: 'Response Board', href: '/assessment-board' },
             { label: 'Submit a Demon', href: '/submit-demon' },
-            { label: 'Scripture Arsenal', href: '/arsenal' },
           ].map(({ label, href }) => (
             <div key={label} style={{ marginBottom: '8px' }}>
               <a href={href} style={{ fontSize: '13px', color: muted, textDecoration: 'none', transition: 'color 0.2s', fontFamily: crimson }}

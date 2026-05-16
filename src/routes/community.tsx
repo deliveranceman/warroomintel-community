@@ -26,6 +26,11 @@ const V = {
 }
 
 const THEME_CSS = `
+.prayer-hover-item:hover .prayer-callout {
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  pointer-events: auto !important;
+}
 :root {
   --wri-bg: #0e0c09;
   --wri-surface: #1c1814;
@@ -116,7 +121,6 @@ function CommunityPage() {
   const [draft, setDraft]             = useState('')
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
-  const [prayerDraft, setPrayerDraft] = useState('')
 
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -222,13 +226,6 @@ function CommunityPage() {
       setDraft('')
       await fetchPosts()
     } finally { setSending(false) }
-  }
-
-  async function sendPrayer() {
-    if (!prayerDraft.trim() || !streamToken || !apiKey) return
-    await streamFetch('/channels/messaging/prayer-wall-requests/message', 'POST', streamToken, apiKey, { message: { text: prayerDraft.trim() } })
-    setPrayerDraft('')
-    await fetchPrayers()
   }
 
   if (!isLoaded || loading) return (
@@ -397,34 +394,100 @@ function CommunityPage() {
     </div>
   )
 
-  const PrayerView = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <Hamburger />
-        <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em' }}>🙏 Prayer Wall</span>
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
-        {prayers.length === 0 && (
-          <div style={{ textAlign: 'center', marginTop: 40, color: V.mut, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
-            No prayer requests yet. Be the first.
-          </div>
-        )}
-        {prayers.map(m => <PostCard key={m.id} msg={m} />)}
-      </div>
-      <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <input value={prayerDraft} onChange={e => setPrayerDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') sendPrayer() }}
-            placeholder="Add a prayer request..."
-            style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 4, padding: '9px 14px', fontFamily: crimson, fontSize: 14, color: V.txt, outline: 'none' }} />
-          <button onClick={sendPrayer} disabled={!prayerDraft.trim()}
-            style={{ fontFamily: cinzel, fontSize: 9, padding: '9px 14px', background: prayerDraft.trim() ? G : 'rgba(201,168,76,0.3)', color: '#0e0c09', border: 'none', borderRadius: 4, cursor: prayerDraft.trim() ? 'pointer' : 'default' }}>
-            🙏 Post
+  const PrayerView = () => {
+    const [draft, setDraft] = useState('')
+
+    async function handleSend() {
+      if (!draft.trim() || !streamToken || !apiKey) return
+      await streamFetch(
+        '/channels/messaging/prayer-wall-requests/message',
+        'POST', streamToken, apiKey,
+        { message: { text: draft.trim() } }
+      )
+      setDraft('')
+      await fetchPrayers()
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`,
+          display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <button onClick={() => setSidebarOpen(o => !o)}
+            style={{ background: 'none', border: 'none', color: G,
+              fontSize: 20, cursor: 'pointer', display: isMobile ? 'block' : 'none' }}>
+            ☰
           </button>
+          <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>
+            🙏 Prayer Wall
+          </span>
+        </div>
+
+        {/* Disclaimer banner */}
+        <div style={{
+          margin: '12px 20px 0',
+          padding: '10px 14px',
+          background: 'rgba(201,168,76,0.06)',
+          border: '1px solid rgba(201,168,76,0.2)',
+          borderRadius: 8,
+          display: 'flex',
+          gap: 10,
+          alignItems: 'flex-start',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+          <p style={{ margin: 0, fontFamily: crimson, fontSize: 13, color: V.mut, lineHeight: 1.5 }}>
+            <strong style={{ color: V.dim }}>Public wall.</strong>{' '}
+            This section is visible to all visitors. Do not share personal contact information,
+            addresses, or sensitive details. While this wall is monitored, posts from the community
+            may appear before review. War Room Intel is not responsible for content submitted by users.
+            Report concerns to{' '}
+            <a href="mailto:exorcist@warroomintel.com" style={{ color: G, textDecoration: 'none' }}>
+              exorcist@warroomintel.com
+            </a>.
+          </p>
+        </div>
+
+        {/* Message list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+          {prayers.length === 0 && (
+            <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic',
+              marginTop: 60, fontFamily: crimson, fontSize: 17 }}>
+              No prayer requests yet. Be the first.
+            </div>
+          )}
+          {prayers.map(m => <PostCard key={m.id} msg={m} />)}
+        </div>
+
+        {/* Input bar */}
+        <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`,
+          background: V.s2, flexShrink: 0,
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <input
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+              placeholder="Add a prayer request..."
+              style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`,
+                borderRadius: 8, padding: '10px 14px', color: V.txt,
+                fontFamily: crimson, fontSize: 16, outline: 'none' }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!draft.trim()}
+              style={{ background: draft.trim() ? G : 'rgba(201,168,76,0.3)',
+                color: draft.trim() ? '#0D0B14' : V.mut,
+                border: 'none', borderRadius: 8, padding: '10px 18px',
+                fontFamily: cinzel, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'default',
+                fontWeight: 700, whiteSpace: 'nowrap' }}>
+              🙏 Post
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const PlaceholderView = ({ title, icon }: { title: string; icon: string }) => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -794,6 +857,7 @@ function CommunityPage() {
       background: V.bg,
       overflow: 'hidden',
       position: 'relative',
+      paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
 
       {/* Mobile overlay */}
@@ -811,9 +875,11 @@ function CommunityPage() {
         transition: 'transform 0.25s ease',
         display: 'flex', flexDirection: 'column',
         background: V.surf, borderRight: `1px solid ${V.bdr}`, overflow: 'hidden',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
         display: 'flex', flexDirection: 'column',
         background: V.surf, borderRight: `1px solid ${V.bdr}`, overflow: 'hidden',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         <SidebarContent />
       </div>
@@ -837,26 +903,84 @@ function CommunityPage() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
 
             {/* Prayer Wall widget */}
-            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${V.bdr}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                <span style={{ color: G }}>🙏</span>
-                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>PRAYER WALL</span>
+            <div style={{ marginBottom: 24, padding: '14px 16px', borderBottom: `1px solid ${V.bdr}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 16 }}>🙏</span>
+                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, textTransform: 'uppercase' }}>
+                  Prayer Wall
+                </span>
               </div>
-              {prayers.slice(-3).reverse().map(p => (
-                <div key={p.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${V.bdr}` }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 10, color: V.dim, marginBottom: 4 }}>
-                    {(p.user?.name || p.user?.id || 'Warrior').split(' ')[0]}
+              <div style={{ maxHeight: 220, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: `${V.bdr} transparent` } as React.CSSProperties}>
+                {prayers.length === 0 ? (
+                  <div style={{ color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14 }}>
+                    No requests yet
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: V.txt, lineHeight: 1.55 }}>
-                    {p.text.length > 90 ? p.text.slice(0, 90) + '…' : p.text}
-                  </div>
-                </div>
-              ))}
-              {prayers.length === 0 && (
-                <div style={{ fontFamily: crimson, fontSize: 13, color: V.mut, fontStyle: 'italic' }}>No requests yet</div>
-              )}
-              <button onClick={() => setActiveSection('prayer-wall')}
-                style={{ width: '100%', marginTop: 8, padding: '6px', background: 'transparent', border: `1px solid ${V.bdr}`, borderRadius: 3, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: G, cursor: 'pointer' }}>
+                ) : (
+                  [...prayers].reverse().slice(0, 5).map(p => {
+                    const name = (p.user?.name || p.user?.id || 'Warrior').split(' ')[0]
+                    const preview = p.text.length > 80 ? p.text.slice(0, 80) + '…' : p.text
+                    const full = p.text.length > 200 ? p.text.slice(0, 200) + '…' : p.text
+                    const timeAgo = p.created_at
+                      ? (() => {
+                          const diff = Date.now() - new Date(p.created_at).getTime()
+                          if (diff < 60000) return 'just now'
+                          if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+                          if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+                          return `${Math.floor(diff / 86400000)}d ago`
+                        })()
+                      : ''
+                    return (
+                      <div key={p.id}
+                        style={{ position: 'relative', marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${V.bdr}` }}
+                        className="prayer-hover-item">
+                        {/* Callout card — appears on hover via CSS */}
+                        <div className="prayer-callout"
+                          style={{
+                            position: 'absolute', right: '100%', top: 0,
+                            marginRight: 12, width: 260,
+                            background: V.s2, border: `1px solid ${V.bdr}`,
+                            borderRadius: 10, padding: '14px 16px',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                            pointerEvents: 'none',
+                            opacity: 0, transform: 'translateX(8px)',
+                            transition: 'opacity 0.18s ease, transform 0.18s ease',
+                            zIndex: 100,
+                          }}>
+                          {/* Arrow pointing right */}
+                          <div style={{
+                            position: 'absolute', right: -7, top: 14,
+                            width: 12, height: 12,
+                            background: V.s2, border: `1px solid ${V.bdr}`,
+                            borderLeft: 'none', borderBottom: 'none',
+                            transform: 'rotate(45deg)',
+                          }} />
+                          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
+                            {name} · <span style={{ color: V.mut }}>{timeAgo}</span>
+                          </div>
+                          <div style={{ fontFamily: crimson, fontSize: 15, color: V.txt, lineHeight: 1.55 }}>
+                            {full}
+                          </div>
+                          <div style={{ marginTop: 10, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                            Click to open Prayer Wall →
+                          </div>
+                        </div>
+                        {/* Clickable row */}
+                        <div onClick={() => setActiveSection('prayer-wall')} style={{ cursor: 'pointer' }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 3 }}>
+                            {name}
+                          </div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, lineHeight: 1.4 }}>
+                            {preview}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+              <button
+                onClick={() => setActiveSection('prayer-wall')}
+                style={{ width: '100%', marginTop: 8, padding: '8px', background: 'transparent', border: `1px solid ${V.bdr}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' }}>
                 + Add Prayer Request
               </button>
             </div>

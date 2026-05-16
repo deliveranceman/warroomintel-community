@@ -152,6 +152,7 @@ export function Header() {
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#features', 'Features')}</li>
 
           {/* Arsenal dropdown */}
+          <SignedIn>
           <li ref={arsenalRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <button
               onClick={() => setArsenalOpen(o => !o)}
@@ -218,6 +219,7 @@ export function Header() {
               </div>
             )}
           </li>
+          </SignedIn>
 
           <li style={{ display: 'flex', alignItems: 'center' }}>{navLink('/#database', 'Database')}</li>
 
@@ -435,6 +437,7 @@ export function Header() {
           </a>
 
           {/* Arsenal accordion */}
+          <SignedIn>
           <div>
             <button onClick={() => setMobileArsenalOpen(o => !o)} style={{
               width: '100%', background: mobileArsenalOpen ? goldDim : 'transparent',
@@ -488,6 +491,7 @@ export function Header() {
               </div>
             )}
           </div>
+          </SignedIn>
 
           {/* Database */}
           <a href="/#database" onClick={closeAll} style={{
