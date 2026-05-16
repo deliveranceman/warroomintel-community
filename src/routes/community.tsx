@@ -77,6 +77,17 @@ function CommunityPage() {
   const bottomRef  = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
 
+  // Hide nav and lock body scroll while community page is mounted
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    const nav = document.querySelector('nav')
+    if (nav) nav.style.display = 'none'
+    return () => {
+      document.body.style.overflow = ''
+      if (nav) (nav as HTMLElement).style.display = ''
+    }
+  }, [])
+
   const tier      = (user?.publicMetadata?.tier as string) || 'Free'
   const tierRank  = TIER_ORDER[tier] ?? 0
   const allowed   = CHANNELS.filter(c => tierRank >= (TIER_ORDER[c.minTier] ?? 0))
@@ -152,7 +163,7 @@ function CommunityPage() {
 
   // ── Layout ────────────────────────────────────────────
   return (
-    <div style={{ height: 'calc(100vh - 73px)', display: 'grid', gridTemplateColumns: '220px 1fr', background: BG, overflow: 'hidden' }}>
+    <div style={{ height: '100vh', display: 'grid', gridTemplateColumns: '220px 1fr', background: BG, overflow: 'hidden' }}>
 
       {/* ── Sidebar ── */}
       <div style={{ display: 'flex', flexDirection: 'column', background: S1, borderRight: `1px solid ${BR}`, overflow: 'hidden' }}>
@@ -179,7 +190,7 @@ function CommunityPage() {
                 border: 'none', borderLeft: `2px solid ${on ? G : 'transparent'}`,
                 textAlign: 'left', cursor: 'pointer', transition: 'background 0.15s',
                 fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em',
-                color: on ? G : DIM,
+                color: on ? G : TXT,
               }}
                 onMouseEnter={e => { if (!on) e.currentTarget.style.background = 'rgba(201,168,76,0.05)' }}
                 onMouseLeave={e => { if (!on) e.currentTarget.style.background = 'transparent' }}>
@@ -193,7 +204,7 @@ function CommunityPage() {
             <>
               <div style={{ padding: '10px 16px 4px', fontFamily: cinzel, fontSize: 7, letterSpacing: '0.22em', color: MUT, marginTop: 8 }}>LOCKED</div>
               {locked.map(ch => (
-                <div key={ch.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', opacity: 0.35, borderLeft: '2px solid transparent' }}>
+                <div key={ch.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', opacity: 0.45, borderLeft: '2px solid transparent' }}>
                   <span style={{ fontSize: 12 }}>🔒</span>
                   <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: DIM }}>{ch.name}</span>
                 </div>
@@ -257,7 +268,7 @@ function CommunityPage() {
         </div>
 
         {/* Input bar */}
-        <form onSubmit={e => { e.preventDefault(); send() }} style={{ padding: '12px 20px', borderTop: `1px solid ${BR}`, background: S2, display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+        <form onSubmit={e => { e.preventDefault(); send() }} style={{ padding: '12px 20px', paddingBottom: 70, borderTop: `1px solid ${BR}`, background: S2, display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
           <input
             ref={inputRef}
             value={draft}
