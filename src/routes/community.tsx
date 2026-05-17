@@ -193,7 +193,7 @@ function EditProfileModal({ userId, existingBio, existingLocation, onClose, isDa
     if (saving) return
     setSaving(true)
     try {
-      await fetch('/api-update-profile', {
+      await fetch('/api/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, bio, location }),
@@ -1108,7 +1108,7 @@ function CommunityPage() {
 
   useEffect(() => {
     if (!user?.id) return
-    fetch('/api-get-members')
+    fetch('/api/get-members')
       .then(r => r.json())
       .then(data => {
         console.log('get-members response:', data)

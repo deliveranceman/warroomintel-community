@@ -24,6 +24,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
+import { Route as ApiUpdateProfileRouteImport } from './routes/api.update-profile'
 import { Route as ApiSubmitHelpRouteImport } from './routes/api.submit-help'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
@@ -32,6 +33,7 @@ import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-de
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
 import { Route as ApiResourceDownloadRouteImport } from './routes/api.resource-download'
 import { Route as ApiMnVerifyRouteImport } from './routes/api.mn-verify'
+import { Route as ApiGetMembersRouteImport } from './routes/api.get-members'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
 import { Route as ApiGenerateFieldCardRouteImport } from './routes/api.generate-field-card'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
@@ -116,6 +118,11 @@ const ApiUserTierRoute = ApiUserTierRouteImport.update({
   path: '/api/user-tier',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUpdateProfileRoute = ApiUpdateProfileRouteImport.update({
+  id: '/api/update-profile',
+  path: '/api/update-profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSubmitHelpRoute = ApiSubmitHelpRouteImport.update({
   id: '/api/submit-help',
   path: '/api/submit-help',
@@ -154,6 +161,11 @@ const ApiResourceDownloadRoute = ApiResourceDownloadRouteImport.update({
 const ApiMnVerifyRoute = ApiMnVerifyRouteImport.update({
   id: '/api/mn-verify',
   path: '/api/mn-verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGetMembersRoute = ApiGetMembersRouteImport.update({
+  id: '/api/get-members',
+  path: '/api/get-members',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGenerateSummaryRoute = ApiGenerateSummaryRouteImport.update({
@@ -217,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/get-members': typeof ApiGetMembersRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
@@ -225,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
+  '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -250,6 +264,7 @@ export interface FileRoutesByTo {
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/get-members': typeof ApiGetMembersRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
@@ -258,6 +273,7 @@ export interface FileRoutesByTo {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
+  '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -284,6 +300,7 @@ export interface FileRoutesById {
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
+  '/api/get-members': typeof ApiGetMembersRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
@@ -292,6 +309,7 @@ export interface FileRoutesById {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
+  '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -319,6 +337,7 @@ export interface FileRouteTypes {
     | '/api/demons'
     | '/api/generate-field-card'
     | '/api/generate-summary'
+    | '/api/get-members'
     | '/api/mn-verify'
     | '/api/resource-download'
     | '/api/resources'
@@ -327,6 +346,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/api/submit-assessment'
     | '/api/submit-help'
+    | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -352,6 +372,7 @@ export interface FileRouteTypes {
     | '/api/demons'
     | '/api/generate-field-card'
     | '/api/generate-summary'
+    | '/api/get-members'
     | '/api/mn-verify'
     | '/api/resource-download'
     | '/api/resources'
@@ -360,6 +381,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/api/submit-assessment'
     | '/api/submit-help'
+    | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -385,6 +407,7 @@ export interface FileRouteTypes {
     | '/api/demons'
     | '/api/generate-field-card'
     | '/api/generate-summary'
+    | '/api/get-members'
     | '/api/mn-verify'
     | '/api/resource-download'
     | '/api/resources'
@@ -393,6 +416,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/api/submit-assessment'
     | '/api/submit-help'
+    | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/products/$productId'
@@ -419,6 +443,7 @@ export interface RootRouteChildren {
   ApiDemonsRoute: typeof ApiDemonsRoute
   ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
+  ApiGetMembersRoute: typeof ApiGetMembersRoute
   ApiMnVerifyRoute: typeof ApiMnVerifyRoute
   ApiResourceDownloadRoute: typeof ApiResourceDownloadRoute
   ApiResourcesRoute: typeof ApiResourcesRoute
@@ -427,6 +452,7 @@ export interface RootRouteChildren {
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiSubmitHelpRoute: typeof ApiSubmitHelpRoute
+  ApiUpdateProfileRoute: typeof ApiUpdateProfileRoute
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
@@ -540,6 +566,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUserTierRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/update-profile': {
+      id: '/api/update-profile'
+      path: '/api/update-profile'
+      fullPath: '/api/update-profile'
+      preLoaderRoute: typeof ApiUpdateProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/submit-help': {
       id: '/api/submit-help'
       path: '/api/submit-help'
@@ -594,6 +627,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mn-verify'
       fullPath: '/api/mn-verify'
       preLoaderRoute: typeof ApiMnVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/get-members': {
+      id: '/api/get-members'
+      path: '/api/get-members'
+      fullPath: '/api/get-members'
+      preLoaderRoute: typeof ApiGetMembersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/generate-summary': {
@@ -675,6 +715,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDemonsRoute: ApiDemonsRoute,
   ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
+  ApiGetMembersRoute: ApiGetMembersRoute,
   ApiMnVerifyRoute: ApiMnVerifyRoute,
   ApiResourceDownloadRoute: ApiResourceDownloadRoute,
   ApiResourcesRoute: ApiResourcesRoute,
@@ -683,6 +724,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiSubmitHelpRoute: ApiSubmitHelpRoute,
+  ApiUpdateProfileRoute: ApiUpdateProfileRoute,
   ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
