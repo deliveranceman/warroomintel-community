@@ -105,48 +105,60 @@ interface ProfileModalProps {
   member: any
   currentUserId: string
   onClose: () => void
-  onStartDM: (userId: string) => void
+  onStartDM: (memberId: string, memberName: string) => void
   isDark: boolean
 }
 function ProfileModal({ member, currentUserId, onClose, onStartDM, isDark }: ProfileModalProps) {
-  const surf = isDark ? '#1c1814' : '#EDE6D3'
-  const bdr  = isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.25)'
-  const txt  = isDark ? '#f0e8d8' : '#1C1407'
-  const mut  = isDark ? '#9a8c74' : '#6B5520'
-  const name     = member.name || member.user?.name || member.fullName || 'Warrior'
-  const avatar   = member.image || member.user?.image || member.imageUrl || ''
-  const bio      = (member.unsafeMetadata?.bio || member.publicMetadata?.bio || '') as string
-  const loc      = (member.unsafeMetadata?.location || member.publicMetadata?.location || '') as string
-  const tier     = (member.publicMetadata?.tier || member.user?.publicMetadata?.tier || 'Free') as string
-  const memberId = member.id || member.user?.id || ''
-  const isOwn    = memberId === currentUserId
+  const isOwn = member.id === currentUserId
+  const tier = member.publicMetadata?.tier || 'Watchman'
+  const tierColors: Record<string, string> = {
+    General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a'
+  }
+  const tierColor = tierColors[tier] || '#6b6b7a'
+  const bg   = isDark ? '#0D0B14' : '#ffffff'
+  const text = isDark ? '#f0ece0' : '#1a1a2e'
+  const muted = '#6b6b7a'
+  const mc = "'Cinzel', serif"
+  const cr = "'Crimson Pro', Georgia, serif"
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '28px 24px', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: mut, lineHeight: 1 }}>✕</button>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '2px solid rgba(201,168,76,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 22, color: G, marginBottom: 12, overflow: 'hidden' }}>
-            {avatar ? <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : name[0]?.toUpperCase()}
-          </div>
-          <div style={{ fontFamily: cinzel, fontSize: 16, letterSpacing: '0.06em', color: txt, marginBottom: 6 }}>{name}</div>
-          <TierBadge tier={tier} />
-          {loc && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 8 }}>📍 {loc}</div>}
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden' }}>
+        <div style={{ height: '72px', background: 'linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(13,11,20,0.9) 100%)', borderBottom: '1px solid rgba(201,168,76,0.12)', position: 'relative' }}>
+          <button onClick={onClose} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '26px', height: '26px', color: '#C9A84C', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
-        {bio ? (
-          <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.65, textAlign: 'center', fontStyle: 'italic', marginBottom: 20, padding: '0 4px' }}>
-            "{bio}"
+        <div style={{ padding: '0 24px 24px', marginTop: '-36px' }}>
+          <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.05))', border: `2px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontFamily: mc, fontWeight: 'bold', color: '#C9A84C', marginBottom: '14px', overflow: 'hidden' }}>
+            {member.imageUrl
+              ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : (member.firstName?.[0] || member.username?.[0] || '?').toUpperCase()
+            }
           </div>
-        ) : !isOwn ? (
-          <div style={{ fontFamily: crimson, fontSize: 14, color: mut, textAlign: 'center', fontStyle: 'italic', marginBottom: 20 }}>No bio yet.</div>
-        ) : null}
-        {isOwn ? (
-          <div style={{ fontFamily: crimson, fontSize: 13, color: mut, textAlign: 'center', fontStyle: 'italic' }}>This is your profile.</div>
-        ) : (
-          <button onClick={() => onStartDM(memberId)}
-            style={{ width: '100%', padding: '10px 0', background: G, color: '#0D0B14', border: 'none', borderRadius: 8, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
-            💬 Send Message
-          </button>
-        )}
+          <div style={{ fontFamily: mc, fontSize: '18px', color: text, fontWeight: 700, letterSpacing: '0.04em', marginBottom: '6px' }}>
+            {member.firstName} {member.lastName}
+          </div>
+          <div style={{ display: 'inline-block', padding: '2px 10px', border: `1px solid ${tierColor}`, borderRadius: '20px', fontSize: '10px', fontFamily: mc, letterSpacing: '0.1em', color: tierColor, textTransform: 'uppercase' as const, marginBottom: '14px' }}>{tier}</div>
+          {member.publicMetadata?.bio && (
+            <p style={{ fontSize: '13px', color: isDark ? '#a09898' : '#555', lineHeight: '1.6', marginBottom: '12px', fontFamily: cr }}>
+              {member.publicMetadata.bio}
+            </p>
+          )}
+          {member.publicMetadata?.location && (
+            <div style={{ fontSize: '12px', color: muted, marginBottom: '10px' }}>📍 {member.publicMetadata.location}</div>
+          )}
+          {member.publicMetadata?.role && (
+            <div style={{ fontSize: '12px', color: muted, marginBottom: '16px' }}>
+              ⚔️ {member.publicMetadata.role === 'minister' ? 'Deliverance Minister' : member.publicMetadata.role}
+            </div>
+          )}
+          {!isOwn ? (
+            <button
+              onClick={() => { onStartDM(member.id, member.firstName || member.username || 'Member'); onClose() }}
+              style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.45)', borderRadius: '6px', color: '#C9A84C', fontFamily: mc, fontSize: '11px', letterSpacing: '0.08em', cursor: 'pointer' }}
+            >💬 Send Direct Message</button>
+          ) : (
+            <div style={{ fontSize: '11px', color: muted, textAlign: 'center' as const, fontStyle: 'italic', fontFamily: cr }}>This is your profile</div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -154,52 +166,69 @@ function ProfileModal({ member, currentUserId, onClose, onStartDM, isDark }: Pro
 
 // ── EDIT PROFILE MODAL ─────────────────────────────────────
 interface EditProfileModalProps {
-  user: any
+  userId: string
+  existingBio: string
+  existingLocation: string
   onClose: () => void
   isDark: boolean
 }
-function EditProfileModal({ user, onClose, isDark }: EditProfileModalProps) {
-  const [bio,      setBio]      = useState<string>((user?.unsafeMetadata?.bio as string) || '')
-  const [location, setLocation] = useState<string>((user?.unsafeMetadata?.location as string) || '')
+function EditProfileModal({ userId, existingBio, existingLocation, onClose, isDark }: EditProfileModalProps) {
+  const [bio,      setBio]      = useState(existingBio)
+  const [location, setLocation] = useState(existingLocation)
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
-  const surf = isDark ? '#1c1814' : '#EDE6D3'
-  const bdr  = isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.25)'
-  const txt  = isDark ? '#f0e8d8' : '#1C1407'
-  const mut  = isDark ? '#9a8c74' : '#6B5520'
-  const bgIn = isDark ? '#0e0c09' : '#f0ebe0'
+  const bg   = isDark ? '#0D0B14' : '#ffffff'
+  const text = isDark ? '#f0ece0' : '#1a1a2e'
+  const mc = "'Cinzel', serif"
+  const cr = "'Crimson Pro', Georgia, serif"
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+    border: '1px solid rgba(201,168,76,0.25)', borderRadius: '6px',
+    padding: '10px 12px', color: text, fontFamily: cr,
+    fontSize: '14px', outline: 'none',
+  }
 
   async function handleSave() {
     if (saving) return
     setSaving(true)
     try {
-      await user.update({ unsafeMetadata: { ...user.unsafeMetadata, bio, location } })
+      await fetch('/api/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, bio, location }),
+      })
       setSaved(true)
-      setTimeout(() => { setSaved(false); onClose() }, 1200)
+      setTimeout(onClose, 800)
     } catch { /* silent */ } finally { setSaving(false) }
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '28px 24px', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: mut, lineHeight: 1 }}>✕</button>
-        <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.14em', color: G, marginBottom: 22 }}>⚙ Edit Profile</div>
-        <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.18em', color: mut, marginBottom: 6, textTransform: 'uppercase' as const }}>Bio</label>
-        <textarea
-          value={bio} onChange={e => setBio(e.target.value)}
-          placeholder="Tell the War Room about yourself..." rows={3} maxLength={280}
-          style={{ width: '100%', background: bgIn, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 12px', color: txt, fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'none', boxSizing: 'border-box', marginBottom: 16 }}
-        />
-        <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.18em', color: mut, marginBottom: 6, textTransform: 'uppercase' as const }}>Location</label>
-        <input
-          value={location} onChange={e => setLocation(e.target.value)}
-          placeholder="City, State or Country" maxLength={80}
-          style={{ width: '100%', background: bgIn, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 12px', color: txt, fontFamily: crimson, fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 22 }}
-        />
-        <button onClick={handleSave} disabled={saving}
-          style={{ width: '100%', padding: '11px 0', background: saved ? '#4caf50' : saving ? 'rgba(201,168,76,0.3)' : G, color: saved ? '#fff' : saving ? mut : '#0D0B14', border: 'none', borderRadius: 8, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', cursor: saving ? 'default' : 'pointer', fontWeight: 700, transition: 'background 0.2s, color 0.2s' }}>
-          {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save Profile'}
-        </button>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '28px', boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
+        <div style={{ fontFamily: mc, fontSize: '13px', letterSpacing: '0.1em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: '22px' }}>
+          Edit Profile
+        </div>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontFamily: mc, fontSize: '9px', letterSpacing: '0.12em', color: '#6b6b7a', textTransform: 'uppercase' as const, marginBottom: '6px' }}>Bio</label>
+          <textarea
+            value={bio} onChange={e => setBio(e.target.value)}
+            maxLength={200} rows={3}
+            placeholder="Brief description of your ministry or calling..."
+            style={{ ...inputStyle, resize: 'vertical' as const }}
+          />
+          <div style={{ fontSize: '10px', color: '#6b6b7a', textAlign: 'right' as const, marginTop: '2px' }}>{bio.length}/200</div>
+        </div>
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', fontFamily: mc, fontSize: '9px', letterSpacing: '0.12em', color: '#6b6b7a', textTransform: 'uppercase' as const, marginBottom: '6px' }}>Location</label>
+          <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="City, State" style={inputStyle} />
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '6px', color: '#6b6b7a', fontFamily: mc, fontSize: '11px', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: saved ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.12)', border: `1px solid ${saved ? 'rgba(74,222,128,0.5)' : 'rgba(201,168,76,0.45)'}`, borderRadius: '6px', color: saved ? '#4ade80' : '#C9A84C', fontFamily: mc, fontSize: '11px', letterSpacing: '0.05em', cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -223,6 +252,9 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   const [conversations, setConversations] = useState<any[]>([])
   const [messages, setMessages]           = useState<any[]>([])
   const [loading, setLoading]             = useState(true)
+  const [recentMsgs, setRecentMsgs]       = useState<Array<{
+    id: string; channelId: string; senderName: string; text: string; ts: string; unread: boolean
+  }>>([])
 
   // Fetch DM channels this user is a member of
   useEffect(() => {
@@ -282,6 +314,60 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     } catch (err) {
       console.error('send DM error:', err)
     }
+  }
+
+  // Load top-5 recent DMs for the sidebar
+  useEffect(() => {
+    if (!streamToken || !apiKey || !userId) return
+    async function loadRecent() {
+      try {
+        const res = await fetch(
+          `https://chat.stream-io-api.com/channels?api_key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': streamToken,
+              'stream-auth-type': 'jwt',
+            },
+            body: JSON.stringify({
+              filter_conditions: { type: 'messaging', members: { $in: [userId] } },
+              sort: [{ field: 'last_message_at', direction: -1 }],
+              limit: 5,
+              message_limit: 1,
+            }),
+          }
+        )
+        const data = await res.json()
+        const msgs: typeof recentMsgs = []
+        for (const ch of (data.channels || [])) {
+          const msg = ch.messages?.[0]
+          if (!msg) continue
+          msgs.push({
+            id: msg.id,
+            channelId: ch.channel.id,
+            senderName: msg.user?.name || msg.user?.id || 'Unknown',
+            text: msg.text || '',
+            ts: msg.created_at,
+            unread: (ch.channel.unread_count || 0) > 0,
+          })
+        }
+        setRecentMsgs(msgs)
+      } catch { /* silent */ }
+    }
+    loadRecent()
+    const t = setInterval(loadRecent, 15000)
+    return () => clearInterval(t)
+  }, [streamToken, apiKey, userId])
+
+  function fmtTime(ts: string) {
+    if (!ts) return ''
+    const d = new Date(ts), now = new Date()
+    const mins = Math.floor((now.getTime() - d.getTime()) / 60000)
+    if (mins < 1) return 'now'
+    if (mins < 60) return `${mins}m`
+    if (mins < 1440) return `${Math.floor(mins / 60)}h`
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   // Create or find DM channel when pendingDMWith is set
@@ -459,44 +545,38 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         </div>
       )}
 
-      {/* Right sidebar — top 5 recent DMs */}
-      {selectedConvo && !isMobile && (
-        <div style={{ width: 180, borderLeft: `1px solid ${V.bdr}`, display: 'flex', flexDirection: 'column', flexShrink: 0, background: V.surf }}>
-          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0 }}>
-            <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: V.gold }}>RECENT DMS</span>
+      {/* Right sidebar — recent messages */}
+      {!isMobile && (
+        <div style={{ width: '220px', flexShrink: 0, borderLeft: '1px solid rgba(201,168,76,0.12)', display: 'flex', flexDirection: 'column', background: 'rgba(13,11,20,0.5)' }}>
+          <div style={{ padding: '14px 14px 10px', fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, borderBottom: '1px solid rgba(201,168,76,0.1)', flexShrink: 0 }}>
+            📨 Recent
           </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {conversations
-              .filter(ch => (ch.channel || ch).id !== selectedConvo)
-              .slice(0, 5)
-              .map(ch => {
-                const { channel, name, avatar, unread, preview } = getConvoMeta(ch)
-                return (
-                  <div key={channel.id} onClick={() => setSelectedConvo(channel.id)}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                    style={{ padding: '10px 12px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', transition: 'background 0.15s' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                        {avatar
-                          ? <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                          : <span style={{ fontFamily: cinzel, fontSize: 10, color: G }}>{name[0]?.toUpperCase()}</span>
-                        }
-                      </div>
-                      <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{name}</span>
-                      {unread > 0 && (
-                        <div style={{ minWidth: 14, height: 14, borderRadius: 7, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', flexShrink: 0 }}>{unread}</div>
-                      )}
+          <div style={{ flex: 1, overflowY: 'auto' as const }}>
+            {recentMsgs.length === 0
+              ? <div style={{ padding: '20px 14px', fontSize: '12px', color: '#6b6b7a', fontStyle: 'italic', fontFamily: "'Crimson Pro', Georgia, serif" }}>No messages yet</div>
+              : recentMsgs.map(msg => (
+                <div
+                  key={msg.id}
+                  onClick={() => setSelectedConvo(msg.channelId)}
+                  style={{ padding: '10px 14px', borderBottom: '1px solid rgba(201,168,76,0.07)', cursor: 'pointer', transition: 'background 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', color: '#C9A84C', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '130px' }}>
+                      {msg.senderName}
                     </div>
-                    <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{preview}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {msg.unread && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A84C', flexShrink: 0 }} />}
+                      <div style={{ fontSize: '9px', color: '#6b6b7a', flexShrink: 0 }}>{fmtTime(msg.ts)}</div>
+                    </div>
                   </div>
-                )
-              })}
-            {conversations.filter(ch => (ch.channel || ch).id !== selectedConvo).length === 0 && (
-              <div style={{ padding: '20px 12px', fontFamily: crimson, fontSize: 13, color: V.mut, fontStyle: 'italic', textAlign: 'center' }}>
-                No other conversations
-              </div>
-            )}
+                  <div style={{ fontSize: '11px', color: '#7a7a8a', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))
+            }
           </div>
         </div>
       )}
@@ -509,9 +589,11 @@ function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
 
-  const [theme, setTheme] = useState<'dark' | 'light'>(
-    () => (typeof localStorage !== 'undefined' ? (localStorage.getItem('wri-theme') || 'dark') : 'dark') as 'dark' | 'light'
-  )
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    const stored = localStorage.getItem('wri-theme')
+    return (stored === 'dark' || stored === 'light') ? stored : 'dark'
+  })
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('war-room')
@@ -787,7 +869,7 @@ function CommunityPage() {
   const Hamburger = () => isMobile ? (
     <button
       onClick={() => setSidebarOpen(true)}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: G, padding: '0 12px 0 0', lineHeight: 1, flexShrink: 0 }}
+      style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G, fontSize: '20px', flexShrink: 0 }}
       aria-label="Open navigation"
     >
       ☰
@@ -1384,17 +1466,19 @@ function CommunityPage() {
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 49 }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, background: 'rgba(0,0,0,0.6)', WebkitOverflowScrolling: 'touch' as any }}
         />
       )}
 
       {/* ── LEFT SIDEBAR ── */}
       <div style={isMobile ? {
-        position: 'fixed', top: 0, left: 0, height: '100vh', width: 280,
-        zIndex: 50, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+        position: 'fixed', top: 0, left: 0, bottom: 0,
+        width: '280px', zIndex: 1000,
+        transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.25s ease',
         display: 'flex', flexDirection: 'column',
-        background: V.surf, borderRight: `1px solid ${V.bdr}`, overflow: 'hidden',
+        background: V.surf, borderRight: `1px solid ${V.bdr}`,
+        overflowY: 'auto' as const, WebkitOverflowScrolling: 'touch' as any,
         paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
         display: 'flex', flexDirection: 'column',
@@ -1424,16 +1508,18 @@ function CommunityPage() {
           currentUserId={user?.id || ''}
           isDark={theme !== 'light'}
           onClose={() => setViewingProfile(null)}
-          onStartDM={(targetId) => {
+          onStartDM={(memberId, _memberName) => {
             setViewingProfile(null)
             setActiveSection('messages')
-            setPendingDMWith(targetId)
+            setPendingDMWith(memberId)
           }}
         />
       )}
       {editingProfile && (
         <EditProfileModal
-          user={user}
+          userId={user?.id || ''}
+          existingBio={(user?.publicMetadata?.bio as string) || ''}
+          existingLocation={(user?.publicMetadata?.location as string) || ''}
           isDark={theme !== 'light'}
           onClose={() => setEditingProfile(false)}
         />
