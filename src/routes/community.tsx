@@ -100,6 +100,90 @@ function SignInGate() {
   )
 }
 
+// ── MESSAGES VIEW ─────────────────────────────────────────
+function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
+  isMobile: boolean
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+  streamToken: string
+  apiKey: string
+  user: any
+}) {
+  const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+  const conversations = [
+    { id: 'c1', name: 'Ruby Payne',     role: 'Co-Pastor', lastMsg: 'See you at the session tonight',  time: '2h ago', unread: 2, avatar: '👩‍⚕️' },
+    { id: 'c2', name: 'War Room Team',  role: 'Group',     lastMsg: 'Prayer call starts in 10 min',    time: '4h ago', unread: 0, avatar: '⚔️' },
+  ]
+
+  return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+
+      {/* Conversation list */}
+      <div style={{ width: selectedConvo ? 260 : '100%', borderRight: selectedConvo ? `1px solid ${V.bdr}` : 'none', display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer' }}>☰</button>
+          )}
+          <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>💬 Messages</span>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {conversations.map(c => (
+            <div key={c.id} onClick={() => setSelectedConvo(c.id)}
+              style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', background: selectedConvo === c.id ? 'rgba(201,168,76,0.08)' : 'transparent', display: 'flex', gap: 12, alignItems: 'center', transition: 'background 0.15s' }}>
+              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(201,168,76,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                {c.avatar}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 13, color: G }}>{c.name}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 11, color: V.mut }}>{c.time}</span>
+                </div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lastMsg}</div>
+              </div>
+              {c.unread > 0 && (
+                <div style={{ minWidth: 18, height: 18, borderRadius: '50%', background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', flexShrink: 0 }}>
+                  {c.unread}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Thread panel */}
+      {selectedConvo && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <button onClick={() => setSelectedConvo(null)} style={{ background: 'none', border: 'none', color: G, fontSize: 18, cursor: 'pointer' }}>←</button>
+            <span style={{ fontFamily: cinzel, fontSize: 16, color: G }}>
+              {conversations.find(c => c.id === selectedConvo)?.name}
+            </span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14, marginTop: 40 }}>
+              Direct messages coming soon — Stream DMs will be wired here next.
+            </div>
+          </div>
+          <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder="Send a message..."
+                style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '10px 14px', color: V.txt, fontFamily: crimson, fontSize: 16, outline: 'none' }}
+              />
+              <button disabled={!message.trim()}
+                style={{ background: message.trim() ? G : 'rgba(201,168,76,0.3)', color: message.trim() ? '#0D0B14' : V.mut, border: 'none', borderRadius: 8, padding: '10px 18px', fontFamily: cinzel, fontSize: 13, cursor: message.trim() ? 'pointer' : 'default', fontWeight: 700 }}>
+                Send →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -121,6 +205,7 @@ function CommunityPage() {
   const [draft, setDraft]             = useState('')
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
+  const [unreadDMs, setUnreadDMs]     = useState(0)
 
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -820,34 +905,33 @@ function CommunityPage() {
           </div>
         </div>
 
-        {/* User row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(201,168,76,0.06)', borderRadius: 4, border: `1px solid ${V.bdr}` }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, overflow: 'hidden' }}>
-            {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+        {/* User row — compact */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', border: `1px solid rgba(201,168,76,0.4)`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(201,168,76,0.12)', fontFamily: cinzel, fontSize: 11, color: G }}>
+              {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+            </div>
+            {unreadDMs > 0 && (
+              <div style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#e05c5c', border: `2px solid ${V.bg}` }} />
+            )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.04em', color: V.txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user?.firstName} {user?.lastName}
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: V.txt, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {user?.firstName || user?.fullName || 'Warrior'}
+            </div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 1 }}>
+              {tier}
             </div>
           </div>
-          <TierBadge tier={tier} />
+          <SignOutButton>
+            <button style={{ background: 'none', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', cursor: 'pointer', flexShrink: 0, transition: 'color 0.15s, border-color 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = G; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = V.mut; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.2)' }}
+            >
+              Sign Out
+            </button>
+          </SignOutButton>
         </div>
-
-        {/* Sign out */}
-        <SignOutButton>
-          <button style={{
-            width: '100%', padding: '9px 16px', marginTop: 8,
-            background: 'transparent', border: `1px solid ${V.bdr}`,
-            borderRadius: 6, fontFamily: cinzel, fontSize: 10,
-            letterSpacing: '0.12em', color: V.mut, cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.color = V.txt; e.currentTarget.style.borderColor = V.dim }}
-            onMouseLeave={e => { e.currentTarget.style.color = V.mut; e.currentTarget.style.borderColor = V.bdr }}
-          >
-            SIGN OUT
-          </button>
-        </SignOutButton>
       </div>
 
       {/* Nav */}
@@ -855,7 +939,26 @@ function CommunityPage() {
         {sectionLabel('COMMUNITY')}
         {navItem('The War Room', 'war-room', '⚔')}
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
-        {navItem('Messages', 'messages', '💬')}
+        {/* Messages — inline for unread badge */}
+        {(() => {
+          const active = activeSection === 'messages'
+          return (
+            <button
+              onClick={() => { setActiveSection('messages'); if (isMobile) setSidebarOpen(false) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: active ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${active ? G : 'transparent'}`, textAlign: 'left', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: active ? G : NAV_DEFAULT, transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = G } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
+            >
+              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>💬</span>
+              <span style={{ flex: 1 }}>Messages</span>
+              {unreadDMs > 0 && (
+                <div style={{ minWidth: 18, height: 18, borderRadius: 9, background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                  {unreadDMs}
+                </div>
+              )}
+            </button>
+          )
+        })()}
         {navItem('Members', 'members', '👥')}
 
         {sectionLabel('INTELLIGENCE')}
@@ -918,7 +1021,7 @@ function CommunityPage() {
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', background: V.bg, height: isMobile ? '100vh' : undefined }}>
         {activeSection === 'war-room'    && <WarRoomView />}
         {activeSection === 'prayer-wall' && <PrayerView />}
-        {activeSection === 'messages'    && <PlaceholderView title="Messages" icon="💬" />}
+        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} />}
         {activeSection === 'members'     && <PlaceholderView title="Members" icon="👥" />}
         {activeSection === 'database'    && <DatabaseView />}
         {activeSection === 'arsenal'     && <LauncherView title="Scripture Arsenal" icon="✦"  href="/arsenal" />}
