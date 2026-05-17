@@ -253,6 +253,12 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     id: string; channelId: string; senderName: string; text: string; ts: string; unread: boolean
   }>>([])
 
+  const WAR_ROOM_ENTRY = {
+    channel: { id: 'war-room-general', name: '⚔ War Room', unread_count: 0 },
+    members: [],
+    messages: [],
+  }
+
   // Fetch DM channels this user is a member of
   useEffect(() => {
     if (!streamToken || !apiKey || !userId) return
@@ -267,7 +273,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           sort: [{ field: 'last_message_at', direction: -1 }],
           state: true, watch: true, presence: true, limit: 30,
         })
-        if (d.channels) setConversations(d.channels)
+        if (d.channels) setConversations([WAR_ROOM_ENTRY, ...d.channels])
       } catch (err) {
         console.error('loadConvos error:', err)
       } finally {
@@ -282,12 +288,13 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   // Load messages when a conversation is selected
   useEffect(() => {
     if (!selectedConvo || !streamToken || !apiKey) return
+    const isWarRoom = selectedConvo === 'war-room-general'
     async function loadMessages() {
       try {
         const d = await streamFetch(
           `/channels/messaging/${selectedConvo}/query`,
           'POST', streamToken, apiKey,
-          { state: true, messages: { limit: 50 } }
+          { state: true, messages: { limit: isWarRoom ? 50 : 50 } }
         )
         if (d.messages) setMessages(d.messages)
       } catch (err) {
@@ -395,6 +402,9 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
 
   function getConvoMeta(ch: any) {
     const channel = ch.channel || ch
+    if (channel.id === 'war-room-general') {
+      return { channel, name: '⚔ War Room', avatar: '', unread: 0, preview: 'Group channel · all members', time: '' }
+    }
     const lastMsg = ch.messages?.[ch.messages.length - 1]
     const members = ch.members || []
     const other   = members.find((m: any) => m.user_id !== userId)
@@ -836,6 +846,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
   }
   const [draft,   setDraft]   = useState('')
   const [prayers, setPrayers] = useState<StreamMsg[]>([])
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const fetchPrayers = useCallback(async () => {
     if (!streamToken || !apiKey) return
@@ -884,10 +895,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
           <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
         </div>
         <button
-          onClick={() => {
-            const input = document.querySelector('input[placeholder="Add a prayer request..."]') as HTMLInputElement
-            if (input) input.focus()
-          }}
+          onClick={() => inputRef.current?.focus()}
           style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '6px', color: G, fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
         >+ Add Prayer</button>
       </div>
@@ -924,6 +932,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
       <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', gap: 10 }}>
           <input
+            ref={inputRef}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
@@ -1296,8 +1305,9 @@ function CommunityPage() {
 
   // ── VIEWS ──────────────────────────────────────────────────
   const WarRoomView = () => {
-    const [editingId, setEditingId] = useState<string | null>(null)
-    const [editText,  setEditText]  = useState('')
+    const [editingId,    setEditingId]    = useState<string | null>(null)
+    const [editText,     setEditText]     = useState('')
+    const [showComposer, setShowComposer] = useState(false)
 
     async function handleDeletePost(messageId: string) {
       if (!confirm('Delete this post?')) return
@@ -1320,30 +1330,43 @@ function CommunityPage() {
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <Hamburger />
           <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', flex: 1 }}>⚔ The War Room</span>
-          <button style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
+          <button onClick={() => setShowComposer(true)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
-          <div style={{ background: V.surf, border: `1px dashed ${V.bdr}`, borderRadius: 6, padding: 14, marginBottom: 16, display: 'flex', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, flexShrink: 0, overflow: 'hidden' }}>
-              {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
-            </div>
-            <div style={{ flex: 1 }}>
+
+        {/* Composer modal */}
+        {showComposer && (
+          <div onClick={() => setShowComposer(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 12, width: '100%', maxWidth: 480, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, flexShrink: 0, overflow: 'hidden' }}>
+                  {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+                </div>
+                <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em' }}>New Post</span>
+                <button onClick={() => setShowComposer(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: V.mut, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+              </div>
               <textarea
+                autoFocus
                 value={draft}
                 onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) sendPost() }}
+                onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) { sendPost(); setShowComposer(false) } }}
                 placeholder="Share something with the War Room..."
-                rows={isMobile ? 4 : 2}
-                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontFamily: crimson, fontSize: 15, color: V.txt, resize: 'none', boxSizing: 'border-box' }}
+                rows={5}
+                style={{ width: '100%', boxSizing: 'border-box', background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '12px 14px', color: V.txt, fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'none' }}
               />
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={sendPost} disabled={sending || !draft.trim()}
-                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: sending || !draft.trim() ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 3, padding: '5px 14px', cursor: sending || !draft.trim() ? 'default' : 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+                <button onClick={() => setShowComposer(false)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: V.mut, background: 'transparent', border: `1px solid ${V.bdr}`, borderRadius: 3, padding: '6px 14px', cursor: 'pointer' }}>Cancel</button>
+                <button
+                  onClick={() => { sendPost(); setShowComposer(false) }}
+                  disabled={sending || !draft.trim()}
+                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: sending || !draft.trim() ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 3, padding: '6px 16px', cursor: sending || !draft.trim() ? 'default' : 'pointer' }}>
                   {sending ? '...' : 'Post ⚔'}
                 </button>
               </div>
             </div>
           </div>
+        )}
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
           <PostCard msg={PINNED} pinned isDark={isDark} />
           {posts.map(msg => (
             <PostCard key={msg.id} msg={msg} isDark={isDark}

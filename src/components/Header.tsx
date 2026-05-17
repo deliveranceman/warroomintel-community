@@ -307,18 +307,22 @@ export function Header() {
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Desktop CTA */}
-        <a href="/membership" className="wr-nav-cta"
-          style={{
-            fontFamily: cinzel, fontSize: '11px', fontWeight: 600,
-            letterSpacing: '0.1em', color: deep, background: gold,
-            padding: '9px 20px', borderRadius: '3px', textDecoration: 'none',
-            transition: 'background 0.2s', flexShrink: 0, whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = goldLight)}
-          onMouseLeave={e => (e.currentTarget.style.background = gold)}>
-          Join Now
-        </a>
+        {/* Desktop CTA — signed-out only */}
+        {mounted && (
+          <SignedOut>
+            <a href="/membership" className="wr-nav-cta"
+              style={{
+                fontFamily: cinzel, fontSize: '11px', fontWeight: 600,
+                letterSpacing: '0.1em', color: deep, background: gold,
+                padding: '9px 20px', borderRadius: '3px', textDecoration: 'none',
+                transition: 'background 0.2s', flexShrink: 0, whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = goldLight)}
+              onMouseLeave={e => (e.currentTarget.style.background = gold)}>
+              Join Now
+            </a>
+          </SignedOut>
+        )}
 
         {/* ── Auth buttons ── */}
         {mounted ? (
