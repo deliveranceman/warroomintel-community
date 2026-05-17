@@ -266,6 +266,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           filter_conditions: {
             type: 'messaging',
             members: { $in: [userId] },
+            id: { $nin: ['prayer-wall-requests', 'war-room-general'] },
           },
           sort: [{ field: 'last_message_at', direction: -1 }],
           state: true,
@@ -343,7 +344,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           `/channels/messaging/${channelId}`,
           'POST', streamToken, apiKey,
           {
-            data: { members: sortedIds },
+            members: sortedIds,
             watch: false,
           }
         )
