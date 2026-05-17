@@ -770,6 +770,154 @@ function MembersView({
   )
 }
 
+// ── POST CARD ──────────────────────────────────────────────
+function PostCard({ msg, pinned, actions }: { msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode }) {
+  const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
+  const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return (
+    <div style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
+          {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: cinzel, fontSize: 15, letterSpacing: '0.06em', color: V.txt }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
+            {pinned && <span style={{ fontFamily: cinzel, fontSize: 8, color: G, border: `1px solid ${BR2}`, padding: '1px 6px', borderRadius: 8 }}>HOST</span>}
+            <span style={{ fontFamily: crimson, fontSize: 13, color: V.mut }}>{time}</span>
+          </div>
+          <p style={{ fontFamily: crimson, fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
+          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+            {(() => {
+              const h = (s: string, n: number) => { let v = 0; for (let i = 0; i < s.length; i++) v = (v * 31 + s.charCodeAt(i)) & 0xffff; return v % n }
+              return [['🙏', h(msg.id, 20) + 1], ['💬', h(msg.id + '2', 8)], ['🔥', h(msg.id + '3', 12)]].map(([icon, count]) => (
+                <button key={String(icon)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: crimson, fontSize: 14, color: V.mut, padding: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = G)}
+                  onMouseLeave={e => (e.currentTarget.style.color = V.mut)}>
+                  {icon} {count}
+                </button>
+              ))
+            })()}
+          </div>
+          {actions && (
+            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
+              {actions}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── PRAYER VIEW ────────────────────────────────────────────
+interface PrayerViewProps {
+  streamToken: string
+  apiKey: string
+  userId: string
+  userName: string
+  userImageUrl: string
+  isDark: boolean
+  isMobile: boolean
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+function PrayerView({ streamToken, apiKey, userId, isMobile, setSidebarOpen }: PrayerViewProps) {
+  const [draft,   setDraft]   = useState('')
+  const [prayers, setPrayers] = useState<StreamMsg[]>([])
+
+  const fetchPrayers = useCallback(async () => {
+    if (!streamToken || !apiKey) return
+    try {
+      const d = await streamFetch('/channels/messaging/prayer-wall-requests/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 20 } })
+      if (d.messages) {
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+        setPrayers(d.messages.filter((m: StreamMsg) => new Date(m.created_at).getTime() > cutoff))
+      }
+    } catch {}
+  }, [streamToken, apiKey])
+
+  useEffect(() => {
+    fetchPrayers()
+    const t = setInterval(fetchPrayers, 30000)
+    return () => clearInterval(t)
+  }, [fetchPrayers])
+
+  async function handleDeletePrayer(messageId: string) {
+    if (!confirm('Delete this prayer request?')) return
+    try {
+      await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
+      await fetchPrayers()
+    } catch (err) { console.error('Delete prayer failed:', err) }
+  }
+
+  async function handleSend() {
+    if (!draft.trim() || !streamToken || !apiKey) return
+    try {
+      await streamFetch('/channels/messaging/prayer-wall-requests/message', 'POST', streamToken, apiKey, { message: { text: draft.trim() } })
+      setDraft('')
+      await fetchPrayers()
+    } catch (err) { console.error('PRAYER ERROR:', err) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <button onClick={() => setSidebarOpen(o => !o)}
+          style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', display: isMobile ? 'block' : 'none' }}>
+          ☰
+        </button>
+        <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
+      </div>
+      <div style={{ margin: '12px 20px 0', padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start', flexShrink: 0 }}>
+        <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+        <p style={{ margin: 0, fontFamily: crimson, fontSize: 13, color: V.mut, lineHeight: 1.5 }}>
+          <strong style={{ color: V.dim }}>Public wall.</strong>{' '}
+          This section is visible to all visitors. Do not share personal contact information,
+          addresses, or sensitive details. While this wall is monitored, posts from the community
+          may appear before review. War Room Intel is not responsible for content submitted by users.
+          Report concerns to{' '}
+          <a href="mailto:exorcist@warroomintel.com" style={{ color: G, textDecoration: 'none' }}>exorcist@warroomintel.com</a>.
+        </p>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        {prayers.length === 0 && (
+          <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', marginTop: 60, fontFamily: crimson, fontSize: 17 }}>
+            No prayer requests yet. Be the first.
+          </div>
+        )}
+        {prayers.map(m => (
+          <PostCard key={m.id} msg={m}
+            actions={m.user?.id === userId ? (
+              <button
+                onClick={() => handleDeletePrayer(m.id)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+              >🗑 Delete</button>
+            ) : undefined}
+          />
+        ))}
+      </div>
+      <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            placeholder="Add a prayer request..."
+            style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '10px 14px', color: V.txt, fontFamily: crimson, fontSize: 16, outline: 'none' }}
+          />
+          <button onClick={handleSend} disabled={!draft.trim()}
+            style={{ background: draft.trim() ? G : 'rgba(201,168,76,0.3)', color: draft.trim() ? '#0D0B14' : V.mut, border: 'none', borderRadius: 8, padding: '10px 18px', fontFamily: cinzel, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'default', fontWeight: 700, whiteSpace: 'nowrap' }}>
+            🙏 Post
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -1106,47 +1254,6 @@ function CommunityPage() {
     </button>
   ) : null
 
-  // ── POST CARD ──────────────────────────────────────────────
-  const PostCard = ({ msg, pinned, actions }: { msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode }) => {
-    const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
-    const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
-    return (
-      <div style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
-            {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: cinzel, fontSize: 15, letterSpacing: '0.06em', color: V.txt }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
-              {pinned && <span style={{ fontFamily: cinzel, fontSize: 8, color: G, border: `1px solid ${BR2}`, padding: '1px 6px', borderRadius: 8 }}>HOST</span>}
-              <span style={{ fontFamily: crimson, fontSize: 13, color: V.mut }}>{time}</span>
-            </div>
-            <p style={{ fontFamily: crimson, fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
-            <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
-              {(() => {
-                const h = (s: string, n: number) => { let v = 0; for (let i = 0; i < s.length; i++) v = (v * 31 + s.charCodeAt(i)) & 0xffff; return v % n }
-                return [['🙏', h(msg.id, 20) + 1], ['💬', h(msg.id + '2', 8)], ['🔥', h(msg.id + '3', 12)]].map(([icon, count]) => (
-                  <button key={String(icon)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: crimson, fontSize: 14, color: V.mut, padding: 0 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = G)}
-                    onMouseLeave={e => (e.currentTarget.style.color = V.mut)}>
-                    {icon} {count}
-                  </button>
-                ))
-              })()}
-            </div>
-            {actions && (
-              <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
-                {actions}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const PINNED: StreamMsg = {
     id: 'pinned',
     text: 'Welcome to War Room Intel. Whether you are fighting for your own freedom or walking others into theirs — you are in the right place. Start by introducing yourself below.',
@@ -1243,124 +1350,6 @@ function CommunityPage() {
             />
           ))}
           <div ref={bottomRef} />
-        </div>
-      </div>
-    )
-  }
-
-  const PrayerView = () => {
-    const [draft, setDraft] = useState('')
-
-    async function handleDeletePrayer(messageId: string) {
-      if (!confirm('Delete this prayer request?')) return
-      try {
-        await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
-        await fetchPrayers()
-      } catch (err) { console.error('Delete prayer failed:', err) }
-    }
-
-    async function handleSend() {
-      if (!draft.trim() || !streamToken || !apiKey) return
-      try {
-        await streamFetch(
-          '/channels/messaging/prayer-wall-requests/message',
-          'POST', streamToken, apiKey,
-          { message: { text: draft.trim() } }
-        )
-        setDraft('')
-        await fetchPrayers()
-      } catch (err) {
-        console.error('PRAYER ERROR:', err)
-      }
-    }
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Header */}
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`,
-          display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <button onClick={() => setSidebarOpen(o => !o)}
-            style={{ background: 'none', border: 'none', color: G,
-              fontSize: 20, cursor: 'pointer', display: isMobile ? 'block' : 'none' }}>
-            ☰
-          </button>
-          <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>
-            🙏 Prayer Wall
-          </span>
-        </div>
-
-        {/* Disclaimer banner */}
-        <div style={{
-          margin: '12px 20px 0',
-          padding: '10px 14px',
-          background: 'rgba(201,168,76,0.06)',
-          border: '1px solid rgba(201,168,76,0.2)',
-          borderRadius: 8,
-          display: 'flex',
-          gap: 10,
-          alignItems: 'flex-start',
-          flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⚠️</span>
-          <p style={{ margin: 0, fontFamily: crimson, fontSize: 13, color: V.mut, lineHeight: 1.5 }}>
-            <strong style={{ color: V.dim }}>Public wall.</strong>{' '}
-            This section is visible to all visitors. Do not share personal contact information,
-            addresses, or sensitive details. While this wall is monitored, posts from the community
-            may appear before review. War Room Intel is not responsible for content submitted by users.
-            Report concerns to{' '}
-            <a href="mailto:exorcist@warroomintel.com" style={{ color: G, textDecoration: 'none' }}>
-              exorcist@warroomintel.com
-            </a>.
-          </p>
-        </div>
-
-        {/* Message list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-          {prayers.length === 0 && (
-            <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic',
-              marginTop: 60, fontFamily: crimson, fontSize: 17 }}>
-              No prayer requests yet. Be the first.
-            </div>
-          )}
-          {prayers.map(m => (
-            <PostCard key={m.id} msg={m}
-              actions={m.user?.id === user?.id ? (
-                <button
-                  onClick={() => handleDeletePrayer(m.id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
-                >🗑 Delete</button>
-              ) : undefined}
-            />
-          ))}
-        </div>
-
-        {/* Input bar */}
-        <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`,
-          background: V.s2, flexShrink: 0,
-          paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-              placeholder="Add a prayer request..."
-              style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`,
-                borderRadius: 8, padding: '10px 14px', color: V.txt,
-                fontFamily: crimson, fontSize: 16, outline: 'none' }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!draft.trim()}
-              style={{ background: draft.trim() ? G : 'rgba(201,168,76,0.3)',
-                color: draft.trim() ? '#0D0B14' : V.mut,
-                border: 'none', borderRadius: 8, padding: '10px 18px',
-                fontFamily: cinzel, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'default',
-                fontWeight: 700, whiteSpace: 'nowrap' }}>
-              🙏 Post
-            </button>
-          </div>
         </div>
       </div>
     )
@@ -1796,7 +1785,18 @@ function CommunityPage() {
       {/* ── CENTER ── */}
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', background: V.bg, height: isMobile ? '100vh' : undefined }}>
         {activeSection === 'war-room'    && <WarRoomView />}
-        {activeSection === 'prayer-wall' && <PrayerView />}
+        {activeSection === 'prayer-wall' && (
+          <PrayerView
+            streamToken={streamToken}
+            apiKey={apiKey}
+            userId={user?.id || ''}
+            userName={user?.fullName || user?.firstName || 'Warrior'}
+            userImageUrl={user?.imageUrl || ''}
+            isDark={theme !== 'light'}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+          />
+        )}
         {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} />}
         {activeSection === 'members'     && (
           <MembersView
