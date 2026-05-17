@@ -20,6 +20,7 @@ const THEME_CSS = `
   transform: translateX(0) !important;
   pointer-events: auto !important;
 }
+.msg-row:hover .msg-actions { opacity: 1 !important; }
 :root {
   --wri-bg: #0e0c09;
   --wri-surface: #1c1814;
@@ -224,7 +225,7 @@ function EditProfileModal({ userId, existingBio, existingLocation, onClose, isDa
 }
 
 // ── MESSAGES VIEW ─────────────────────────────────────────
-function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName, pendingDMWith, onDMStarted, isDark = true }: {
+function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName, pendingDMWith, onDMStarted, isDark = true, dmMembers = [], onStartDM }: {
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   streamToken: string
@@ -235,6 +236,8 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   pendingDMWith?: string | null
   onDMStarted?: () => void
   isDark?: boolean
+  dmMembers?: any[]
+  onStartDM?: (memberId: string, memberName: string) => void
 }) {
   const V = {
     bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
@@ -244,20 +247,14 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
   }
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
-  const [hoveredConvo, setHoveredConvo]   = useState<string | null>(null)
-  const [message, setMessage]             = useState('')
   const [conversations, setConversations] = useState<any[]>([])
   const [messages, setMessages]           = useState<any[]>([])
   const [loading, setLoading]             = useState(true)
-  const [recentMsgs, setRecentMsgs]       = useState<Array<{
-    id: string; channelId: string; senderName: string; text: string; ts: string; unread: boolean
-  }>>([])
-
-  const WAR_ROOM_ENTRY = {
-    channel: { id: 'war-room-general', name: '⚔ War Room', unread_count: 0 },
-    members: [],
-    messages: [],
-  }
+  const [searchQuery, setSearchQuery]     = useState('')
+  const [showNewDM, setShowNewDM]         = useState(false)
+  const [msgDraft, setMsgDraft]           = useState('')
+  const [newDMSearch, setNewDMSearch]     = useState('')
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   // Fetch DM channels this user is a member of
   useEffect(() => {
@@ -273,7 +270,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           sort: [{ field: 'last_message_at', direction: -1 }],
           state: true, watch: true, presence: true, limit: 30,
         })
-        if (d.channels) setConversations([WAR_ROOM_ENTRY, ...d.channels])
+        if (d.channels) setConversations(d.channels)
       } catch (err) {
         console.error('loadConvos error:', err)
       } finally {
@@ -306,72 +303,23 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     return () => clearInterval(interval)
   }, [selectedConvo, streamToken, apiKey])
 
-  async function handleSend() {
-    if (!message.trim() || !selectedConvo) return
+  async function handleSendMessage() {
+    if (!msgDraft.trim() || !selectedConvo || !streamToken || !apiKey) return
+    const text = msgDraft.trim()
+    setMsgDraft('')
     try {
       await streamFetch(
         `/channels/messaging/${selectedConvo}/message`,
         'POST', streamToken, apiKey,
-        { message: { text: message.trim() } }
+        { message: { text } }
       )
-      setMessage('')
+      const d = await streamFetch(`/channels/messaging/${selectedConvo}/query`, 'POST', streamToken, apiKey, { state: true, messages: { limit: 50 } })
+      if (d.messages) setMessages(d.messages)
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
-      console.error('send DM error:', err)
+      console.error('Send failed:', err)
+      setMsgDraft(text)
     }
-  }
-
-  // Load top-5 recent DMs for the sidebar
-  useEffect(() => {
-    if (!streamToken || !apiKey || !userId) return
-    async function loadRecent() {
-      try {
-        const res = await fetch(
-          `https://chat.stream-io-api.com/channels?api_key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': streamToken,
-              'stream-auth-type': 'jwt',
-            },
-            body: JSON.stringify({
-              filter_conditions: { type: 'messaging', members: { $in: [userId] } },
-              sort: [{ field: 'last_message_at', direction: -1 }],
-              limit: 5,
-              message_limit: 1,
-            }),
-          }
-        )
-        const data = await res.json()
-        const msgs: typeof recentMsgs = []
-        for (const ch of (data.channels || [])) {
-          const msg = ch.messages?.[0]
-          if (!msg) continue
-          msgs.push({
-            id: msg.id,
-            channelId: ch.channel.id,
-            senderName: msg.user?.name || msg.user?.id || 'Unknown',
-            text: msg.text || '',
-            ts: msg.created_at,
-            unread: (ch.channel.unread_count || 0) > 0,
-          })
-        }
-        setRecentMsgs(msgs)
-      } catch { /* silent */ }
-    }
-    loadRecent()
-    const t = setInterval(loadRecent, 15000)
-    return () => clearInterval(t)
-  }, [streamToken, apiKey, userId])
-
-  function fmtTime(ts: string) {
-    if (!ts) return ''
-    const d = new Date(ts), now = new Date()
-    const mins = Math.floor((now.getTime() - d.getTime()) / 60000)
-    if (mins < 1) return 'now'
-    if (mins < 60) return `${mins}m`
-    if (mins < 1440) return `${Math.floor(mins / 60)}h`
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   // Create or find DM channel when pendingDMWith is set
@@ -422,172 +370,191 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     return { channel, name, avatar, unread, preview, time }
   }
 
-  const selectedMeta = selectedConvo
-    ? getConvoMeta(conversations.find(ch => (ch.channel || ch).id === selectedConvo) || {})
-    : null
+  const filteredConvos = conversations.filter(ch => {
+    if (!searchQuery) return true
+    const { name } = getConvoMeta(ch)
+    return name.toLowerCase().includes(searchQuery.toLowerCase())
+  })
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
-      {/* Conversation list */}
-      <div style={{ width: selectedConvo ? 260 : '100%', borderRight: selectedConvo ? `1px solid ${V.bdr}` : 'none', display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          {isMobile && (
-            <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer' }}>☰</button>
-          )}
-          <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>💬 Messages</span>
+      {/* LEFT PANEL — conversation list */}
+      <div style={{ width: '260px', flexShrink: 0, borderRight: `1px solid ${V.bdr}`, display: 'flex', flexDirection: 'column', background: V.surf }}>
+        <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            {isMobile && (
+              <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', flexShrink: 0 }}>☰</button>
+            )}
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>💬 Direct Messages</span>
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search conversations..."
+            style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: `1px solid ${V.bdr}`, borderRadius: 6, padding: '7px 10px', color: V.txt, fontFamily: crimson, fontSize: 13, outline: 'none' }}
+          />
         </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <button
+          onClick={() => setShowNewDM(true)}
+          style={{ margin: '10px 12px', padding: '8px 12px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+        >+ New Message</button>
+        <div style={{ flex: 1, overflowY: 'auto' as const }}>
           {loading && (
-            <div style={{ padding: 24, textAlign: 'center', color: V.mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
-              LOADING...
+            <div style={{ padding: 20, textAlign: 'center' as const, color: V.mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>LOADING...</div>
+          )}
+          {!loading && filteredConvos.length === 0 && (
+            <div style={{ padding: '24px 16px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontSize: 13, fontStyle: 'italic' }}>
+              No conversations yet.<br/>Click "+ New Message" to start one.
             </div>
           )}
-          {!loading && conversations.length === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: V.mut, fontFamily: "'Crimson Pro', Georgia, serif", fontSize: '15px', fontStyle: 'italic', textAlign: 'center' as const }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>💬</div>
-              <div style={{ marginBottom: '8px', color: V.txt }}>No conversations yet</div>
-              <div style={{ fontSize: '13px' }}>Go to Members to start a direct message</div>
-            </div>
-          )}
-          {conversations.map(ch => {
-            const { channel, name, avatar, unread, preview, time } = getConvoMeta(ch)
+          {filteredConvos.map(ch => {
+            const { channel, name, avatar, unread, preview } = getConvoMeta(ch)
+            const isActive = selectedConvo === channel.id
             return (
-              <div key={channel.id}
+              <div
+                key={channel.id}
                 onClick={() => setSelectedConvo(channel.id)}
-                onMouseEnter={() => setHoveredConvo(channel.id)}
-                onMouseLeave={() => setHoveredConvo(null)}
-                style={{
-                  padding: '12px 16px 12px 13px',
-                  borderBottom: `1px solid ${V.bdr}`,
-                  borderLeft: selectedConvo === channel.id ? `3px solid ${G}` : '3px solid transparent',
-                  cursor: 'pointer',
-                  background: selectedConvo === channel.id
-                    ? 'rgba(201,168,76,0.1)'
-                    : hoveredConvo === channel.id
-                    ? 'rgba(201,168,76,0.05)'
-                    : 'transparent',
-                  display: 'flex', gap: 10, alignItems: 'center',
-                  transition: 'all 0.15s',
-                }}>
-                <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid rgba(201,168,76,0.3)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                  {avatar
-                    ? <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                    : <span style={{ fontFamily: cinzel, fontSize: 14, color: G }}>{name[0]?.toUpperCase()}</span>
-                  }
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.05em' }}>{name}</span>
-                    <span style={{ fontFamily: crimson, fontSize: 11, color: V.mut }}>{time}</span>
+                style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', background: isActive ? 'rgba(201,168,76,0.08)' : 'transparent', borderLeft: isActive ? '2px solid #C9A84C' : '2px solid transparent', transition: 'background 0.15s' }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: G, flexShrink: 0, overflow: 'hidden' }}>
+                    {avatar ? <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: unread > 0 ? V.dim : V.mut, fontWeight: unread > 0 ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {preview}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 11, color: isActive ? G : V.txt, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '140px' }}>{name}</span>
+                      {unread > 0 && <div style={{ minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', flexShrink: 0 }}>{unread}</div>}
+                    </div>
+                    <div style={{ fontSize: 12, color: V.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, fontFamily: crimson }}>{preview || 'No messages yet'}</div>
                   </div>
                 </div>
-                {unread > 0 && (
-                  <div style={{ minWidth: 18, height: 18, borderRadius: 9, background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', flexShrink: 0 }}>
-                    {unread}
-                  </div>
-                )}
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* Thread panel */}
-      {selectedConvo && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-            <button onClick={() => setSelectedConvo(null)} style={{ background: 'none', border: 'none', color: G, fontSize: 18, cursor: 'pointer' }}>←</button>
-            <span style={{ fontFamily: cinzel, fontSize: 16, color: G }}>{selectedMeta?.name || '—'}</span>
+      {/* RIGHT PANEL — thread or empty state */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: V.bg, minWidth: 0 }}>
+        {!selectedConvo ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: V.mut, fontFamily: crimson }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>💬</div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: V.txt, marginBottom: 8, letterSpacing: '0.06em' }}>Your Direct Messages</div>
+            <div style={{ fontSize: 14, fontStyle: 'italic', marginBottom: 20 }}>Select a conversation or start a new one</div>
+            <button
+              onClick={() => setShowNewDM(true)}
+              style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+            >+ New Message</button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {messages.length === 0 && (
-              <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14, marginTop: 40 }}>
-                No messages yet. Say hello!
-              </div>
-            )}
-            {messages.map(msg => {
-              const isMe = msg.user?.id === userId
-              return (
-                <div key={msg.id} style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
-                  {!isMe && (
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: cinzel, fontSize: 11, color: G }}>
-                      {(msg.user?.name || 'W')[0].toUpperCase()}
+        ) : (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Thread header */}
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0, background: V.surf, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button onClick={() => setSelectedConvo(null)} style={{ background: 'none', border: 'none', color: V.mut, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
+              {(() => {
+                const { name, avatar } = getConvoMeta(conversations.find(c => (c.channel || c).id === selectedConvo) || {})
+                return (
+                  <>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, overflow: 'hidden', flexShrink: 0 }}>
+                      {avatar ? <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
                     </div>
-                  )}
-                  <div style={{
-                    maxWidth: '70%',
-                    background: isMe ? 'rgba(201,168,76,0.08)' : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'),
-                    border: `1px solid ${isMe ? 'rgba(201,168,76,0.3)' : V.bdr}`,
-                    borderRadius: isMe ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
-                    padding: '8px 12px',
-                  }}>
-                    <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.5 }}>{msg.text}</div>
-                    <div style={{ fontFamily: crimson, fontSize: 10, color: V.mut, marginTop: 4, textAlign: isMe ? 'right' : 'left' }}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>{name}</span>
+                  </>
+                )
+              })()}
+            </div>
+            {/* Messages scroll */}
+            <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {messages.length === 0 && (
+                <div style={{ textAlign: 'center' as const, color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14, marginTop: 40 }}>
+                  Start the conversation
+                </div>
+              )}
+              {messages.map(msg => {
+                const isMe = msg.user?.id === userId
+                return (
+                  <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: 8 }}>
+                    {!isMe && (
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, flexShrink: 0, overflow: 'hidden', alignSelf: 'flex-end' }}>
+                        {msg.user?.image ? <img src={msg.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (msg.user?.name || '?')[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div style={{ maxWidth: '65%' }}>
+                      {!isMe && <div style={{ fontFamily: cinzel, fontSize: 10, color: V.mut, marginBottom: 3, letterSpacing: '0.04em' }}>{msg.user?.name || 'Warrior'}</div>}
+                      <div style={{ background: isMe ? G : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'), color: isMe ? '#0D0B14' : V.txt, borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px', padding: '10px 14px', fontFamily: crimson, fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                        {msg.text}
+                      </div>
+                      <div style={{ fontSize: 10, color: V.mut, marginTop: 3, textAlign: isMe ? 'right' as const : 'left' as const }}>
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+              <div ref={bottomRef} />
+            </div>
+            {/* Send bar */}
+            <div style={{ flexShrink: 0, borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+              <textarea
+                value={msgDraft}
+                onChange={e => setMsgDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
+                placeholder="Type a message..."
+                rows={2}
+                style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 12px', color: V.txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'none' as const }}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!msgDraft.trim()}
+                style={{ padding: '10px 16px', flexShrink: 0, background: msgDraft.trim() ? G : 'rgba(201,168,76,0.2)', border: 'none', borderRadius: 8, color: msgDraft.trim() ? '#0D0B14' : V.mut, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: msgDraft.trim() ? 'pointer' : 'not-allowed', fontWeight: 700, alignSelf: 'flex-end' }}
+              >Send</button>
+            </div>
           </div>
-          <div style={{ flexShrink: 0, borderTop: '1px solid rgba(201,168,76,0.12)', padding: '12px 16px', display: 'flex', gap: '8px', alignItems: 'flex-end', background: V.surf, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-            <textarea
-              key="messages-input"
-              autoComplete="off"
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-              placeholder="Send a message..."
-              rows={2}
-              style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '8px', padding: '10px 12px', color: V.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' }}
-            />
-            <button onClick={handleSend} disabled={!message.trim()}
-              style={{ padding: '10px 16px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '8px', color: '#C9A84C', fontFamily: cinzel, fontSize: '11px', cursor: message.trim() ? 'pointer' : 'default', alignSelf: 'flex-end' }}>
-              Send →
-            </button>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Right sidebar — recent messages */}
-      {!isMobile && (
-        <div style={{ width: '220px', flexShrink: 0, borderLeft: `1px solid ${V.bdr}`, display: 'flex', flexDirection: 'column', background: V.surf }}>
-          <div style={{ padding: '14px 14px 10px', fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, borderBottom: '1px solid rgba(201,168,76,0.1)', flexShrink: 0 }}>
-            📨 Recent
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' as const }}>
-            {recentMsgs.length === 0
-              ? <div style={{ padding: '20px 14px', fontSize: '12px', color: '#6b6b7a', fontStyle: 'italic', fontFamily: "'Crimson Pro', Georgia, serif" }}>No messages yet</div>
-              : recentMsgs.map(msg => (
-                <div
-                  key={msg.id}
-                  onClick={() => setSelectedConvo(msg.channelId)}
-                  style={{ padding: '10px 14px', borderBottom: '1px solid rgba(201,168,76,0.07)', cursor: 'pointer', transition: 'background 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
-                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', color: '#C9A84C', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '130px' }}>
-                      {msg.senderName}
+        {/* New DM modal */}
+        {showNewDM && (
+          <div onClick={() => setShowNewDM(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: isDark ? '#0D0B14' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', color: G, marginBottom: 16 }}>New Direct Message</div>
+              <input
+                autoFocus
+                type="text"
+                value={newDMSearch}
+                onChange={e => setNewDMSearch(e.target.value)}
+                placeholder="Search members..."
+                style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', color: isDark ? '#f0e8d8' : '#1C1407', fontFamily: crimson, fontSize: 14, outline: 'none', marginBottom: 12 }}
+              />
+              <div style={{ maxHeight: 240, overflowY: 'auto' as const }}>
+                {dmMembers.filter(m => m.id !== userId && `${m.firstName || ''} ${m.lastName || ''} ${m.username || ''}`.toLowerCase().includes(newDMSearch.toLowerCase())).map(m => {
+                  const name = m.firstName ? `${m.firstName} ${m.lastName || ''}`.trim() : m.username || 'Member'
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={() => { onStartDM?.(m.id, name); setShowNewDM(false) }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.08)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                    >
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, overflow: 'hidden', flexShrink: 0 }}>
+                        {m.imageUrl ? <img src={m.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#1C1407', letterSpacing: '0.04em' }}>{name}</div>
+                        <div style={{ fontSize: 10, color: '#6b6b7a' }}>{m.publicMetadata?.tier || 'Watchman'}</div>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      {msg.unread && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A84C', flexShrink: 0 }} />}
-                      <div style={{ fontSize: '9px', color: '#6b6b7a', flexShrink: 0 }}>{fmtTime(msg.ts)}</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '11px', color: V.mut, lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))
-            }
+                  )
+                })}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -965,6 +932,8 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
   const [messages, setMessages] = useState<StreamMsg[]>([])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const V = {
@@ -1036,7 +1005,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
           const sameAuthor = prevMsg && prevMsg.user?.id === msg.user?.id
           const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           return (
-            <div key={msg.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: sameAuthor ? 2 : 12 }}>
+            <div key={msg.id} className="msg-row" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: sameAuthor ? 2 : 12 }}>
               <div style={{ width: 32, flexShrink: 0 }}>
                 {!sameAuthor && (
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontSize: 12, color: '#C9A84C', overflow: 'hidden' }}>
@@ -1056,17 +1025,71 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
                     <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 11, color: V.mut }}>{time}</span>
                   </div>
                 )}
-                <div style={{
-                  fontFamily: "'Crimson Pro', Georgia, serif",
-                  fontSize: 15, color: V.txt, lineHeight: 1.5,
-                  wordBreak: 'break-word',
-                  background: isOwn ? 'rgba(201,168,76,0.06)' : 'transparent',
-                  borderRadius: isOwn ? 6 : 0,
-                  padding: isOwn ? '4px 8px' : '0',
-                  display: 'inline-block', maxWidth: '100%',
-                }}>
-                  {msg.text}
-                </div>
+                {editingId === msg.id ? (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'flex-end' }}>
+                    <textarea
+                      autoFocus
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          streamFetch(`/messages/${msg.id}`, 'PUT', streamToken, apiKey, { message: { text: editText } })
+                            .then(() => { setEditingId(null); fetchMessages() })
+                        }
+                        if (e.key === 'Escape') setEditingId(null)
+                      }}
+                      rows={2}
+                      style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 10px', color: V.txt, fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 14, outline: 'none', resize: 'none' as const }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+                      <button
+                        onClick={() => streamFetch(`/messages/${msg.id}`, 'PUT', streamToken, apiKey, { message: { text: editText } }).then(() => { setEditingId(null); fetchMessages() })}
+                        style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}
+                      >Save</button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        style={{ padding: '4px 10px', background: 'none', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}
+                      >Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{
+                      fontFamily: "'Crimson Pro', Georgia, serif",
+                      fontSize: 15, color: V.txt, lineHeight: 1.5,
+                      wordBreak: 'break-word',
+                      background: isOwn ? 'rgba(201,168,76,0.06)' : 'transparent',
+                      borderRadius: isOwn ? 6 : 0,
+                      padding: isOwn ? '4px 8px' : '0',
+                      display: 'inline-block', maxWidth: '100%',
+                    }}>
+                      {msg.text}
+                    </div>
+                    {isOwn && (
+                      <div className="msg-actions" style={{ display: 'flex', gap: 6, marginTop: 3, opacity: 0, transition: 'opacity 0.15s' }}>
+                        <button
+                          onClick={() => { setEditingId(msg.id); setEditText(msg.text || '') }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: V.mut, fontFamily: cinzel, padding: '1px 6px', borderRadius: 4 }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#C9A84C'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                        >✏ Edit</button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Delete this message?')) return
+                            try {
+                              await streamFetch(`/messages/${msg.id}`, 'DELETE', streamToken, apiKey, undefined)
+                              await fetchMessages()
+                            } catch {}
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: V.mut, fontFamily: cinzel, padding: '1px 6px', borderRadius: 4 }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                        >🗑 Delete</button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )
@@ -2048,7 +2071,7 @@ function CommunityPage() {
             setSidebarOpen={setSidebarOpen}
           />
         )}
-        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} />}
+        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} />}
         {activeSection === 'members'     && (
           <MembersView
             members={members}
@@ -2248,6 +2271,9 @@ function CommunityPage() {
                 const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
                 const tierColor = tierColors[memberTier] || '#6b6b7a'
                 const currentUserId = user?.id || ''
+                const displayName = member.firstName
+                  ? `${member.firstName}${member.lastName ? ' ' + member.lastName[0] + '.' : ''}`
+                  : member.username || member.id?.slice(0, 8) || 'Member'
                 return (
                   <div
                     key={member.id}
@@ -2261,21 +2287,25 @@ function CommunityPage() {
                     >
                       <div style={{ position: 'relative', flexShrink: 0 }}>
                         <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden' }}>
-                          {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (member.firstName?.[0] || '?').toUpperCase()}
+                          {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
                         </div>
                         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: '#4ade80', border: `2px solid ${V.surf}` }} />
                       </div>
                       <div>
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{member.firstName || 'Warrior'}</div>
-                        <div style={{ fontSize: 9, color: tierColor, marginTop: 1 }}>{memberTier}</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{displayName}</div>
+                        <TierBadge tier={memberTier} />
                       </div>
                     </button>
                     {hoveredWarrior === member.id && member.id !== currentUserId && (
-                      <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: 8, background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '10px 12px', zIndex: 100, minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 8 }}>{member.firstName}</div>
+                      <div style={{ position: 'absolute', right: '100%', top: 0, marginRight: 8, background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '10px 12px', zIndex: 100, minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 8 }}>{displayName}</div>
+                        <button
+                          onClick={() => setViewingProfile(member)}
+                          style={{ width: '100%', padding: '5px 10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: V.mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, marginBottom: 6 }}
+                        >👤 Profile</button>
                         <button
                           onClick={() => { setPendingDMWith(member.id); setActiveSection('messages') }}
-                          style={{ width: '100%', padding: '6px 10px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                          style={{ width: '100%', padding: '5px 10px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
                         >💬 Message</button>
                       </div>
                     )}
