@@ -74,6 +74,7 @@ interface StreamMsg {
   text: string
   user: { id: string; name?: string; image?: string }
   created_at: string
+  reaction_counts?: Record<string, number>
 }
 
 // ── SIGN-IN GATE ───────────────────────────────────────────
@@ -327,14 +328,32 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     if (!pendingDMWith || !streamToken || !apiKey || !userId) return
     async function createOrFindDM() {
       const channelId = [userId, pendingDMWith].sort().join('-dm-')
+      console.log('createOrFindDM firing for:', pendingDMWith, 'channelId:', channelId)
       try {
         const d = await streamFetch(
           `/channels/messaging/${channelId}`,
           'POST', streamToken, apiKey,
-          { data: { members: [userId, pendingDMWith] } }
+          {
+            data: {
+              members: [userId, pendingDMWith],
+              created_by_id: userId,
+            },
+            watch: true,
+          }
         )
-        if (d.channel?.id) setSelectedConvo(d.channel.id)
-        else {
+        console.log('DM channel result:', d)
+        const resolvedId = d.channel?.id || (d.channel ? channelId : null)
+        if (resolvedId) {
+          setSelectedConvo(resolvedId)
+          try {
+            const msgs = await streamFetch(
+              `/channels/messaging/${resolvedId}/query`,
+              'POST', streamToken, apiKey,
+              { state: true, messages: { limit: 50 } }
+            )
+            if (msgs.messages) setMessages(msgs.messages)
+          } catch {}
+        } else {
           const found = conversations.find((ch: any) =>
             (ch.members || []).some((m: any) => m.user_id === pendingDMWith)
           )
@@ -499,6 +518,10 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
             </div>
             {/* Send bar */}
             <div style={{ flexShrink: 0, borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+              <button
+                title="Photos & GIFs coming soon"
+                style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'not-allowed', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
+              >📎</button>
               <textarea
                 value={msgDraft}
                 onChange={e => setMsgDraft(e.target.value)}
@@ -934,6 +957,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
   const [sending, setSending] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [hoveredMsg, setHoveredMsg] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const V = {
@@ -1005,7 +1029,10 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
           const sameAuthor = prevMsg && prevMsg.user?.id === msg.user?.id
           const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           return (
-            <div key={msg.id} className="msg-row" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: sameAuthor ? 2 : 12 }}>
+            <div key={msg.id} className="msg-row" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: sameAuthor ? 2 : 12 }}
+              onMouseEnter={() => setHoveredMsg(msg.id)}
+              onMouseLeave={() => setHoveredMsg(null)}
+            >
               <div style={{ width: 32, flexShrink: 0 }}>
                 {!sameAuthor && (
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontSize: 12, color: '#C9A84C', overflow: 'hidden' }}>
@@ -1066,6 +1093,35 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
                     }}>
                       {msg.text}
                     </div>
+                    {/* Reactions */}
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 2, alignItems: 'center' }}>
+                      {msg.reaction_counts && Object.entries(msg.reaction_counts).map(([type, count]) => {
+                        const emojiMap: Record<string, string> = { pray: '🙏', love: '❤️', fire: '🔥', cross: '✝️', sword: '⚔️' }
+                        const emoji = emojiMap[type] || type
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } }).then(() => fetchMessages())}
+                            style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 7px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: V.txt }}
+                          >
+                            {emoji} <span style={{ fontSize: 10, color: V.mut }}>{String(count)}</span>
+                          </button>
+                        )
+                      })}
+                      {hoveredMsg === msg.id && (
+                        <div style={{ display: 'flex', gap: 3, background: V.surf, border: `1px solid ${V.bdr}`, borderRadius: 16, padding: '3px 8px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                          {([['pray','🙏'],['love','❤️'],['fire','🔥'],['cross','✝️'],['sword','⚔️']] as [string,string][]).map(([type, emoji]) => (
+                            <button
+                              key={type}
+                              onClick={() => streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } }).then(() => fetchMessages())}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 8, transition: 'transform 0.1s' }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.3)'}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
+                            >{emoji}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     {isOwn && (
                       <div className="msg-actions" style={{ display: 'flex', gap: 6, marginTop: 3, opacity: 0, transition: 'opacity 0.15s' }}>
                         <button
@@ -1099,6 +1155,10 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 
       {/* Input */}
       <div style={{ flexShrink: 0, borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <button
+          title="Photos & GIFs coming soon"
+          style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'not-allowed', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
+        >📎</button>
         <textarea
           value={draft}
           onChange={e => setDraft(e.target.value)}
@@ -2260,7 +2320,7 @@ function CommunityPage() {
             </div>
 
             {/* Active Warriors */}
-            <div style={{ padding: '14px 16px' }}>
+            <div style={{ padding: '14px 16px', position: 'relative', overflow: 'visible' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                 <span style={{ color: '#4caf50', fontSize: 8 }}>●</span>
                 <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>ACTIVE WARRIORS</span>
@@ -2310,7 +2370,11 @@ function CommunityPage() {
                       </div>
                     </button>
                     {hoveredWarrior === member.id && member.id !== currentUserId && (
-                      <div style={{ position: 'absolute', right: '100%', top: 0, marginRight: 8, background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '10px 12px', zIndex: 100, minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}>
+                      <div
+                        onMouseEnter={() => setHoveredWarrior(member.id)}
+                        onMouseLeave={() => setHoveredWarrior(null)}
+                        style={{ position: 'absolute', right: '100%', top: 0, marginRight: 8, background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '10px 12px', zIndex: 100, minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}
+                      >
                         <div style={{ fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 8 }}>{displayName}</div>
                         <button
                           onClick={() => setViewingProfile(member)}
