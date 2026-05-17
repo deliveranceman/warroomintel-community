@@ -1927,15 +1927,22 @@ function CommunityPage() {
 
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
-        <div
-          onClick={() => { setActiveSection('war-room'); setSidebarOpen(false) }}
-          style={{ padding: '14px 16px 8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+
+        {/* PRAYER WALL COMMUNITY — clickable section header */}
+        <button
+          onClick={() => { setActiveSection('war-room'); if (isMobile) setSidebarOpen(false) }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '16px 16px 4px', display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left' as const }}
+          onMouseEnter={e => { const s = e.currentTarget.querySelector('span') as HTMLElement; if (s) s.style.color = '#C9A84C' }}
+          onMouseLeave={e => { const s = e.currentTarget.querySelector('span') as HTMLElement; if (s) s.style.color = activeSection === 'war-room' ? '#C9A84C' : '#7a6d58' }}
         >
-          <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: activeSection === 'war-room' ? V.gold : V.mut }}>
-            ✕ Community
+          <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: activeSection === 'war-room' ? '#C9A84C' : '#7a6d58', textTransform: 'uppercase' as const, transition: 'color 0.15s' }}>
+            ✕ Prayer Wall Community
           </span>
-        </div>
+        </button>
+
+        {dimItem('Weekly Intel', '📡')}
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
+
         {/* War Room Chat */}
         <button
           onClick={() => { setActiveSection('war-room-chat'); if (isMobile) setSidebarOpen(false) }}
@@ -1957,6 +1964,7 @@ function CommunityPage() {
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚔</span>
           War Room Chat
         </button>
+
         {/* Direct Messages */}
         <button
           onClick={() => { setActiveSection('messages'); if (isMobile) setSidebarOpen(false) }}
@@ -1981,18 +1989,20 @@ function CommunityPage() {
             <span style={{ marginLeft: 'auto', minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{unreadDMs}</span>
           )}
         </button>
+
         {navItem('Members', 'members', '👥')}
 
-        <div style={{ paddingTop: 16 }}>{navItem('Demon Database', 'database', '📖')}</div>
-        {dimItem('Weekly Intel', '📡')}
-
-        {sectionLabel('TRAINING')}
+        {sectionLabel('Arsenal Resources')}
+        {navItem('Demon Database', 'database', '📖')}
+        {navItem('Arsenal', 'arsenal', '✦')}
         {navItem('Resources', 'resources', '📚')}
+
+        {sectionLabel('Training')}
         {dimItem('Courses', '🎓')}
         {dimItem('Protocols', '🗡')}
         {dimItem("General's Table", '✦')}
 
-        {sectionLabel('TOOLS')}
+        {sectionLabel('Tools')}
         {navItem('Assessment', 'assessment', '📋')}
         {navItem('Request Help', 'help', '🙏')}
         {dimItem('Events', '📅')}
