@@ -44,12 +44,12 @@ const THEME_CSS = `
 }
 :root[data-theme="light"] {
   --wri-bg: #f0ebe0;
-  --wri-surface: #faf7f2;
-  --wri-surface2: #f0ead8;
+  --wri-surface: #EDE6D3;
+  --wri-surface2: #E5DCC5;
   --wri-border: rgba(139,105,20,0.25);
-  --wri-text: #1a1508;
-  --wri-dim: #3d2e0a;
-  --wri-muted: #7a6535;
+  --wri-text: #1C1407;
+  --wri-dim: #3B2D0C;
+  --wri-muted: #6B5520;
   --wri-card: #f5f0e8;
   --wri-gold: #8B6914;
 }
@@ -993,7 +993,6 @@ function CommunityPage() {
 
         <div style={{ paddingTop: 16 }}>{navItem('Demon Database', 'database', '📖')}</div>
         {dimItem('Weekly Intel', '📡')}
-        {navItem('Scripture Arsenal', 'arsenal', '✦')}
 
         {sectionLabel('TRAINING')}
         {navItem('Resources', 'resources', '📚')}
