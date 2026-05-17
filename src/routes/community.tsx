@@ -265,11 +265,14 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         const d = await streamFetch('/channels', 'POST', streamToken, apiKey, {
           filter_conditions: {
             type: 'messaging',
-            members: { '$in': [userId] },
-            id: { '$nin': ['prayer-wall-requests', 'war-room-general'] },
+            members: { $in: [userId] },
           },
           sort: [{ field: 'last_message_at', direction: -1 }],
-          state: true, watch: true, presence: true, limit: 30,
+          state: true,
+          watch: false,
+          presence: false,
+          limit: 30,
+          message_limit: 1,
         })
         if (d.channels) setConversations(d.channels)
       } catch (err) {
@@ -279,29 +282,29 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       }
     }
     loadConvos()
-    const interval = setInterval(loadConvos, 5000)
+    const interval = setInterval(loadConvos, 8000)
     return () => clearInterval(interval)
   }, [streamToken, apiKey, userId])
 
   // Load messages when a conversation is selected
   useEffect(() => {
     if (!selectedConvo || !streamToken || !apiKey) return
-    const isWarRoom = selectedConvo === 'war-room-general'
     async function loadMessages() {
       try {
         const d = await streamFetch(
           `/channels/messaging/${selectedConvo}/query`,
           'POST', streamToken, apiKey,
-          { state: true, messages: { limit: isWarRoom ? 50 : 50 } }
+          { state: true, messages: { limit: 50 } }
         )
-        if (d.messages) setMessages(d.messages)
+        if (d.messages) {
+          setMessages(d.messages)
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+        }
       } catch (err) {
         console.error('loadMessages error:', err)
       }
     }
     loadMessages()
-    const interval = setInterval(loadMessages, 3000)
-    return () => clearInterval(interval)
   }, [selectedConvo, streamToken, apiKey])
 
   async function handleSendMessage() {
@@ -312,11 +315,17 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       await streamFetch(
         `/channels/messaging/${selectedConvo}/message`,
         'POST', streamToken, apiKey,
-        { message: { text } }
+        { message: { text, user_id: userId } }
       )
-      const d = await streamFetch(`/channels/messaging/${selectedConvo}/query`, 'POST', streamToken, apiKey, { state: true, messages: { limit: 50 } })
-      if (d.messages) setMessages(d.messages)
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      const d = await streamFetch(
+        `/channels/messaging/${selectedConvo}/query`,
+        'POST', streamToken, apiKey,
+        { state: true, messages: { limit: 50 } }
+      )
+      if (d.messages) {
+        setMessages(d.messages)
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      }
     } catch (err) {
       console.error('Send failed:', err)
       setMsgDraft(text)
@@ -327,38 +336,28 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   useEffect(() => {
     if (!pendingDMWith || !streamToken || !apiKey || !userId) return
     async function createOrFindDM() {
-      const channelId = [userId, pendingDMWith].sort().join('-dm-')
-      console.log('createOrFindDM firing for:', pendingDMWith, 'channelId:', channelId)
+      const sortedIds = [userId, pendingDMWith].sort()
+      const channelId = sortedIds.join('-dm-')
       try {
         const d = await streamFetch(
           `/channels/messaging/${channelId}`,
           'POST', streamToken, apiKey,
           {
-            data: {
-              members: [userId, pendingDMWith],
-              created_by_id: userId,
-            },
-            watch: true,
+            data: { members: sortedIds },
+            watch: false,
           }
         )
-        console.log('DM channel result:', d)
-        const resolvedId = d.channel?.id || (d.channel ? channelId : null)
-        if (resolvedId) {
-          setSelectedConvo(resolvedId)
-          try {
-            const msgs = await streamFetch(
-              `/channels/messaging/${resolvedId}/query`,
-              'POST', streamToken, apiKey,
-              { state: true, messages: { limit: 50 } }
-            )
-            if (msgs.messages) setMessages(msgs.messages)
-          } catch {}
-        } else {
-          const found = conversations.find((ch: any) =>
-            (ch.members || []).some((m: any) => m.user_id === pendingDMWith)
+        console.log('DM channel response:', JSON.stringify(d).slice(0, 200))
+        const resolvedId = d.channel?.id || channelId
+        setSelectedConvo(resolvedId)
+        try {
+          const msgs = await streamFetch(
+            `/channels/messaging/${resolvedId}/query`,
+            'POST', streamToken, apiKey,
+            { state: true, messages: { limit: 50 } }
           )
-          if (found) setSelectedConvo((found.channel || found).id)
-        }
+          if (msgs.messages) setMessages(msgs.messages)
+        } catch (e) { console.error('load msgs error:', e) }
       } catch (err) {
         console.error('createOrFindDM error:', err)
       }
@@ -768,7 +767,11 @@ function MembersView({
 }
 
 // ── POST CARD ──────────────────────────────────────────────
-function PostCard({ msg, pinned, actions, isDark = true }: { msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode; isDark?: boolean }) {
+function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, streamToken, apiKey, onReaction }: {
+  msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode; isDark?: boolean;
+  hoveredId?: string | null; onHover?: (id: string | null) => void;
+  streamToken?: string; apiKey?: string; onReaction?: () => void;
+}) {
   const V = {
     bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
     card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
@@ -776,10 +779,15 @@ function PostCard({ msg, pinned, actions, isDark = true }: { msg: StreamMsg; pin
     txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
     dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
   }
+  const emojiMap: Record<string, string> = { pray: '🙏', love: '❤️', fire: '🔥', cross: '✝️', sword: '⚔️' }
   const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
   const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
   return (
-    <div style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12 }}>
+    <div
+      onMouseEnter={() => onHover?.(msg.id)}
+      onMouseLeave={() => onHover?.(null)}
+      style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12 }}
+    >
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
           {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
@@ -791,18 +799,40 @@ function PostCard({ msg, pinned, actions, isDark = true }: { msg: StreamMsg; pin
             <span style={{ fontFamily: crimson, fontSize: 13, color: V.mut }}>{time}</span>
           </div>
           <p style={{ fontFamily: crimson, fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
-          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
-            {(() => {
-              const h = (s: string, n: number) => { let v = 0; for (let i = 0; i < s.length; i++) v = (v * 31 + s.charCodeAt(i)) & 0xffff; return v % n }
-              return [['🙏', h(msg.id, 20) + 1], ['💬', h(msg.id + '2', 8)], ['🔥', h(msg.id + '3', 12)]].map(([icon, count]) => (
-                <button key={String(icon)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: crimson, fontSize: 14, color: V.mut, padding: 0 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = G)}
-                  onMouseLeave={e => (e.currentTarget.style.color = V.mut)}>
-                  {icon} {count}
-                </button>
-              ))
-            })()}
+          {/* Reactions */}
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 8, alignItems: 'center' }}>
+            {msg.reaction_counts && Object.entries(msg.reaction_counts).map(([type, count]) => (
+              <button
+                key={type}
+                onClick={() => {
+                  if (streamToken && apiKey) {
+                    streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
+                      .then(() => onReaction?.())
+                  }
+                }}
+                style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 7px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: V.txt }}
+              >
+                {emojiMap[type] || type} <span style={{ fontSize: 10, color: V.mut }}>{String(count)}</span>
+              </button>
+            ))}
+            {hoveredId === msg.id && streamToken && (
+              <div style={{ display: 'flex', gap: 3, background: V.surf, border: `1px solid ${V.bdr}`, borderRadius: 16, padding: '3px 8px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                {([['pray','🙏'],['love','❤️'],['fire','🔥'],['cross','✝️'],['sword','⚔️']] as [string,string][]).map(([type, emoji]) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      if (streamToken && apiKey) {
+                        streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
+                          .then(() => onReaction?.())
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 8, transition: 'transform 0.1s' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.3)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
+                  >{emoji}</button>
+                ))}
+              </div>
+            )}
           </div>
           {actions && (
             <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
@@ -834,8 +864,9 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
     txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
     dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
   }
-  const [draft,   setDraft]   = useState('')
-  const [prayers, setPrayers] = useState<StreamMsg[]>([])
+  const [draft,           setDraft]           = useState('')
+  const [prayers,         setPrayers]         = useState<StreamMsg[]>([])
+  const [hoveredPrayerId, setHoveredPrayerId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const fetchPrayers = useCallback(async () => {
@@ -907,7 +938,15 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
           </div>
         )}
         {prayers.map(m => (
-          <PostCard key={m.id} msg={m} isDark={isDark}
+          <PostCard
+            key={m.id}
+            msg={m}
+            isDark={isDark}
+            hoveredId={hoveredPrayerId}
+            onHover={setHoveredPrayerId}
+            streamToken={streamToken}
+            apiKey={apiKey}
+            onReaction={fetchPrayers}
             actions={m.user?.id === userId ? (
               <button
                 onClick={() => handleDeletePrayer(m.id)}
@@ -1552,6 +1591,7 @@ function CommunityPage() {
     const [editingId,    setEditingId]    = useState<string | null>(null)
     const [editText,     setEditText]     = useState('')
     const [showComposer, setShowComposer] = useState(false)
+    const [hoveredPostId, setHoveredPostId] = useState<string | null>(null)
 
     async function handleDeletePost(messageId: string) {
       if (!confirm('Delete this post?')) return
@@ -1611,9 +1651,11 @@ function CommunityPage() {
         )}
 
         <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
-          <PostCard msg={PINNED} pinned isDark={isDark} />
+          <PostCard msg={PINNED} pinned isDark={isDark} streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} hoveredId={hoveredPostId} onHover={setHoveredPostId} />
           {posts.map(msg => (
             <PostCard key={msg.id} msg={msg} isDark={isDark}
+              streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts}
+              hoveredId={hoveredPostId} onHover={setHoveredPostId}
               actions={msg.user?.id === user?.id ? (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {editingId === msg.id ? (
@@ -2121,7 +2163,7 @@ function CommunityPage() {
       </div>
 
       {/* ── CENTER ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
+      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
           <WarRoomChatView
