@@ -13,17 +13,6 @@ const BR2    = 'rgba(201,168,76,0.35)'
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 
-const V = {
-  bg:   'var(--wri-bg)',
-  surf: 'var(--wri-surface)',
-  s2:   'var(--wri-surface2)',
-  bdr:  'var(--wri-border)',
-  txt:  'var(--wri-text)',
-  dim:  'var(--wri-dim)',
-  mut:  'var(--wri-muted)',
-  card: 'var(--wri-card)',
-  gold: 'var(--wri-gold)',
-}
 
 const THEME_CSS = `
 .prayer-hover-item:hover .prayer-callout {
@@ -235,7 +224,7 @@ function EditProfileModal({ userId, existingBio, existingLocation, onClose, isDa
 }
 
 // ── MESSAGES VIEW ─────────────────────────────────────────
-function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName, pendingDMWith, onDMStarted }: {
+function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName, pendingDMWith, onDMStarted, isDark = true }: {
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   streamToken: string
@@ -245,7 +234,15 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   userName: string
   pendingDMWith?: string | null
   onDMStarted?: () => void
+  isDark?: boolean
 }) {
+  const V = {
+    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
+    card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
+    txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
+    dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
+  }
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
   const [hoveredConvo, setHoveredConvo]   = useState<string | null>(null)
   const [message, setMessage]             = useState('')
@@ -771,7 +768,14 @@ function MembersView({
 }
 
 // ── POST CARD ──────────────────────────────────────────────
-function PostCard({ msg, pinned, actions }: { msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode }) {
+function PostCard({ msg, pinned, actions, isDark = true }: { msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode; isDark?: boolean }) {
+  const V = {
+    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
+    card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
+    txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
+    dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
+  }
   const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
   const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
   return (
@@ -822,7 +826,14 @@ interface PrayerViewProps {
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
-function PrayerView({ streamToken, apiKey, userId, isMobile, setSidebarOpen }: PrayerViewProps) {
+function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen }: PrayerViewProps) {
+  const V = {
+    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
+    card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
+    txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
+    dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
+  }
   const [draft,   setDraft]   = useState('')
   const [prayers, setPrayers] = useState<StreamMsg[]>([])
 
@@ -862,12 +873,23 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, setSidebarOpen }: P
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <button onClick={() => setSidebarOpen(o => !o)}
-          style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', display: isMobile ? 'block' : 'none' }}>
-          ☰
-        </button>
-        <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(o => !o)}
+              style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer' }}>
+              ☰
+            </button>
+          )}
+          <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
+        </div>
+        <button
+          onClick={() => {
+            const input = document.querySelector('input[placeholder="Add a prayer request..."]') as HTMLInputElement
+            if (input) input.focus()
+          }}
+          style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '6px', color: G, fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+        >+ Add Prayer</button>
       </div>
       <div style={{ margin: '12px 20px 0', padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start', flexShrink: 0 }}>
         <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⚠️</span>
@@ -887,7 +909,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, setSidebarOpen }: P
           </div>
         )}
         {prayers.map(m => (
-          <PostCard key={m.id} msg={m}
+          <PostCard key={m.id} msg={m} isDark={isDark}
             actions={m.user?.id === userId ? (
               <button
                 onClick={() => handleDeletePrayer(m.id)}
@@ -1179,6 +1201,17 @@ function CommunityPage() {
   )
 
   const isDark = theme !== 'light'
+  const V = {
+    bg:   isDark ? '#0D0B14' : '#f5f0e8',
+    surf: isDark ? '#1a1714' : '#EDE6D3',
+    card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
+    txt:  isDark ? '#f0e8d8' : '#1C1407',
+    mut:  isDark ? '#9a8c74' : '#6B5520',
+    dim:  isDark ? '#c8b99a' : '#3a2a0a',
+    s2:   isDark ? '#1c1814' : '#e8e0d0',
+    gold: '#C9A84C',
+  }
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const sectionLabel = (label: string) => (
@@ -1311,9 +1344,9 @@ function CommunityPage() {
               </div>
             </div>
           </div>
-          <PostCard msg={PINNED} pinned />
+          <PostCard msg={PINNED} pinned isDark={isDark} />
           {posts.map(msg => (
-            <PostCard key={msg.id} msg={msg}
+            <PostCard key={msg.id} msg={msg} isDark={isDark}
               actions={msg.user?.id === user?.id ? (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {editingId === msg.id ? (
@@ -1797,7 +1830,7 @@ function CommunityPage() {
             setSidebarOpen={setSidebarOpen}
           />
         )}
-        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} />}
+        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} />}
         {activeSection === 'members'     && (
           <MembersView
             members={members}
@@ -1913,13 +1946,6 @@ function CommunityPage() {
                   })
                 )}
               </div>
-              <button
-                onClick={() => setActiveSection('prayer-wall')}
-                style={{ width: '100%', marginTop: 10, padding: '8px 12px', background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 6, color: V.gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.background = 'rgba(201,168,76,0.1)'; el.style.borderColor = 'rgba(201,168,76,0.6)' }}
-                onMouseLeave={e => { const el = e.currentTarget; el.style.background = 'transparent'; el.style.borderColor = 'rgba(201,168,76,0.35)' }}>
-                + Add Prayer Request
-              </button>
             </div>
 
             {/* Recent Messages */}
