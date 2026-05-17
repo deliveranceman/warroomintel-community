@@ -437,8 +437,10 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
             </div>
           )}
           {!loading && conversations.length === 0 && (
-            <div style={{ padding: 24, textAlign: 'center', color: V.mut, fontFamily: crimson, fontSize: 14, fontStyle: 'italic' }}>
-              No conversations yet. Visit the Members page to start a direct message.
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: V.mut, fontFamily: "'Crimson Pro', Georgia, serif", fontSize: '15px', fontStyle: 'italic', textAlign: 'center' as const }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px' }}>💬</div>
+              <div style={{ marginBottom: '8px', color: V.txt }}>No conversations yet</div>
+              <div style={{ fontSize: '13px' }}>Go to Members to start a direct message</div>
             </div>
           )}
           {conversations.map(ch => {
@@ -893,7 +895,6 @@ function CommunityPage() {
     if (!streamToken || !apiKey) return
     try {
       const d = await streamFetch('/channels/messaging/prayer-wall-requests/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 20 } })
-      console.log('FETCH PRAYERS RAW:', d)
       if (d.messages) {
         const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
         setPrayers(
@@ -910,7 +911,7 @@ function CommunityPage() {
     fetchPosts()
     fetchPrayers()
     if (pollRef.current) clearInterval(pollRef.current)
-    pollRef.current = setInterval(() => { fetchPosts(); fetchPrayers() }, 5000)
+    pollRef.current = setInterval(() => { fetchPosts(); fetchPrayers() }, 30000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [streamToken, apiKey, fetchPosts, fetchPrayers])
 
@@ -958,11 +959,15 @@ function CommunityPage() {
   }, [streamToken])
 
   useEffect(() => {
+    if (!user?.id) return
     fetch('/api-get-members')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data.members)) setMembers(data.members) })
-      .catch(() => {})
-  }, [])
+      .then(data => {
+        console.log('get-members response:', data)
+        if (Array.isArray(data.members)) setMembers(data.members)
+      })
+      .catch(err => console.error('get-members error:', err))
+  }, [user?.id])
 
   useEffect(() => {
     if (!streamToken || !apiKey) return
@@ -1024,6 +1029,8 @@ function CommunityPage() {
       </div>
     </div>
   )
+
+  const isDark = theme !== 'light'
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const sectionLabel = (label: string) => (
@@ -1100,7 +1107,7 @@ function CommunityPage() {
   ) : null
 
   // ── POST CARD ──────────────────────────────────────────────
-  const PostCard = ({ msg, pinned, onDelete }: { msg: StreamMsg; pinned?: boolean; onDelete?: () => void }) => {
+  const PostCard = ({ msg, pinned, actions }: { msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode }) => {
     const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
     const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
     return (
@@ -1129,16 +1136,9 @@ function CommunityPage() {
                 ))
               })()}
             </div>
-            {onDelete && (
-              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
-                <button
-                  onClick={onDelete}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
-                >
-                  🗑 Delete
-                </button>
+            {actions && (
+              <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
+                {actions}
               </div>
             )}
           </div>
@@ -1156,6 +1156,9 @@ function CommunityPage() {
 
   // ── VIEWS ──────────────────────────────────────────────────
   const WarRoomView = () => {
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editText,  setEditText]  = useState('')
+
     async function handleDeletePost(messageId: string) {
       if (!confirm('Delete this post?')) return
       try {
@@ -1163,6 +1166,15 @@ function CommunityPage() {
         await fetchPosts()
       } catch (err) { console.error('Delete failed:', err) }
     }
+
+    async function handleEditPost(messageId: string) {
+      try {
+        await streamFetch(`/messages/${messageId}`, 'PUT', streamToken, apiKey, { message: { text: editText } })
+        setEditingId(null)
+        await fetchPosts()
+      } catch (err) { console.error('Edit failed:', err) }
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
@@ -1193,9 +1205,41 @@ function CommunityPage() {
             </div>
           </div>
           <PostCard msg={PINNED} pinned />
-          {posts.map(m => (
-            <PostCard key={m.id} msg={m}
-              onDelete={m.user?.id === user?.id ? () => handleDeletePost(m.id) : undefined}
+          {posts.map(msg => (
+            <PostCard key={msg.id} msg={msg}
+              actions={msg.user?.id === user?.id ? (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {editingId === msg.id ? (
+                    <>
+                      <textarea
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        rows={2}
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '6px', padding: '6px 10px', color: V.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' as const }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
+                        <button onClick={() => handleEditPost(msg.id)} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '4px', color: G, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setEditingId(null)} style={{ background: 'none', border: '1px solid rgba(201,168,76,0.15)', borderRadius: '4px', color: V.mut, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Cancel</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setEditingId(msg.id); setEditText(msg.text || '') }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                      >✏ Edit</button>
+                      <button
+                        onClick={() => handleDeletePost(msg.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                      >🗑 Delete</button>
+                    </>
+                  )}
+                </div>
+              ) : undefined}
             />
           ))}
           <div ref={bottomRef} />
@@ -1216,21 +1260,15 @@ function CommunityPage() {
     }
 
     async function handleSend() {
-      if (!draft.trim() || !streamToken || !apiKey) {
-        console.log('PRAYER BLOCKED:', { hasDraft: !!draft.trim(), hasToken: !!streamToken, hasKey: !!apiKey })
-        return
-      }
+      if (!draft.trim() || !streamToken || !apiKey) return
       try {
-        console.log('SENDING PRAYER to Stream...')
-        const result = await streamFetch(
+        await streamFetch(
           '/channels/messaging/prayer-wall-requests/message',
           'POST', streamToken, apiKey,
           { message: { text: draft.trim() } }
         )
-        console.log('PRAYER RESULT:', result)
         setDraft('')
         await fetchPrayers()
-        console.log('PRAYERS AFTER FETCH:', prayers.length)
       } catch (err) {
         console.error('PRAYER ERROR:', err)
       }
@@ -1286,7 +1324,14 @@ function CommunityPage() {
           )}
           {prayers.map(m => (
             <PostCard key={m.id} msg={m}
-              onDelete={m.user?.id === user?.id ? () => handleDeletePrayer(m.id) : undefined}
+              actions={m.user?.id === user?.id ? (
+                <button
+                  onClick={() => handleDeletePrayer(m.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                >🗑 Delete</button>
+              ) : undefined}
             />
           ))}
         </div>
