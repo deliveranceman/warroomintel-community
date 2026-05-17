@@ -520,7 +520,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                   )}
                   <div style={{
                     maxWidth: '70%',
-                    background: isMe ? 'rgba(201,168,76,0.15)' : V.s2,
+                    background: isMe ? 'rgba(201,168,76,0.08)' : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'),
                     border: `1px solid ${isMe ? 'rgba(201,168,76,0.3)' : V.bdr}`,
                     borderRadius: isMe ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
                     padding: '8px 12px',
@@ -555,7 +555,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
 
       {/* Right sidebar — recent messages */}
       {!isMobile && (
-        <div style={{ width: '220px', flexShrink: 0, borderLeft: '1px solid rgba(201,168,76,0.12)', display: 'flex', flexDirection: 'column', background: 'rgba(13,11,20,0.5)' }}>
+        <div style={{ width: '220px', flexShrink: 0, borderLeft: `1px solid ${V.bdr}`, display: 'flex', flexDirection: 'column', background: V.surf }}>
           <div style={{ padding: '14px 14px 10px', fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, borderBottom: '1px solid rgba(201,168,76,0.1)', flexShrink: 0 }}>
             📨 Recent
           </div>
@@ -579,7 +579,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                       <div style={{ fontSize: '9px', color: '#6b6b7a', flexShrink: 0 }}>{fmtTime(msg.ts)}</div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#7a7a8a', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
+                  <div style={{ fontSize: '11px', color: V.mut, lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
                     {msg.text}
                   </div>
                 </div>
@@ -949,6 +949,165 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
   )
 }
 
+// ── WAR ROOM CHAT VIEW ─────────────────────────────────────
+interface WarRoomChatViewProps {
+  streamToken: string
+  apiKey: string
+  userId: string
+  userName: string
+  userImageUrl: string
+  isDark: boolean
+  isMobile: boolean
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSidebarOpen }: WarRoomChatViewProps) {
+  const [messages, setMessages] = useState<StreamMsg[]>([])
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  const V = {
+    bg:   isDark ? '#0D0B14' : '#f5f0e8',
+    surf: isDark ? '#1a1714' : '#EDE6D3',
+    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
+    txt:  isDark ? '#f0e8d8' : '#1C1407',
+    mut:  isDark ? '#9a8c74' : '#6B5520',
+    s2:   isDark ? '#1c1814' : '#e8e0d0',
+  }
+
+  const fetchMessages = useCallback(async () => {
+    if (!streamToken || !apiKey) return
+    try {
+      const d = await streamFetch(
+        '/channels/livestream/war-room-general/query',
+        'POST', streamToken, apiKey,
+        { state: true, messages: { limit: 50 } }
+      )
+      if (d.messages) {
+        setMessages(d.messages)
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      }
+    } catch {}
+  }, [streamToken, apiKey])
+
+  useEffect(() => {
+    fetchMessages()
+    const t = setInterval(fetchMessages, 5000)
+    return () => clearInterval(t)
+  }, [fetchMessages])
+
+  async function handleSend() {
+    if (!draft.trim() || sending) return
+    const text = draft.trim()
+    setSending(true)
+    setDraft('')
+    try {
+      await streamFetch(
+        '/channels/livestream/war-room-general/message',
+        'POST', streamToken, apiKey,
+        { message: { text } }
+      )
+      await fetchMessages()
+    } catch { setDraft(text) } finally { setSending(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: V.bg }}>
+      {/* Header */}
+      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: '#C9A84C', fontSize: 20, cursor: 'pointer' }}>☰</button>
+        )}
+        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9A84C', letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Chat</span>
+        <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 12, color: V.mut, fontStyle: 'italic' }}>All members</span>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 14, marginTop: 60 }}>
+            No messages yet. Be the first to speak.
+          </div>
+        )}
+        {messages.map((msg, i) => {
+          const isOwn = msg.user?.id === userId
+          const prevMsg = messages[i - 1]
+          const sameAuthor = prevMsg && prevMsg.user?.id === msg.user?.id
+          const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          return (
+            <div key={msg.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: sameAuthor ? 2 : 12 }}>
+              <div style={{ width: 32, flexShrink: 0 }}>
+                {!sameAuthor && (
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontSize: 12, color: '#C9A84C', overflow: 'hidden' }}>
+                    {msg.user?.image
+                      ? <img src={msg.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : (msg.user?.name || '?')[0].toUpperCase()
+                    }
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {!sameAuthor && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: isOwn ? '#C9A84C' : V.txt, fontWeight: 600, letterSpacing: '0.04em' }}>
+                      {msg.user?.name || 'Warrior'}
+                    </span>
+                    <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 11, color: V.mut }}>{time}</span>
+                  </div>
+                )}
+                <div style={{
+                  fontFamily: "'Crimson Pro', Georgia, serif",
+                  fontSize: 15, color: V.txt, lineHeight: 1.5,
+                  wordBreak: 'break-word',
+                  background: isOwn ? 'rgba(201,168,76,0.06)' : 'transparent',
+                  borderRadius: isOwn ? 6 : 0,
+                  padding: isOwn ? '4px 8px' : '0',
+                  display: 'inline-block', maxWidth: '100%',
+                }}>
+                  {msg.text}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ flexShrink: 0, borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+          placeholder="Message the War Room... (Enter to send)"
+          rows={2}
+          style={{
+            flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+            border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8,
+            padding: '10px 12px', color: V.txt,
+            fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 14,
+            outline: 'none', resize: 'none' as const,
+          }}
+        />
+        <button
+          onClick={handleSend}
+          disabled={!draft.trim() || sending}
+          style={{
+            padding: '10px 16px', flexShrink: 0,
+            background: draft.trim() && !sending ? '#C9A84C' : 'rgba(201,168,76,0.2)',
+            border: 'none', borderRadius: 8,
+            color: draft.trim() && !sending ? '#0D0B14' : '#6b6b7a',
+            fontFamily: "'Cinzel', serif", fontSize: 11,
+            letterSpacing: '0.08em', cursor: draft.trim() && !sending ? 'pointer' : 'not-allowed',
+            fontWeight: 700, alignSelf: 'flex-end',
+          }}
+        >{sending ? '...' : 'Send'}</button>
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -979,6 +1138,7 @@ function CommunityPage() {
   const [viewingProfile, setViewingProfile] = useState<any>(null)
   const [editingProfile, setEditingProfile] = useState(false)
   const [pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
+  const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
   const [recentMessages, setRecentMessages] = useState<Array<{
     id: string; senderName: string; text: string; timeAgo: string
   }>>([])
@@ -1752,26 +1912,49 @@ function CommunityPage() {
           </span>
         </div>
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
-        {/* Messages — inline for unread badge */}
-        {(() => {
-          const active = activeSection === 'messages'
-          return (
-            <button
-              onClick={() => { setActiveSection('messages'); if (isMobile) setSidebarOpen(false) }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: active ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${active ? G : 'transparent'}`, textAlign: 'left', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: active ? G : NAV_DEFAULT, transition: 'all 0.15s' }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = G } }}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
-            >
-              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>💬</span>
-              <span style={{ flex: 1 }}>Messages</span>
-              {unreadDMs > 0 && (
-                <div style={{ minWidth: 18, height: 18, borderRadius: 9, background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-                  {unreadDMs}
-                </div>
-              )}
-            </button>
-          )
-        })()}
+        {/* War Room Chat */}
+        <button
+          onClick={() => { setActiveSection('war-room-chat'); if (isMobile) setSidebarOpen(false) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            width: '100%', padding: '8px 16px',
+            background: activeSection === 'war-room-chat' ? 'rgba(201,168,76,0.1)' : 'transparent',
+            border: 'none',
+            borderLeft: activeSection === 'war-room-chat' ? '2px solid #C9A84C' : '2px solid transparent',
+            textAlign: 'left', cursor: 'pointer',
+            fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
+            color: activeSection === 'war-room-chat' ? G : NAV_DEFAULT,
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => { if (activeSection !== 'war-room-chat') e.currentTarget.style.color = G }}
+          onMouseLeave={e => { if (activeSection !== 'war-room-chat') e.currentTarget.style.color = NAV_DEFAULT }}
+        >
+          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚔</span>
+          War Room Chat
+        </button>
+        {/* Direct Messages */}
+        <button
+          onClick={() => { setActiveSection('messages'); if (isMobile) setSidebarOpen(false) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            width: '100%', padding: '8px 16px',
+            background: activeSection === 'messages' ? 'rgba(201,168,76,0.1)' : 'transparent',
+            border: 'none',
+            borderLeft: activeSection === 'messages' ? '2px solid #C9A84C' : '2px solid transparent',
+            textAlign: 'left', cursor: 'pointer',
+            fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
+            color: activeSection === 'messages' ? G : NAV_DEFAULT,
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => { if (activeSection !== 'messages') e.currentTarget.style.color = G }}
+          onMouseLeave={e => { if (activeSection !== 'messages') e.currentTarget.style.color = NAV_DEFAULT }}
+        >
+          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>💬</span>
+          Direct Messages
+          {unreadDMs > 0 && (
+            <span style={{ marginLeft: 'auto', minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{unreadDMs}</span>
+          )}
+        </button>
         {navItem('Members', 'members', '👥')}
 
         <div style={{ paddingTop: 16 }}>{navItem('Demon Database', 'database', '📖')}</div>
@@ -1840,7 +2023,19 @@ function CommunityPage() {
 
       {/* ── CENTER ── */}
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', background: V.bg, height: isMobile ? '100vh' : undefined }}>
-        {activeSection === 'war-room'    && <WarRoomView />}
+        {activeSection === 'war-room'      && <WarRoomView />}
+        {activeSection === 'war-room-chat' && (
+          <WarRoomChatView
+            streamToken={streamToken}
+            apiKey={apiKey}
+            userId={user?.id || ''}
+            userName={user?.fullName || user?.firstName || 'Warrior'}
+            userImageUrl={user?.imageUrl || ''}
+            isDark={isDark}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+          />
+        )}
         {activeSection === 'prayer-wall' && (
           <PrayerView
             streamToken={streamToken}
@@ -1907,13 +2102,15 @@ function CommunityPage() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
 
             {/* Prayer Wall widget */}
-            <div style={{ marginBottom: 24, padding: '14px 16px', borderBottom: `1px solid ${V.bdr}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <span style={{ fontSize: 16 }}>🙏</span>
-                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, textTransform: 'uppercase' }}>
-                  Prayer Wall
-                </span>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${V.bdr}` }}>
+                <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em', color: G, textTransform: 'uppercase' }}>🙏 Prayer Wall</span>
+                <button
+                  onClick={() => setActiveSection('prayer-wall')}
+                  style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '20px', color: '#C9A84C', fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                >+ Add</button>
               </div>
+              <div style={{ padding: '10px 14px 0' }}>
               {/* Callout — rendered once OUTSIDE the scrollable div, position:fixed */}
               {hoveredPrayer && (
                 <div style={{
@@ -1968,6 +2165,7 @@ function CommunityPage() {
                     )
                   })
                 )}
+              </div>
               </div>
             </div>
 
@@ -2031,6 +2229,7 @@ function CommunityPage() {
                 <span style={{ color: '#4caf50', fontSize: 8 }}>●</span>
                 <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>ACTIVE WARRIORS</span>
               </div>
+              {/* Current user always shown first */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <div style={{ position: 'relative' }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden' }}>
@@ -2043,9 +2242,46 @@ function CommunityPage() {
                   <TierBadge tier={tier} />
                 </div>
               </div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, fontStyle: 'italic', marginTop: 8 }}>
-                More warriors coming online...
-              </div>
+              {/* Other members */}
+              {members.filter(m => m.id !== user?.id).slice(0, 6).map(member => {
+                const memberTier = member.publicMetadata?.tier || 'Watchman'
+                const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
+                const tierColor = tierColors[memberTier] || '#6b6b7a'
+                const currentUserId = user?.id || ''
+                return (
+                  <div
+                    key={member.id}
+                    style={{ position: 'relative' }}
+                    onMouseEnter={() => setHoveredWarrior(member.id)}
+                    onMouseLeave={() => setHoveredWarrior(null)}
+                  >
+                    <button
+                      onClick={() => setViewingProfile(member)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}
+                    >
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden' }}>
+                          {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (member.firstName?.[0] || '?').toUpperCase()}
+                        </div>
+                        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: '#4ade80', border: `2px solid ${V.surf}` }} />
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{member.firstName || 'Warrior'}</div>
+                        <div style={{ fontSize: 9, color: tierColor, marginTop: 1 }}>{memberTier}</div>
+                      </div>
+                    </button>
+                    {hoveredWarrior === member.id && member.id !== currentUserId && (
+                      <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: 8, background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '10px 12px', zIndex: 100, minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 8 }}>{member.firstName}</div>
+                        <button
+                          onClick={() => { setPendingDMWith(member.id); setActiveSection('messages') }}
+                          style={{ width: '100%', padding: '6px 10px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                        >💬 Message</button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
