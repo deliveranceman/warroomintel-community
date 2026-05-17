@@ -1407,12 +1407,12 @@ function CommunityPage() {
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const sectionLabel = (label: string) => (
-    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: theme === 'light' ? V.mut : V.gold }}>
+    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#8a7a60' }}>
       {label}
     </div>
   )
 
-  const NAV_DEFAULT = V.txt
+  const NAV_DEFAULT = isDark ? '#b8a98a' : V.txt
 
   const navItem = (label: string, section: string, icon?: string) => {
     const active = activeSection === section
@@ -1427,6 +1427,7 @@ function CommunityPage() {
           textAlign: 'left', cursor: 'pointer',
           fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
           color: active ? G : NAV_DEFAULT,
+          fontWeight: active ? 600 : 400,
           transition: 'all 0.15s',
         }}
         onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = G } }}
@@ -1462,9 +1463,9 @@ function CommunityPage() {
 
   const dimItem = (label: string, icon?: string) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderLeft: '2px solid transparent', cursor: 'default' }}>
-      {icon && <span style={{ fontSize: 14, width: 20, opacity: 0.5 }}>{icon}</span>}
-      <span style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: V.mut, flex: 1 }}>{label}</span>
-      <span style={{ fontFamily: cinzel, fontSize: 8, color: V.mut, border: `1px solid ${V.bdr}`, padding: '1px 5px', borderRadius: 8 }}>SOON</span>
+      {icon && <span style={{ fontSize: 14, width: 20, opacity: 0.6 }}>{icon}</span>}
+      <span style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, flex: 1 }}>{label}</span>
+      <span style={{ fontFamily: cinzel, fontSize: 8, color: '#8a7a5a', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', padding: '1px 5px', borderRadius: 8 }}>SOON</span>
     </div>
   )
 
@@ -1688,12 +1689,12 @@ function CommunityPage() {
       return matchesSearch && matchesFilter
     })
 
-    const isDark   = theme !== 'light'
-    const dbBg     = isDark ? '#0e0c09' : '#f5f0e8'
-    const dbSurf   = isDark ? '#1a1714' : '#ffffff'
-    const dbBorder = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(140,110,40,0.2)'
-    const dbText   = isDark ? '#ddd5c0' : '#2a2015'
-    const dbDim    = isDark ? '#c8bfa8' : '#4a3f2a'
+    const dbIsDark = theme !== 'light'
+    const dbBg     = dbIsDark ? '#0D0B14' : '#f5f0e8'
+    const dbSurf   = dbIsDark ? '#1a1714' : '#EDE6D3'
+    const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)'
+    const dbText   = dbIsDark ? '#f0e8d8' : '#1C1407'
+    const dbDim    = dbIsDark ? '#c8b99a' : '#3a2a0a'
 
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden' }}>
@@ -1870,7 +1871,7 @@ function CommunityPage() {
             <img src="/logo.png" alt="WRI" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             <div>
               <div style={{ fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: G }}>WAR ROOM</div>
-              <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.2em', color: 'rgba(201,168,76,0.5)' }}>INTELLIGENCE CENTER</div>
+              <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.2em', color: isDark ? '#6b5e45' : '#8a7a60' }}>INTELLIGENCE CENTER</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1906,7 +1907,7 @@ function CommunityPage() {
             )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 13, color: V.txt, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? '#e8dcc8' : '#1C1407', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.firstName || user?.fullName || 'Warrior'}
             </div>
             <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 1 }}>
@@ -1914,9 +1915,9 @@ function CommunityPage() {
             </div>
           </div>
           <SignOutButton>
-            <button style={{ background: 'none', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', cursor: 'pointer', flexShrink: 0, transition: 'color 0.15s, border-color 0.15s' }}
+            <button style={{ background: 'none', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, color: isDark ? '#8a7a5a' : '#6B5520', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', cursor: 'pointer', flexShrink: 0, transition: 'color 0.15s, border-color 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.color = G; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = V.mut; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.2)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = isDark ? '#8a7a5a' : '#6B5520'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.2)' }}
             >
               Sign Out
             </button>
@@ -1947,6 +1948,7 @@ function CommunityPage() {
             textAlign: 'left', cursor: 'pointer',
             fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
             color: activeSection === 'war-room-chat' ? G : NAV_DEFAULT,
+            fontWeight: activeSection === 'war-room-chat' ? 600 : 400,
             transition: 'color 0.15s',
           }}
           onMouseEnter={e => { if (activeSection !== 'war-room-chat') e.currentTarget.style.color = G }}
@@ -1967,6 +1969,7 @@ function CommunityPage() {
             textAlign: 'left', cursor: 'pointer',
             fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
             color: activeSection === 'messages' ? G : NAV_DEFAULT,
+            fontWeight: activeSection === 'messages' ? 600 : 400,
             transition: 'color 0.15s',
           }}
           onMouseEnter={e => { if (activeSection !== 'messages') e.currentTarget.style.color = G }}
@@ -2033,12 +2036,12 @@ function CommunityPage() {
         transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.25s ease',
         display: 'flex', flexDirection: 'column',
-        background: V.surf, borderRight: `1px solid ${V.bdr}`,
+        background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
         overflowY: 'auto' as const, WebkitOverflowScrolling: 'touch' as any,
         paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
         display: 'flex', flexDirection: 'column',
-        background: V.surf, borderRight: `1px solid ${V.bdr}`, overflow: 'hidden',
+        background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`, overflow: 'hidden',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         <SidebarContent />
