@@ -67,9 +67,9 @@ export function AIAssistant() {
         style={{
           position: 'fixed',
           bottom: '1.5rem',
-          right: '1.5rem',
-          width: '56px',
-          height: '56px',
+          left: '1.5rem',
+          width: '44px',
+          height: '44px',
           borderRadius: '50%',
           background: 'var(--gold)',
           color: 'var(--deep)',
@@ -104,7 +104,7 @@ export function AIAssistant() {
           style={{
             position: 'fixed',
             bottom: '5rem',
-            right: '1.5rem',
+            left: '1.5rem',
             width: '360px',
             maxWidth: 'calc(100vw - 3rem)',
             maxHeight: '500px',

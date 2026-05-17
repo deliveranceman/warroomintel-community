@@ -121,6 +121,21 @@ const mobileStyles = `
     .features-grid {
       grid-template-columns: 1fr !important;
     }
+    /* Hero CTA buttons — stack vertically */
+    .hero-ctas {
+      flex-direction: column !important;
+      width: 100% !important;
+      max-width: 340px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+    .hero-ctas a,
+    .hero-ctas button {
+      width: 100% !important;
+      justify-content: center !important;
+      text-align: center !important;
+      box-sizing: border-box !important;
+    }
   }
   @media (min-width: 641px) and (max-width: 900px) {
     .db-row {
@@ -176,7 +191,7 @@ function Hero() {
         </p>
 
         {/* CTAs */}
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' as const, justifyContent: 'center', marginBottom: '20px', animation: 'fadeUp 0.8s 0.4s both' }}>
+        <div className="hero-ctas" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' as const, justifyContent: 'center', marginBottom: '20px', animation: 'fadeUp 0.8s 0.4s both' }}>
           <a href="#database" style={{ background: gold, color: deep, fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', textDecoration: 'none', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--gold-light)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
             onMouseLeave={e => { e.currentTarget.style.background = gold; e.currentTarget.style.transform = 'translateY(0)' }}>

@@ -371,6 +371,28 @@ export function Header() {
           </button>
         )}
 
+        {/* ── Mobile Join CTA (signed-out only) ── */}
+        <SignedOut>
+          <a href="/membership"
+            className="wr-hamburger"
+            style={{
+              background: 'var(--gold)',
+              color: 'var(--deep)',
+              fontFamily: cinzel,
+              fontSize: '11px',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase' as const,
+              padding: '7px 14px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontWeight: 700,
+              whiteSpace: 'nowrap' as const,
+              flexShrink: 0,
+            }}>
+            Join
+          </a>
+        </SignedOut>
+
         {/* ── Theme toggle ── */}
         <button
           onClick={toggleTheme}
@@ -404,21 +426,23 @@ export function Header() {
           onClick={() => setMenuOpen(o => !o)}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            padding: '6px', flexDirection: 'column', gap: '5px',
+            padding: '4px 6px', flexDirection: 'column', gap: 2,
             alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
+            flexShrink: 0, color: gold,
           }}
           aria-label="Toggle menu">
           {menuOpen ? (
-            <div style={{ position: 'relative', width: '22px', height: '22px' }}>
-              <div style={{ position: 'absolute', top: '50%', left: 0, width: '22px', height: '2px', background: gold, transform: 'rotate(45deg)', transformOrigin: 'center' }} />
-              <div style={{ position: 'absolute', top: '50%', left: 0, width: '22px', height: '2px', background: gold, transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
-            </div>
+            <>
+              <div style={{ position: 'relative', width: '22px', height: '22px' }}>
+                <div style={{ position: 'absolute', top: '50%', left: 0, width: '22px', height: '2px', background: gold, transform: 'rotate(45deg)', transformOrigin: 'center' }} />
+                <div style={{ position: 'absolute', top: '50%', left: 0, width: '22px', height: '2px', background: gold, transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
+              </div>
+              <span style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>Close</span>
+            </>
           ) : (
             <>
-              <div style={{ width: '22px', height: '2px', background: gold, borderRadius: '1px' }} />
-              <div style={{ width: '16px', height: '2px', background: gold, borderRadius: '1px' }} />
-              <div style={{ width: '22px', height: '2px', background: gold, borderRadius: '1px' }} />
+              <span style={{ fontSize: '20px', lineHeight: 1 }}>☰</span>
+              <span style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>Menu</span>
             </>
           )}
         </button>
