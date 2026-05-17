@@ -2030,16 +2030,33 @@ function CommunityPage() {
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
-        {/* PRAYER WALL COMMUNITY — clickable section header */}
+        {/* WAR ROOM COMMUNITY — clickable section header */}
         <button
           onClick={() => { setActiveSection('war-room'); if (isMobile) setSidebarOpen(false) }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '16px 16px 4px', display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left' as const }}
-          onMouseEnter={e => { const s = e.currentTarget.querySelector('span') as HTMLElement; if (s) s.style.color = '#C9A84C' }}
-          onMouseLeave={e => { const s = e.currentTarget.querySelector('span') as HTMLElement; if (s) s.style.color = activeSection === 'war-room' ? '#C9A84C' : '#7a6d58' }}
+          onMouseEnter={e => {
+            const el = e.currentTarget.querySelector('.wrc-label') as HTMLElement
+            if (el) { el.style.color = '#C9A84C'; el.style.textDecoration = 'underline' }
+          }}
+          onMouseLeave={e => {
+            const el = e.currentTarget.querySelector('.wrc-label') as HTMLElement
+            if (el) { el.style.color = activeSection === 'war-room' ? '#C9A84C' : '#7a6d58'; el.style.textDecoration = 'none' }
+          }}
         >
-          <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: activeSection === 'war-room' ? '#C9A84C' : '#7a6d58', textTransform: 'uppercase' as const, transition: 'color 0.15s' }}>
-            ✕ War Room Community
+          <span style={{ fontSize: 10, color: activeSection === 'war-room' ? '#C9A84C' : '#7a6d58' }}>✕</span>
+          <span
+            className="wrc-label"
+            style={{
+              fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em',
+              color: activeSection === 'war-room' ? '#C9A84C' : '#7a6d58',
+              textTransform: 'uppercase' as const, transition: 'color 0.15s, text-decoration 0.15s',
+              textDecoration: activeSection === 'war-room' ? 'underline' : 'none',
+              textUnderlineOffset: '3px',
+            }}
+          >
+            War Room Community
           </span>
+          <span style={{ marginLeft: 'auto', fontSize: 10, color: activeSection === 'war-room' ? '#C9A84C' : '#6b5e45', opacity: 0.7 }}>›</span>
         </button>
 
         {dimItem('Weekly Intel', '📡')}
