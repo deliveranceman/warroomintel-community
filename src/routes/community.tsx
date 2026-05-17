@@ -45,13 +45,13 @@ const THEME_CSS = `
 :root[data-theme="light"] {
   --wri-bg: #f0ebe0;
   --wri-surface: #faf7f2;
-  --wri-surface2: #ede8dc;
-  --wri-border: rgba(100,70,20,0.25);
-  --wri-text: #1a1208;
-  --wri-dim: #3d3020;
-  --wri-muted: #6b5a40;
+  --wri-surface2: #f0ead8;
+  --wri-border: rgba(139,105,20,0.25);
+  --wri-text: #1a1508;
+  --wri-dim: #3d2e0a;
+  --wri-muted: #7a6535;
   --wri-card: #f5f0e8;
-  --wri-gold: #8a6d20;
+  --wri-gold: #8B6914;
 }
 `
 
@@ -225,7 +225,8 @@ function CommunityPage() {
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
   const [unreadDMs, setUnreadDMs]     = useState(0)
-  const [hoveredPrayer, setHoveredPrayer] = useState<{ id: string; y: number } | null>(null)
+  const [hoveredPrayer, setHoveredPrayer] = useState<any>(null)
+  const [hoverY, setHoverY]               = useState(0)
 
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -370,7 +371,7 @@ function CommunityPage() {
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const sectionLabel = (label: string) => (
-    <div style={{ padding: '14px 16px 4px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.25em', color: V.gold }}>
+    <div style={{ padding: '14px 16px 4px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.25em', color: theme === 'light' ? V.mut : V.gold }}>
       {label}
     </div>
   )
@@ -460,14 +461,17 @@ function CommunityPage() {
             </div>
             <p style={{ fontFamily: crimson, fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
             <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
-              {[['🙏', Math.floor(Math.random() * 20) + 1], ['💬', Math.floor(Math.random() * 8)], ['🔥', Math.floor(Math.random() * 12)]].map(([icon, count]) => (
-                <button key={String(icon)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: crimson, fontSize: 14, color: V.mut, padding: 0 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = G)}
-                  onMouseLeave={e => (e.currentTarget.style.color = V.mut)}>
-                  {icon} {count}
-                </button>
-              ))}
+              {(() => {
+                const h = (s: string, n: number) => { let v = 0; for (let i = 0; i < s.length; i++) v = (v * 31 + s.charCodeAt(i)) & 0xffff; return v % n }
+                return [['🙏', h(msg.id, 20) + 1], ['💬', h(msg.id + '2', 8)], ['🔥', h(msg.id + '3', 12)]].map(([icon, count]) => (
+                  <button key={String(icon)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: crimson, fontSize: 14, color: V.mut, padding: 0 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = G)}
+                    onMouseLeave={e => (e.currentTarget.style.color = V.mut)}>
+                    {icon} {count}
+                  </button>
+                ))
+              })()}
             </div>
           </div>
         </div>
@@ -1052,7 +1056,7 @@ function CommunityPage() {
 
       {/* ── RIGHT SIDEBAR — desktop only ── */}
       {!isMobile && (
-        <div style={{ display: 'flex', flexDirection: 'column', background: V.surf, borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', background: V.surf, borderLeft: `1px solid ${V.bdr}`, overflow: 'visible', position: 'relative' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
 
             {/* Prayer Wall widget */}
@@ -1063,6 +1067,36 @@ function CommunityPage() {
                   Prayer Wall
                 </span>
               </div>
+              {/* Callout — rendered once OUTSIDE the scrollable div, position:fixed */}
+              {hoveredPrayer && (
+                <div style={{
+                  position: 'fixed', right: 300, top: hoverY,
+                  width: 240, background: V.s2,
+                  border: `1px solid rgba(201,168,76,0.45)`,
+                  borderRadius: 10, padding: '14px 16px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+                  zIndex: 9999, pointerEvents: 'none',
+                }}>
+                  <div style={{ position: 'absolute', right: -6, top: 16, width: 10, height: 10, background: V.s2, border: `1px solid rgba(201,168,76,0.45)`, borderLeft: 'none', borderBottom: 'none', transform: 'rotate(45deg)' }} />
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
+                    {(hoveredPrayer.user?.name || 'Warrior').split(' ')[0]}
+                    <span style={{ color: V.mut, fontWeight: 400 }}>{' · '}{(() => {
+                      const diff = Date.now() - new Date(hoveredPrayer.created_at).getTime()
+                      if (diff < 60000) return 'just now'
+                      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+                      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+                      return `${Math.floor(diff / 86400000)}d ago`
+                    })()}</span>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.55 }}>
+                    {hoveredPrayer.text.length > 220 ? hoveredPrayer.text.slice(0, 220) + '…' : hoveredPrayer.text}
+                  </div>
+                  <div style={{ marginTop: 8, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    Click to open Prayer Wall →
+                  </div>
+                </div>
+              )}
+
               <div style={{ maxHeight: 220, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: `${V.bdr} transparent` } as React.CSSProperties}>
                 {prayers.length === 0 ? (
                   <div style={{ color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14 }}>
@@ -1072,41 +1106,12 @@ function CommunityPage() {
                   [...prayers].reverse().slice(0, 8).map(p => {
                     const name = (p.user?.name || 'Warrior').split(' ')[0]
                     const preview = p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text
-                    const full = p.text.length > 220 ? p.text.slice(0, 220) + '…' : p.text
                     const isHovered = hoveredPrayer?.id === p.id
-                    const timeAgo = p.created_at ? (() => {
-                      const diff = Date.now() - new Date(p.created_at).getTime()
-                      if (diff < 60000) return 'just now'
-                      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
-                      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
-                      return `${Math.floor(diff / 86400000)}d ago`
-                    })() : ''
                     return (
-                      <div key={p.id} style={{ position: 'relative', marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${V.bdr}` }}>
-                        {/* Callout — position:fixed escapes overflow:hidden parent */}
-                        {isHovered && (
-                          <div style={{
-                            position: 'fixed', right: 292, top: hoveredPrayer!.y,
-                            width: 240, background: V.s2,
-                            border: `1px solid rgba(201,168,76,0.45)`,
-                            borderRadius: 10, padding: '14px 16px',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-                            zIndex: 9999, pointerEvents: 'none',
-                          }}>
-                            <div style={{ position: 'absolute', right: -6, top: 16, width: 10, height: 10, background: V.s2, border: `1px solid rgba(201,168,76,0.45)`, borderLeft: 'none', borderBottom: 'none', transform: 'rotate(45deg)' }} />
-                            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
-                              {name} <span style={{ color: V.mut, fontWeight: 400 }}>· {timeAgo}</span>
-                            </div>
-                            <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.55 }}>{full}</div>
-                            <div style={{ marginTop: 8, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                              Click to open Prayer Wall →
-                            </div>
-                          </div>
-                        )}
-                        {/* Clickable row */}
+                      <div key={p.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${V.bdr}` }}>
                         <div
                           onClick={() => setActiveSection('prayer-wall')}
-                          onMouseEnter={e => setHoveredPrayer({ id: p.id, y: (e.currentTarget as HTMLElement).getBoundingClientRect().top })}
+                          onMouseEnter={e => { setHoverY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredPrayer(p) }}
                           onMouseLeave={() => setHoveredPrayer(null)}
                           style={{ cursor: 'pointer', background: isHovered ? 'rgba(201,168,76,0.06)' : 'transparent', borderRadius: 6, padding: '4px 6px', transition: 'background 0.15s ease' }}>
                           <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 2 }}>{name}</div>
@@ -1119,7 +1124,9 @@ function CommunityPage() {
               </div>
               <button
                 onClick={() => setActiveSection('prayer-wall')}
-                style={{ width: '100%', marginTop: 8, padding: '8px', background: 'transparent', border: `1px solid ${V.bdr}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' }}>
+                style={{ width: '100%', marginTop: 10, padding: '8px 12px', background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 6, color: V.gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.background = 'rgba(201,168,76,0.1)'; el.style.borderColor = 'rgba(201,168,76,0.6)' }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.background = 'transparent'; el.style.borderColor = 'rgba(201,168,76,0.35)' }}>
                 + Add Prayer Request
               </button>
             </div>
