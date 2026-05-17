@@ -101,20 +101,104 @@ function SignInGate() {
 }
 
 // ── MESSAGES VIEW ─────────────────────────────────────────
-function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
+function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName }: {
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   streamToken: string
   apiKey: string
   user: any
+  userId: string
+  userName: string
 }) {
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
-  const [hoveredConvo, setHoveredConvo] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
-  const conversations = [
-    { id: 'c1', name: 'Ruby Payne',     role: 'Co-Pastor', lastMsg: 'See you at the session tonight',  time: '2h ago', unread: 2, avatar: '👩‍⚕️' },
-    { id: 'c2', name: 'War Room Team',  role: 'Group',     lastMsg: 'Prayer call starts in 10 min',    time: '4h ago', unread: 0, avatar: '⚔️' },
-  ]
+  const [hoveredConvo, setHoveredConvo]   = useState<string | null>(null)
+  const [message, setMessage]             = useState('')
+  const [conversations, setConversations] = useState<any[]>([])
+  const [messages, setMessages]           = useState<any[]>([])
+  const [loading, setLoading]             = useState(true)
+
+  // Fetch DM channels this user is a member of
+  useEffect(() => {
+    if (!streamToken || !apiKey || !userId) return
+    async function loadConvos() {
+      try {
+        const d = await streamFetch('/channels', 'POST', streamToken, apiKey, {
+          filter_conditions: {
+            type: 'messaging',
+            members: { '$in': [userId] },
+            id: { '$nin': ['prayer-wall-requests', 'war-room-general'] },
+          },
+          sort: [{ field: 'last_message_at', direction: -1 }],
+          state: true, watch: true, presence: true, limit: 30,
+        })
+        if (d.channels) setConversations(d.channels)
+      } catch (err) {
+        console.error('loadConvos error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadConvos()
+    const interval = setInterval(loadConvos, 5000)
+    return () => clearInterval(interval)
+  }, [streamToken, apiKey, userId])
+
+  // Load messages when a conversation is selected
+  useEffect(() => {
+    if (!selectedConvo || !streamToken || !apiKey) return
+    async function loadMessages() {
+      try {
+        const d = await streamFetch(
+          `/channels/messaging/${selectedConvo}/query`,
+          'POST', streamToken, apiKey,
+          { state: true, messages: { limit: 50 } }
+        )
+        if (d.messages) setMessages(d.messages)
+      } catch (err) {
+        console.error('loadMessages error:', err)
+      }
+    }
+    loadMessages()
+    const interval = setInterval(loadMessages, 3000)
+    return () => clearInterval(interval)
+  }, [selectedConvo, streamToken, apiKey])
+
+  async function handleSend() {
+    if (!message.trim() || !selectedConvo) return
+    try {
+      await streamFetch(
+        `/channels/messaging/${selectedConvo}/message`,
+        'POST', streamToken, apiKey,
+        { message: { text: message.trim() } }
+      )
+      setMessage('')
+    } catch (err) {
+      console.error('send DM error:', err)
+    }
+  }
+
+  function getConvoMeta(ch: any) {
+    const channel = ch.channel || ch
+    const lastMsg = ch.messages?.[ch.messages.length - 1]
+    const members = ch.members || []
+    const other   = members.find((m: any) => m.user_id !== userId)
+    const name    = other?.user?.name || channel.name || 'Warrior'
+    const avatar  = other?.user?.image || ''
+    const unread  = channel.unread_count || 0
+    const preview = lastMsg?.text || 'No messages yet'
+    const time    = lastMsg?.created_at ? (() => {
+      const diff = Date.now() - new Date(lastMsg.created_at).getTime()
+      if (diff < 60000)   return 'now'
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
+      return `${Math.floor(diff / 86400000)}d`
+    })() : ''
+    return { channel, name, avatar, unread, preview, time }
+  }
+
+  const selectedMeta = selectedConvo
+    ? getConvoMeta(conversations.find(ch => (ch.channel || ch).id === selectedConvo) || {})
+    : null
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
@@ -128,41 +212,59 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
           <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>💬 Messages</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {conversations.map(c => (
-            <div key={c.id}
-              onClick={() => setSelectedConvo(c.id)}
-              onMouseEnter={() => setHoveredConvo(c.id)}
-              onMouseLeave={() => setHoveredConvo(null)}
-              style={{
-                padding: '12px 16px 12px 13px',
-                borderBottom: `1px solid ${V.bdr}`,
-                borderLeft: selectedConvo === c.id ? `3px solid ${G}` : '3px solid transparent',
-                cursor: 'pointer',
-                background: selectedConvo === c.id
-                  ? 'rgba(201,168,76,0.1)'
-                  : hoveredConvo === c.id
-                  ? 'rgba(201,168,76,0.05)'
-                  : 'transparent',
-                display: 'flex', gap: 12, alignItems: 'center',
-                transition: 'background 0.15s, border-color 0.15s',
-              }}>
-              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.25)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                {c.avatar}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.04em' }}>{c.name}</span>
-                  <span style={{ fontFamily: crimson, fontSize: 11, color: V.mut }}>{c.time}</span>
-                </div>
-                <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lastMsg}</div>
-              </div>
-              {c.unread > 0 && (
-                <div style={{ minWidth: 18, height: 18, borderRadius: 9, background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', flexShrink: 0 }}>
-                  {c.unread}
-                </div>
-              )}
+          {loading && (
+            <div style={{ padding: 24, textAlign: 'center', color: V.mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
+              LOADING...
             </div>
-          ))}
+          )}
+          {!loading && conversations.length === 0 && (
+            <div style={{ padding: 24, textAlign: 'center', color: V.mut, fontFamily: crimson, fontSize: 14, fontStyle: 'italic' }}>
+              No conversations yet. Visit the Members page to start a direct message.
+            </div>
+          )}
+          {conversations.map(ch => {
+            const { channel, name, avatar, unread, preview, time } = getConvoMeta(ch)
+            return (
+              <div key={channel.id}
+                onClick={() => setSelectedConvo(channel.id)}
+                onMouseEnter={() => setHoveredConvo(channel.id)}
+                onMouseLeave={() => setHoveredConvo(null)}
+                style={{
+                  padding: '12px 16px 12px 13px',
+                  borderBottom: `1px solid ${V.bdr}`,
+                  borderLeft: selectedConvo === channel.id ? `3px solid ${G}` : '3px solid transparent',
+                  cursor: 'pointer',
+                  background: selectedConvo === channel.id
+                    ? 'rgba(201,168,76,0.1)'
+                    : hoveredConvo === channel.id
+                    ? 'rgba(201,168,76,0.05)'
+                    : 'transparent',
+                  display: 'flex', gap: 10, alignItems: 'center',
+                  transition: 'all 0.15s',
+                }}>
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid rgba(201,168,76,0.3)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                  {avatar
+                    ? <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                    : <span style={{ fontFamily: cinzel, fontSize: 14, color: G }}>{name[0]?.toUpperCase()}</span>
+                  }
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.05em' }}>{name}</span>
+                    <span style={{ fontFamily: crimson, fontSize: 11, color: V.mut }}>{time}</span>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: unread > 0 ? V.dim : V.mut, fontWeight: unread > 0 ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {preview}
+                  </div>
+                </div>
+                {unread > 0 && (
+                  <div style={{ minWidth: 18, height: 18, borderRadius: 9, background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', flexShrink: 0 }}>
+                    {unread}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -171,14 +273,38 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             <button onClick={() => setSelectedConvo(null)} style={{ background: 'none', border: 'none', color: G, fontSize: 18, cursor: 'pointer' }}>←</button>
-            <span style={{ fontFamily: cinzel, fontSize: 16, color: G }}>
-              {conversations.find(c => c.id === selectedConvo)?.name}
-            </span>
+            <span style={{ fontFamily: cinzel, fontSize: 16, color: G }}>{selectedMeta?.name || '—'}</span>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14, marginTop: 40 }}>
-              Direct messages coming soon — Stream DMs will be wired here next.
-            </div>
+            {messages.length === 0 && (
+              <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14, marginTop: 40 }}>
+                No messages yet. Say hello!
+              </div>
+            )}
+            {messages.map(msg => {
+              const isMe = msg.user?.id === userId
+              return (
+                <div key={msg.id} style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
+                  {!isMe && (
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: cinzel, fontSize: 11, color: G }}>
+                      {(msg.user?.name || 'W')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div style={{
+                    maxWidth: '70%',
+                    background: isMe ? 'rgba(201,168,76,0.15)' : V.s2,
+                    border: `1px solid ${isMe ? 'rgba(201,168,76,0.3)' : V.bdr}`,
+                    borderRadius: isMe ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
+                    padding: '8px 12px',
+                  }}>
+                    <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.5 }}>{msg.text}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 10, color: V.mut, marginTop: 4, textAlign: isMe ? 'right' : 'left' }}>
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
           <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -187,11 +313,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
                 autoComplete="off"
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) e.preventDefault() }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
                 placeholder="Send a message..."
                 style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '10px 14px', color: V.txt, fontFamily: crimson, fontSize: 16, outline: 'none' }}
               />
-              <button disabled={!message.trim()}
+              <button onClick={handleSend} disabled={!message.trim()}
                 style={{ background: message.trim() ? G : 'rgba(201,168,76,0.3)', color: message.trim() ? '#0D0B14' : V.mut, border: 'none', borderRadius: 8, padding: '10px 18px', fontFamily: cinzel, fontSize: 13, cursor: message.trim() ? 'pointer' : 'default', fontWeight: 700 }}>
                 Send →
               </button>
@@ -343,6 +469,45 @@ function CommunityPage() {
   useEffect(() => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
   }, [posts])
+
+  // Phase 3 — browser tab title reflects unread DMs
+  useEffect(() => {
+    if (unreadDMs > 0) {
+      document.title = `💬 (${unreadDMs}) War Room Intel`
+    } else {
+      document.title = 'War Room Intel'
+    }
+    return () => { document.title = 'War Room Intel' }
+  }, [unreadDMs])
+
+  // Phase 4 — web push permission + service worker registration
+  async function requestPushPermission() {
+    if (!('Notification' in window)) return
+    if (Notification.permission === 'granted') return
+    if (Notification.permission === 'denied') return
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js')
+        console.log('SW registered:', reg.scope)
+        await fetch('/api/push-subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user?.id,
+            subscription: { endpoint: reg.scope, keys: {} },
+          }),
+        })
+      } catch (err) {
+        console.error('SW registration failed:', err)
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (streamToken) setTimeout(requestPushPermission, 3000)
+  }, [streamToken])
 
   async function sendPost() {
     if (!draft.trim() || !streamToken || !apiKey || sending) return
@@ -1049,7 +1214,7 @@ function CommunityPage() {
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', background: V.bg, height: isMobile ? '100vh' : undefined }}>
         {activeSection === 'war-room'    && <WarRoomView />}
         {activeSection === 'prayer-wall' && <PrayerView />}
-        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} />}
+        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} />}
         {activeSection === 'members'     && <PlaceholderView title="Members" icon="👥" />}
         {activeSection === 'database'    && <DatabaseView />}
         {activeSection === 'arsenal'     && <LauncherView title="Scripture Arsenal" icon="✦"  href="/arsenal" />}
