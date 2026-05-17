@@ -2087,6 +2087,9 @@ function CommunityPage() {
       gridTemplateColumns: isMobile ? undefined : '280px 1fr 280px',
       background: V.bg,
       overflow: 'hidden',
+      overflowX: 'hidden',
+      width: '100%',
+      maxWidth: '100vw',
       position: 'relative',
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
@@ -2118,7 +2121,7 @@ function CommunityPage() {
       </div>
 
       {/* ── CENTER ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', background: V.bg, height: isMobile ? '100vh' : undefined }}>
+      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
           <WarRoomChatView
