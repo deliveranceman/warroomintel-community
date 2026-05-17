@@ -1573,7 +1573,7 @@ function CommunityPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <Hamburger />
-          <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', flex: 1 }}>⚔ The War Room</span>
+          <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Community</span>
           <button onClick={() => setShowComposer(true)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
         </div>
 
@@ -1996,7 +1996,7 @@ function CommunityPage() {
           onMouseLeave={e => { const s = e.currentTarget.querySelector('span') as HTMLElement; if (s) s.style.color = activeSection === 'war-room' ? '#C9A84C' : '#7a6d58' }}
         >
           <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: activeSection === 'war-room' ? '#C9A84C' : '#7a6d58', textTransform: 'uppercase' as const, transition: 'color 0.15s' }}>
-            ✕ Prayer Wall Community
+            ✕ War Room Community
           </span>
         </button>
 
