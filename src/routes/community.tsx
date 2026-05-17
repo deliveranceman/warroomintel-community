@@ -109,6 +109,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
   user: any
 }) {
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
+  const [hoveredConvo, setHoveredConvo] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const conversations = [
     { id: 'c1', name: 'Ruby Payne',     role: 'Co-Pastor', lastMsg: 'See you at the session tonight',  time: '2h ago', unread: 2, avatar: '👩‍⚕️' },
@@ -128,20 +129,35 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {conversations.map(c => (
-            <div key={c.id} onClick={() => setSelectedConvo(c.id)}
-              style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', background: selectedConvo === c.id ? 'rgba(201,168,76,0.08)' : 'transparent', display: 'flex', gap: 12, alignItems: 'center', transition: 'background 0.15s' }}>
-              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(201,168,76,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+            <div key={c.id}
+              onClick={() => setSelectedConvo(c.id)}
+              onMouseEnter={() => setHoveredConvo(c.id)}
+              onMouseLeave={() => setHoveredConvo(null)}
+              style={{
+                padding: '12px 16px 12px 13px',
+                borderBottom: `1px solid ${V.bdr}`,
+                borderLeft: selectedConvo === c.id ? `3px solid ${G}` : '3px solid transparent',
+                cursor: 'pointer',
+                background: selectedConvo === c.id
+                  ? 'rgba(201,168,76,0.1)'
+                  : hoveredConvo === c.id
+                  ? 'rgba(201,168,76,0.05)'
+                  : 'transparent',
+                display: 'flex', gap: 12, alignItems: 'center',
+                transition: 'background 0.15s, border-color 0.15s',
+              }}>
+              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.25)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
                 {c.avatar}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 13, color: G }}>{c.name}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.04em' }}>{c.name}</span>
                   <span style={{ fontFamily: crimson, fontSize: 11, color: V.mut }}>{c.time}</span>
                 </div>
                 <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lastMsg}</div>
               </div>
               {c.unread > 0 && (
-                <div style={{ minWidth: 18, height: 18, borderRadius: '50%', background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', flexShrink: 0 }}>
+                <div style={{ minWidth: 18, height: 18, borderRadius: 9, background: '#e05c5c', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', flexShrink: 0 }}>
                   {c.unread}
                 </div>
               )}
@@ -167,8 +183,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user }: {
           <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
             <div style={{ display: 'flex', gap: 10 }}>
               <input
+                key="messages-input"
+                autoComplete="off"
                 value={message}
                 onChange={e => setMessage(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) e.preventDefault() }}
                 placeholder="Send a message..."
                 style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '10px 14px', color: V.txt, fontFamily: crimson, fontSize: 16, outline: 'none' }}
               />
@@ -206,6 +225,7 @@ function CommunityPage() {
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
   const [unreadDMs, setUnreadDMs]     = useState(0)
+  const [hoveredPrayer, setHoveredPrayer] = useState<{ id: string; y: number } | null>(null)
 
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -1049,62 +1069,48 @@ function CommunityPage() {
                     No requests yet
                   </div>
                 ) : (
-                  [...prayers].reverse().slice(0, 5).map(p => {
-                    const name = (p.user?.name || p.user?.id || 'Warrior').split(' ')[0]
-                    const preview = p.text.length > 80 ? p.text.slice(0, 80) + '…' : p.text
-                    const full = p.text.length > 200 ? p.text.slice(0, 200) + '…' : p.text
-                    const timeAgo = p.created_at
-                      ? (() => {
-                          const diff = Date.now() - new Date(p.created_at).getTime()
-                          if (diff < 60000) return 'just now'
-                          if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
-                          if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
-                          return `${Math.floor(diff / 86400000)}d ago`
-                        })()
-                      : ''
+                  [...prayers].reverse().slice(0, 8).map(p => {
+                    const name = (p.user?.name || 'Warrior').split(' ')[0]
+                    const preview = p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text
+                    const full = p.text.length > 220 ? p.text.slice(0, 220) + '…' : p.text
+                    const isHovered = hoveredPrayer?.id === p.id
+                    const timeAgo = p.created_at ? (() => {
+                      const diff = Date.now() - new Date(p.created_at).getTime()
+                      if (diff < 60000) return 'just now'
+                      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+                      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+                      return `${Math.floor(diff / 86400000)}d ago`
+                    })() : ''
                     return (
-                      <div key={p.id}
-                        style={{ position: 'relative', marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${V.bdr}` }}
-                        className="prayer-hover-item">
-                        {/* Callout card — appears on hover via CSS */}
-                        <div className="prayer-callout"
-                          style={{
-                            position: 'absolute', right: '100%', top: 0,
-                            marginRight: 12, width: 260,
-                            background: V.s2, border: `1px solid ${V.bdr}`,
-                            borderRadius: 10, padding: '14px 16px',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-                            pointerEvents: 'none',
-                            opacity: 0, transform: 'translateX(8px)',
-                            transition: 'opacity 0.18s ease, transform 0.18s ease',
-                            zIndex: 100,
-                          }}>
-                          {/* Arrow pointing right */}
+                      <div key={p.id} style={{ position: 'relative', marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${V.bdr}` }}>
+                        {/* Callout — position:fixed escapes overflow:hidden parent */}
+                        {isHovered && (
                           <div style={{
-                            position: 'absolute', right: -7, top: 14,
-                            width: 12, height: 12,
-                            background: V.s2, border: `1px solid ${V.bdr}`,
-                            borderLeft: 'none', borderBottom: 'none',
-                            transform: 'rotate(45deg)',
-                          }} />
-                          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
-                            {name} · <span style={{ color: V.mut }}>{timeAgo}</span>
+                            position: 'fixed', right: 292, top: hoveredPrayer!.y,
+                            width: 240, background: V.s2,
+                            border: `1px solid rgba(201,168,76,0.45)`,
+                            borderRadius: 10, padding: '14px 16px',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+                            zIndex: 9999, pointerEvents: 'none',
+                          }}>
+                            <div style={{ position: 'absolute', right: -6, top: 16, width: 10, height: 10, background: V.s2, border: `1px solid rgba(201,168,76,0.45)`, borderLeft: 'none', borderBottom: 'none', transform: 'rotate(45deg)' }} />
+                            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
+                              {name} <span style={{ color: V.mut, fontWeight: 400 }}>· {timeAgo}</span>
+                            </div>
+                            <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.55 }}>{full}</div>
+                            <div style={{ marginTop: 8, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                              Click to open Prayer Wall →
+                            </div>
                           </div>
-                          <div style={{ fontFamily: crimson, fontSize: 15, color: V.txt, lineHeight: 1.55 }}>
-                            {full}
-                          </div>
-                          <div style={{ marginTop: 10, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                            Click to open Prayer Wall →
-                          </div>
-                        </div>
+                        )}
                         {/* Clickable row */}
-                        <div onClick={() => setActiveSection('prayer-wall')} style={{ cursor: 'pointer' }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 3 }}>
-                            {name}
-                          </div>
-                          <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, lineHeight: 1.4 }}>
-                            {preview}
-                          </div>
+                        <div
+                          onClick={() => setActiveSection('prayer-wall')}
+                          onMouseEnter={e => setHoveredPrayer({ id: p.id, y: (e.currentTarget as HTMLElement).getBoundingClientRect().top })}
+                          onMouseLeave={() => setHoveredPrayer(null)}
+                          style={{ cursor: 'pointer', background: isHovered ? 'rgba(201,168,76,0.06)' : 'transparent', borderRadius: 6, padding: '4px 6px', transition: 'background 0.15s ease' }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 2 }}>{name}</div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, lineHeight: 1.4 }}>{preview}</div>
                         </div>
                       </div>
                     )
