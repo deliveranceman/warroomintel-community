@@ -584,6 +584,191 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   )
 }
 
+// ── MEMBERS VIEW ──────────────────────────────────────────
+interface MembersViewProps {
+  members: any[]
+  currentUserId: string
+  currentUserTier: string
+  currentUserRole: string
+  onViewProfile: (member: any) => void
+  onStartDM: (memberId: string, memberName: string) => void
+  setActiveSection: (s: string) => void
+  isDark: boolean
+  isMobile: boolean
+}
+
+function MembersView({
+  members, currentUserId, currentUserTier, currentUserRole,
+  onViewProfile, onStartDM, setActiveSection, isDark, isMobile
+}: MembersViewProps) {
+  const [search, setSearch] = useState('')
+  const [filterTier, setFilterTier] = useState('All')
+
+  const TIER_ORDER: Record<string, number> = { Watchman: 1, Soldier: 2, Commander: 3, General: 4 }
+  const TIER_COLORS: Record<string, string> = {
+    General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a'
+  }
+  const tiers = ['All', 'General', 'Commander', 'Soldier', 'Watchman']
+  const canDM = (currentUserRole === 'minister' || currentUserRole === 'admin')
+    || (TIER_ORDER[currentUserTier] || 1) >= 2
+
+  const filtered = members.filter(m => {
+    const name = `${m.firstName || ''} ${m.lastName || ''} ${m.username || ''}`.toLowerCase()
+    const matchSearch = !search || name.includes(search.toLowerCase())
+    const matchTier = filterTier === 'All' || (m.publicMetadata?.tier || 'Watchman') === filterTier
+    return matchSearch && matchTier
+  })
+
+  const bg    = isDark ? '#0D0B14' : '#f5f0e8'
+  const surf  = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'
+  const bdr   = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.15)'
+  const text  = isDark ? '#f0ece0' : '#1a1a2e'
+  const muted = isDark ? '#6b6b7a' : '#888'
+  const mc = "'Cinzel', serif"
+  const cr = "'Crimson Pro', Georgia, serif"
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: bg }}>
+
+      {/* Header */}
+      <div style={{ padding: isMobile ? '16px' : '20px 24px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
+        <div style={{ fontFamily: mc, fontSize: isMobile ? '14px' : '16px', letterSpacing: '0.12em', color: '#C9A84C', marginBottom: '14px' }}>
+          👥 Members
+        </div>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search members..."
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+            border: `1px solid ${bdr}`, borderRadius: '6px',
+            padding: '8px 12px', color: text,
+            fontFamily: cr, fontSize: '14px', outline: 'none',
+            marginBottom: '12px',
+          }}
+        />
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' as const }}>
+          {tiers.map(t => (
+            <button
+              key={t}
+              onClick={() => setFilterTier(t)}
+              style={{
+                padding: '3px 10px',
+                background: filterTier === t ? 'rgba(201,168,76,0.15)' : 'transparent',
+                border: `1px solid ${filterTier === t ? 'rgba(201,168,76,0.5)' : bdr}`,
+                borderRadius: '20px',
+                color: filterTier === t ? '#C9A84C' : muted,
+                fontFamily: mc, fontSize: '9px', letterSpacing: '0.1em',
+                cursor: 'pointer', transition: 'all 0.15s',
+                textTransform: 'uppercase' as const,
+              }}
+            >{t}</button>
+          ))}
+          <span style={{ marginLeft: 'auto', fontFamily: mc, fontSize: '9px', color: muted, letterSpacing: '0.08em', alignSelf: 'center' }}>
+            {filtered.length} warrior{filtered.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div style={{ flex: 1, overflowY: 'auto' as const, padding: isMobile ? '12px' : '20px 24px' }}>
+        {members.length === 0 ? (
+          <div style={{ textAlign: 'center' as const, padding: '60px 20px', color: muted, fontFamily: cr, fontSize: '15px', fontStyle: 'italic' }}>
+            Loading warriors...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: 'center' as const, padding: '60px 20px', color: muted, fontFamily: cr, fontSize: '15px', fontStyle: 'italic' }}>
+            No members match your search.
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: '12px',
+          }}>
+            {filtered.map(member => {
+              const tier = member.publicMetadata?.tier || 'Watchman'
+              const tierColor = TIER_COLORS[tier] || '#6b6b7a'
+              const isOwn = member.id === currentUserId
+              const displayName = member.firstName
+                ? `${member.firstName}${member.lastName ? ' ' + member.lastName : ''}`
+                : member.username || 'Warrior'
+
+              return (
+                <div
+                  key={member.id}
+                  onClick={() => onViewProfile(member)}
+                  style={{
+                    background: surf, border: `1px solid ${bdr}`,
+                    borderRadius: '10px', padding: '18px 14px',
+                    cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    gap: '8px', position: 'relative' as const,
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = tierColor
+                    ;(e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = bdr
+                    ;(e.currentTarget as HTMLElement).style.background = surf
+                  }}
+                >
+                  {isOwn && (
+                    <div style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '9px', fontFamily: mc, letterSpacing: '0.08em', color: '#C9A84C', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '1px 6px' }}>You</div>
+                  )}
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(201,168,76,0.12)', border: `2px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontFamily: mc, fontWeight: 'bold', color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
+                    {member.imageUrl
+                      ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : displayName[0]?.toUpperCase()
+                    }
+                  </div>
+                  <div style={{ fontFamily: mc, fontSize: '11px', letterSpacing: '0.05em', color: text, textAlign: 'center' as const, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '100%' }}>
+                    {displayName}
+                  </div>
+                  <div style={{ padding: '2px 8px', border: `1px solid ${tierColor}`, borderRadius: '20px', fontSize: '9px', fontFamily: mc, letterSpacing: '0.1em', color: tierColor, textTransform: 'uppercase' as const }}>
+                    {tier}
+                  </div>
+                  {member.publicMetadata?.location && (
+                    <div style={{ fontSize: '11px', color: muted, fontFamily: cr }}>
+                      📍 {member.publicMetadata.location}
+                    </div>
+                  )}
+                  {!isOwn && (
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (canDM) {
+                          onStartDM(member.id, displayName)
+                          setActiveSection('messages')
+                        } else {
+                          onViewProfile(member)
+                        }
+                      }}
+                      style={{
+                        marginTop: '4px', padding: '5px 12px',
+                        background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent',
+                        border: `1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`,
+                        borderRadius: '6px', color: canDM ? '#C9A84C' : muted,
+                        fontFamily: mc, fontSize: '9px', letterSpacing: '0.08em',
+                        cursor: 'pointer', textTransform: 'uppercase' as const,
+                      }}
+                    >
+                      {canDM ? '💬 Message' : '🔒 Soldier+'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -1493,7 +1678,22 @@ function CommunityPage() {
         {activeSection === 'war-room'    && <WarRoomView />}
         {activeSection === 'prayer-wall' && <PrayerView />}
         {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} />}
-        {activeSection === 'members'     && <PlaceholderView title="Members" icon="👥" />}
+        {activeSection === 'members'     && (
+          <MembersView
+            members={members}
+            currentUserId={user?.id || ''}
+            currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'}
+            currentUserRole={(user?.publicMetadata?.role as string) || 'member'}
+            onViewProfile={setViewingProfile}
+            onStartDM={(memberId, memberName) => {
+              setPendingDMWith(memberId)
+              setActiveSection('messages')
+            }}
+            setActiveSection={setActiveSection}
+            isDark={theme !== 'light'}
+            isMobile={isMobile}
+          />
+        )}
         {activeSection === 'database'    && <DatabaseView />}
         {activeSection === 'arsenal'     && <LauncherView title="Scripture Arsenal" icon="✦"  href="/arsenal" />}
         {activeSection === 'resources'   && <LauncherView title="Resources"         icon="📚" href="/resources" />}
