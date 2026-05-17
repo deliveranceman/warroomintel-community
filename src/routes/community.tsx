@@ -525,22 +525,21 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
               )
             })}
           </div>
-          <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <input
-                key="messages-input"
-                autoComplete="off"
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                placeholder="Send a message..."
-                style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '10px 14px', color: V.txt, fontFamily: crimson, fontSize: 16, outline: 'none' }}
-              />
-              <button onClick={handleSend} disabled={!message.trim()}
-                style={{ background: message.trim() ? G : 'rgba(201,168,76,0.3)', color: message.trim() ? '#0D0B14' : V.mut, border: 'none', borderRadius: 8, padding: '10px 18px', fontFamily: cinzel, fontSize: 13, cursor: message.trim() ? 'pointer' : 'default', fontWeight: 700 }}>
-                Send →
-              </button>
-            </div>
+          <div style={{ flexShrink: 0, borderTop: '1px solid rgba(201,168,76,0.12)', padding: '12px 16px', display: 'flex', gap: '8px', alignItems: 'flex-end', background: V.surf, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+            <textarea
+              key="messages-input"
+              autoComplete="off"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+              placeholder="Send a message..."
+              rows={2}
+              style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '8px', padding: '10px 12px', color: V.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' }}
+            />
+            <button onClick={handleSend} disabled={!message.trim()}
+              style={{ padding: '10px 16px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '8px', color: '#C9A84C', fontFamily: cinzel, fontSize: '11px', cursor: message.trim() ? 'pointer' : 'default', alignSelf: 'flex-end' }}>
+              Send →
+            </button>
           </div>
         </div>
       )}
@@ -799,6 +798,9 @@ function CommunityPage() {
   const [viewingProfile, setViewingProfile] = useState<any>(null)
   const [editingProfile, setEditingProfile] = useState(false)
   const [pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
+  const [recentMessages, setRecentMessages] = useState<Array<{
+    id: string; senderName: string; text: string; timeAgo: string
+  }>>([])
 
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -962,6 +964,42 @@ function CommunityPage() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!streamToken || !apiKey) return
+    async function loadRecentMessages() {
+      try {
+        const uid = user?.id
+        if (!uid) return
+        const res = await fetch(
+          `https://chat.stream-io-api.com/channels?api_key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': streamToken, 'stream-auth-type': 'jwt' },
+            body: JSON.stringify({
+              filter_conditions: { type: 'messaging', members: { $in: [uid] } },
+              sort: [{ field: 'last_message_at', direction: -1 }],
+              limit: 5, message_limit: 1,
+            }),
+          }
+        )
+        const data = await res.json()
+        const msgs: typeof recentMessages = []
+        for (const ch of (data.channels || [])) {
+          const msg = ch.messages?.[0]
+          if (!msg) continue
+          const d = new Date(msg.created_at), now = new Date()
+          const mins = Math.floor((now.getTime() - d.getTime()) / 60000)
+          const timeAgo = mins < 1 ? 'now' : mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          msgs.push({ id: msg.id, senderName: msg.user?.name || msg.user?.id || 'Warrior', text: msg.text || '', timeAgo })
+        }
+        setRecentMessages(msgs)
+      } catch { /* silent */ }
+    }
+    loadRecentMessages()
+    const t = setInterval(loadRecentMessages, 20000)
+    return () => clearInterval(t)
+  }, [streamToken, apiKey, user?.id])
+
   async function sendPost() {
     if (!draft.trim() || !streamToken || !apiKey || sending) return
     setSending(true)
@@ -1062,7 +1100,7 @@ function CommunityPage() {
   ) : null
 
   // ── POST CARD ──────────────────────────────────────────────
-  const PostCard = ({ msg, pinned }: { msg: StreamMsg; pinned?: boolean }) => {
+  const PostCard = ({ msg, pinned, onDelete }: { msg: StreamMsg; pinned?: boolean; onDelete?: () => void }) => {
     const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
     const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
     return (
@@ -1091,6 +1129,18 @@ function CommunityPage() {
                 ))
               })()}
             </div>
+            {onDelete && (
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
+                <button
+                  onClick={onDelete}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                >
+                  🗑 Delete
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1105,44 +1155,65 @@ function CommunityPage() {
   }
 
   // ── VIEWS ──────────────────────────────────────────────────
-  const WarRoomView = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <Hamburger />
-        <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', flex: 1 }}>⚔ The War Room</span>
-        <button style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
-        <div style={{ background: V.surf, border: `1px dashed ${V.bdr}`, borderRadius: 6, padding: 14, marginBottom: 16, display: 'flex', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, flexShrink: 0, overflow: 'hidden' }}>
-            {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
-          </div>
-          <div style={{ flex: 1 }}>
-            <textarea
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) sendPost() }}
-              placeholder="Share something with the War Room..."
-              rows={isMobile ? 4 : 2}
-              style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontFamily: crimson, fontSize: 15, color: V.txt, resize: 'none', boxSizing: 'border-box' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={sendPost} disabled={sending || !draft.trim()}
-                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: sending || !draft.trim() ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 3, padding: '5px 14px', cursor: sending || !draft.trim() ? 'default' : 'pointer' }}>
-                {sending ? '...' : 'Post ⚔'}
-              </button>
+  const WarRoomView = () => {
+    async function handleDeletePost(messageId: string) {
+      if (!confirm('Delete this post?')) return
+      try {
+        await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
+        await fetchPosts()
+      } catch (err) { console.error('Delete failed:', err) }
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <Hamburger />
+          <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', flex: 1 }}>⚔ The War Room</span>
+          <button style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
+          <div style={{ background: V.surf, border: `1px dashed ${V.bdr}`, borderRadius: 6, padding: 14, marginBottom: 16, display: 'flex', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, flexShrink: 0, overflow: 'hidden' }}>
+              {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+            </div>
+            <div style={{ flex: 1 }}>
+              <textarea
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) sendPost() }}
+                placeholder="Share something with the War Room..."
+                rows={isMobile ? 4 : 2}
+                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontFamily: crimson, fontSize: 15, color: V.txt, resize: 'none', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={sendPost} disabled={sending || !draft.trim()}
+                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: sending || !draft.trim() ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 3, padding: '5px 14px', cursor: sending || !draft.trim() ? 'default' : 'pointer' }}>
+                  {sending ? '...' : 'Post ⚔'}
+                </button>
+              </div>
             </div>
           </div>
+          <PostCard msg={PINNED} pinned />
+          {posts.map(m => (
+            <PostCard key={m.id} msg={m}
+              onDelete={m.user?.id === user?.id ? () => handleDeletePost(m.id) : undefined}
+            />
+          ))}
+          <div ref={bottomRef} />
         </div>
-        <PostCard msg={PINNED} pinned />
-        {posts.map(m => <PostCard key={m.id} msg={m} />)}
-        <div ref={bottomRef} />
       </div>
-    </div>
-  )
+    )
+  }
 
   const PrayerView = () => {
     const [draft, setDraft] = useState('')
+
+    async function handleDeletePrayer(messageId: string) {
+      if (!confirm('Delete this prayer request?')) return
+      try {
+        await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
+        await fetchPrayers()
+      } catch (err) { console.error('Delete prayer failed:', err) }
+    }
 
     async function handleSend() {
       if (!draft.trim() || !streamToken || !apiKey) {
@@ -1213,7 +1284,11 @@ function CommunityPage() {
               No prayer requests yet. Be the first.
             </div>
           )}
-          {prayers.map(m => <PostCard key={m.id} msg={m} />)}
+          {prayers.map(m => (
+            <PostCard key={m.id} msg={m}
+              onDelete={m.user?.id === user?.id ? () => handleDeletePrayer(m.id) : undefined}
+            />
+          ))}
         </div>
 
         {/* Input bar */}
@@ -1800,6 +1875,40 @@ function CommunityPage() {
                 onMouseLeave={e => { const el = e.currentTarget; el.style.background = 'transparent'; el.style.borderColor = 'rgba(201,168,76,0.35)' }}>
                 + Add Prayer Request
               </button>
+            </div>
+
+            {/* Recent Messages */}
+            <div style={{ borderBottom: `1px solid ${V.bdr}`, padding: '0' }}>
+              <div style={{ padding: '10px 14px 8px', fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: G, textTransform: 'uppercase' as const }}>
+                📨 Recent Messages
+              </div>
+              <div style={{ maxHeight: '200px', overflowY: 'auto' as const }}>
+                {recentMessages.length === 0 ? (
+                  <div style={{ padding: '8px 14px 12px', fontSize: '12px', color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>
+                    No messages yet
+                  </div>
+                ) : (
+                  recentMessages.slice(0, 5).map((msg: any) => (
+                    <div
+                      key={msg.id}
+                      onClick={() => setActiveSection('messages')}
+                      style={{ padding: '8px 14px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', transition: 'background 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                        <span style={{ fontFamily: cinzel, fontSize: '10px', color: G, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '130px' }}>
+                          {msg.senderName}
+                        </span>
+                        <span style={{ fontSize: '9px', color: V.mut, flexShrink: 0 }}>{msg.timeAgo}</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: V.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Upcoming Calls */}
