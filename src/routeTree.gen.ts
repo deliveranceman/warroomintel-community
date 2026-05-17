@@ -13,8 +13,8 @@ import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ResourcesRouteImport } from './routes/resources'
-import { Route as MnGatewayRouteImport } from './routes/mn-gateway'
 import { Route as MembershipRouteImport } from './routes/membership'
+import { Route as JoinRouteImport } from './routes/join'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
@@ -31,7 +31,6 @@ import { Route as ApiStreamTokenRouteImport } from './routes/api.stream-token'
 import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
 import { Route as ApiResourceDownloadRouteImport } from './routes/api.resource-download'
-import { Route as ApiMnWebhookRouteImport } from './routes/api.mn-webhook'
 import { Route as ApiMnVerifyRouteImport } from './routes/api.mn-verify'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
 import { Route as ApiGenerateFieldCardRouteImport } from './routes/api.generate-field-card'
@@ -62,14 +61,14 @@ const ResourcesRoute = ResourcesRouteImport.update({
   path: '/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MnGatewayRoute = MnGatewayRouteImport.update({
-  id: '/mn-gateway',
-  path: '/mn-gateway',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MembershipRoute = MembershipRouteImport.update({
   id: '/membership',
   path: '/membership',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRoute = HelpRouteImport.update({
@@ -152,11 +151,6 @@ const ApiResourceDownloadRoute = ApiResourceDownloadRouteImport.update({
   path: '/api/resource-download',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMnWebhookRoute = ApiMnWebhookRouteImport.update({
-  id: '/api/mn-webhook',
-  path: '/api/mn-webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiMnVerifyRoute = ApiMnVerifyRouteImport.update({
   id: '/api/mn-verify',
   path: '/api/mn-verify',
@@ -209,8 +203,8 @@ export interface FileRoutesByFullPath {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
-  '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -224,7 +218,6 @@ export interface FileRoutesByFullPath {
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
-  '/api/mn-webhook': typeof ApiMnWebhookRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
@@ -243,8 +236,8 @@ export interface FileRoutesByTo {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
-  '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -258,7 +251,6 @@ export interface FileRoutesByTo {
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
-  '/api/mn-webhook': typeof ApiMnWebhookRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
@@ -278,8 +270,8 @@ export interface FileRoutesById {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
-  '/mn-gateway': typeof MnGatewayRoute
   '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -293,7 +285,6 @@ export interface FileRoutesById {
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
-  '/api/mn-webhook': typeof ApiMnWebhookRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
@@ -314,8 +305,8 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/join'
     | '/membership'
-    | '/mn-gateway'
     | '/resources'
     | '/sign-in'
     | '/sign-up'
@@ -329,7 +320,6 @@ export interface FileRouteTypes {
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/mn-verify'
-    | '/api/mn-webhook'
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
@@ -348,8 +338,8 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/join'
     | '/membership'
-    | '/mn-gateway'
     | '/resources'
     | '/sign-in'
     | '/sign-up'
@@ -363,7 +353,6 @@ export interface FileRouteTypes {
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/mn-verify'
-    | '/api/mn-webhook'
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
@@ -382,8 +371,8 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/join'
     | '/membership'
-    | '/mn-gateway'
     | '/resources'
     | '/sign-in'
     | '/sign-up'
@@ -397,7 +386,6 @@ export interface FileRouteTypes {
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/mn-verify'
-    | '/api/mn-webhook'
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
@@ -417,8 +405,8 @@ export interface RootRouteChildren {
   AssessmentBoardRoute: typeof AssessmentBoardRoute
   CommunityRoute: typeof CommunityRoute
   HelpRoute: typeof HelpRoute
+  JoinRoute: typeof JoinRoute
   MembershipRoute: typeof MembershipRoute
-  MnGatewayRoute: typeof MnGatewayRoute
   ResourcesRoute: typeof ResourcesRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
@@ -432,7 +420,6 @@ export interface RootRouteChildren {
   ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
   ApiMnVerifyRoute: typeof ApiMnVerifyRoute
-  ApiMnWebhookRoute: typeof ApiMnWebhookRoute
   ApiResourceDownloadRoute: typeof ApiResourceDownloadRoute
   ApiResourcesRoute: typeof ApiResourcesRoute
   ApiResourcesDebugRoute: typeof ApiResourcesDebugRoute
@@ -476,18 +463,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mn-gateway': {
-      id: '/mn-gateway'
-      path: '/mn-gateway'
-      fullPath: '/mn-gateway'
-      preLoaderRoute: typeof MnGatewayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/membership': {
       id: '/membership'
       path: '/membership'
       fullPath: '/membership'
       preLoaderRoute: typeof MembershipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/help': {
@@ -602,13 +589,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiResourceDownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mn-webhook': {
-      id: '/api/mn-webhook'
-      path: '/api/mn-webhook'
-      fullPath: '/api/mn-webhook'
-      preLoaderRoute: typeof ApiMnWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/mn-verify': {
       id: '/api/mn-verify'
       path: '/api/mn-verify'
@@ -681,8 +661,8 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentBoardRoute: AssessmentBoardRoute,
   CommunityRoute: CommunityRoute,
   HelpRoute: HelpRoute,
+  JoinRoute: JoinRoute,
   MembershipRoute: MembershipRoute,
-  MnGatewayRoute: MnGatewayRoute,
   ResourcesRoute: ResourcesRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
@@ -696,7 +676,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
   ApiMnVerifyRoute: ApiMnVerifyRoute,
-  ApiMnWebhookRoute: ApiMnWebhookRoute,
   ApiResourceDownloadRoute: ApiResourceDownloadRoute,
   ApiResourcesRoute: ApiResourcesRoute,
   ApiResourcesDebugRoute: ApiResourcesDebugRoute,

@@ -4,7 +4,7 @@ import { Header } from '@/components/Header'
 import { AIAssistant } from '@/components/AIAssistant'
 import '../styles.css'
 
-const BARE_ROUTES = ['/mn-gateway']
+const BARE_ROUTES = ['/join']
 
 // Hardcoded fallback so ClerkProvider never receives undefined during SSR
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsud2Fycm9vbWludGVsLmNvbSQ'

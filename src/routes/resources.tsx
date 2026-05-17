@@ -82,7 +82,7 @@ const TIER_ICONS: Record<string, string> = {
   General:   '👑',
 }
 
-const MN_LOGIN_URL = 'https://community.warroomintel.com'
+const COMMUNITY_URL = '/community'
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function getTierLevel(tier: string) { return TIER_ORDER[tier] ?? 0 }
@@ -231,7 +231,7 @@ function FileCard({
       {/* Upgrade nudge on locked cards */}
       {!hasAccess && (
         <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${border}` }}>
-          <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer"
+          <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer"
             style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: TIER_COLORS[resource.tier] || muted, textDecoration: 'none' }}>
             Upgrade to {resource.tier} to unlock →
           </a>
@@ -600,7 +600,7 @@ function ResourcesPage() {
         <p style={{ fontFamily: crimson, fontStyle: 'italic', fontSize: '13px', color: muted }}>
           Download links expire after 4 hours for security. Refresh the page to generate a new link.
         </p>
-        <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer"
+        <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer"
           style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: gold, textDecoration: 'none', marginTop: '8px', display: 'inline-block' }}>
           ⚔ Manage Membership →
         </a>

@@ -33,11 +33,11 @@ interface DemonEntry {
 
 // ── MIGHTY NETWORKS JOIN URLS ───────────────────────────
 // Replace these with your actual Mighty Networks plan join URLs
-const MN_FREE_URL = 'https://community.warroomintel.com/plans/1979758?bundle_token=e04c89c08df67ed3964150df587bacc4&utm_source=manual'
-const MN_SOLDIER_URL = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
-const MN_COMMANDER_URL = 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01'
-const MN_GENERAL_URL = 'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02'
-const MN_LOGIN_URL = 'https://community.warroomintel.com'
+const SIGNUP_URL    = 'https://accounts.warroomintel.com/sign-up'
+const SOLDIER_URL   = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
+const COMMANDER_URL = 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01'
+const GENERAL_URL   = 'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02'
+const COMMUNITY_URL = '/community'
 
 // ── CONSTANTS ────────────────────────────────────────────
 const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
@@ -480,7 +480,7 @@ function DatabaseSection() {
             <span style={{ color: muted }}>Commander &amp; General: Coming Soon</span>
           </span>
         </div>
-        <a href={MN_SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>JOIN TO UNLOCK →</a>
+        <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>JOIN TO UNLOCK →</a>
       </div>
 
       {/* Database Table */}
@@ -559,29 +559,29 @@ function DatabaseSection() {
                 <TierCallout
                   title="⚔ Upgrade to Soldier — $19/month · 30 days free"
                   desc="Includes everything in Free plus Manifestations, Scripture References, Strongman, and Rank"
-                  url={MN_SOLDIER_URL}
+                  url={SOLDIER_URL}
                   btnLabel="Upgrade to Soldier"
                 />
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>FUNCTION / ROLE</div>
-                    <LockedField tier="Soldier" desc="The specific function or role this spirit plays in the demonic hierarchy and in the life of the host." upgradeUrl={MN_SOLDIER_URL} />
+                    <LockedField tier="Soldier" desc="The specific function or role this spirit plays in the demonic hierarchy and in the life of the host." upgradeUrl={SOLDIER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>MANIFESTATIONS</div>
-                    <LockedField tier="Soldier" desc="Physical, emotional, and spiritual signs this spirit produces in those it inhabits." upgradeUrl={MN_SOLDIER_URL} />
+                    <LockedField tier="Soldier" desc="Physical, emotional, and spiritual signs this spirit produces in those it inhabits." upgradeUrl={SOLDIER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SCRIPTURE REFERENCES</div>
-                    <LockedField tier="Soldier" desc="Biblical passages that identify, address, or give authority over this spirit." upgradeUrl={MN_SOLDIER_URL} />
+                    <LockedField tier="Soldier" desc="Biblical passages that identify, address, or give authority over this spirit." upgradeUrl={SOLDIER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>STRONGMAN</div>
-                    <LockedField tier="Soldier" desc="The major strongman this spirit operates under (e.g., Bitterness, Fear, Rejection, Leviathan)." upgradeUrl={MN_SOLDIER_URL} />
+                    <LockedField tier="Soldier" desc="The major strongman this spirit operates under (e.g., Bitterness, Fear, Rejection, Leviathan)." upgradeUrl={SOLDIER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>RANK / CLASSIFICATION</div>
-                    <LockedField tier="Soldier" desc="Hierarchical rank in the demonic order: Principality, Power, Strongman, Spirit, Familiar, Unclean, etc." upgradeUrl={MN_SOLDIER_URL} />
+                    <LockedField tier="Soldier" desc="Hierarchical rank in the demonic order: Principality, Power, Strongman, Spirit, Familiar, Unclean, etc." upgradeUrl={SOLDIER_URL} />
                   </div>
                 </div>
 
@@ -591,21 +591,21 @@ function DatabaseSection() {
                 <TierCallout
                   title="⚔ Upgrade to Commander — $39/month · 30 days free"
                   desc="Includes everything in Soldier plus Entry Points, Legal Rights, and Deliverance Protocol"
-                  url={MN_COMMANDER_URL}
+                  url={COMMANDER_URL}
                   btnLabel="Upgrade to Commander"
                 />
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>ENTRY POINTS</div>
-                    <LockedField tier="Commander" desc="How this spirit gains access — trauma, generational patterns, sin, occult doorways, soul ties, etc." upgradeUrl={MN_COMMANDER_URL} />
+                    <LockedField tier="Commander" desc="How this spirit gains access — trauma, generational patterns, sin, occult doorways, soul ties, etc." upgradeUrl={COMMANDER_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>LEGAL RIGHTS</div>
-                    <LockedField tier="Commander" desc="What gives this spirit legal authority: generational iniquity, blood oaths, trauma, occult involvement, unconfessed sin, etc." upgradeUrl={MN_COMMANDER_URL} />
+                    <LockedField tier="Commander" desc="What gives this spirit legal authority: generational iniquity, blood oaths, trauma, occult involvement, unconfessed sin, etc." upgradeUrl={COMMANDER_URL} />
                   </div>
                   <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DELIVERANCE PROTOCOL</div>
-                    <LockedField tier="Commander" desc="Step-by-step protocol for commanding this spirit out, breaking its legal rights, and maintaining freedom." wide upgradeUrl={MN_COMMANDER_URL} />
+                    <LockedField tier="Commander" desc="Step-by-step protocol for commanding this spirit out, breaking its legal rights, and maintaining freedom." wide upgradeUrl={COMMANDER_URL} />
                   </div>
                 </div>
 
@@ -615,21 +615,21 @@ function DatabaseSection() {
                 <TierCallout
                   title="⚔ Upgrade to General — $97/month · 30 days free"
                   desc="Includes everything in Commander plus Symptoms, Companion Spirits, and WRI Exorcist Notes"
-                  url={MN_GENERAL_URL}
+                  url={GENERAL_URL}
                   btnLabel="Upgrade to General"
                 />
                 <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SYMPTOMS</div>
-                    <LockedField tier="General" desc="Physical and mental symptoms this spirit produces (e.g., heart palpitations, insomnia, anxiety attacks, depression, rage episodes, cancer)." upgradeUrl={MN_GENERAL_URL} />
+                    <LockedField tier="General" desc="Physical and mental symptoms this spirit produces (e.g., heart palpitations, insomnia, anxiety attacks, depression, rage episodes, cancer)." upgradeUrl={GENERAL_URL} />
                   </div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>COMPANION SPIRITS</div>
-                    <LockedField tier="General" desc="Spirits that cluster with this one and almost always appear together in the same person." upgradeUrl={MN_GENERAL_URL} />
+                    <LockedField tier="General" desc="Spirits that cluster with this one and almost always appear together in the same person." upgradeUrl={GENERAL_URL} />
                   </div>
                   <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
                     <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>WRI EXORCIST NOTES</div>
-                    <LockedField tier="General" desc="Private ministry notes from the War Room Intel deliverance team — field observations, case patterns, and operational intelligence." wide upgradeUrl={MN_GENERAL_URL} />
+                    <LockedField tier="General" desc="Private ministry notes from the War Room Intel deliverance team — field observations, case patterns, and operational intelligence." wide upgradeUrl={GENERAL_URL} />
                   </div>
                 </div>
 
@@ -638,7 +638,7 @@ function DatabaseSection() {
                   <span style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Know more about this entry? Help us improve the database.</span>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' as const, alignItems: 'center' }}>
                     {/* Field Card — locked until Soldier auth is wired */}
-                    <a href={MN_SOLDIER_URL} target="_blank" rel="noopener noreferrer"
+                    <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer"
                       title="Requires Soldier membership — click to upgrade"
                       style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.35)`, padding: '5px 14px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px', opacity: 0.65, transition: 'opacity 0.2s, border-color 0.2s' }}
                       onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.6)' }}
@@ -765,7 +765,7 @@ function PricingSection() {
         'Ministry calls (Coming Soon)',
       ],
       btn: 'Join Free',
-      url: MN_FREE_URL,
+      url: SIGNUP_URL,
       featured: false,
     },
     {
@@ -786,7 +786,7 @@ function PricingSection() {
         'Bi-weekly calls (Coming Soon)',
       ],
       btn: 'Start Free Trial',
-      url: MN_SOLDIER_URL,
+      url: SOLDIER_URL,
       featured: false,
     },
     {
@@ -808,7 +808,7 @@ function PricingSection() {
         'Weekly intimate calls (Coming Soon)',
       ],
       btn: 'Start Free Trial',
-      url: MN_COMMANDER_URL,
+      url: COMMANDER_URL,
       featured: true,
     },
     {
@@ -828,7 +828,7 @@ function PricingSection() {
       ],
       locked: [],
       btn: 'Start Free Trial',
-      url: MN_GENERAL_URL,
+      url: GENERAL_URL,
       featured: false,
     },
   ]
@@ -844,11 +844,11 @@ function PricingSection() {
               <div style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, color: gold, letterSpacing: '0.1em', marginBottom: '4px' }}>THE COMMUNITY IS LIVE</div>
               <div style={{ fontSize: '14px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>
                 All plans include a 30-day free trial. The Free tier requires no card. Join the community at{' '}
-                <a href={MN_FREE_URL} target="_blank" rel="noopener noreferrer" style={{ color: gold, textDecoration: 'none' }}>community.warroomintel.com</a>
+                <a href={SIGNUP_URL} style={{ color: gold, textDecoration: 'none' }}>Join free →</a>
               </div>
             </div>
           </div>
-          <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer"
+          <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer"
             style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', padding: '10px 20px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
             Login to Community →
           </a>
@@ -1028,7 +1028,7 @@ function AboutSection() {
               onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
               Staffordtown Church →
             </a>
-            <a href={MN_FREE_URL} target="_blank" rel="noopener noreferrer"
+            <a href={SIGNUP_URL} target="_blank" rel="noopener noreferrer"
               style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em', padding: '12px 24px', background: 'transparent', color: gold, textDecoration: 'none', border: `1px solid ${border}`, borderRadius: '3px', transition: 'border-color 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
               onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
@@ -1096,10 +1096,10 @@ function Footer() {
         <div>
           <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Membership</div>
           {[
-            { label: 'Free — The Watchman', url: MN_FREE_URL },
-            { label: 'Soldier — $19/month', url: MN_SOLDIER_URL },
-            { label: 'Commander — $39/month', url: MN_COMMANDER_URL },
-            { label: 'General — $97/month', url: MN_GENERAL_URL },
+            { label: 'Free — The Watchman', url: SIGNUP_URL },
+            { label: 'Soldier — $19/month', url: SOLDIER_URL },
+            { label: 'Commander — $39/month', url: COMMANDER_URL },
+            { label: 'General — $97/month', url: GENERAL_URL },
           ].map(({ label, url }) => (
             <div key={label} style={{ marginBottom: '8px' }}>
               <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: muted, textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
@@ -1110,7 +1110,7 @@ function Footer() {
             </div>
           ))}
           <div style={{ marginTop: '8px' }}>
-            <a href={MN_LOGIN_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: gold, textDecoration: 'none', fontFamily: cinzel, letterSpacing: '0.08em' }}>
+            <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: gold, textDecoration: 'none', fontFamily: cinzel, letterSpacing: '0.08em' }}>
               ⚔ Community Login →
             </a>
           </div>

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { SignInButton, SignUpButton, UserButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 
-const MN_URL = 'https://community.warroomintel.com'
 const gold = 'var(--gold)'
 const goldLight = 'var(--gold-light)'
 const goldDim = 'var(--gold-dim)'
