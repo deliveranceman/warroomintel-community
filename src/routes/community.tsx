@@ -371,7 +371,7 @@ function CommunityPage() {
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const sectionLabel = (label: string) => (
-    <div style={{ padding: '14px 16px 4px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.25em', color: theme === 'light' ? V.mut : V.gold }}>
+    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: theme === 'light' ? V.mut : V.gold }}>
       {label}
     </div>
   )
@@ -960,8 +960,14 @@ function CommunityPage() {
 
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
-        {sectionLabel('COMMUNITY')}
-        {navItem('The War Room', 'war-room', '⚔')}
+        <div
+          onClick={() => { setActiveSection('war-room'); setSidebarOpen(false) }}
+          style={{ padding: '14px 16px 8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: activeSection === 'war-room' ? V.gold : V.mut }}>
+            ✕ Community
+          </span>
+        </div>
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
         {/* Messages — inline for unread badge */}
         {(() => {
@@ -985,8 +991,7 @@ function CommunityPage() {
         })()}
         {navItem('Members', 'members', '👥')}
 
-        {sectionLabel('INTELLIGENCE')}
-        {navItem('Demon Database', 'database', '📖')}
+        <div style={{ paddingTop: 16 }}>{navItem('Demon Database', 'database', '📖')}</div>
         {dimItem('Weekly Intel', '📡')}
         {navItem('Scripture Arsenal', 'arsenal', '✦')}
 
