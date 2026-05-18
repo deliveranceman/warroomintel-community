@@ -281,6 +281,8 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         return id !== 'prayer-wall-requests' && id !== 'war-room-general'
       })
       setConversations(filtered)
+      const total = filtered.reduce((sum: number, ch: any) => sum + (ch.channel?.unread_count || 0), 0)
+      setUnreadDMs(total)
       console.log('loadConvos result:', filtered.length, filtered.map((c: any) => c.channel?.id || c.id))
       console.log('raw channels from Stream:', d.channels?.length, d.channels?.map((c: any) => c.channel?.id))
     } catch (err) {
@@ -905,6 +907,8 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
   const [draft,           setDraft]           = useState('')
   const [prayers,         setPrayers]         = useState<StreamMsg[]>([])
   const [hoveredPrayerId, setHoveredPrayerId] = useState<string | null>(null)
+  const [editingPostId,   setEditingPostId]   = useState<string | null>(null)
+  const [editDraft,       setEditDraft]       = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const fetchPrayers = useCallback(async () => {
@@ -986,12 +990,41 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             apiKey={apiKey}
             onReaction={fetchPrayers}
             actions={m.user?.id === userId ? (
-              <button
-                onClick={() => handleDeletePrayer(m.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
-              >🗑 Delete</button>
+              editingPostId === m.id ? (
+                <div>
+                  <textarea
+                    value={editDraft}
+                    onChange={e => setEditDraft(e.target.value)}
+                    rows={3}
+                    style={{ width: '100%', boxSizing: 'border-box', background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 4, padding: '6px 8px', color: V.txt, fontFamily: crimson, fontSize: 14, resize: 'none' as const, outline: 'none', marginBottom: 6 }}
+                  />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => streamFetch(`/messages/${m.id}`, 'PUT', streamToken, apiKey, { message: { text: editDraft } }).then(() => { fetchPrayers(); setEditingPostId(null) })}
+                      style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
+                    >Save</button>
+                    <button
+                      onClick={() => setEditingPostId(null)}
+                      style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
+                    >Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => { setEditingPostId(m.id); setEditDraft(m.text || '') }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                  >✏ Edit</button>
+                  <button
+                    onClick={() => handleDeletePrayer(m.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                  >🗑 Delete</button>
+                </div>
+              )
             ) : undefined}
           />
         ))}
@@ -1291,7 +1324,8 @@ function CommunityPage() {
   const [draft, setDraft]             = useState('')
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
-  const [unreadDMs, setUnreadDMs]     = useState(0)
+  const [unreadDMs, setUnreadDMs]         = useState(0)
+  const [unreadWarRoom, setUnreadWarRoom] = useState(0)
   const [hoveredPrayer, setHoveredPrayer] = useState<any>(null)
   const [hoverY, setHoverY]               = useState(0)
   const [members, setMembers]             = useState<any[]>([])
@@ -1409,6 +1443,7 @@ function CommunityPage() {
     try {
       const d = await streamFetch('/channels/messaging/war-room-general/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 50 } })
       if (d.messages) setPosts(d.messages)
+      if (typeof d.channel?.unread_count === 'number') setUnreadWarRoom(d.channel.unread_count)
     } catch {}
   }, [streamToken, apiKey])
 
@@ -2144,6 +2179,9 @@ function CommunityPage() {
         >
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚔</span>
           War Room Chat
+          {unreadWarRoom > 0 && (
+            <span style={{ marginLeft: 'auto', minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{unreadWarRoom}</span>
+          )}
         </button>
 
         {/* Direct Messages */}
