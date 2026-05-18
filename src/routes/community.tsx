@@ -353,33 +353,19 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
       const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
-        // Stream REST: POST /channels/{type}/{id}/query with members as objects
-        // members must be [{ user_id: "..." }] not plain strings for $in filter to work
-        const d = await streamFetch(
-          `/channels/messaging/${channelId}/query`,
-          'POST', streamToken, apiKey,
-          {
-            data: {
-              created_by_id: userId,
-              members: sortedIds.map((id: string) => ({ user_id: id })),
-            },
-            state: true,
-            messages: { limit: 50 },
-          }
-        )
-        console.log('create channel response:', JSON.stringify(d).slice(0, 300))
+        // Call server-side function — client JWT cannot add other users as members
+        const res = await fetch('/api/create-dm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, otherUserId: pendingDMWith }),
+        })
+        const { channelId: serverChannelId, error } = await res.json()
+        if (error) throw new Error(error)
+        console.log('create-dm server response: channelId =', serverChannelId)
 
-        // Also explicitly add members via add_members in case channel already exists
-        await streamFetch(
-          `/channels/messaging/${channelId}`,
-          'POST', streamToken, apiKey,
-          { add_members: sortedIds.map((id: string) => ({ user_id: id })) }
-        )
-
-        setSelectedConvo(channelId)
+        setSelectedConvo(serverChannelId)
         setHeaderOtherId(pendingDMWith)
         setTimeout(() => loadConvos(), 800)
-        if (d.messages) setMessages(d.messages)
       } catch (err) {
         console.error('createOrFindDM error:', err)
       }
