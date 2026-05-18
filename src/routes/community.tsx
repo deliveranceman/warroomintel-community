@@ -273,12 +273,14 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         presence: false,
         limit: 30,
         message_limit: 1,
+        member_limit: 10,
       })
       const filtered = (d.channels || []).filter((ch: any) => {
         const id = ch.channel?.id || ch.id
         return id !== 'prayer-wall-requests' && id !== 'war-room-general'
       })
       setConversations(filtered)
+      console.log('loadConvos result:', filtered.length, filtered.map((c: any) => c.channel?.id || c.id))
     } catch (err) {
       console.error('loadConvos error:', err)
     } finally {
@@ -486,7 +488,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0, background: V.surf, display: 'flex', alignItems: 'center', gap: 12 }}>
               <button onClick={() => setSelectedConvo(null)} style={{ background: 'none', border: 'none', color: V.mut, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
               {(() => {
-                const { name, avatar } = getConvoMeta(conversations.find(c => (c.channel || c).id === selectedConvo) || {})
+                const headerMeta = selectedConvo ? getConvoMeta(conversations.find((c: any) => (c.channel?.id || c.id) === selectedConvo) || {}) : null
+                const clerkMatch = dmMembers?.find((m: any) => pendingDMWith === m.id)
+                const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : ''
+                const name = (headerMeta?.name && headerMeta.name !== 'Loading...') ? headerMeta.name : (clerkName || 'Warrior')
+                const avatar = headerMeta?.avatar || ''
                 return (
                   <>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, overflow: 'hidden', flexShrink: 0 }}>
