@@ -259,37 +259,38 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Fetch DM channels this user is a member of
-  useEffect(() => {
+  const loadConvos = useCallback(async () => {
     if (!streamToken || !apiKey || !userId) return
-    async function loadConvos() {
-      try {
-        const d = await streamFetch('/channels', 'POST', streamToken, apiKey, {
-          filter_conditions: {
-            type: 'messaging',
-            members: { $in: [userId] },
-          },
-          sort: [{ field: 'last_message_at', direction: -1 }],
-          state: true,
-          watch: false,
-          presence: false,
-          limit: 30,
-          message_limit: 1,
-        })
-        const filtered = (d.channels || []).filter((ch: any) => {
-          const id = ch.channel?.id || ch.id
-          return id !== 'prayer-wall-requests' && id !== 'war-room-general'
-        })
-        setConversations(filtered)
-      } catch (err) {
-        console.error('loadConvos error:', err)
-      } finally {
-        setLoading(false)
-      }
+    try {
+      const d = await streamFetch('/channels', 'POST', streamToken, apiKey, {
+        filter_conditions: {
+          type: 'messaging',
+          members: { $in: [userId] },
+        },
+        sort: [{ field: 'last_message_at', direction: -1 }],
+        state: true,
+        watch: false,
+        presence: false,
+        limit: 30,
+        message_limit: 1,
+      })
+      const filtered = (d.channels || []).filter((ch: any) => {
+        const id = ch.channel?.id || ch.id
+        return id !== 'prayer-wall-requests' && id !== 'war-room-general'
+      })
+      setConversations(filtered)
+    } catch (err) {
+      console.error('loadConvos error:', err)
+    } finally {
+      setLoading(false)
     }
+  }, [streamToken, apiKey, userId])
+
+  useEffect(() => {
     loadConvos()
     const interval = setInterval(loadConvos, 8000)
     return () => clearInterval(interval)
-  }, [streamToken, apiKey, userId])
+  }, [loadConvos])
 
   // Load messages when a conversation is selected
   useEffect(() => {
@@ -357,6 +358,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         console.log('DM channel response:', JSON.stringify(d).slice(0, 200))
         const resolvedId = d.channel?.id || channelId
         setSelectedConvo(resolvedId)
+        loadConvos()
         try {
           const msgs = await streamFetch(
             `/channels/messaging/${resolvedId}/query`,
@@ -593,7 +595,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                       </div>
                       <div>
                         <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#1C1407', letterSpacing: '0.04em' }}>{name}</div>
-                        <div style={{ fontSize: 10, color: '#6b6b7a' }}>{m.publicMetadata?.tier || 'Watchman'}</div>
+                        <TierBadge tier={m.publicMetadata?.tier || 'Free'} />
                       </div>
                     </div>
                   )
