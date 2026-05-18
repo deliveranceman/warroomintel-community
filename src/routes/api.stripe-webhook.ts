@@ -6,7 +6,11 @@ async function getStripe() {
 }
 
 function buildPriceMap(): Record<string, string> {
-  const map: Record<string, string> = {}
+  const map: Record<string, string> = {
+    'price_1TXieT5V5uqVT9SoIrPMKSAc': 'Soldier',
+    'price_1TXifB5V5uqVT9SohnQfGZuC': 'Commander',
+    'price_1TXifX5V5uqVT9SogXMp79zb': 'General',
+  }
   if (process.env.STRIPE_SOLDIER_PRICE_ID)   map[process.env.STRIPE_SOLDIER_PRICE_ID]   = 'Soldier'
   if (process.env.STRIPE_COMMANDER_PRICE_ID) map[process.env.STRIPE_COMMANDER_PRICE_ID] = 'Commander'
   if (process.env.STRIPE_GENERAL_PRICE_ID)   map[process.env.STRIPE_GENERAL_PRICE_ID]   = 'General'
@@ -50,7 +54,7 @@ export const Route = createFileRoute('/api/stripe-webhook')({
           return Response.json({ error: 'Missing stripe-signature header' }, { status: 400 })
         }
 
-        const stripe = getStripe()
+        const stripe = await getStripe()
 
         let event: Stripe.Event
         try {
@@ -82,6 +86,26 @@ export const Route = createFileRoute('/api/stripe-webhook')({
 
             await setUserTier(email, tier)
             console.log(`[stripe-webhook] checkout.session.completed → ${email} = ${tier}`)
+          }
+
+          if (event.type === 'customer.subscription.updated') {
+            const subscription = event.data.object as Stripe.Subscription
+            const customerId = typeof subscription.customer === 'string'
+              ? subscription.customer
+              : subscription.customer.id
+            const customer = await stripe.customers.retrieve(customerId)
+            if (customer.deleted) throw new Error('Stripe customer record was deleted')
+            const email = (customer as Stripe.Customer).email
+            if (!email) throw new Error('No email on Stripe customer record')
+            const priceId = subscription.items.data[0]?.price?.id
+            if (!priceId) throw new Error('No price ID in subscription items')
+            const tier = buildPriceMap()[priceId]
+            if (!tier) {
+              console.warn(`[stripe-webhook] Unrecognised price ID ${priceId} — no tier update`)
+              return Response.json({ received: true }, { status: 200 })
+            }
+            await setUserTier(email, tier)
+            console.log(`[stripe-webhook] subscription.updated → ${email} = ${tier}`)
           }
 
           if (event.type === 'customer.subscription.deleted') {
