@@ -1038,7 +1038,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
     if (!streamToken || !apiKey) return
     try {
       const d = await streamFetch(
-        '/channels/livestream/war-room-general/query',
+        '/channels/messaging/war-room-general/query',
         'POST', streamToken, apiKey,
         { state: true, messages: { limit: 50 } }
       )
@@ -1062,7 +1062,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
     setDraft('')
     try {
       await streamFetch(
-        '/channels/livestream/war-room-general/message',
+        '/channels/messaging/war-room-general/message',
         'POST', streamToken, apiKey,
         { message: { text } }
       )
