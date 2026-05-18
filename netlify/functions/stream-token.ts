@@ -58,8 +58,8 @@ export default async (req: Request, _context: Context) => {
       },
     })
 
-    // Generate a valid token for this user
-    const token = client.generateUserToken({ user_id: userId })
+    // Generate a valid token for this user (1-hour expiry)
+    const token = client.createToken(userId, Math.floor(Date.now() / 1000) + 3600)
 
     return new Response(JSON.stringify({ token, apiKey }), {
       status: 200,

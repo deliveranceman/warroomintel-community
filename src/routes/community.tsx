@@ -255,6 +255,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   const [showNewDM, setShowNewDM]         = useState(false)
   const [msgDraft, setMsgDraft]           = useState('')
   const [newDMSearch, setNewDMSearch]     = useState('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Fetch DM channels this user is a member of
@@ -521,24 +522,43 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
               <div ref={bottomRef} />
             </div>
             {/* Send bar */}
-            <div style={{ flexShrink: 0, borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-              <button
-                title="Photos & GIFs coming soon"
-                style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'not-allowed', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
-              >📎</button>
-              <textarea
-                value={msgDraft}
-                onChange={e => setMsgDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
-                placeholder="Type a message..."
-                rows={2}
-                style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 12px', color: V.txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'none' as const }}
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!msgDraft.trim()}
-                style={{ padding: '10px 16px', flexShrink: 0, background: msgDraft.trim() ? G : 'rgba(201,168,76,0.2)', border: 'none', borderRadius: 8, color: msgDraft.trim() ? '#0D0B14' : V.mut, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: msgDraft.trim() ? 'pointer' : 'not-allowed', fontWeight: 700, alignSelf: 'flex-end' }}
-              >Send</button>
+            <div style={{ flexShrink: 0, position: 'relative' }}>
+              {showEmojiPicker && (
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, padding: '8px 12px', background: V.s2, borderTop: `1px solid ${V.bdr}`, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {['🙏','❤️','🔥','✝️','⚔️','😭','🛡️','💪','🕊️','🌟'].map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => { setMsgDraft(d => d + emoji); setShowEmojiPicker(false) }}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 6px', borderRadius: 6 }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.1)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                    >{emoji}</button>
+                  ))}
+                </div>
+              )}
+              <div style={{ borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+                <button
+                  title="Photos & GIFs coming soon"
+                  style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'not-allowed', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
+                >📎</button>
+                <button
+                  onClick={() => setShowEmojiPicker(v => !v)}
+                  style={{ padding: '10px', background: showEmojiPicker ? 'rgba(201,168,76,0.15)' : 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
+                >😊</button>
+                <textarea
+                  value={msgDraft}
+                  onChange={e => setMsgDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
+                  placeholder="Type a message... (Enter to send)"
+                  rows={2}
+                  style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 12px', color: V.txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'none' as const }}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!msgDraft.trim()}
+                  style={{ padding: '10px 16px', flexShrink: 0, background: msgDraft.trim() ? G : 'rgba(201,168,76,0.2)', border: 'none', borderRadius: 8, color: msgDraft.trim() ? '#0D0B14' : V.mut, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: msgDraft.trim() ? 'pointer' : 'not-allowed', fontWeight: 700, alignSelf: 'flex-end' }}
+                >Send</button>
+              </div>
             </div>
           </div>
         )}
@@ -1349,6 +1369,26 @@ function CommunityPage() {
         setError(err.message)
         setLoading(false)
       })
+  }, [user?.id])
+
+  // Refresh Stream token every 25 minutes (tokens expire at 1hr, refresh well before that)
+  useEffect(() => {
+    if (!user?.id) return
+    const interval = setInterval(() => {
+      fetch('/api/stream-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId:    user.id,
+          userName:  user.fullName || user.firstName || 'Warrior',
+          userImage: user.imageUrl || '',
+        }),
+      })
+        .then(r => r.json())
+        .then(data => { if (data.token) { setStreamToken(data.token); setApiKey(data.apiKey) } })
+        .catch(err => console.error('stream-token refresh error:', err))
+    }, 25 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [user?.id])
 
   const fetchPosts = useCallback(async () => {
