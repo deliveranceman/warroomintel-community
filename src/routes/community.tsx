@@ -352,21 +352,16 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
       const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
-        // Step 1 — create/update channel with members
-        const createRes = await streamFetch(
-          `/channels/messaging/${channelId}`,
-          'POST', streamToken, apiKey,
-          { data: { members: sortedIds } }
-        )
-        console.log('DM create response:', JSON.stringify(createRes).slice(0, 200))
+        // Step 1 — create channel
+        await streamFetch(`/channels/messaging/${channelId}`, 'POST', streamToken, apiKey, {})
 
-        // Step 2 — query to get state + messages
-        const d = await streamFetch(
-          `/channels/messaging/${channelId}/query`,
-          'POST', streamToken, apiKey,
-          { state: true, watch: false }
-        )
-        console.log('DM query response:', JSON.stringify(d).slice(0, 200))
+        // Step 2 — add members explicitly
+        await streamFetch(`/channels/messaging/${channelId}/members`, 'POST', streamToken, apiKey, {
+          add_members: sortedIds.map(id => ({ user_id: id }))
+        })
+
+        // Step 3 — query for messages
+        const d = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', streamToken, apiKey, { state: true, watch: false })
 
         setSelectedConvo(channelId)
         setHeaderOtherId(pendingDMWith)
