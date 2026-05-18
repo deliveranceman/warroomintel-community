@@ -1064,7 +1064,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
       await streamFetch(
         '/channels/messaging/war-room-general/message',
         'POST', streamToken, apiKey,
-        { message: { text } }
+        { message: { text, user_id: userId } }
       )
       await fetchMessages()
     } catch { setDraft(text) } finally { setSending(false) }
@@ -1518,7 +1518,7 @@ function CommunityPage() {
     if (!draft.trim() || !streamToken || !apiKey || sending) return
     setSending(true)
     try {
-      await streamFetch('/channels/messaging/war-room-general/message', 'POST', streamToken, apiKey, { message: { text: draft.trim() } })
+      await streamFetch('/channels/messaging/war-room-general/message', 'POST', streamToken, apiKey, { message: { text: draft.trim(), user_id: user?.id } })
       setDraft('')
       await fetchPosts()
     } finally { setSending(false) }
