@@ -1362,7 +1362,7 @@ function CommunityPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId:    user.id,
-        userName:  user.fullName || user.firstName || 'Warrior',
+        userName:  user.fullName || user.firstName || user.username || 'Warrior',
         userImage: user.imageUrl || '',
       }),
     })
@@ -1395,7 +1395,7 @@ function CommunityPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId:    user.id,
-          userName:  user.fullName || user.firstName || 'Warrior',
+          userName:  user.fullName || user.firstName || user.username || 'Warrior',
           userImage: user.imageUrl || '',
         }),
       })

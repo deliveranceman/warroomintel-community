@@ -37,7 +37,7 @@ export default async (req: Request, _context: Context) => {
     // Upsert user — creates if not exists, updates if exists
     await client.upsertUsers([{
       id:    userId,
-      name:  userName  || 'Warrior',
+      name:  (userName || '').trim() || 'Warrior',
       image: userImage || '',
       role:  'user',
     }])
