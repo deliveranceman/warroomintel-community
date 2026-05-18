@@ -342,7 +342,8 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     if (!pendingDMWith || !streamToken || !apiKey || !userId) return
     async function createOrFindDM() {
       const sortedIds = [userId, pendingDMWith].sort()
-      const channelId = sortedIds.join('-dm-')
+      const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
+      const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
         const d = await streamFetch(
           `/channels/messaging/${channelId}/query`,
