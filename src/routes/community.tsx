@@ -226,7 +226,7 @@ function EditProfileModal({ userId, existingBio, existingLocation, onClose, isDa
 }
 
 // ── MESSAGES VIEW ─────────────────────────────────────────
-function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName, pendingDMWith, onDMStarted, isDark = true, dmMembers = [], onStartDM }: {
+function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName, pendingDMWith, onDMStarted, isDark = true, dmMembers = [], onStartDM, onUnreadChange }: {
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   streamToken: string
@@ -239,6 +239,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   isDark?: boolean
   dmMembers?: any[]
   onStartDM?: (memberId: string, memberName: string) => void
+  onUnreadChange?: (count: number) => void
 }) {
   const V = {
     bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
@@ -282,7 +283,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       })
       setConversations(filtered)
       const total = filtered.reduce((sum: number, ch: any) => sum + (ch.channel?.unread_count || 0), 0)
-      setUnreadDMs(total)
+      onUnreadChange?.(total)
       console.log('loadConvos result:', filtered.length, filtered.map((c: any) => c.channel?.id || c.id))
       console.log('raw channels from Stream:', d.channels?.length, d.channels?.map((c: any) => c.channel?.id))
     } catch (err) {
@@ -352,17 +353,12 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
       const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
-        // Step 1 — create channel
-        await streamFetch(`/channels/messaging/${channelId}`, 'POST', streamToken, apiKey, {})
-
-        // Step 2 — add members explicitly
-        await streamFetch(`/channels/messaging/${channelId}/members`, 'POST', streamToken, apiKey, {
-          add_members: sortedIds.map(id => ({ user_id: id }))
+        const d = await streamFetch('/channels', 'POST', streamToken, apiKey, {
+          channel: { type: 'messaging', id: channelId, members: sortedIds },
+          data: { members: sortedIds },
+          members: sortedIds,
         })
-
-        // Step 3 — query for messages
-        const d = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', streamToken, apiKey, { state: true, watch: false })
-
+        console.log('create channel response:', JSON.stringify(d).slice(0, 300))
         setSelectedConvo(channelId)
         setHeaderOtherId(pendingDMWith)
         loadConvos()
@@ -2301,7 +2297,7 @@ function CommunityPage() {
             setSidebarOpen={setSidebarOpen}
           />
         )}
-        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} />}
+        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} onUnreadChange={setUnreadDMs} />}
         {activeSection === 'members'     && (
           <MembersView
             members={members}
