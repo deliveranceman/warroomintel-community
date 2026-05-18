@@ -256,6 +256,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   const [msgDraft, setMsgDraft]           = useState('')
   const [newDMSearch, setNewDMSearch]     = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [headerOtherId, setHeaderOtherId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Fetch DM channels this user is a member of
@@ -281,6 +282,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       })
       setConversations(filtered)
       console.log('loadConvos result:', filtered.length, filtered.map((c: any) => c.channel?.id || c.id))
+      console.log('raw channels from Stream:', d.channels?.length, d.channels?.map((c: any) => c.channel?.id))
     } catch (err) {
       console.error('loadConvos error:', err)
     } finally {
@@ -360,6 +362,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         console.log('DM channel response:', JSON.stringify(d).slice(0, 200))
         const resolvedId = d.channel?.id || channelId
         setSelectedConvo(resolvedId)
+        setHeaderOtherId(pendingDMWith)
         loadConvos()
         try {
           const msgs = await streamFetch(
@@ -396,7 +399,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
       return `${Math.floor(diff / 86400000)}d`
     })() : ''
-    return { channel, name, avatar, unread, preview, time }
+    return { channel, name, avatar, unread, preview, time, otherId: other?.user_id || null }
   }
 
   const filteredConvos = conversations.filter(ch => {
@@ -439,12 +442,12 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
             </div>
           )}
           {filteredConvos.map(ch => {
-            const { channel, name, avatar, unread, preview, time } = getConvoMeta(ch)
+            const { channel, name, avatar, unread, preview, time, otherId } = getConvoMeta(ch)
             const isActive = selectedConvo === channel.id
             return (
               <div
                 key={channel.id}
-                onClick={() => setSelectedConvo(channel.id)}
+                onClick={() => { setSelectedConvo(channel.id); setHeaderOtherId(otherId) }}
                 style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', background: isActive ? 'rgba(201,168,76,0.08)' : 'transparent', borderLeft: isActive ? '2px solid #C9A84C' : '2px solid transparent', transition: 'background 0.15s' }}
                 onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
                 onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
@@ -489,7 +492,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
               <button onClick={() => setSelectedConvo(null)} style={{ background: 'none', border: 'none', color: V.mut, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
               {(() => {
                 const headerMeta = selectedConvo ? getConvoMeta(conversations.find((c: any) => (c.channel?.id || c.id) === selectedConvo) || {}) : null
-                const clerkMatch = dmMembers?.find((m: any) => pendingDMWith === m.id)
+                const clerkMatch = dmMembers?.find((m: any) => headerOtherId === m.id)
                 const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : ''
                 const name = (headerMeta?.name && headerMeta.name !== 'Loading...') ? headerMeta.name : (clerkName || 'Warrior')
                 const avatar = headerMeta?.avatar || ''
