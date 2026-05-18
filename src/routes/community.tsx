@@ -1267,6 +1267,7 @@ function CommunityPage() {
   const [pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
   const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
   const [hoveredWarriorY, setHoveredWarriorY] = useState(0)
+  const warriorHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [recentMessages, setRecentMessages] = useState<Array<{
     id: string; senderName: string; text: string; timeAgo: string
   }>>([])
@@ -2419,8 +2420,8 @@ function CommunityPage() {
                   <div
                     key={member.id}
                     style={{ position: 'relative', overflow: 'visible' }}
-                    onMouseEnter={e => { setHoveredWarriorY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredWarrior(member.id) }}
-                    onMouseLeave={() => setHoveredWarrior(null)}
+                    onMouseEnter={e => { if (warriorHoverTimer.current) clearTimeout(warriorHoverTimer.current); setHoveredWarriorY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredWarrior(member.id) }}
+                    onMouseLeave={() => { warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 150) }}
                   >
                     <button
                       onClick={() => setViewingProfile(member)}
@@ -2439,8 +2440,8 @@ function CommunityPage() {
                     </button>
                     {hoveredWarrior === member.id && member.id !== currentUserId && (
                       <div
-                        onMouseEnter={() => setHoveredWarrior(member.id)}
-                        onMouseLeave={() => setHoveredWarrior(null)}
+                        onMouseEnter={() => { if (warriorHoverTimer.current) clearTimeout(warriorHoverTimer.current) }}
+                        onMouseLeave={() => { warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 150) }}
                         style={{ position: 'fixed', right: 288, top: hoveredWarriorY, background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '10px 12px', zIndex: 9999, minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}
                       >
                         <div style={{ fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 8 }}>{displayName}</div>
