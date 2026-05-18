@@ -350,28 +350,26 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
       const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
+        // Step 1 — create/update channel with members
+        const createRes = await streamFetch(
+          `/channels/messaging/${channelId}`,
+          'POST', streamToken, apiKey,
+          { data: { members: sortedIds } }
+        )
+        console.log('DM create response:', JSON.stringify(createRes).slice(0, 200))
+
+        // Step 2 — query to get state + messages
         const d = await streamFetch(
           `/channels/messaging/${channelId}/query`,
           'POST', streamToken, apiKey,
-          {
-            state: true,
-            data: { members: sortedIds },
-            watch: false,
-          }
+          { state: true, watch: false }
         )
-        console.log('DM channel response:', JSON.stringify(d).slice(0, 200))
-        const resolvedId = d.channel?.id || channelId
-        setSelectedConvo(resolvedId)
+        console.log('DM query response:', JSON.stringify(d).slice(0, 200))
+
+        setSelectedConvo(channelId)
         setHeaderOtherId(pendingDMWith)
         loadConvos()
-        try {
-          const msgs = await streamFetch(
-            `/channels/messaging/${resolvedId}/query`,
-            'POST', streamToken, apiKey,
-            { state: true, messages: { limit: 50 } }
-          )
-          if (msgs.messages) setMessages(msgs.messages)
-        } catch (e) { console.error('load msgs error:', e) }
+        if (d.messages) setMessages(d.messages)
       } catch (err) {
         console.error('createOrFindDM error:', err)
       }
