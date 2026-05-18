@@ -266,7 +266,6 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           filter_conditions: {
             type: 'messaging',
             members: { $in: [userId] },
-            id: { $nin: ['prayer-wall-requests', 'war-room-general'] },
           },
           sort: [{ field: 'last_message_at', direction: -1 }],
           state: true,
@@ -275,7 +274,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           limit: 30,
           message_limit: 1,
         })
-        if (d.channels) setConversations(d.channels)
+        const filtered = (d.channels || []).filter((ch: any) => {
+          const id = ch.channel?.id || ch.id
+          return id !== 'prayer-wall-requests' && id !== 'war-room-general'
+        })
+        setConversations(filtered)
       } catch (err) {
         console.error('loadConvos error:', err)
       } finally {
@@ -341,10 +344,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       const channelId = sortedIds.join('-dm-')
       try {
         const d = await streamFetch(
-          `/channels/messaging/${channelId}`,
+          `/channels/messaging/${channelId}/query`,
           'POST', streamToken, apiKey,
           {
-            members: sortedIds,
+            state: true,
+            data: { members: sortedIds },
             watch: false,
           }
         )
