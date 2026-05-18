@@ -353,20 +353,27 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
       const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
+        // Step 1: create the channel
         const d = await streamFetch(
           `/channels/messaging/${channelId}`,
           'POST', streamToken, apiKey,
           {
-            data: {
-              members: sortedIds,
-              created_by_id: userId,
-            },
+            data: { created_by_id: userId },
           }
         )
         console.log('create channel response:', JSON.stringify(d).slice(0, 300))
+
+        // Step 2: explicitly add both members so $in filter works
+        const addRes = await streamFetch(
+          `/channels/messaging/${channelId}/members`,
+          'POST', streamToken, apiKey,
+          { user_ids: sortedIds }
+        )
+        console.log('add members response:', JSON.stringify(addRes).slice(0, 200))
+
         setSelectedConvo(channelId)
         setHeaderOtherId(pendingDMWith)
-        setTimeout(() => loadConvos(), 500)
+        setTimeout(() => loadConvos(), 800)
         if (d.messages) setMessages(d.messages)
       } catch (err) {
         console.error('createOrFindDM error:', err)
