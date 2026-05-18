@@ -383,7 +383,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     const lastMsg = ch.messages?.[ch.messages.length - 1]
     const members = ch.members || []
     const other   = members.find((m: any) => m.user_id !== userId)
-    const name    = other?.user?.name || channel.name || 'Warrior'
+    const name    = other?.user?.name || other?.user?.id || (other ? 'Warrior' : 'Loading...')
     const avatar  = other?.user?.image || ''
     const unread  = channel.unread_count || 0
     const preview = lastMsg?.text || 'No messages yet'
@@ -437,7 +437,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
             </div>
           )}
           {filteredConvos.map(ch => {
-            const { channel, name, avatar, unread, preview } = getConvoMeta(ch)
+            const { channel, name, avatar, unread, preview, time } = getConvoMeta(ch)
             const isActive = selectedConvo === channel.id
             return (
               <div
@@ -453,8 +453,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                      <span style={{ fontFamily: cinzel, fontSize: 11, color: isActive ? G : V.txt, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '140px' }}>{name}</span>
-                      {unread > 0 && <div style={{ minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', flexShrink: 0 }}>{unread}</div>}
+                      <span style={{ fontFamily: cinzel, fontSize: 11, color: isActive ? G : V.txt, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '120px' }}>{name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        {time && <span style={{ fontSize: 10, color: V.mut }}>{time}</span>}
+                        {unread > 0 && <div style={{ minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{unread}</div>}
+                      </div>
                     </div>
                     <div style={{ fontSize: 12, color: V.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, fontFamily: crimson }}>{preview || 'No messages yet'}</div>
                   </div>
@@ -1506,7 +1509,9 @@ function CommunityPage() {
           const d = new Date(msg.created_at), now = new Date()
           const mins = Math.floor((now.getTime() - d.getTime()) / 60000)
           const timeAgo = mins < 1 ? 'now' : mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          msgs.push({ id: msg.id, senderName: msg.user?.name || msg.user?.id || 'Warrior', text: msg.text || '', timeAgo })
+          const otherMember = (ch.members || []).find((m: any) => m.user_id !== uid)
+          const senderName = otherMember?.user?.name || otherMember?.user?.id || 'Warrior'
+          msgs.push({ id: msg.id, senderName, text: msg.text || '', timeAgo })
         }
         setRecentMessages(msgs)
       } catch { /* silent */ }
