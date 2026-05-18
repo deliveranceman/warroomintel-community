@@ -48,13 +48,13 @@ const THEME_CSS = `
 // ── TIER BADGE ─────────────────────────────────────────────
 function TierBadge({ tier }: { tier: string }) {
   const s: Record<string, React.CSSProperties> = {
-    Free:      { color: '#c8bfa8', border: '1px solid rgba(200,191,168,0.25)' },
+    Watchman:  { color: '#c8bfa8', border: '1px solid rgba(200,191,168,0.25)' },
     Soldier:   { color: G,         border: `1px solid ${BR2}` },
     Commander: { color: AMBER,     border: '1px solid rgba(212,144,58,0.5)' },
     General:   { color: G,         border: `1px solid ${G}`, fontWeight: 700 },
   }
   return (
-    <span style={{ ...(s[tier] || s.Free), fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '1px 6px', borderRadius: 10, whiteSpace: 'nowrap' }}>
+    <span style={{ ...(s[tier] || s.Watchman), fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '1px 6px', borderRadius: 10, whiteSpace: 'nowrap' }}>
       {tier.toUpperCase()}
     </span>
   )
@@ -607,7 +607,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                       </div>
                       <div>
                         <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#1C1407', letterSpacing: '0.04em' }}>{name}</div>
-                        <TierBadge tier={m.publicMetadata?.tier || 'Free'} />
+                        <TierBadge tier={m.publicMetadata?.tier || 'Watchman'} />
                       </div>
                     </div>
                   )
@@ -1342,7 +1342,7 @@ function CommunityPage() {
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const tier     = (user?.publicMetadata?.tier as string) || 'Free'
+  const tier     = (user?.publicMetadata?.tier as string) || 'Watchman'
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
 
   // Responsive breakpoint

@@ -121,8 +121,8 @@ export const Route = createFileRoute('/api/stripe-webhook')({
             const email = (customer as Stripe.Customer).email
             if (!email) throw new Error('No email on Stripe customer record')
 
-            await setUserTier(email, 'Free')
-            console.log(`[stripe-webhook] subscription.deleted → ${email} = Free`)
+            await setUserTier(email, 'Watchman')
+            console.log(`[stripe-webhook] subscription.deleted → ${email} = Watchman`)
           }
 
           return Response.json({ received: true }, { status: 200 })

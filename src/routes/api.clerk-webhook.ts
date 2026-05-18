@@ -50,20 +50,20 @@ export const Route = createFileRoute('/api/clerk-webhook')({
           }
 
           try {
-            const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+            const res = await fetch(`https://api.clerk.com/v1/users/${userId}/metadata`, {
               method: 'PATCH',
               headers: {
                 'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
                 'Content-Type':  'application/json',
               },
-              body: JSON.stringify({ public_metadata: { tier: 'Free' } }),
+              body: JSON.stringify({ public_metadata: { tier: 'Watchman' } }),
             })
 
             if (!res.ok) {
               const detail = await res.text()
               console.error(`[clerk-webhook] Failed to set tier for ${userId}:`, detail)
             } else {
-              console.log(`[clerk-webhook] Set tier=Free for user ${userId}`)
+              console.log(`[clerk-webhook] Set tier=Watchman for user ${userId}`)
             }
           } catch (err: any) {
             console.error(`[clerk-webhook] Error patching user:`, err.message)
