@@ -526,7 +526,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                   Start the conversation
                 </div>
               )}
-              {messages.map(msg => {
+              {messages.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map(msg => {
                 const isMe = msg.user?.id === userId
                 return (
                   <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: 8 }}>
@@ -1179,7 +1179,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
             No messages yet. Be the first to speak.
           </div>
         )}
-        {messages.map((msg, i) => {
+        {messages.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map((msg, i) => {
           const isOwn = msg.user?.id === userId
           const prevMsg = messages[i - 1]
           const sameAuthor = prevMsg && prevMsg.user?.id === msg.user?.id
@@ -1849,7 +1849,7 @@ function CommunityPage() {
 
         <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
           <PostCard msg={PINNED} pinned isDark={isDark} streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} hoveredId={hoveredPostId} onHover={setHoveredPostId} />
-          {posts.map(msg => (
+          {posts.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map(msg => (
             <PostCard key={msg.id} msg={msg} isDark={isDark}
               streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts}
               hoveredId={hoveredPostId} onHover={setHoveredPostId}
@@ -2538,7 +2538,7 @@ function CommunityPage() {
                     No messages yet
                   </div>
                 ) : (
-                  recentMessages.slice(0, 5).map((msg: any) => (
+                  recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 5).map((msg: any) => (
                     <div
                       key={msg.id}
                       onClick={() => setActiveSection('messages')}
