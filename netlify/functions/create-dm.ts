@@ -15,7 +15,7 @@ export default async (req: Request, _context: Context) => {
   try {
     const { userId, otherUserId } = await req.json()
     if (!userId || !otherUserId) {
-      return new Response(JSON.stringify({ error: 'userId and otherUserId required' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'userId and otherUserId required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
     }
 
     const apiKey    = process.env.VITE_STREAM_API_KEY!

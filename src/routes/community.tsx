@@ -353,7 +353,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
       const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
-        // Call server-side function — client JWT cannot add other users as members
+        // Server-side call — client JWT cannot register other users as members
         const res = await fetch('/api/create-dm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -362,7 +362,6 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         const { channelId: serverChannelId, error } = await res.json()
         if (error) throw new Error(error)
         console.log('create-dm server response: channelId =', serverChannelId)
-
         setSelectedConvo(serverChannelId)
         setHeaderOtherId(pendingDMWith)
         setTimeout(() => loadConvos(), 800)
