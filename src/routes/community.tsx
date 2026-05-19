@@ -259,6 +259,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [headerOtherId, setHeaderOtherId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const dmFileRef = useRef<HTMLInputElement>(null)
 
   // Fetch DM channels this user is a member of
   const loadConvos = useCallback(async () => {
@@ -549,9 +550,40 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                 </div>
               )}
               <div style={{ borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+                <input
+                  ref={dmFileRef}
+                  type="file"
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                  style={{ display: 'none' }}
+                  onChange={async e => {
+                    const file = e.target.files?.[0]
+                    if (!file || !selectedConvo || !streamToken || !apiKey) return
+                    e.target.value = ''
+                    const form = new FormData()
+                    form.append('file', file)
+                    form.append('user_id', userId)
+                    const isImage = file.type.startsWith('image/')
+                    const endpoint = isImage ? `/channels/messaging/${selectedConvo}/image` : `/channels/messaging/${selectedConvo}/file`
+                    const res = await fetch(`https://chat.stream-io-api.com${endpoint}?api_key=${apiKey}`, {
+                      method: 'POST',
+                      headers: { Authorization: streamToken, 'Stream-Auth-Type': 'jwt' },
+                      body: form,
+                    })
+                    const data = await res.json()
+                    const url = data.file || data.image_url || data.url
+                    if (url) {
+                      await streamFetch(`/channels/messaging/${selectedConvo}/message`, 'POST', streamToken, apiKey, {
+                        message: { text: '', attachments: [{ type: isImage ? 'image' : 'file', asset_url: url, title: file.name, file_size: file.size }] }
+                      })
+                      const d = await streamFetch(`/channels/messaging/${selectedConvo}/query`, 'POST', streamToken, apiKey, { state: true, messages: { limit: 50 } })
+                      if (d.messages) setMessages(d.messages)
+                    }
+                  }}
+                />
                 <button
-                  title="Photos & GIFs coming soon"
-                  style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'not-allowed', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
+                  title="Attach file or image"
+                  onClick={() => dmFileRef.current?.click()}
+                  style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
                 >📎</button>
                 <button
                   onClick={() => setShowEmojiPicker(v => !v)}
@@ -1066,6 +1098,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
   const [editText, setEditText] = useState('')
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const warRoomFileRef = useRef<HTMLInputElement>(null)
 
   const V = {
     bg:   isDark ? '#0D0B14' : '#f5f0e8',
@@ -1262,9 +1295,39 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 
       {/* Input */}
       <div style={{ flexShrink: 0, borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <input
+          ref={warRoomFileRef}
+          type="file"
+          accept="image/*,video/*,.pdf,.doc,.docx"
+          style={{ display: 'none' }}
+          onChange={async e => {
+            const file = e.target.files?.[0]
+            if (!file || !streamToken || !apiKey) return
+            e.target.value = ''
+            const form = new FormData()
+            form.append('file', file)
+            form.append('user_id', userId)
+            const isImage = file.type.startsWith('image/')
+            const endpoint = isImage ? `/channels/messaging/war-room-general/image` : `/channels/messaging/war-room-general/file`
+            const res = await fetch(`https://chat.stream-io-api.com${endpoint}?api_key=${apiKey}`, {
+              method: 'POST',
+              headers: { Authorization: streamToken, 'Stream-Auth-Type': 'jwt' },
+              body: form,
+            })
+            const data = await res.json()
+            const url = data.file || data.image_url || data.url
+            if (url) {
+              await streamFetch(`/channels/messaging/war-room-general/message`, 'POST', streamToken, apiKey, {
+                message: { text: '', attachments: [{ type: isImage ? 'image' : 'file', asset_url: url, title: file.name, file_size: file.size }] }
+              })
+              fetchMessages()
+            }
+          }}
+        />
         <button
-          title="Photos & GIFs coming soon"
-          style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'not-allowed', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
+          title="Attach file or image"
+          onClick={() => warRoomFileRef.current?.click()}
+          style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
         >📎</button>
         <textarea
           value={draft}
