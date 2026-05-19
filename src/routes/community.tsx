@@ -381,8 +381,12 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     const lastMsg = ch.messages?.[ch.messages.length - 1]
     const members = ch.members || []
     const other   = members.find((m: any) => m.user_id !== userId)
-    const name    = (other?.user?.name && !other.user.name.startsWith('user_') ? other.user.name : null) || other?.user?.id?.slice(0, 12) || (other ? 'Warrior' : 'Loading...')
-    const avatar  = other?.user?.image || ''
+    const otherId = other?.user_id || null
+    const clerkMatch = dmMembers.find((m: any) => m.id === otherId)
+    const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : ''
+    const streamName = (other?.user?.name && !other.user.name.startsWith('user_')) ? other.user.name : ''
+    const name = clerkName || streamName || (otherId ? otherId.slice(0, 12) : (other ? 'Warrior' : 'Loading...'))
+    const avatar  = clerkMatch?.imageUrl || other?.user?.image || ''
     const unread  = channel.unread_count || 0
     const preview = lastMsg?.text || 'No messages yet'
     const time    = lastMsg?.created_at ? (() => {
