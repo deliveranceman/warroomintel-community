@@ -524,6 +524,19 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                       {!isMe && <div style={{ fontFamily: cinzel, fontSize: 10, color: V.mut, marginBottom: 3, letterSpacing: '0.04em' }}>{msg.user?.name || 'Warrior'}</div>}
                       <div style={{ background: isMe ? G : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'), color: isMe ? '#0D0B14' : V.txt, borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px', padding: '10px 14px', fontFamily: crimson, fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word' }}>
                         {msg.text}
+                        {(msg as any).attachments?.map((att: any, i: number) => (
+                          att.type === 'image' || att.image_url || att.thumb_url ? (
+                            <img key={i} src={att.asset_url || att.image_url || att.thumb_url} alt={att.title || 'image'}
+                              style={{ display: 'block', maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: msg.text ? 6 : 0, cursor: 'pointer' }}
+                              onClick={() => window.open(att.asset_url || att.image_url, '_blank')}
+                            />
+                          ) : att.asset_url ? (
+                            <a key={i} href={att.asset_url} target="_blank" rel="noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: msg.text ? 6 : 0, color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>
+                              📄 {att.title || 'File'}
+                            </a>
+                          ) : null
+                        ))}
                       </div>
                       <div style={{ fontSize: 10, color: V.mut, marginTop: 3, textAlign: isMe ? 'right' as const : 'left' as const }}>
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1232,6 +1245,19 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
                       display: 'inline-block', maxWidth: '100%',
                     }}>
                       {msg.text}
+                      {(msg as any).attachments?.map((att: any, i: number) => (
+                        att.type === 'image' || att.image_url || att.thumb_url ? (
+                          <img key={i} src={att.asset_url || att.image_url || att.thumb_url} alt={att.title || 'image'}
+                            style={{ display: 'block', maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: msg.text ? 6 : 0, cursor: 'pointer' }}
+                            onClick={() => window.open(att.asset_url || att.image_url, '_blank')}
+                          />
+                        ) : att.asset_url ? (
+                          <a key={i} href={att.asset_url} target="_blank" rel="noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: msg.text ? 6 : 0, color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>
+                            📄 {att.title || 'File'}
+                          </a>
+                        ) : null
+                      ))}
                     </div>
                     {/* Reactions */}
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 2, alignItems: 'center' }}>
