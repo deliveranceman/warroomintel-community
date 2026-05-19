@@ -1,6 +1,5 @@
 import type { Context } from '@netlify/functions'
 import { createHmac } from 'crypto'
-import { StreamClient } from '@stream-io/node-sdk'
 
 function makeServerToken(apiSecret: string): string {
   const header  = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
@@ -44,10 +43,6 @@ export default async (req: Request, _context: Context) => {
     const sortedIds = [userId, otherUserId].sort()
     const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
     const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
-
-    // Upsert both users so Stream knows about them
-    const client = new StreamClient(apiKey, apiSecret)
-    await client.upsertUsers(sortedIds.map(id => ({ id, role: 'user' })))
 
     // Step 1: create or get the channel, seeding members on creation
     const createRes = await streamFetch(

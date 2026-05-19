@@ -381,7 +381,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     const lastMsg = ch.messages?.[ch.messages.length - 1]
     const members = ch.members || []
     const other   = members.find((m: any) => m.user_id !== userId)
-    const name    = other?.user?.name || other?.user?.id || (other ? 'Warrior' : 'Loading...')
+    const name    = (other?.user?.name && !other.user.name.startsWith('user_') ? other.user.name : null) || other?.user?.id?.slice(0, 12) || (other ? 'Warrior' : 'Loading...')
     const avatar  = other?.user?.image || ''
     const unread  = channel.unread_count || 0
     const preview = lastMsg?.text || 'No messages yet'
@@ -486,7 +486,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
               {(() => {
                 const headerMeta = selectedConvo ? getConvoMeta(conversations.find((c: any) => (c.channel?.id || c.id) === selectedConvo) || {}) : null
                 const clerkMatch = dmMembers?.find((m: any) => headerOtherId === m.id)
-                const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : ''
+                const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : (member.user?.name && !member.user.name.startsWith('user_') ? member.user.name : '')
                 const name = (headerMeta?.name && headerMeta.name !== 'Loading...') ? headerMeta.name : (clerkName || 'Warrior')
                 const avatar = headerMeta?.avatar || ''
                 return (
@@ -2499,9 +2499,9 @@ function CommunityPage() {
                 const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
                 const tierColor = tierColors[memberTier] || '#6b6b7a'
                 const currentUserId = user?.id || ''
-                const displayName = member.firstName
-                  ? `${member.firstName}${member.lastName ? ' ' + member.lastName[0] + '.' : ''}`
-                  : member.username || member.id?.slice(0, 8) || 'Member'
+                const displayName = member.fullName
+                  || (member.firstName ? `${member.firstName}${member.lastName ? ' ' + member.lastName : ''}` : '')
+                  || member.username || member.id?.slice(0, 8) || 'Member'
                 return (
                   <div
                     key={member.id}
