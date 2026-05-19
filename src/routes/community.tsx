@@ -257,6 +257,8 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   const [msgDraft, setMsgDraft]           = useState('')
   const [newDMSearch, setNewDMSearch]     = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [typingUsers, setTypingUsers] = useState<string[]>([])
+  const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const [headerOtherId, setHeaderOtherId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const dmFileRef = useRef<HTMLInputElement>(null)
@@ -314,12 +316,25 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           setMessages(d.messages)
           setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
         }
+        // Extract typing users from channel state
+        const typing = Object.keys(d.channel?.typing || {}).filter((id: string) => id !== userId)
+        setTypingUsers(typing.map((id: string) => {
+          const m = dmMembers.find((mem: any) => mem.id === id)
+          return m ? (m.firstName || m.username || 'Someone') : 'Someone'
+        }))
       } catch (err) {
         console.error('loadMessages error:', err)
       }
     }
     loadMessages()
   }, [selectedConvo, streamToken, apiKey])
+
+  async function sendTyping() {
+    if (!selectedConvo || !streamToken || !apiKey) return
+    await streamFetch(`/channels/messaging/${selectedConvo}/event`, 'POST', streamToken, apiKey, {
+      event: { type: 'typing.start', user_id: userId }
+    })
+  }
 
   async function handleSendMessage() {
     if (!msgDraft.trim() || !selectedConvo || !streamToken || !apiKey) return
@@ -537,6 +552,17 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                             </a>
                           ) : null
                         ))}
+                        {(msg as any).attachments?.filter((att: any) => att.type === 'url' || att.og_scrape_url).map((att: any, i: number) => (
+                          <a key={`url-${i}`} href={att.og_scrape_url || att.title_link} target="_blank" rel="noreferrer"
+                            style={{ display: 'block', marginTop: 8, borderRadius: 8, border: '1px solid rgba(201,168,76,0.2)', overflow: 'hidden', textDecoration: 'none', background: 'rgba(201,168,76,0.05)' }}>
+                            {att.image_url && <img src={att.image_url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover' as const }} />}
+                            <div style={{ padding: '8px 10px' }}>
+                              {att.title && <div style={{ fontFamily: cinzel, fontSize: 12, color: '#C9A84C', marginBottom: 2 }}>{att.title}</div>}
+                              {att.text && <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut, lineHeight: 1.4 }}>{att.text.slice(0, 120)}{att.text.length > 120 ? '...' : ''}</div>}
+                              <div style={{ fontFamily: crimson, fontSize: 11, color: V.mut, marginTop: 4, opacity: 0.7 }}>{att.og_scrape_url}</div>
+                            </div>
+                          </a>
+                        ))}
                       </div>
                       <div style={{ fontSize: 10, color: V.mut, marginTop: 3, textAlign: isMe ? 'right' as const : 'left' as const }}>
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -560,6 +586,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                     >{emoji}</button>
                   ))}
+                </div>
+              )}
+              {typingUsers.length > 0 && (
+                <div style={{ padding: '4px 16px', fontSize: 12, color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>
+                  {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
                 </div>
               )}
               <div style={{ borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
@@ -604,7 +635,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                 >😊</button>
                 <textarea
                   value={msgDraft}
-                  onChange={e => setMsgDraft(e.target.value)}
+                  onChange={e => { setMsgDraft(e.target.value); sendTyping() }}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                   placeholder="Type a message... (Enter to send)"
                   rows={2}
@@ -1257,6 +1288,17 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
                             📄 {att.title || 'File'}
                           </a>
                         ) : null
+                      ))}
+                      {(msg as any).attachments?.filter((att: any) => att.type === 'url' || att.og_scrape_url).map((att: any, i: number) => (
+                        <a key={`url-${i}`} href={att.og_scrape_url || att.title_link} target="_blank" rel="noreferrer"
+                          style={{ display: 'block', marginTop: 8, borderRadius: 8, border: '1px solid rgba(201,168,76,0.2)', overflow: 'hidden', textDecoration: 'none', background: 'rgba(201,168,76,0.05)' }}>
+                          {att.image_url && <img src={att.image_url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover' as const }} />}
+                          <div style={{ padding: '8px 10px' }}>
+                            {att.title && <div style={{ fontFamily: cinzel, fontSize: 12, color: '#C9A84C', marginBottom: 2 }}>{att.title}</div>}
+                            {att.text && <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut, lineHeight: 1.4 }}>{att.text.slice(0, 120)}{att.text.length > 120 ? '...' : ''}</div>}
+                            <div style={{ fontFamily: crimson, fontSize: 11, color: V.mut, marginTop: 4, opacity: 0.7 }}>{att.og_scrape_url}</div>
+                          </div>
+                        </a>
                       ))}
                     </div>
                     {/* Reactions */}
