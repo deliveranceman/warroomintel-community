@@ -707,174 +707,146 @@ interface MembersViewProps {
   isMobile: boolean
 }
 
-function MembersView({
-  members, currentUserId, currentUserTier, currentUserRole,
-  onViewProfile, onStartDM, setActiveSection, isDark, isMobile
-}: MembersViewProps) {
-  const [search, setSearch] = useState('')
+function MembersView({ members, currentUserId, currentUserTier, currentUserRole, onViewProfile, onStartDM, setActiveSection, isDark, isMobile }: MembersViewProps) {
+  const [search, setSearch]       = useState('')
   const [filterTier, setFilterTier] = useState('All')
 
-  const TIER_ORDER: Record<string, number> = { Watchman: 1, Soldier: 2, Commander: 3, General: 4 }
-  const TIER_COLORS: Record<string, string> = {
-    General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a'
-  }
-  const tiers = ['All', 'General', 'Commander', 'Soldier', 'Watchman']
-  const canDM = (currentUserRole === 'minister' || currentUserRole === 'admin')
-    || (TIER_ORDER[currentUserTier] || 1) >= 2
+  const TIER_ORDER: Record<string,number> = { Watchman:1, Soldier:2, Commander:3, General:4 }
+  const TIER_COLORS: Record<string,string> = { General:'#C9A84C', Commander:'#8B9DCA', Soldier:'#7a9e7e', Watchman:'#6b6b7a' }
+  const TIER_GLOW:  Record<string,string> = { General:'rgba(201,168,76,0.25)', Commander:'rgba(139,157,202,0.2)', Soldier:'rgba(122,158,126,0.15)', Watchman:'rgba(107,107,122,0.1)' }
 
-  const filtered = members.filter(m => {
-    const name = `${m.firstName || ''} ${m.lastName || ''} ${m.username || ''}`.toLowerCase()
-    const matchSearch = !search || name.includes(search.toLowerCase())
-    const matchTier = filterTier === 'All' || (m.publicMetadata?.tier || 'Watchman') === filterTier
-    return matchSearch && matchTier
-  })
+  const bg   = isDark ? '#0D0B14' : '#f5f3ee'
+  const s1   = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'
+  const s2   = isDark ? 'rgba(255,255,255,0.06)' : '#ffffff'
+  const bdr  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const txt  = isDark ? '#e8e0d0' : '#1a1a2e'
+  const muted = isDark ? 'rgba(232,224,208,0.45)' : 'rgba(26,26,46,0.45)'
+  const mc   = cinzel
 
-  const bg    = isDark ? '#0D0B14' : '#f5f0e8'
-  const surf  = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'
-  const bdr   = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.15)'
-  const text  = isDark ? '#f0ece0' : '#1a1a2e'
-  const muted = isDark ? '#6b6b7a' : '#888'
-  const mc = "'Cinzel', serif"
-  const cr = "'Crimson Pro', Georgia, serif"
+  const tierNum = TIER_ORDER[currentUserTier || 'Watchman'] || 1
+  const canDM   = currentUserRole === 'admin' || tierNum >= 2
 
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: bg }}>
+  const q = search.toLowerCase()
+  const filtered = members
+    .filter(m => {
+      const name = `${m.firstName||''} ${m.lastName||''} ${m.username||''}`.toLowerCase()
+      const matchSearch = !q || name.includes(q)
+      const matchTier   = filterTier === 'All' || (m.publicMetadata?.tier || 'Watchman') === filterTier
+      return matchSearch && matchTier
+    })
+    .sort((a,b) => {
+      const ta = TIER_ORDER[a.publicMetadata?.tier || 'Watchman'] || 1
+      const tb = TIER_ORDER[b.publicMetadata?.tier || 'Watchman'] || 1
+      if (tb !== ta) return tb - ta
+      return `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`)
+    })
 
-      {/* Header */}
-      <div style={{ padding: isMobile ? '16px' : '20px 24px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
-        <div style={{ fontFamily: mc, fontSize: isMobile ? '14px' : '16px', letterSpacing: '0.12em', color: '#C9A84C', marginBottom: '14px' }}>
-          👥 Members
+  const featured  = filtered.filter(m => ['General','Commander'].includes(m.publicMetadata?.tier || ''))
+  const roster    = filtered.filter(m => !['General','Commander'].includes(m.publicMetadata?.tier || ''))
+
+  function MemberCard({ member, large = false }: { member: any, large?: boolean }) {
+    const tier        = member.publicMetadata?.tier || 'Watchman'
+    const tierColor   = TIER_COLORS[tier] || '#6b6b7a'
+    const tierGlow    = TIER_GLOW[tier] || 'transparent'
+    const isOwn       = member.id === currentUserId
+    const displayName = member.fullName || (member.firstName ? `${member.firstName} ${member.lastName||''}`.trim() : member.username || 'Warrior')
+    const avatarSize  = large ? 72 : 48
+    const initials    = ((member.firstName?.[0]||'') + (member.lastName?.[0]||'')).toUpperCase() || displayName[0]?.toUpperCase() || 'W'
+
+    return (
+      <div
+        onClick={() => onViewProfile(member)}
+        style={{
+          background: large ? `linear-gradient(135deg, ${s2}, ${tierGlow})` : s2,
+          border: `1px solid ${large ? tierColor + '55' : bdr}`,
+          borderRadius: large ? 16 : 12,
+          padding: large ? '24px 20px' : '16px 14px',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column' as const,
+          alignItems: 'center',
+          gap: large ? 10 : 8,
+          position: 'relative' as const,
+          transition: 'transform 0.15s, box-shadow 0.15s',
+          boxShadow: large ? `0 4px 24px ${tierGlow}` : 'none',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 32px ${tierGlow}` }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = large ? `0 4px 24px ${tierGlow}` : 'none' }}
+      >
+        {isOwn && (
+          <div style={{ position:'absolute', top:8, right:8, fontSize:9, fontFamily:mc, color:'#C9A84C', letterSpacing:'0.08em', background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, padding:'2px 6px' }}>YOU</div>
+        )}
+        {large && tier === 'General' && (
+          <div style={{ position:'absolute', top:10, left:12, fontSize:14 }}>⚔️</div>
+        )}
+        {large && tier === 'Commander' && (
+          <div style={{ position:'absolute', top:10, left:12, fontSize:14 }}>🛡️</div>
+        )}
+        <div style={{ width:avatarSize, height:avatarSize, borderRadius:'50%', border:`2px solid ${tierColor}`, overflow:'hidden', flexShrink:0, background:`rgba(201,168,76,0.1)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:large?24:16, fontFamily:mc, color:'#C9A84C', boxShadow: large ? `0 0 16px ${tierGlow}` : 'none' }}>
+          {member.imageUrl ? <img src={member.imageUrl} alt={displayName} style={{ width:'100%', height:'100%', objectFit:'cover' as const }} /> : initials}
         </div>
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search members..."
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-            border: `1px solid ${bdr}`, borderRadius: '6px',
-            padding: '8px 12px', color: text,
-            fontFamily: cr, fontSize: '14px', outline: 'none',
-            marginBottom: '12px',
-          }}
-        />
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' as const }}>
-          {tiers.map(t => (
-            <button
-              key={t}
-              onClick={() => setFilterTier(t)}
-              style={{
-                padding: '3px 10px',
-                background: filterTier === t ? 'rgba(201,168,76,0.15)' : 'transparent',
-                border: `1px solid ${filterTier === t ? 'rgba(201,168,76,0.5)' : bdr}`,
-                borderRadius: '20px',
-                color: filterTier === t ? '#C9A84C' : muted,
-                fontFamily: mc, fontSize: '9px', letterSpacing: '0.1em',
-                cursor: 'pointer', transition: 'all 0.15s',
-                textTransform: 'uppercase' as const,
-              }}
-            >{t}</button>
-          ))}
-          <span style={{ marginLeft: 'auto', fontFamily: mc, fontSize: '9px', color: muted, letterSpacing: '0.08em', alignSelf: 'center' }}>
-            {filtered.length} warrior{filtered.length !== 1 ? 's' : ''}
-          </span>
+        <div style={{ textAlign:'center' as const, width:'100%' }}>
+          <div style={{ fontFamily:mc, fontSize: large ? 13 : 11, color:txt, letterSpacing:'0.05em', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayName}</div>
+          <div style={{ display:'inline-block', marginTop:4, padding:'2px 8px', borderRadius:10, background:`${tierColor}22`, border:`1px solid ${tierColor}55`, fontFamily:mc, fontSize:9, color:tierColor, letterSpacing:'0.1em', textTransform:'uppercase' as const }}>{tier}</div>
         </div>
-      </div>
-
-      {/* Grid */}
-      <div style={{ flex: 1, overflowY: 'auto' as const, padding: isMobile ? '12px' : '20px 24px' }}>
-        {members.length === 0 ? (
-          <div style={{ textAlign: 'center' as const, padding: '60px 20px', color: muted, fontFamily: cr, fontSize: '15px', fontStyle: 'italic' }}>
-            Loading warriors...
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center' as const, padding: '60px 20px', color: muted, fontFamily: cr, fontSize: '15px', fontStyle: 'italic' }}>
-            No members match your search.
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: '12px',
-          }}>
-            {filtered.map(member => {
-              const tier = member.publicMetadata?.tier || 'Watchman'
-              const tierColor = TIER_COLORS[tier] || '#6b6b7a'
-              const isOwn = member.id === currentUserId
-              const displayName = member.firstName
-                ? `${member.firstName}${member.lastName ? ' ' + member.lastName : ''}`
-                : member.username || 'Warrior'
-
-              return (
-                <div
-                  key={member.id}
-                  onClick={() => onViewProfile(member)}
-                  style={{
-                    background: surf, border: `1px solid ${bdr}`,
-                    borderRadius: '10px', padding: '18px 14px',
-                    cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    gap: '8px', position: 'relative' as const,
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = tierColor
-                    ;(e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = bdr
-                    ;(e.currentTarget as HTMLElement).style.background = surf
-                  }}
-                >
-                  {isOwn && (
-                    <div style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '9px', fontFamily: mc, letterSpacing: '0.08em', color: '#C9A84C', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '1px 6px' }}>You</div>
-                  )}
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(201,168,76,0.12)', border: `2px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontFamily: mc, fontWeight: 'bold', color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
-                    {member.imageUrl
-                      ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : displayName[0]?.toUpperCase()
-                    }
-                  </div>
-                  <div style={{ fontFamily: mc, fontSize: '11px', letterSpacing: '0.05em', color: text, textAlign: 'center' as const, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '100%' }}>
-                    {displayName}
-                  </div>
-                  <div style={{ padding: '2px 8px', border: `1px solid ${tierColor}`, borderRadius: '20px', fontSize: '9px', fontFamily: mc, letterSpacing: '0.1em', color: tierColor, textTransform: 'uppercase' as const }}>
-                    {tier}
-                  </div>
-                  {member.publicMetadata?.location && (
-                    <div style={{ fontSize: '11px', color: muted, fontFamily: cr }}>
-                      📍 {member.publicMetadata.location}
-                    </div>
-                  )}
-                  {!isOwn && (
-                    <button
-                      onClick={e => {
-                        e.stopPropagation()
-                        if (canDM) {
-                          onStartDM(member.id, displayName)
-                          setActiveSection('messages')
-                        } else {
-                          onViewProfile(member)
-                        }
-                      }}
-                      style={{
-                        marginTop: '4px', padding: '5px 12px',
-                        background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent',
-                        border: `1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`,
-                        borderRadius: '6px', color: canDM ? '#C9A84C' : muted,
-                        fontFamily: mc, fontSize: '9px', letterSpacing: '0.08em',
-                        cursor: 'pointer', textTransform: 'uppercase' as const,
-                      }}
-                    >
-                      {canDM ? '💬 Message' : '🔒 Soldier+'}
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+        {!isOwn && (
+          <button
+            onClick={e => { e.stopPropagation(); canDM ? onStartDM(member.id, displayName) : onViewProfile(member) }}
+            style={{ marginTop:2, padding: large ? '6px 18px' : '4px 12px', background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent', border:`1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius:6, color: canDM ? '#C9A84C' : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
+          >{canDM ? '💬 Message' : '🔒 Soldier+'}</button>
         )}
       </div>
+    )
+  }
+
+  return (
+    <div style={{ flex:1, overflowY:'auto' as const, background:bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      {/* Header */}
+      <div style={{ marginBottom:24 }}>
+        <div style={{ fontFamily:mc, fontSize: isMobile ? 18 : 22, color:'#C9A84C', letterSpacing:'0.12em', marginBottom:4 }}>⚔ INTEL ROSTER</div>
+        <div style={{ fontFamily:crimson, fontSize:14, color:muted }}>{members.length} warrior{members.length!==1?'s':''} registered</div>
+      </div>
+
+      {/* Search + Filter */}
+      <div style={{ display:'flex', gap:10, marginBottom:24, flexWrap:'wrap' as const }}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search warriors..."
+          style={{ flex:1, minWidth:160, padding:'8px 12px', background:s2, border:`1px solid ${bdr}`, borderRadius:8, color:txt, fontFamily:crimson, fontSize:14, outline:'none' }}
+        />
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' as const }}>
+          {['All','General','Commander','Soldier','Watchman'].map(t => (
+            <button key={t} onClick={() => setFilterTier(t)}
+              style={{ padding:'6px 12px', borderRadius:8, border:`1px solid ${filterTier===t ? TIER_COLORS[t]||'#C9A84C' : bdr}`, background: filterTier===t ? (TIER_COLORS[t]||'#C9A84C')+'22' : 'transparent', color: filterTier===t ? (TIER_COLORS[t]||'#C9A84C') : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
+            >{t}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Featured: Generals + Commanders */}
+      {featured.length > 0 && (
+        <div style={{ marginBottom:32 }}>
+          <div style={{ fontFamily:mc, fontSize:10, color:muted, letterSpacing:'0.15em', marginBottom:12, textTransform:'uppercase' as const }}>— Field Leadership —</div>
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${Math.min(featured.length, 4)}, 1fr)`, gap:16 }}>
+            {featured.map(m => <MemberCard key={m.id} member={m} large={true} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Roster: Soldiers + Watchmen */}
+      {roster.length > 0 && (
+        <div>
+          {featured.length > 0 && <div style={{ fontFamily:mc, fontSize:10, color:muted, letterSpacing:'0.15em', marginBottom:12, textTransform:'uppercase' as const }}>— Active Warriors —</div>}
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(140px, 1fr))', gap:12 }}>
+            {roster.map(m => <MemberCard key={m.id} member={m} large={false} />)}
+          </div>
+        </div>
+      )}
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign:'center' as const, padding:'60px 20px', color:muted, fontFamily:crimson, fontSize:16 }}>No warriors found.</div>
+      )}
     </div>
   )
 }
