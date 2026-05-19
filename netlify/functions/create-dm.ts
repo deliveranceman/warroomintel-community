@@ -15,7 +15,10 @@ export default async (req: Request, _context: Context) => {
   try {
     const { userId, otherUserId } = await req.json()
     if (!userId || !otherUserId) {
-      return new Response(JSON.stringify({ error: 'userId and otherUserId required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ error: 'userId and otherUserId required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const apiKey    = process.env.VITE_STREAM_API_KEY!
@@ -26,15 +29,23 @@ export default async (req: Request, _context: Context) => {
     const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
     const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
 
-    const channel = client.chat.channel('messaging', channelId)
-    await channel.getOrCreate({
+    // Step 1: create or get the channel with members in initial data
+    await client.chat.getOrCreateChannel({
+      type: 'messaging',
+      id: channelId,
       data: {
         created_by_id: userId,
         members: sortedIds.map(id => ({ user_id: id })),
       },
     })
-    // Force-add members in case channel existed without them
-    await channel.addMembers(sortedIds.map(id => ({ user_id: id })))
+
+    // Step 2: force-add members using updateChannel with add_members
+    // This repairs any pre-existing memberless channels
+    await client.chat.updateChannel({
+      type: 'messaging',
+      id: channelId,
+      add_members: sortedIds.map(id => ({ user_id: id })),
+    })
 
     return new Response(JSON.stringify({ channelId }), {
       status: 200,
