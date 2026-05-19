@@ -33,6 +33,8 @@ export default async (req: Request, _context: Context) => {
         members: sortedIds.map(id => ({ user_id: id })),
       },
     })
+    // Force-add members in case channel existed without them
+    await channel.addMembers(sortedIds.map(id => ({ user_id: id })))
 
     return new Response(JSON.stringify({ channelId }), {
       status: 200,
