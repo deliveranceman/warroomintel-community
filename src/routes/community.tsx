@@ -506,7 +506,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
               {(() => {
                 const headerMeta = selectedConvo ? getConvoMeta(conversations.find((c: any) => (c.channel?.id || c.id) === selectedConvo) || {}) : null
                 const clerkMatch = dmMembers?.find((m: any) => headerOtherId === m.id)
-                const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : (member.user?.name && !member.user.name.startsWith('user_') ? member.user.name : '')
+                const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : (headerMeta?.name && !headerMeta.name.startsWith('user_') && headerMeta.name !== 'Loading...' ? headerMeta.name : '')
                 const name = (headerMeta?.name && headerMeta.name !== 'Loading...') ? headerMeta.name : (clerkName || 'Warrior')
                 const avatar = headerMeta?.avatar || ''
                 return (
