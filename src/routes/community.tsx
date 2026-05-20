@@ -1674,7 +1674,10 @@ function CommunityPage() {
           const mins = Math.floor((now.getTime() - d.getTime()) / 60000)
           const timeAgo = mins < 1 ? 'now' : mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           const otherMember = (ch.members || []).find((m: any) => m.user_id !== uid)
-          const senderName = otherMember?.user?.name || otherMember?.user?.id || 'Warrior'
+          const clerkMatch = members?.find((m: any) => m.id === otherMember?.user_id)
+          const senderName = (clerkMatch ? `${clerkMatch.firstName||''} ${clerkMatch.lastName||''}`.trim() : '')
+            || (otherMember?.user?.name && !otherMember.user.name.startsWith('user_') ? otherMember.user.name : '')
+            || 'Warrior'
           msgs.push({ id: msg.id, senderName, text: msg.text || '', timeAgo })
         }
         setRecentMessages(msgs)
@@ -1996,7 +1999,8 @@ function CommunityPage() {
     }
 
     const tierLevel = (t: string) => ({'free':0,'watchman':0,'soldier':1,'commander':2,'general':3}[t?.toLowerCase()] ?? 0)
-    const userTierLevel = tierLevel(tier)
+    const rawTier = (user?.publicMetadata?.tier as string) || tier || 'Watchman'
+    const userTierLevel = tierLevel(rawTier)
     const TierLock = ({ tierName }: { tierName: string }) => (
       <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
         🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a>
@@ -2668,8 +2672,19 @@ function CommunityPage() {
                   <div
                     key={member.id}
                     style={{ position: 'relative', overflow: 'visible' }}
-                    onMouseEnter={e => { if (warriorHoverTimer.current) clearTimeout(warriorHoverTimer.current); setHoveredWarriorY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredWarrior(member.id) }}
-                    onMouseLeave={() => { warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 150) }}
+                    onMouseEnter={e => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                      const y = rect.top
+                      clearTimeout(warriorHoverTimer.current)
+                      warriorHoverTimer.current = setTimeout(() => {
+                        setHoveredWarriorY(y)
+                        setHoveredWarrior(member.id)
+                      }, 350)
+                    }}
+                    onMouseLeave={() => {
+                      clearTimeout(warriorHoverTimer.current)
+                      warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 300)
+                    }}
                   >
                     <button
                       onClick={() => setViewingProfile(member)}
