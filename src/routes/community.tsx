@@ -954,7 +954,9 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
   const [hoveredPrayerId, setHoveredPrayerId] = useState<string | null>(null)
   const [editingPostId,   setEditingPostId]   = useState<string | null>(null)
   const [editDraft,       setEditDraft]       = useState('')
+  const [showPrayerEmoji, setShowPrayerEmoji] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const PRAYER_EMOJIS = ['🙏','❤️','🔥','✝️','⚔️','💪','🕊️','👑','🌿','💧','🗡️','📖','🏔️','⭐','🌟','💛','🤍','🫶','🙌','✨']
 
   const fetchPrayers = useCallback(async () => {
     if (!streamToken || !apiKey) return
@@ -1084,6 +1086,26 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             placeholder="Add a prayer request..."
             style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '10px 14px', color: V.txt, fontFamily: crimson, fontSize: 16, outline: 'none' }}
           />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              type="button"
+              onClick={() => setShowPrayerEmoji(p => !p)}
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 18, color: '#C9A84C' }}
+              title="Add emoji"
+            >😊</button>
+            {showPrayerEmoji && (
+              <div style={{ position: 'absolute', bottom: '110%', left: 0, background: '#1a1628', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: 8, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, zIndex: 1000, width: 180 }}>
+                {PRAYER_EMOJIS.map(e => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => { setDraft(prev => prev + e); setShowPrayerEmoji(false) }}
+                    style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', padding: 4, borderRadius: 4, lineHeight: 1 }}
+                  >{e}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={handleSend} disabled={!draft.trim()}
             style={{ background: draft.trim() ? G : 'rgba(201,168,76,0.3)', color: draft.trim() ? '#0D0B14' : V.mut, border: 'none', borderRadius: 8, padding: '10px 18px', fontFamily: cinzel, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'default', fontWeight: 700, whiteSpace: 'nowrap' }}>
             🙏 Post
@@ -2606,9 +2628,12 @@ function CommunityPage() {
                 const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
                 const tierColor = tierColors[memberTier] || '#6b6b7a'
                 const currentUserId = user?.id || ''
-                const displayName = member.fullName
-                  || (member.firstName ? `${member.firstName}${member.lastName ? ' ' + member.lastName : ''}` : '')
-                  || member.username || member.id?.slice(0, 8) || 'Member'
+                const displayName = (() => {
+                  const full = [member.firstName, member.lastName].filter(Boolean).join(' ').trim()
+                  if (full) return full
+                  if (member.username && !member.username.startsWith('user_')) return member.username
+                  return 'Warrior'
+                })()
                 return (
                   <div
                     key={member.id}
