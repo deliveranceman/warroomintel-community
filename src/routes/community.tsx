@@ -871,7 +871,7 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
     <div
       onMouseEnter={() => onHover?.(msg.id)}
       onMouseLeave={() => onHover?.(null)}
-      style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12 }}
+      style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12, position: 'relative', overflow: 'visible' }}
     >
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
@@ -885,23 +885,9 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
           </div>
           <p style={{ fontFamily: crimson, fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
           {/* Reactions */}
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 8, alignItems: 'center' }}>
-            {msg.reaction_counts && Object.entries(msg.reaction_counts).map(([type, count]) => (
-              <button
-                key={type}
-                onClick={() => {
-                  if (streamToken && apiKey) {
-                    streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
-                      .then(() => onReaction?.())
-                  }
-                }}
-                style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 7px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: V.txt }}
-              >
-                {emojiMap[type] || type} <span style={{ fontSize: 10, color: V.mut }}>{String(count)}</span>
-              </button>
-            ))}
+          <div style={{ position: 'relative', display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 8, alignItems: 'center' }}>
             {hoveredId === msg.id && streamToken && (
-              <div style={{ display: 'flex', gap: 3, background: V.surf, border: `1px solid ${V.bdr}`, borderRadius: 16, padding: '3px 8px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+              <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 4, display: 'flex', gap: 3, background: V.surf, border: `1px solid ${V.bdr}`, borderRadius: 16, padding: '3px 8px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 9999, whiteSpace: 'nowrap' as const }}>
                 {([['pray','🙏'],['love','❤️'],['fire','🔥'],['cross','✝️'],['sword','⚔️']] as [string,string][]).map(([type, emoji]) => (
                   <button
                     key={type}
@@ -918,6 +904,20 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
                 ))}
               </div>
             )}
+            {msg.reaction_counts && Object.entries(msg.reaction_counts).map(([type, count]) => (
+              <button
+                key={type}
+                onClick={() => {
+                  if (streamToken && apiKey) {
+                    streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
+                      .then(() => onReaction?.())
+                  }
+                }}
+                style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 7px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: V.txt }}
+              >
+                {emojiMap[type] || type} <span style={{ fontSize: 10, color: V.mut }}>{String(count)}</span>
+              </button>
+            ))}
           </div>
           {actions && (
             <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
@@ -1995,6 +1995,14 @@ function CommunityPage() {
       return G
     }
 
+    const tierLevel = (t: string) => ({'free':0,'watchman':0,'soldier':1,'commander':2,'general':3}[t?.toLowerCase()] ?? 0)
+    const userTierLevel = tierLevel(tier)
+    const TierLock = ({ tierName }: { tierName: string }) => (
+      <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
+        🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a>
+      </div>
+    )
+
     const FILTERS = ['All', 'Strongman', 'Familiar', 'Marine', 'Generational', 'Religious']
 
     const filtered = entries.filter(e => {
@@ -2116,56 +2124,78 @@ function CommunityPage() {
                   </div>
                 )}
 
-                {/* Description (clamped when collapsed) */}
-                <div style={{
-                  fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8,
-                  ...(isOpen ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }),
-                }}>
-                  {description}
-                </div>
+                {/* Description — full for Soldier+, clamped + upsell for free */}
+                {userTierLevel >= 1 ? (
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, ...(isOpen ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }) }}>
+                    {description}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                      {description}
+                    </div>
+                    {isOpen && <div style={{ marginTop: 6 }}><TierLock tierName="Soldier" /></div>}
+                  </div>
+                )}
 
-                {/* Companion chips */}
+                {/* Companion chips — Commander+ */}
                 {companionList.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>COMPANIONS</div>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {companionList.slice(0, isOpen ? undefined : 3).map((c: string, ci: number) => (
-                        <span key={ci}
-                          onClick={e => { e.stopPropagation(); setQuery(c); setExpanded(null) }}
-                          style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
-                          title={`Search for ${c}`}>
-                          {c}
-                        </span>
-                      ))}
-                    </div>
+                    {userTierLevel >= 2 ? (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {companionList.slice(0, isOpen ? undefined : 3).map((c: string, ci: number) => (
+                          <span key={ci}
+                            onClick={e => { e.stopPropagation(); setQuery(c); setExpanded(null) }}
+                            style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
+                            title={`Search for ${c}`}>
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <TierLock tierName="Commander" />
+                    )}
                   </div>
                 )}
 
                 {/* Expanded detail */}
                 {isOpen && (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${dbBorder}` }}>
+                    {/* Manifestations — Soldier+ */}
                     {manifestations && (
                       <div style={{ marginBottom: 10 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MANIFESTATIONS</div>
-                        <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
+                        {userTierLevel >= 1
+                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
+                          : <TierLock tierName="Soldier" />}
                       </div>
                     )}
-                    {approach && (
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MINISTRY APPROACH</div>
-                        <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{approach}</div>
-                      </div>
-                    )}
+                    {/* Key Scriptures — Commander+ */}
                     {scriptures && (
                       <div style={{ marginBottom: 10 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + '88', marginBottom: 4 }}>KEY SCRIPTURES</div>
-                        <div style={{ fontFamily: crimson, fontSize: 13, color: G, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures}</div>
+                        {userTierLevel >= 2
+                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: G, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures}</div>
+                          : <TierLock tierName="Commander" />}
                       </div>
                     )}
+                    {/* Ministry Approach — General */}
+                    {approach && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MINISTRY APPROACH</div>
+                        {userTierLevel >= 3
+                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{approach}</div>
+                          : <TierLock tierName="General" />}
+                      </div>
+                    )}
+                    {/* Minister's Notes — General */}
                     {notes && (
                       <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MINISTER'S NOTES</div>
-                        <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{notes}</div>
+                        {userTierLevel >= 3
+                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{notes}</div>
+                          : <TierLock tierName="General" />}
                       </div>
                     )}
                   </div>
