@@ -2010,14 +2010,12 @@ function CommunityPage() {
     const FILTERS = ['All', 'Strongman', 'Familiar', 'Marine', 'Generational', 'Religious']
 
     const filtered = entries.filter(e => {
-      const f = e.fields || e
-      const name           = f.Name || f.name || ''
-      const aliases        = f.Aliases || f.aliases || ''
-      const manifestations = f.Manifestations || f.manifestations || ''
-      const wound          = f['Wound Pattern'] || f.wound || ''
-      const cls            = f.Classification || f.classification || ''
+      const name           = e.name || ''
+      const aliases        = e.aka || ''
+      const manifestations = e.manifestation || ''
+      const cls            = e.type || e.rank || ''
       const matchesSearch  = !query ||
-        [name, aliases, manifestations, wound].some(s => s.toLowerCase().includes(query.toLowerCase()))
+        [name, aliases, manifestations].some(s => s.toLowerCase().includes(query.toLowerCase()))
       const matchesFilter  = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
       return matchesSearch && matchesFilter
     })
@@ -2090,17 +2088,16 @@ function CommunityPage() {
             </div>
           )}
           {filtered.map((entry, i) => {
-            const f              = entry.fields || entry
             const id             = entry.id || String(i)
-            const name           = f.Name || f.name || 'Unknown'
-            const cls            = f.Classification || f.classification || ''
-            const aliases        = f.Aliases || f.aliases || ''
-            const description    = f['Wound Pattern'] || f['Entry Description'] || f.description || ''
-            const manifestations = f.Manifestations || f.manifestations || ''
-            const companions     = f['Companion Spirits'] || f.companions || ''
-            const scriptures     = f['Key Scriptures'] || f.scriptures || ''
-            const approach       = f['Ministry Approach'] || f.approach || ''
-            const notes          = f["Minister's Notes"] || f.notes || ''
+            const name           = entry.name || 'Unknown'
+            const cls            = entry.type || entry.rank || ''
+            const aliases        = entry.aka || ''
+            const description    = entry.description || ''
+            const manifestations = entry.manifestation || ''
+            const companions     = entry.companionSpirits || ''
+            const scriptures     = entry.scripture || ''
+            const protocol       = entry.protocol || ''
+            const wriNotes       = entry.wriNotes || ''
             const isOpen         = expanded === id
             const color          = getColor(cls)
             const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
@@ -2184,21 +2181,21 @@ function CommunityPage() {
                           : <TierLock tierName="Commander" />}
                       </div>
                     )}
-                    {/* Ministry Approach — General */}
-                    {approach && (
+                    {/* Deliverance Protocol — General */}
+                    {protocol && (
                       <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MINISTRY APPROACH</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>DELIVERANCE PROTOCOL</div>
                         {userTierLevel >= 3
-                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{approach}</div>
+                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{protocol}</div>
                           : <TierLock tierName="General" />}
                       </div>
                     )}
-                    {/* Minister's Notes — General */}
-                    {notes && (
+                    {/* WRI Exorcist Notes — General */}
+                    {wriNotes && (
                       <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MINISTER'S NOTES</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>WRI EXORCIST NOTES</div>
                         {userTierLevel >= 3
-                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{notes}</div>
+                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{wriNotes}</div>
                           : <TierLock tierName="General" />}
                       </div>
                     )}
