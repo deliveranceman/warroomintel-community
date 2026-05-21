@@ -1613,7 +1613,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
               {/* Companion chips — Commander+ */}
               {companionList.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>COMPANIONS</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>COMPANIONS</div>
                   {userTierLevel >= 2 ? (
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {companionList.slice(0, isOpen ? undefined : 3).map((c: string, ci: number) => (
@@ -1637,7 +1637,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   {/* Entry Points — Commander+ */}
                   {entryPoints && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>ENTRY POINTS</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>ENTRY POINTS</div>
                       {userTierLevel >= 2
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{entryPoints}</div>
                         : <TierLock tierName="Commander" />}
@@ -1646,7 +1646,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   {/* Legal Rights — Commander+ */}
                   {legalRights && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>LEGAL RIGHTS</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>LEGAL RIGHTS</div>
                       {userTierLevel >= 2
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{legalRights}</div>
                         : <TierLock tierName="Commander" />}
@@ -1655,7 +1655,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   {/* Manifestations — Soldier+ */}
                   {manifestations && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MANIFESTATIONS</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>MANIFESTATIONS</div>
                       {userTierLevel >= 1
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
                         : <TierLock tierName="Soldier" />}
@@ -1664,7 +1664,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   {/* Symptoms — General */}
                   {symptoms && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>SYMPTOMS</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>SYMPTOMS</div>
                       {userTierLevel >= 3
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{symptoms}</div>
                         : <TierLock tierName="General" />}
@@ -1673,7 +1673,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   {/* Key Scriptures — Commander+ */}
                   {scriptures && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + '88', marginBottom: 4 }}>KEY SCRIPTURES</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + 'BB', marginBottom: 4 }}>KEY SCRIPTURES</div>
                       {userTierLevel >= 2
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: G, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures}</div>
                         : <TierLock tierName="Commander" />}
@@ -1682,7 +1682,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   {/* Deliverance Protocol — General */}
                   {protocol && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>DELIVERANCE PROTOCOL</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>DELIVERANCE PROTOCOL</div>
                       {userTierLevel >= 3
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{protocol}</div>
                         : <TierLock tierName="General" />}
@@ -1691,7 +1691,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   {/* WRI Exorcist Notes — General */}
                   {wriNotes && (
                     <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>WRI EXORCIST NOTES</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>WRI EXORCIST NOTES</div>
                       {userTierLevel >= 3
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{wriNotes}</div>
                         : <TierLock tierName="General" />}
