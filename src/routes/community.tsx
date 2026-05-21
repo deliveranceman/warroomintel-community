@@ -2371,7 +2371,6 @@ function CommunityPage() {
         {sectionLabel('Arsenal Resources')}
         {navItem('Demon Database', 'database', '📖')}
         {navItem('Arsenal', 'arsenal', '✦')}
-        {navItem('Resources', 'resources', '📚')}
 
         {sectionLabel('Training')}
         {dimItem('Courses', '🎓')}
@@ -2481,8 +2480,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
-        {activeSection === 'arsenal'     && <LauncherView title="Scripture Arsenal" icon="✦"  href="/arsenal" />}
-        {activeSection === 'resources'   && <LauncherView title="Resources"         icon="📚" href="/resources" />}
+        {activeSection === 'arsenal'     && <LauncherView title="Arsenal"           icon="✦"  href="/arsenal" />}
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
       </div>

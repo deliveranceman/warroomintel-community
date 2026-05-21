@@ -12,13 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
-import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as MembershipRouteImport } from './routes/membership'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
 import { Route as AssessmentRouteImport } from './routes/assessment'
+import { Route as ArsenalRouteImport } from './routes/arsenal'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
@@ -58,11 +58,6 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResourcesRoute = ResourcesRouteImport.update({
-  id: '/resources',
-  path: '/resources',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MembershipRoute = MembershipRouteImport.update({
   id: '/membership',
   path: '/membership',
@@ -91,6 +86,11 @@ const AssessmentBoardRoute = AssessmentBoardRouteImport.update({
 const AssessmentRoute = AssessmentRouteImport.update({
   id: '/assessment',
   path: '/assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArsenalRoute = ArsenalRouteImport.update({
+  id: '/arsenal',
+  path: '/arsenal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -211,13 +211,13 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/arsenal': typeof ArsenalRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
-  '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
@@ -246,13 +246,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/arsenal': typeof ArsenalRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
-  '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
@@ -282,13 +282,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/arsenal': typeof ArsenalRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
-  '/resources': typeof ResourcesRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
@@ -319,13 +319,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/arsenal'
     | '/assessment'
     | '/assessment-board'
     | '/community'
     | '/help'
     | '/join'
     | '/membership'
-    | '/resources'
     | '/sign-in'
     | '/sign-up'
     | '/submit-demon'
@@ -354,13 +354,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/arsenal'
     | '/assessment'
     | '/assessment-board'
     | '/community'
     | '/help'
     | '/join'
     | '/membership'
-    | '/resources'
     | '/sign-in'
     | '/sign-up'
     | '/submit-demon'
@@ -389,13 +389,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/arsenal'
     | '/assessment'
     | '/assessment-board'
     | '/community'
     | '/help'
     | '/join'
     | '/membership'
-    | '/resources'
     | '/sign-in'
     | '/sign-up'
     | '/submit-demon'
@@ -425,13 +425,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ArsenalRoute: typeof ArsenalRoute
   AssessmentRoute: typeof AssessmentRoute
   AssessmentBoardRoute: typeof AssessmentBoardRoute
   CommunityRoute: typeof CommunityRoute
   HelpRoute: typeof HelpRoute
   JoinRoute: typeof JoinRoute
   MembershipRoute: typeof MembershipRoute
-  ResourcesRoute: typeof ResourcesRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SubmitDemonRoute: typeof SubmitDemonRoute
@@ -482,13 +482,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/resources': {
-      id: '/resources'
-      path: '/resources'
-      fullPath: '/resources'
-      preLoaderRoute: typeof ResourcesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/membership': {
       id: '/membership'
       path: '/membership'
@@ -529,6 +522,13 @@ declare module '@tanstack/react-router' {
       path: '/assessment'
       fullPath: '/assessment'
       preLoaderRoute: typeof AssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/arsenal': {
+      id: '/arsenal'
+      path: '/arsenal'
+      fullPath: '/arsenal'
+      preLoaderRoute: typeof ArsenalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -697,13 +697,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ArsenalRoute: ArsenalRoute,
   AssessmentRoute: AssessmentRoute,
   AssessmentBoardRoute: AssessmentBoardRoute,
   CommunityRoute: CommunityRoute,
   HelpRoute: HelpRoute,
   JoinRoute: JoinRoute,
   MembershipRoute: MembershipRoute,
-  ResourcesRoute: ResourcesRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SubmitDemonRoute: SubmitDemonRoute,

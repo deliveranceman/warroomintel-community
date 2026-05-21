@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth, useUser, useClerk, SignInButton, SignUpButton } from '@clerk/tanstack-start'
 
-export const Route = createFileRoute('/resources')({
-  component: ResourcesPage,
+export const Route = createFileRoute('/arsenal')({
+  component: ArsenalPage,
 })
 
 // ─── MOBILE STYLES ────────────────────────────────────────────────────────────
@@ -265,7 +265,7 @@ function SectionHeader({ tier }: { tier: string }) {
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-function ResourcesPage() {
+function ArsenalPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
   const { signOut } = useClerk()
@@ -415,7 +415,7 @@ function ResourcesPage() {
             </a>
           ))}
           <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: gold }}>
-            Resources
+            Arsenal
           </span>
         </div>
         {/* Member session display */}

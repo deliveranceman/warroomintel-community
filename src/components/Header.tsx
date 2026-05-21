@@ -561,7 +561,7 @@ export function Header() {
                     gap: '12px'
                   }}>
                     <UserButton />
-                    <a href="/resources" style={{
+                    <a href="/arsenal" style={{
                       fontFamily: 'Cinzel, serif',
                       fontSize: '11px',
                       color: 'var(--gold)',
