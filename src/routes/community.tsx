@@ -1434,7 +1434,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   const [filter, setFilter]       = useState('All')
   const [entries, setEntries]     = useState<any[]>([])
   const [dbLoading, setDbLoading] = useState(true)
-  const [expanded, setExpanded]   = useState<string | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
 
   useEffect(() => {
     fetch('/api/demons')
@@ -1569,12 +1569,11 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
           const entryPoints    = entry.entryPoints || ''
           const legalRights    = entry.legalRights || ''
           const symptoms       = entry.symptoms || ''
-          const isOpen         = expanded === id
           const color          = getColor(cls)
           const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
 
           return (
-            <div key={id} onClick={() => setExpanded(isOpen ? null : id)} style={{
+            <div key={id} onClick={() => setSelectedEntry(entry)} style={{
               background: dbSurf, border: `1px solid ${color}40`,
               borderLeft: `3px solid ${color}`, borderRadius: 8,
               padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
@@ -1596,117 +1595,162 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                 </div>
               )}
 
-              {/* Description — full for Soldier+, clamped + upsell for free */}
-              {userTierLevel >= 1 ? (
-                <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, ...(isOpen ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }) }}>
-                  {description}
-                </div>
-              ) : (
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
-                    {description}
-                  </div>
-                  {isOpen && <div style={{ marginTop: 6 }}><TierLock tierName="Soldier" /></div>}
-                </div>
-              )}
+              {/* Description — clamped preview */}
+              <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                {description}
+              </div>
 
-              {/* Companion chips — Commander+ */}
+              {/* Companion chips preview — Commander+ */}
               {companionList.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>COMPANIONS</div>
                   {userTierLevel >= 2 ? (
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {companionList.slice(0, isOpen ? undefined : 3).map((c: string, ci: number) => (
+                      {companionList.slice(0, 3).map((c: string, ci: number) => (
                         <span key={ci}
-                          onClick={e => { e.stopPropagation(); setQuery(c); setExpanded(null) }}
+                          onClick={e => { e.stopPropagation(); setQuery(c) }}
                           style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
                           title={`Search for ${c}`}>
                           {c}
                         </span>
                       ))}
+                      {companionList.length > 3 && <span style={{ fontFamily: cinzel, fontSize: 8, color: dbDim }}>+{companionList.length - 3} more</span>}
                     </div>
                   ) : (
-                    <TierLock tierName="Commander" />
-                  )}
-                </div>
-              )}
-
-              {/* Expanded detail */}
-              {isOpen && (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${dbBorder}` }}>
-                  {/* Entry Points — Commander+ */}
-                  {(entryPoints || userTierLevel >= 3) && (
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>ENTRY POINTS</div>
-                      {userTierLevel >= 2
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: entryPoints ? dbText : dbDim, lineHeight: 1.6, fontStyle: entryPoints ? 'normal' : 'italic' }}>{entryPoints || 'No data on file'}</div>
-                        : <TierLock tierName="Commander" />}
-                    </div>
-                  )}
-                  {/* Legal Rights — Commander+ */}
-                  {(legalRights || userTierLevel >= 3) && (
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>LEGAL RIGHTS</div>
-                      {userTierLevel >= 2
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: legalRights ? dbText : dbDim, lineHeight: 1.6, fontStyle: legalRights ? 'normal' : 'italic' }}>{legalRights || 'No data on file'}</div>
-                        : <TierLock tierName="Commander" />}
-                    </div>
-                  )}
-                  {/* Manifestations — Soldier+ */}
-                  {(manifestations || userTierLevel >= 3) && (
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>MANIFESTATIONS</div>
-                      {userTierLevel >= 1
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: manifestations ? dbText : dbDim, lineHeight: 1.6, fontStyle: manifestations ? 'normal' : 'italic' }}>{manifestations || 'No data on file'}</div>
-                        : <TierLock tierName="Soldier" />}
-                    </div>
-                  )}
-                  {/* Symptoms — General */}
-                  {(symptoms || userTierLevel >= 3) && (
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>SYMPTOMS</div>
-                      {userTierLevel >= 3
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: symptoms ? dbText : dbDim, lineHeight: 1.6, fontStyle: symptoms ? 'normal' : 'italic' }}>{symptoms || 'No data on file'}</div>
-                        : <TierLock tierName="General" />}
-                    </div>
-                  )}
-                  {/* Key Scriptures — Commander+ */}
-                  {(scriptures || userTierLevel >= 3) && (
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + 'BB', marginBottom: 4 }}>KEY SCRIPTURES</div>
-                      {userTierLevel >= 2
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: scriptures ? G : dbDim, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures || 'No data on file'}</div>
-                        : <TierLock tierName="Commander" />}
-                    </div>
-                  )}
-                  {/* Deliverance Protocol — General */}
-                  {(protocol || userTierLevel >= 3) && (
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>DELIVERANCE PROTOCOL</div>
-                      {userTierLevel >= 3
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: protocol ? dbText : dbDim, lineHeight: 1.6, fontStyle: protocol ? 'normal' : 'italic' }}>{protocol || 'No data on file'}</div>
-                        : <TierLock tierName="General" />}
-                    </div>
-                  )}
-                  {/* WRI Exorcist Notes — General */}
-                  {(wriNotes || userTierLevel >= 3) && (
-                    <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>WRI EXORCIST NOTES</div>
-                      {userTierLevel >= 3
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: wriNotes ? dbText : dbDim, lineHeight: 1.6, fontStyle: wriNotes ? 'normal' : 'italic' }}>{wriNotes || 'No data on file'}</div>
-                        : <TierLock tierName="General" />}
-                    </div>
+                    <div style={{ fontFamily: cinzel, fontSize: 8, color: dbDim, fontStyle: 'italic' }}>Commander+ to view</div>
                   )}
                 </div>
               )}
 
               <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
-                {isOpen ? '▲ COLLAPSE' : '▼ EXPAND FULL ENTRY'}
+                ▼ VIEW FULL INTEL
               </div>
             </div>
           )
         })}
       </div>
+
+      {/* Intel Dossier Modal */}
+      {selectedEntry && (() => {
+        const entry = selectedEntry
+        const name           = entry.name || 'Unknown'
+        const cls            = entry.type || entry.rank || ''
+        const aliases        = entry.aka || ''
+        const description    = entry.description || ''
+        const manifestations = entry.manifestation || ''
+        const companions     = entry.companionSpirits || ''
+        const scriptures     = entry.scripture || ''
+        const protocol       = entry.protocol || ''
+        const wriNotes       = entry.wriNotes || ''
+        const entryPoints    = entry.entryPoints || ''
+        const legalRights    = entry.legalRights || ''
+        const symptoms       = entry.symptoms || ''
+        const color          = getColor(cls)
+        const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
+
+        return (
+          <div
+            onClick={() => setSelectedEntry(null)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              background: 'rgba(0,0,0,0.75)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 20,
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: dbSurf,
+                border: `1px solid ${color}55`,
+                borderLeft: `4px solid ${color}`,
+                borderRadius: 12,
+                width: '100%',
+                maxWidth: 640,
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                padding: 28,
+                position: 'relative',
+              }}
+            >
+              {/* Close button */}
+              <button
+                onClick={() => setSelectedEntry(null)}
+                style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: dbDim, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}
+              >✕</button>
+
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 22, color, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>{name}</div>
+                  {cls && <div style={{ display: 'inline-block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', background: color + '22', color, padding: '3px 10px', borderRadius: 4 }}>{cls.toUpperCase()}</div>}
+                </div>
+              </div>
+
+              {aliases && (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, fontStyle: 'italic', marginBottom: 14 }}>aka {aliases}</div>
+              )}
+
+              {/* Description */}
+              {description && (
+                <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${dbBorder}` }}>
+                  <div style={{ fontFamily: crimson, fontSize: 16, color: dbText, lineHeight: 1.7 }}>{description}</div>
+                </div>
+              )}
+
+              {/* Tier-gated fields */}
+              {[
+                { label: 'ENTRY POINTS',       value: entryPoints,    tier: 2, tierName: 'Commander' },
+                { label: 'LEGAL RIGHTS',        value: legalRights,    tier: 2, tierName: 'Commander' },
+                { label: 'MANIFESTATIONS',      value: manifestations, tier: 1, tierName: 'Soldier'   },
+                { label: 'SYMPTOMS',            value: symptoms,       tier: 3, tierName: 'General'   },
+                { label: 'DELIVERANCE PROTOCOL',value: protocol,       tier: 3, tierName: 'General'   },
+                { label: 'WRI EXORCIST NOTES',  value: wriNotes,       tier: 3, tierName: 'General'   },
+              ].map(({ label, value, tier, tierName }) => (
+                (value || userTierLevel >= 3) && (
+                  <div key={label} style={{ marginBottom: 14 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6 }}>{label}</div>
+                    {userTierLevel >= tier
+                      ? <div style={{ fontFamily: crimson, fontSize: 14, color: value ? dbText : dbDim, lineHeight: 1.65, fontStyle: value ? 'normal' : 'italic' }}>{value || 'No data on file'}</div>
+                      : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
+                    }
+                  </div>
+                )
+              ))}
+
+              {/* Key Scriptures */}
+              {(scriptures || userTierLevel >= 3) && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + 'BB', marginBottom: 6 }}>KEY SCRIPTURES</div>
+                  {userTierLevel >= 2
+                    ? <div style={{ fontFamily: crimson, fontSize: 14, color: scriptures ? G : dbDim, lineHeight: 1.65, fontStyle: 'italic' }}>{scriptures || 'No data on file'}</div>
+                    : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 Commander tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
+                  }
+                </div>
+              )}
+
+              {/* Companions */}
+              {companionList.length > 0 && (
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${dbBorder}` }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8 }}>COMPANION SPIRITS</div>
+                  {userTierLevel >= 2
+                    ? <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {companionList.map((c: string, ci: number) => (
+                          <span key={ci}
+                            onClick={() => { setSelectedEntry(null); setQuery(c) }}
+                            style={{ fontFamily: cinzel, fontSize: 9, color, border: `1px solid ${color}44`, padding: '3px 10px', borderRadius: 4, cursor: 'pointer' }}
+                            title={`Search for ${c}`}>{c}</span>
+                        ))}
+                      </div>
+                    : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 Commander tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
