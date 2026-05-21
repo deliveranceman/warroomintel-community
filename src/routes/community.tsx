@@ -1566,6 +1566,9 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
           const scriptures     = entry.scripture || ''
           const protocol       = entry.protocol || ''
           const wriNotes       = entry.wriNotes || ''
+          const entryPoints    = entry.entryPoints || ''
+          const legalRights    = entry.legalRights || ''
+          const symptoms       = entry.symptoms || ''
           const isOpen         = expanded === id
           const color          = getColor(cls)
           const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
@@ -1631,6 +1634,24 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
               {/* Expanded detail */}
               {isOpen && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${dbBorder}` }}>
+                  {/* Entry Points — Commander+ */}
+                  {entryPoints && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>ENTRY POINTS</div>
+                      {userTierLevel >= 2
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{entryPoints}</div>
+                        : <TierLock tierName="Commander" />}
+                    </div>
+                  )}
+                  {/* Legal Rights — Commander+ */}
+                  {legalRights && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>LEGAL RIGHTS</div>
+                      {userTierLevel >= 2
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{legalRights}</div>
+                        : <TierLock tierName="Commander" />}
+                    </div>
+                  )}
                   {/* Manifestations — Soldier+ */}
                   {manifestations && (
                     <div style={{ marginBottom: 10 }}>
@@ -1638,6 +1659,15 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                       {userTierLevel >= 1
                         ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
                         : <TierLock tierName="Soldier" />}
+                    </div>
+                  )}
+                  {/* Symptoms — General */}
+                  {symptoms && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>SYMPTOMS</div>
+                      {userTierLevel >= 3
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{symptoms}</div>
+                        : <TierLock tierName="General" />}
                     </div>
                   )}
                   {/* Key Scriptures — Commander+ */}
