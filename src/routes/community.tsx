@@ -1423,6 +1423,264 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
   )
 }
 
+// ── DATABASE VIEW ──────────────────────────────────────────
+function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
+  theme: string
+  isMobile: boolean
+  setSidebarOpen: (open: boolean) => void
+  userTier: string
+}) {
+  const [query, setQuery]         = useState('')
+  const [filter, setFilter]       = useState('All')
+  const [entries, setEntries]     = useState<any[]>([])
+  const [dbLoading, setDbLoading] = useState(true)
+  const [expanded, setExpanded]   = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/demons')
+      .then(r => r.json())
+      .then(d => { setEntries(d.demons || d.records || []) })
+      .catch(console.error)
+      .finally(() => setDbLoading(false))
+  }, [])
+
+  const CLASS_COLOR: Record<string, string> = {
+    Strongman:    '#C9A84C',
+    Familiar:     '#4a9eff',
+    Marine:       '#a855f7',
+    Rejection:    '#ff6b6b',
+    Generational: '#22c55e',
+    Religious:    '#f97316',
+    Sexual:       '#ec4899',
+  }
+
+  function getColor(cls: string) {
+    for (const [key, val] of Object.entries(CLASS_COLOR)) {
+      if (cls?.toLowerCase().includes(key.toLowerCase())) return val
+    }
+    return G
+  }
+
+  const tierLevel = (t: string) => ({'free':0,'watchman':0,'soldier':1,'commander':2,'general':3}[t?.toLowerCase()] ?? 0)
+  const userTierLevel = tierLevel(userTier)
+  const TierLock = ({ tierName }: { tierName: string }) => (
+    <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
+      🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a>
+    </div>
+  )
+
+  const FILTERS = ['All', 'Strongman', 'Familiar', 'Marine', 'Generational', 'Religious']
+
+  const filtered = entries.filter(e => {
+    const name           = e.name || ''
+    const aliases        = e.aka || ''
+    const manifestations = e.manifestation || ''
+    const cls            = e.type || e.rank || ''
+    const matchesSearch  = !query ||
+      [name, aliases, manifestations].some(s => s.toLowerCase().includes(query.toLowerCase()))
+    const matchesFilter  = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
+    return matchesSearch && matchesFilter
+  })
+
+  const dbIsDark = theme !== 'light'
+  const dbBg     = dbIsDark ? '#0D0B14' : '#f5f0e8'
+  const dbSurf   = dbIsDark ? '#1a1714' : '#EDE6D3'
+  const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)'
+  const dbText   = dbIsDark ? '#f0e8d8' : '#1C1407'
+  const dbDim    = dbIsDark ? '#c8b99a' : '#3a2a0a'
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden' }}>
+
+      {/* Header + search */}
+      <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G, fontSize: '20px', flexShrink: 0 }}
+              aria-label="Open navigation"
+            >☰</button>
+          )}
+          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: G }}>⚔ INTEL DATABASE</span>
+        </div>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search spirits, wounds, manifestations, aliases..."
+          style={{
+            width: '100%', padding: '10px 14px',
+            background: dbBg, border: `1px solid ${query ? G : dbBorder}`,
+            borderRadius: 8, fontFamily: crimson, fontSize: 15,
+            color: dbText, outline: 'none', boxSizing: 'border-box',
+            marginBottom: 10, transition: 'border-color 0.2s',
+          }}
+        />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {FILTERS.map(f => (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              padding: '4px 12px',
+              background: filter === f ? 'rgba(201,168,76,0.15)' : 'transparent',
+              border: `1px solid ${filter === f ? G : dbBorder}`,
+              borderRadius: 20, fontFamily: cinzel, fontSize: 9,
+              letterSpacing: '0.08em', color: filter === f ? G : dbDim,
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Count bar */}
+      <div style={{ padding: '8px 20px', flexShrink: 0, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: dbDim }}>
+        {dbLoading ? 'Loading database...' : `${filtered.length} ENTRIES`}
+        {!dbLoading && query && ` matching "${query}"`}
+      </div>
+
+      {/* Cards grid */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '8px 16px 16px',
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: 12, alignContent: 'start',
+      }}>
+        {dbLoading && (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
+            ACCESSING DATABASE...
+          </div>
+        )}
+        {!dbLoading && filtered.length === 0 && (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: crimson, fontSize: 16, fontStyle: 'italic' }}>
+            No entries found. Try different search terms.
+          </div>
+        )}
+        {filtered.map((entry, i) => {
+          const id             = entry.id || String(i)
+          const name           = entry.name || 'Unknown'
+          const cls            = entry.type || entry.rank || ''
+          const aliases        = entry.aka || ''
+          const description    = entry.description || ''
+          const manifestations = entry.manifestation || ''
+          const companions     = entry.companionSpirits || ''
+          const scriptures     = entry.scripture || ''
+          const protocol       = entry.protocol || ''
+          const wriNotes       = entry.wriNotes || ''
+          const isOpen         = expanded === id
+          const color          = getColor(cls)
+          const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
+
+          return (
+            <div key={id} onClick={() => setExpanded(isOpen ? null : id)} style={{
+              background: dbSurf, border: `1px solid ${color}40`,
+              borderLeft: `3px solid ${color}`, borderRadius: 8,
+              padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
+            }}>
+              {/* Name + classification badge */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color, fontWeight: 600 }}>{name}</div>
+                {cls && (
+                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', background: color + '20', color, padding: '2px 7px', borderRadius: 3, flexShrink: 0, marginLeft: 8 }}>
+                    {cls.toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              {/* Aliases */}
+              {aliases && (
+                <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginBottom: 6 }}>
+                  aka {aliases}
+                </div>
+              )}
+
+              {/* Description — full for Soldier+, clamped + upsell for free */}
+              {userTierLevel >= 1 ? (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, ...(isOpen ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }) }}>
+                  {description}
+                </div>
+              ) : (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                    {description}
+                  </div>
+                  {isOpen && <div style={{ marginTop: 6 }}><TierLock tierName="Soldier" /></div>}
+                </div>
+              )}
+
+              {/* Companion chips — Commander+ */}
+              {companionList.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>COMPANIONS</div>
+                  {userTierLevel >= 2 ? (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {companionList.slice(0, isOpen ? undefined : 3).map((c: string, ci: number) => (
+                        <span key={ci}
+                          onClick={e => { e.stopPropagation(); setQuery(c); setExpanded(null) }}
+                          style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
+                          title={`Search for ${c}`}>
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <TierLock tierName="Commander" />
+                  )}
+                </div>
+              )}
+
+              {/* Expanded detail */}
+              {isOpen && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${dbBorder}` }}>
+                  {/* Manifestations — Soldier+ */}
+                  {manifestations && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MANIFESTATIONS</div>
+                      {userTierLevel >= 1
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
+                        : <TierLock tierName="Soldier" />}
+                    </div>
+                  )}
+                  {/* Key Scriptures — Commander+ */}
+                  {scriptures && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + '88', marginBottom: 4 }}>KEY SCRIPTURES</div>
+                      {userTierLevel >= 2
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: G, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures}</div>
+                        : <TierLock tierName="Commander" />}
+                    </div>
+                  )}
+                  {/* Deliverance Protocol — General */}
+                  {protocol && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>DELIVERANCE PROTOCOL</div>
+                      {userTierLevel >= 3
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{protocol}</div>
+                        : <TierLock tierName="General" />}
+                    </div>
+                  )}
+                  {/* WRI Exorcist Notes — General */}
+                  {wriNotes && (
+                    <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>WRI EXORCIST NOTES</div>
+                      {userTierLevel >= 3
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{wriNotes}</div>
+                        : <TierLock tierName="General" />}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
+                {isOpen ? '▲ COLLAPSE' : '▼ EXPAND FULL ENTRY'}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -1959,260 +2217,6 @@ function CommunityPage() {
     </div>
   )
 
-  // ── DATABASE VIEW ──────────────────────────────────────────
-  const DatabaseView = () => {
-    const [query, setQuery]         = useState('')
-    const [filter, setFilter]       = useState('All')
-    const [entries, setEntries]     = useState<any[]>([])
-    const [dbLoading, setDbLoading] = useState(true)
-    const [expanded, setExpanded]   = useState<string | null>(null)
-
-    useEffect(() => {
-      fetch('/api/demons')
-        .then(r => r.json())
-        .then(d => {
-          setEntries(d.demons || d.records || [])
-          console.log('Sample entry fields:', JSON.stringify(
-            d.demons?.[0]?.fields || d.records?.[0]?.fields || d.demons?.[0] || d.records?.[0],
-            null, 2
-          ))
-        })
-        .catch(console.error)
-        .finally(() => setDbLoading(false))
-    }, [])
-
-    const CLASS_COLOR: Record<string, string> = {
-      Strongman:    '#C9A84C',
-      Familiar:     '#4a9eff',
-      Marine:       '#a855f7',
-      Rejection:    '#ff6b6b',
-      Generational: '#22c55e',
-      Religious:    '#f97316',
-      Sexual:       '#ec4899',
-    }
-
-    function getColor(cls: string) {
-      for (const [key, val] of Object.entries(CLASS_COLOR)) {
-        if (cls?.toLowerCase().includes(key.toLowerCase())) return val
-      }
-      return G
-    }
-
-    const tierLevel = (t: string) => ({'free':0,'watchman':0,'soldier':1,'commander':2,'general':3}[t?.toLowerCase()] ?? 0)
-    const rawTier = (user?.publicMetadata?.tier as string) || tier || 'Watchman'
-    const userTierLevel = tierLevel(rawTier)
-    const TierLock = ({ tierName }: { tierName: string }) => (
-      <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
-        🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a>
-      </div>
-    )
-
-    const FILTERS = ['All', 'Strongman', 'Familiar', 'Marine', 'Generational', 'Religious']
-
-    const filtered = entries.filter(e => {
-      const name           = e.name || ''
-      const aliases        = e.aka || ''
-      const manifestations = e.manifestation || ''
-      const cls            = e.type || e.rank || ''
-      const matchesSearch  = !query ||
-        [name, aliases, manifestations].some(s => s.toLowerCase().includes(query.toLowerCase()))
-      const matchesFilter  = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
-      return matchesSearch && matchesFilter
-    })
-
-    const dbIsDark = theme !== 'light'
-    const dbBg     = dbIsDark ? '#0D0B14' : '#f5f0e8'
-    const dbSurf   = dbIsDark ? '#1a1714' : '#EDE6D3'
-    const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)'
-    const dbText   = dbIsDark ? '#f0e8d8' : '#1C1407'
-    const dbDim    = dbIsDark ? '#c8b99a' : '#3a2a0a'
-
-    return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden' }}>
-
-        {/* Header + search */}
-        <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            <Hamburger />
-            <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: G }}>⚔ INTEL DATABASE</span>
-          </div>
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search spirits, wounds, manifestations, aliases..."
-            style={{
-              width: '100%', padding: '10px 14px',
-              background: dbBg, border: `1px solid ${query ? G : dbBorder}`,
-              borderRadius: 8, fontFamily: crimson, fontSize: 15,
-              color: dbText, outline: 'none', boxSizing: 'border-box',
-              marginBottom: 10, transition: 'border-color 0.2s',
-            }}
-          />
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {FILTERS.map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: '4px 12px',
-                background: filter === f ? 'rgba(201,168,76,0.15)' : 'transparent',
-                border: `1px solid ${filter === f ? G : dbBorder}`,
-                borderRadius: 20, fontFamily: cinzel, fontSize: 9,
-                letterSpacing: '0.08em', color: filter === f ? G : dbDim,
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}>
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Count bar */}
-        <div style={{ padding: '8px 20px', flexShrink: 0, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: dbDim }}>
-          {dbLoading ? 'Loading database...' : `${filtered.length} ENTRIES`}
-          {!dbLoading && query && ` matching "${query}"`}
-        </div>
-
-        {/* Cards grid */}
-        <div style={{
-          flex: 1, overflowY: 'auto', padding: '8px 16px 16px',
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 12, alignContent: 'start',
-        }}>
-          {dbLoading && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
-              ACCESSING DATABASE...
-            </div>
-          )}
-          {!dbLoading && filtered.length === 0 && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: crimson, fontSize: 16, fontStyle: 'italic' }}>
-              No entries found. Try different search terms.
-            </div>
-          )}
-          {filtered.map((entry, i) => {
-            const id             = entry.id || String(i)
-            const name           = entry.name || 'Unknown'
-            const cls            = entry.type || entry.rank || ''
-            const aliases        = entry.aka || ''
-            const description    = entry.description || ''
-            const manifestations = entry.manifestation || ''
-            const companions     = entry.companionSpirits || ''
-            const scriptures     = entry.scripture || ''
-            const protocol       = entry.protocol || ''
-            const wriNotes       = entry.wriNotes || ''
-            const isOpen         = expanded === id
-            const color          = getColor(cls)
-            const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
-
-            return (
-              <div key={id} onClick={() => setExpanded(isOpen ? null : id)} style={{
-                background: dbSurf, border: `1px solid ${color}40`,
-                borderLeft: `3px solid ${color}`, borderRadius: 8,
-                padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
-              }}>
-                {/* Name + classification badge */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 14, color, fontWeight: 600 }}>{name}</div>
-                  {cls && (
-                    <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', background: color + '20', color, padding: '2px 7px', borderRadius: 3, flexShrink: 0, marginLeft: 8 }}>
-                      {cls.toUpperCase()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Aliases */}
-                {aliases && (
-                  <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginBottom: 6 }}>
-                    aka {aliases}
-                  </div>
-                )}
-
-                {/* Description — full for Soldier+, clamped + upsell for free */}
-                {userTierLevel >= 1 ? (
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, ...(isOpen ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }) }}>
-                    {description}
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
-                      {description}
-                    </div>
-                    {isOpen && <div style={{ marginTop: 6 }}><TierLock tierName="Soldier" /></div>}
-                  </div>
-                )}
-
-                {/* Companion chips — Commander+ */}
-                {companionList.length > 0 && (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>COMPANIONS</div>
-                    {userTierLevel >= 2 ? (
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {companionList.slice(0, isOpen ? undefined : 3).map((c: string, ci: number) => (
-                          <span key={ci}
-                            onClick={e => { e.stopPropagation(); setQuery(c); setExpanded(null) }}
-                            style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
-                            title={`Search for ${c}`}>
-                            {c}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <TierLock tierName="Commander" />
-                    )}
-                  </div>
-                )}
-
-                {/* Expanded detail */}
-                {isOpen && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${dbBorder}` }}>
-                    {/* Manifestations — Soldier+ */}
-                    {manifestations && (
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>MANIFESTATIONS</div>
-                        {userTierLevel >= 1
-                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
-                          : <TierLock tierName="Soldier" />}
-                      </div>
-                    )}
-                    {/* Key Scriptures — Commander+ */}
-                    {scriptures && (
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + '88', marginBottom: 4 }}>KEY SCRIPTURES</div>
-                        {userTierLevel >= 2
-                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: G, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures}</div>
-                          : <TierLock tierName="Commander" />}
-                      </div>
-                    )}
-                    {/* Deliverance Protocol — General */}
-                    {protocol && (
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>DELIVERANCE PROTOCOL</div>
-                        {userTierLevel >= 3
-                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{protocol}</div>
-                          : <TierLock tierName="General" />}
-                      </div>
-                    )}
-                    {/* WRI Exorcist Notes — General */}
-                    {wriNotes && (
-                      <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + '88', marginBottom: 4 }}>WRI EXORCIST NOTES</div>
-                        {userTierLevel >= 3
-                          ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{wriNotes}</div>
-                          : <TierLock tierName="General" />}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
-                  {isOpen ? '▲ COLLAPSE' : '▼ EXPAND FULL ENTRY'}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
   // ── SIDEBAR CONTENT (shared between desktop and mobile overlay) ──
   const SidebarContent = () => (
     <>
@@ -2476,7 +2480,7 @@ function CommunityPage() {
             isMobile={isMobile}
           />
         )}
-        {activeSection === 'database'    && <DatabaseView />}
+        {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'arsenal'     && <LauncherView title="Scripture Arsenal" icon="✦"  href="/arsenal" />}
         {activeSection === 'resources'   && <LauncherView title="Resources"         icon="📚" href="/resources" />}
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
