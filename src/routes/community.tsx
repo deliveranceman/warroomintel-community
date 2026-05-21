@@ -1635,65 +1635,65 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
               {isOpen && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${dbBorder}` }}>
                   {/* Entry Points — Commander+ */}
-                  {entryPoints && (
+                  {(entryPoints || userTierLevel >= 3) && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>ENTRY POINTS</div>
                       {userTierLevel >= 2
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{entryPoints}</div>
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: entryPoints ? dbText : dbDim, lineHeight: 1.6, fontStyle: entryPoints ? 'normal' : 'italic' }}>{entryPoints || 'No data on file'}</div>
                         : <TierLock tierName="Commander" />}
                     </div>
                   )}
                   {/* Legal Rights — Commander+ */}
-                  {legalRights && (
+                  {(legalRights || userTierLevel >= 3) && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>LEGAL RIGHTS</div>
                       {userTierLevel >= 2
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{legalRights}</div>
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: legalRights ? dbText : dbDim, lineHeight: 1.6, fontStyle: legalRights ? 'normal' : 'italic' }}>{legalRights || 'No data on file'}</div>
                         : <TierLock tierName="Commander" />}
                     </div>
                   )}
                   {/* Manifestations — Soldier+ */}
-                  {manifestations && (
+                  {(manifestations || userTierLevel >= 3) && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>MANIFESTATIONS</div>
                       {userTierLevel >= 1
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{manifestations}</div>
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: manifestations ? dbText : dbDim, lineHeight: 1.6, fontStyle: manifestations ? 'normal' : 'italic' }}>{manifestations || 'No data on file'}</div>
                         : <TierLock tierName="Soldier" />}
                     </div>
                   )}
                   {/* Symptoms — General */}
-                  {symptoms && (
+                  {(symptoms || userTierLevel >= 3) && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>SYMPTOMS</div>
                       {userTierLevel >= 3
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{symptoms}</div>
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: symptoms ? dbText : dbDim, lineHeight: 1.6, fontStyle: symptoms ? 'normal' : 'italic' }}>{symptoms || 'No data on file'}</div>
                         : <TierLock tierName="General" />}
                     </div>
                   )}
                   {/* Key Scriptures — Commander+ */}
-                  {scriptures && (
+                  {(scriptures || userTierLevel >= 3) && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + 'BB', marginBottom: 4 }}>KEY SCRIPTURES</div>
                       {userTierLevel >= 2
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: G, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures}</div>
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: scriptures ? G : dbDim, lineHeight: 1.6, fontStyle: 'italic' }}>{scriptures || 'No data on file'}</div>
                         : <TierLock tierName="Commander" />}
                     </div>
                   )}
                   {/* Deliverance Protocol — General */}
-                  {protocol && (
+                  {(protocol || userTierLevel >= 3) && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>DELIVERANCE PROTOCOL</div>
                       {userTierLevel >= 3
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{protocol}</div>
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: protocol ? dbText : dbDim, lineHeight: 1.6, fontStyle: protocol ? 'normal' : 'italic' }}>{protocol || 'No data on file'}</div>
                         : <TierLock tierName="General" />}
                     </div>
                   )}
                   {/* WRI Exorcist Notes — General */}
-                  {wriNotes && (
+                  {(wriNotes || userTierLevel >= 3) && (
                     <div style={{ marginTop: 8, padding: '10px 12px', background: dbBg, border: `1px solid ${dbBorder}`, borderRadius: 6 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>WRI EXORCIST NOTES</div>
                       {userTierLevel >= 3
-                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.6 }}>{wriNotes}</div>
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: wriNotes ? dbText : dbDim, lineHeight: 1.6, fontStyle: wriNotes ? 'normal' : 'italic' }}>{wriNotes || 'No data on file'}</div>
                         : <TierLock tierName="General" />}
                     </div>
                   )}
