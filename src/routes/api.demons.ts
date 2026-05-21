@@ -48,9 +48,9 @@ export const Route = createFileRoute('/api/demons')({
               description: r.fields['Description'] || '',
               assignment: r.fields['Assignment'] || '',
               // Soldier tier
-              function: r.fields['Function / Role'] || '',
-              manifestation: r.fields['Manifestations'] || '',
-              scripture: r.fields['Scripture References'] || '',
+              function: r.fields['Description'] || '',
+              manifestation: r.fields['Manifestiation'] || '',
+              scripture: r.fields['Scripture Reference'] || '',
               strongman: r.fields['Strongman'] || '',
               rank: r.fields['Rank'] || '',
               // Commander tier
