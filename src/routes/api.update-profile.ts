@@ -15,7 +15,7 @@ export const Route = createFileRoute('/api/update-profile')({
         }
 
         try {
-          const { userId, bio, location } = await request.json()
+          const { userId, bio, city, state } = await request.json()
 
           if (!userId) {
             return new Response(JSON.stringify({ error: 'userId required' }), { status: 400, headers })
@@ -37,7 +37,8 @@ export const Route = createFileRoute('/api/update-profile')({
               public_metadata: {
                 ...existingMeta,
                 ...(bio !== undefined && { bio }),
-                ...(location !== undefined && { location }),
+                ...(city !== undefined && { city }),
+                ...(state !== undefined && { state }),
               },
             }),
           })

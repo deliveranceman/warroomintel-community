@@ -158,67 +158,138 @@ function ProfileModal({ member, currentUserId, onClose, onStartDM, isDark }: Pro
 // ── EDIT PROFILE MODAL ─────────────────────────────────────
 interface EditProfileModalProps {
   userId: string
+  firstName: string
+  lastName: string
+  imageUrl: string
   existingBio: string
-  existingLocation: string
+  existingCity: string
+  existingState: string
   onClose: () => void
   isDark: boolean
 }
-function EditProfileModal({ userId, existingBio, existingLocation, onClose, isDark }: EditProfileModalProps) {
-  const [bio,      setBio]      = useState(existingBio)
-  const [location, setLocation] = useState(existingLocation)
-  const [saving,   setSaving]   = useState(false)
-  const [saved,    setSaved]    = useState(false)
+function EditProfileModal({ userId, firstName, lastName, imageUrl, existingBio, existingCity, existingState, onClose, isDark }: EditProfileModalProps) {
+  const [bio,     setBio]     = useState(existingBio)
+  const [city,    setCity]    = useState(existingCity)
+  const [state,   setState]   = useState(existingState)
+  const [saving,  setSaving]  = useState(false)
+  const [saved,   setSaved]   = useState(false)
+  const [saveErr, setSaveErr] = useState('')
+
   const bg   = isDark ? '#0D0B14' : '#ffffff'
+  const surf = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
   const text = isDark ? '#f0ece0' : '#1a1a2e'
-  const mc = "'Cinzel', serif"
-  const cr = "'Crimson Pro', Georgia, serif"
+  const dim  = isDark ? '#6b6b7a' : '#8a8a9a'
+  const bdr  = 'rgba(201,168,76,0.25)'
+  const mc   = "'Cinzel', serif"
+  const cr   = "'Crimson Pro', Georgia, serif"
+
   const inputStyle: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
-    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-    border: '1px solid rgba(201,168,76,0.25)', borderRadius: '6px',
+    background: surf, border: `1px solid ${bdr}`, borderRadius: '6px',
     padding: '10px 12px', color: text, fontFamily: cr,
     fontSize: '14px', outline: 'none',
+  }
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontFamily: mc, fontSize: '9px',
+    letterSpacing: '0.12em', color: dim, textTransform: 'uppercase',
+    marginBottom: '6px',
   }
 
   async function handleSave() {
     if (saving) return
     setSaving(true)
+    setSaveErr('')
     try {
-      await fetch('/api/update-profile', {
+      const res = await fetch('/api/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, bio, location }),
+        body: JSON.stringify({ userId, bio, city, state }),
       })
+      if (!res.ok) throw new Error('Save failed')
       setSaved(true)
-      setTimeout(onClose, 800)
-    } catch { /* silent */ } finally { setSaving(false) }
+      setTimeout(onClose, 900)
+    } catch { setSaveErr('Save failed. Try again.') } finally { setSaving(false) }
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '28px', boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
-        <div style={{ fontFamily: mc, fontSize: '13px', letterSpacing: '0.1em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: '22px' }}>
-          Edit Profile
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '440px', padding: '28px', boxShadow: '0 24px 64px rgba(0,0,0,0.9)', position: 'relative' }}>
+
+        {/* Header */}
+        <div style={{ fontFamily: mc, fontSize: '12px', letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: '24px' }}>
+          ⚙ Profile Settings
         </div>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', fontFamily: mc, fontSize: '9px', letterSpacing: '0.12em', color: '#6b6b7a', textTransform: 'uppercase' as const, marginBottom: '6px' }}>Bio</label>
+
+        {/* Avatar */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
+          <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(201,168,76,0.4)', marginBottom: '10px', background: surf, flexShrink: 0 }}>
+            {imageUrl
+              ? <img src={imageUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: mc, fontSize: 28, color: '#C9A84C' }}>{(firstName?.[0] || '?').toUpperCase()}</div>
+            }
+          </div>
+          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ fontFamily: mc, fontSize: '9px', letterSpacing: '0.1em', color: dim, textDecoration: 'none', borderBottom: `1px solid ${bdr}`, paddingBottom: 1 }}>
+            Change Photo →
+          </a>
+        </div>
+
+        {/* Name row — read only */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <label style={labelStyle}>First Name</label>
+            <div style={{ ...inputStyle, color: dim, cursor: 'default', userSelect: 'none' as const }}>{firstName || '—'}</div>
+          </div>
+          <div>
+            <label style={labelStyle}>Last Name</label>
+            <div style={{ ...inputStyle, color: dim, cursor: 'default', userSelect: 'none' as const }}>{lastName || '—'}</div>
+          </div>
+        </div>
+        <p style={{ fontSize: '10px', color: dim, fontFamily: cr, fontStyle: 'italic', marginBottom: '20px', marginTop: '-6px' }}>
+          Name is managed by Clerk. <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ color: '#C9A84C' }}>Edit on account page →</a>
+        </p>
+
+        {/* City + State */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <label style={labelStyle}>City</label>
+            <input value={city} onChange={e => setCity(e.target.value)} placeholder="City" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>State</label>
+            <input value={state} onChange={e => setState(e.target.value)} placeholder="TX" maxLength={2} style={inputStyle} />
+          </div>
+        </div>
+
+        {/* Bio */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={labelStyle}>Bio</label>
           <textarea
-            value={bio} onChange={e => setBio(e.target.value)}
-            maxLength={200} rows={3}
+            value={bio} onChange={e => setBio(e.target.value.slice(0, 280))}
+            rows={4}
             placeholder="Brief description of your ministry or calling..."
             style={{ ...inputStyle, resize: 'vertical' as const }}
           />
-          <div style={{ fontSize: '10px', color: '#6b6b7a', textAlign: 'right' as const, marginTop: '2px' }}>{bio.length}/200</div>
+          <div style={{ fontSize: '10px', color: bio.length > 250 ? '#f97316' : dim, textAlign: 'right' as const, marginTop: '3px' }}>{bio.length}/280</div>
         </div>
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', fontFamily: mc, fontSize: '9px', letterSpacing: '0.12em', color: '#6b6b7a', textTransform: 'uppercase' as const, marginBottom: '6px' }}>Location</label>
-          <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="City, State" style={inputStyle} />
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '6px', color: '#6b6b7a', fontFamily: mc, fontSize: '11px', cursor: 'pointer' }}>Cancel</button>
-          <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: saved ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.12)', border: `1px solid ${saved ? 'rgba(74,222,128,0.5)' : 'rgba(201,168,76,0.45)'}`, borderRadius: '6px', color: saved ? '#4ade80' : '#C9A84C', fontFamily: mc, fontSize: '11px', letterSpacing: '0.05em', cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save'}
+
+        {/* Error */}
+        {saveErr && <div style={{ fontSize: '12px', color: '#f87171', marginBottom: '12px', fontFamily: cr }}>{saveErr}</div>}
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: '6px', color: dim, fontFamily: mc, fontSize: '10px', letterSpacing: '0.05em', cursor: 'pointer' }}>
+            Cancel
           </button>
+          <button onClick={handleSave} disabled={saving || saved} style={{ flex: 2, padding: '10px', background: saved ? 'rgba(74,222,128,0.12)' : 'rgba(201,168,76,0.12)', border: `1px solid ${saved ? 'rgba(74,222,128,0.4)' : 'rgba(201,168,76,0.4)'}`, borderRadius: '6px', color: saved ? '#4ade80' : '#C9A84C', fontFamily: mc, fontSize: '10px', letterSpacing: '0.08em', cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+            {saved ? '✓ SAVED' : saving ? 'SAVING...' : 'SAVE CHANGES'}
+          </button>
+        </div>
+
+        {/* Change password */}
+        <div style={{ textAlign: 'center', paddingTop: '12px', borderTop: `1px solid ${bdr}` }}>
+          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ fontFamily: mc, fontSize: '9px', letterSpacing: '0.1em', color: dim, textDecoration: 'none' }}>
+            🔑 Change Password or Email →
+          </a>
         </div>
       </div>
     </div>
@@ -2700,8 +2771,12 @@ function CommunityPage() {
       {editingProfile && (
         <EditProfileModal
           userId={user?.id || ''}
+          firstName={user?.firstName || ''}
+          lastName={user?.lastName || ''}
+          imageUrl={user?.imageUrl || ''}
           existingBio={(user?.publicMetadata?.bio as string) || ''}
-          existingLocation={(user?.publicMetadata?.location as string) || ''}
+          existingCity={(user?.publicMetadata?.city as string) || ''}
+          existingState={(user?.publicMetadata?.state as string) || ''}
           isDark={theme !== 'light'}
           onClose={() => setEditingProfile(false)}
         />
