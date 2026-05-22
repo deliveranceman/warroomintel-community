@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useUser } from '@clerk/tanstack-start'
+import { useUser, useAuth } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/investigate')({
   component: InvestigatePage,
@@ -11,6 +11,7 @@ const atLeast = (userTier: string, required: string) => tierLevel(userTier) >= t
 
 function InvestigatePage() {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<InvestigationResult | null>(null)
@@ -55,9 +56,10 @@ function InvestigatePage() {
     setError('')
     setResult(null)
     try {
+      const token = await getToken()
       const res = await fetch('/api/investigate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ symptoms: input }),
       })
       if (!res.ok) throw new Error('Investigation failed')

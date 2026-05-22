@@ -15,11 +15,31 @@ export const Route = createFileRoute('/api/update-profile')({
         }
 
         try {
-          const { userId, bio, city, state } = await request.json()
-
-          if (!userId) {
-            return new Response(JSON.stringify({ error: 'userId required' }), { status: 400, headers })
+          // Derive userId from Clerk session token — never trust the request body
+          const authHeader = request.headers.get('Authorization')
+          const sessionToken = authHeader?.replace('Bearer ', '').trim()
+          if (!sessionToken) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
           }
+
+          const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${clerkSecret}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ token: sessionToken }),
+          })
+          if (!verifyRes.ok) {
+            return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401, headers })
+          }
+          const session = await verifyRes.json()
+          const userId = session.user_id
+          if (!userId) {
+            return new Response(JSON.stringify({ error: 'Could not identify user' }), { status: 401, headers })
+          }
+
+          const { bio, city, state } = await request.json()
 
           const getRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
             headers: { Authorization: `Bearer ${clerkSecret}` },

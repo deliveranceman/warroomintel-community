@@ -167,7 +167,8 @@ interface EditProfileModalProps {
   onClose: () => void
   isDark: boolean
 }
-function EditProfileModal({ userId, firstName, lastName, imageUrl, existingBio, existingCity, existingState, onClose, isDark }: EditProfileModalProps) {
+function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, existingBio, existingCity, existingState, onClose, isDark }: EditProfileModalProps) {
+  const { getToken } = useAuth()
   const [bio,     setBio]     = useState(existingBio)
   const [city,    setCity]    = useState(existingCity)
   const [state,   setState]   = useState(existingState)
@@ -200,10 +201,11 @@ function EditProfileModal({ userId, firstName, lastName, imageUrl, existingBio, 
     setSaving(true)
     setSaveErr('')
     try {
+      const token = await getToken()
       const res = await fetch('/api/update-profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, bio, city, state }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ bio, city, state }),
       })
       if (!res.ok) throw new Error('Save failed')
       setSaved(true)
@@ -1107,7 +1109,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             streamToken={streamToken}
             apiKey={apiKey}
             onReaction={fetchPrayers}
-            actions={m.user?.id === userId ? (
+            actions={m.user?.id === userId || user?.publicMetadata?.role === 'minister' ? (
               editingPostId === m.id ? (
                 <div>
                   <textarea
@@ -2403,7 +2405,7 @@ function CommunityPage() {
             <PostCard key={msg.id} msg={msg} isDark={isDark}
               streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts}
               hoveredId={hoveredPostId} onHover={setHoveredPostId}
-              actions={msg.user?.id === user?.id ? (
+              actions={msg.user?.id === user?.id || user?.publicMetadata?.role === 'minister' ? (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {editingId === msg.id ? (
                     <>

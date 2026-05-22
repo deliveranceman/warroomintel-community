@@ -2,9 +2,48 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// Simple in-memory rate limiter: max 10 requests per IP per minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 })
+    return true
+  }
+  if (entry.count >= 10) return false
+  entry.count++
+  return true
+}
+
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
+  }
+
+  // Require a valid Clerk session token
+  const authHeader = req.headers.get('Authorization')
+  const sessionToken = authHeader?.replace('Bearer ', '').trim()
+  if (!sessionToken) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+  }
+
+  const clerkSecret = process.env.CLERK_SECRET_KEY
+  if (clerkSecret) {
+    const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${clerkSecret}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token: sessionToken }),
+    })
+    if (!verifyRes.ok) {
+      return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401 })
+    }
+  }
+
+  // Rate limit by IP
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+  if (!checkRateLimit(ip)) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in a minute.' }), { status: 429 })
   }
 
   const { symptoms } = await req.json()
