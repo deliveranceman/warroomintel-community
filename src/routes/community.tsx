@@ -326,11 +326,11 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   onUnreadChange?: (count: number) => void
 }) {
   const V = {
-    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
+    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#f0ebe3',
     card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
-    txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
-    dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)',
+    txt: isDark ? '#f0e8d8' : '#1a1410', mut: isDark ? '#9a8c74' : '#5c4a3a',
+    dim: isDark ? '#c8b99a' : '#7a6555', s2: isDark ? '#1c1814' : '#e8e0d4', gold: isDark ? '#C9A84C' : '#a07830',
   }
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
   const [conversations, setConversations] = useState<any[]>([])
@@ -942,11 +942,11 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
   streamToken?: string; apiKey?: string; onReaction?: () => void;
 }) {
   const V = {
-    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
+    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#f0ebe3',
     card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
-    txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
-    dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)',
+    txt: isDark ? '#f0e8d8' : '#1a1410', mut: isDark ? '#9a8c74' : '#5c4a3a',
+    dim: isDark ? '#c8b99a' : '#7a6555', s2: isDark ? '#1c1814' : '#e8e0d4', gold: isDark ? '#C9A84C' : '#a07830',
   }
   const emojiMap: Record<string, string> = { pray: '🙏', love: '❤️', fire: '🔥', cross: '✝️', sword: '⚔️' }
   const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
@@ -1027,11 +1027,11 @@ interface PrayerViewProps {
 }
 function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen }: PrayerViewProps) {
   const V = {
-    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#EDE6D3',
+    bg: isDark ? '#0D0B14' : '#f5f0e8', surf: isDark ? '#1a1714' : '#f0ebe3',
     card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
-    txt: isDark ? '#f0e8d8' : '#1C1407', mut: isDark ? '#9a8c74' : '#6B5520',
-    dim: isDark ? '#c8b99a' : '#3a2a0a', s2: isDark ? '#1c1814' : '#e8e0d0', gold: '#C9A84C',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)',
+    txt: isDark ? '#f0e8d8' : '#1a1410', mut: isDark ? '#9a8c74' : '#5c4a3a',
+    dim: isDark ? '#c8b99a' : '#7a6555', s2: isDark ? '#1c1814' : '#e8e0d4', gold: isDark ? '#C9A84C' : '#a07830',
   }
   const [draft,           setDraft]           = useState('')
   const [prayers,         setPrayers]         = useState<StreamMsg[]>([])
@@ -1224,11 +1224,11 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 
   const V = {
     bg:   isDark ? '#0D0B14' : '#f5f0e8',
-    surf: isDark ? '#1a1714' : '#EDE6D3',
-    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
-    txt:  isDark ? '#f0e8d8' : '#1C1407',
-    mut:  isDark ? '#9a8c74' : '#6B5520',
-    s2:   isDark ? '#1c1814' : '#e8e0d0',
+    surf: isDark ? '#1a1714' : '#f0ebe3',
+    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)',
+    txt:  isDark ? '#f0e8d8' : '#1a1410',
+    mut:  isDark ? '#9a8c74' : '#5c4a3a',
+    s2:   isDark ? '#1c1814' : '#e8e0d4',
   }
 
   const fetchMessages = useCallback(async () => {
@@ -1527,11 +1527,11 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
   const isDark       = theme !== 'light'
   const GG           = '#C9A84C'
   const bg           = isDark ? '#0D0B14' : '#faf8f4'
-  const surf         = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
-  const bdr          = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
-  const txt          = isDark ? '#E8D5B0' : '#2a1f0e'
-  const mut          = isDark ? '#8B7355' : '#9a8a70'
-  const dm           = isDark ? '#5a4f3a' : '#b8a882'
+  const surf         = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const bdr          = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt          = isDark ? '#E8D5B0' : '#1a1410'
+  const mut          = isDark ? '#8B7355' : '#5c4a3a'
+  const dm           = isDark ? '#5a4f3a' : '#7a6555'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
     background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8',
@@ -1925,10 +1925,10 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
 
   const dbIsDark = theme !== 'light'
   const dbBg     = dbIsDark ? '#0D0B14' : '#f5f0e8'
-  const dbSurf   = dbIsDark ? '#1a1714' : '#EDE6D3'
-  const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)'
-  const dbText   = dbIsDark ? '#f0e8d8' : '#1C1407'
-  const dbDim    = dbIsDark ? '#c8b99a' : '#3a2a0a'
+  const dbSurf   = dbIsDark ? '#1a1714' : '#f0ebe3'
+  const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const dbText   = dbIsDark ? '#f0e8d8' : '#1a1410'
+  const dbDim    = dbIsDark ? '#c8b99a' : '#7a6555'
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden' }}>
@@ -2305,10 +2305,10 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const { getToken } = useAuth()
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#faf8f4'
-  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
-  const border  = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
-  const text    = isDark ? '#E8D5B0' : '#2a1f0e'
-  const muted   = isDark ? '#8B7355' : '#9a8a70'
+  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const text    = isDark ? '#E8D5B0' : '#1a1410'
+  const muted   = isDark ? '#8B7355' : '#5c4a3a'
 
   const [resources, setResources]   = useState<any[]>([])
   const [loading, setLoading]       = useState(true)
@@ -2746,10 +2746,11 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: {
 }) {
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#faf8f4'
-  const surface = isDark ? 'rgba(201,168,76,0.03)' : '#fff'
-  const border  = isDark ? 'rgba(201,168,76,0.12)' : '#e8e0d0'
-  const muted   = isDark ? '#8B7355' : '#9a8a70'
-  const dim     = isDark ? '#5a4f3a' : '#b8a882'
+  const surface = isDark ? 'rgba(201,168,76,0.03)' : '#f0ebe3'
+  const border  = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
+  const muted   = isDark ? '#8B7355' : '#5c4a3a'
+  const dim     = isDark ? '#5a4f3a' : '#7a6555'
+  const gold    = isDark ? G : '#a07830'
 
   const TOPICS = [
     { icon: '👽', label: 'UFO Disclosure',      desc: 'Craft sightings, government programs, interdimensional origins' },
@@ -2763,23 +2764,23 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: {
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: gold, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
         <div>
-          <div style={{ fontSize: 10, color: G, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 6, textTransform: 'uppercase' as const }}>⚠ CLASSIFIED — LEVEL 5 CLEARANCE</div>
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: G, fontWeight: 700, marginBottom: 4 }}>👁 Fringe Intelligence</div>
+          <div style={{ fontSize: 10, color: gold, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 6, textTransform: 'uppercase' as const }}>⚠ CLASSIFIED — LEVEL 5 CLEARANCE</div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, fontWeight: 700, marginBottom: 4 }}>👁 Fringe Intelligence</div>
           <div style={{ fontSize: 13, color: muted, lineHeight: 1.6, fontFamily: crimson }}>
             Where the strange things get explained. Aliens are demons in meat suits. Giants were real. The cover-up is spiritual.
           </div>
         </div>
       </div>
 
-      <div style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.06) 0%, rgba(13,11,20,0.8) 100%)', border: `1px solid ${border}`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '24px 28px', marginBottom: 32, textAlign: 'center' as const }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.06) 0%, rgba(13,11,20,0.8) 100%)', border: `1px solid ${border}`, borderLeft: `3px solid ${gold}`, borderRadius: 10, padding: '24px 28px', marginBottom: 32, textAlign: 'center' as const }}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>🛸</div>
-        <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 8 }}>Fringe Intelligence — Coming July 2026</div>
+        <div style={{ fontFamily: cinzel, fontSize: 16, color: gold, marginBottom: 8 }}>Fringe Intelligence — Coming July 2026</div>
         <div style={{ fontFamily: crimson, fontSize: 15, color: muted, lineHeight: 1.7, maxWidth: 500, margin: '0 auto 16px' }}>
           Launching alongside the Close Encounters of Some Kind event. Genesis 6, Nephilim, UFO Disclosure, Government Programming — all explained through the lens of spiritual warfare.
         </div>
-        <div style={{ display: 'inline-block', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '6px 16px', fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em' }}>
+        <div style={{ display: 'inline-block', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '6px 16px', fontFamily: cinzel, fontSize: 10, color: gold, letterSpacing: '0.1em' }}>
           JULY 18, 2026 · STAFFORDTOWN CHURCH
         </div>
       </div>
@@ -2791,7 +2792,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: {
             <div key={label} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <span style={{ fontSize: 22, flexShrink: 0 }}>{icon}</span>
               <div>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#1a1410', marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
                 <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5 }}>{desc}</div>
               </div>
             </div>
@@ -2808,10 +2809,10 @@ function EventsView({ theme, isMobile, setSidebarOpen }: {
 }) {
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#faf8f4'
-  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
-  const border  = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
-  const text    = isDark ? '#E8D5B0' : '#2a1f0e'
-  const muted   = isDark ? '#8B7355' : '#9a8a70'
+  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const text    = isDark ? '#E8D5B0' : '#1a1410'
+  const muted   = isDark ? '#8B7355' : '#5c4a3a'
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
@@ -2919,10 +2920,10 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
   const { getToken } = useAuth()
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#faf8f4'
-  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
-  const border  = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
-  const text    = isDark ? '#E8D5B0' : '#2a1f0e'
-  const muted   = isDark ? '#8B7355' : '#9a8a70'
+  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const text    = isDark ? '#E8D5B0' : '#1a1410'
+  const muted   = isDark ? '#8B7355' : '#5c4a3a'
 
   const [type, setType]               = useState<'bug' | 'feature'>('feature')
   const [title, setTitle]             = useState('')
@@ -3335,24 +3336,25 @@ function CommunityPage() {
   const isDark = theme !== 'light'
   const V = {
     bg:   isDark ? '#0D0B14' : '#f5f0e8',
-    surf: isDark ? '#1a1714' : '#EDE6D3',
+    surf: isDark ? '#1a1714' : '#e8e0d4',
     card: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.2)',
-    txt:  isDark ? '#f0e8d8' : '#1C1407',
-    mut:  isDark ? '#9a8c74' : '#6B5520',
-    dim:  isDark ? '#c8b99a' : '#3a2a0a',
-    s2:   isDark ? '#1c1814' : '#e8e0d0',
-    gold: '#C9A84C',
+    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)',
+    txt:  isDark ? '#f0e8d8' : '#1a1410',
+    mut:  isDark ? '#9a8c74' : '#5c4a3a',
+    dim:  isDark ? '#c8b99a' : '#7a6555',
+    s2:   isDark ? '#1c1814' : '#e8e0d4',
+    gold: isDark ? '#C9A84C' : '#a07830',
   }
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const sectionLabel = (label: string) => (
-    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#8a7a60' }}>
+    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#7a6555' }}>
       {label}
     </div>
   )
 
-  const NAV_DEFAULT = isDark ? '#b8a98a' : V.txt
+  const NAV_DEFAULT = isDark ? '#b8a98a' : '#3d2e1e'
+  const navGold    = isDark ? G : '#a07830'
 
   const navItem = (label: string, section: string, icon?: string) => {
     const active = activeSection === section
@@ -3363,14 +3365,14 @@ function CommunityPage() {
           display: 'flex', alignItems: 'center', gap: 8,
           width: '100%', padding: '8px 16px',
           background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
-          border: 'none', borderLeft: `2px solid ${active ? G : 'transparent'}`,
+          border: 'none', borderLeft: `2px solid ${active ? navGold : 'transparent'}`,
           textAlign: 'left', cursor: 'pointer',
           fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
-          color: active ? G : NAV_DEFAULT,
+          color: active ? navGold : NAV_DEFAULT,
           fontWeight: active ? 600 : 400,
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = G } }}
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
       >
         {icon && <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>{icon}</span>}
@@ -3588,7 +3590,7 @@ function CommunityPage() {
             <img src="/logo.png" alt="WRI" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             <div>
               <div style={{ fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: G }}>WAR ROOM</div>
-              <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.2em', color: isDark ? '#6b5e45' : '#8a7a60' }}>INTELLIGENCE CENTER</div>
+              <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.2em', color: isDark ? '#6b5e45' : '#7a6555' }}>INTELLIGENCE CENTER</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -3682,26 +3684,26 @@ function CommunityPage() {
         {sectionLabel('Intelligence')}
         {navItem('Intel Archive', 'database', '📚')}
         <div style={{ paddingLeft: 16 }}>
-          <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? G : '#6b5e45', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+          <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
             <span style={{ fontSize: 11 }}>🔍</span>
             <span>Symptom Investigator</span>
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px', opacity: 0.4 }}>
             <span style={{ fontSize: 11 }}>🗺</span>
-            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#6b5e45' }}>Body Map</span>
+            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555' }}>Body Map</span>
             <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px', opacity: 0.4 }}>
             <span style={{ fontSize: 11 }}>🕸</span>
-            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#6b5e45' }}>Spirit Network</span>
+            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555' }}>Spirit Network</span>
             <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
           </div>
         </div>
 
-        <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? G : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+        <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>👁</span>
           <span style={{ flex: 1 }}>Fringe Intelligence</span>
-          <span style={{ fontSize: 10, color: '#6b5e45', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+          <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#7a6555', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
         </button>
         {fringeExpanded && (
           <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
@@ -3709,7 +3711,7 @@ function CommunityPage() {
             {[{ label: 'The Archive', icon: '🗂' }, { label: 'Fringe Chat', icon: '💬' }, { label: 'Courses', icon: '🎓' }].map(({ label, icon }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
                 <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: '#6b5e45', flex: 1 }}>{label}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555', flex: 1 }}>{label}</span>
                 <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
               </div>
             ))}
@@ -3723,7 +3725,7 @@ function CommunityPage() {
         {navItem('Request Help', 'help', '🙏')}
 
         {/* ── TRAINING (collapsible) ── */}
-        <button onClick={() => setTrainingExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px 6px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: '#6b5e45', textTransform: 'uppercase' as const, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+        <button onClick={() => setTrainingExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px 6px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#6b5e45' : '#7a6555', textTransform: 'uppercase' as const, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
           <span style={{ flex: 1 }}>Training</span>
           <span style={{ fontSize: 10, display: 'inline-block', transform: trainingExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
         </button>
@@ -3732,7 +3734,7 @@ function CommunityPage() {
             {[{ label: 'Courses', icon: '🎓' }, { label: "General's Table", icon: '✦' }, { label: 'Protocols', icon: '⚔' }].map(({ label, icon }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
                 <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: '#6b5e45', flex: 1 }}>{label}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555', flex: 1 }}>{label}</span>
                 <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
               </div>
             ))}
@@ -3899,7 +3901,7 @@ function CommunityPage() {
 
       {/* ── RIGHT SIDEBAR — desktop only ── */}
       {!isMobile && (
-        <div style={{ display: 'flex', flexDirection: 'column', background: V.surf, borderLeft: `1px solid ${V.bdr}`, overflow: 'visible', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'visible', position: 'relative' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
 
             {/* Prayer Wall widget */}
