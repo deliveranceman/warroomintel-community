@@ -2283,6 +2283,219 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   )
 }
 
+// ── ARSENAL VIEW ──────────────────────────────────────────
+function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const bg      = isDark ? '#0D0B14' : '#faf8f4'
+  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
+  const text    = isDark ? '#E8D5B0' : '#2a1f0e'
+  const muted   = isDark ? '#8B7355' : '#9a8a70'
+
+  const [resources, setResources]   = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [query, setQuery]           = useState('')
+  const [tierFilter, setTierFilter] = useState('All')
+  const [catFilter, setCatFilter]   = useState('All')
+  const [downloading, setDownloading] = useState<string | null>(null)
+  const [error, setError]           = useState('')
+
+  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+
+  const STRIPE_LINKS: Record<string, string> = {
+    Soldier:   'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
+    Commander: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
+    General:   'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
+  }
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/arsenal-resources', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) throw new Error('Failed to load')
+        const data = await res.json()
+        setResources(data.resources || [])
+      } catch {
+        setError('Could not load resources')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  async function handleDownload(resource: any) {
+    setDownloading(resource.id)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/download?id=${resource.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+      else throw new Error(data.error || 'Download failed')
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  const FILE_ICONS: Record<string, string> = {
+    'application/pdf': '📄',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '📝',
+    'audio/mpeg': '🎵',
+    'image/png': '🖼️',
+    'image/jpeg': '🖼️',
+  }
+
+  const CATEGORIES = ['All', 'Session Tools', 'Teaching', 'Protocol', 'Reference', 'Renunciation', 'Worksheet']
+  const TIERS      = ['All', 'Free', 'Soldier', 'Commander', 'General']
+
+  const TIER_COLORS: Record<string, string> = {
+    Free: '#4ade80', Soldier: '#C9A84C', Commander: '#38bdf8', General: '#f87171',
+  }
+
+  const filtered = resources.filter(r => {
+    const matchQ = !query ||
+      r.title.toLowerCase().includes(query.toLowerCase()) ||
+      (r.description || '').toLowerCase().includes(query.toLowerCase()) ||
+      (r.tags || []).some((t: string) => t.toLowerCase().includes(query.toLowerCase()))
+    const matchT = tierFilter === 'All' || r.tier === tierFilter
+    const matchC = catFilter === 'All'  || r.category === catFilter
+    return matchQ && matchT && matchC
+  })
+
+  const recent = [...resources]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 4)
+
+  const ResourceCard = ({ resource }: { resource: any }) => {
+    const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
+    const upgradeLink = STRIPE_LINKS[resource.tier]
+    const icon   = FILE_ICONS[resource.file_type] || '📄'
+    const sizeMB = resource.file_size ? (resource.file_size / 1024 / 1024).toFixed(1) : null
+    const tc     = TIER_COLORS[resource.tier] || G
+
+    return (
+      <div style={{ background: surface, border: `1px solid ${hasAccess ? border : 'rgba(201,168,76,0.25)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '16px 18px', opacity: hasAccess ? 1 : 0.9 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 16 }}>{icon}</span>
+              <span style={{ fontFamily: cinzel, fontSize: 13, color: hasAccess ? G : muted, fontWeight: 600 }}>{resource.title}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+              <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${tc}20`, color: tc, border: `1px solid ${tc}40`, letterSpacing: '0.06em' }}>{resource.tier}</span>
+              <span style={{ fontSize: 11, color: muted }}>{resource.category}</span>
+              {sizeMB && <span style={{ fontSize: 11, color: muted }}>· {sizeMB} MB</span>}
+            </div>
+          </div>
+          {hasAccess ? (
+            <button
+              onClick={() => handleDownload(resource)}
+              disabled={downloading === resource.id}
+              style={{ background: downloading === resource.id ? 'rgba(201,168,76,0.2)' : G, color: downloading === resource.id ? muted : '#0D0B14', border: 'none', borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: downloading === resource.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
+            >
+              {downloading === resource.id ? '...' : '↓ Download'}
+            </button>
+          ) : (
+            <a href={upgradeLink} style={{ background: 'transparent', border: `1px solid ${G}`, color: G, borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+              🔒 Upgrade
+            </a>
+          )}
+        </div>
+        {resource.description && (
+          <div style={{ fontSize: 12, color: muted, lineHeight: 1.5, marginBottom: resource.tags?.length > 0 ? 8 : 0 }}>{resource.description}</div>
+        )}
+        {resource.tags?.length > 0 && (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
+            {resource.tags.map((tag: string, i: number) => (
+              <span key={i} style={{ fontSize: 9, padding: '1px 7px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: G, border: '1px solid rgba(201,168,76,0.2)', fontFamily: cinzel, letterSpacing: '0.04em' }}>{tag}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>
+        )}
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>✦ Arsenal</div>
+          <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>Ministry resources, protocols, and teaching documents</div>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search resources, tags, descriptions..."
+          style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '12px 16px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none' }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+        {TIERS.map(t => (
+          <button key={t} onClick={() => setTierFilter(t)} style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${tierFilter === t ? G : border}`, background: tierFilter === t ? G : 'transparent', color: tierFilter === t ? '#0D0B14' : muted }}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 24 }}>
+        {CATEGORIES.map(c => (
+          <button key={c} onClick={() => setCatFilter(c)} style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${catFilter === c ? G : border}`, background: catFilter === c ? `${G}20` : 'transparent', color: catFilter === c ? G : muted }}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: cinzel, fontSize: 13 }}>Loading arsenal...</div>
+      ) : error ? (
+        <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{error}</div>
+      ) : (
+        <>
+          {!query && tierFilter === 'All' && catFilter === 'All' && recent.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>Recently Added</div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                {recent.map(r => <ResourceCard key={r.id} resource={r} />)}
+              </div>
+            </div>
+          )}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>
+              {query || tierFilter !== 'All' || catFilter !== 'All' ? `${filtered.length} Results` : `All Resources (${resources.length})`}
+            </div>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
+                No resources found. Try different search terms or filters.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                {filtered.map(r => <ResourceCard key={r.id} resource={r} />)}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── INVESTIGATOR TYPES & CONSTANTS ────────────────────────
 interface InvestigationResult {
   summary: string
@@ -3289,7 +3502,7 @@ function CommunityPage() {
         )}
         {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
-        {activeSection === 'arsenal'     && <LauncherView title="Arsenal"           icon="✦"  href="/arsenal" />}
+        {activeSection === 'arsenal'     && <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
 
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
