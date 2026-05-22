@@ -1455,7 +1455,6 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   userTier: string
 }) {
   const [query, setQuery]         = useState('')
-  const [filter, setFilter]       = useState('All')
   const [entries, setEntries]     = useState<any[]>([])
   const [dbLoading, setDbLoading] = useState(true)
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
@@ -1494,17 +1493,13 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
     </div>
   )
 
-  const FILTERS = ['All', 'Strongman', 'Familiar', 'Marine', 'Generational', 'Religious']
-
   const filtered = entries.filter(e => {
-    const cls           = e.type || e.rank || ''
     const matchesSearch = !query || [
       e.name, e.aka, e.manifestation, e.symptoms,
       e.entryPoints, e.description, e.personalityPresentation, e.hierarchyCategory,
     ].some(s => s && s.toLowerCase().includes(query.toLowerCase()))
-    const matchesFilter = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
-    const matchesCat    = !categoryFilter || e.hierarchyCategory === categoryFilter
-    return matchesSearch && matchesFilter && matchesCat
+    const matchesCat = !categoryFilter || e.hierarchyCategory === categoryFilter
+    return matchesSearch && matchesCat
   })
 
   const dbIsDark = theme !== 'light'
@@ -1544,20 +1539,6 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
         <p style={{ fontSize: 11, color: dbDim, marginTop: 4, marginBottom: 8 }}>
           Search by name, symptom, manifestation, entry point, or emotional pattern
         </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {FILTERS.map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding: '4px 12px',
-              background: filter === f ? 'rgba(201,168,76,0.15)' : 'transparent',
-              border: `1px solid ${filter === f ? G : dbBorder}`,
-              borderRadius: 20, fontFamily: cinzel, fontSize: 9,
-              letterSpacing: '0.08em', color: filter === f ? G : dbDim,
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}>
-              {f}
-            </button>
-          ))}
-        </div>
         {/* Hierarchy category filter pills */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           {HIERARCHY_CATEGORIES.map(cat => {
@@ -1589,8 +1570,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
 
       {/* Count bar */}
       <div style={{ padding: '8px 20px', flexShrink: 0, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: dbDim }}>
-        {dbLoading ? 'Loading database...' : `${filtered.length} ENTRIES`}
-        {!dbLoading && query && ` matching "${query}"`}
+        {dbLoading ? 'Loading archive...' : query ? `${filtered.length} entries matching "${query}"` : `${filtered.length} entries in archive`}
       </div>
 
       {/* Cards grid */}
@@ -1772,7 +1752,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                 { label: 'LEGAL RIGHTS',         value: legalRights,    tierName: 'Commander' },
                 { label: 'MANIFESTATIONS',       value: manifestations, tierName: 'Soldier'   },
                 { label: 'SYMPTOMS',             value: symptoms,       tierName: 'General'   },
-                { label: 'DELIVERANCE PROTOCOL', value: protocol,       tierName: 'General'   },
+                { label: 'DELIVERANCE PROTOCOL', value: protocol || entry.deliveranceSequence, tierName: 'General' },
                 { label: 'WRI EXORCIST NOTES',   value: wriNotes,       tierName: 'General'   },
               ].map(({ label, value, tierName }) => (
                 (value || atLeast('General')) && (
@@ -2585,7 +2565,7 @@ function CommunityPage() {
         {navItem('Members', 'members', '👥')}
 
         {sectionLabel('Arsenal Resources')}
-        {navItem('Demon Database', 'database', '📖')}
+        {navItem('Intel Archive', 'database', '📖')}
         {navItem('Arsenal', 'arsenal', '✦')}
 
         {sectionLabel('Training')}
