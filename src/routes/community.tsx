@@ -3387,6 +3387,10 @@ function CommunityPage() {
         {navItem('Assessment', 'assessment', '📋')}
         {navItem('Request Help', 'help', '🙏')}
         {dimItem('Events', '📅')}
+      </div>
+
+      {/* ── SIDEBAR FOOTER — pinned outside scroll ── */}
+      <div style={{ flexShrink: 0, borderTop: '1px solid rgba(201,168,76,0.1)', padding: '4px 0' }}>
         <button
           onClick={() => { setEditingProfile(true); if (isMobile) setSidebarOpen(false) }}
           style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: '2px solid transparent', textAlign: 'left', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'color 0.15s' }}
@@ -3398,7 +3402,7 @@ function CommunityPage() {
         </button>
         {(user?.publicMetadata?.role as string) === 'minister' && (
           <>
-            <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '12px 16px 8px' }} />
+            <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '4px 16px' }} />
             <a
               href="/admin"
               style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: G, transition: 'background 0.15s', boxSizing: 'border-box' }}
