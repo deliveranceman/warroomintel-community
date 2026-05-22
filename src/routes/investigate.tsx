@@ -1,15 +1,53 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useUser } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/investigate')({
   component: InvestigatePage,
 })
 
+const tierLevel = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+const atLeast = (userTier: string, required: string) => tierLevel(userTier) >= tierLevel(required)
+
 function InvestigatePage() {
+  const { user } = useUser()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<InvestigationResult | null>(null)
   const [error, setError] = useState('')
+
+  const userTier = (user?.publicMetadata?.tier as string) || 'free'
+
+  if (!atLeast(userTier, 'commander')) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#0D0B14', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+        <div style={{ textAlign: 'center', maxWidth: '480px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔒</div>
+          <h2 style={{ fontFamily: 'Cinzel, serif', color: '#C9A84C', fontSize: '22px', marginBottom: '12px' }}>
+            Commander Tier Required
+          </h2>
+          <p style={{ color: '#8B7355', fontSize: '16px', lineHeight: '1.7', marginBottom: '28px', fontFamily: 'Crimson Pro, serif' }}>
+            The Symptom Investigator is an AI-powered operational intelligence tool available to Commander and General members.
+            Upgrade to access real-time spirit analysis, deliverance sequencing, and session support.
+          </p>
+          <a href="https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01" style={{
+            display: 'inline-block',
+            background: '#C9A84C',
+            color: '#0D0B14',
+            fontFamily: 'Cinzel, serif',
+            fontSize: '13px',
+            fontWeight: '700',
+            letterSpacing: '0.08em',
+            padding: '12px 32px',
+            borderRadius: '6px',
+            textDecoration: 'none',
+          }}>
+            Upgrade to Commander — $39/mo
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   async function handleInvestigate() {
     if (!input.trim()) return
