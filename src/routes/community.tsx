@@ -169,6 +169,7 @@ interface EditProfileModalProps {
 }
 function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, existingBio, existingCity, existingState, onClose, isDark }: EditProfileModalProps) {
   const { getToken } = useAuth()
+  const { user }     = useUser()
   const [bio,     setBio]     = useState(existingBio)
   const [city,    setCity]    = useState(existingCity)
   const [state,   setState]   = useState(existingState)
@@ -207,10 +208,13 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ bio, city, state }),
       })
-      if (!res.ok) throw new Error('Save failed')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || 'Save failed')
+      }
       setSaved(true)
-      setTimeout(onClose, 900)
-    } catch { setSaveErr('Save failed. Try again.') } finally { setSaving(false) }
+      setTimeout(() => setSaved(false), 3000)
+    } catch (e: any) { setSaveErr(e?.message || 'Save failed. Try again.') } finally { setSaving(false) }
   }
 
   return (
@@ -218,19 +222,26 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
       <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '440px', padding: '28px', boxShadow: '0 24px 64px rgba(0,0,0,0.9)', position: 'relative' }}>
 
         {/* Header */}
-        <div style={{ fontFamily: mc, fontSize: '12px', letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: '24px' }}>
+        <div style={{ fontFamily: mc, fontSize: '12px', letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: '20px' }}>
           ⚙ Profile Settings
         </div>
 
-        {/* Avatar */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(201,168,76,0.4)', marginBottom: '10px', background: surf, flexShrink: 0 }}>
+        {/* Profile card */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, padding: '16px 18px', background: surf, border: `1px solid ${bdr}`, borderRadius: 10 }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(201,168,76,0.4)', flexShrink: 0, background: surf }}>
             {imageUrl
               ? <img src={imageUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: mc, fontSize: 28, color: '#C9A84C' }}>{(firstName?.[0] || '?').toUpperCase()}</div>
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: mc, fontSize: 22, color: '#C9A84C' }}>{(firstName?.[0] || '?').toUpperCase()}</div>
             }
           </div>
-          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ fontFamily: mc, fontSize: '9px', letterSpacing: '0.1em', color: dim, textDecoration: 'none', borderBottom: `1px solid ${bdr}`, paddingBottom: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: mc, fontSize: 14, color: '#C9A84C', marginBottom: 3 }}>{firstName} {lastName}</div>
+            <div style={{ fontSize: 12, color: dim, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{user?.primaryEmailAddress?.emailAddress}</div>
+            <div style={{ fontSize: 10, color: dim, fontFamily: mc, letterSpacing: '0.06em' }}>
+              {((user?.publicMetadata?.tier as string) || 'Free').toUpperCase()} · {(user?.publicMetadata?.role as string) || 'member'}
+            </div>
+          </div>
+          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ fontFamily: mc, fontSize: '9px', letterSpacing: '0.08em', color: dim, textDecoration: 'none', borderBottom: `1px solid ${bdr}`, paddingBottom: 1, flexShrink: 0 }}>
             Change Photo →
           </a>
         </div>
@@ -274,23 +285,23 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
           <div style={{ fontSize: '10px', color: bio.length > 250 ? '#f97316' : dim, textAlign: 'right' as const, marginTop: '3px' }}>{bio.length}/280</div>
         </div>
 
-        {/* Error */}
-        {saveErr && <div style={{ fontSize: '12px', color: '#f87171', marginBottom: '12px', fontFamily: cr }}>{saveErr}</div>}
-
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
           <button onClick={onClose} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: '6px', color: dim, fontFamily: mc, fontSize: '10px', letterSpacing: '0.05em', cursor: 'pointer' }}>
             Cancel
           </button>
-          <button onClick={handleSave} disabled={saving || saved} style={{ flex: 2, padding: '10px', background: saved ? 'rgba(74,222,128,0.12)' : 'rgba(201,168,76,0.12)', border: `1px solid ${saved ? 'rgba(74,222,128,0.4)' : 'rgba(201,168,76,0.4)'}`, borderRadius: '6px', color: saved ? '#4ade80' : '#C9A84C', fontFamily: mc, fontSize: '10px', letterSpacing: '0.08em', cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
-            {saved ? '✓ SAVED' : saving ? 'SAVING...' : 'SAVE CHANGES'}
+          <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: '10px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: '6px', color: '#C9A84C', fontFamily: mc, fontSize: '10px', letterSpacing: '0.08em', cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+            {saving ? 'SAVING...' : 'SAVE CHANGES'}
           </button>
         </div>
+        {saved    && <div style={{ fontSize: 13, color: '#4ade80', marginBottom: 8, fontFamily: cr }}>✓ Profile updated successfully</div>}
+        {saveErr  && <div style={{ fontSize: 13, color: '#f87171', marginBottom: 8, fontFamily: cr }}>⚠ {saveErr}</div>}
 
-        {/* Change password */}
-        <div style={{ textAlign: 'center', paddingTop: '12px', borderTop: `1px solid ${bdr}` }}>
-          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ fontFamily: mc, fontSize: '9px', letterSpacing: '0.1em', color: dim, textDecoration: 'none' }}>
-            🔑 Change Password or Email →
+        {/* Account Security */}
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${bdr}` }}>
+          <div style={{ fontFamily: mc, fontSize: 9, letterSpacing: '0.12em', color: dim, textTransform: 'uppercase' as const, marginBottom: 10 }}>Account Security</div>
+          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, padding: '8px 16px', fontFamily: mc, fontSize: 10, color: dim, textDecoration: 'none', letterSpacing: '0.06em' }}>
+            Change Password →
           </a>
         </div>
       </div>

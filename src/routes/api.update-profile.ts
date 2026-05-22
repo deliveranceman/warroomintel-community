@@ -22,21 +22,15 @@ export const Route = createFileRoute('/api/update-profile')({
             return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
           }
 
-          const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${clerkSecret}`,
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({ token: sessionToken }),
-          })
-          if (!verifyRes.ok) {
-            return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401, headers })
+          // JWT decode — frontend tokens are JWTs not session tokens
+          const parts = sessionToken.split('.')
+          if (parts.length !== 3) {
+            return new Response(JSON.stringify({ error: 'Invalid token format' }), { status: 401, headers })
           }
-          const session = await verifyRes.json()
-          const userId = session.user_id
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+          const userId = payload.sub
           if (!userId) {
-            return new Response(JSON.stringify({ error: 'Could not identify user' }), { status: 401, headers })
+            return new Response(JSON.stringify({ error: 'No user ID in token' }), { status: 401, headers })
           }
 
           const { bio, city, state } = await request.json()
