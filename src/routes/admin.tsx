@@ -251,69 +251,218 @@ function ArsenalManager({ getToken }: { getToken: () => Promise<string | null> }
 }
 
 // ─── INTEL ARCHIVE TAB ───────────────────────────────────────────────────────
-function IntelArchive() {
+function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) {
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box' as const,
+    background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6,
+    padding: '10px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none',
+  }
+  const lbl: React.CSSProperties = {
+    display: 'block', fontFamily: cinzel, fontSize: 9,
+    letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const, marginBottom: 6,
+  }
+
+  // Posts state
+  const [posts, setPosts]           = useState<any[]>([])
+  const [postTitle, setPostTitle]   = useState('')
+  const [postBody, setPostBody]     = useState('')
+  const [postScripture, setPostSc]  = useState('')
+  const [postType, setPostType]     = useState('briefing')
+  const [postSaving, setPostSaving] = useState(false)
+  const [postMsg, setPostMsg]       = useState('')
+
+  // Links state
+  const [links, setLinks]           = useState<any[]>([])
+  const [linkTitle, setLinkTitle]   = useState('')
+  const [linkUrl, setLinkUrl]       = useState('')
+  const [linkSource, setLinkSource] = useState('')
+  const [linkNote, setLinkNote]     = useState('')
+  const [linkSaving, setLinkSaving] = useState(false)
+  const [linkMsg, setLinkMsg]       = useState('')
+
+  // Demons stats
   const [demons, setDemons]   = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dLoading, setDLoading] = useState(true)
+
+  async function fetchPosts() {
+    const res = await fetch('/api/intel-posts')
+    const d = await res.json()
+    setPosts(d.posts || [])
+  }
+  async function fetchLinks() {
+    const res = await fetch('/api/intel-links')
+    const d = await res.json()
+    setLinks(d.links || [])
+  }
 
   useEffect(() => {
-    fetch('/api/demons')
-      .then(r => r.json())
-      .then(d => setDemons(d.demons || []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    fetchPosts()
+    fetchLinks()
+    fetch('/api/demons').then(r => r.json()).then(d => setDemons(d.demons || [])).finally(() => setDLoading(false))
   }, [])
 
-  const emptySequence  = demons.filter(d => !d.deliveranceSequence).length
-  const emptyScripture = demons.filter(d => !d.counterScriptures).length
-  const recent         = demons.slice(0, 10)
+  async function savePost() {
+    if (!postTitle.trim() || !postBody.trim()) return
+    setPostSaving(true); setPostMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/intel-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ title: postTitle.trim(), body: postBody.trim(), scripture: postScripture.trim() || undefined, post_type: postType }),
+      })
+      if (res.ok) {
+        setPostMsg('✓ Briefing published')
+        setPostTitle(''); setPostBody(''); setPostSc(''); setPostType('briefing')
+        await fetchPosts()
+      } else {
+        const d = await res.json(); setPostMsg(`⚠ ${d.error}`)
+      }
+    } finally { setPostSaving(false) }
+  }
 
-  const statCard = (label: string, value: number | string, color = G) => (
-    <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1 }}>
-      <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{loading ? '—' : value}</div>
-      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const }}>{label}</div>
-    </div>
-  )
+  async function deletePost(id: string) {
+    if (!confirm('Delete this briefing?')) return
+    const token = await getToken()
+    await fetch(`/api/intel-posts?id=${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+    await fetchPosts()
+  }
+
+  async function saveLink() {
+    if (!linkTitle.trim() || !linkUrl.trim()) return
+    setLinkSaving(true); setLinkMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/intel-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ title: linkTitle.trim(), url: linkUrl.trim(), source: linkSource.trim() || undefined, note: linkNote.trim() || undefined }),
+      })
+      if (res.ok) {
+        setLinkMsg('✓ Link added')
+        setLinkTitle(''); setLinkUrl(''); setLinkSource(''); setLinkNote('')
+        await fetchLinks()
+      } else {
+        const d = await res.json(); setLinkMsg(`⚠ ${d.error}`)
+      }
+    } finally { setLinkSaving(false) }
+  }
+
+  async function deleteLink(id: string) {
+    if (!confirm('Remove this link?')) return
+    const token = await getToken()
+    await fetch(`/api/intel-links?id=${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+    await fetchLinks()
+  }
+
+  const emptySeq = demons.filter(d => !d.deliveranceSequence).length
+  const emptySc  = demons.filter(d => !d.counterScriptures).length
 
   return (
     <div>
-      {/* Stat cards */}
+      {/* Archive stats */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 28, flexWrap: 'wrap' as const }}>
-        {statCard('Total Entries', demons.length)}
-        {statCard('Missing Deliverance Sequence', emptySequence, emptySequence > 0 ? '#f97316' : '#4ade80')}
-        {statCard('Missing Counter Scriptures', emptyScripture, emptyScripture > 0 ? '#f97316' : '#4ade80')}
+        {([
+          ['Total Entries', demons.length, G],
+          ['Missing Del. Sequence', emptySeq, emptySeq > 0 ? '#f97316' : '#4ade80'],
+          ['Missing Counter Scriptures', emptySc, emptySc > 0 ? '#f97316' : '#4ade80'],
+        ] as [string, number, string][]).map(([label, val, color]) => (
+          <div key={label} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{dLoading ? '—' : val}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const }}>{label}</div>
+          </div>
+        ))}
       </div>
-
-      {/* Airtable link */}
-      <a
-        href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4"
-        target="_blank" rel="noopener noreferrer"
-        style={{ display: 'inline-block', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G, borderRadius: 5, padding: '8px 18px', textDecoration: 'none', marginBottom: 22 }}
-      >
+      <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
+        style={{ display: 'inline-block', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G, borderRadius: 5, padding: '8px 18px', textDecoration: 'none', marginBottom: 32 }}>
         Open Airtable →
       </a>
 
-      {/* Recent entries table */}
-      <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: DIM, marginBottom: 10 }}>
-        10 Most Recent Entries
-      </div>
-      {loading ? (
-        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em' }}>Loading...</div>
-      ) : (
-        <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '10px 16px', borderBottom: `1px solid ${BDR}`, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM }}>
-            <span>SPIRIT NAME</span>
-            <span>HIERARCHY CATEGORY</span>
+      {/* Post Briefing form */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>📡 Post Briefing</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 14 }}>
+          <div>
+            <label style={lbl}>Title *</label>
+            <input value={postTitle} onChange={e => setPostTitle(e.target.value)} placeholder="Briefing title..." style={inp} />
           </div>
-          {recent.map((d: any, i: number) => (
-            <div key={d.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '10px 16px', borderBottom: i < recent.length - 1 ? `1px solid ${BDR}` : 'none', alignItems: 'center' }}>
-              <a
-                href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4"
-                target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: cinzel, fontSize: 12, color: G, textDecoration: 'none' }}
-              >
-                {d.name}
-              </a>
-              <span style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{d.hierarchyCategory || '—'}</span>
+          <div>
+            <label style={lbl}>Type</label>
+            <select value={postType} onChange={e => setPostType(e.target.value)} style={{ ...inp, width: 'auto' }}>
+              {['briefing', 'watch-report', 'external-alert'].map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>Body *</label>
+          <textarea value={postBody} onChange={e => setPostBody(e.target.value)} rows={6} placeholder="Write your briefing..." style={{ ...inp, resize: 'vertical' as const }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={lbl}>Scripture (optional)</label>
+          <input value={postScripture} onChange={e => setPostSc(e.target.value)} placeholder="e.g. Ephesians 6:12" style={inp} />
+        </div>
+        {postMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: postMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{postMsg}</div>}
+        <button onClick={savePost} disabled={postSaving || !postTitle.trim() || !postBody.trim()}
+          style={{ background: (!postTitle.trim() || !postBody.trim() || postSaving) ? 'rgba(201,168,76,0.2)' : G, color: (!postTitle.trim() || !postBody.trim() || postSaving) ? DIM : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          {postSaving ? 'Publishing...' : 'Publish Briefing'}
+        </button>
+      </div>
+
+      {/* Existing posts */}
+      {posts.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: DIM, marginBottom: 10 }}>Published Briefings ({posts.length})</div>
+          {posts.map(p => (
+            <div key={p.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{p.title}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, marginTop: 3 }}>{p.post_type} · {fmtDate(p.created_at)}</div>
+              </div>
+              <button onClick={() => deletePost(p.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add External Link form */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>🔗 Add External Link</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <div>
+            <label style={lbl}>Title *</label>
+            <input value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link title..." style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>Source</label>
+            <input value={linkSource} onChange={e => setLinkSource(e.target.value)} placeholder="e.g. Daniel Duval" style={inp} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={lbl}>URL *</label>
+            <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." style={inp} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={lbl}>Note (optional)</label>
+            <textarea value={linkNote} onChange={e => setLinkNote(e.target.value)} rows={2} placeholder="Brief description of why this is relevant..." style={{ ...inp, resize: 'vertical' as const }} />
+          </div>
+        </div>
+        {linkMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: linkMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{linkMsg}</div>}
+        <button onClick={saveLink} disabled={linkSaving || !linkTitle.trim() || !linkUrl.trim()}
+          style={{ background: (!linkTitle.trim() || !linkUrl.trim() || linkSaving) ? 'rgba(201,168,76,0.2)' : G, color: (!linkTitle.trim() || !linkUrl.trim() || linkSaving) ? DIM : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          {linkSaving ? 'Adding...' : 'Add Link'}
+        </button>
+      </div>
+
+      {/* Existing links */}
+      {links.length > 0 && (
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: DIM, marginBottom: 10 }}>Active Links ({links.length})</div>
+          {links.map(l => (
+            <div key={l.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 2 }}>{l.title}</div>
+                <div style={{ fontSize: 11, color: DIM, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{l.source && `${l.source} · `}{l.url}</div>
+              </div>
+              <button onClick={() => deleteLink(l.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>Remove</button>
             </div>
           ))}
         </div>
@@ -394,7 +543,7 @@ function AdminPage() {
       {/* Content */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
         {tab === 'arsenal'    && <ArsenalManager getToken={getToken} />}
-        {tab === 'intel'      && <IntelArchive />}
+        {tab === 'intel'      && <IntelArchive getToken={getToken} />}
         {tab === 'moderation' && (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <div style={{ fontSize: 36, marginBottom: 16 }}>🛡</div>

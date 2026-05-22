@@ -1497,6 +1497,339 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 }
 
 // ── DATABASE VIEW ──────────────────────────────────────────
+// ── STRIPE UPGRADE LINKS ──────────────────────────────────────────────────────
+const STRIPE_LINKS: Record<string, string> = {
+  Soldier:   'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
+  Commander: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
+  General:   'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
+}
+const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
+const tierNum = (t: string) => TIER_LEVEL[t?.toLowerCase()] ?? 0
+
+// ── WEEKLY INTEL VIEW ────────────────────────────────────────────────────────
+function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const { user }     = useUser()
+  const { getToken } = useAuth()
+  const isMinister   = (user?.publicMetadata?.role as string) === 'minister'
+  const isDark       = theme !== 'light'
+  const GG           = '#C9A84C'
+  const bg           = isDark ? '#0D0B14' : '#faf8f4'
+  const surf         = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
+  const bdr          = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
+  const txt          = isDark ? '#E8D5B0' : '#2a1f0e'
+  const mut          = isDark ? '#8B7355' : '#9a8a70'
+  const dm           = isDark ? '#5a4f3a' : '#b8a882'
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8',
+    border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 12px',
+    color: txt, fontSize: 13, fontFamily: "'Crimson Pro', serif", outline: 'none',
+  }
+
+  const [posts, setPosts]         = useState<any[]>([])
+  const [links, setLinks]         = useState<any[]>([])
+  const [reports, setReports]     = useState<any[]>([])
+  const [resources, setResources] = useState<any[]>([])
+  const [demons, setDemons]       = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
+
+  const [showReportForm, setShowReportForm] = useState(false)
+  const [reportForm, setReportForm]         = useState({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
+  const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportSuccess, setReportSuccess]       = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchAll() {
+      const token = await getToken()
+      const auth  = { 'Authorization': `Bearer ${token}` }
+      const [postsRes, linksRes, reportsRes, resourcesRes, demonsRes] = await Promise.allSettled([
+        fetch('/api/intel-posts').then(r => r.json()),
+        fetch('/api/intel-links').then(r => r.json()),
+        fetch('/api/field-reports', { headers: auth }).then(r => r.json()),
+        fetch('/api/arsenal-resources', { headers: auth }).then(r => r.json()),
+        fetch('/api/demons').then(r => r.json()),
+      ])
+      if (cancelled) return
+      if (postsRes.status     === 'fulfilled') setPosts(postsRes.value.posts || [])
+      if (linksRes.status     === 'fulfilled') setLinks(linksRes.value.links || [])
+      if (reportsRes.status   === 'fulfilled') setReports(reportsRes.value.reports || [])
+      if (resourcesRes.status === 'fulfilled') setResources((resourcesRes.value.resources || []).slice(0, 4))
+      if (demonsRes.status    === 'fulfilled') setDemons((demonsRes.value.demons || []).slice(0, 5))
+      setLoading(false)
+    }
+    fetchAll()
+    return () => { cancelled = true }
+  }, [])
+
+  async function submitReport() {
+    if (!reportForm.spirit_names || !reportForm.manifestations) return
+    setReportSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/field-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(reportForm),
+      })
+      if (res.ok) {
+        setReportSuccess(true)
+        setShowReportForm(false)
+        setReportForm({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
+      }
+    } finally { setReportSubmitting(false) }
+  }
+
+  const sectionHead = (title: string, subtitle?: string) => (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <div style={{ flex: 1, height: 1, background: `${GG}30` }} />
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.2em', color: GG, textTransform: 'uppercase' as const }}>{title}</div>
+        <div style={{ flex: 1, height: 1, background: `${GG}30` }} />
+      </div>
+      {subtitle && <div style={{ textAlign: 'center', fontSize: 12, color: mut, fontStyle: 'italic' }}>{subtitle}</div>}
+    </div>
+  )
+
+  if (loading) return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg }}>
+      <div style={{ fontFamily: "'Cinzel', serif", color: GG, fontSize: 13, letterSpacing: '0.1em' }}>Loading Intel...</div>
+    </div>
+  )
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+
+      {/* Page header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>
+        )}
+        <div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: isMobile ? 18 : 22, color: GG, fontWeight: 700 }}>⚔ Weekly Intel</div>
+          <div style={{ fontSize: 12, color: mut, marginTop: 2 }}>Operational briefings, field intelligence, and ministry resources</div>
+        </div>
+      </div>
+
+      {/* ── BRIEFINGS ─────────────────────────────────────────── */}
+      <div style={{ marginBottom: 36 }}>
+        {sectionHead('Intel Briefing', 'Latest operational updates from leadership')}
+        {posts.length === 0 ? (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>📡</div>
+            <div style={{ fontFamily: "'Cinzel', serif", color: GG, fontSize: 14, marginBottom: 8 }}>No Briefings Yet</div>
+            <div style={{ color: mut, fontSize: 14 }}>Leadership will post operational intel here. Check back soon.</div>
+          </div>
+        ) : posts.slice(0, 3).map(post => (
+          <div key={post.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${GG}`, borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: GG, fontWeight: 600, marginBottom: 4 }}>{post.title}</div>
+                <div style={{ fontSize: 11, color: dm }}>{post.author_name} · {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+              </div>
+              {post.post_type && (
+                <span style={{ fontSize: 9, fontFamily: "'Cinzel', serif", letterSpacing: '0.1em', padding: '3px 10px', borderRadius: 999, background: `${GG}15`, color: GG, border: `1px solid ${GG}40`, textTransform: 'uppercase' as const }}>{post.post_type}</span>
+              )}
+            </div>
+            <div style={{ fontSize: 15, color: txt, lineHeight: 1.75, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap' as const }}>{post.body}</div>
+            {post.scripture && (
+              <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, fontSize: 13, color: '#86efac', fontFamily: "'Crimson Pro', serif", fontStyle: 'italic' }}>
+                📖 {post.scripture}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── FIELD REPORTS ─────────────────────────────────────── */}
+      <div style={{ marginBottom: 36 }}>
+        {sectionHead('Field Reports', 'Intelligence submitted by active ministers in the field')}
+
+        {tierNum(userTier) >= 2 ? (
+          <div style={{ marginBottom: 16 }}>
+            {!showReportForm && !reportSuccess && (
+              <button onClick={() => setShowReportForm(true)} style={{ background: 'transparent', border: `1px solid ${GG}`, borderRadius: 6, padding: '8px 20px', fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                + Submit Field Report
+              </button>
+            )}
+            {reportSuccess && (
+              <div style={{ background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, padding: '12px 16px', color: '#86efac', fontSize: 13 }}>
+                ✅ Report submitted for review. Thank you for your field intelligence.
+              </div>
+            )}
+            {showReportForm && (
+              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+                <div style={{ fontFamily: "'Cinzel', serif", color: GG, fontSize: 13, letterSpacing: '0.1em', marginBottom: 16 }}>SUBMIT FIELD REPORT</div>
+                {([
+                  { label: 'Spirits Encountered *', key: 'spirit_names', placeholder: 'e.g. Leviathan, Python, Fear of Rejection' },
+                  { label: 'Manifestations Observed *', key: 'manifestations', placeholder: 'What did you see, hear, or discern?' },
+                  { label: 'Entry Points Identified', key: 'entry_points', placeholder: 'Trauma, occult, generational...' },
+                  { label: 'Outcome', key: 'outcome', placeholder: 'Full deliverance, partial, ongoing...' },
+                  { label: 'Additional Notes', key: 'notes', placeholder: 'Anything else ministers should know' },
+                ] as const).map(field => (
+                  <div key={field.key} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 10, color: mut, letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>{field.label}</div>
+                    <textarea value={reportForm[field.key]} onChange={e => setReportForm(f => ({ ...f, [field.key]: e.target.value }))}
+                      placeholder={field.placeholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  {([{ label: 'City', key: 'location_city' }, { label: 'State', key: 'location_state' }] as const).map(f => (
+                    <div key={f.key} style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: mut, letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>{f.label}</div>
+                      <input value={reportForm[f.key]} onChange={e => setReportForm(r => ({ ...r, [f.key]: e.target.value }))} style={inp} />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={submitReport} disabled={reportSubmitting || !reportForm.spirit_names || !reportForm.manifestations}
+                    style={{ background: GG, color: '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                  </button>
+                  <button onClick={() => setShowReportForm(false)} style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 20px', color: mut, fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 20 }}>🔒</span>
+            <div>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.06em', marginBottom: 3 }}>Commander Tier Required</div>
+              <div style={{ fontSize: 12, color: mut }}>Submit field intelligence reports from your sessions.</div>
+            </div>
+            <a href={STRIPE_LINKS.Commander} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const }}>Upgrade</a>
+          </div>
+        )}
+
+        {reports.filter(r => r.status === 'approved').length === 0 ? (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '20px 24px', textAlign: 'center', color: mut, fontSize: 13 }}>
+            No approved field reports yet. Ministers — submit what you're encountering in sessions.
+          </div>
+        ) : reports.filter(r => r.status === 'approved').map(report => (
+          <div key={report.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: '3px solid #7c3aed', borderRadius: 8, padding: '16px 20px', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 4 }}>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG }}>{report.spirit_names}</div>
+              <div style={{ fontSize: 11, color: dm }}>{report.submitted_by_name}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}</div>
+            </div>
+            <div style={{ fontSize: 13, color: txt, lineHeight: 1.6, fontFamily: "'Crimson Pro', serif" }}>{report.manifestations}</div>
+            {report.entry_points && <div style={{ fontSize: 12, color: mut, marginTop: 6 }}>Entry points: {report.entry_points}</div>}
+            {report.outcome && <div style={{ fontSize: 12, color: '#86efac', marginTop: 4 }}>Outcome: {report.outcome}</div>}
+          </div>
+        ))}
+
+        {isMinister && reports.filter(r => r.status === 'pending').length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 10, color: '#f87171', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Pending Review ({reports.filter(r => r.status === 'pending').length})</div>
+            {reports.filter(r => r.status === 'pending').map(report => (
+              <div key={report.id} style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, padding: '14px 18px', marginBottom: 10 }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: '#f87171', marginBottom: 6 }}>{report.spirit_names}</div>
+                <div style={{ fontSize: 13, color: txt, marginBottom: 10 }}>{report.manifestations}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['approved', 'rejected'] as const).map(status => (
+                    <button key={status} onClick={async () => {
+                      const token = await getToken()
+                      await fetch('/api/field-reports', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ id: report.id, status }) })
+                      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status } : r))
+                    }} style={{
+                      background: status === 'approved' ? '#15803d' : 'transparent',
+                      border: `1px solid ${status === 'approved' ? '#15803d' : 'rgba(220,38,38,0.4)'}`,
+                      color: status === 'approved' ? '#fff' : '#f87171',
+                      borderRadius: 5, padding: '6px 14px', fontSize: 11, cursor: 'pointer', fontFamily: "'Cinzel', serif",
+                    }}>
+                      {status === 'approved' ? '✓ Approve' : '✗ Reject'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── EXTERNAL INTEL ────────────────────────────────────── */}
+      {links.length > 0 && (
+        <div style={{ marginBottom: 36 }}>
+          {sectionHead('External Intel', 'Curated resources from across the ministry landscape')}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+            {links.map(link => (
+              <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 18px', transition: 'border-color 0.2s', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = GG)}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = bdr)}>
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG, marginBottom: 4 }}>{link.title}</div>
+                  {link.note && <div style={{ fontSize: 13, color: txt, lineHeight: 1.5, fontFamily: "'Crimson Pro', serif", marginBottom: 6 }}>{link.note}</div>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {link.source && <div style={{ fontSize: 11, color: dm }}>{link.source}</div>}
+                    <div style={{ fontSize: 11, color: GG, marginLeft: 'auto' }}>Read →</div>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── LATEST ARSENAL DROPS ──────────────────────────────── */}
+      {resources.length > 0 && (
+        <div style={{ marginBottom: 36 }}>
+          {sectionHead('Latest Arsenal Drops', 'Recently added ministry resources')}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+            {resources.map(resource => {
+              const hasAccess  = tierNum(userTier) >= tierNum(resource.tier)
+              const upgradeLink = STRIPE_LINKS[resource.tier]
+              return (
+                <div key={resource.id} style={{ background: surf, border: `1px solid ${hasAccess ? bdr : `${GG}40`}`, borderRadius: 8, padding: '16px 18px', opacity: hasAccess ? 1 : 0.85 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: hasAccess ? GG : mut }}>{resource.title}</div>
+                    <span style={{ fontSize: 9, fontFamily: "'Cinzel', serif", padding: '2px 8px', borderRadius: 999, background: `${GG}15`, color: GG, border: `1px solid ${GG}40`, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const, marginLeft: 8 }}>{resource.tier}</span>
+                  </div>
+                  {resource.description && <div style={{ fontSize: 12, color: mut, marginBottom: 10, lineHeight: 1.5 }}>{resource.description}</div>}
+                  {hasAccess ? (
+                    <div style={{ fontSize: 11, color: '#86efac' }}>✓ Available in your Arsenal</div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>🔒</span>
+                      <span style={{ fontSize: 11, color: mut, flex: 1 }}>Requires {resource.tier}</span>
+                      {upgradeLink && <a href={upgradeLink} style={{ background: GG, color: '#0D0B14', padding: '5px 12px', borderRadius: 4, fontSize: 10, fontFamily: "'Cinzel', serif", fontWeight: 700, textDecoration: 'none' }}>Upgrade</a>}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── NEW TO THE INTEL ARCHIVE ──────────────────────────── */}
+      {demons.length > 0 && (
+        <div style={{ marginBottom: 36 }}>
+          {sectionHead('New to the Intel Archive', 'Recently added spiritual intelligence entries')}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {demons.map((demon: any) => {
+              const cat    = demon.hierarchyCategory || ''
+              const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
+              return (
+                <div key={demon.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${colors.border}`, borderRadius: 8, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG, marginBottom: 4 }}>{demon.name}</div>
+                    {demon.description && <div style={{ fontSize: 12, color: mut, lineHeight: 1.4 }}>{demon.description.slice(0, 100)}{demon.description.length > 100 ? '...' : ''}</div>}
+                  </div>
+                  {cat && (
+                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 999, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, fontFamily: "'Cinzel', serif", letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>{cat}</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const HIERARCHY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Fear / Rejection':    { bg: '#1a0f2e', text: '#c084fc', border: '#7c3aed' },
   'Marine Kingdom':      { bg: '#0a1628', text: '#38bdf8', border: '#0284c7' },
@@ -2691,7 +3024,7 @@ function CommunityPage() {
 
       {/* ── CENTER ── */}
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
-        {activeSection === 'intel'         && <PlaceholderView title="Weekly Intel" icon="📡" />}
+        {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
           <WarRoomChatView
