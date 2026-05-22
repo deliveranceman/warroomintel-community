@@ -67,6 +67,8 @@ export default async function handler(req: Request) {
   const description = (formData.get('description') as string || '').trim()
   const tier        = (formData.get('tier') as string) || 'Free'
   const category    = (formData.get('category') as string) || 'Reference'
+  const tagsRaw     = formData.get('tags') as string
+  const tags        = tagsRaw ? JSON.parse(tagsRaw) : []
 
   if (!file || !title) {
     return new Response(JSON.stringify({ error: 'file and title are required' }), { status: 400 })
@@ -106,6 +108,7 @@ export default async function handler(req: Request) {
       description: description || null,
       tier,
       category,
+      tags: tags.length > 0 ? tags : [],
       file_path: filePath,
       file_type: file.type,
       file_size: file.size,
