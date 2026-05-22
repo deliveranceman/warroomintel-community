@@ -43,12 +43,18 @@ const resourcesMobileStyles = `
 interface Resource {
   id: string
   title: string
-  description: string
+  description: string | null
   tier: 'Free' | 'Soldier' | 'Commander' | 'General'
   category: string
-  filePath: string
-  pageCount: number | null
-  fileSize: string
+  // Supabase fields
+  file_path?: string
+  file_type?: string
+  file_size?: number
+  created_at?: string
+  // Legacy Airtable fields (kept for compatibility)
+  filePath?: string
+  pageCount?: number | null
+  fileSize?: string
 }
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -64,7 +70,7 @@ const textDim  = 'var(--text-dim)'
 const muted    = 'var(--muted)'
 
 const TIERS = ['All', 'Free', 'Soldier', 'Commander', 'General'] as const
-const CATEGORIES = ['All', 'Foundational', 'Session', 'Worksheet', 'Protocol', 'Prayer', 'Ministry', 'Occult']
+const CATEGORIES = ['All', 'Session Tools', 'Teaching', 'Protocol', 'Reference', 'Renunciation', 'Worksheet', 'Foundational', 'Session', 'Prayer', 'Ministry', 'Occult']
 
 const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
 
@@ -189,7 +195,8 @@ function FileCard({
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
         <span style={{ fontSize: '12px', color: gold }}>📄</span>
         <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.14em', color: `${gold}88`, textTransform: 'uppercase' as const }}>
-          PDF{resource.pageCount ? ` · ${resource.pageCount} pages` : ''}
+          {resource.file_type?.split('/').pop()?.toUpperCase() || 'PDF'}
+          {resource.pageCount ? ` · ${resource.pageCount} pages` : ''}
         </span>
       </div>
 
@@ -220,10 +227,12 @@ function FileCard({
             {resource.category}
           </span>
         )}
-        {resource.fileSize && (
+        {(resource.file_size || resource.fileSize) && (
           <>
             <span style={{ color: border, fontSize: '10px' }}>·</span>
-            <span style={{ fontSize: '11px', color: muted }}>{resource.fileSize}</span>
+            <span style={{ fontSize: '11px', color: muted }}>
+              {resource.file_size ? `${(resource.file_size / 1024 / 1024).toFixed(1)} MB` : resource.fileSize}
+            </span>
           </>
         )}
       </div>
@@ -280,46 +289,46 @@ function ArsenalPage() {
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const memberTier = (user?.publicMetadata?.tier as string) || 'Free'
+  const { getToken } = useAuth()
 
-  // Fetch resources once signed in
+  // Fetch resources from Supabase via authenticated endpoint
   useEffect(() => {
     if (!isSignedIn) return
-    fetch('/api/resources')
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) throw new Error(data.error)
-        setResources(data.resources || [])
+    let cancelled = false
+    getToken().then(token => {
+      if (cancelled) return
+      return fetch('/api/arsenal-resources', {
+        headers: { 'Authorization': `Bearer ${token}` },
       })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false))
+    }).then(r => r?.json()).then(data => {
+      if (cancelled) return
+      if (data?.error) throw new Error(data.error)
+      setResources(data?.resources || [])
+    }).catch(err => { if (!cancelled) setError(err.message) })
+    .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [isSignedIn])
 
-  // Handle download — calls /api/resource-download to get a signed URL
+  // Handle download — calls /api/download to get a Supabase signed URL
   const handleDownload = useCallback(async (resource: Resource) => {
     setDownloading(resource.id)
     setDownloadError(null)
     try {
-      const res = await fetch('/api/resource-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filePath:   resource.filePath,
-          fileTier:   resource.tier,
-          memberTier: memberTier,
-        }),
+      const token = await getToken()
+      const res = await fetch(`/api/download?id=${resource.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
       })
       const data = await res.json()
-      if (!res.ok || !data.signedUrl) {
+      if (!res.ok || !data.url) {
         throw new Error(data.error || 'Could not generate download link')
       }
-      // Open the signed URL in a new tab — browser will download
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+      window.open(data.url, '_blank', 'noopener,noreferrer')
     } catch (err: any) {
       setDownloadError(err.message)
     } finally {
       setDownloading(null)
     }
-  }, [memberTier])
+  }, [getToken])
 
   if (!isLoaded) return (
     <div style={{
