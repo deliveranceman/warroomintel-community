@@ -1903,7 +1903,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
     const matchesSearch = !query || [
       e.name, e.aka, e.manifestation, e.symptoms,
       e.entryPoints, e.description, e.personalityPresentation, e.hierarchyCategory,
-    ].some(s => s && s.toLowerCase().includes(query.toLowerCase()))
+    ].some(s => s && String(s).toLowerCase().includes(query.toLowerCase()))
     const matchesCat = !categoryFilter || e.hierarchyCategory === categoryFilter
     return matchesSearch && matchesCat
   })
@@ -2953,7 +2953,15 @@ function CommunityPage() {
         {dimItem("General's Table", '✦')}
 
         {sectionLabel('Tools')}
-        {navItem('Symptom Investigator', 'investigate', '🔍')}
+        <a
+          href="/investigate"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: '2px solid transparent', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, fontWeight: 400, transition: 'all 0.15s', cursor: 'pointer', boxSizing: 'border-box' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = G }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT }}
+        >
+          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>🔍</span>
+          Symptom Investigator
+        </a>
         {navItem('Assessment', 'assessment', '📋')}
         {navItem('Request Help', 'help', '🙏')}
         {dimItem('Events', '📅')}
@@ -3069,7 +3077,7 @@ function CommunityPage() {
         )}
         {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'arsenal'     && <LauncherView title="Arsenal"           icon="✦"  href="/arsenal" />}
-        {activeSection === 'investigate'  && <LauncherView title="Symptom Investigator" icon="🔍" href="/investigate" />}
+
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
       </div>
