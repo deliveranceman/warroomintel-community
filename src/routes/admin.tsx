@@ -532,6 +532,9 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   // Demons
   const [demons, setDemons]     = useState<any[]>([])
   const [dLoading, setDLoading] = useState(true)
+  const [emptySeq, setEmptySeq] = useState(0)
+  const [emptySc, setEmptySc]   = useState(0)
+  const [quickFilter, setQuickFilter] = useState<'all' | 'missing-seq' | 'missing-sc'>('all')
 
   // Table controls
   const [search, setSearch]       = useState('')
@@ -578,9 +581,17 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   }
 
   useEffect(() => { fetchPosts(); fetchLinks(); fetchDemons() }, [])
+  useEffect(() => {
+    if (!dLoading && demons.length > 0) {
+      setEmptySeq(demons.filter(d => !d.deliveranceSequence || String(d.deliveranceSequence).trim() === '').length)
+      setEmptySc(demons.filter(d => !d.counterScriptures  || String(d.counterScriptures).trim()  === '').length)
+    }
+  }, [demons, dLoading])
 
   // Filtered + sorted + paginated
   const filtered = demons
+    .filter(d => quickFilter === 'missing-seq' ? (!d.deliveranceSequence || String(d.deliveranceSequence).trim() === '') :
+                 quickFilter === 'missing-sc'  ? (!d.counterScriptures  || String(d.counterScriptures).trim()  === '') : true)
     .filter(d => !search || d.name.toLowerCase().includes(search.toLowerCase()))
     .filter(d => !filterCat || d.hierarchyCategory === filterCat)
     .sort((a, b) => {
@@ -697,14 +708,18 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
     await fetchLinks()
   }
 
-  const emptySeq = demons.filter(d => {
-    const val = d.deliveranceSequence
-    return !val || (typeof val === 'string' && val.trim() === '')
-  }).length
-  const emptySc = demons.filter(d => {
-    const val = d.counterScriptures
-    return !val || (typeof val === 'string' && val.trim() === '')
-  }).length
+  function exportCSV() {
+    const headers = ['Name', 'Type', 'Hierarchy Category', 'Deliverance Sequence', 'Counter Scriptures', 'Entry Points', 'Legal Rights']
+    const rows = filtered.map(d => [
+      d.name, d.type, d.hierarchyCategory, d.deliveranceSequence, d.counterScriptures, d.entryPoints, d.legalRights,
+    ].map(v => `"${(v || '').replace(/"/g, '""')}"`).join(','))
+    const csv = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'intel-archive.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const thS: React.CSSProperties = {
     fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM,
@@ -722,14 +737,15 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
       {/* Stat cards */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' as const }}>
         {([
-          ['Total Entries', demons.length, G],
-          ['Missing Del. Sequence', emptySeq, emptySeq > 0 ? '#f97316' : '#4ade80'],
-          ['Missing Counter Scriptures', emptySc, emptySc > 0 ? '#f97316' : '#4ade80'],
-        ] as [string, number, string][]).map(([label, val, color]) => (
-          <div key={label} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1 }}>
+          ['Total Entries',              demons.length, G,         'all'        ],
+          ['Missing Del. Sequence',      emptySeq,      emptySeq > 0 ? '#f97316' : '#4ade80', 'missing-seq'],
+          ['Missing Counter Scriptures', emptySc,       emptySc  > 0 ? '#f97316' : '#4ade80', 'missing-sc' ],
+        ] as [string, number, string, 'all' | 'missing-seq' | 'missing-sc'][]).map(([label, val, color, qf]) => (
+          <button key={label} onClick={() => { setQuickFilter(qf === quickFilter ? 'all' : qf); setPage(0) }}
+            style={{ background: quickFilter === qf ? `${color}15` : SURF, border: `1px solid ${quickFilter === qf ? color : BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
             <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{dLoading ? '...' : val}</div>
             <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const }}>{label}</div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -755,6 +771,12 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
           <option value="">All Categories</option>
           {HIER_CATS.map(c => <option key={c}>{c}</option>)}
         </select>
+        <button onClick={exportCSV} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, padding: '7px 14px', color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>↓ CSV</button>
+        {quickFilter !== 'all' && (
+          <button onClick={() => setQuickFilter('all')} style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 999, padding: '3px 12px', color: G, fontSize: 11, fontFamily: cinzel, cursor: 'pointer', flexShrink: 0 }}>
+            ✕ {quickFilter === 'missing-seq' ? 'Missing Sequence' : 'Missing Scriptures'}
+          </button>
+        )}
       </div>
 
       {/* New Spirit form */}
@@ -808,10 +830,14 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
                       ) : <span style={{ color: DIM }}>—</span>}
                     </td>
                     <td style={{ ...tdS, color: DIM, maxWidth: 150, fontSize: 12 }}>
-                      {d.deliveranceSequence ? d.deliveranceSequence.slice(0, 60) + (d.deliveranceSequence.length > 60 ? '…' : '') : '—'}
+                      {d.deliveranceSequence
+                        ? d.deliveranceSequence.slice(0, 60) + (d.deliveranceSequence.length > 60 ? '…' : '')
+                        : <span style={{ color: '#f97316', fontSize: 10 }}>⚠ Empty</span>}
                     </td>
                     <td style={{ ...tdS, color: DIM, maxWidth: 150, fontSize: 12 }}>
-                      {d.counterScriptures ? d.counterScriptures.slice(0, 60) + (d.counterScriptures.length > 60 ? '…' : '') : '—'}
+                      {d.counterScriptures
+                        ? d.counterScriptures.slice(0, 60) + (d.counterScriptures.length > 60 ? '…' : '')
+                        : <span style={{ color: '#f97316', fontSize: 10 }}>⚠ Empty</span>}
                     </td>
                     <td style={{ ...tdS }}>
                       <button
