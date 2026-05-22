@@ -1919,7 +1919,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden' }}>
 
       {/* Header + search */}
-      <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0 }}>
+      <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0, overflow: 'visible' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
           {isMobile && (
             <button
@@ -1946,7 +1946,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
           Search by name, symptom, manifestation, entry point, or emotional pattern
         </p>
         {/* Hierarchy category filter pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, paddingBottom: 12 }}>
           {HIERARCHY_CATEGORIES.map(cat => {
             const isAll = cat === 'All'
             const active = isAll ? !categoryFilter : categoryFilter === cat
@@ -1981,7 +1981,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
 
       {/* Cards grid */}
       <div style={{
-        flex: 1, overflowY: 'auto', padding: '8px 16px 16px',
+        flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 16px 16px',
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
         gap: 12, alignContent: 'start',
