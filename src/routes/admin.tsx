@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 
@@ -366,6 +366,128 @@ function ArsenalManager({ getToken }: { getToken: () => Promise<string | null> }
   )
 }
 
+// ─── INTEL ARCHIVE — shared constants ────────────────────────────────────────
+const INTEL_NAME_F = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
+const HIER_CATS = [
+  'Fear / Rejection', 'Marine Kingdom', 'Occult / Witchcraft', 'Freemasonry',
+  'Perversion', 'Death / Destruction', 'Religious', 'General Oppression',
+]
+const HIER_COLORS: Record<string, string> = {
+  'Fear / Rejection': '#7C5CBF', 'Marine Kingdom': '#2D7D9A',
+  'Occult / Witchcraft': '#8B1A1A', 'Freemasonry': '#B8860B',
+  'Perversion': '#8B3A3A', 'Death / Destruction': '#4A4A5C',
+  'Religious': '#4A5C4A', 'General Oppression': '#5C4A3A',
+}
+const BATTLEFIELDS = [
+  'Identity and emotions', 'Mind and will',
+  'Mind, sexuality, spiritual oppression', 'Control and spiritual authority',
+  'Sexual purity and soul ties',
+]
+
+function blankSpiritFields(): Record<string, string> {
+  return {
+    [INTEL_NAME_F]: '', 'Also Known As': '', 'Type / Rank': '', 'Description': '',
+    'Manifestiation': '', 'Entry Points': '', 'Legal Rights': '', 'Symptoms': '',
+    'Companion Spirits': '', 'WRI Exorcist Notes': '', 'Hierarchy Category': '',
+    'Parent Strongman': '', 'Deliverance Sequence': '', 'Operational Notes': '',
+    'Primary Battlefield': '', 'Typical Personality Presentation': '',
+    'Counter Scriptures': '', 'Scripture Reference': '', 'Source / Orgin': '',
+    'Kingdom': '', 'Strongman': '', 'Assignment': '',
+  }
+}
+
+function demonToSpiritFields(d: any): Record<string, string> {
+  return {
+    [INTEL_NAME_F]: d.name || '', 'Also Known As': d.aka || '', 'Type / Rank': d.type || '',
+    'Description': d.description || '', 'Manifestiation': d.manifestation || '',
+    'Entry Points': d.entryPoints || '', 'Legal Rights': d.legalRights || '',
+    'Symptoms': d.symptoms || '', 'Companion Spirits': d.companionSpirits || '',
+    'WRI Exorcist Notes': d.wriNotes || '', 'Hierarchy Category': d.hierarchyCategory || '',
+    'Parent Strongman': d.parentStrongman || '', 'Deliverance Sequence': d.deliveranceSequence || '',
+    'Operational Notes': d.operationalNotes || '', 'Primary Battlefield': d.primaryBattlefield || '',
+    'Typical Personality Presentation': d.personalityPresentation || '',
+    'Counter Scriptures': d.counterScriptures || '', 'Scripture Reference': d.scripture || '',
+    'Source / Orgin': d.sourceOrgin || '', 'Kingdom': d.kingdom || '',
+    'Strongman': d.strongman || '', 'Assignment': d.assignment || '',
+  }
+}
+
+function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
+  fields: Record<string, string>
+  setField: (name: string, val: string) => void
+  onSave: () => void
+  onCancel: () => void
+  saving: boolean
+  msg: string
+}) {
+  const i: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', background: '#0a0813',
+    border: `1px solid ${BDR}`, borderRadius: 6, padding: '9px 11px',
+    color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none',
+  }
+  const l: React.CSSProperties = {
+    display: 'block', fontFamily: cinzel, fontSize: 9,
+    letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase', marginBottom: 5,
+  }
+  const f = (name: string) => fields[name] || ''
+  const ti = (name: string) => <input value={f(name)} onChange={e => setField(name, e.target.value)} style={i} />
+  const ta = (name: string, rows = 3) => (
+    <textarea value={f(name)} onChange={e => setField(name, e.target.value)} rows={rows}
+      style={{ ...i, resize: 'vertical' as const }} />
+  )
+  return (
+    <div style={{ background: '#09080f', border: `1px solid ${BDR}`, borderRadius: 8, padding: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Name *</label>{ti(INTEL_NAME_F)}</div>
+        <div><label style={l}>Also Known As</label>{ti('Also Known As')}</div>
+        <div><label style={l}>Type / Rank</label>{ti('Type / Rank')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Description</label>{ta('Description')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Manifestiation</label>{ta('Manifestiation')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Entry Points</label>{ta('Entry Points')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Legal Rights</label>{ta('Legal Rights')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Symptoms</label>{ta('Symptoms')}</div>
+        <div><label style={l}>Companion Spirits</label>{ti('Companion Spirits')}</div>
+        <div><label style={l}>Kingdom</label>{ti('Kingdom')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>WRI Exorcist Notes</label>{ta('WRI Exorcist Notes')}</div>
+        <div>
+          <label style={l}>Hierarchy Category</label>
+          <select value={f('Hierarchy Category')} onChange={e => setField('Hierarchy Category', e.target.value)} style={{ ...i }}>
+            <option value="">— Select —</option>
+            {HIER_CATS.map(c => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+        <div><label style={l}>Parent Strongman</label>{ti('Parent Strongman')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Deliverance Sequence</label>{ta('Deliverance Sequence', 4)}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Operational Notes</label>{ta('Operational Notes')}</div>
+        <div>
+          <label style={l}>Primary Battlefield</label>
+          <select value={f('Primary Battlefield')} onChange={e => setField('Primary Battlefield', e.target.value)} style={{ ...i }}>
+            <option value="">— Select —</option>
+            {BATTLEFIELDS.map(b => <option key={b}>{b}</option>)}
+          </select>
+        </div>
+        <div><label style={l}>Typical Personality Presentation</label>{ti('Typical Personality Presentation')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Counter Scriptures</label>{ta('Counter Scriptures')}</div>
+        <div><label style={l}>Scripture Reference</label>{ti('Scripture Reference')}</div>
+        <div><label style={l}>Source / Orgin</label>{ti('Source / Orgin')}</div>
+        <div><label style={l}>Strongman</label>{ti('Strongman')}</div>
+        <div><label style={l}>Assignment</label>{ti('Assignment')}</div>
+      </div>
+      {msg && <div style={{ fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 12 }}>{msg}</div>}
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <button onClick={onSave} disabled={saving}
+          style={{ background: saving ? 'rgba(201,168,76,0.2)' : G, color: saving ? DIM : '#0D0B14', border: 'none', borderRadius: 6, padding: '9px 22px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
+          {saving ? 'Saving...' : '✓ Save'}
+        </button>
+        <button onClick={onCancel}
+          style={{ background: 'transparent', color: DIM, border: `1px solid ${BDR}`, borderRadius: 6, padding: '9px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── INTEL ARCHIVE TAB ───────────────────────────────────────────────────────
 function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) {
   const inp: React.CSSProperties = {
@@ -378,7 +500,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
     letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const, marginBottom: 6,
   }
 
-  // Posts state
+  // Posts
   const [posts, setPosts]           = useState<any[]>([])
   const [postTitle, setPostTitle]   = useState('')
   const [postBody, setPostBody]     = useState('')
@@ -387,7 +509,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   const [postSaving, setPostSaving] = useState(false)
   const [postMsg, setPostMsg]       = useState('')
 
-  // Links state
+  // Links
   const [links, setLinks]           = useState<any[]>([])
   const [linkTitle, setLinkTitle]   = useState('')
   const [linkUrl, setLinkUrl]       = useState('')
@@ -396,10 +518,39 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   const [linkSaving, setLinkSaving] = useState(false)
   const [linkMsg, setLinkMsg]       = useState('')
 
-  // Demons stats
-  const [demons, setDemons]   = useState<any[]>([])
+  // Demons
+  const [demons, setDemons]     = useState<any[]>([])
   const [dLoading, setDLoading] = useState(true)
 
+  // Table controls
+  const [search, setSearch]       = useState('')
+  const [filterCat, setFilterCat] = useState('')
+  const [sortCol, setSortCol]     = useState<'name' | 'type' | 'hierarchyCategory'>('name')
+  const [sortDir, setSortDir]     = useState<'asc' | 'desc'>('asc')
+  const [page, setPage]           = useState(0)
+  const PAGE_SIZE = 20
+
+  // Edit
+  const [editingId, setEditingId]   = useState<string | null>(null)
+  const [editFields, setEditFields] = useState<Record<string, string>>({})
+  const [editSaving, setEditSaving] = useState(false)
+  const [editMsg, setEditMsg]       = useState('')
+
+  // New spirit
+  const [showNew, setShowNew]     = useState(false)
+  const [newFields, setNewFields] = useState<Record<string, string>>(blankSpiritFields())
+  const [newSaving, setNewSaving] = useState(false)
+  const [newMsg, setNewMsg]       = useState('')
+
+  async function fetchDemons() {
+    setDLoading(true)
+    try {
+      const res = await fetch('/api/demons')
+      const d = await res.json()
+      setDemons(d.demons || [])
+    } catch { setDemons([]) }
+    finally { setDLoading(false) }
+  }
   async function fetchPosts() {
     const res = await fetch('/api/intel-posts')
     const d = await res.json()
@@ -411,11 +562,71 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
     setLinks(d.links || [])
   }
 
-  useEffect(() => {
-    fetchPosts()
-    fetchLinks()
-    fetch('/api/demons').then(r => r.json()).then(d => setDemons(d.demons || [])).finally(() => setDLoading(false))
-  }, [])
+  useEffect(() => { fetchPosts(); fetchLinks(); fetchDemons() }, [])
+
+  // Filtered + sorted + paginated
+  const filtered = demons
+    .filter(d => !search || d.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(d => !filterCat || d.hierarchyCategory === filterCat)
+    .sort((a, b) => {
+      const va = (a[sortCol] || '').toLowerCase()
+      const vb = (b[sortCol] || '').toLowerCase()
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+    })
+  const pageCount = Math.ceil(filtered.length / PAGE_SIZE) || 1
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  function handleSort(col: 'name' | 'type' | 'hierarchyCategory') {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+    setPage(0)
+  }
+
+  function startEdit(d: any) {
+    setEditingId(d.airtableId)
+    setEditFields(demonToSpiritFields(d))
+    setEditMsg('')
+    setShowNew(false)
+  }
+
+  async function saveEdit() {
+    if (!editingId) return
+    setEditSaving(true); setEditMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-demon', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ id: editingId, fields: editFields }),
+      })
+      if (res.ok) {
+        setEditMsg('✓ Saved')
+        await fetchDemons()
+        setTimeout(() => { setEditingId(null); setEditMsg('') }, 1200)
+      } else {
+        const d = await res.json(); setEditMsg(`⚠ ${d.error}`)
+      }
+    } finally { setEditSaving(false) }
+  }
+
+  async function saveNew() {
+    setNewSaving(true); setNewMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-demon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ fields: newFields }),
+      })
+      if (res.ok) {
+        setNewMsg('✓ Spirit created')
+        await fetchDemons()
+        setTimeout(() => { setShowNew(false); setNewMsg(''); setNewFields(blankSpiritFields()) }, 1200)
+      } else {
+        const d = await res.json(); setNewMsg(`⚠ ${d.error}`)
+      }
+    } finally { setNewSaving(false) }
+  }
 
   async function savePost() {
     if (!postTitle.trim() || !postBody.trim()) return
@@ -471,13 +682,24 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
     await fetchLinks()
   }
 
-  const emptySeq = demons.filter(d => !d.deliveranceSequence).length
-  const emptySc  = demons.filter(d => !d.counterScriptures).length
+  const emptySeq = demons.filter(d => !d.deliveranceSequence || d.deliveranceSequence.trim() === '').length
+  const emptySc  = demons.filter(d => !d.counterScriptures  || d.counterScriptures.trim()  === '').length
+
+  const thS: React.CSSProperties = {
+    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM,
+    textTransform: 'uppercase', padding: '10px 12px', textAlign: 'left',
+    borderBottom: `1px solid ${BDR}`, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+  }
+  const tdS: React.CSSProperties = {
+    padding: '9px 12px', fontFamily: crimson, fontSize: 13, color: TXT,
+    borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'top',
+  }
+  const sortInd = (col: string) => sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
 
   return (
     <div>
-      {/* Archive stats */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 28, flexWrap: 'wrap' as const }}>
+      {/* Stat cards */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' as const }}>
         {([
           ['Total Entries', demons.length, G],
           ['Missing Del. Sequence', emptySeq, emptySeq > 0 ? '#f97316' : '#4ade80'],
@@ -489,10 +711,130 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
           </div>
         ))}
       </div>
-      <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
-        style={{ display: 'inline-block', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G, borderRadius: 5, padding: '8px 18px', textDecoration: 'none', marginBottom: 32 }}>
-        Open Airtable →
-      </a>
+
+      {/* Subtle Airtable link */}
+      <div style={{ textAlign: 'right' as const, marginBottom: 22 }}>
+        <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: DIM, textDecoration: 'none', opacity: 0.65 }}>
+          View raw data in Airtable →
+        </a>
+      </div>
+
+      {/* Table toolbar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' as const }}>
+        <button
+          onClick={() => { setShowNew(s => { if (!s) { setNewFields(blankSpiritFields()); setNewMsg('') }; return !s }); setEditingId(null) }}
+          style={{ background: showNew ? 'rgba(201,168,76,0.12)' : G, color: showNew ? G : '#0D0B14', border: showNew ? `1px solid ${G}` : 'none', borderRadius: 6, padding: '8px 16px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}>
+          {showNew ? '✕ Cancel New' : '+ Add Spirit'}
+        </button>
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} placeholder="Search spirits by name..."
+          style={{ ...inp, flex: 1, minWidth: 160, fontSize: 13, padding: '8px 12px' }} />
+        <select value={filterCat} onChange={e => { setFilterCat(e.target.value); setPage(0) }}
+          style={{ ...inp, width: 'auto', fontSize: 12, padding: '8px 12px' }}>
+          <option value="">All Categories</option>
+          {HIER_CATS.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+
+      {/* New Spirit form */}
+      {showNew && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>✦ New Spirit Entry</div>
+          <SpiritEditForm
+            fields={newFields}
+            setField={(name, val) => setNewFields(prev => ({ ...prev, [name]: val }))}
+            onSave={saveNew}
+            onCancel={() => { setShowNew(false); setNewMsg('') }}
+            saving={newSaving}
+            msg={newMsg}
+          />
+        </div>
+      )}
+
+      {/* Spirit table */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, overflow: 'hidden', marginBottom: 32 }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: SURF2 }}>
+                <th style={thS} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
+                <th style={thS} onClick={() => handleSort('type')}>Type{sortInd('type')}</th>
+                <th style={thS} onClick={() => handleSort('hierarchyCategory')}>Category{sortInd('hierarchyCategory')}</th>
+                <th style={{ ...thS, cursor: 'default' }}>Del. Sequence</th>
+                <th style={{ ...thS, cursor: 'default' }}>Counter Scriptures</th>
+                <th style={{ ...thS, cursor: 'default', width: 70 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dLoading ? (
+                <tr><td colSpan={6} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>Loading spirits...</td></tr>
+              ) : paginated.length === 0 ? (
+                <tr><td colSpan={6} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>No spirits found.</td></tr>
+              ) : paginated.map(d => (
+                <Fragment key={d.airtableId || d.id}>
+                  <tr style={{ background: editingId === d.airtableId ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
+                    <td style={{ ...tdS, fontFamily: cinzel, fontSize: 11, maxWidth: 160, wordBreak: 'break-word' as const }}>{d.name}</td>
+                    <td style={{ ...tdS, color: DIM, maxWidth: 110, fontSize: 12 }}>{d.type || '—'}</td>
+                    <td style={{ ...tdS }}>
+                      {d.hierarchyCategory ? (
+                        <span style={{
+                          background: (HIER_COLORS[d.hierarchyCategory] || '#555') + '28',
+                          color: HIER_COLORS[d.hierarchyCategory] || DIM,
+                          border: `1px solid ${(HIER_COLORS[d.hierarchyCategory] || '#555')}44`,
+                          borderRadius: 999, padding: '2px 8px', fontSize: 9,
+                          fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const,
+                        }}>{d.hierarchyCategory}</span>
+                      ) : <span style={{ color: DIM }}>—</span>}
+                    </td>
+                    <td style={{ ...tdS, color: DIM, maxWidth: 150, fontSize: 12 }}>
+                      {d.deliveranceSequence ? d.deliveranceSequence.slice(0, 60) + (d.deliveranceSequence.length > 60 ? '…' : '') : '—'}
+                    </td>
+                    <td style={{ ...tdS, color: DIM, maxWidth: 150, fontSize: 12 }}>
+                      {d.counterScriptures ? d.counterScriptures.slice(0, 60) + (d.counterScriptures.length > 60 ? '…' : '') : '—'}
+                    </td>
+                    <td style={{ ...tdS }}>
+                      <button
+                        onClick={() => editingId === d.airtableId ? setEditingId(null) : startEdit(d)}
+                        style={{ background: 'transparent', border: `1px solid ${editingId === d.airtableId ? G : BDR}`, borderRadius: 5, color: editingId === d.airtableId ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                        {editingId === d.airtableId ? 'Close' : 'Edit'}
+                      </button>
+                    </td>
+                  </tr>
+                  {editingId === d.airtableId && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '4px 12px 16px' }}>
+                        <SpiritEditForm
+                          fields={editFields}
+                          setField={(name, val) => setEditFields(prev => ({ ...prev, [name]: val }))}
+                          onSave={saveEdit}
+                          onCancel={() => { setEditingId(null); setEditMsg('') }}
+                          saving={editSaving}
+                          msg={editMsg}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {pageCount > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: `1px solid ${BDR}` }}>
+            <button disabled={page === 0} onClick={() => setPage(p => p - 1)}
+              style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: page === 0 ? DIM : G, fontFamily: cinzel, fontSize: 9, padding: '5px 14px', cursor: page === 0 ? 'not-allowed' : 'pointer', opacity: page === 0 ? 0.5 : 1 }}>
+              ← Prev
+            </button>
+            <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM }}>
+              {page + 1} / {pageCount} · {filtered.length} spirits
+            </span>
+            <button disabled={page >= pageCount - 1} onClick={() => setPage(p => p + 1)}
+              style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: page >= pageCount - 1 ? DIM : G, fontFamily: cinzel, fontSize: 9, padding: '5px 14px', cursor: page >= pageCount - 1 ? 'not-allowed' : 'pointer', opacity: page >= pageCount - 1 ? 0.5 : 1 }}>
+              Next →
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Post Briefing form */}
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
@@ -524,7 +866,6 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
         </button>
       </div>
 
-      {/* Existing posts */}
       {posts.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: DIM, marginBottom: 10 }}>Published Briefings ({posts.length})</div>
@@ -544,22 +885,10 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
         <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>🔗 Add External Link</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>Title *</label>
-            <input value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link title..." style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Source</label>
-            <input value={linkSource} onChange={e => setLinkSource(e.target.value)} placeholder="e.g. Daniel Duval" style={inp} />
-          </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={lbl}>URL *</label>
-            <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." style={inp} />
-          </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={lbl}>Note (optional)</label>
-            <textarea value={linkNote} onChange={e => setLinkNote(e.target.value)} rows={2} placeholder="Brief description of why this is relevant..." style={{ ...inp, resize: 'vertical' as const }} />
-          </div>
+          <div><label style={lbl}>Title *</label><input value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link title..." style={inp} /></div>
+          <div><label style={lbl}>Source</label><input value={linkSource} onChange={e => setLinkSource(e.target.value)} placeholder="e.g. Daniel Duval" style={inp} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>URL *</label><input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." style={inp} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Note (optional)</label><textarea value={linkNote} onChange={e => setLinkNote(e.target.value)} rows={2} placeholder="Brief description of why this is relevant..." style={{ ...inp, resize: 'vertical' as const }} /></div>
         </div>
         {linkMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: linkMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{linkMsg}</div>}
         <button onClick={saveLink} disabled={linkSaving || !linkTitle.trim() || !linkUrl.trim()}
@@ -568,7 +897,6 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
         </button>
       </div>
 
-      {/* Existing links */}
       {links.length > 0 && (
         <div>
           <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: DIM, marginBottom: 10 }}>Active Links ({links.length})</div>

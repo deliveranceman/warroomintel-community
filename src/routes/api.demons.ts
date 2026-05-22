@@ -41,6 +41,7 @@ export const Route = createFileRoute('/api/demons')({
           const demons = records
             .map((r: any, i: number) => ({
               id: i + 1,
+              airtableId: r.id,
               name: r.fields[NAME_FIELD] || '',
               aka: r.fields['Also Known As'] || '',
               type: r.fields['Type / Rank'] || '',
@@ -61,6 +62,7 @@ export const Route = createFileRoute('/api/demons')({
               symptoms: r.fields['Symptoms'] || '',
               companionSpirits: r.fields['Companion Spirits'] || '',
               wriNotes: r.fields['WRI Exorcist Notes'] || '',
+              sourceOrgin: r.fields['Source / Orgin'] || '',
               // Operational intel (new fields)
               hierarchyCategory: r.fields['Hierarchy Category'] || '',
               parentStrongman: r.fields['Parent Strongman'] || '',
