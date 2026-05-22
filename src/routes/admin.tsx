@@ -552,14 +552,18 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
     finally { setDLoading(false) }
   }
   async function fetchPosts() {
-    const res = await fetch('/api/intel-posts')
-    const d = await res.json()
-    setPosts(d.posts || [])
+    try {
+      const res = await fetch('/api/intel-posts')
+      const d = await res.json()
+      setPosts(d.posts || [])
+    } catch { setPosts([]) }
   }
   async function fetchLinks() {
-    const res = await fetch('/api/intel-links')
-    const d = await res.json()
-    setLinks(d.links || [])
+    try {
+      const res = await fetch('/api/intel-links')
+      const d = await res.json()
+      setLinks(d.links || [])
+    } catch { setLinks([]) }
   }
 
   useEffect(() => { fetchPosts(); fetchLinks(); fetchDemons() }, [])
@@ -930,6 +934,7 @@ function AdminPage() {
   }
 
   const role = (user?.publicMetadata?.role as string) || ''
+  console.log('[AdminPage] role:', role, 'publicMetadata:', user?.publicMetadata)
   if (role !== 'minister') {
     return (
       <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
