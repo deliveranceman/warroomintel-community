@@ -15,6 +15,7 @@ const TXT    = '#e8dcc8'
 const DIM    = '#7a6d58'
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
+const STREAM_APP_ID = '1609751'
 
 const TIER_COLORS: Record<string, string> = {
   Free: '#6a6080', Soldier: '#5C7CBF', Commander: '#7C5CBF', General: '#C9A84C',
@@ -963,6 +964,75 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
 }
 
 // ─── ADMIN PAGE ───────────────────────────────────────────────────────────────
+// ─── MODERATION PANEL ────────────────────────────────────────────────────────
+function ModerationPanel({ getToken: _getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Moderation Queue</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM }}>Monitor and moderate community posts and prayer requests</div>
+        </div>
+      </div>
+
+      {/* Quick stats */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 28, flexWrap: 'wrap' as const }}>
+        {([
+          ['War Room Posts',   'Live in Stream Chat',         G],
+          ['Prayer Wall',      'Live in Stream Chat',         '#86efac'],
+          ['Field Reports',    'Managed in Weekly Intel',     '#38bdf8'],
+        ] as [string, string, string][]).map(([label, sub, color]) => (
+          <div key={label} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '16px 20px', flex: 1, minWidth: 160 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color, marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: DIM }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Field Reports */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 20 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 12 }}>📡 Pending Field Reports</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.7, marginBottom: 14 }}>
+          Field report approvals are managed directly on the Weekly Intel page when logged in as minister.
+          Pending reports appear with Approve/Reject buttons visible only to you.
+        </div>
+        <a href="/community" style={{ display: 'inline-block', background: G, color: '#0D0B14', borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+          Go to Weekly Intel →
+        </a>
+      </div>
+
+      {/* Stream Chat */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 20 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 12 }}>💬 War Room Chat & Prayer Wall</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.7, marginBottom: 16 }}>
+          As a minister, you can delete any post directly in the War Room Chat and Prayer Wall.
+          Posts have a Delete button visible only to your account.
+          Stream Chat also provides a moderation dashboard at their platform.
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
+          <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+            Go to Community →
+          </a>
+          <a href={`https://dashboard.getstream.io/app/${STREAM_APP_ID}/moderation`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+            Stream Dashboard →
+          </a>
+        </div>
+      </div>
+
+      {/* Assessment responses */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 12 }}>📋 Assessment Responses</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.7, marginBottom: 14 }}>
+          Assessment submissions are stored in Airtable and managed from the Assessment Board.
+        </div>
+        <a href="/assessment-board" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+          Assessment Board →
+        </a>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
@@ -1036,13 +1106,7 @@ function AdminPage() {
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
         {tab === 'arsenal'    && <ArsenalManager getToken={getToken} />}
         {tab === 'intel'      && <IntelArchive getToken={getToken} />}
-        {tab === 'moderation' && (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <div style={{ fontSize: 36, marginBottom: 16 }}>🛡</div>
-            <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>Moderation Tools</div>
-            <div style={{ fontFamily: crimson, fontSize: 16, color: DIM, fontStyle: 'italic' }}>Coming soon — post review, flagged content, and member management.</div>
-          </div>
-        )}
+        {tab === 'moderation' && <ModerationPanel getToken={getToken} />}
       </div>
     </div>
   )
