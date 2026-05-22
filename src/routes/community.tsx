@@ -1497,14 +1497,13 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   const FILTERS = ['All', 'Strongman', 'Familiar', 'Marine', 'Generational', 'Religious']
 
   const filtered = entries.filter(e => {
-    const name           = e.name || ''
-    const aliases        = e.aka || ''
-    const manifestations = e.manifestation || ''
-    const cls            = e.type || e.rank || ''
-    const matchesSearch  = !query ||
-      [name, aliases, manifestations].some(s => s.toLowerCase().includes(query.toLowerCase()))
-    const matchesFilter  = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
-    const matchesCat     = !categoryFilter || e.hierarchyCategory === categoryFilter
+    const cls           = e.type || e.rank || ''
+    const matchesSearch = !query || [
+      e.name, e.aka, e.manifestation, e.symptoms,
+      e.entryPoints, e.description, e.personalityPresentation, e.hierarchyCategory,
+    ].some(s => s && s.toLowerCase().includes(query.toLowerCase()))
+    const matchesFilter = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
+    const matchesCat    = !categoryFilter || e.hierarchyCategory === categoryFilter
     return matchesSearch && matchesFilter && matchesCat
   })
 
@@ -1533,15 +1532,18 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search spirits, wounds, manifestations, aliases..."
+          placeholder="Search spirits, symptoms, manifestations, entry points..."
           style={{
             width: '100%', padding: '10px 14px',
             background: dbBg, border: `1px solid ${query ? G : dbBorder}`,
             borderRadius: 8, fontFamily: crimson, fontSize: 15,
             color: dbText, outline: 'none', boxSizing: 'border-box',
-            marginBottom: 10, transition: 'border-color 0.2s',
+            marginBottom: 4, transition: 'border-color 0.2s',
           }}
         />
+        <p style={{ fontSize: 11, color: dbDim, marginTop: 4, marginBottom: 8 }}>
+          Search by name, symptom, manifestation, entry point, or emotional pattern
+        </p>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {FILTERS.map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
@@ -2592,6 +2594,7 @@ function CommunityPage() {
         {dimItem("General's Table", '✦')}
 
         {sectionLabel('Tools')}
+        {navItem('Symptom Investigator', 'investigate', '🔍')}
         {navItem('Assessment', 'assessment', '📋')}
         {navItem('Request Help', 'help', '🙏')}
         {dimItem('Events', '📅')}
@@ -2695,6 +2698,7 @@ function CommunityPage() {
         )}
         {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'arsenal'     && <LauncherView title="Arsenal"           icon="✦"  href="/arsenal" />}
+        {activeSection === 'investigate'  && <LauncherView title="Symptom Investigator" icon="🔍" href="/investigate" />}
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
       </div>

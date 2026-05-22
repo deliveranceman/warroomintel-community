@@ -14,6 +14,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as MembershipRouteImport } from './routes/membership'
 import { Route as JoinRouteImport } from './routes/join'
+import { Route as InvestigateRouteImport } from './routes/investigate'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
@@ -66,6 +67,11 @@ const MembershipRoute = MembershipRouteImport.update({
 const JoinRoute = JoinRouteImport.update({
   id: '/join',
   path: '/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvestigateRoute = InvestigateRouteImport.update({
+  id: '/investigate',
+  path: '/investigate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRoute = HelpRouteImport.update({
@@ -216,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
   '/sign-in': typeof SignInRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
   '/sign-in': typeof SignInRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
   '/help': typeof HelpRoute
+  '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
   '/sign-in': typeof SignInRoute
@@ -324,6 +333,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/investigate'
     | '/join'
     | '/membership'
     | '/sign-in'
@@ -359,6 +369,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/investigate'
     | '/join'
     | '/membership'
     | '/sign-in'
@@ -394,6 +405,7 @@ export interface FileRouteTypes {
     | '/assessment-board'
     | '/community'
     | '/help'
+    | '/investigate'
     | '/join'
     | '/membership'
     | '/sign-in'
@@ -430,6 +442,7 @@ export interface RootRouteChildren {
   AssessmentBoardRoute: typeof AssessmentBoardRoute
   CommunityRoute: typeof CommunityRoute
   HelpRoute: typeof HelpRoute
+  InvestigateRoute: typeof InvestigateRoute
   JoinRoute: typeof JoinRoute
   MembershipRoute: typeof MembershipRoute
   SignInRoute: typeof SignInRoute
@@ -494,6 +507,13 @@ declare module '@tanstack/react-router' {
       path: '/join'
       fullPath: '/join'
       preLoaderRoute: typeof JoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/investigate': {
+      id: '/investigate'
+      path: '/investigate'
+      fullPath: '/investigate'
+      preLoaderRoute: typeof InvestigateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/help': {
@@ -702,6 +722,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentBoardRoute: AssessmentBoardRoute,
   CommunityRoute: CommunityRoute,
   HelpRoute: HelpRoute,
+  InvestigateRoute: InvestigateRoute,
   JoinRoute: JoinRoute,
   MembershipRoute: MembershipRoute,
   SignInRoute: SignInRoute,
