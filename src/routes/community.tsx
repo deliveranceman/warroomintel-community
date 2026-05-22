@@ -1962,7 +1962,7 @@ function CommunityPage() {
   })
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeSection, setActiveSection] = useState('war-room')
+  const [activeSection, setActiveSection] = useState('intel')
 
   const [streamToken, setStreamToken] = useState<string>('')
   const [apiKey, setApiKey]           = useState<string>('')
@@ -2553,36 +2553,9 @@ function CommunityPage() {
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
-        {/* WAR ROOM COMMUNITY — clickable section header */}
-        <button
-          onClick={() => { setActiveSection('war-room'); if (isMobile) setSidebarOpen(false) }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '16px 16px 4px', display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left' as const }}
-          onMouseEnter={e => {
-            const el = e.currentTarget.querySelector('.wrc-label') as HTMLElement
-            if (el) { el.style.color = '#C9A84C'; el.style.textDecoration = 'underline' }
-          }}
-          onMouseLeave={e => {
-            const el = e.currentTarget.querySelector('.wrc-label') as HTMLElement
-            if (el) { el.style.color = activeSection === 'war-room' ? '#C9A84C' : '#7a6d58'; el.style.textDecoration = 'none' }
-          }}
-        >
-          <span style={{ fontSize: 10, color: activeSection === 'war-room' ? '#C9A84C' : '#7a6d58' }}>✕</span>
-          <span
-            className="wrc-label"
-            style={{
-              fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em',
-              color: activeSection === 'war-room' ? '#C9A84C' : '#7a6d58',
-              textTransform: 'uppercase' as const, transition: 'color 0.15s, text-decoration 0.15s',
-              textDecoration: activeSection === 'war-room' ? 'underline' : 'none',
-              textUnderlineOffset: '3px',
-            }}
-          >
-            War Room Community
-          </span>
-          <span style={{ marginLeft: 'auto', fontSize: 10, color: activeSection === 'war-room' ? '#C9A84C' : '#6b5e45', opacity: 0.7 }}>›</span>
-        </button>
+        {sectionLabel('War Room Community')}
 
-        {dimItem('Weekly Intel', '📡')}
+        {navItem('Weekly Intel', 'intel', '📡')}
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
 
         {/* War Room Chat */}
@@ -2718,6 +2691,7 @@ function CommunityPage() {
 
       {/* ── CENTER ── */}
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
+        {activeSection === 'intel'         && <PlaceholderView title="Weekly Intel" icon="📡" />}
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
           <WarRoomChatView
