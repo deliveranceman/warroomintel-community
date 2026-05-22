@@ -5,32 +5,46 @@ const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
 const BUCKET       = process.env.SUPABASE_BUCKET || 'resources'
 
-async function verifyMinister(token: string): Promise<string | null> {
+async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
   const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
     method: 'POST',
     headers: { Authorization: `Bearer ${CLERK_SECRET}`, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ token }),
   })
+  console.log('Session verify status:', verifyRes.status)
   if (!verifyRes.ok) return null
   const session = await verifyRes.json()
   const userId = session.user_id
-  if (!userId) return null
+  console.log('Session userId:', userId)
+  if (!userId) {
+    console.error('No userId from session verify — session object:', JSON.stringify(session))
+    return null
+  }
 
   const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
     headers: { Authorization: `Bearer ${CLERK_SECRET}` },
   })
+  console.log('User fetch status:', userRes.status)
   if (!userRes.ok) return null
   const userData = await userRes.json()
-  if (userData.public_metadata?.role !== 'minister') return null
-  return userId
+  console.log('User publicMetadata:', JSON.stringify(userData?.public_metadata))
+  console.log('Role found:', userData?.public_metadata?.role)
+  return { userId, userData }
 }
 
 export default async function handler(req: Request) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
 
-  const userId = await verifyMinister(token)
-  if (!userId) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 })
+  const auth = await resolveUser(token)
+  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized — invalid session' }), { status: 401 })
+  if (auth.userData?.public_metadata?.role !== 'minister') {
+    return new Response(JSON.stringify({
+      error: 'Forbidden — minister role required',
+      debug: { userId: auth.userId, role: auth.userData?.public_metadata?.role, allMetadata: auth.userData?.public_metadata },
+    }), { status: 403 })
+  }
+  const { userId } = auth
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
