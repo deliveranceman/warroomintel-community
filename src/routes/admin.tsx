@@ -534,8 +534,6 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   // Demons
   const [demons, setDemons]     = useState<any[]>([])
   const [dLoading, setDLoading] = useState(true)
-  const [emptySeq, setEmptySeq] = useState(0)
-  const [emptySc, setEmptySc]   = useState(0)
   const [quickFilter, setQuickFilter] = useState<'all' | 'missing-seq' | 'missing-sc'>('all')
 
   // Table controls
@@ -583,12 +581,8 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   }
 
   useEffect(() => { fetchPosts(); fetchLinks(); fetchDemons() }, [])
-  useEffect(() => {
-    if (!dLoading && demons.length > 0) {
-      setEmptySeq(demons.filter(d => !d.deliveranceSequence || String(d.deliveranceSequence).trim() === '').length)
-      setEmptySc(demons.filter(d => !d.counterScriptures  || String(d.counterScriptures).trim()  === '').length)
-    }
-  }, [demons, dLoading])
+  const emptySeq = dLoading ? null : demons.filter(d => !d.deliveranceSequence || String(d.deliveranceSequence).trim() === '').length
+  const emptySc  = dLoading ? null : demons.filter(d => !d.counterScriptures  || String(d.counterScriptures).trim()  === '').length
 
   // Filtered + sorted + paginated
   const filtered = demons
@@ -750,13 +744,14 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
       {/* Stat cards */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' as const }}>
         {([
-          ['Total Entries',              demons.length, G,         'all'        ],
-          ['Missing Del. Sequence',      emptySeq,      emptySeq > 0 ? '#f97316' : '#4ade80', 'missing-seq'],
-          ['Missing Counter Scriptures', emptySc,       emptySc  > 0 ? '#f97316' : '#4ade80', 'missing-sc' ],
-        ] as [string, number, string, 'all' | 'missing-seq' | 'missing-sc'][]).map(([label, val, color, qf]) => (
-          <button key={label} onClick={() => { setQuickFilter(qf === quickFilter ? 'all' : qf); setPage(0) }}
-            style={{ background: quickFilter === qf ? `${color}15` : SURF, border: `1px solid ${quickFilter === qf ? color : BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
-            <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{dLoading ? '...' : val}</div>
+          ['Total Entries',              dLoading ? null : demons.length, G,                                            'all'        ],
+          ['Missing Del. Sequence',      emptySeq,                        emptySeq === null || emptySeq === 0 ? '#4ade80' : '#f97316', 'missing-seq'],
+          ['Missing Counter Scriptures', emptySc,                         emptySc  === null || emptySc  === 0 ? '#4ade80' : '#f97316', 'missing-sc' ],
+        ] as [string, number | null, string, 'all' | 'missing-seq' | 'missing-sc'][]).map(([label, val, color, qf]) => (
+          <button key={label}
+            onClick={() => { if (!dLoading) { setQuickFilter(qf === quickFilter ? 'all' : qf); setPage(0) } }}
+            style={{ background: quickFilter === qf ? `${color}15` : SURF, border: `1px solid ${quickFilter === qf ? color : BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: dLoading ? 'default' : 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{val === null ? '...' : val}</div>
             <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const }}>{label}</div>
           </button>
         ))}
@@ -825,7 +820,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
               {dLoading ? (
                 <tr><td colSpan={6} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>Loading spirits...</td></tr>
               ) : paginated.length === 0 ? (
-                <tr><td colSpan={6} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>No spirits found.</td></tr>
+                <tr><td colSpan={6} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>{quickFilter !== 'all' ? 'No spirits found with this filter. Try clearing the filter.' : 'No spirits found.'}</td></tr>
               ) : paginated.map(d => (
                 <Fragment key={d.airtableId || d.id}>
                   <tr style={{ background: editingId === d.airtableId ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
@@ -991,70 +986,101 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
 
 // ─── ADMIN PAGE ───────────────────────────────────────────────────────────────
 // ─── MODERATION PANEL ────────────────────────────────────────────────────────
-function ModerationPanel({ getToken: _getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
+const FB_STATUS_COLORS: Record<string, string> = {
+  'open': G, 'in-progress': '#38bdf8', 'resolved': '#4ade80', 'closed': '#6b7280',
+}
+
+function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
+  const [feedback, setFeedback]   = useState<any[]>([])
+  const [fbLoading, setFbLoading] = useState(true)
+  const [editingFb, setEditingFb] = useState<string | null>(null)
+  const [editStatus, setEditStatus] = useState('')
+  const [editNotes, setEditNotes]   = useState('')
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/feedback', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setFeedback(d.feedback || []) }
+      setFbLoading(false)
+    }
+    load()
+  }, [])
+
+  async function updateFeedback(id: string) {
+    const token = await getToken()
+    await fetch(`/api/feedback?id=${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: editStatus, admin_notes: editNotes }),
+    })
+    setFeedback(prev => prev.map(f => f.id === id ? { ...f, status: editStatus, admin_notes: editNotes } : f))
+    setEditingFb(null)
+  }
+
+  async function deleteFeedback(id: string) {
+    if (!confirm('Delete this report?')) return
+    const token = await getToken()
+    await fetch(`/api/feedback?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setFeedback(prev => prev.filter(f => f.id !== id))
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Moderation Queue</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM }}>Monitor and moderate community posts and prayer requests</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Moderation — Community Feedback</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM }}>{feedback.length} report{feedback.length !== 1 ? 's' : ''} submitted by members</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Community →</a>
+          <a href={`https://dashboard.getstream.io/app/${STREAM_APP_ID}/moderation`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Stream →</a>
         </div>
       </div>
 
-      {/* Quick stats */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 28, flexWrap: 'wrap' as const }}>
-        {([
-          ['War Room Posts',   'Live in Stream Chat',         G],
-          ['Prayer Wall',      'Live in Stream Chat',         '#86efac'],
-          ['Field Reports',    'Managed in Weekly Intel',     '#38bdf8'],
-        ] as [string, string, string][]).map(([label, sub, color]) => (
-          <div key={label} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '16px 20px', flex: 1, minWidth: 160 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 11, color, marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
-            <div style={{ fontFamily: crimson, fontSize: 12, color: DIM }}>{sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Field Reports */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 20 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 12 }}>📡 Pending Field Reports</div>
-        <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.7, marginBottom: 14 }}>
-          Field report approvals are managed directly on the Weekly Intel page when logged in as minister.
-          Pending reports appear with Approve/Reject buttons visible only to you.
+      {fbLoading ? (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>Loading feedback...</div>
+      ) : feedback.length === 0 ? (
+        <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: DIM }}>No feedback submitted yet</div>
         </div>
-        <a href="/community" style={{ display: 'inline-block', background: G, color: '#0D0B14', borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
-          Go to Weekly Intel →
-        </a>
-      </div>
-
-      {/* Stream Chat */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 20 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 12 }}>💬 War Room Chat & Prayer Wall</div>
-        <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.7, marginBottom: 16 }}>
-          As a minister, you can delete any post directly in the War Room Chat and Prayer Wall.
-          Posts have a Delete button visible only to your account.
-          Stream Chat also provides a moderation dashboard at their platform.
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {feedback.map(fb => (
+            <div key={fb.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${fb.type === 'bug' ? '#f87171' : G}`, borderRadius: 10, padding: '14px 18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13 }}>{fb.type === 'bug' ? '🐛' : '✦'}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 12, color: fb.type === 'bug' ? '#f87171' : G }}>{fb.title}</span>
+                  <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${FB_STATUS_COLORS[fb.status] || DIM}20`, color: FB_STATUS_COLORS[fb.status] || DIM, border: `1px solid ${FB_STATUS_COLORS[fb.status] || DIM}40` }}>{fb.status}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: DIM }}>{fb.submitted_by_name} · {fb.submitted_by_tier} · {fb.priority}</span>
+                  <button onClick={() => { setEditingFb(fb.id); setEditStatus(fb.status); setEditNotes(fb.admin_notes || '') }} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Edit</button>
+                  <button onClick={() => deleteFeedback(fb.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Delete</button>
+                </div>
+              </div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.5, marginBottom: fb.admin_notes ? 8 : 0 }}>{fb.description}</div>
+              {fb.admin_notes && <div style={{ fontSize: 12, color: DIM, fontStyle: 'italic', fontFamily: crimson }}>Admin: {fb.admin_notes}</div>}
+              {editingFb === fb.id && (
+                <div style={{ marginTop: 12, padding: '12px 14px', background: SURF2, borderRadius: 8, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>STATUS</label>
+                    <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 12, padding: '3px 8px' }}>
+                      {['open', 'in-progress', 'resolved', 'closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} placeholder="Admin notes..." style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 13, padding: '6px 8px', resize: 'vertical' as const, outline: 'none' }} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => updateFeedback(fb.id)} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>Save</button>
+                    <button onClick={() => setEditingFb(null)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
-          <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
-            Go to Community →
-          </a>
-          <a href={`https://dashboard.getstream.io/app/${STREAM_APP_ID}/moderation`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
-            Stream Dashboard →
-          </a>
-        </div>
-      </div>
-
-      {/* Assessment responses */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 12 }}>📋 Assessment Responses</div>
-        <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.7, marginBottom: 14 }}>
-          Assessment submissions are stored in Airtable and managed from the Assessment Board.
-        </div>
-        <a href="/assessment-board" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
-          Assessment Board →
-        </a>
-      </div>
+      )}
     </div>
   )
 }

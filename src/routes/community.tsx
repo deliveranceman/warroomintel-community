@@ -1624,6 +1624,12 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
         </div>
       </div>
 
+      {/* Two-column layout */}
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
+
+      {/* LEFT COLUMN — main content */}
+      <div style={{ flex: 2, minWidth: 0 }}>
+
       {/* ── BRIEFINGS ─────────────────────────────────────────── */}
       <div style={{ marginBottom: 36 }}>
         {sectionHead('Intel Briefing', 'Latest operational updates from leadership')}
@@ -1770,83 +1776,70 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
         )}
       </div>
 
-      {/* ── EXTERNAL INTEL ────────────────────────────────────── */}
-      {links.length > 0 && (
-        <div style={{ marginBottom: 36 }}>
-          {sectionHead('External Intel', 'Curated resources from across the ministry landscape')}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-            {links.map(link => (
-              <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 18px', transition: 'border-color 0.2s', cursor: 'pointer' }}
+      </div>{/* end left column */}
+
+      {/* RIGHT COLUMN — compact sidebar intel */}
+      <div style={{ flex: 1, minWidth: isMobile ? '100%' : 260, maxWidth: isMobile ? '100%' : 320 }}>
+
+        {links.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>External Intel</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {links.slice(0, 3).map(link => (
+                <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block', background: surf, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 12px', transition: 'border-color 0.15s' }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = GG)}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = bdr)}>
-                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG, marginBottom: 4 }}>{link.title}</div>
-                  {link.note && <div style={{ fontSize: 13, color: txt, lineHeight: 1.5, fontFamily: "'Crimson Pro', serif", marginBottom: 6 }}>{link.note}</div>}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {link.source && <div style={{ fontSize: 11, color: dm }}>{link.source}</div>}
-                    <div style={{ fontSize: 11, color: GG, marginLeft: 'auto' }}>Read →</div>
-                  </div>
-                </div>
-              </a>
-            ))}
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, marginBottom: 2 }}>{link.title}</div>
+                  {link.source && <div style={{ fontSize: 10, color: mut }}>{link.source} →</div>}
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── LATEST ARSENAL DROPS ──────────────────────────────── */}
-      {resources.length > 0 && (
-        <div style={{ marginBottom: 36 }}>
-          {sectionHead('Latest Arsenal Drops', 'Recently added ministry resources')}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-            {resources.map(resource => {
-              const hasAccess  = tierNum(userTier) >= tierNum(resource.tier)
-              const upgradeLink = STRIPE_LINKS[resource.tier]
-              return (
-                <div key={resource.id} style={{ background: surf, border: `1px solid ${hasAccess ? bdr : `${GG}40`}`, borderRadius: 8, padding: '16px 18px', opacity: hasAccess ? 1 : 0.85 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: hasAccess ? GG : mut }}>{resource.title}</div>
-                    <span style={{ fontSize: 9, fontFamily: "'Cinzel', serif", padding: '2px 8px', borderRadius: 999, background: `${GG}15`, color: GG, border: `1px solid ${GG}40`, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const, marginLeft: 8 }}>{resource.tier}</span>
-                  </div>
-                  {resource.description && <div style={{ fontSize: 12, color: mut, marginBottom: 10, lineHeight: 1.5 }}>{resource.description}</div>}
-                  {hasAccess ? (
-                    <div style={{ fontSize: 11, color: '#86efac' }}>✓ Available in your Arsenal</div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14 }}>🔒</span>
-                      <span style={{ fontSize: 11, color: mut, flex: 1 }}>Requires {resource.tier}</span>
-                      {upgradeLink && <a href={upgradeLink} style={{ background: GG, color: '#0D0B14', padding: '5px 12px', borderRadius: 4, fontSize: 10, fontFamily: "'Cinzel', serif", fontWeight: 700, textDecoration: 'none' }}>Upgrade</a>}
+        {resources.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>Latest Arsenal Drops</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {resources.slice(0, 3).map(resource => {
+                const hasAccess = tierNum(userTier) >= tierNum(resource.tier)
+                return (
+                  <div key={resource.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, opacity: hasAccess ? 1 : 0.75 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: hasAccess ? GG : mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{resource.title}</div>
+                      <div style={{ fontSize: 9, color: mut, marginTop: 2 }}>{resource.tier} · {resource.category}</div>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── NEW TO THE INTEL ARCHIVE ──────────────────────────── */}
-      {demons.length > 0 && (
-        <div style={{ marginBottom: 36 }}>
-          {sectionHead('New to the Intel Archive', 'Recently added spiritual intelligence entries')}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {demons.map((demon: any) => {
-              const cat    = demon.hierarchyCategory || ''
-              const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
-              return (
-                <div key={demon.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${colors.border}`, borderRadius: 8, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG, marginBottom: 4 }}>{demon.name}</div>
-                    {demon.description && <div style={{ fontSize: 12, color: mut, lineHeight: 1.4 }}>{demon.description.slice(0, 100)}{demon.description.length > 100 ? '...' : ''}</div>}
+                    <span style={{ fontSize: 12 }}>{hasAccess ? '✓' : '🔒'}</span>
                   </div>
-                  {cat && (
-                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 999, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, fontFamily: "'Cinzel', serif", letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>{cat}</span>
-                  )}
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {demons.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>New to Intel Archive</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {demons.slice(0, 4).map((demon: any) => {
+                const cat = demon.hierarchyCategory || ''
+                const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
+                return (
+                  <div key={demon.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${colors.border}`, borderRadius: 6, padding: '8px 10px' }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, marginBottom: 2 }}>{demon.name}</div>
+                    <div style={{ fontSize: 10, color: mut }}>
+                      {demon.description ? demon.description.slice(0, 60) + (demon.description.length > 60 ? '...' : '') : cat}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>{/* end right column */}
+
+      </div>{/* end two-column wrapper */}
     </div>
   )
 }
@@ -1922,8 +1915,9 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
 
   const filtered = entries.filter(e => {
     const matchesSearch = !query || [
-      e.name, e.aka, e.manifestation, e.symptoms,
-      e.entryPoints, e.description, e.personalityPresentation, e.hierarchyCategory,
+      e.name, e.aka, e.description, e.manifestation, e.symptoms,
+      e.entryPoints, e.legalRights, e.wriNotes, e.personalityPresentation,
+      e.hierarchyCategory, e.deliveranceSequence, e.counterScriptures, e.operationalNotes,
     ].some(s => s && String(s).toLowerCase().includes(query.toLowerCase()))
     const matchesCat = !categoryFilter || e.hierarchyCategory === categoryFilter
     return matchesSearch && matchesCat
@@ -2590,7 +2584,7 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#0D0B14' }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#12101e' }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
         {isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -2646,6 +2640,15 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
 
         {invResult && !invLoading && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* AI Disclaimer */}
+            <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠</span>
+              <div style={{ fontSize: 12, color: '#8B7355', lineHeight: 1.6, fontFamily: crimson }}>
+                <strong style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>AI-GENERATED ANALYSIS</strong>
+                {' '}— This report is generated using our spirit database and AI. Results are a starting point for discernment, not a definitive diagnosis. Always follow the Holy Spirit's leading. Deliverance ministry requires trained ministers, prayer, and pastoral oversight.
+              </div>
+            </div>
+
             <section style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '20px 24px' }}>
               <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>Intelligence Summary</div>
               <p style={{ color: '#E8D5B0', fontSize: 16, lineHeight: 1.7, margin: 0, fontFamily: crimson }}>{invResult.summary}</p>
@@ -2727,6 +2730,9 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
             <p style={{ fontSize: 12, color: '#3a3228', textAlign: 'center' as const, lineHeight: 1.6, marginTop: 8, fontFamily: crimson }}>
               This analysis is an intelligence aid for trained ministers. Always lead with prayer, discernment, and the Holy Spirit. This tool does not replace ministerial judgment.
             </p>
+            <div style={{ fontSize: 11, color: '#5a4f3a', textAlign: 'center' as const, fontStyle: 'italic', fontFamily: crimson }}>
+              📋 Feature coming: Export this report as a PDF — submit a field report to track this session
+            </div>
           </div>
         )}
       </div>
@@ -3645,9 +3651,8 @@ function CommunityPage() {
             { icon: '💬', label: 'War Room Chat', section: 'war-room-chat' },
             { icon: '🙏', label: 'Prayer Wall',   section: 'prayer-wall'   },
             { icon: '👥', label: 'Members',        section: 'members'       },
-            { icon: '📋', label: 'Assessment',     section: 'assessment'    },
             { icon: '?',  label: 'Feedback',       section: 'feedback'      },
-          ].map(({ icon, label, section }) => (
+          ].map(({ icon, label, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const }}>
               <button
                 onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
@@ -3661,7 +3666,7 @@ function CommunityPage() {
                 )}
               </button>
               {tooltipVisible === section && (
-                <div style={{ position: 'absolute' as const, top: 42, left: '50%', transform: 'translateX(-50%)', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 100, pointerEvents: 'none' as const }}>{label}</div>
+                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 3 ? 'auto' : '50%', right: idx === 3 ? 0 : 'auto', transform: idx > 0 && idx < 3 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 1000, pointerEvents: 'none' as const }}>{label}</div>
               )}
             </div>
           ))}
@@ -3672,15 +3677,6 @@ function CommunityPage() {
         {navItem('Weekly Intel', 'intel', '📡')}
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
         {navItem('War Room Chat', 'war-room-chat', '✕')}
-        <button
-          onClick={() => { setActiveSection('dms'); setUnreadDMs(0); if (isMobile) setSidebarOpen(false) }}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'dms' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderLeft: activeSection === 'dms' ? `2px solid ${G}` : '2px solid transparent', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'dms' ? G : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
-        >
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>✉</span>
-          <span style={{ flex: 1 }}>Direct Messages</span>
-          {unreadDMs > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 999, padding: '1px 7px', fontSize: 9, fontFamily: cinzel, fontWeight: 700 }}>{unreadDMs}</span>}
-        </button>
-        {navItem('Members', 'members', '👥')}
 
         {/* ── INTELLIGENCE ── */}
         {sectionLabel('Intelligence')}

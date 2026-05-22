@@ -55,6 +55,28 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ feedback: data }), { status: 201, headers })
   }
 
+  if (req.method === 'PATCH') {
+    const url = new URL(req.url)
+    const id = url.searchParams.get('id')
+    if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
+    const role = auth.userData?.public_metadata?.role
+    if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+    const { status, admin_notes } = await req.json()
+    const { data, error } = await supabase.from('feedback').update({ status, admin_notes }).eq('id', id).select().single()
+    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
+    return new Response(JSON.stringify({ feedback: data }), { status: 200, headers })
+  }
+
+  if (req.method === 'DELETE') {
+    const url = new URL(req.url)
+    const id = url.searchParams.get('id')
+    if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
+    const role = auth.userData?.public_metadata?.role
+    if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+    await supabase.from('feedback').delete().eq('id', id)
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers })
+  }
+
   return new Response('Method not allowed', { status: 405 })
 }
 

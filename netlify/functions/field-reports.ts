@@ -3,19 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 const supabase    = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
 
-async function verifyUser(token: string) {
-  const res = await fetch('https://api.clerk.com/v1/sessions/verify', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${CLERK_SECRET}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ token }),
-  })
-  if (!res.ok) return null
-  const session = await res.json()
-  const userRes = await fetch(`https://api.clerk.com/v1/users/${session.user_id}`, {
-    headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-  })
-  const user = await userRes.json()
-  return { session, user, meta: user?.public_metadata }
+async function resolveUser(token: string) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    const userId = payload.sub
+    if (!userId) return null
+    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!userRes.ok) return null
+    const userData = await userRes.json()
+    return { userId, userData, meta: userData?.public_metadata }
+  } catch { return null }
 }
 
 const tierLevel = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
@@ -25,10 +26,10 @@ export default async function handler(req: Request) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
 
-  const auth = await verifyUser(token)
+  const auth = await resolveUser(token)
   if (!auth) return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401, headers })
 
-  const { user, meta } = auth
+  const { userId, userData, meta } = auth
   const isMinister = meta?.role === 'minister'
 
   if (req.method === 'GET') {
@@ -48,8 +49,8 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: 'spirit_names and manifestations required' }), { status: 400, headers })
     }
     const { data, error } = await supabase.from('field_reports').insert({
-      submitted_by_id:   user.id,
-      submitted_by_name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Anonymous',
+      submitted_by_id:   userId,
+      submitted_by_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Anonymous',
       location_city: location_city || null,
       location_state: location_state || null,
       spirit_names, manifestations,
