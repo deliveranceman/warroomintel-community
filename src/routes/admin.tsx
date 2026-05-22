@@ -45,7 +45,7 @@ async function authFetch(url: string, getToken: () => Promise<string | null>, op
 }
 
 // ─── ARSENAL MANAGER ─────────────────────────────────────────────────────────
-function ArsenalManager({ getToken }: { getToken: () => Promise<string | null> }) {
+function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
   const [file, setFile]             = useState<File | null>(null)
   const [title, setTitle]           = useState('')
   const [description, setDesc]      = useState('')
@@ -74,11 +74,22 @@ function ArsenalManager({ getToken }: { getToken: () => Promise<string | null> }
   async function fetchResources() {
     setResLoading(true)
     try {
-      const res = await authFetch('/api/admin-resources', getToken)
+      const token = await getToken({ template: undefined })
+      const res = await fetch('/api/admin-resources', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const body = await res.text()
+        console.error('admin-resources failed:', res.status, body)
+        setResources([])
+        return
+      }
       const data = await res.json()
       setResources(data.resources || [])
-    } catch { setResources([]) }
-    finally { setResLoading(false) }
+    } catch (e) {
+      console.error('fetchResources error:', e)
+      setResources([])
+    } finally { setResLoading(false) }
   }
 
   useEffect(() => { fetchResources() }, [])

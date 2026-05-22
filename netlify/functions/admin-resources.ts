@@ -6,30 +6,34 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
 const BUCKET       = process.env.SUPABASE_BUCKET || 'resources'
 
 async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
-  const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${CLERK_SECRET}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ token }),
-  })
-  console.log('Session verify status:', verifyRes.status)
-  if (!verifyRes.ok) return null
-  const session = await verifyRes.json()
-  const userId = session.user_id
-  console.log('Session userId:', userId)
-  if (!userId) {
-    console.error('No userId from session verify — session object:', JSON.stringify(session))
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+      console.error('Token is not a JWT — parts:', parts.length)
+      return null
+    }
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    console.log('JWT payload sub:', payload.sub)
+    console.log('JWT payload azp:', payload.azp)
+
+    const userId = payload.sub
+    if (!userId) {
+      console.error('No sub in JWT payload')
+      return null
+    }
+
+    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
+    })
+    console.log('User fetch status:', userRes.status)
+    if (!userRes.ok) return null
+    const userData = await userRes.json()
+    console.log('publicMetadata:', JSON.stringify(userData?.public_metadata))
+    return { userId, userData }
+  } catch (e) {
+    console.error('resolveUser error:', e)
     return null
   }
-
-  const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-  })
-  console.log('User fetch status:', userRes.status)
-  if (!userRes.ok) return null
-  const userData = await userRes.json()
-  console.log('User publicMetadata:', JSON.stringify(userData?.public_metadata))
-  console.log('Role found:', userData?.public_metadata?.role)
-  return { userId, userData }
 }
 
 export default async function handler(req: Request) {

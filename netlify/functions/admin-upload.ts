@@ -26,6 +26,37 @@ const ALLOWED_TYPES: Record<string, { maxBytes: number }> = {
 //   created_at timestamptz DEFAULT now()
 // );
 
+async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+      console.error('Token is not a JWT — parts:', parts.length)
+      return null
+    }
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    console.log('JWT payload sub:', payload.sub)
+    console.log('JWT payload azp:', payload.azp)
+
+    const userId = payload.sub
+    if (!userId) {
+      console.error('No sub in JWT payload')
+      return null
+    }
+
+    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
+    })
+    console.log('User fetch status:', userRes.status)
+    if (!userRes.ok) return null
+    const userData = await userRes.json()
+    console.log('publicMetadata:', JSON.stringify(userData?.public_metadata))
+    return { userId, userData }
+  } catch (e) {
+    console.error('resolveUser error:', e)
+    return null
+  }
+}
+
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
@@ -37,32 +68,13 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'No auth token provided' }), { status: 401, headers })
   }
 
-  const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${CLERK_SECRET}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ token: sessionToken }),
-  })
-  const session = await verifyRes.json()
-  console.log('Session verify status:', verifyRes.status)
-  console.log('Session user_id:', session?.user_id)
-
-  if (!verifyRes.ok || !session?.user_id) {
-    return new Response(JSON.stringify({ error: 'Invalid session', detail: session }), { status: 401, headers })
-  }
-
-  const userId = session.user_id
-  const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-  })
-  const userData = await userRes.json()
-  console.log('User fetch status:', userRes.status)
-  console.log('publicMetadata:', JSON.stringify(userData?.public_metadata))
-
-  const role = userData?.public_metadata?.role
+  const auth = await resolveUser(sessionToken)
+  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized — invalid session' }), { status: 401, headers })
+  const role = auth.userData?.public_metadata?.role
   if (role !== 'minister') {
     return new Response(JSON.stringify({
       error: 'Forbidden — minister role required',
-      debug: { userId, role, publicMetadata: userData?.public_metadata },
+      debug: { userId: auth.userId, role, publicMetadata: auth.userData?.public_metadata },
     }), { status: 403, headers })
   }
 
