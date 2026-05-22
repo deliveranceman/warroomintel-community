@@ -16,47 +16,7 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
-export default async function handler(req: Request) {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
-  }
-
-  // Require a valid Clerk session token
-  const authHeader = req.headers.get('Authorization')
-  const sessionToken = authHeader?.replace('Bearer ', '').trim()
-  if (!sessionToken) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
-  const clerkSecret = process.env.CLERK_SECRET_KEY
-  if (clerkSecret && sessionToken) {
-    try {
-      const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${clerkSecret}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ token: sessionToken }),
-      })
-      if (!verifyRes.ok) {
-        console.warn('Token verification failed — status:', verifyRes.status)
-      }
-    } catch (e) {
-      console.warn('Token verification error:', e)
-    }
-  }
-  // Continue regardless — rate limiting still applies
-
-  // Rate limit by IP
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
-  if (!checkRateLimit(ip)) {
-    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in a minute.' }), { status: 429 })
-  }
-
-  const { symptoms } = await req.json()
-  if (!symptoms || typeof symptoms !== 'string' || symptoms.trim().length < 5) {
-    return new Response(JSON.stringify({ error: 'Symptoms required' }), { status: 400 })
-  }
-
-  const systemPrompt = `You are a spiritual warfare intelligence analyst for War Room Intel, a platform serving trained deliverance ministers. Your role is to analyze observed symptoms, manifestations, and patterns and return structured intelligence that helps ministers identify probable demonic entities and build a deliverance strategy.
+const systemPrompt = `You are a spiritual warfare intelligence analyst for War Room Intel, a platform serving trained deliverance ministers. Your role is to analyze observed symptoms, manifestations, and patterns and return structured intelligence that helps ministers identify probable demonic entities and build a deliverance strategy.
 
 You have deep knowledge of:
 - Spirit hierarchy and families (Fear, Rejection, Marine Kingdom, Occult/Witchcraft, Freemasonry, Perversion, Death/Destruction, Religious/Legalism, General Oppression)
@@ -98,23 +58,77 @@ Rules:
 - Stay grounded in biblical deliverance theology
 - Do not speculate beyond what the symptoms indicate`
 
-  const userMessage = `Observed symptoms and manifestations:\n\n${symptoms.trim()}`
+export default async function handler(req: Request) {
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 })
+  }
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1500,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userMessage }],
-  })
+  const jsonHeaders = { 'Content-Type': 'application/json' }
 
-  const text = message.content[0].type === 'text' ? message.content[0].text : ''
-  const clean = text.replace(/```json|```/g, '').trim()
-  const parsed = JSON.parse(clean)
+  try {
+    // FIX 1 — JWT decode approach; frontend tokens are JWTs not session tokens
+    const authHeader = req.headers.get('Authorization')
+    const sessionToken = authHeader?.replace('Bearer ', '').trim()
 
-  return new Response(JSON.stringify(parsed), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+    let userId = 'anonymous'
+    if (sessionToken) {
+      try {
+        const parts = sessionToken.split('.')
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+          userId = payload.sub || 'anonymous'
+        }
+      } catch (e) {
+        console.warn('JWT decode failed:', e)
+      }
+    }
+    console.log('Investigate request userId:', userId)
+    // Don't block unauthenticated — rate limiting handles abuse
+
+    // Rate limit by IP
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+    if (!checkRateLimit(ip)) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in a minute.' }), { status: 429, headers: jsonHeaders })
+    }
+
+    const { symptoms } = await req.json()
+    if (!symptoms || typeof symptoms !== 'string' || symptoms.trim().length < 5) {
+      return new Response(JSON.stringify({ error: 'Symptoms required (minimum 5 characters)' }), { status: 400, headers: jsonHeaders })
+    }
+
+    const userMessage = `Observed symptoms and manifestations:\n\n${symptoms.trim()}`
+
+    // FIX 2 — Timeout protection around the Anthropic API call
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Analysis timeout')), 25000)
+    )
+
+    const message = await Promise.race([
+      client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      }),
+      timeoutPromise,
+    ]) as Awaited<ReturnType<typeof client.messages.create>>
+
+    const text = message.content[0].type === 'text' ? message.content[0].text : ''
+    const clean = text.replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(clean)
+
+    return new Response(JSON.stringify(parsed), { status: 200, headers: jsonHeaders })
+
+  } catch (e: any) {
+    // FIX 3 — Return useful error messages instead of 502
+    console.error('Investigate error:', e.message)
+    return new Response(JSON.stringify({
+      error: e.message === 'Analysis timeout'
+        ? 'Analysis timed out — try a shorter description'
+        : 'Investigation failed',
+      detail: e.message,
+    }), { status: 500, headers: jsonHeaders })
+  }
 }
 
 export const config = { path: '/api/investigate' }
