@@ -1486,8 +1486,8 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
     return G
   }
 
-  const tierLevel = (t: string) => ({'free':0,'watchman':0,'soldier':1,'commander':2,'general':3}[t?.toLowerCase()] ?? 0)
-  const userTierLevel = tierLevel(userTier)
+  const tierLevel = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+  const atLeast = (required: string) => tierLevel(userTier) >= tierLevel(required)
   const TierLock = ({ tierName }: { tierName: string }) => (
     <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
       🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a>
@@ -1671,7 +1671,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
               {companionList.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>COMPANIONS</div>
-                  {userTierLevel >= 2 ? (
+                  {atLeast('Commander') ? (
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {companionList.slice(0, 3).map((c: string, ci: number) => (
                         <span key={ci}
@@ -1768,17 +1768,17 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
 
               {/* Tier-gated fields */}
               {[
-                { label: 'ENTRY POINTS',       value: entryPoints,    tier: 2, tierName: 'Commander' },
-                { label: 'LEGAL RIGHTS',        value: legalRights,    tier: 2, tierName: 'Commander' },
-                { label: 'MANIFESTATIONS',      value: manifestations, tier: 1, tierName: 'Soldier'   },
-                { label: 'SYMPTOMS',            value: symptoms,       tier: 3, tierName: 'General'   },
-                { label: 'DELIVERANCE PROTOCOL',value: protocol,       tier: 3, tierName: 'General'   },
-                { label: 'WRI EXORCIST NOTES',  value: wriNotes,       tier: 3, tierName: 'General'   },
-              ].map(({ label, value, tier, tierName }) => (
-                (value || userTierLevel >= 3) && (
+                { label: 'ENTRY POINTS',        value: entryPoints,    tierName: 'Commander' },
+                { label: 'LEGAL RIGHTS',         value: legalRights,    tierName: 'Commander' },
+                { label: 'MANIFESTATIONS',       value: manifestations, tierName: 'Soldier'   },
+                { label: 'SYMPTOMS',             value: symptoms,       tierName: 'General'   },
+                { label: 'DELIVERANCE PROTOCOL', value: protocol,       tierName: 'General'   },
+                { label: 'WRI EXORCIST NOTES',   value: wriNotes,       tierName: 'General'   },
+              ].map(({ label, value, tierName }) => (
+                (value || atLeast('General')) && (
                   <div key={label} style={{ marginBottom: 14 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6 }}>{label}</div>
-                    {userTierLevel >= tier
+                    {atLeast(tierName)
                       ? <div style={{ fontFamily: crimson, fontSize: 14, color: value ? dbText : dbDim, lineHeight: 1.65, fontStyle: value ? 'normal' : 'italic' }}>{value || 'No data on file'}</div>
                       : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
                     }
@@ -1787,10 +1787,10 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
               ))}
 
               {/* Key Scriptures */}
-              {(scriptures || userTierLevel >= 3) && (
+              {(scriptures || atLeast('General')) && (
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + 'BB', marginBottom: 6 }}>KEY SCRIPTURES</div>
-                  {userTierLevel >= 2
+                  {atLeast('Commander')
                     ? <div style={{ fontFamily: crimson, fontSize: 14, color: scriptures ? G : dbDim, lineHeight: 1.65, fontStyle: 'italic' }}>{scriptures || 'No data on file'}</div>
                     : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 Commander tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
                   }
@@ -1801,7 +1801,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
               {companionList.length > 0 && (
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${dbBorder}` }}>
                   <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8 }}>COMPANION SPIRITS</div>
-                  {userTierLevel >= 2
+                  {atLeast('Commander')
                     ? <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {companionList.map((c: string, ci: number) => (
                           <span key={ci}
