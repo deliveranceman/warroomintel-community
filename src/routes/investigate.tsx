@@ -57,16 +57,21 @@ function InvestigatePage() {
     setResult(null)
     try {
       const token = await getToken()
+      console.log('token:', token ? 'present' : 'null')
       const res = await fetch('/api/investigate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ symptoms: input }),
       })
-      if (!res.ok) throw new Error('Investigation failed')
+      if (!res.ok) {
+        const errBody = await res.text()
+        console.error('Investigate failed:', res.status, errBody)
+        throw new Error(`Investigation failed: ${res.status}`)
+      }
       const data = await res.json()
       setResult(data)
-    } catch {
-      setError('Investigation failed. Check connection.')
+    } catch (err: any) {
+      setError(err?.message || 'Investigation failed. Check connection.')
     } finally {
       setLoading(false)
     }
