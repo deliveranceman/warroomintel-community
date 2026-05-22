@@ -3184,15 +3184,18 @@ function CommunityPage() {
           Settings
         </button>
         {(user?.publicMetadata?.role as string) === 'minister' && (
-          <a
-            href="/admin"
-            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', borderLeft: '2px solid transparent', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: G, opacity: 0.8, transition: 'opacity 0.15s', boxSizing: 'border-box' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.8' }}
-          >
-            <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>🛡</span>
-            Admin Panel
-          </a>
+          <>
+            <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '12px 16px 8px' }} />
+            <a
+              href="/admin"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: G, transition: 'background 0.15s', boxSizing: 'border-box' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.12)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.06)' }}
+            >
+              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>🛡</span>
+              Admin Panel
+            </a>
+          </>
         )}
       </div>
     </>
