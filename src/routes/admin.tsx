@@ -518,8 +518,9 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   const [postBody, setPostBody]     = useState('')
   const [postScripture, setPostSc]  = useState('')
   const [postType, setPostType]     = useState('briefing')
-  const [postSaving, setPostSaving] = useState(false)
-  const [postMsg, setPostMsg]       = useState('')
+  const [postSaving, setPostSaving]     = useState(false)
+  const [postMsg, setPostMsg]           = useState('')
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
 
   // Links
   const [links, setLinks]           = useState<any[]>([])
@@ -660,19 +661,30 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
     setPostSaving(true); setPostMsg('')
     try {
       const token = await getToken()
-      const res = await fetch('/api/intel-posts', {
-        method: 'POST',
+      const url    = editingPostId ? `/api/intel-posts?id=${editingPostId}` : '/api/intel-posts'
+      const method = editingPostId ? 'PATCH' : 'POST'
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ title: postTitle.trim(), body: postBody.trim(), scripture: postScripture.trim() || undefined, post_type: postType }),
       })
       if (res.ok) {
-        setPostMsg('✓ Briefing published')
-        setPostTitle(''); setPostBody(''); setPostSc(''); setPostType('briefing')
+        setPostMsg(editingPostId ? '✓ Briefing updated' : '✓ Briefing published')
+        setPostTitle(''); setPostBody(''); setPostSc(''); setPostType('briefing'); setEditingPostId(null)
         await fetchPosts()
       } else {
         const d = await res.json(); setPostMsg(`⚠ ${d.error}`)
       }
     } finally { setPostSaving(false) }
+  }
+
+  function startEditPost(p: any) {
+    setPostTitle(p.title)
+    setPostBody(p.body)
+    setPostSc(p.scripture || '')
+    setPostType(p.post_type || 'briefing')
+    setEditingPostId(p.id)
+    setPostMsg('')
   }
 
   async function deletePost(id: string) {
@@ -886,7 +898,17 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
 
       {/* Post Briefing form */}
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>📡 Post Briefing</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>
+            {editingPostId ? '✏ Edit Briefing' : '📡 Post Briefing'}
+          </div>
+          {editingPostId && (
+            <button onClick={() => { setEditingPostId(null); setPostTitle(''); setPostBody(''); setPostSc(''); setPostType('briefing'); setPostMsg('') }}
+              style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>
+              ✕ Cancel Edit
+            </button>
+          )}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 14 }}>
           <div>
             <label style={lbl}>Title *</label>
@@ -902,6 +924,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
         <div style={{ marginBottom: 14 }}>
           <label style={lbl}>Body *</label>
           <textarea value={postBody} onChange={e => setPostBody(e.target.value)} rows={6} placeholder="Write your briefing..." style={{ ...inp, resize: 'vertical' as const }} />
+          <div style={{ textAlign: 'right' as const, fontSize: 10, color: DIM, marginTop: 3 }}>{postBody.length} chars</div>
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={lbl}>Scripture (optional)</label>
@@ -910,7 +933,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
         {postMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: postMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{postMsg}</div>}
         <button onClick={savePost} disabled={postSaving || !postTitle.trim() || !postBody.trim()}
           style={{ background: (!postTitle.trim() || !postBody.trim() || postSaving) ? 'rgba(201,168,76,0.2)' : G, color: (!postTitle.trim() || !postBody.trim() || postSaving) ? DIM : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
-          {postSaving ? 'Publishing...' : 'Publish Briefing'}
+          {postSaving ? (editingPostId ? 'Saving...' : 'Publishing...') : (editingPostId ? 'Save Changes' : 'Publish Briefing')}
         </button>
       </div>
 
@@ -923,7 +946,10 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
                 <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{p.title}</div>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, marginTop: 3 }}>{p.post_type} · {fmtDate(p.created_at)}</div>
               </div>
-              <button onClick={() => deletePost(p.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button onClick={() => startEditPost(p)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>Edit</button>
+                <button onClick={() => deletePost(p.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>Delete</button>
+              </div>
             </div>
           ))}
         </div>

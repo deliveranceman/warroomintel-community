@@ -6,19 +6,20 @@ const supabase = createClient(
 )
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
 
-async function verifyMinister(token: string) {
-  const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${CLERK_SECRET}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ token }),
-  })
-  if (!verifyRes.ok) return null
-  const session = await verifyRes.json()
-  const userRes = await fetch(`https://api.clerk.com/v1/users/${session.user_id}`, {
-    headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-  })
-  const user = await userRes.json()
-  return user?.public_metadata?.role === 'minister' ? session : null
+async function resolveUser(token: string) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    const userId = payload.sub
+    if (!userId) return null
+    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
+    })
+    if (!userRes.ok) return null
+    const userData = await userRes.json()
+    return { userId, userData }
+  } catch { return null }
 }
 
 export default async function handler(req: Request) {
@@ -37,8 +38,10 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const session = await verifyMinister(token)
-  if (!session) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+  const auth = await resolveUser(token)
+  if (!auth || auth.userData?.public_metadata?.role !== 'minister') {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+  }
 
   if (req.method === 'POST') {
     const { title, url, note, source, tier_required } = await req.json()

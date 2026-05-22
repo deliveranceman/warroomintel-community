@@ -6,19 +6,20 @@ const supabase = createClient(
 )
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
 
-async function verifyMinister(token: string) {
-  const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${CLERK_SECRET}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ token }),
-  })
-  if (!verifyRes.ok) return null
-  const session = await verifyRes.json()
-  const userRes = await fetch(`https://api.clerk.com/v1/users/${session.user_id}`, {
-    headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-  })
-  const userData = await userRes.json()
-  return userData?.public_metadata?.role === 'minister' ? session : null
+async function resolveUser(token: string) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    const userId = payload.sub
+    if (!userId) return null
+    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
+    })
+    if (!userRes.ok) return null
+    const userData = await userRes.json()
+    return { userId, userData }
+  } catch { return null }
 }
 
 export default async function handler(req: Request) {
@@ -37,8 +38,10 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors })
-  const session = await verifyMinister(token)
-  if (!session) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: cors })
+  const auth = await resolveUser(token)
+  if (!auth || auth.userData?.public_metadata?.role !== 'minister') {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: cors })
+  }
 
   if (req.method === 'POST') {
     const { title, body: postBody, scripture, post_type } = await req.json()
@@ -48,6 +51,20 @@ export default async function handler(req: Request) {
       .select().single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: cors })
     return new Response(JSON.stringify({ post: data }), { status: 201, headers: cors })
+  }
+
+  if (req.method === 'PATCH') {
+    const id = new URL(req.url).searchParams.get('id')
+    if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers: cors })
+    const body = await req.json()
+    const { data, error } = await supabase
+      .from('intel_posts')
+      .update({ title: body.title, body: body.body, scripture: body.scripture, post_type: body.post_type })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: cors })
+    return new Response(JSON.stringify({ post: data }), { status: 200, headers: cors })
   }
 
   if (req.method === 'DELETE') {

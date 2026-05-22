@@ -1640,9 +1640,19 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
                 <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: GG, fontWeight: 600, marginBottom: 4 }}>{post.title}</div>
                 <div style={{ fontSize: 11, color: dm }}>{post.author_name} · {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
               </div>
-              {post.post_type && (
-                <span style={{ fontSize: 9, fontFamily: "'Cinzel', serif", letterSpacing: '0.1em', padding: '3px 10px', borderRadius: 999, background: `${GG}15`, color: GG, border: `1px solid ${GG}40`, textTransform: 'uppercase' as const }}>{post.post_type}</span>
-              )}
+              {post.post_type && (() => {
+                const PT: Record<string, { label: string; color: string }> = {
+                  'briefing':       { label: '⚔ Briefing',     color: GG      },
+                  'watch-report':   { label: '👁 Watch Report', color: '#38bdf8' },
+                  'external-alert': { label: '⚡ Alert',        color: '#f87171' },
+                }
+                const pt = PT[post.post_type] || { label: post.post_type, color: GG }
+                return (
+                  <span style={{ fontSize: 9, fontFamily: "'Cinzel', serif", letterSpacing: '0.1em', padding: '3px 10px', borderRadius: 999, background: `${pt.color}15`, color: pt.color, border: `1px solid ${pt.color}40` }}>
+                    {pt.label}
+                  </span>
+                )
+              })()}
             </div>
             <div style={{ fontSize: 15, color: txt, lineHeight: 1.75, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap' as const }}>{post.body}</div>
             {post.scripture && (
