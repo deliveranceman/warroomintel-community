@@ -3671,10 +3671,10 @@ function CommunityPage() {
         {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
-        {navItem('War Room Chat', 'war-room-chat', '⚔')}
+        {navItem('War Room Chat', 'war-room-chat', '✕')}
         <button
-          onClick={() => { setActiveSection('messages'); setUnreadDMs(0); if (isMobile) setSidebarOpen(false) }}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'messages' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderLeft: activeSection === 'messages' ? `2px solid ${G}` : '2px solid transparent', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'messages' ? G : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
+          onClick={() => { setActiveSection('dms'); setUnreadDMs(0); if (isMobile) setSidebarOpen(false) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'dms' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderLeft: activeSection === 'dms' ? `2px solid ${G}` : '2px solid transparent', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'dms' ? G : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
         >
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>✉</span>
           <span style={{ flex: 1 }}>Direct Messages</span>
@@ -3685,16 +3685,17 @@ function CommunityPage() {
         {/* ── INTELLIGENCE ── */}
         {sectionLabel('Intelligence')}
         {navItem('Intel Archive', 'database', '📚')}
-        <div style={{ paddingLeft: 0 }}>
-          <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px 5px 32px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid transparent', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? G : '#6b5e45', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ fontSize: 11 }}>🔍</span><span>Symptom Investigator</span>
+        <div style={{ paddingLeft: 16 }}>
+          <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? G : '#6b5e45', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+            <span style={{ fontSize: 11 }}>🔍</span>
+            <span>Symptom Investigator</span>
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px 5px 32px', opacity: 0.4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px', opacity: 0.4 }}>
             <span style={{ fontSize: 11 }}>🗺</span>
             <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#6b5e45' }}>Body Map</span>
             <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px 5px 32px', opacity: 0.4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px', opacity: 0.4 }}>
             <span style={{ fontSize: 11 }}>🕸</span>
             <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#6b5e45' }}>Spirit Network</span>
             <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
@@ -3707,7 +3708,7 @@ function CommunityPage() {
           <span style={{ fontSize: 10, color: '#6b5e45', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
         </button>
         {fringeExpanded && (
-          <div style={{ borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 24, paddingLeft: 0 }}>
+          <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
             {navItem('The Feed', 'fringe-feed', '📡')}
             {[{ label: 'The Archive', icon: '🗂' }, { label: 'Fringe Chat', icon: '💬' }, { label: 'Courses', icon: '🎓' }].map(({ label, icon }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
@@ -3844,7 +3845,7 @@ function CommunityPage() {
             setSidebarOpen={setSidebarOpen}
           />
         )}
-        {activeSection === 'messages'    && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} onUnreadChange={setUnreadDMs} />}
+        {activeSection === 'dms'         && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} onUnreadChange={setUnreadDMs} />}
         {activeSection === 'members'     && (
           <MembersView
             members={members}
@@ -3854,7 +3855,7 @@ function CommunityPage() {
             onViewProfile={setViewingProfile}
             onStartDM={(memberId, memberName) => {
               setPendingDMWith(memberId)
-              setActiveSection('messages')
+              setActiveSection('dms')
             }}
             setActiveSection={setActiveSection}
             isDark={theme !== 'light'}
@@ -3881,7 +3882,7 @@ function CommunityPage() {
           onClose={() => setViewingProfile(null)}
           onStartDM={(memberId, _memberName) => {
             setViewingProfile(null)
-            setActiveSection('messages')
+            setActiveSection('dms')
             setPendingDMWith(memberId)
           }}
         />
@@ -3987,7 +3988,7 @@ function CommunityPage() {
                   recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 5).map((msg: any) => (
                     <div
                       key={msg.id}
-                      onClick={() => setActiveSection('messages')}
+                      onClick={() => setActiveSection('dms')}
                       style={{ padding: '8px 14px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', transition: 'background 0.15s' }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
@@ -4103,7 +4104,7 @@ function CommunityPage() {
                           style={{ width: '100%', padding: '5px 10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: V.mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, marginBottom: 6 }}
                         >👤 Profile</button>
                         <button
-                          onClick={() => { setPendingDMWith(member.id); setActiveSection('messages') }}
+                          onClick={() => { setPendingDMWith(member.id); setActiveSection('dms') }}
                           style={{ width: '100%', padding: '5px 10px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
                         >💬 Message</button>
                       </div>
