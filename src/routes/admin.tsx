@@ -686,8 +686,14 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
     await fetchLinks()
   }
 
-  const emptySeq = demons.filter(d => !d.deliveranceSequence || d.deliveranceSequence.trim() === '').length
-  const emptySc  = demons.filter(d => !d.counterScriptures  || d.counterScriptures.trim()  === '').length
+  const emptySeq = demons.filter(d => {
+    const val = d.deliveranceSequence
+    return !val || (typeof val === 'string' && val.trim() === '')
+  }).length
+  const emptySc = demons.filter(d => {
+    const val = d.counterScriptures
+    return !val || (typeof val === 'string' && val.trim() === '')
+  }).length
 
   const thS: React.CSSProperties = {
     fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM,
@@ -710,7 +716,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
           ['Missing Counter Scriptures', emptySc, emptySc > 0 ? '#f97316' : '#4ade80'],
         ] as [string, number, string][]).map(([label, val, color]) => (
           <div key={label} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{dLoading ? '—' : val}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{dLoading ? '...' : val}</div>
             <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const }}>{label}</div>
           </div>
         ))}
