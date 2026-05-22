@@ -1424,6 +1424,30 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 }
 
 // ── DATABASE VIEW ──────────────────────────────────────────
+const HIERARCHY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  'Fear / Rejection':    { bg: '#1a0f2e', text: '#c084fc', border: '#7c3aed' },
+  'Marine Kingdom':      { bg: '#0a1628', text: '#38bdf8', border: '#0284c7' },
+  'Occult / Witchcraft': { bg: '#1a0a0a', text: '#f87171', border: '#dc2626' },
+  'Freemasonry':         { bg: '#0d1117', text: '#d4a017', border: '#92400e' },
+  'Perversion':          { bg: '#1a0a1a', text: '#f472b6', border: '#9d174d' },
+  'Death / Destruction': { bg: '#0a0a0a', text: '#9ca3af', border: '#374151' },
+  'Religious':           { bg: '#0f1a0a', text: '#86efac', border: '#15803d' },
+  'General Oppression':  { bg: '#0f0f1a', text: '#a5b4fc', border: '#4338ca' },
+}
+
+const BATTLEFIELD_ICONS: Record<string, string> = {
+  'Identity and emotions':                 '🪞',
+  'Mind and will':                         '🧠',
+  'Mind, sexuality, spiritual oppression': '⚡',
+  'Control and spiritual authority':       '👑',
+  'Sexual purity and soul ties':           '🔗',
+}
+
+const HIERARCHY_CATEGORIES = [
+  'All', 'Fear / Rejection', 'Marine Kingdom', 'Occult / Witchcraft',
+  'Freemasonry', 'Perversion', 'Death / Destruction', 'Religious', 'General Oppression',
+]
+
 function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   theme: string
   isMobile: boolean
@@ -1435,6 +1459,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   const [entries, setEntries]     = useState<any[]>([])
   const [dbLoading, setDbLoading] = useState(true)
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/demons')
@@ -1479,7 +1504,8 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
     const matchesSearch  = !query ||
       [name, aliases, manifestations].some(s => s.toLowerCase().includes(query.toLowerCase()))
     const matchesFilter  = filter === 'All' || cls.toLowerCase().includes(filter.toLowerCase())
-    return matchesSearch && matchesFilter
+    const matchesCat     = !categoryFilter || e.hierarchyCategory === categoryFilter
+    return matchesSearch && matchesFilter && matchesCat
   })
 
   const dbIsDark = theme !== 'light'
@@ -1530,6 +1556,33 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
             </button>
           ))}
         </div>
+        {/* Hierarchy category filter pills */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+          {HIERARCHY_CATEGORIES.map(cat => {
+            const isAll = cat === 'All'
+            const active = isAll ? !categoryFilter : categoryFilter === cat
+            const colors = isAll
+              ? { bg: '#1a1625', text: '#C9A84C', border: '#C9A84C' }
+              : (HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression'])
+            return (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(isAll ? null : cat)}
+                style={{
+                  padding: '4px 12px', borderRadius: 999, fontSize: 11,
+                  cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em',
+                  border: `1px solid ${colors.border}`,
+                  backgroundColor: active ? colors.border : 'transparent',
+                  color: active ? '#0D0B14' : colors.text,
+                  transition: 'all 0.15s ease',
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                {cat}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Count bar */}
@@ -1570,16 +1623,18 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
           const legalRights    = entry.legalRights || ''
           const symptoms       = entry.symptoms || ''
           const color          = getColor(cls)
+          const hierCat        = entry.hierarchyCategory || ''
+          const hierColors     = HIERARCHY_COLORS[hierCat] || null
           const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
 
           return (
             <div key={id} onClick={() => setSelectedEntry(entry)} style={{
               background: dbSurf, border: `1px solid ${color}40`,
-              borderLeft: `3px solid ${color}`, borderRadius: 8,
+              borderLeft: `3px solid ${hierColors ? hierColors.border : color}`, borderRadius: 8,
               padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
             }}>
               {/* Name + classification badge */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                 <div style={{ fontFamily: cinzel, fontSize: 14, color, fontWeight: 600 }}>{name}</div>
                 {cls && (
                   <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', background: color + '20', color, padding: '2px 7px', borderRadius: 3, flexShrink: 0, marginLeft: 8 }}>
@@ -1587,6 +1642,16 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                   </div>
                 )}
               </div>
+              {/* Hierarchy category badge */}
+              {hierCat && hierColors && (
+                <span style={{
+                  fontSize: 9, padding: '2px 8px', borderRadius: 999, display: 'inline-block', marginBottom: 6,
+                  backgroundColor: hierColors.bg, color: hierColors.text, border: `1px solid ${hierColors.border}`,
+                  fontFamily: cinzel, letterSpacing: '0.05em',
+                }}>
+                  {hierCat}
+                </span>
+              )}
 
               {/* Aliases */}
               {aliases && (
@@ -1745,6 +1810,81 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                       </div>
                     : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 Commander tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
                   }
+                </div>
+              )}
+
+              {/* ── Operational Intelligence ── */}
+              {(entry.hierarchyCategory || entry.primaryBattlefield || entry.personalityPresentation || entry.deliveranceSequence || entry.counterScriptures || entry.operationalNotes || entry.parentStrongman) && (
+                <div style={{ marginTop: 24, borderTop: `1px solid rgba(201,168,76,0.2)`, paddingTop: 20 }}>
+                  <div style={{ color: '#C9A84C', fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 16 }}>
+                    ⚔ Operational Intelligence
+                  </div>
+
+                  {entry.hierarchyCategory && (() => {
+                    const cat = entry.hierarchyCategory
+                    const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
+                    return (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Kingdom Category</div>
+                        <span style={{ padding: '5px 14px', borderRadius: 999, fontSize: 12, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, letterSpacing: '0.05em', display: 'inline-block' }}>
+                          {cat}
+                        </span>
+                      </div>
+                    )
+                  })()}
+
+                  {entry.primaryBattlefield && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Primary Battlefield</div>
+                      <div style={{ color: '#E8D5B0', fontSize: 14 }}>
+                        {BATTLEFIELD_ICONS[entry.primaryBattlefield] || '⚔'} {entry.primaryBattlefield}
+                      </div>
+                    </div>
+                  )}
+
+                  {entry.personalityPresentation && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Typical Personality Presentation</div>
+                      <div style={{ color: '#E8D5B0', fontSize: 14 }}>{entry.personalityPresentation}</div>
+                    </div>
+                  )}
+
+                  {entry.deliveranceSequence && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Deliverance Sequence</div>
+                      <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
+                        {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
+                          <span key={i}>
+                            <span style={{ color: '#E8D5B0' }}>{step.trim()}</span>
+                            {i < arr.length - 1 && <span style={{ color: '#C9A84C', margin: '0 6px' }}>→</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {entry.counterScriptures && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Counter Scriptures</div>
+                      <div style={{ background: 'rgba(0,30,10,0.5)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#86efac', fontFamily: crimson }}>
+                        📖 {entry.counterScriptures}
+                      </div>
+                    </div>
+                  )}
+
+                  {entry.operationalNotes && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Operational Notes</div>
+                      <div style={{ color: '#B8A882', fontSize: 13, lineHeight: 1.6, fontStyle: 'italic' }}>{entry.operationalNotes}</div>
+                    </div>
+                  )}
+
+                  {entry.parentStrongman && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Parent Strongman</div>
+                      <div style={{ color: '#E8D5B0', fontSize: 14 }}>👑 {entry.parentStrongman}</div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

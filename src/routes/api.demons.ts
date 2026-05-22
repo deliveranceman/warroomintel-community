@@ -61,6 +61,14 @@ export const Route = createFileRoute('/api/demons')({
               symptoms: r.fields['Symptoms'] || '',
               companionSpirits: r.fields['Companion Spirits'] || '',
               wriNotes: r.fields['WRI Exorcist Notes'] || '',
+              // Operational intel (new fields)
+              hierarchyCategory: r.fields['Hierarchy Category'] || '',
+              parentStrongman: r.fields['Parent Strongman'] || '',
+              deliveranceSequence: r.fields['Deliverance Sequence'] || '',
+              operationalNotes: r.fields['Operational Notes'] || '',
+              primaryBattlefield: r.fields['Primary Battlefield'] || '',
+              personalityPresentation: r.fields['Typical Personality Presentation'] || '',
+              counterScriptures: r.fields['Counter Scriptures'] || '',
             }))
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')
