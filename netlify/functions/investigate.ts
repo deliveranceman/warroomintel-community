@@ -29,7 +29,7 @@ export default async function handler(req: Request) {
   }
 
   const clerkSecret = process.env.CLERK_SECRET_KEY
-  if (clerkSecret) {
+  if (clerkSecret && sessionToken) {
     try {
       const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
         method: 'POST',
@@ -37,12 +37,13 @@ export default async function handler(req: Request) {
         body: new URLSearchParams({ token: sessionToken }),
       })
       if (!verifyRes.ok) {
-        console.warn('Token verification failed, proceeding for debugging')
+        console.warn('Token verification failed — status:', verifyRes.status)
       }
     } catch (e) {
       console.warn('Token verification error:', e)
     }
   }
+  // Continue regardless — rate limiting still applies
 
   // Rate limit by IP
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'

@@ -2283,6 +2283,223 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   )
 }
 
+// ── INVESTIGATOR TYPES & CONSTANTS ────────────────────────
+interface InvestigationResult {
+  summary: string
+  probableSpirits: Array<{ name: string; confidence: 'High' | 'Medium' | 'Low'; reason: string; category: string }>
+  entryPoints: string[]
+  deliveranceSequence: string[]
+  counterScriptures: string[]
+  warningFlags: string[]
+}
+
+const CONFIDENCE_COLORS = {
+  High:   { bg: 'rgba(220,38,38,0.15)', text: '#f87171', border: 'rgba(220,38,38,0.3)' },
+  Medium: { bg: 'rgba(201,168,76,0.1)',  text: '#C9A84C', border: 'rgba(201,168,76,0.25)' },
+  Low:    { bg: 'rgba(99,102,241,0.1)',  text: '#a5b4fc', border: 'rgba(99,102,241,0.25)' },
+}
+
+// ── INVESTIGATOR VIEW ──────────────────────────────────────
+function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const { getToken } = useAuth()
+  const [invInput, setInvInput]   = useState('')
+  const [invLoading, setInvLoading] = useState(false)
+  const [invResult, setInvResult] = useState<InvestigationResult | null>(null)
+  const [invError, setInvError]   = useState('')
+
+  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+  const hasAccess = tierLvl(userTier) >= tierLvl('commander')
+
+  if (!hasAccess) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: '#0D0B14' }}>
+        <div style={{ textAlign: 'center', maxWidth: 480 }}>
+          <div style={{ fontSize: 48, marginBottom: 20 }}>🔒</div>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: 20, marginBottom: 12 }}>Commander Tier Required</h2>
+          <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: crimson }}>
+            The Symptom Investigator is an AI-powered operational intelligence tool available to Commander and General members.
+            Upgrade to access real-time spirit analysis, deliverance sequencing, and session support.
+          </p>
+          <a href="https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01" style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, textDecoration: 'none' }}>
+            Upgrade to Commander — $39/mo
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  async function handleInvestigate() {
+    if (!invInput.trim()) return
+    setInvLoading(true); setInvError(''); setInvResult(null)
+    try {
+      const token = await getToken()
+      console.log('token:', token ? 'present' : 'null')
+      const res = await fetch('/api/investigate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ symptoms: invInput }),
+      })
+      if (!res.ok) {
+        const errBody = await res.text()
+        console.error('Investigate failed:', res.status, errBody)
+        throw new Error(`Investigation failed: ${res.status}`)
+      }
+      const data = await res.json()
+      setInvResult(data)
+    } catch (err: any) {
+      setInvError(err?.message || 'Investigation failed. Check connection.')
+    } finally {
+      setInvLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#0D0B14' }}>
+      <div style={{ maxWidth: 760, margin: '0 auto' }}>
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>Symptom Investigator</span>
+          </div>
+        )}
+
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ fontSize: 11, color: G, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚔ War Room Intel</div>
+          <h1 style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: isMobile ? 22 : 28, fontWeight: 700, marginBottom: 8 }}>Symptom Investigator</h1>
+          <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.6, fontFamily: crimson }}>
+            Describe what you are observing — symptoms, manifestations, dreams, emotional patterns, physical reactions.
+            The system will identify probable spirits and suggest a deliverance sequence.
+          </p>
+        </div>
+
+        <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: 24, marginBottom: 24 }}>
+          <label style={{ display: 'block', fontSize: 11, color: '#8B7355', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>
+            Observed Symptoms / Manifestations
+          </label>
+          <textarea
+            value={invInput}
+            onChange={e => setInvInput(e.target.value)}
+            placeholder="Example: Recurring nightmares, pressure on chest, irrational fear of abandonment, history of sexual abuse, difficulty feeling God's presence, chronic migraines..."
+            rows={6}
+            style={{ width: '100%', background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: '#E8D5B0', fontSize: 15, padding: 14, fontFamily: crimson, lineHeight: 1.6, resize: 'vertical' as const, outline: 'none', boxSizing: 'border-box' as const }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' as const, gap: 10 }}>
+            <span style={{ fontSize: 12, color: '#5a4f3a', fontFamily: crimson }}>Be specific — the more detail, the more accurate the intelligence.</span>
+            <button
+              onClick={handleInvestigate}
+              disabled={invLoading || !invInput.trim()}
+              style={{ background: invLoading ? 'rgba(201,168,76,0.3)' : G, color: invLoading ? '#8B7355' : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
+            >
+              {invLoading ? '⚔ Analyzing...' : '⚔ Investigate'}
+            </button>
+          </div>
+        </div>
+
+        {invError && (
+          <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>
+            {invError}
+          </div>
+        )}
+
+        {invLoading && (
+          <div style={{ textAlign: 'center', padding: 40, color: '#8B7355' }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>⚔</div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, letterSpacing: '0.1em' }}>Running intelligence analysis...</div>
+          </div>
+        )}
+
+        {invResult && !invLoading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <section style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '20px 24px' }}>
+              <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>Intelligence Summary</div>
+              <p style={{ color: '#E8D5B0', fontSize: 16, lineHeight: 1.7, margin: 0, fontFamily: crimson }}>{invResult.summary}</p>
+            </section>
+
+            {invResult.probableSpirits?.length > 0 && (
+              <section>
+                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>
+                  Probable Entities ({invResult.probableSpirits.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {invResult.probableSpirits.map((spirit, i) => {
+                    const conf = CONFIDENCE_COLORS[spirit.confidence] || CONFIDENCE_COLORS.Low
+                    const cat  = HIERARCHY_COLORS[spirit.category]  || HIERARCHY_COLORS['General Oppression']
+                    return (
+                      <div key={i} style={{ background: 'rgba(13,11,20,0.8)', border: `1px solid ${conf.border}`, borderLeft: `3px solid ${conf.border}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' as const }}>
+                            <span style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: 15, fontWeight: 600 }}>{spirit.name}</span>
+                            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, backgroundColor: cat.bg, color: cat.text, border: `1px solid ${cat.border}`, fontFamily: cinzel, letterSpacing: '0.04em' }}>{spirit.category}</span>
+                          </div>
+                          <p style={{ color: '#8B7355', fontSize: 13, margin: 0, lineHeight: 1.5, fontFamily: crimson }}>{spirit.reason}</p>
+                        </div>
+                        <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' as const, backgroundColor: conf.bg, color: conf.text, border: `1px solid ${conf.border}`, fontFamily: cinzel }}>{spirit.confidence}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {invResult.entryPoints?.length > 0 && (
+              <section style={{ background: 'rgba(13,11,20,0.6)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>Likely Entry Points</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                  {invResult.entryPoints.map((ep, i) => (
+                    <span key={i} style={{ fontSize: 13, padding: '4px 12px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: G, border: '1px solid rgba(201,168,76,0.2)', fontFamily: crimson }}>{ep}</span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {invResult.deliveranceSequence?.length > 0 && (
+              <section style={{ background: 'rgba(13,11,20,0.6)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 14, fontFamily: cinzel }}>Suggested Deliverance Sequence</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {invResult.deliveranceSequence.map((step, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <span style={{ minWidth: 24, height: 24, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', color: G, fontSize: 11, fontFamily: cinzel, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ color: '#E8D5B0', fontSize: 14, lineHeight: 1.6, paddingTop: 2, fontFamily: crimson }}>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {invResult.counterScriptures?.length > 0 && (
+              <section style={{ background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#86efac', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>📖 Counter Scriptures</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {invResult.counterScriptures.map((s, i) => (
+                    <div key={i} style={{ color: '#86efac', fontSize: 14, fontFamily: crimson, lineHeight: 1.5 }}>{s}</div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {invResult.warningFlags?.length > 0 && (
+              <section style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#f87171', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚠ Warning Flags</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {invResult.warningFlags.map((w, i) => (
+                    <div key={i} style={{ color: '#f87171', fontSize: 14, lineHeight: 1.5, fontFamily: crimson }}>• {w}</div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <p style={{ fontSize: 12, color: '#3a3228', textAlign: 'center' as const, lineHeight: 1.6, marginTop: 8, fontFamily: crimson }}>
+              This analysis is an intelligence aid for trained ministers. Always lead with prayer, discernment, and the Holy Spirit. This tool does not replace ministerial judgment.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -2953,15 +3170,7 @@ function CommunityPage() {
         {dimItem("General's Table", '✦')}
 
         {sectionLabel('Tools')}
-        <a
-          href="/investigate"
-          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: '2px solid transparent', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, fontWeight: 400, transition: 'all 0.15s', cursor: 'pointer', boxSizing: 'border-box' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = G }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT }}
-        >
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>🔍</span>
-          Symptom Investigator
-        </a>
+        {navItem('Symptom Investigator', 'investigate', '🔍')}
         {navItem('Assessment', 'assessment', '📋')}
         {navItem('Request Help', 'help', '🙏')}
         {dimItem('Events', '📅')}
@@ -3076,6 +3285,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+        {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'arsenal'     && <LauncherView title="Arsenal"           icon="✦"  href="/arsenal" />}
 
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
