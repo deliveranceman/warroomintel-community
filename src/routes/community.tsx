@@ -2734,6 +2734,305 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
   )
 }
 
+// ── FRINGE INTEL VIEW ─────────────────────────────────────
+function FringeIntelView({ theme, isMobile, setSidebarOpen }: {
+  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const isDark = theme !== 'light'
+  const bg      = isDark ? '#0D0B14' : '#faf8f4'
+  const surface = isDark ? 'rgba(201,168,76,0.03)' : '#fff'
+  const border  = isDark ? 'rgba(201,168,76,0.12)' : '#e8e0d0'
+  const muted   = isDark ? '#8B7355' : '#9a8a70'
+  const dim     = isDark ? '#5a4f3a' : '#b8a882'
+
+  const TOPICS = [
+    { icon: '👽', label: 'UFO Disclosure',      desc: 'Craft sightings, government programs, interdimensional origins' },
+    { icon: '📖', label: 'Genesis 6',           desc: 'The Nephilim, sons of God, ancient giants and their bloodlines' },
+    { icon: '🧬', label: 'Bloodline Warfare',   desc: 'Generational corruption, hybrid entities, seed war' },
+    { icon: '👁',  label: 'Nephilim',            desc: 'Pre-flood entities, giant clans, post-flood remnants' },
+    { icon: '🛸', label: 'Gov. Programming',    desc: 'MK Ultra, monarch programming, demonic tech interfaces' },
+    { icon: '🔬', label: 'Fringe Science',      desc: 'Quantum, frequency, AI consciousness — the demonic angle' },
+  ]
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
+        <div>
+          <div style={{ fontSize: 10, color: G, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 6, textTransform: 'uppercase' as const }}>⚠ CLASSIFIED — LEVEL 5 CLEARANCE</div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: G, fontWeight: 700, marginBottom: 4 }}>👁 Fringe Intelligence</div>
+          <div style={{ fontSize: 13, color: muted, lineHeight: 1.6, fontFamily: crimson }}>
+            Where the strange things get explained. Aliens are demons in meat suits. Giants were real. The cover-up is spiritual.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.06) 0%, rgba(13,11,20,0.8) 100%)', border: `1px solid ${border}`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '24px 28px', marginBottom: 32, textAlign: 'center' as const }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>🛸</div>
+        <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 8 }}>Fringe Intelligence — Coming July 2026</div>
+        <div style={{ fontFamily: crimson, fontSize: 15, color: muted, lineHeight: 1.7, maxWidth: 500, margin: '0 auto 16px' }}>
+          Launching alongside the Close Encounters of Some Kind event. Genesis 6, Nephilim, UFO Disclosure, Government Programming — all explained through the lens of spiritual warfare.
+        </div>
+        <div style={{ display: 'inline-block', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '6px 16px', fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em' }}>
+          JULY 18, 2026 · STAFFORDTOWN CHURCH
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.18em', color: dim, textTransform: 'uppercase' as const, marginBottom: 14 }}>Intelligence Categories</div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+          {TOPICS.map(({ icon, label, desc }) => (
+            <div key={label} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>{icon}</span>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5 }}>{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── EVENTS VIEW ────────────────────────────────────────────
+function EventsView({ theme, isMobile, setSidebarOpen }: {
+  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const isDark = theme !== 'light'
+  const bg      = isDark ? '#0D0B14' : '#faf8f4'
+  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
+  const text    = isDark ? '#E8D5B0' : '#2a1f0e'
+  const muted   = isDark ? '#8B7355' : '#9a8a70'
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>📅 Events</div>
+          <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>War Room Intel events, conferences, and special sessions</div>
+        </div>
+      </div>
+
+      {/* FEATURED EVENT */}
+      <div style={{ background: 'linear-gradient(135deg, rgba(13,11,20,0.95) 0%, rgba(26,15,30,0.95) 100%)', border: `1px solid ${G}40`, borderRadius: 12, overflow: 'hidden', marginBottom: 28, boxShadow: `0 0 40px rgba(201,168,76,0.08)` }}>
+        <div style={{ background: `linear-gradient(90deg, rgba(201,168,76,0.15) 0%, transparent 100%)`, padding: '10px 24px', borderBottom: `1px solid ${G}30` }}>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G, textTransform: 'uppercase' as const }}>⚔ War Room Intel Special Event · Featured</span>
+        </div>
+        <div style={{ padding: '28px 28px 24px' }}>
+          <div style={{ textAlign: 'center' as const, marginBottom: 24 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: muted, letterSpacing: '0.2em', marginBottom: 8, textTransform: 'uppercase' as const }}>Save the Date</div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 22 : 30, color: G, fontWeight: 700, lineHeight: 1.1, marginBottom: 4 }}>Close Encounters</div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: text, marginBottom: 8 }}>of Some Kind</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: muted, letterSpacing: '0.1em' }}>A War Room Intel Special Event</div>
+          </div>
+
+          <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${G}30`, borderRadius: 8, padding: '16px 20px', marginBottom: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row' as const, gap: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>📅</span>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: G, fontWeight: 700 }}>July 18, 2026</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: muted }}>11:00 AM – 3:00 PM</div>
+              </div>
+            </div>
+            <div style={{ width: 1, height: 36, background: `${G}30`, display: isMobile ? 'none' : 'block' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>📍</span>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: G, fontWeight: 700 }}>Staffordtown Church</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: muted }}>Copperhill, Tennessee</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const }}>
+            {[
+              { icon: '👥', price: '$25', label: 'In-Person', sub: 'Lunch + Book + Recording' },
+              { icon: '▶',  price: '$10', label: 'Recording Only', sub: 'Digital access' },
+              { icon: '📚', price: '$15', label: 'Recording + Book', sub: 'Digital + book' },
+            ].map(({ icon, price, label, sub }) => (
+              <div key={label} style={{ flex: 1, minWidth: 100, background: 'rgba(201,168,76,0.05)', border: `1px solid ${G}25`, borderRadius: 8, padding: '12px 14px', textAlign: 'center' as const }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700 }}>{price}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: text, letterSpacing: '0.06em', marginBottom: 2 }}>{label}</div>
+                <div style={{ fontFamily: crimson, fontSize: 11, color: muted }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 10, textAlign: 'center' as const }}>Topics Include</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'center' as const }}>
+              {['Genesis 6', 'UFO Disclosure', 'Bloodline Warfare', 'Nephilim', 'Fringe Intelligence'].map(topic => (
+                <span key={topic} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', padding: '4px 12px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: G, border: '1px solid rgba(201,168,76,0.25)' }}>{topic}</span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(134,239,172,0.06)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: '#86efac', letterSpacing: '0.1em', marginBottom: 4 }}>🔒 BONUS FOR ATTENDEES</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: text }}>All attendees receive <strong style={{ color: '#86efac' }}>3 FREE months</strong> of War Room Intel access</div>
+          </div>
+
+          <div style={{ textAlign: 'center' as const, marginBottom: 16 }}>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: muted, fontStyle: 'italic' }}>All proceeds benefit the New Church Building Fund</div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 16, borderTop: `1px solid ${G}20`, marginBottom: 20 }}>
+            <div style={{ textAlign: 'center' as const }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em' }}>Presented by</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: text, marginTop: 2 }}>CIO Justin Payne</div>
+              <div style={{ fontFamily: crimson, fontSize: 11, color: muted, fontStyle: 'italic' }}>Chief Investigation Officer</div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.1em', marginBottom: 12 }}>THIS IS A SAVE THE DATE · MORE WILL FOLLOW</div>
+            <a href="mailto:exorcist@warroomintel.com?subject=Close Encounters Registration Interest" style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '12px 32px', borderRadius: 6, textDecoration: 'none' }}>
+              Register Interest →
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '20px 24px', textAlign: 'center' as const }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: muted, marginBottom: 6 }}>More Events Coming</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: muted }}>Group Warfare Prayer · General's Table · Regional Events</div>
+      </div>
+    </div>
+  )
+}
+
+// ── FEEDBACK VIEW ──────────────────────────────────────────
+function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userName }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
+}) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const bg      = isDark ? '#0D0B14' : '#faf8f4'
+  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#fff'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : '#e8e0d0'
+  const text    = isDark ? '#E8D5B0' : '#2a1f0e'
+  const muted   = isDark ? '#8B7355' : '#9a8a70'
+
+  const [type, setType]               = useState<'bug' | 'feature'>('feature')
+  const [title, setTitle]             = useState('')
+  const [description, setDescription] = useState('')
+  const [priority, setPriority]       = useState('medium')
+  const [saving, setSaving]           = useState(false)
+  const [success, setSuccess]         = useState(false)
+  const [error, setError]             = useState('')
+  const [allFeedback, setAllFeedback] = useState<any[]>([])
+  const [loadingFeed, setLoadingFeed] = useState(true)
+
+  useEffect(() => {
+    async function loadFeedback() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/feedback', { headers: { Authorization: `Bearer ${token}` } })
+        if (res.ok) { const data = await res.json(); setAllFeedback(data.feedback || []) }
+      } catch { } finally { setLoadingFeed(false) }
+    }
+    loadFeedback()
+  }, [success])
+
+  async function handleSubmit() {
+    if (!title.trim() || !description.trim()) return
+    setSaving(true); setError('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type, title, description, priority, submitted_by_name: userName, submitted_by_tier: userTier }),
+      })
+      if (!res.ok) throw new Error('Submit failed')
+      setSuccess(true); setTitle(''); setDescription('')
+      setTimeout(() => setSuccess(false), 4000)
+    } catch (e: any) { setError(e.message) } finally { setSaving(false) }
+  }
+
+  const inp: React.CSSProperties = { width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 6, padding: '10px 14px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none' }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>? Submit Feedback</div>
+            <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>Report bugs or request new features — all tiers can submit and view</div>
+          </div>
+        </div>
+
+        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 20 }}>Submit Report</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {(['bug', 'feature'] as const).map(t => (
+              <button key={t} onClick={() => setType(t)} style={{ flex: 1, padding: '8px', borderRadius: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', border: `1px solid ${type === t ? (t === 'bug' ? '#f87171' : G) : border}`, background: type === t ? (t === 'bug' ? 'rgba(248,113,113,0.1)' : 'rgba(201,168,76,0.1)') : 'transparent', color: type === t ? (t === 'bug' ? '#f87171' : G) : muted }}>
+                {t === 'bug' ? '🐛 Bug Report' : '✦ Feature Request'}
+              </button>
+            ))}
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: muted, textTransform: 'uppercase' as const, marginBottom: 6 }}>Priority</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['low', 'medium', 'high'].map(p => (
+                <button key={p} onClick={() => setPriority(p)} style={{ padding: '4px 14px', borderRadius: 999, cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', border: `1px solid ${priority === p ? G : border}`, background: priority === p ? `${G}15` : 'transparent', color: priority === p ? G : muted }}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: muted, textTransform: 'uppercase' as const, marginBottom: 6 }}>Title *</div>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder={type === 'bug' ? 'Brief description of the bug...' : 'What feature would help you?'} style={inp} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: muted, textTransform: '  uppercase' as const, marginBottom: 6 }}>Details *</div>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} placeholder={type === 'bug' ? 'Steps to reproduce, what you expected vs what happened...' : 'Describe how this would work and why it would help ministers...'} style={{ ...inp, resize: 'vertical' as const }} />
+          </div>
+          {success && <div style={{ color: '#4ade80', fontSize: 13, marginBottom: 12, fontFamily: cinzel }}>✓ Submitted — thank you for your feedback!</div>}
+          {error   && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</div>}
+          <button onClick={handleSubmit} disabled={saving || !title.trim() || !description.trim()} style={{ background: saving || !title.trim() || !description.trim() ? 'rgba(201,168,76,0.3)' : G, color: saving || !title.trim() || !description.trim() ? muted : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 28px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? 'Submitting...' : 'Submit Report'}
+          </button>
+        </div>
+
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 14 }}>Community Reports ({allFeedback.length})</div>
+          {loadingFeed ? (
+            <div style={{ color: muted, fontSize: 13, fontStyle: 'italic' }}>Loading...</div>
+          ) : allFeedback.length === 0 ? (
+            <div style={{ color: muted, fontSize: 13, fontStyle: 'italic', textAlign: 'center' as const, padding: 20 }}>No reports yet. Be the first to submit.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {allFeedback.map((fb: any) => (
+                <div key={fb.id} style={{ background: surface, border: `1px solid ${border}`, borderLeft: `3px solid ${fb.type === 'bug' ? '#f87171' : G}`, borderRadius: 8, padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, flexWrap: 'wrap' as const, gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12 }}>{fb.type === 'bug' ? '🐛' : '✦'}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 12, color: fb.type === 'bug' ? '#f87171' : G }}>{fb.title}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: muted, border: `1px solid ${border}` }}>{fb.priority}</span>
+                      <span style={{ fontSize: 11, color: muted }}>{fb.submitted_by_name}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5 }}>{fb.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -2747,6 +3046,9 @@ function CommunityPage() {
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('intel')
+  const [trainingExpanded, setTrainingExpanded] = useState(false)
+  const [fringeExpanded, setFringeExpanded]     = useState(false)
+  const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
 
   const [streamToken, setStreamToken] = useState<string>('')
   const [apiKey, setApiKey]           = useState<string>('')
@@ -3337,77 +3639,125 @@ function CommunityPage() {
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
-        {sectionLabel('War Room Community')}
+        {/* ── QUICK ACCESS ICON STRIP ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 8px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4 }}>
+          {[
+            { icon: '💬', label: 'War Room Chat', section: 'war-room-chat' },
+            { icon: '🙏', label: 'Prayer Wall',   section: 'prayer-wall'   },
+            { icon: '👥', label: 'Members',        section: 'members'       },
+            { icon: '📋', label: 'Assessment',     section: 'assessment'    },
+            { icon: '?',  label: 'Feedback',       section: 'feedback'      },
+          ].map(({ icon, label, section }) => (
+            <div key={section} style={{ position: 'relative' as const }}>
+              <button
+                onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
+                onMouseEnter={() => setTooltipVisible(section)}
+                onMouseLeave={() => setTooltipVisible(null)}
+                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: 36, height: 36, cursor: 'pointer', fontSize: section === 'feedback' ? 13 : 16, fontFamily: section === 'feedback' ? cinzel : 'inherit', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const, fontWeight: section === 'feedback' ? 700 : 400 }}
+              >
+                {icon}
+                {section === 'war-room-chat' && unreadWarRoom > 0 && (
+                  <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadWarRoom > 9 ? '9+' : unreadWarRoom}</span>
+                )}
+              </button>
+              {tooltipVisible === section && (
+                <div style={{ position: 'absolute' as const, top: 42, left: '50%', transform: 'translateX(-50%)', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 100, pointerEvents: 'none' as const }}>{label}</div>
+              )}
+            </div>
+          ))}
+        </div>
 
+        {/* ── COMMUNITY ── */}
+        {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
         {navItem('Prayer Wall', 'prayer-wall', '🙏')}
-
-        {/* War Room Chat */}
+        {navItem('War Room Chat', 'war-room-chat', '⚔')}
         <button
-          onClick={() => { setActiveSection('war-room-chat'); if (isMobile) setSidebarOpen(false) }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            width: '100%', padding: '8px 16px',
-            background: activeSection === 'war-room-chat' ? 'rgba(201,168,76,0.1)' : 'transparent',
-            border: 'none',
-            borderLeft: activeSection === 'war-room-chat' ? '2px solid #C9A84C' : '2px solid transparent',
-            textAlign: 'left', cursor: 'pointer',
-            fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
-            color: activeSection === 'war-room-chat' ? G : NAV_DEFAULT,
-            fontWeight: activeSection === 'war-room-chat' ? 600 : 400,
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => { if (activeSection !== 'war-room-chat') e.currentTarget.style.color = G }}
-          onMouseLeave={e => { if (activeSection !== 'war-room-chat') e.currentTarget.style.color = NAV_DEFAULT }}
+          onClick={() => { setActiveSection('messages'); setUnreadDMs(0); if (isMobile) setSidebarOpen(false) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'messages' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderLeft: activeSection === 'messages' ? `2px solid ${G}` : '2px solid transparent', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'messages' ? G : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
         >
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚔</span>
-          War Room Chat
-          {unreadWarRoom > 0 && (
-            <span style={{ marginLeft: 'auto', minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{unreadWarRoom}</span>
-          )}
+          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>✉</span>
+          <span style={{ flex: 1 }}>Direct Messages</span>
+          {unreadDMs > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 999, padding: '1px 7px', fontSize: 9, fontFamily: cinzel, fontWeight: 700 }}>{unreadDMs}</span>}
         </button>
-
-        {/* Direct Messages */}
-        <button
-          onClick={() => { setActiveSection('messages'); if (isMobile) setSidebarOpen(false) }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            width: '100%', padding: '8px 16px',
-            background: activeSection === 'messages' ? 'rgba(201,168,76,0.1)' : 'transparent',
-            border: 'none',
-            borderLeft: activeSection === 'messages' ? '2px solid #C9A84C' : '2px solid transparent',
-            textAlign: 'left', cursor: 'pointer',
-            fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
-            color: activeSection === 'messages' ? G : NAV_DEFAULT,
-            fontWeight: activeSection === 'messages' ? 600 : 400,
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => { if (activeSection !== 'messages') e.currentTarget.style.color = G }}
-          onMouseLeave={e => { if (activeSection !== 'messages') e.currentTarget.style.color = NAV_DEFAULT }}
-        >
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>💬</span>
-          Direct Messages
-          {unreadDMs > 0 && (
-            <span style={{ marginLeft: 'auto', minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{unreadDMs}</span>
-          )}
-        </button>
-
         {navItem('Members', 'members', '👥')}
 
-        {sectionLabel('Arsenal Resources')}
-        {navItem('Intel Archive', 'database', '📖')}
+        {/* ── INTELLIGENCE ── */}
+        {sectionLabel('Intelligence')}
+        {navItem('Intel Archive', 'database', '📚')}
+        <div style={{ paddingLeft: 0 }}>
+          <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px 5px 32px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid transparent', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? G : '#6b5e45', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+            <span style={{ fontSize: 11 }}>🔍</span><span>Symptom Investigator</span>
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px 5px 32px', opacity: 0.4 }}>
+            <span style={{ fontSize: 11 }}>🗺</span>
+            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#6b5e45' }}>Body Map</span>
+            <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px 5px 32px', opacity: 0.4 }}>
+            <span style={{ fontSize: 11 }}>🕸</span>
+            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#6b5e45' }}>Spirit Network</span>
+            <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
+          </div>
+        </div>
+
+        <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? G : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>👁</span>
+          <span style={{ flex: 1 }}>Fringe Intelligence</span>
+          <span style={{ fontSize: 10, color: '#6b5e45', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+        </button>
+        {fringeExpanded && (
+          <div style={{ borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 24, paddingLeft: 0 }}>
+            {navItem('The Feed', 'fringe-feed', '📡')}
+            {[{ label: 'The Archive', icon: '🗂' }, { label: 'Fringe Chat', icon: '💬' }, { label: 'Courses', icon: '🎓' }].map(({ label, icon }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
+                <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: '#6b5e45', flex: 1 }}>{label}</span>
+                <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── FIELD OPERATIONS ── */}
+        {sectionLabel('Field Operations')}
         {navItem('Arsenal', 'arsenal', '✦')}
-
-        {sectionLabel('Training')}
-        {dimItem('Courses', '🎓')}
-        {dimItem('Protocols', '🗡')}
-        {dimItem("General's Table", '✦')}
-
-        {sectionLabel('Tools')}
-        {navItem('Symptom Investigator', 'investigate', '🔍')}
         {navItem('Assessment', 'assessment', '📋')}
         {navItem('Request Help', 'help', '🙏')}
-        {dimItem('Events', '📅')}
+
+        {/* ── TRAINING (collapsible) ── */}
+        <button onClick={() => setTrainingExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px 6px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: '#6b5e45', textTransform: 'uppercase' as const, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+          <span style={{ flex: 1 }}>Training</span>
+          <span style={{ fontSize: 10, display: 'inline-block', transform: trainingExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+        </button>
+        {trainingExpanded && (
+          <>
+            {[{ label: 'Courses', icon: '🎓' }, { label: "General's Table", icon: '✦' }, { label: 'Protocols', icon: '⚔' }].map(({ label, icon }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
+                <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: '#6b5e45', flex: 1 }}>{label}</span>
+                <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* ── EVENTS ── */}
+        {navItem('Events', 'events', '📅')}
+
+        {/* ── ADMIN (minister only) ── */}
+        {(user?.publicMetadata?.role as string) === 'minister' && (
+          <>
+            <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '12px 16px 8px' }} />
+            <a href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: G, transition: 'background 0.15s', boxSizing: 'border-box' as const }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.12)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.06)' }}
+            >
+              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>🛡</span>
+              Admin Panel
+            </a>
+          </>
+        )}
       </div>
 
       {/* ── SIDEBAR FOOTER — pinned outside scroll ── */}
@@ -3421,20 +3771,6 @@ function CommunityPage() {
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚙</span>
           Settings
         </button>
-        {(user?.publicMetadata?.role as string) === 'minister' && (
-          <>
-            <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '4px 16px' }} />
-            <a
-              href="/admin"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: G, transition: 'background 0.15s', boxSizing: 'border-box' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.12)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.06)' }}
-            >
-              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>🛡</span>
-              Admin Panel
-            </a>
-          </>
-        )}
       </div>
     </>
   )
@@ -3531,6 +3867,9 @@ function CommunityPage() {
 
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
+        {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
       </div>
 
       {/* ── MODALS ── */}
