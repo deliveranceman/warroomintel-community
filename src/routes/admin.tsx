@@ -67,6 +67,11 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [deleting, setDeleting]     = useState<string | null>(null)
   const fileRef    = useRef<HTMLInputElement>(null)
   const tagInputRef = useRef<HTMLInputElement>(null)
+  const [bulkFiles, setBulkFiles]         = useState<File[]>([])
+  const [bulkPreviews, setBulkPreviews]   = useState<any[]>([])
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [bulkUploading, setBulkUploading] = useState(false)
+  const [dragOver, setDragOver]           = useState(false)
 
   const TIERS      = ['Free', 'Soldier', 'Commander', 'General']
   const CATEGORIES = ['Session Tools', 'Teaching', 'Protocol', 'Reference', 'Renunciation', 'Worksheet']
@@ -193,6 +198,208 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
 
   return (
     <div>
+      {/* ── BULK UPLOAD ── */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>📦 Bulk Upload</div>
+
+        {/* Drop zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => {
+            e.preventDefault()
+            setDragOver(false)
+            const files = Array.from(e.dataTransfer.files).filter(f =>
+              f.type === 'application/pdf' || f.name.endsWith('.docx') || f.name.endsWith('.pdf')
+            ).slice(0, 10)
+            setBulkFiles(files)
+            setBulkPreviews([])
+          }}
+          style={{
+            border: `2px dashed ${dragOver ? G : 'rgba(201,168,76,0.3)'}`,
+            borderRadius: 10,
+            padding: '28px 20px',
+            textAlign: 'center' as const,
+            marginBottom: 24,
+            background: dragOver ? 'rgba(201,168,76,0.04)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onClick={() => document.getElementById('bulk-file-input')?.click()}
+        >
+          <input
+            id="bulk-file-input"
+            type="file"
+            multiple
+            accept=".pdf,.docx"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const files = Array.from(e.target.files || []).slice(0, 10)
+              setBulkFiles(files)
+              setBulkPreviews([])
+            }}
+          />
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>
+            Drag & Drop up to 10 files
+          </div>
+          <div style={{ fontSize: 11, color: DIM }}>PDF or DOCX · Click to browse</div>
+          {bulkFiles.length > 0 && (
+            <div style={{ marginTop: 10, fontSize: 11, color: G }}>
+              {bulkFiles.length} file{bulkFiles.length > 1 ? 's' : ''} selected
+            </div>
+          )}
+        </div>
+
+        {/* AI Analyze button */}
+        {bulkFiles.length > 0 && bulkPreviews.length === 0 && (
+          <button
+            onClick={async () => {
+              setBulkProcessing(true)
+              const results: any[] = []
+              for (const file of bulkFiles) {
+                const formData = new FormData()
+                formData.append('file', file)
+                formData.append('aiAnalyze', 'true')
+                try {
+                  const token = await getToken()
+                  const res = await fetch('/api/admin-upload', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                  })
+                  const d = await res.json()
+                  results.push({
+                    file,
+                    fileName: file.name,
+                    title: d.title || file.name.replace(/\.[^.]+$/, ''),
+                    description: d.description || '',
+                    category: d.category || 'Reference',
+                    tags: d.tags || [],
+                    tier: d.tier || 'free',
+                    fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+                    approved: true,
+                  })
+                } catch {
+                  results.push({
+                    file,
+                    fileName: file.name,
+                    title: file.name.replace(/\.[^.]+$/, ''),
+                    description: '',
+                    category: 'Reference',
+                    tags: [],
+                    tier: 'free',
+                    fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+                    approved: true,
+                    error: true,
+                  })
+                }
+              }
+              setBulkPreviews(results)
+              setBulkProcessing(false)
+            }}
+            disabled={bulkProcessing}
+            style={{ padding: '10px 24px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 20, width: '100%', textTransform: 'uppercase' as const }}
+          >
+            {bulkProcessing ? '⚙ Analyzing with AI...' : `✦ Analyze ${bulkFiles.length} Files with AI`}
+          </button>
+        )}
+
+        {/* Review cards */}
+        {bulkPreviews.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14 }}>
+              Review & Confirm — {bulkPreviews.filter(p => p.approved).length} of {bulkPreviews.length} selected
+            </div>
+            {bulkPreviews.map((preview, idx) => (
+              <div key={idx} style={{
+                background: preview.approved ? 'rgba(201,168,76,0.04)' : 'rgba(0,0,0,0.2)',
+                border: `1px solid ${preview.approved ? 'rgba(201,168,76,0.25)' : 'rgba(255,255,255,0.05)'}`,
+                borderRadius: 8, padding: '14px 16px', marginBottom: 10,
+                opacity: preview.approved ? 1 : 0.5,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{preview.fileName}</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 10, color: DIM }}>{preview.fileSize}</span>
+                    <button
+                      onClick={() => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, approved: !p.approved } : p))}
+                      style={{ fontSize: 10, padding: '2px 10px', background: preview.approved ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${preview.approved ? G : 'rgba(255,255,255,0.1)'}`, borderRadius: 4, color: preview.approved ? G : DIM, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em' }}
+                    >{preview.approved ? '✓ Include' : '✗ Skip'}</button>
+                  </div>
+                </div>
+                <input
+                  value={preview.title}
+                  onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, title: e.target.value } : p))}
+                  style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '6px 10px', color: TXT, fontFamily: cinzel, fontSize: 11, marginBottom: 6, outline: 'none' }}
+                  placeholder="Title"
+                />
+                <textarea
+                  value={preview.description}
+                  onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, description: e.target.value } : p))}
+                  rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 12, marginBottom: 6, outline: 'none', resize: 'vertical' as const }}
+                  placeholder="Description"
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select
+                    value={preview.tier}
+                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, tier: e.target.value } : p))}
+                    style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}
+                  >
+                    <option value="free">Free</option>
+                    <option value="soldier">Soldier</option>
+                    <option value="commander">Commander</option>
+                    <option value="general">General</option>
+                  </select>
+                  <select
+                    value={preview.category}
+                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, category: e.target.value } : p))}
+                    style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}
+                  >
+                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={async () => {
+                setBulkUploading(true)
+                const toUpload = bulkPreviews.filter(p => p.approved)
+                let succeeded = 0
+                for (const preview of toUpload) {
+                  try {
+                    const formData = new FormData()
+                    formData.append('file', preview.file)
+                    formData.append('title', preview.title)
+                    formData.append('description', preview.description)
+                    formData.append('category', preview.category)
+                    formData.append('tier', preview.tier)
+                    formData.append('tags', JSON.stringify(preview.tags))
+                    const token = await getToken()
+                    const res = await fetch('/api/admin-upload', {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` },
+                      body: formData,
+                    })
+                    if (res.ok) succeeded++
+                  } catch { /* silent */ }
+                }
+                setBulkUploading(false)
+                setBulkFiles([])
+                setBulkPreviews([])
+                alert(`Uploaded ${succeeded} of ${toUpload.length} files successfully.`)
+              }}
+              disabled={bulkUploading || bulkPreviews.filter(p => p.approved).length === 0}
+              style={{ width: '100%', padding: '12px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700 }}
+            >
+              {bulkUploading ? 'Uploading...' : `⚔ Upload ${bulkPreviews.filter(p => p.approved).length} Files`}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Upload Form */}
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
         <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>⬆ Upload Resource</div>
@@ -562,6 +769,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
       const res = await fetch('/api/demons')
       const d = await res.json()
       setDemons(d.demons || [])
+      if (d.demons?.length > 0) console.log('DEMON KEYS:', Object.keys(d.demons[0] || {}))
     } catch { setDemons([]) }
     finally { setDLoading(false) }
   }

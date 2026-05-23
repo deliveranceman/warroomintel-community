@@ -3292,7 +3292,10 @@ function CommunityPage() {
       .then(r => r.json())
       .then(data => {
         console.log('get-members response:', data)
-        if (Array.isArray(data.members)) setMembers(data.members)
+        if (Array.isArray(data.members)) {
+          setMembers(data.members)
+          if (data.members.length > 0) console.log('MEMBER FIELDS:', JSON.stringify(Object.keys(data.members[0])))
+        }
       })
       .catch(err => console.error('get-members error:', err))
   }, [user?.id])
@@ -3615,9 +3618,18 @@ function CommunityPage() {
     <>
       {/* Compact sidebar header */}
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
-          <img src="/wri-logo.png" alt="WRI" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-          <span style={{ position: 'absolute' as const, fontFamily: cinzel, fontSize: 8, color: G }}>WRI</span>
+        <div style={{
+          width: 34, height: 34, borderRadius: '50%',
+          background: 'rgba(201,168,76,0.15)',
+          border: `1px solid ${V.bdr}`,
+          flexShrink: 0, overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: cinzel, fontSize: 11, color: G,
+        }}>
+          {user?.imageUrl
+            ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : (user?.firstName?.[0] || 'W')
+          }
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -4092,7 +4104,14 @@ function CommunityPage() {
                         <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{displayName}</div>
                         <TierBadge tier={memberTier} />
                         <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>
-                          {timeAgo(member.lastActiveAt || member.lastSignInAt)}
+                          {timeAgo(
+                            member.lastActiveAt ||
+                            member.lastSignInAt ||
+                            member.last_active_at ||
+                            member.last_sign_in_at ||
+                            (member as any).lastActiveAt ||
+                            (member as any).lastSignInAt
+                          )}
                         </div>
                       </div>
                     </button>
