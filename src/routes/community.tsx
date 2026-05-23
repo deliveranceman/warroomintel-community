@@ -1630,25 +1630,22 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
     .slice(0, 3)
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
 
-    <div style={{ padding: isMobile ? '16px' : '24px 28px', maxWidth: 1100 }}>
-
-      {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        {isMobile && (
-          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: '0 0 8px', display: 'block' }}>☰</button>
-        )}
-        <h2 style={{ fontFamily: cinzel, color: GG, fontSize: 20, marginBottom: 4, margin: 0 }}>⚡ Weekly Intel</h2>
-        <p style={{ color: mut, fontSize: 13, margin: '4px 0 0' }}>Latest briefings, field reports, and intelligence drops</p>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
+          <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>⚡ Weekly Intel</h2>
+        </div>
+        <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson }}>Operational briefings, field intelligence, and ministry resources</p>
       </div>
 
       {/* FULL WIDTH — Intel Briefing */}
       <div style={{ marginBottom: 32 }}>
-
-      {/* ── BRIEFINGS ─────────────────────────────────────────── */}
-      <div style={{ marginBottom: 36 }}>
-        {sectionHead('Intel Briefing', 'Latest operational updates from leadership')}
+        <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
+          ⚡ Intel Briefing
+        </div>
         {posts.length === 0 ? (
           <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: 28, marginBottom: 12 }}>📡</div>
@@ -1685,17 +1682,15 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
           </div>
         ))}
       </div>
-      </div>{/* end Intel Briefing full-width */}
 
       {/* TWO COLUMNS */}
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
+      <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
 
-      {/* LEFT — Field Reports */}
-      <div style={{ flex: 2, minWidth: 0 }}>
-
-      {/* ── FIELD REPORTS ─────────────────────────────────────── */}
-      <div style={{ marginBottom: 36 }}>
-        {sectionHead('Field Reports', 'Intelligence submitted by active ministers in the field')}
+        {/* LEFT — Field Reports (2/3) */}
+        <div style={{ flex: 2, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
+            📡 Field Reports
+          </div>
 
         {tierNum(userTier) >= 2 ? (
           <div style={{ marginBottom: 16 }}>
@@ -1797,78 +1792,87 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
             ))}
           </div>
         )}
-      </div>
 
-      </div>{/* end left column */}
+        </div>{/* end left column */}
 
-      {/* RIGHT — compact intel sidebar */}
-      <div style={{ flex: 1, minWidth: isMobile ? '100%' : 260, maxWidth: 320 }}>
+        {/* RIGHT — Intel Sidebar (1/3) */}
+        <div style={{ flex: 1, minWidth: isMobile ? '100%' : 240, maxWidth: 300 }}>
 
-        {recentResources.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>
-              Latest Arsenal Drops
-            </div>
-            {recentResources.map(r => (
-              <div key={r.id} style={{
-                padding: '10px 12px',
-                borderBottom: `1px solid ${bdr}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 8,
-              }}>
-                <div>
-                  <div style={{ fontSize: 12, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{r.title}</div>
-                  <div style={{ fontSize: 11, color: mut, marginTop: 2 }}>{r.category} · {r.tier}</div>
-                </div>
-                <button
-                  onClick={() => setActiveSection('arsenal')}
-                  style={{ fontSize: 10, color: GG, background: 'transparent', border: `1px solid ${GG}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}
-                >VIEW</button>
+          {/* Latest Arsenal Drops */}
+          {recentResources.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
+                ✦ Latest Arsenal Drops
               </div>
-            ))}
-          </div>
-        )}
-
-        {recentDemons.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>
-              New to Intel Archive
-            </div>
-            {recentDemons.map(d => (
-              <div
-                key={d.id}
-                style={{ padding: '8px 12px', borderBottom: `1px solid ${bdr}`, cursor: 'pointer' }}
-                onClick={() => setActiveSection('database')}
-              >
-                <div style={{ fontSize: 12, fontFamily: cinzel, color: txt }}>{d.name}</div>
-                <div style={{ fontSize: 11, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.type || ''}</div>
+              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
+                {recentResources.map((r, i) => (
+                  <div key={r.id} style={{
+                    padding: '10px 14px',
+                    borderBottom: i < recentResources.length - 1 ? `1px solid ${bdr}` : 'none',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
+                      <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{r.category} · {r.tier}</div>
+                    </div>
+                    <button
+                      onClick={() => setActiveSection('arsenal')}
+                      style={{ fontSize: 9, color: GG, background: 'transparent', border: `1px solid ${GG}`, borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
+                    >VIEW</button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-
-        {links.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>External Intel</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {links.slice(0, 3).map(link => (
-                <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block', background: surf, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 12px', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = GG)}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = bdr)}>
-                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, marginBottom: 2 }}>{link.title}</div>
-                  {link.source && <div style={{ fontSize: 10, color: mut }}>{link.source} →</div>}
-                </a>
-              ))}
             </div>
-          </div>
-        )}
+          )}
 
-      </div>{/* end right column */}
+          {/* New to Intel Archive */}
+          {recentDemons.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
+                📚 New to Intel Archive
+              </div>
+              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
+                {recentDemons.map((d, i) => (
+                  <div
+                    key={d.id}
+                    style={{
+                      padding: '10px 14px',
+                      borderBottom: i < recentDemons.length - 1 ? `1px solid ${bdr}` : 'none',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setActiveSection('database')}
+                  >
+                    <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{d.name}</div>
+                    <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.type || ''}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* External Intel Links */}
+          {links.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>External Intel</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {links.slice(0, 3).map(link => (
+                  <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block', background: surf, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 12px', transition: 'border-color 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = GG)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = bdr)}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, marginBottom: 2 }}>{link.title}</div>
+                    {link.source && <div style={{ fontSize: 10, color: mut }}>{link.source} →</div>}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>{/* end right sidebar */}
 
       </div>{/* end two-column wrapper */}
-    </div>
     </div>
   )
 }
@@ -3683,7 +3687,7 @@ function CommunityPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
         {/* ── QUICK ACCESS ICON STRIP ── */}
-        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 8px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4 }} onMouseLeave={() => setTooltipVisible(null)}>
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 8px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
             { icon: '💬', label: 'War Room Chat', section: 'war-room-chat' },
             { icon: '🙏', label: 'Prayer Wall',   section: 'prayer-wall'   },
@@ -3703,7 +3707,7 @@ function CommunityPage() {
                 )}
               </button>
               {tooltipVisible === section && (
-                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 3 ? 'auto' : '50%', right: idx === 3 ? 0 : 'auto', transform: idx > 0 && idx < 3 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 1000, pointerEvents: 'none' as const }}>{label}</div>
+                <div style={{ position: 'absolute' as const, top: 44, left: idx === 0 ? 0 : idx === 3 ? 'auto' : '50%', right: idx === 3 ? 0 : 'auto', transform: idx > 0 && idx < 3 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
               )}
             </div>
           ))}
