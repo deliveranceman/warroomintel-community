@@ -570,17 +570,43 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         </div>
       </div>
 
-      {/* RIGHT PANEL — thread or empty state */}
+      {/* RIGHT PANEL — contacts list or thread */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: V.bg, minWidth: 0 }}>
         {!selectedConvo ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: V.mut, fontFamily: crimson }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>💬</div>
-            <div style={{ fontFamily: cinzel, fontSize: 14, color: V.txt, marginBottom: 8, letterSpacing: '0.06em' }}>Your Direct Messages</div>
-            <div style={{ fontSize: 14, fontStyle: 'italic', marginBottom: 20 }}>Select a conversation or start a new one</div>
-            <button
-              onClick={() => setShowNewDM(true)}
-              style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-            >+ New Message</button>
+          <div style={{ flex: 1, overflowY: 'auto' as const, background: V.bg }}>
+            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: cinzel, color: V.gold, fontSize: 13, letterSpacing: '0.08em' }}>💬 Direct Messages</span>
+              <button
+                onClick={() => setShowNewDM(true)}
+                style={{ marginLeft: 'auto', padding: '4px 10px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 20, color: V.gold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+              >+ New</button>
+            </div>
+            {dmMembers.filter(m => m.id !== userId).map(member => {
+              const displayName = member.firstName ? `${member.firstName} ${member.lastName || ''}`.trim() : member.username || 'Warrior'
+              const memberTier = member.publicMetadata?.tier || 'Watchman'
+              return (
+                <div
+                  key={member.id}
+                  onClick={() => { onStartDM?.(member.id, displayName) }}
+                  style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'background 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: V.gold, flexShrink: 0, overflow: 'hidden' }}>
+                    {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{displayName}</div>
+                    <div style={{ fontSize: 10, color: V.mut, marginTop: 2 }}>{memberTier}</div>
+                  </div>
+                </div>
+              )
+            })}
+            {dmMembers.filter(m => m.id !== userId).length === 0 && (
+              <div style={{ padding: '40px 20px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
+                No other members yet
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -3622,65 +3648,46 @@ function CommunityPage() {
   // ── SIDEBAR CONTENT (shared between desktop and mobile overlay) ──
   const SidebarContent = () => (
     <>
-      {/* Header */}
-      <div style={{ padding: '16px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/logo.png" alt="WRI" style={{ width: 32, height: 32, objectFit: 'contain' }} />
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: G }}>WAR ROOM</div>
-              <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.2em', color: isDark ? '#6b5e45' : '#7a6555' }}>INTELLIGENCE CENTER</div>
-            </div>
+      {/* Compact sidebar header */}
+      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <img src="/logo.png" alt="WRI" style={{ width: 28, height: 28, flexShrink: 0, objectFit: 'contain', opacity: 0.9 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {user?.firstName || 'Warrior'}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {/* Light/dark toggle */}
-            <button
-              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, padding: '3px 5px', borderRadius: 4, lineHeight: 1 }}
-            >
-              {theme === 'dark' ? '☀️' : '🌙'}
-            </button>
-            {/* Close button on mobile */}
-            {isMobile && (
-              <button
-                onClick={() => setSidebarOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: NAV_DEFAULT, padding: '2px 4px', lineHeight: 1 }}
-                aria-label="Close navigation"
-              >
-                ✕
-              </button>
-            )}
+          <div style={{ fontSize: 9, color: V.gold, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            {tier}
           </div>
         </div>
-
-        {/* User row — compact */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', border: `1px solid rgba(201,168,76,0.4)`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(201,168,76,0.12)', fontFamily: cinzel, fontSize: 11, color: G }}>
-              {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
-            </div>
-            {unreadDMs > 0 && (
-              <div style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#e05c5c', border: `2px solid ${V.bg}` }} />
-            )}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? '#e8dcc8' : '#1C1407', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {user?.firstName || user?.fullName || 'Warrior'}
-            </div>
-            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 1 }}>
-              {tier}
-            </div>
-          </div>
-          <SignOutButton>
-            <button style={{ background: 'none', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, color: isDark ? '#8a7a5a' : '#6B5520', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', cursor: 'pointer', flexShrink: 0, transition: 'color 0.15s, border-color 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.color = G; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = isDark ? '#8a7a5a' : '#6B5520'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.2)' }}
-            >
-              Sign Out
-            </button>
-          </SignOutButton>
-        </div>
+        <button
+          onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, padding: 2, flexShrink: 0, lineHeight: 1 }}
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+        {isMobile && (
+          <button
+            onClick={() => setSidebarOpen(false)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: NAV_DEFAULT, padding: 2, lineHeight: 1, flexShrink: 0 }}
+            aria-label="Close navigation"
+          >✕</button>
+        )}
+        <SignOutButton>
+          <button style={{
+            background: 'none',
+            border: `1px solid ${V.bdr}`,
+            borderRadius: 5,
+            color: V.mut,
+            fontFamily: cinzel,
+            fontSize: 8,
+            letterSpacing: '0.08em',
+            padding: '3px 8px',
+            cursor: 'pointer',
+            flexShrink: 0,
+            textTransform: 'uppercase' as const,
+          }}>Out</button>
+        </SignOutButton>
       </div>
 
       {/* Nav */}
@@ -3689,7 +3696,7 @@ function CommunityPage() {
         {/* ── QUICK ACCESS ICON STRIP ── */}
         <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 8px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
-            { icon: '💬', label: 'War Room Chat', section: 'war-room-chat' },
+            { icon: '💬', label: 'Direct Messages', section: 'dms' },
             { icon: '🙏', label: 'Prayer Wall',   section: 'prayer-wall'   },
             { icon: '👥', label: 'Members',        section: 'members'       },
             { icon: '?',  label: 'Feedback',       section: 'feedback'      },
@@ -3702,8 +3709,8 @@ function CommunityPage() {
                 style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: 36, height: 36, cursor: 'pointer', fontSize: section === 'feedback' ? 13 : 16, fontFamily: section === 'feedback' ? cinzel : 'inherit', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const, fontWeight: section === 'feedback' ? 700 : 400 }}
               >
                 {icon}
-                {section === 'war-room-chat' && unreadWarRoom > 0 && (
-                  <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadWarRoom > 9 ? '9+' : unreadWarRoom}</span>
+                {section === 'dms' && unreadDMs > 0 && (
+                  <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
                 )}
               </button>
               {tooltipVisible === section && (
@@ -3848,13 +3855,14 @@ function CommunityPage() {
       } : {
         display: 'flex', flexDirection: 'column',
         background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`, overflow: 'hidden',
+        height: '100%',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         <SidebarContent />
       </div>
 
       {/* ── CENTER ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
+      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: '100vh', width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
@@ -3939,7 +3947,7 @@ function CommunityPage() {
 
       {/* ── RIGHT SIDEBAR — desktop only ── */}
       {!isMobile && (
-        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'visible', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden', height: '100%', position: 'relative' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
 
             {/* Prayer Wall widget */}
