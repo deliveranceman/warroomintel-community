@@ -333,6 +333,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     dim: isDark ? '#c8b99a' : '#7a6555', s2: isDark ? '#1c1814' : '#e8e0d4', gold: isDark ? '#C9A84C' : '#a07830',
   }
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
+  const [selectedDMUserId, setSelectedDMUserId] = useState<string | null>(null)
   const [conversations, setConversations] = useState<any[]>([])
   const [messages, setMessages]           = useState<any[]>([])
   const [loading, setLoading]             = useState(true)
@@ -473,6 +474,10 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     createOrFindDM()
   }, [pendingDMWith])
 
+  useEffect(() => {
+    if (pendingDMWith) setSelectedDMUserId(pendingDMWith)
+  }, [pendingDMWith])
+
   function getConvoMeta(ch: any) {
     const channel = ch.channel || ch
     if (channel.id === 'war-room-general') {
@@ -505,130 +510,58 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     return name.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
-  return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-
-      {/* LEFT PANEL — conversation list */}
-      <div style={{ width: '260px', flexShrink: 0, borderRight: `1px solid ${V.bdr}`, display: 'flex', flexDirection: 'column', background: V.surf }}>
-        <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            {isMobile && (
-              <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', flexShrink: 0 }}>☰</button>
-            )}
-            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>💬 Direct Messages</span>
-          </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search conversations..."
-            style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: `1px solid ${V.bdr}`, borderRadius: 6, padding: '7px 10px', color: V.txt, fontFamily: crimson, fontSize: 13, outline: 'none' }}
-          />
+  if (!selectedDMUserId) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: V.bg, minHeight: 0 }}>
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0 }}>
+          <div style={{ fontFamily: cinzel, color: G, fontSize: 14, letterSpacing: '0.08em' }}>💬 Direct Messages</div>
         </div>
-        <button
-          onClick={() => setShowNewDM(true)}
-          style={{ margin: '10px 12px', padding: '8px 12px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-        >+ New Message</button>
         <div style={{ flex: 1, overflowY: 'auto' as const }}>
-          {loading && (
-            <div style={{ padding: 20, textAlign: 'center' as const, color: V.mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>LOADING...</div>
-          )}
-          {!loading && filteredConvos.length === 0 && (
-            <div style={{ padding: '24px 16px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontSize: 13, fontStyle: 'italic' }}>
-              No conversations yet.<br/>Click "+ New Message" to start one.
-            </div>
-          )}
-          {filteredConvos.map(ch => {
-            const { channel, name, avatar, unread, preview, time, otherId } = getConvoMeta(ch)
-            const isActive = selectedConvo === channel.id
+          {dmMembers.filter(m => m.id !== userId).map(member => {
+            const displayName = member.firstName ? `${member.firstName} ${member.lastName || ''}`.trim() : member.username || 'Warrior'
             return (
-              <div
-                key={channel.id}
-                onClick={() => { setSelectedConvo(channel.id); setHeaderOtherId(otherId) }}
-                style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', background: isActive ? 'rgba(201,168,76,0.08)' : 'transparent', borderLeft: isActive ? '2px solid #C9A84C' : '2px solid transparent', transition: 'background 0.15s' }}
-                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
-                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              <div key={member.id}
+                onClick={() => { setSelectedDMUserId(member.id); onStartDM?.(member.id, displayName) }}
+                style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'background 0.15s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: G, flexShrink: 0, overflow: 'hidden' }}>
-                    {avatar ? <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                      <span style={{ fontFamily: cinzel, fontSize: 11, color: isActive ? G : V.txt, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '120px' }}>{name}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                        {time && <span style={{ fontSize: 10, color: V.mut }}>{time}</span>}
-                        {unread > 0 && <div style={{ minWidth: 16, height: 16, borderRadius: 8, background: '#e05c5c', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{unread}</div>}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: V.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, fontFamily: crimson }}>{preview || 'No messages yet'}</div>
-                  </div>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: G, flexShrink: 0, overflow: 'hidden' }}>
+                  {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>{displayName}</div>
+                  <div style={{ fontSize: 10, color: V.mut, marginTop: 2 }}>{member.publicMetadata?.tier || 'Watchman'}</div>
                 </div>
               </div>
             )
           })}
+          {dmMembers.filter(m => m.id !== userId).length === 0 && (
+            <div style={{ padding: '40px 20px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
+              No other members yet
+            </div>
+          )}
         </div>
       </div>
+    )
+  }
 
-      {/* RIGHT PANEL — contacts list or thread */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: V.bg, minWidth: 0 }}>
-        {!selectedConvo ? (
-          <div style={{ flex: 1, overflowY: 'auto' as const, background: V.bg }}>
-            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: cinzel, color: V.gold, fontSize: 13, letterSpacing: '0.08em' }}>💬 Direct Messages</span>
-              <button
-                onClick={() => setShowNewDM(true)}
-                style={{ marginLeft: 'auto', padding: '4px 10px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 20, color: V.gold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-              >+ New</button>
-            </div>
-            {dmMembers.filter(m => m.id !== userId).map(member => {
-              const displayName = member.firstName ? `${member.firstName} ${member.lastName || ''}`.trim() : member.username || 'Warrior'
-              const memberTier = member.publicMetadata?.tier || 'Watchman'
-              return (
-                <div
-                  key={member.id}
-                  onClick={() => { onStartDM?.(member.id, displayName) }}
-                  style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'background 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                >
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: V.gold, flexShrink: 0, overflow: 'hidden' }}>
-                    {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{displayName}</div>
-                    <div style={{ fontSize: 10, color: V.mut, marginTop: 2 }}>{memberTier}</div>
-                  </div>
-                </div>
-              )
-            })}
-            {dmMembers.filter(m => m.id !== userId).length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
-                No other members yet
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {/* Thread header */}
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0, background: V.surf, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={() => setSelectedConvo(null)} style={{ background: 'none', border: 'none', color: V.mut, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
-              {(() => {
-                const headerMeta = selectedConvo ? getConvoMeta(conversations.find((c: any) => (c.channel?.id || c.id) === selectedConvo) || {}) : null
-                const clerkMatch = dmMembers?.find((m: any) => headerOtherId === m.id)
-                const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : (headerMeta?.name && !headerMeta.name.startsWith('user_') && headerMeta.name !== 'Loading...' ? headerMeta.name : '')
-                const name = (headerMeta?.name && headerMeta.name !== 'Loading...') ? headerMeta.name : (clerkName || 'Warrior')
-                const avatar = headerMeta?.avatar || ''
-                return (
-                  <>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, overflow: 'hidden', flexShrink: 0 }}>
-                      {avatar ? <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
-                    </div>
-                    <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>{name}</span>
-                  </>
-                )
-              })()}
-            </div>
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: V.bg, minHeight: 0 }}>
+      {/* Back + name header */}
+      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
+        <button onClick={() => { setSelectedDMUserId(null); setSelectedConvo(null) }} style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
+        <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>
+          {dmMembers.find((m: any) => m.id === selectedDMUserId)?.firstName || 'Direct Message'}
+        </div>
+      </div>
+      {/* Chat area */}
+      {!selectedConvo ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: V.mut }}>
+          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em' }}>Connecting...</span>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
             {/* Messages scroll */}
             <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {messages.length === 0 && (
@@ -759,10 +692,10 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
               </div>
             </div>
           </div>
-        )}
+      )}
 
-        {/* New DM modal */}
-        {showNewDM && (
+      {/* New DM modal */}
+      {showNewDM && (
           <div onClick={() => setShowNewDM(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: isDark ? '#0D0B14' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
               <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', color: G, marginBottom: 16 }}>New Direct Message</div>
@@ -799,7 +732,6 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }
@@ -1634,17 +1566,6 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
     } finally { setReportSubmitting(false) }
   }
 
-  const sectionHead = (title: string, subtitle?: string) => (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-        <div style={{ flex: 1, height: 1, background: `${GG}30` }} />
-        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.2em', color: GG, textTransform: 'uppercase' as const }}>{title}</div>
-        <div style={{ flex: 1, height: 1, background: `${GG}30` }} />
-      </div>
-      {subtitle && <div style={{ textAlign: 'center', fontSize: 12, color: mut, fontStyle: 'italic' }}>{subtitle}</div>}
-    </div>
-  )
-
   if (loading) return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg }}>
       <div style={{ fontFamily: "'Cinzel', serif", color: GG, fontSize: 13, letterSpacing: '0.1em' }}>Loading Intel...</div>
@@ -1656,7 +1577,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
     .slice(0, 3)
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
@@ -1990,7 +1911,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
   const dbDim    = dbIsDark ? '#c8b99a' : '#7a6555'
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden', minHeight: 0 }}>
 
       {/* Header + search */}
       <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0, overflow: 'visible' }}>
@@ -2506,7 +2427,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         {isMobile && (
           <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>
@@ -2649,7 +2570,7 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#12101e' }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#12101e', minHeight: 0 }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
         {isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -2827,7 +2748,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: {
   ]
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: gold, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
         <div>
@@ -2880,7 +2801,7 @@ function EventsView({ theme, isMobile, setSidebarOpen }: {
   const muted   = isDark ? '#8B7355' : '#5c4a3a'
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
         <div>
@@ -3030,7 +2951,7 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
   const inp: React.CSSProperties = { width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 6, padding: '10px 14px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none' }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
           {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
@@ -3105,9 +3026,23 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
   )
 }
 
+// ── TIME AGO HELPER ────────────────────────────────────────
+function timeAgo(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 2) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return `${Math.floor(days / 30)}mo ago`
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn, signOut } = useAuth()
   const { user } = useUser()
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -3650,31 +3585,25 @@ function CommunityPage() {
     <>
       {/* Compact sidebar header */}
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <img src="/logo.png" alt="WRI" style={{ width: 28, height: 28, flexShrink: 0, objectFit: 'contain', opacity: 0.9 }} />
+        <img src="/wri-logo.png" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} alt="WRI" />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {user?.firstName || 'Warrior'}
           </div>
-          <div style={{ fontSize: 9, color: V.gold, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
             {tier}
           </div>
         </div>
         <button
-          onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, padding: 2, flexShrink: 0, lineHeight: 1 }}
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          onClick={() => setTheme((t: string) => t === 'dark' ? 'light' : 'dark')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2, flexShrink: 0 }}
+          title="Toggle theme"
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {isDark ? '☀️' : '🌙'}
         </button>
-        {isMobile && (
-          <button
-            onClick={() => setSidebarOpen(false)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: NAV_DEFAULT, padding: 2, lineHeight: 1, flexShrink: 0 }}
-            aria-label="Close navigation"
-          >✕</button>
-        )}
-        <SignOutButton>
-          <button style={{
+        <button
+          onClick={() => signOut()}
+          style={{
             background: 'none',
             border: `1px solid ${V.bdr}`,
             borderRadius: 5,
@@ -3686,8 +3615,8 @@ function CommunityPage() {
             cursor: 'pointer',
             flexShrink: 0,
             textTransform: 'uppercase' as const,
-          }}>Out</button>
-        </SignOutButton>
+          }}
+        >Out</button>
       </div>
 
       {/* Nav */}
@@ -3723,7 +3652,6 @@ function CommunityPage() {
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
-        {navItem('Prayer Wall', 'prayer-wall', '🙏')}
         {navItem('War Room Chat', 'war-room-chat', '✕')}
 
         {/* ── INTELLIGENCE ── */}
@@ -3823,15 +3751,12 @@ function CommunityPage() {
   return (
     <div style={{
       height: '100vh',
-      display: isMobile ? 'block' : 'grid',
-      gridTemplateColumns: isMobile ? undefined : '280px 1fr 280px',
+      display: isMobile ? 'block' : 'flex',
       background: V.bg,
       overflow: 'hidden',
-      overflowX: 'hidden',
       width: '100%',
       maxWidth: '100vw',
       position: 'relative',
-      paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
 
       {/* Mobile overlay */}
@@ -3854,15 +3779,14 @@ function CommunityPage() {
         paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
         display: 'flex', flexDirection: 'column',
-        background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`, overflow: 'hidden',
-        height: '100%',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
+        height: '100vh', overflowY: 'auto' as const, flexShrink: 0, width: '280px',
       }}>
         <SidebarContent />
       </div>
 
       {/* ── CENTER ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: '100vh', width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
@@ -3947,7 +3871,7 @@ function CommunityPage() {
 
       {/* ── RIGHT SIDEBAR — desktop only ── */}
       {!isMobile && (
-        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden', height: '100%', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden', height: '100vh', flexShrink: 0, width: '280px', position: 'relative' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
 
             {/* Prayer Wall widget */}
@@ -4072,27 +3996,30 @@ function CommunityPage() {
               ))}
             </div>
 
-            {/* Active Warriors */}
+            {/* Warriors */}
             <div style={{ padding: '14px 16px', position: 'relative', overflow: 'visible' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                <span style={{ color: '#4caf50', fontSize: 8 }}>●</span>
-                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>ACTIVE WARRIORS</span>
+                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>WARRIORS</span>
               </div>
               {/* Current user always shown first */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ position: 'relative' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden' }}>
-                    {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
-                  </div>
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: '#4caf50', border: `2px solid ${V.surf}` }} />
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden' }}>
+                  {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
                 </div>
                 <div>
                   <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{user?.firstName || 'You'}</div>
                   <TierBadge tier={tier} />
                 </div>
               </div>
-              {/* Other members */}
-              {members.filter(m => m.id !== user?.id).slice(0, 6).map(member => {
+              {/* Other members — sorted by last active */}
+              {[...members.filter(m => m.id !== user?.id)]
+                .sort((a, b) => {
+                  const aTime = new Date(a.lastActiveAt || a.lastSignInAt || 0).getTime()
+                  const bTime = new Date(b.lastActiveAt || b.lastSignInAt || 0).getTime()
+                  return bTime - aTime
+                })
+                .slice(0, 6)
+                .map(member => {
                 const memberTier = member.publicMetadata?.tier || 'Watchman'
                 const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
                 const tierColor = tierColors[memberTier] || '#6b6b7a'
@@ -4125,15 +4052,15 @@ function CommunityPage() {
                       onClick={() => setViewingProfile(member)}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}
                     >
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden' }}>
-                          {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
-                        </div>
-                        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: '#4ade80', border: `2px solid ${V.surf}` }} />
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
+                        {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{displayName}</div>
                         <TierBadge tier={memberTier} />
+                        <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>
+                          {timeAgo(member.lastActiveAt || member.lastSignInAt)}
+                        </div>
                       </div>
                     </button>
                     {hoveredWarrior === member.id && member.id !== currentUserId && (
