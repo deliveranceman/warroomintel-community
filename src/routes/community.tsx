@@ -347,6 +347,8 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   const [headerOtherId, setHeaderOtherId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const dmFileRef = useRef<HTMLInputElement>(null)
+  const [selectedName, setSelectedName] = useState('')
+  const [connecting, setConnecting] = useState(false)
 
   // Fetch DM channels this user is a member of
   const loadConvos = useCallback(async () => {
@@ -478,6 +480,16 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     if (pendingDMWith) setSelectedDMUserId(pendingDMWith)
   }, [pendingDMWith])
 
+  async function selectMember(id: string, name: string) {
+    setSelectedDMUserId(id)
+    setSelectedName(name)
+    setSelectedConvo(null)
+    setConnecting(true)
+    onStartDM?.(id, name)
+  }
+
+  useEffect(() => { if (selectedConvo) setConnecting(false) }, [selectedConvo])
+
   function getConvoMeta(ch: any) {
     const channel = ch.channel || ch
     if (channel.id === 'war-room-general') {
@@ -510,58 +522,67 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     return name.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
-  if (!selectedDMUserId) {
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: V.bg, minHeight: 0 }}>
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, flexShrink: 0 }}>
-          <div style={{ fontFamily: cinzel, color: G, fontSize: 14, letterSpacing: '0.08em' }}>💬 Direct Messages</div>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto' as const }}>
-          {dmMembers.filter(m => m.id !== userId).map(member => {
-            const displayName = member.firstName ? `${member.firstName} ${member.lastName || ''}`.trim() : member.username || 'Warrior'
-            return (
-              <div key={member.id}
-                onClick={() => { setSelectedDMUserId(member.id); onStartDM?.(member.id, displayName) }}
-                style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'background 0.15s' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-              >
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: G, flexShrink: 0, overflow: 'hidden' }}>
-                  {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
+  return (
+    <div style={{ flex: 1, display: 'flex', minHeight: 0, background: V.bg }}>
+      {/* Contacts panel */}
+      {(!isMobile || !selectedDMUserId) && (
+        <div style={{ width: isMobile ? '100%' : 280, flexShrink: 0, borderRight: isMobile ? 'none' : `1px solid ${V.bdr}`, display: 'flex', flexDirection: 'column', height: '100%', background: V.surf }}>
+          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div style={{ fontFamily: cinzel, color: G, fontSize: 13, letterSpacing: '0.08em' }}>💬 Direct Messages</div>
+            <button
+              onClick={() => setShowNewDM(true)}
+              style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid ${V.bdr}`, color: G, cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+            >+</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' as const }}>
+            {dmMembers.filter(m => m.id !== userId).map(member => {
+              const displayName = member.firstName ? `${member.firstName} ${member.lastName || ''}`.trim() : member.username || 'Warrior'
+              const isSelected = member.id === selectedDMUserId
+              return (
+                <div key={member.id}
+                  onClick={() => selectMember(member.id, displayName)}
+                  style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'background 0.15s', background: isSelected ? 'rgba(201,168,76,0.08)' : 'transparent' }}
+                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
+                  onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: G, flexShrink: 0, overflow: 'hidden' }}>
+                    {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>{displayName}</div>
+                    <div style={{ fontSize: 10, color: V.mut, marginTop: 2 }}>{member.publicMetadata?.tier || 'Watchman'}</div>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>{displayName}</div>
-                  <div style={{ fontSize: 10, color: V.mut, marginTop: 2 }}>{member.publicMetadata?.tier || 'Watchman'}</div>
+              )
+            })}
+            {dmMembers.filter(m => m.id !== userId).length === 0 && (
+              <div style={{ padding: '40px 20px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
+                No other members yet
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Conversation panel */}
+      {(!isMobile || selectedDMUserId) && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {selectedDMUserId ? (
+            <>
+              <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
+                {isMobile && (
+                  <button onClick={() => { setSelectedDMUserId(null); setSelectedConvo(null); setSelectedName('') }} style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
+                )}
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>
+                  {selectedName || dmMembers.find((m: any) => m.id === selectedDMUserId)?.firstName || 'Direct Message'}
                 </div>
               </div>
-            )
-          })}
-          {dmMembers.filter(m => m.id !== userId).length === 0 && (
-            <div style={{ padding: '40px 20px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
-              No other members yet
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: V.bg, minHeight: 0 }}>
-      {/* Back + name header */}
-      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
-        <button onClick={() => { setSelectedDMUserId(null); setSelectedConvo(null) }} style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
-        <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>
-          {dmMembers.find((m: any) => m.id === selectedDMUserId)?.firstName || 'Direct Message'}
-        </div>
-      </div>
-      {/* Chat area */}
-      {!selectedConvo ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: V.mut }}>
-          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em' }}>Connecting...</span>
-        </div>
-      ) : (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+              {(connecting || !selectedConvo) ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: V.mut }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em' }}>Connecting...</span>
+                </div>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
             {/* Messages scroll */}
             <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {messages.length === 0 && (
@@ -692,46 +713,55 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
               </div>
             </div>
           </div>
+              )}
+            </>
+          ) : (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: V.mut }}>
+              <div style={{ fontSize: 32, opacity: 0.4 }}>💬</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', opacity: 0.6 }}>Select a conversation</div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* New DM modal */}
       {showNewDM && (
-          <div onClick={() => setShowNewDM(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: isDark ? '#0D0B14' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
-              <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', color: G, marginBottom: 16 }}>New Direct Message</div>
-              <input
-                autoFocus
-                type="text"
-                value={newDMSearch}
-                onChange={e => setNewDMSearch(e.target.value)}
-                placeholder="Search members..."
-                style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', color: isDark ? '#f0e8d8' : '#1C1407', fontFamily: crimson, fontSize: 14, outline: 'none', marginBottom: 12 }}
-              />
-              <div style={{ maxHeight: 240, overflowY: 'auto' as const }}>
-                {dmMembers.filter(m => m.id !== userId && `${m.firstName || ''} ${m.lastName || ''} ${m.username || ''}`.toLowerCase().includes(newDMSearch.toLowerCase())).map(m => {
-                  const name = m.firstName ? `${m.firstName} ${m.lastName || ''}`.trim() : m.username || 'Member'
-                  return (
-                    <div
-                      key={m.id}
-                      onClick={() => { onStartDM?.(m.id, name); setShowNewDM(false) }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.08)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                    >
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, overflow: 'hidden', flexShrink: 0 }}>
-                        {m.imageUrl ? <img src={m.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#1C1407', letterSpacing: '0.04em' }}>{name}</div>
-                        <TierBadge tier={m.publicMetadata?.tier || 'Watchman'} />
-                      </div>
+        <div onClick={() => setShowNewDM(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: isDark ? '#0D0B14' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', color: G, marginBottom: 16 }}>New Direct Message</div>
+            <input
+              autoFocus
+              type="text"
+              value={newDMSearch}
+              onChange={e => setNewDMSearch(e.target.value)}
+              placeholder="Search members..."
+              style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', color: isDark ? '#f0e8d8' : '#1C1407', fontFamily: crimson, fontSize: 14, outline: 'none', marginBottom: 12 }}
+            />
+            <div style={{ maxHeight: 240, overflowY: 'auto' as const }}>
+              {dmMembers.filter(m => m.id !== userId && `${m.firstName || ''} ${m.lastName || ''} ${m.username || ''}`.toLowerCase().includes(newDMSearch.toLowerCase())).map(m => {
+                const name = m.firstName ? `${m.firstName} ${m.lastName || ''}`.trim() : m.username || 'Member'
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => { selectMember(m.id, name); setShowNewDM(false) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.08)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                  >
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, overflow: 'hidden', flexShrink: 0 }}>
+                      {m.imageUrl ? <img src={m.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
                     </div>
-                  )
-                })}
-              </div>
+                    <div>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#1C1407', letterSpacing: '0.04em' }}>{name}</div>
+                      <TierBadge tier={m.publicMetadata?.tier || 'Watchman'} />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   )
 }
@@ -3585,7 +3615,10 @@ function CommunityPage() {
     <>
       {/* Compact sidebar header */}
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <img src="/wri-logo.png" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} alt="WRI" />
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+          <img src="/wri-logo.png" alt="WRI" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+          <span style={{ position: 'absolute' as const, fontFamily: cinzel, fontSize: 8, color: G }}>WRI</span>
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {user?.firstName || 'Warrior'}
