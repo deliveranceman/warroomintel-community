@@ -41,6 +41,34 @@ export default async function handler(req: Request) {
     .filter((t, i, arr) => arr.findIndex(x => x.toLowerCase() === t.toLowerCase()) === i)
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+  const reqUrl = new URL(req.url)
+  const resourceId = reqUrl.searchParams.get('id')
+  const action = reqUrl.searchParams.get('action')
+
+  if (action === 'download' && resourceId) {
+    const { data: resource, error: resourceError } = await supabase
+      .from('resources')
+      .select('id, title, file_path, mime_type, tier')
+      .eq('id', resourceId)
+      .single()
+    if (resourceError || !resource) return new Response(JSON.stringify({ error: 'Resource not found' }), { status: 404, headers })
+    if (!allowedTiers.includes(resource.tier)) return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers })
+    const { data, error } = await supabase.storage
+      .from('resources')
+      .download(resource.file_path)
+    if (error || !data) return new Response(JSON.stringify({ error: 'File not found' }), { status: 404, headers })
+    const arrayBuffer = await data.arrayBuffer()
+    return new Response(arrayBuffer, {
+      status: 200,
+      headers: {
+        ...headers,
+        'Content-Type': resource.mime_type || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${resource.title}"`,
+      }
+    })
+  }
+
   const { data, error } = await supabase
     .from('resources')
     .select('id, title, description, tier, category, file_path, file_type, file_size, created_at')

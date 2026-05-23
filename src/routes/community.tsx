@@ -1518,8 +1518,8 @@ const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, c
 const tierNum = (t: string) => TIER_LEVEL[t?.toLowerCase()] ?? 0
 
 // ── WEEKLY INTEL VIEW ────────────────────────────────────────────────────────
-function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
-  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection: (s: string) => void
 }) {
   const { user }     = useUser()
   const { getToken } = useAuth()
@@ -1545,6 +1545,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [resources, setResources] = useState<any[]>([])
   const [demons, setDemons]       = useState<any[]>([])
   const [loading, setLoading]     = useState(true)
+  const [recentResources, setRecentResources] = useState<any[]>([])
 
   const [showReportForm, setShowReportForm] = useState(false)
   const [reportForm, setReportForm]         = useState({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
@@ -1573,6 +1574,20 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
     }
     fetchAll()
     return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/arsenal-resources?limit=3&sort=newest', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setRecentResources(d.resources?.slice(0, 3) || [])
+      }
+    }
+    load()
   }, [])
 
   async function submitReport() {
@@ -1610,25 +1625,26 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
     </div>
   )
 
+  const recentDemons = [...demons]
+    .sort((a, b) => (b.createdTime || '').localeCompare(a.createdTime || ''))
+    .slice(0, 3)
+
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg }}>
+
+    <div style={{ padding: isMobile ? '16px' : '24px 28px', maxWidth: 1100 }}>
 
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+      <div style={{ marginBottom: 24 }}>
         {isMobile && (
-          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: '0 0 8px', display: 'block' }}>☰</button>
         )}
-        <div>
-          <div style={{ fontFamily: "'Cinzel', serif", fontSize: isMobile ? 18 : 22, color: GG, fontWeight: 700 }}>⚔ Weekly Intel</div>
-          <div style={{ fontSize: 12, color: mut, marginTop: 2 }}>Operational briefings, field intelligence, and ministry resources</div>
-        </div>
+        <h2 style={{ fontFamily: cinzel, color: GG, fontSize: 20, marginBottom: 4, margin: 0 }}>⚡ Weekly Intel</h2>
+        <p style={{ color: mut, fontSize: 13, margin: '4px 0 0' }}>Latest briefings, field reports, and intelligence drops</p>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
-
-      {/* LEFT COLUMN — main content */}
-      <div style={{ flex: 2, minWidth: 0 }}>
+      {/* FULL WIDTH — Intel Briefing */}
+      <div style={{ marginBottom: 32 }}>
 
       {/* ── BRIEFINGS ─────────────────────────────────────────── */}
       <div style={{ marginBottom: 36 }}>
@@ -1669,6 +1685,13 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
           </div>
         ))}
       </div>
+      </div>{/* end Intel Briefing full-width */}
+
+      {/* TWO COLUMNS */}
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
+
+      {/* LEFT — Field Reports */}
+      <div style={{ flex: 2, minWidth: 0 }}>
 
       {/* ── FIELD REPORTS ─────────────────────────────────────── */}
       <div style={{ marginBottom: 36 }}>
@@ -1778,8 +1801,53 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
 
       </div>{/* end left column */}
 
-      {/* RIGHT COLUMN — compact sidebar intel */}
-      <div style={{ flex: 1, minWidth: isMobile ? '100%' : 260, maxWidth: isMobile ? '100%' : 320 }}>
+      {/* RIGHT — compact intel sidebar */}
+      <div style={{ flex: 1, minWidth: isMobile ? '100%' : 260, maxWidth: 320 }}>
+
+        {recentResources.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>
+              Latest Arsenal Drops
+            </div>
+            {recentResources.map(r => (
+              <div key={r.id} style={{
+                padding: '10px 12px',
+                borderBottom: `1px solid ${bdr}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <div>
+                  <div style={{ fontSize: 12, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{r.title}</div>
+                  <div style={{ fontSize: 11, color: mut, marginTop: 2 }}>{r.category} · {r.tier}</div>
+                </div>
+                <button
+                  onClick={() => setActiveSection('arsenal')}
+                  style={{ fontSize: 10, color: GG, background: 'transparent', border: `1px solid ${GG}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}
+                >VIEW</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {recentDemons.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>
+              New to Intel Archive
+            </div>
+            {recentDemons.map(d => (
+              <div
+                key={d.id}
+                style={{ padding: '8px 12px', borderBottom: `1px solid ${bdr}`, cursor: 'pointer' }}
+                onClick={() => setActiveSection('database')}
+              >
+                <div style={{ fontSize: 12, fontFamily: cinzel, color: txt }}>{d.name}</div>
+                <div style={{ fontSize: 11, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.type || ''}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {links.length > 0 && (
           <div style={{ marginBottom: 20 }}>
@@ -1797,49 +1865,10 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen }: {
           </div>
         )}
 
-        {resources.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>Latest Arsenal Drops</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {resources.slice(0, 3).map(resource => {
-                const hasAccess = tierNum(userTier) >= tierNum(resource.tier)
-                return (
-                  <div key={resource.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, opacity: hasAccess ? 1 : 0.75 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: hasAccess ? GG : mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{resource.title}</div>
-                      <div style={{ fontSize: 9, color: mut, marginTop: 2 }}>{resource.tier} · {resource.category}</div>
-                    </div>
-                    <span style={{ fontSize: 12 }}>{hasAccess ? '✓' : '🔒'}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {demons.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>New to Intel Archive</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {demons.slice(0, 4).map((demon: any) => {
-                const cat = demon.hierarchyCategory || ''
-                const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
-                return (
-                  <div key={demon.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${colors.border}`, borderRadius: 6, padding: '8px 10px' }}>
-                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, marginBottom: 2 }}>{demon.name}</div>
-                    <div style={{ fontSize: 10, color: mut }}>
-                      {demon.description ? demon.description.slice(0, 60) + (demon.description.length > 60 ? '...' : '') : cat}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
       </div>{/* end right column */}
 
       </div>{/* end two-column wrapper */}
+    </div>
     </div>
   )
 }
@@ -2346,19 +2375,25 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   }, [])
 
   async function handleDownload(resource: any) {
-    setDownloading(resource.id)
     try {
       const token = await getToken()
-      const res = await fetch(`/api/download?id=${resource.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`/api/arsenal-resources?id=${resource.id}&action=download`, {
+        headers: { Authorization: `Bearer ${token}` }
       })
-      const data = await res.json()
-      if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
-      else throw new Error(data.error || 'Download failed')
-    } catch (e: any) {
-      alert(e.message)
-    } finally {
-      setDownloading(null)
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error || 'Download failed')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = resource.title || 'resource'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch(e) {
+      alert('Download failed. Please try again.')
     }
   }
 
@@ -3648,7 +3683,7 @@ function CommunityPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
         {/* ── QUICK ACCESS ICON STRIP ── */}
-        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 8px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 8px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4 }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
             { icon: '💬', label: 'War Room Chat', section: 'war-room-chat' },
             { icon: '🙏', label: 'Prayer Wall',   section: 'prayer-wall'   },
@@ -3722,7 +3757,6 @@ function CommunityPage() {
         {sectionLabel('Field Operations')}
         {navItem('Arsenal', 'arsenal', '✦')}
         {navItem('Assessment', 'assessment', '📋')}
-        {navItem('Request Help', 'help', '🙏')}
 
         {/* ── TRAINING (collapsible) ── */}
         <button onClick={() => setTrainingExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px 6px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#6b5e45' : '#7a6555', textTransform: 'uppercase' as const, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
@@ -3817,7 +3851,7 @@ function CommunityPage() {
 
       {/* ── CENTER ── */}
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
-        {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
           <WarRoomChatView
