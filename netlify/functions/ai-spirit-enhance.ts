@@ -128,7 +128,16 @@ CRITICAL INSTRUCTIONS:
     if (!jsonMatch) throw new Error('No JSON found in response')
     const enhanced = JSON.parse(jsonMatch[0])
 
-    return new Response(JSON.stringify({ enhanced }), { status: 200, headers })
+    // Strip fields that already have non-empty values in currentData
+    const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
+    const filtered: Record<string, any> = {}
+    for (const [key, value] of Object.entries(enhanced)) {
+      if (isEmpty(currentData?.[key])) {
+        filtered[key] = value
+      }
+    }
+
+    return new Response(JSON.stringify({ enhanced: filtered }), { status: 200, headers })
   } catch(e: any) {
     console.error('AI enhance error:', e)
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })

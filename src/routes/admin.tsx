@@ -960,6 +960,19 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [aiLoading, setAiLoading]         = useState(false)
   const [showAiPanel, setShowAiPanel]     = useState(false)
   const [aiMsg, setAiMsg]                 = useState('')
+  const [aiSaving, setAiSaving]           = useState(false)
+  // Per-field decisions: accepted | skipped | pending, plus editable value
+  const [fieldDecisions, setFieldDecisions] = useState<Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }>>({})
+
+  function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
+    setFieldDecisions(prev => ({ ...prev, [key]: { ...prev[key], status, editing: false } }))
+  }
+  function setEditing(key: string, on: boolean) {
+    setFieldDecisions(prev => ({ ...prev, [key]: { ...prev[key], editing: on } }))
+  }
+  function setEditValue(key: string, val: string) {
+    setFieldDecisions(prev => ({ ...prev, [key]: { ...prev[key], value: val } }))
+  }
 
   async function fetchDemons() {
     setDLoading(true)
@@ -1078,6 +1091,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setAiTargetDemon(demon)
     setAiResult(null)
     setAiMsg('')
+    setFieldDecisions({})
     setShowAiPanel(true)
     setAiLoading(true)
     try {
@@ -1088,10 +1102,47 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         body: JSON.stringify({ spiritName: demon.name, currentData: demon }),
       })
       const d = await res.json()
-      if (d.enhanced) { setAiResult(d.enhanced); setAiMsg('') }
-      else setAiMsg(d.error || 'AI enhancement failed')
+      if (d.enhanced) {
+        setAiResult(d.enhanced)
+        const init: Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }> = {}
+        Object.entries(d.enhanced).forEach(([k, v]) => {
+          init[k] = { status: 'pending', value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v ?? ''), editing: false }
+        })
+        setFieldDecisions(init)
+        setAiMsg('')
+      } else {
+        setAiMsg(d.error || 'AI enhancement failed')
+      }
     } catch(e: any) { setAiMsg(e.message) }
     finally { setAiLoading(false) }
+  }
+
+  async function saveAiAccepted() {
+    const toSave: Record<string, any> = {}
+    Object.entries(fieldDecisions).forEach(([k, dec]) => {
+      if (dec.status !== 'accepted') return
+      const orig = aiResult[k]
+      if (typeof orig === 'boolean') {
+        toSave[k] = dec.value === 'true' || dec.value === 'Yes' || dec.value === 'yes'
+      } else {
+        toSave[k] = dec.value
+      }
+    })
+    if (Object.keys(toSave).length === 0) { setAiMsg('⚠ Accept at least one field first'); return }
+    setAiSaving(true)
+    try {
+      const merged = { ...aiTargetDemon, ...toSave }
+      setDemons((prev: any[]) => prev.map(d => d.id === aiTargetDemon.id ? merged : d))
+      setAiTargetDemon(merged)
+      const token = await getToken()
+      const res = await fetch('/api/admin-demon', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: aiTargetDemon.airtableId, fields: toSave }),
+      })
+      if (res.ok) setAiMsg(`✓ ${Object.keys(toSave).length} field(s) saved to Airtable`)
+      else { const d = await res.json(); setAiMsg(`⚠ ${d.error}`) }
+    } finally { setAiSaving(false) }
   }
 
   async function savePost() {
@@ -1454,80 +1505,98 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             )}
             {aiResult && !aiLoading && (() => {
               const labels: Record<string, string> = {
-                description: '📖 Description',
-                type: '🏷 Entity Type',
-                biblicalRank: '⚔ Biblical Rank (Eph. 6:12)',
-                etymologyNotes: '📚 Etymology & Name Analysis',
-                archaeologyNotes: '🏺 Archaeological & ANE Context',
-                scriptureContext: '✝ Scripture Context',
-                primaryBattlefield: '🎯 Primary Battlefield',
-                manifestation: '⚠ Manifestations & Symptoms',
-                entryPoints: '🚪 Entry Points',
-                transmissionVectors: '🧬 Transmission Vectors',
-                caseType: '📋 Case Type',
-                clusterSpirits: '🕸 Cluster Spirits',
-                legalRights: '⚖ Legal Rights Framework',
-                sessionIndicators: '🔍 Session Indicators',
-                resistanceSignature: '🛡 Resistance Signature',
-                demonicAgreements: '🤥 Demonic Agreements & Lies',
-                institutionalExpression: '🏛 Institutional Expression',
-                counterScriptures: '🗡 Counter Scriptures',
-                deliveranceSequence: '📋 Deliverance Sequence',
-                aftercareNotes: '🌱 Aftercare Notes',
-                prayerPoints: '🙏 Prayer Points',
-                phonetic: '🔊 Phonetic Pronunciation',
-                biblicalReferences: '📖 Biblical References',
-                isGenerational: '🧬 Generational?',
+                description: '📖 Description', type: '🏷 Entity Type',
+                biblicalRank: '⚔ Biblical Rank (Eph. 6:12)', etymologyNotes: '📚 Etymology',
+                archaeologyNotes: '🏺 Archaeology & ANE', scriptureContext: '✝ Scripture Context',
+                primaryBattlefield: '🎯 Primary Battlefield', manifestation: '⚠ Manifestations',
+                entryPoints: '🚪 Entry Points', transmissionVectors: '🧬 Transmission Vectors',
+                caseType: '📋 Case Type', clusterSpirits: '🕸 Cluster Spirits',
+                legalRights: '⚖ Legal Rights', sessionIndicators: '🔍 Session Indicators',
+                resistanceSignature: '🛡 Resistance Signature', demonicAgreements: '🤥 Demonic Agreements',
+                institutionalExpression: '🏛 Institutional Expression', counterScriptures: '🗡 Counter Scriptures',
+                deliveranceSequence: '📋 Deliverance Sequence', aftercareNotes: '🌱 Aftercare Notes',
+                prayerPoints: '🙏 Prayer Points', phonetic: '🔊 Phonetic',
+                biblicalReferences: '📖 Biblical References', isGenerational: '🧬 Generational?',
                 isTerritorial: '🗺 Territorial?',
               }
-              const applyAllAndSave = async () => {
-                const merged = {
-                  ...aiTargetDemon,
-                  ...aiResult,
-                  isGenerational: aiResult.isGenerational !== undefined ? aiResult.isGenerational : aiTargetDemon.isGenerational,
-                  isTerritorial: aiResult.isTerritorial !== undefined ? aiResult.isTerritorial : aiTargetDemon.isTerritorial,
-                }
-                setAiTargetDemon(merged)
-                setDemons((prev: any[]) => prev.map(d => d.id === aiTargetDemon.id ? merged : d))
-                // Save to Airtable
-                const token = await getToken()
-                await fetch('/api/admin-demon', {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ id: aiTargetDemon.airtableId, fields: merged }),
-                })
-                setAiMsg('✓ All fields applied and saved to Airtable')
-              }
+              const fieldKeys = Object.keys(aiResult).filter(k => labels[k] && (aiResult[k] || aiResult[k] === false))
+              const acceptedCount = fieldKeys.filter(k => fieldDecisions[k]?.status === 'accepted').length
+              const pendingCount  = fieldKeys.filter(k => !fieldDecisions[k] || fieldDecisions[k].status === 'pending').length
               return (
                 <div>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                    <button onClick={applyAllAndSave}
-                      style={{ flex: 1, padding: '10px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
-                      ✓ Apply All + Save to Airtable
-                    </button>
-                    <button onClick={() => { setAiResult(null); setAiMsg(''); runAiEnhance(aiTargetDemon) }}
-                      style={{ padding: '10px 14px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 8, color: DIM, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
-                      ↺ Re-run
-                    </button>
+                  {/* Summary + save bar */}
+                  <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>
+                      {fieldKeys.length} missing field{fieldKeys.length !== 1 ? 's' : ''} found
+                      {pendingCount > 0 && <span style={{ color: DIM }}> · {pendingCount} pending</span>}
+                      {acceptedCount > 0 && <span style={{ color: '#4ade80' }}> · {acceptedCount} accepted</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={saveAiAccepted} disabled={aiSaving || acceptedCount === 0}
+                        style={{ flex: 1, padding: '9px', background: acceptedCount > 0 ? G : 'rgba(201,168,76,0.2)', border: 'none', borderRadius: 6, color: acceptedCount > 0 ? '#0D0B14' : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: acceptedCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                        {aiSaving ? '⏳ Saving...' : `💾 Save ${acceptedCount} Accepted Field${acceptedCount !== 1 ? 's' : ''}`}
+                      </button>
+                      <button onClick={() => { setAiResult(null); setFieldDecisions({}); runAiEnhance(aiTargetDemon) }}
+                        style={{ padding: '9px 12px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                        ↺
+                      </button>
+                    </div>
                   </div>
-                  {Object.entries(aiResult).map(([key, value]: [string, any]) => {
-                    if (!value && value !== false || !labels[key]) return null
+
+                  {/* Field-by-field review */}
+                  {fieldKeys.map(key => {
+                    const value = aiResult[key]
+                    const dec = fieldDecisions[key] || { status: 'pending', value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''), editing: false }
+                    const statusColor = dec.status === 'accepted' ? '#4ade80' : dec.status === 'skipped' ? '#f87171' : DIM
                     return (
-                      <div key={key} style={{ marginBottom: 12, background: 'rgba(201,168,76,0.03)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{labels[key]}</div>
-                          <button
-                            onClick={() => {
-                              setDemons((prev: any[]) => prev.map(d => d.id === aiTargetDemon.id ? { ...d, [key]: value } : d))
-                              setAiTargetDemon((prev: any) => ({ ...prev, [key]: value }))
-                            }}
-                            style={{ fontSize: 8, padding: '2px 8px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, color: G, fontFamily: cinzel, letterSpacing: '0.06em', cursor: 'pointer' }}>
-                            Apply
-                          </button>
+                      <div key={key} style={{ marginBottom: 10, background: dec.status === 'accepted' ? 'rgba(74,222,128,0.04)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.03)' : 'rgba(201,168,76,0.03)', border: `1px solid ${dec.status === 'accepted' ? 'rgba(74,222,128,0.25)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.2)' : BDR}`, borderRadius: 8, padding: '12px 14px', opacity: dec.status === 'skipped' ? 0.5 : 1, transition: 'all 0.15s' }}>
+                        {/* Label + action buttons */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em' }}>{labels[key]}</div>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {dec.status !== 'accepted' && (
+                              <button onClick={() => setDecision(key, 'accepted')}
+                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, cursor: 'pointer' }}>
+                                ✓ Accept
+                              </button>
+                            )}
+                            {!dec.editing && (
+                              <button onClick={() => setEditing(key, true)}
+                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR}`, borderRadius: 4, color: G, fontFamily: cinzel, cursor: 'pointer' }}>
+                                ✏ Edit
+                              </button>
+                            )}
+                            {dec.editing && (
+                              <button onClick={() => { setEditing(key, false); setDecision(key, 'accepted') }}
+                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, cursor: 'pointer' }}>
+                                ✓ Done
+                              </button>
+                            )}
+                            {dec.status !== 'skipped' ? (
+                              <button onClick={() => setDecision(key, 'skipped')}
+                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, cursor: 'pointer' }}>
+                                ✗ Skip
+                              </button>
+                            ) : (
+                              <button onClick={() => setDecision(key, 'pending')}
+                                style={{ fontSize: 9, padding: '3px 9px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, cursor: 'pointer' }}>
+                                ↩ Undo
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.6 }}>
-                          {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
-                        </div>
+                        {/* Value or textarea */}
+                        {dec.editing ? (
+                          <textarea value={dec.value} onChange={e => setEditValue(key, e.target.value)} rows={4}
+                            style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
+                        ) : (
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.6 }}>
+                            {dec.value || (typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''))}
+                          </div>
+                        )}
+                        {dec.status === 'accepted' && !dec.editing && (
+                          <div style={{ fontSize: 9, color: '#4ade80', fontFamily: cinzel, letterSpacing: '0.06em', marginTop: 6 }}>✓ Will be saved</div>
+                        )}
                       </div>
                     )
                   })}
