@@ -1938,7 +1938,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
         </div>{/* end left column */}
 
         {/* RIGHT — Intel Sidebar (1/3) */}
-        <div style={{ flex: 1, minWidth: isMobile ? '100%' : 240, maxWidth: 300 }}>
+        <div style={{ flexShrink: 0, width: isMobile ? '100%' : 280 }}>
 
           {/* Latest Arsenal Drops */}
           {recentResources.length > 0 && (

@@ -1355,6 +1355,342 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   )
 }
 
+// ─── TRAINING MANAGER ────────────────────────────────────────────────────────
+function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean }) {
+  const BG2  = isDark ? '#0D0B14' : '#f5f0e8'
+  const SURF3 = isDark ? '#1a1714' : '#f0ebe3'
+  const BDR2  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const TXT2  = isDark ? '#f0e8d8' : '#1a1410'
+  const MUT   = isDark ? '#9a8c74' : '#5c4a3a'
+  const GG    = isDark ? '#C9A84C' : '#a07830'
+  const inp2: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box' as const,
+    background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+    border: `1px solid ${BDR2}`, borderRadius: 6,
+    padding: '8px 12px', color: TXT2,
+    fontFamily: crimson, fontSize: 14, outline: 'none',
+  }
+
+  const [courses, setCourses]               = useState<any[]>([])
+  const [loading, setLoading]               = useState(true)
+  const [selectedCourse, setSelectedCourse] = useState<any | null>(null)
+  const [episodes, setEpisodes]             = useState<any[]>([])
+  const [showCourseForm, setShowCourseForm] = useState(false)
+  const [showEpisodeForm, setShowEpisodeForm] = useState(false)
+  const [editingCourse, setEditingCourse]   = useState<any | null>(null)
+  const [editingEpisode, setEditingEpisode] = useState<any | null>(null)
+  const [saving, setSaving]                 = useState(false)
+
+  const [cTitle, setCTitle]     = useState('')
+  const [cDesc, setCDesc]       = useState('')
+  const [cThumbnail, setCThumbnail] = useState('')
+  const [cTier, setCTier]       = useState('free')
+  const [cStatus, setCStatus]   = useState('draft')
+
+  const [eTitle, setETitle]     = useState('')
+  const [eDesc, setEDesc]       = useState('')
+  const [eYoutube, setEYoutube] = useState('')
+  const [eNotes, setENotes]     = useState('')
+  const [eStatus, setEStatus]   = useState('draft')
+  const [eSortOrder, setESortOrder] = useState(0)
+
+  useEffect(() => { loadCourses() }, [])
+
+  async function loadCourses() {
+    setLoading(true)
+    const token = await getToken()
+    const res = await fetch('/api/admin-courses', { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setCourses(d.courses || []) }
+    setLoading(false)
+  }
+
+  async function loadEpisodes(courseId: string) {
+    const token = await getToken()
+    const res = await fetch(`/api/admin-episodes?courseId=${courseId}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setEpisodes(d.episodes || []) }
+  }
+
+  function openCourseForm(course?: any) {
+    if (course) {
+      setEditingCourse(course); setCTitle(course.title); setCDesc(course.description || '')
+      setCThumbnail(course.thumbnail_url || ''); setCTier(course.tier); setCStatus(course.status)
+    } else {
+      setEditingCourse(null); setCTitle(''); setCDesc(''); setCThumbnail(''); setCTier('free'); setCStatus('draft')
+    }
+    setShowCourseForm(true)
+  }
+
+  function openEpisodeForm(episode?: any) {
+    if (episode) {
+      setEditingEpisode(episode); setETitle(episode.title); setEDesc(episode.description || '')
+      setEYoutube(episode.youtube_url || ''); setENotes(episode.notes || '')
+      setEStatus(episode.status); setESortOrder(episode.sort_order || 0)
+    } else {
+      setEditingEpisode(null); setETitle(''); setEDesc(''); setEYoutube(''); setENotes('')
+      setEStatus('draft'); setESortOrder(episodes.length)
+    }
+    setShowEpisodeForm(true)
+  }
+
+  async function saveCourse() {
+    if (!cTitle.trim()) return
+    setSaving(true)
+    const token = await getToken()
+    const body = { title: cTitle, description: cDesc, thumbnail_url: cThumbnail, tier: cTier, status: cStatus }
+    const res = editingCourse
+      ? await fetch(`/api/admin-courses?id=${editingCourse.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+      : await fetch('/api/admin-courses', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+    setSaving(false)
+    if (res.ok) { setShowCourseForm(false); loadCourses() }
+  }
+
+  async function deleteCourse(id: string) {
+    if (!confirm('Delete this course and all its episodes?')) return
+    const token = await getToken()
+    await fetch(`/api/admin-courses?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (selectedCourse?.id === id) setSelectedCourse(null)
+    loadCourses()
+  }
+
+  async function saveEpisode() {
+    if (!eTitle.trim() || !selectedCourse) return
+    setSaving(true)
+    const token = await getToken()
+    const body = { courseId: selectedCourse.id, title: eTitle, description: eDesc, youtubeUrl: eYoutube, notes: eNotes, status: eStatus, sortOrder: eSortOrder }
+    const res = editingEpisode
+      ? await fetch(`/api/admin-episodes?id=${editingEpisode.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+      : await fetch('/api/admin-episodes', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+    setSaving(false)
+    if (res.ok) { setShowEpisodeForm(false); loadEpisodes(selectedCourse.id) }
+  }
+
+  async function deleteEpisode(id: string) {
+    if (!confirm('Delete this episode?')) return
+    const token = await getToken()
+    await fetch(`/api/admin-episodes?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    loadEpisodes(selectedCourse.id)
+  }
+
+  async function toggleCourseStatus(course: any) {
+    const token = await getToken()
+    const newStatus = course.status === 'published' ? 'draft' : 'published'
+    await fetch(`/api/admin-courses?id=${course.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: newStatus }),
+    })
+    loadCourses()
+    if (selectedCourse?.id === course.id) setSelectedCourse({ ...course, status: newStatus })
+  }
+
+  async function toggleEpisodeStatus(ep: any) {
+    const token = await getToken()
+    const newStatus = ep.status === 'published' ? 'draft' : 'published'
+    await fetch(`/api/admin-episodes?id=${ep.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: newStatus }),
+    })
+    loadEpisodes(selectedCourse.id)
+  }
+
+  const tierColors: Record<string, string> = { free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+  const statusColor = (s: string) => s === 'published' ? '#4ade80' : '#9a8c74'
+
+  const modal: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+    backdropFilter: 'blur(4px)', zIndex: 9999,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+  }
+  const modalBox: React.CSSProperties = {
+    background: isDark ? '#0D0B14' : '#fff',
+    border: '1px solid rgba(201,168,76,0.3)',
+    borderRadius: 12, width: '100%', maxWidth: 540,
+    padding: 28, boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
+    maxHeight: '90vh', overflowY: 'auto' as const,
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 16, color: GG, letterSpacing: '0.08em' }}>🎬 Training Manager</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginTop: 4 }}>Create and manage courses, episodes, and training content</div>
+        </div>
+        <button onClick={() => openCourseForm()}
+          style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${GG}`, borderRadius: 8, color: GG, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+          + New Course
+        </button>
+      </div>
+
+      {/* Two-panel layout */}
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+
+        {/* LEFT — Course list */}
+        <div style={{ width: 280, flexShrink: 0 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
+            Courses ({courses.length})
+          </div>
+          {loading ? (
+            <div style={{ color: MUT, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>Loading...</div>
+          ) : courses.length === 0 ? (
+            <div style={{ background: SURF3, border: `1px solid ${BDR2}`, borderRadius: 8, padding: '24px 16px', textAlign: 'center' as const }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>🎬</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT }}>No courses yet</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {courses.map(course => (
+                <div key={course.id}
+                  onClick={() => { setSelectedCourse(course); loadEpisodes(course.id); setShowEpisodeForm(false) }}
+                  style={{ background: selectedCourse?.id === course.id ? 'rgba(201,168,76,0.08)' : SURF3, border: `1px solid ${selectedCourse?.id === course.id ? GG : BDR2}`, borderLeft: `3px solid ${selectedCourse?.id === course.id ? GG : 'transparent'}`, borderRadius: 8, padding: '12px 14px', cursor: 'pointer', transition: 'all 0.15s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT2, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={e => { e.stopPropagation(); openCourseForm(course) }} style={{ background: 'none', border: 'none', color: MUT, cursor: 'pointer', fontSize: 12, padding: 2 }}>✎</button>
+                      <button onClick={e => { e.stopPropagation(); deleteCourse(course.id) }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12, padding: 2 }}>✕</button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                    <span style={{ fontSize: 9, color: tierColors[course.tier] || MUT, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[course.tier] || MUT}`, borderRadius: 10, padding: '1px 7px' }}>{course.tier}</span>
+                    <span style={{ fontSize: 9, color: statusColor(course.status), fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>● {course.status}</span>
+                    <span style={{ fontSize: 9, color: MUT, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); toggleCourseStatus(course) }}
+                    style={{ marginTop: 8, fontSize: 9, padding: '2px 10px', background: course.status === 'published' ? 'rgba(239,68,68,0.1)' : 'rgba(74,222,128,0.1)', border: `1px solid ${course.status === 'published' ? '#ef4444' : '#4ade80'}`, borderRadius: 4, color: course.status === 'published' ? '#ef4444' : '#4ade80', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                    {course.status === 'published' ? 'Unpublish' : 'Publish'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT — Episode list */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {!selectedCourse ? (
+            <div style={{ background: SURF3, border: `1px solid ${BDR2}`, borderRadius: 10, padding: '40px 24px', textAlign: 'center' as const }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>←</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: MUT }}>Select a course to manage episodes</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, letterSpacing: '0.06em' }}>{selectedCourse.title}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginTop: 2 }}>Episodes ({episodes.length})</div>
+                </div>
+                <button onClick={() => openEpisodeForm()}
+                  style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${GG}`, borderRadius: 6, color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                  + Add Episode
+                </button>
+              </div>
+
+              {episodes.length === 0 ? (
+                <div style={{ background: SURF3, border: `1px solid ${BDR2}`, borderRadius: 8, padding: '32px 20px', textAlign: 'center' as const }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT }}>No episodes yet — add the first one</div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {episodes.map((ep, idx) => (
+                    <div key={ep.id} style={{ background: SURF3, border: `1px solid ${BDR2}`, borderRadius: 8, padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontFamily: cinzel, fontSize: 10, color: MUT, flexShrink: 0 }}>#{idx + 1}</span>
+                            <span style={{ fontFamily: cinzel, fontSize: 12, color: TXT2, letterSpacing: '0.04em' }}>{ep.title}</span>
+                          </div>
+                          {ep.youtube_url && (
+                            <div style={{ fontSize: 11, color: MUT, fontFamily: crimson, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                              🎬 {ep.youtube_url}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                            <span style={{ fontSize: 9, color: statusColor(ep.status), fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>● {ep.status}</span>
+                            <button onClick={() => toggleEpisodeStatus(ep)}
+                              style={{ fontSize: 9, padding: '1px 8px', background: ep.status === 'published' ? 'rgba(239,68,68,0.1)' : 'rgba(74,222,128,0.1)', border: `1px solid ${ep.status === 'published' ? '#ef4444' : '#4ade80'}`, borderRadius: 4, color: ep.status === 'published' ? '#ef4444' : '#4ade80', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                              {ep.status === 'published' ? 'Unpublish' : 'Publish'}
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button onClick={() => openEpisodeForm(ep)} style={{ background: 'none', border: 'none', color: MUT, cursor: 'pointer', fontSize: 14, padding: 2 }}>✎</button>
+                          <button onClick={() => deleteEpisode(ep.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14, padding: 2 }}>✕</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Course Form Modal */}
+      {showCourseForm && (
+        <div style={modal} onClick={() => setShowCourseForm(false)}>
+          <div style={modalBox} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, marginBottom: 20 }}>{editingCourse ? 'Edit Course' : 'New Course'}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input value={cTitle} onChange={e => setCTitle(e.target.value)} placeholder="Course title *" style={inp2} />
+              <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} placeholder="Description" rows={3} style={{ ...inp2, resize: 'vertical' as const }} />
+              <input value={cThumbnail} onChange={e => setCThumbnail(e.target.value)} placeholder="Thumbnail URL (optional)" style={inp2} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <select value={cTier} onChange={e => setCTier(e.target.value)} style={{ ...inp2, flex: 1 }}>
+                  <option value="free">Free</option>
+                  <option value="soldier">Soldier</option>
+                  <option value="commander">Commander</option>
+                  <option value="general">General</option>
+                </select>
+                <select value={cStatus} onChange={e => setCStatus(e.target.value)} style={{ ...inp2, flex: 1 }}>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button onClick={() => setShowCourseForm(false)} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={saveCourse} disabled={saving || !cTitle.trim()} style={{ padding: '8px 18px', background: GG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase' as const, opacity: !cTitle.trim() ? 0.5 : 1 }}>
+                  {saving ? 'Saving...' : 'Save Course'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Episode Form Modal */}
+      {showEpisodeForm && (
+        <div style={modal} onClick={() => setShowEpisodeForm(false)}>
+          <div style={modalBox} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, marginBottom: 20 }}>{editingEpisode ? 'Edit Episode' : 'New Episode'}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input value={eTitle} onChange={e => setETitle(e.target.value)} placeholder="Episode title *" style={inp2} />
+              <textarea value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Short description" rows={2} style={{ ...inp2, resize: 'vertical' as const }} />
+              <input value={eYoutube} onChange={e => setEYoutube(e.target.value)} placeholder="YouTube URL (unlisted)" style={inp2} />
+              <textarea value={eNotes} onChange={e => setENotes(e.target.value)} placeholder="Episode notes / transcript / key points..." rows={5} style={{ ...inp2, resize: 'vertical' as const, lineHeight: 1.6 }} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <select value={eStatus} onChange={e => setEStatus(e.target.value)} style={{ ...inp2, flex: 1 }}>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                </select>
+                <input type="number" value={eSortOrder} onChange={e => setESortOrder(parseInt(e.target.value) || 0)} placeholder="Order" style={{ ...inp2, width: 80, flex: 'none' as const }} />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button onClick={() => setShowEpisodeForm(false)} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={saveEpisode} disabled={saving || !eTitle.trim()} style={{ padding: '8px 18px', background: GG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase' as const, opacity: !eTitle.trim() ? 0.5 : 1 }}>
+                  {saving ? 'Saving...' : 'Save Episode'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── ADMIN PAGE ───────────────────────────────────────────────────────────────
 // ─── MODERATION PANEL ────────────────────────────────────────────────────────
 const FB_STATUS_COLORS: Record<string, string> = {
@@ -1531,7 +1867,7 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'arsenal' | 'intel' | 'moderation'>('arsenal')
+  const [tab, setTab]      = useState<'arsenal' | 'intel' | 'moderation' | 'training'>('arsenal')
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -1571,6 +1907,7 @@ function AdminPage() {
     { key: 'arsenal',    label: 'Arsenal Manager' },
     { key: 'intel',      label: 'Intel Archive'   },
     { key: 'moderation', label: 'Moderation'      },
+    { key: 'training',   label: 'Training'        },
   ] as const
 
   return (
@@ -1617,6 +1954,7 @@ function AdminPage() {
         {tab === 'arsenal'    && <ArsenalManager getToken={getToken} />}
         {tab === 'intel'      && <IntelArchive getToken={getToken} />}
         {tab === 'moderation' && <ModerationPanel getToken={getToken} />}
+        {tab === 'training'   && <TrainingManager getToken={getToken} isDark={true} />}
       </div>
     </div>
   )
