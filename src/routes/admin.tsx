@@ -827,7 +827,11 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
 }
 
 // ─── INTEL ARCHIVE TAB ───────────────────────────────────────────────────────
-function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) {
+function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
+  const adStatBg  = isDark ? SURF : '#fff'
+  const adHeaderBg = isDark ? SURF2 : '#e8e0d4'
+  const adStatNum = isDark ? G : '#a07830'
+  const adStatLbl = isDark ? DIM : '#7a6555'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6,
@@ -1095,9 +1099,9 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
         ] as [string, number | null, string, 'all' | 'missing-seq' | 'missing-sc' | 'missing-notes' | 'recent'][]).map(([label, val, color, qf]) => (
           <button key={label}
             onClick={() => { if (!dLoading) { setQuickFilter(qf === quickFilter ? 'all' : qf); setPage(0) } }}
-            style={{ background: quickFilter === qf ? `${color}15` : SURF, border: `1px solid ${quickFilter === qf ? color : BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: dLoading ? 'default' : 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
-            <div style={{ fontFamily: cinzel, fontSize: 28, color, marginBottom: 6 }}>{val === null ? '...' : val}</div>
-            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const }}>{label}</div>
+            style={{ background: quickFilter === qf ? `${color}15` : adStatBg, border: `1px solid ${quickFilter === qf ? color : BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: dLoading ? 'default' : 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 28, color: quickFilter === qf ? color : adStatNum, marginBottom: 6 }}>{val === null ? '...' : val}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: adStatLbl, textTransform: 'uppercase' as const }}>{label}</div>
           </button>
         ))}
       </div>
@@ -1152,13 +1156,13 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: SURF2 }}>
-                <th style={thS} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
-                <th style={thS} onClick={() => handleSort('type')}>Type{sortInd('type')}</th>
-                <th style={thS} onClick={() => handleSort('hierarchyCategory')}>Category{sortInd('hierarchyCategory')}</th>
-                <th style={{ ...thS, cursor: 'default' }}>Del. Sequence</th>
-                <th style={{ ...thS, cursor: 'default' }}>Counter Scriptures</th>
-                <th style={{ ...thS, cursor: 'default', width: 70 }}>Actions</th>
+              <tr style={{ background: adHeaderBg }}>
+                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
+                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('type')}>Type{sortInd('type')}</th>
+                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('hierarchyCategory')}>Category{sortInd('hierarchyCategory')}</th>
+                <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5c4a3a' }}>Del. Sequence</th>
+                <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5c4a3a' }}>Counter Scriptures</th>
+                <th style={{ ...thS, cursor: 'default', width: 70, color: isDark ? DIM : '#5c4a3a' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2008,12 +2012,22 @@ function AdminPage() {
   const { getToken }       = useAuth()
   const [tab, setTab]      = useState<'arsenal' | 'intel' | 'moderation' | 'training'>('arsenal')
   const [isMobile, setIsMobile] = useState(false)
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('wri-theme') !== 'light'
+  })
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  const headerBg  = isDark ? '#13111e' : '#e8e0d4'
+  const contentBg = isDark ? '#0D0B14' : '#f5f0e8'
+  const adBdr     = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(160,120,48,0.25)'
+  const adGold    = isDark ? '#C9A84C' : '#a07830'
+  const adDim     = isDark ? '#9a8c74' : '#5c4a3a'
 
   if (!isLoaded) {
     return (
@@ -2050,35 +2064,45 @@ function AdminPage() {
   ] as const
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, color: TXT, fontFamily: crimson }}>
+    <div style={{ minHeight: '100vh', background: contentBg, color: TXT, fontFamily: crimson }}>
       {isMobile && (
         <div style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: '12px 16px', margin: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 18 }}>⚠</span>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: adDim }}>
             Admin panel is optimized for desktop. Some features may be limited on mobile.
           </div>
         </div>
       )}
       {/* Header */}
-      <div style={{ background: SURF, borderBottom: `1px solid ${BDR}`, padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: headerBg, borderBottom: `1px solid ${adBdr}`, padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <a href="/community" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: DIM, textDecoration: 'none' }}>← Community</a>
-          <span style={{ color: BDR }}>|</span>
-          <span style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.14em', color: G }}>⚔ Admin Panel</span>
+          <a href="/community" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: adDim, textDecoration: 'none' }}>← Community</a>
+          <span style={{ color: adBdr }}>|</span>
+          <span style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.14em', color: adGold }}>⚔ Admin Panel</span>
         </div>
-        <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM }}>{user?.firstName} {user?.lastName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: adDim }}>{user?.firstName} {user?.lastName}</span>
+          <button onClick={() => {
+            const next = !isDark
+            setIsDark(next)
+            localStorage.setItem('wri-theme', next ? 'dark' : 'light')
+          }} style={{ background: 'none', border: `1px solid ${adBdr}`, borderRadius: '50%', width: 28, height: 28, color: adGold, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {isDark ? '☀' : '🌙'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ borderBottom: `1px solid ${BDR}`, padding: '0 32px', display: 'flex', background: SURF, overflowX: 'auto' as const, WebkitOverflowScrolling: 'touch' as any }}>
+      <div style={{ borderBottom: `1px solid ${adBdr}`, padding: '0 32px', display: 'flex', background: headerBg, overflowX: 'auto' as const, WebkitOverflowScrolling: 'touch' as any }}>
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             style={{
               padding: '14px 22px', background: 'none', border: 'none',
-              borderBottom: `2px solid ${tab === t.key ? G : 'transparent'}`,
-              color: tab === t.key ? G : DIM, fontFamily: cinzel, fontSize: 10,
+              borderBottom: `2px solid ${tab === t.key ? adGold : 'transparent'}`,
+              color: tab === t.key ? adGold : adDim,
+              fontFamily: cinzel, fontSize: 10,
               letterSpacing: '0.1em', cursor: 'pointer', marginBottom: '-1px',
               transition: 'all 0.15s',
             }}
@@ -2091,9 +2115,9 @@ function AdminPage() {
       {/* Content */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
         {tab === 'arsenal'    && <ArsenalManager getToken={getToken} />}
-        {tab === 'intel'      && <IntelArchive getToken={getToken} />}
+        {tab === 'intel'      && <IntelArchive getToken={getToken} isDark={isDark} />}
         {tab === 'moderation' && <ModerationPanel getToken={getToken} />}
-        {tab === 'training'   && <TrainingManager getToken={getToken} isDark={true} />}
+        {tab === 'training'   && <TrainingManager getToken={getToken} isDark={isDark} />}
       </div>
     </div>
   )
