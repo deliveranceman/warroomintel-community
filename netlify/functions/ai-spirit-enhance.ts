@@ -38,15 +38,35 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
   }
 
-  const { spiritName, currentData } = await req.json()
-  if (!spiritName) return new Response(JSON.stringify({ error: 'spiritName required' }), { status: 400, headers })
+  const body = await req.json()
+  const name: string = body.name || body.spiritName
+  const existing: Record<string, any> = body.existing || body.currentData || {}
+  if (!name) return new Response(JSON.stringify({ error: 'name required' }), { status: 400, headers })
+
+  const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
+
+  const missingFields = [
+    'description', 'type', 'biblicalRank', 'etymologyNotes', 'archaeologyNotes',
+    'scriptureContext', 'primaryBattlefield', 'manifestation', 'entryPoints',
+    'transmissionVectors', 'caseType', 'isGenerational', 'isTerritorial',
+    'clusterSpirits', 'legalRights', 'sessionIndicators', 'resistanceSignature',
+    'demonicAgreements', 'institutionalExpression', 'counterScriptures',
+    'deliveranceSequence', 'aftercareNotes', 'prayerPoints', 'phonetic',
+    'biblicalReferences',
+  ].filter(k => isEmpty(existing[k]))
+
+  if (missingFields.length === 0) {
+    return new Response(JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }), { status: 200, headers })
+  }
 
   const prompt = `You are an advanced theological and demonological research system serving a trained Christian deliverance minister who holds advanced degrees in archaeology, etymology, biblical demonology, and theology. This minister operates within an evangelical/charismatic framework with deep respect for Scripture as the primary authority.
 
-Research the spirit/demon/entity: "${spiritName}"
+Research the spirit/demon/entity: "${name}"
 
-Current data on file:
-${JSON.stringify(currentData, null, 2)}
+Current data on file (DO NOT reproduce these — only provide MISSING fields):
+${JSON.stringify(existing, null, 2)}
+
+Fields that need to be filled (return ONLY these): ${missingFields.join(', ')}
 
 Draw from ALL of the following source categories, clearly prioritizing them in this order:
 
@@ -78,8 +98,9 @@ MODERN DELIVERANCE MINISTRY FRAMEWORKS:
 - Win Worley (binding strongmen, persistent warfare)
 - John Eckhardt and apostolic warfare frameworks
 - Peter Wagner and territorial spirits research
+- Rebecca Greenwood (strategic-level spiritual warfare, regional deliverance)
 
-Return ONLY valid JSON. No preamble, no markdown, no explanation outside the JSON structure:
+Return ONLY valid JSON containing ONLY the missing fields listed above. No preamble, no markdown, no extra fields:
 
 {
   "description": "Scholarly yet ministerially practical 3-5 sentence description covering: nature and origin of this entity, its primary assignment in the kingdom of darkness, biblical basis, and historical attestation. Write at graduate theological level.",
@@ -110,6 +131,7 @@ Return ONLY valid JSON. No preamble, no markdown, no explanation outside the JSO
 }
 
 CRITICAL INSTRUCTIONS:
+- Return ONLY the fields listed in the missing fields list above — omit any field that already has data
 - Write at graduate theological/ministerial level
 - Be specific and practical
 - When uncertain, say so explicitly
@@ -128,16 +150,15 @@ CRITICAL INSTRUCTIONS:
     if (!jsonMatch) throw new Error('No JSON found in response')
     const enhanced = JSON.parse(jsonMatch[0])
 
-    // Strip fields that already have non-empty values in currentData
-    const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
+    // Strip any fields AI returned that already have values (belt-and-suspenders)
     const filtered: Record<string, any> = {}
     for (const [key, value] of Object.entries(enhanced)) {
-      if (isEmpty(currentData?.[key])) {
+      if (isEmpty(existing[key])) {
         filtered[key] = value
       }
     }
 
-    return new Response(JSON.stringify({ enhanced: filtered }), { status: 200, headers })
+    return new Response(JSON.stringify({ success: true, spirit: name, fields: filtered, fieldCount: Object.keys(filtered).length }), { status: 200, headers })
   } catch(e: any) {
     console.error('AI enhance error:', e)
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })

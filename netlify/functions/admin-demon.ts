@@ -126,6 +126,7 @@ export default async function handler(req: Request) {
       isTerritorial: 'Is Territorial',
       phonetic: 'Phonetic',
       relatedSpirits: 'Related Spirits',
+      legalRights: 'Legal Rights',
     }
     for (const [camel, airtable] of Object.entries(camelToAirtable)) {
       if (camel in airtableFields) {

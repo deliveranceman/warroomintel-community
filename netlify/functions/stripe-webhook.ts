@@ -8,15 +8,22 @@ const PRICE_TO_TIER: Record<string, string> = {
   'price_1TXieT5V5uqVT9SoIrPMKSAc': 'soldier',
   'price_1TXifB5V5uqVT9SohnQfGZuC': 'commander',
   'price_1TXifX5V5uqVT9SogXMp79zb': 'general',
+  // Charter (founding member) prices
+  'price_1Tb1mO5V5uqVT9So3ZRRltDC': 'soldier',
+  'price_1Tb1ms5V5uqVT9Sodiu1xbrR': 'commander',
 }
+
+const CHARTER_PRICE_IDS = new Set([
+  'price_1Tb1mO5V5uqVT9So3ZRRltDC',
+  'price_1Tb1ms5V5uqVT9Sodiu1xbrR',
+])
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Content-Type': 'application/json',
 }
 
-async function setClerkTier(email: string, tier: string) {
-  // Find user by email
+async function setClerkTier(email: string, tier: string, foundingMember?: boolean) {
   const searchRes = await fetch(
     `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(email)}&limit=1`,
     { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } }
@@ -28,20 +35,22 @@ async function setClerkTier(email: string, tier: string) {
   const userId = users[0].id
   const currentMeta = users[0].public_metadata || {}
 
-  // Update tier in publicMetadata, preserving existing fields
+  const meta: Record<string, any> = {
+    ...currentMeta,
+    tier,
+    stripeUpdatedAt: new Date().toISOString(),
+  }
+  if (foundingMember !== undefined) {
+    meta.foundingMember = foundingMember
+  }
+
   const updateRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      public_metadata: {
-        ...currentMeta,
-        tier,
-        stripeUpdatedAt: new Date().toISOString(),
-      },
-    }),
+    body: JSON.stringify({ public_metadata: meta }),
   })
   if (!updateRes.ok) throw new Error('Clerk update failed')
   return userId
@@ -90,8 +99,9 @@ export default async function handler(req: Request) {
         const tier = resolvedPriceId ? PRICE_TO_TIER[resolvedPriceId] : null
         if (!tier) { console.error('Unknown price ID:', resolvedPriceId); break }
 
-        await setClerkTier(email, tier)
-        console.log(`✅ Upgraded ${email} to ${tier}`)
+        const isCharter = resolvedPriceId ? CHARTER_PRICE_IDS.has(resolvedPriceId) : false
+        await setClerkTier(email, tier, isCharter)
+        console.log(`✅ Upgraded ${email} to ${tier}${isCharter ? ' (founding member)' : ''}`)
         break
       }
 

@@ -60,6 +60,14 @@ function TierBadge({ tier }: { tier: string }) {
   )
 }
 
+function FoundingBadge() {
+  return (
+    <span style={{ background: 'rgba(201,168,76,0.13)', border: `1px solid ${G}`, borderRadius: 10, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: G, padding: '1px 6px', whiteSpace: 'nowrap' as const }}>
+      ⚜ Founding
+    </span>
+  )
+}
+
 // ── STREAM HELPER ──────────────────────────────────────────
 function streamFetch(path: string, method: string, token: string, apiKey: string, body?: object) {
   return fetch(`https://chat.stream-io-api.com${path}?api_key=${apiKey}`, {
@@ -127,7 +135,10 @@ function ProfileModal({ member, currentUserId, onClose, onStartDM, isDark }: Pro
           <div style={{ fontFamily: mc, fontSize: '18px', color: text, fontWeight: 700, letterSpacing: '0.04em', marginBottom: '6px' }}>
             {member.firstName} {member.lastName}
           </div>
-          <div style={{ display: 'inline-block', padding: '2px 10px', border: `1px solid ${tierColor}`, borderRadius: '20px', fontSize: '10px', fontFamily: mc, letterSpacing: '0.1em', color: tierColor, textTransform: 'uppercase' as const, marginBottom: '14px' }}>{tier}</div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap' as const }}>
+            <div style={{ display: 'inline-block', padding: '2px 10px', border: `1px solid ${tierColor}`, borderRadius: '20px', fontSize: '10px', fontFamily: mc, letterSpacing: '0.1em', color: tierColor, textTransform: 'uppercase' as const }}>{tier}</div>
+            {member.publicMetadata?.foundingMember && <FoundingBadge />}
+          </div>
           {member.publicMetadata?.bio && (
             <p style={{ fontSize: '13px', color: isDark ? '#a09898' : '#555', lineHeight: '1.6', marginBottom: '12px', fontFamily: cr }}>
               {member.publicMetadata.bio}
@@ -753,7 +764,10 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
                     </div>
                     <div>
                       <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#1C1407', letterSpacing: '0.04em' }}>{name}</div>
-                      <TierBadge tier={m.publicMetadata?.tier || 'Watchman'} />
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 2 }}>
+                        <TierBadge tier={m.publicMetadata?.tier || 'Watchman'} />
+                        {m.publicMetadata?.foundingMember && <FoundingBadge />}
+                      </div>
                     </div>
                   </div>
                 )
@@ -859,7 +873,10 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
         </div>
         <div style={{ textAlign:'center' as const, width:'100%' }}>
           <div style={{ fontFamily:mc, fontSize: large ? 13 : 11, color:txt, letterSpacing:'0.05em', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayName}</div>
-          <div style={{ display:'inline-block', marginTop:4, padding:'2px 8px', borderRadius:10, background:`${tierColor}22`, border:`1px solid ${tierColor}55`, fontFamily:mc, fontSize:9, color:tierColor, letterSpacing:'0.1em', textTransform:'uppercase' as const }}>{tier}</div>
+          <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:4, flexWrap:'wrap' as const, marginTop:4 }}>
+            <div style={{ display:'inline-block', padding:'2px 8px', borderRadius:10, background:`${tierColor}22`, border:`1px solid ${tierColor}55`, fontFamily:mc, fontSize:9, color:tierColor, letterSpacing:'0.1em', textTransform:'uppercase' as const }}>{tier}</div>
+            {member.publicMetadata?.foundingMember && <FoundingBadge />}
+          </div>
         </div>
         {!isOwn && (
           <button
@@ -3683,111 +3700,146 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
 }
 
 // ── EVENTS VIEW ────────────────────────────────────────────
-function EventsView({ theme, isMobile, setSidebarOpen }: {
-  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  live_training: '🎬 Live Training',
+  prayer_call: '🙏 Prayer Call',
+  q_and_a: '❓ Q&A Session',
+  deliverance_workshop: '⚔ Deliverance Workshop',
+}
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  live_training: '#C9A84C', prayer_call: '#7a9e7e', q_and_a: '#8B9DCA', deliverance_workshop: '#b87333',
+}
+const TIER_LEVEL_MAP: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+
+function generateICS(event: any): string {
+  const start = new Date(event.event_date)
+  const end = new Date(start.getTime() + (event.duration_minutes || 60) * 60000)
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//War Room Intel//EN',
+    'BEGIN:VEVENT',
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${(event.title || '').replace(/,/g, '\\,')}`,
+    `DESCRIPTION:${(event.description || '').replace(/\n/g, '\\n').replace(/,/g, '\\,')}`,
+    event.zoom_link ? `URL:${event.zoom_link}` : '',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].filter(Boolean)
+  return lines.join('\r\n')
+}
+
+function downloadICS(event: any) {
+  const ics = generateICS(event)
+  const blob = new Blob([ics], { type: 'text/calendar' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${(event.title || 'event').replace(/\s+/g, '-')}.ics`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
+  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userTier: string; getToken: any
 }) {
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#faf8f4'
-  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
-  const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
-  const text    = isDark ? '#E8D5B0' : '#1a1410'
+  const surf    = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const bdr     = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt     = isDark ? '#E8D5B0' : '#1a1410'
   const muted   = isDark ? '#8B7355' : '#5c4a3a'
 
+  const [events, setEvents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/events', token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        if (res.ok) { const d = await res.json(); setEvents(d.events || []) }
+      } catch { /* ignore */ } finally { setLoading(false) }
+    }
+    load()
+  }, [])
+
+  const now = new Date()
+  const upcoming = events.filter(e => new Date(e.event_date) >= now)
+  const past = events.filter(e => new Date(e.event_date) < now)
+  const userLevel = TIER_LEVEL_MAP[userTier?.toLowerCase() || 'free'] ?? 0
+
+  function EventCard({ event }: { event: any }) {
+    const eventDate = new Date(event.event_date)
+    const typeColor = EVENT_TYPE_COLORS[event.event_type] || G
+    const typeLabel = EVENT_TYPE_LABELS[event.event_type] || event.event_type
+    const requiredLevel = TIER_LEVEL_MAP[event.zoom_link_tier?.toLowerCase() || 'free'] ?? 0
+    const canSeeZoom = userLevel >= requiredLevel
+    return (
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{ background: `${typeColor}12`, borderBottom: `1px solid ${typeColor}30`, padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: typeColor }}>{typeLabel}</span>
+          <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>
+            {eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · {eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+          </span>
+        </div>
+        <div style={{ padding: '16px 18px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 15, color: G, fontWeight: 700, marginBottom: 6 }}>{event.title}</div>
+          {event.description && <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65, marginBottom: 12 }}>{event.description}</div>}
+          {event.duration_minutes && <div style={{ fontFamily: crimson, fontSize: 12, color: muted, marginBottom: 12 }}>⏱ {event.duration_minutes} minutes{event.max_attendees ? ` · max ${event.max_attendees} attendees` : ''}</div>}
+          {/* Zoom link or gate */}
+          {event.zoom_link && canSeeZoom ? (
+            <a href={event.zoom_link} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none', marginRight: 8 }}>
+              🔗 Join Zoom
+            </a>
+          ) : event.zoom_link_blocked ? (
+            <div style={{ display: 'inline-block', padding: '8px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', marginRight: 8 }}>
+              🔒 Zoom link · Upgrade to {(event.zoom_link_required_tier || 'soldier').toUpperCase()} to access
+            </div>
+          ) : null}
+          <button onClick={() => downloadICS(event)}
+            style={{ display: 'inline-block', padding: '8px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+            📅 Add to Calendar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
+    <div style={{ flex: 1, overflowY: 'auto' as const, background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
         <div>
           <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>📅 Events</div>
-          <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>War Room Intel events, conferences, and special sessions</div>
+          <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>War Room Intel live sessions, training calls, and special events</div>
         </div>
       </div>
 
-      {/* FEATURED EVENT */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(13,11,20,0.95) 0%, rgba(26,15,30,0.95) 100%)', border: `1px solid ${G}40`, borderRadius: 12, overflow: 'hidden', marginBottom: 28, boxShadow: `0 0 40px rgba(201,168,76,0.08)` }}>
-        <div style={{ background: `linear-gradient(90deg, rgba(201,168,76,0.15) 0%, transparent 100%)`, padding: '10px 24px', borderBottom: `1px solid ${G}30` }}>
-          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G, textTransform: 'uppercase' as const }}>⚔ War Room Intel Special Event · Featured</span>
+      {loading && (
+        <div style={{ textAlign: 'center' as const, padding: '40px', fontFamily: cinzel, fontSize: 11, color: muted, letterSpacing: '0.1em' }}>Loading events...</div>
+      )}
+
+      {!loading && upcoming.length === 0 && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const, marginBottom: 16 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 8 }}>📅 No upcoming events scheduled</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: muted }}>Check back soon — Group Warfare Prayer · Training Sessions · Q&A Calls</div>
         </div>
-        <div style={{ padding: '28px 28px 24px' }}>
-          <div style={{ textAlign: 'center' as const, marginBottom: 24 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 11, color: muted, letterSpacing: '0.2em', marginBottom: 8, textTransform: 'uppercase' as const }}>Save the Date</div>
-            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 22 : 30, color: G, fontWeight: 700, lineHeight: 1.1, marginBottom: 4 }}>Close Encounters</div>
-            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: text, marginBottom: 8 }}>of Some Kind</div>
-            <div style={{ fontFamily: crimson, fontSize: 13, color: muted, letterSpacing: '0.1em' }}>A War Room Intel Special Event</div>
-          </div>
+      )}
 
-          <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${G}30`, borderRadius: 8, padding: '16px 20px', marginBottom: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row' as const, gap: 16, alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 18 }}>📅</span>
-              <div>
-                <div style={{ fontFamily: cinzel, fontSize: 14, color: G, fontWeight: 700 }}>July 18, 2026</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: muted }}>11:00 AM – 3:00 PM</div>
-              </div>
-            </div>
-            <div style={{ width: 1, height: 36, background: `${G}30`, display: isMobile ? 'none' : 'block' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 18 }}>📍</span>
-              <div>
-                <div style={{ fontFamily: cinzel, fontSize: 14, color: G, fontWeight: 700 }}>Staffordtown Church</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: muted }}>Copperhill, Tennessee</div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const }}>
-            {[
-              { icon: '👥', price: '$25', label: 'In-Person', sub: 'Lunch + Book + Recording' },
-              { icon: '▶',  price: '$10', label: 'Recording Only', sub: 'Digital access' },
-              { icon: '📚', price: '$15', label: 'Recording + Book', sub: 'Digital + book' },
-            ].map(({ icon, price, label, sub }) => (
-              <div key={label} style={{ flex: 1, minWidth: 100, background: 'rgba(201,168,76,0.05)', border: `1px solid ${G}25`, borderRadius: 8, padding: '12px 14px', textAlign: 'center' as const }}>
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
-                <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700 }}>{price}</div>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: text, letterSpacing: '0.06em', marginBottom: 2 }}>{label}</div>
-                <div style={{ fontFamily: crimson, fontSize: 11, color: muted }}>{sub}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 10, textAlign: 'center' as const }}>Topics Include</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'center' as const }}>
-              {['Genesis 6', 'UFO Disclosure', 'Bloodline Warfare', 'Nephilim', 'Fringe Intelligence'].map(topic => (
-                <span key={topic} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', padding: '4px 12px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: G, border: '1px solid rgba(201,168,76,0.25)' }}>{topic}</span>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ background: 'rgba(134,239,172,0.06)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, textAlign: 'center' as const }}>
-            <div style={{ fontFamily: cinzel, fontSize: 10, color: '#86efac', letterSpacing: '0.1em', marginBottom: 4 }}>🔒 BONUS FOR ATTENDEES</div>
-            <div style={{ fontFamily: crimson, fontSize: 14, color: text }}>All attendees receive <strong style={{ color: '#86efac' }}>3 FREE months</strong> of War Room Intel access</div>
-          </div>
-
-          <div style={{ textAlign: 'center' as const, marginBottom: 16 }}>
-            <div style={{ fontFamily: crimson, fontSize: 13, color: muted, fontStyle: 'italic' }}>All proceeds benefit the New Church Building Fund</div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 16, borderTop: `1px solid ${G}20`, marginBottom: 20 }}>
-            <div style={{ textAlign: 'center' as const }}>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em' }}>Presented by</div>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: text, marginTop: 2 }}>CIO Justin Payne</div>
-              <div style={{ fontFamily: crimson, fontSize: 11, color: muted, fontStyle: 'italic' }}>Chief Investigation Officer</div>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center' as const }}>
-            <div style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.1em', marginBottom: 12 }}>THIS IS A SAVE THE DATE · MORE WILL FOLLOW</div>
-            <a href="mailto:exorcist@warroomintel.com?subject=Close Encounters Registration Interest" style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '12px 32px', borderRadius: 6, textDecoration: 'none' }}>
-              Register Interest →
-            </a>
-          </div>
+      {!loading && upcoming.length > 0 && (
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.15em', marginBottom: 14, textTransform: 'uppercase' as const }}>Upcoming Events</div>
+          {upcoming.map(e => <EventCard key={e.id} event={e} />)}
         </div>
-      </div>
+      )}
 
-      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '20px 24px', textAlign: 'center' as const }}>
-        <div style={{ fontFamily: cinzel, fontSize: 13, color: muted, marginBottom: 6 }}>More Events Coming</div>
-        <div style={{ fontFamily: crimson, fontSize: 14, color: muted }}>Group Warfare Prayer · General's Table · Regional Events</div>
-      </div>
+      {!loading && past.length > 0 && (
+        <details style={{ marginTop: 24 }}>
+          <summary style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.15em', cursor: 'pointer', marginBottom: 12, textTransform: 'uppercase' as const }}>Past Events ({past.length})</summary>
+          {past.map(e => <EventCard key={e.id} event={e} />)}
+        </details>
+      )}
     </div>
   )
 }
@@ -4880,27 +4932,33 @@ function CommunityPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
         {/* ── QUICK ACCESS ICON STRIP ── */}
-        <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 8, alignItems: 'center', padding: '10px 8px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
+        <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
-            { icon: '💬', label: 'Direct Messages', section: 'dms' },
-            { icon: '🙏', label: 'Prayer Wall',   section: 'prayer-wall'   },
-            { icon: '👥', label: 'Members',        section: 'members'       },
-            { icon: '?',  label: 'Feedback',       section: 'feedback'      },
+            { icon: '💬', label: 'War Room Chat',  section: 'war-room-chat'  },
+            { icon: '🙏', label: 'Prayer Wall',    section: 'prayer-wall'    },
+            { icon: '✝',  label: 'Testimony Wall', section: 'testimony-wall' },
+            { icon: '👥', label: 'Members',        section: 'members'        },
+            { icon: '❓', label: 'Feedback',       section: 'feedback'       },
           ].map(({ icon, label, section }, idx) => (
-            <div key={section} style={{ position: 'relative' as const }}>
+            <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
                 onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
-                onMouseEnter={() => setTooltipVisible(section)}
-                onMouseLeave={() => setTooltipVisible(null)}
-                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: 36, height: 36, cursor: 'pointer', fontSize: section === 'feedback' ? 13 : 16, fontFamily: section === 'feedback' ? cinzel : 'inherit', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const, fontWeight: section === 'feedback' ? 700 : 400 }}
+                onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
+                onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
+                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, cursor: 'pointer', fontSize: section === 'testimony-wall' ? 15 : 16, color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
               >
                 {icon}
-                {section === 'dms' && unreadDMs > 0 && (
+                {section === 'war-room-chat' && unreadDMs > 0 && (
                   <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
                 )}
               </button>
-              {tooltipVisible === section && (
-                <div style={{ position: 'absolute' as const, top: 44, left: idx === 0 ? 0 : idx === 3 ? 'auto' : '50%', right: idx === 3 ? 0 : 'auto', transform: idx > 0 && idx < 3 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
+              {isMobile && (
+                <div style={{ fontFamily: cinzel, fontSize: 7, color: activeSection === section ? G : '#8B7355', letterSpacing: '0.04em', textAlign: 'center' as const, lineHeight: 1.2, maxWidth: 44, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {label.split(' ')[0]}
+                </div>
+              )}
+              {!isMobile && tooltipVisible === section && (
+                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 4 ? 'auto' : '50%', right: idx === 4 ? 0 : 'auto', transform: idx > 0 && idx < 4 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
               )}
             </div>
           ))}
@@ -4909,8 +4967,6 @@ function CommunityPage() {
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
-        {navItem('War Room Chat', 'war-room-chat', '✕')}
-        {navItem('Testimony Wall', 'testimony-wall', '✝')}
 
         {/* ── INTELLIGENCE ── */}
         {sectionLabel('Intelligence')}
@@ -5118,7 +5174,7 @@ function CommunityPage() {
             setActiveSection={setActiveSection}
           />
         )}
-        {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
       </div>
 

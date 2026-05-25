@@ -19,12 +19,110 @@ const muted = 'var(--muted)'
 
 const SOLDIER_URL = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
 const COMMANDER_URL = 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01'
+const CHARTER_SOLDIER_URL = 'https://buy.stripe.com/9B6fZafJ689F1Zrb4XfrW03'
+const CHARTER_COMMANDER_URL = 'https://buy.stripe.com/8x24gsaoMey39rT4GzfrW04'
 
 function MembershipPage() {
   const [generalClicked, setGeneralClicked] = useState(false)
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--deep)', padding: '5rem 2rem 6rem' }}>
+
+      {/* Charter / Founding Member Section */}
+      <div style={{ maxWidth: '900px', margin: '0 auto 60px' }}>
+        {/* Urgency banner */}
+        <div style={{ textAlign: 'center', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '10px 20px', marginBottom: '28px', fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.12em', color: gold }}>
+          ⚔ Founding Member slots are limited — first 100 only
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '10px' }}>✦ Charter Membership</p>
+          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 4vw, 36px)', fontWeight: 700, color: text, marginBottom: '10px', lineHeight: 1.15 }}>
+            First 100 Only — <em style={{ color: gold, fontStyle: 'normal' }}>Lock In Your Rate for Life</em>
+          </h2>
+          <p style={{ fontFamily: crimson, fontSize: '16px', color: textDim, fontStyle: 'italic', margin: 0 }}>
+            Charter members receive a founding member badge and this price never increases — even as we add features.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          {/* Charter Soldier */}
+          <div style={{ padding: '2rem 1.75rem', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: '8px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '-1px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(201,168,76,0.2)', border: `1px solid ${gold}`, borderTop: 'none', color: gold, fontFamily: cinzel, fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', padding: '3px 14px', borderRadius: '0 0 4px 4px' }}>
+              CHARTER RATE
+            </div>
+            <div style={{ fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.15em', color: gold, marginBottom: '6px', marginTop: '8px' }}>CHARTER SOLDIER</div>
+            <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontFamily: cinzel, fontSize: '38px', fontWeight: 700, color: text }}>$9</span>
+              <span style={{ fontSize: '14px', color: muted }}>/month</span>
+              <span style={{ fontFamily: crimson, fontSize: '13px', color: muted, textDecoration: 'line-through' }}>$19</span>
+            </div>
+            <p style={{ fontFamily: crimson, fontSize: '12px', color: gold, fontStyle: 'italic', marginBottom: '16px' }}>Locked in for life</p>
+            <div style={{ height: '1px', background: border, margin: '0 0 16px' }} />
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                'All Soldier tier access',
+                'Rate locked in for life',
+                '⚜ Founding Member badge',
+                'Limited to first 100',
+              ].map(f => (
+                <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.7 }}>
+                  <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <a href={CHARTER_SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{
+              display: 'block', width: '100%', padding: '14px', textAlign: 'center',
+              fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
+              borderRadius: '4px', textDecoration: 'none', boxSizing: 'border-box',
+              background: gold, color: deep, border: 'none', transition: 'opacity 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
+              Claim Charter Soldier ⚔
+            </a>
+          </div>
+
+          {/* Charter Commander */}
+          <div style={{ padding: '2rem 1.75rem', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: '8px', position: 'relative', boxShadow: '0 0 32px rgba(201,168,76,0.08)' }}>
+            <div style={{ position: 'absolute', top: '-1px', left: '50%', transform: 'translateX(-50%)', background: gold, color: deep, fontFamily: cinzel, fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', padding: '3px 14px', borderRadius: '0 0 4px 4px' }}>
+              BEST VALUE
+            </div>
+            <div style={{ fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.15em', color: gold, marginBottom: '6px', marginTop: '8px' }}>CHARTER COMMANDER</div>
+            <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontFamily: cinzel, fontSize: '38px', fontWeight: 700, color: text }}>$20</span>
+              <span style={{ fontSize: '14px', color: muted }}>/month</span>
+              <span style={{ fontFamily: crimson, fontSize: '13px', color: muted, textDecoration: 'line-through' }}>$39</span>
+            </div>
+            <p style={{ fontFamily: crimson, fontSize: '12px', color: gold, fontStyle: 'italic', marginBottom: '16px' }}>Locked in for life</p>
+            <div style={{ height: '1px', background: border, margin: '0 0 16px' }} />
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                'All Commander tier access',
+                'Rate locked in for life',
+                '⚜ Founding Member badge',
+                'Limited to first 100',
+              ].map(f => (
+                <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.7 }}>
+                  <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <a href={CHARTER_COMMANDER_URL} target="_blank" rel="noopener noreferrer" style={{
+              display: 'block', width: '100%', padding: '14px', textAlign: 'center',
+              fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
+              borderRadius: '4px', textDecoration: 'none', boxSizing: 'border-box',
+              background: gold, color: deep, border: 'none', transition: 'opacity 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
+              Claim Charter Commander ⚔
+            </a>
+          </div>
+        </div>
+      </div>
 
       {/* Header */}
       <div style={{ textAlign: 'center', maxWidth: '680px', margin: '0 auto 52px' }}>

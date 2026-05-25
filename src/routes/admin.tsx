@@ -954,24 +954,24 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [newSaving, setNewSaving] = useState(false)
   const [newMsg, setNewMsg]       = useState('')
 
-  // AI Enhancement
+  // AI Enhancement — state machine: idle → loading → review → saving → done | error
+  type AiPhase = 'idle' | 'loading' | 'review' | 'saving' | 'done' | 'error'
+  const [aiPhase, setAiPhase]             = useState<AiPhase>('idle')
   const [aiTargetDemon, setAiTargetDemon] = useState<any>(null)
-  const [aiResult, setAiResult]           = useState<any>(null)
-  const [aiLoading, setAiLoading]         = useState(false)
+  const [aiResult, setAiResult]           = useState<Record<string, any>>({})
   const [showAiPanel, setShowAiPanel]     = useState(false)
-  const [aiMsg, setAiMsg]                 = useState('')
-  const [aiSaving, setAiSaving]           = useState(false)
-  // Per-field decisions: accepted | skipped | pending, plus editable value
+  const [aiError, setAiError]             = useState('')
+  const [aiSavedLog, setAiSavedLog]       = useState<string[]>([])
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }>>({})
 
   function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
-    setFieldDecisions(prev => ({ ...prev, [key]: { ...prev[key], status, editing: false } }))
+    setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), status, editing: false } }))
   }
   function setEditing(key: string, on: boolean) {
-    setFieldDecisions(prev => ({ ...prev, [key]: { ...prev[key], editing: on } }))
+    setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), editing: on } }))
   }
   function setEditValue(key: string, val: string) {
-    setFieldDecisions(prev => ({ ...prev, [key]: { ...prev[key], value: val } }))
+    setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), value: val } }))
   }
 
   async function fetchDemons() {
@@ -1087,49 +1087,82 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     } finally { setNewSaving(false) }
   }
 
-  async function runAiEnhance(demon: any) {
+  function openAiPanel(demon: any) {
     setAiTargetDemon(demon)
-    setAiResult(null)
-    setAiMsg('')
+    setAiResult({})
     setFieldDecisions({})
+    setAiSavedLog([])
+    setAiError('')
+    setAiPhase('idle')
     setShowAiPanel(true)
-    setAiLoading(true)
+  }
+
+  async function startAiResearch() {
+    if (!aiTargetDemon) return
+    setAiPhase('loading')
+    setAiResult({})
+    setFieldDecisions({})
+    setAiError('')
     try {
       const token = await getToken()
       const res = await fetch('/api/ai-spirit-enhance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ spiritName: demon.name, currentData: demon }),
+        body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon }),
       })
       const d = await res.json()
-      if (d.enhanced) {
-        setAiResult(d.enhanced)
+      if (d.fields && Object.keys(d.fields).length > 0) {
         const init: Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }> = {}
-        Object.entries(d.enhanced).forEach(([k, v]) => {
+        Object.entries(d.fields).forEach(([k, v]) => {
           init[k] = { status: 'pending', value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v ?? ''), editing: false }
         })
+        setAiResult(d.fields)
         setFieldDecisions(init)
-        setAiMsg('')
+        setAiPhase('review')
+      } else if (d.fieldCount === 0) {
+        setAiError('All fields are already complete — nothing to enhance.')
+        setAiPhase('error')
       } else {
-        setAiMsg(d.error || 'AI enhancement failed')
+        setAiError(d.error || 'AI enhancement failed')
+        setAiPhase('error')
       }
-    } catch(e: any) { setAiMsg(e.message) }
-    finally { setAiLoading(false) }
+    } catch(e: any) {
+      setAiError(e.message || 'Network error')
+      setAiPhase('error')
+    }
   }
+
+  const AI_LABELS: Record<string, string> = {
+    description: '📖 Description', type: '🏷 Entity Type',
+    biblicalRank: '⚔ Biblical Rank (Eph. 6:12)', etymologyNotes: '📚 Etymology',
+    archaeologyNotes: '🏺 Archaeology & ANE', scriptureContext: '✝ Scripture Context',
+    primaryBattlefield: '🎯 Primary Battlefield', manifestation: '⚠ Manifestations',
+    entryPoints: '🚪 Entry Points', transmissionVectors: '🧬 Transmission Vectors',
+    caseType: '📋 Case Type', clusterSpirits: '🕸 Cluster Spirits',
+    legalRights: '⚖ Legal Rights', sessionIndicators: '🔍 Session Indicators',
+    resistanceSignature: '🛡 Resistance Signature', demonicAgreements: '🤥 Demonic Agreements',
+    institutionalExpression: '🏛 Institutional Expression', counterScriptures: '🗡 Counter Scriptures',
+    deliveranceSequence: '📋 Deliverance Sequence', aftercareNotes: '🌱 Aftercare Notes',
+    prayerPoints: '🙏 Prayer Points', phonetic: '🔊 Phonetic',
+    biblicalReferences: '📖 Biblical References', isGenerational: '🧬 Generational?',
+    isTerritorial: '🗺 Territorial?',
+  }
+  const AI_BOOL_FIELDS = new Set(['isGenerational', 'isTerritorial'])
 
   async function saveAiAccepted() {
     const toSave: Record<string, any> = {}
+    const savedLabels: string[] = []
     Object.entries(fieldDecisions).forEach(([k, dec]) => {
       if (dec.status !== 'accepted') return
-      const orig = aiResult[k]
-      if (typeof orig === 'boolean') {
-        toSave[k] = dec.value === 'true' || dec.value === 'Yes' || dec.value === 'yes'
+      if (AI_BOOL_FIELDS.has(k)) {
+        toSave[k] = dec.value === 'Yes' || dec.value === 'true' || dec.value === 'yes'
       } else {
         toSave[k] = dec.value
       }
+      savedLabels.push(AI_LABELS[k] || k)
     })
-    if (Object.keys(toSave).length === 0) { setAiMsg('⚠ Accept at least one field first'); return }
-    setAiSaving(true)
+    if (Object.keys(toSave).length === 0) return
+    setAiPhase('saving')
     try {
       const merged = { ...aiTargetDemon, ...toSave }
       setDemons((prev: any[]) => prev.map(d => d.id === aiTargetDemon.id ? merged : d))
@@ -1140,9 +1173,18 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: aiTargetDemon.airtableId, fields: toSave }),
       })
-      if (res.ok) setAiMsg(`✓ ${Object.keys(toSave).length} field(s) saved to Airtable`)
-      else { const d = await res.json(); setAiMsg(`⚠ ${d.error}`) }
-    } finally { setAiSaving(false) }
+      if (res.ok) {
+        setAiSavedLog(savedLabels)
+        setAiPhase('done')
+      } else {
+        const d = await res.json()
+        setAiError(`Save failed: ${d.error}`)
+        setAiPhase('error')
+      }
+    } catch(e: any) {
+      setAiError(e.message || 'Save error')
+      setAiPhase('error')
+    }
   }
 
   async function savePost() {
@@ -1350,7 +1392,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           {editingId === d.airtableId ? 'Close' : 'Edit'}
                         </button>
                         <button
-                          onClick={() => runAiEnhance(d)}
+                          onClick={() => openAiPanel(d)}
                           style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.04em', padding: '3px 8px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
                           ✦ AI
                         </button>
@@ -1484,115 +1526,147 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       )}
 
       {/* AI Enhancement Panel */}
-      {showAiPanel && (
+      {showAiPanel && aiTargetDemon && (
         <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, background: BG, borderLeft: `1px solid ${BDR}`, zIndex: 9999, display: 'flex', flexDirection: 'column' as const, boxShadow: '-4px 0 32px rgba(0,0,0,0.4)' }}>
+          {/* Header */}
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 2 }}>✦ AI Research Panel</div>
-              {aiTargetDemon && <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{aiTargetDemon.name}</div>}
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 3 }}>✦ AI SPIRIT RESEARCH</div>
+              <div style={{ fontFamily: crimson, fontSize: 16, color: TXT, fontWeight: 600 }}>{aiTargetDemon.name}</div>
             </div>
             <button onClick={() => setShowAiPanel(false)} style={{ background: 'none', border: 'none', color: DIM, fontSize: 20, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-            {aiLoading && (
-              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚙ Researching...</div>
-                <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>Consulting Scripture, archaeology, and deliverance ministry sources</div>
+
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: '20px' }}>
+
+            {/* IDLE */}
+            {aiPhase === 'idle' && (
+              <div style={{ textAlign: 'center' as const, padding: '48px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 28, color: G, marginBottom: 16 }}>✦</div>
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: TXT, letterSpacing: '0.06em', marginBottom: 10 }}>{aiTargetDemon.name}</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 28, lineHeight: 1.6 }}>
+                  AI will research this entity across Scripture, archaeology, Dead Sea Scrolls, patristics, and deliverance ministry sources — filling only empty fields.
+                </div>
+                <button onClick={startAiResearch}
+                  style={{ padding: '12px 28px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
+                  ✦ Run AI Research
+                </button>
               </div>
             )}
-            {aiMsg && !aiLoading && (
-              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '12px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13 }}>{aiMsg}</div>
+
+            {/* LOADING */}
+            {aiPhase === 'loading' && (
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>⚙ RESEARCHING...</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', lineHeight: 1.7 }}>
+                  Consulting Scripture, Dead Sea Scrolls, archaeology,<br />and deliverance ministry sources
+                </div>
+              </div>
             )}
-            {aiResult && !aiLoading && (() => {
-              const labels: Record<string, string> = {
-                description: '📖 Description', type: '🏷 Entity Type',
-                biblicalRank: '⚔ Biblical Rank (Eph. 6:12)', etymologyNotes: '📚 Etymology',
-                archaeologyNotes: '🏺 Archaeology & ANE', scriptureContext: '✝ Scripture Context',
-                primaryBattlefield: '🎯 Primary Battlefield', manifestation: '⚠ Manifestations',
-                entryPoints: '🚪 Entry Points', transmissionVectors: '🧬 Transmission Vectors',
-                caseType: '📋 Case Type', clusterSpirits: '🕸 Cluster Spirits',
-                legalRights: '⚖ Legal Rights', sessionIndicators: '🔍 Session Indicators',
-                resistanceSignature: '🛡 Resistance Signature', demonicAgreements: '🤥 Demonic Agreements',
-                institutionalExpression: '🏛 Institutional Expression', counterScriptures: '🗡 Counter Scriptures',
-                deliveranceSequence: '📋 Deliverance Sequence', aftercareNotes: '🌱 Aftercare Notes',
-                prayerPoints: '🙏 Prayer Points', phonetic: '🔊 Phonetic',
-                biblicalReferences: '📖 Biblical References', isGenerational: '🧬 Generational?',
-                isTerritorial: '🗺 Territorial?',
-              }
-              const fieldKeys = Object.keys(aiResult).filter(k => labels[k] && (aiResult[k] || aiResult[k] === false))
+
+            {/* REVIEW */}
+            {aiPhase === 'review' && (() => {
+              const fieldKeys = Object.keys(aiResult).filter(k => AI_LABELS[k])
               const acceptedCount = fieldKeys.filter(k => fieldDecisions[k]?.status === 'accepted').length
               const pendingCount  = fieldKeys.filter(k => !fieldDecisions[k] || fieldDecisions[k].status === 'pending').length
+              const handleAcceptAll = () => {
+                const next = { ...fieldDecisions }
+                fieldKeys.forEach(k => { next[k] = { ...(next[k] || {}), status: 'accepted' as const, editing: false } })
+                setFieldDecisions(next)
+              }
+              const handleSkipAll = () => {
+                const next = { ...fieldDecisions }
+                fieldKeys.forEach(k => { next[k] = { ...(next[k] || {}), status: 'skipped' as const, editing: false } })
+                setFieldDecisions(next)
+              }
               return (
                 <div>
-                  {/* Summary + save bar */}
-                  <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>
+                  {/* Summary bar */}
+                  <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 14px', marginBottom: 14 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>
                       {fieldKeys.length} missing field{fieldKeys.length !== 1 ? 's' : ''} found
                       {pendingCount > 0 && <span style={{ color: DIM }}> · {pendingCount} pending</span>}
                       {acceptedCount > 0 && <span style={{ color: '#4ade80' }}> · {acceptedCount} accepted</span>}
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={saveAiAccepted} disabled={aiSaving || acceptedCount === 0}
-                        style={{ flex: 1, padding: '9px', background: acceptedCount > 0 ? G : 'rgba(201,168,76,0.2)', border: 'none', borderRadius: 6, color: acceptedCount > 0 ? '#0D0B14' : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: acceptedCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
-                        {aiSaving ? '⏳ Saving...' : `💾 Save ${acceptedCount} Accepted Field${acceptedCount !== 1 ? 's' : ''}`}
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                      <button onClick={handleAcceptAll}
+                        style={{ flex: 1, padding: '7px', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 5, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                        ✓ Accept All
                       </button>
-                      <button onClick={() => { setAiResult(null); setFieldDecisions({}); runAiEnhance(aiTargetDemon) }}
-                        style={{ padding: '9px 12px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                      <button onClick={handleSkipAll}
+                        style={{ flex: 1, padding: '7px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                        ✗ Skip All
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={saveAiAccepted} disabled={acceptedCount === 0}
+                        style={{ flex: 1, padding: '9px', background: acceptedCount > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: acceptedCount > 0 ? BG : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: acceptedCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                        💾 Save {acceptedCount} Accepted Field{acceptedCount !== 1 ? 's' : ''}
+                      </button>
+                      <button onClick={startAiResearch} title="Re-run research"
+                        style={{ padding: '9px 13px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 12, cursor: 'pointer' }}>
                         ↺
                       </button>
                     </div>
                   </div>
 
-                  {/* Field-by-field review */}
+                  {/* Per-field cards */}
                   {fieldKeys.map(key => {
                     const value = aiResult[key]
-                    const dec = fieldDecisions[key] || { status: 'pending', value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''), editing: false }
-                    const statusColor = dec.status === 'accepted' ? '#4ade80' : dec.status === 'skipped' ? '#f87171' : DIM
+                    const isBool = AI_BOOL_FIELDS.has(key)
+                    const dec = fieldDecisions[key] || { status: 'pending' as const, value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''), editing: false }
                     return (
                       <div key={key} style={{ marginBottom: 10, background: dec.status === 'accepted' ? 'rgba(74,222,128,0.04)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.03)' : 'rgba(201,168,76,0.03)', border: `1px solid ${dec.status === 'accepted' ? 'rgba(74,222,128,0.25)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.2)' : BDR}`, borderRadius: 8, padding: '12px 14px', opacity: dec.status === 'skipped' ? 0.5 : 1, transition: 'all 0.15s' }}>
-                        {/* Label + action buttons */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em' }}>{labels[key]}</div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em' }}>{AI_LABELS[key]}</div>
                           <div style={{ display: 'flex', gap: 4 }}>
-                            {dec.status !== 'accepted' && (
+                            {!isBool && dec.status !== 'accepted' && (
                               <button onClick={() => setDecision(key, 'accepted')}
-                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, cursor: 'pointer' }}>
+                                style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, cursor: 'pointer' }}>
                                 ✓ Accept
                               </button>
                             )}
-                            {!dec.editing && (
+                            {!isBool && !dec.editing && (
                               <button onClick={() => setEditing(key, true)}
-                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR}`, borderRadius: 4, color: G, fontFamily: cinzel, cursor: 'pointer' }}>
+                                style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR}`, borderRadius: 4, color: G, fontFamily: cinzel, cursor: 'pointer' }}>
                                 ✏ Edit
                               </button>
                             )}
-                            {dec.editing && (
+                            {!isBool && dec.editing && (
                               <button onClick={() => { setEditing(key, false); setDecision(key, 'accepted') }}
-                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, cursor: 'pointer' }}>
+                                style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, cursor: 'pointer' }}>
                                 ✓ Done
                               </button>
                             )}
                             {dec.status !== 'skipped' ? (
                               <button onClick={() => setDecision(key, 'skipped')}
-                                style={{ fontSize: 9, padding: '3px 9px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, cursor: 'pointer' }}>
+                                style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, cursor: 'pointer' }}>
                                 ✗ Skip
                               </button>
                             ) : (
                               <button onClick={() => setDecision(key, 'pending')}
-                                style={{ fontSize: 9, padding: '3px 9px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, cursor: 'pointer' }}>
+                                style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, cursor: 'pointer' }}>
                                 ↩ Undo
                               </button>
                             )}
                           </div>
                         </div>
-                        {/* Value or textarea */}
-                        {dec.editing ? (
+                        {isBool ? (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={() => { setEditValue(key, 'Yes'); setDecision(key, 'accepted') }}
+                              style={{ padding: '6px 18px', background: dec.value === 'Yes' ? 'rgba(74,222,128,0.25)' : 'transparent', border: `1px solid ${dec.value === 'Yes' ? 'rgba(74,222,128,0.6)' : BDR}`, borderRadius: 5, color: dec.value === 'Yes' ? '#4ade80' : DIM, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                              Yes
+                            </button>
+                            <button onClick={() => { setEditValue(key, 'No'); setDecision(key, 'accepted') }}
+                              style={{ padding: '6px 18px', background: dec.value === 'No' ? 'rgba(248,113,113,0.2)' : 'transparent', border: `1px solid ${dec.value === 'No' ? 'rgba(248,113,113,0.5)' : BDR}`, borderRadius: 5, color: dec.value === 'No' ? '#f87171' : DIM, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                              No
+                            </button>
+                          </div>
+                        ) : dec.editing ? (
                           <textarea value={dec.value} onChange={e => setEditValue(key, e.target.value)} rows={4}
                             style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
                         ) : (
-                          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.6 }}>
-                            {dec.value || (typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''))}
-                          </div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.6 }}>{dec.value}</div>
                         )}
                         {dec.status === 'accepted' && !dec.editing && (
                           <div style={{ fontSize: 9, color: '#4ade80', fontFamily: cinzel, letterSpacing: '0.06em', marginTop: 6 }}>✓ Will be saved</div>
@@ -1603,6 +1677,48 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 </div>
               )
             })()}
+
+            {/* SAVING */}
+            {aiPhase === 'saving' && (
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em' }}>⏳ SAVING TO AIRTABLE...</div>
+              </div>
+            )}
+
+            {/* DONE */}
+            {aiPhase === 'done' && (
+              <div>
+                <div style={{ textAlign: 'center' as const, padding: '28px 20px 20px', borderBottom: `1px solid ${BDR}`, marginBottom: 16 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 14, color: '#4ade80', letterSpacing: '0.08em', marginBottom: 6 }}>✓ Research Saved</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{aiSavedLog.length} field{aiSavedLog.length !== 1 ? 's' : ''} saved to Airtable</div>
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  {aiSavedLog.map(label => (
+                    <div key={label} style={{ fontFamily: crimson, fontSize: 13, color: '#4ade80', padding: '7px 0', borderBottom: `1px solid rgba(74,222,128,0.1)`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 10 }}>✓</span> {label}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => { setAiPhase('idle'); setAiResult({}); setFieldDecisions({}); setAiSavedLog([]) }}
+                  style={{ width: '100%', padding: '10px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  ↺ Research Again
+                </button>
+              </div>
+            )}
+
+            {/* ERROR */}
+            {aiPhase === 'error' && (
+              <div style={{ padding: '8px 0' }}>
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '14px 16px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
+                  ⚠ {aiError}
+                </div>
+                <button onClick={startAiResearch}
+                  style={{ width: '100%', padding: '10px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  ↺ Try Again
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -1626,7 +1742,82 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     fontFamily: crimson, fontSize: 14, outline: 'none',
   }
 
-  const [activeManagerTab, setActiveManagerTab] = useState<'courses' | 'fringe'>('courses')
+  const [activeManagerTab, setActiveManagerTab] = useState<'courses' | 'fringe' | 'events'>('courses')
+
+  // Events state
+  const [evts, setEvts]                   = useState<any[]>([])
+  const [evtLoading, setEvtLoading]       = useState(false)
+  const [showEvtForm, setShowEvtForm]     = useState(false)
+  const [editingEvt, setEditingEvt]       = useState<any | null>(null)
+  const [evtSaving, setEvtSaving]         = useState(false)
+  const [evtMsg, setEvtMsg]               = useState('')
+  const [evtTitle, setEvtTitle]           = useState('')
+  const [evtDesc, setEvtDesc]             = useState('')
+  const [evtDate, setEvtDate]             = useState('')
+  const [evtDuration, setEvtDuration]     = useState('60')
+  const [evtType, setEvtType]             = useState('live_training')
+  const [evtZoom, setEvtZoom]             = useState('')
+  const [evtZoomTier, setEvtZoomTier]     = useState('free')
+  const [evtPublished, setEvtPublished]   = useState(false)
+  const [evtMaxAtt, setEvtMaxAtt]         = useState('')
+
+  async function loadEvents() {
+    setEvtLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/events', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setEvts(d.events || []) }
+    } catch { /* ignore */ } finally { setEvtLoading(false) }
+  }
+
+  function openEvtForm(evt?: any) {
+    if (evt) {
+      setEditingEvt(evt)
+      setEvtTitle(evt.title || '')
+      setEvtDesc(evt.description || '')
+      setEvtDate(evt.event_date ? new Date(evt.event_date).toISOString().slice(0, 16) : '')
+      setEvtDuration(String(evt.duration_minutes || 60))
+      setEvtType(evt.event_type || 'live_training')
+      setEvtZoom(evt.zoom_link || '')
+      setEvtZoomTier(evt.zoom_link_tier || 'free')
+      setEvtPublished(evt.is_published || false)
+      setEvtMaxAtt(evt.max_attendees ? String(evt.max_attendees) : '')
+    } else {
+      setEditingEvt(null)
+      setEvtTitle(''); setEvtDesc(''); setEvtDate(''); setEvtDuration('60')
+      setEvtType('live_training'); setEvtZoom(''); setEvtZoomTier('free')
+      setEvtPublished(false); setEvtMaxAtt('')
+    }
+    setEvtMsg('')
+    setShowEvtForm(true)
+  }
+
+  async function saveEvent() {
+    if (!evtTitle.trim() || !evtDate) { setEvtMsg('Title and date required'); return }
+    setEvtSaving(true); setEvtMsg('')
+    const token = await getToken()
+    const body: Record<string, any> = {
+      title: evtTitle.trim(), description: evtDesc.trim() || null,
+      event_date: new Date(evtDate).toISOString(),
+      duration_minutes: parseInt(evtDuration) || 60,
+      event_type: evtType, zoom_link: evtZoom.trim() || null,
+      zoom_link_tier: evtZoomTier, is_published: evtPublished,
+      max_attendees: evtMaxAtt ? parseInt(evtMaxAtt) : null,
+    }
+    const url  = editingEvt ? `/api/events?id=${editingEvt.id}` : '/api/events'
+    const method = editingEvt ? 'PATCH' : 'POST'
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+    if (res.ok) { setShowEvtForm(false); setEditingEvt(null); await loadEvents() }
+    else { const d = await res.json(); setEvtMsg(d.error || 'Save failed') }
+    setEvtSaving(false)
+  }
+
+  async function deleteEvent(id: string) {
+    if (!confirm('Delete this event?')) return
+    const token = await getToken()
+    await fetch(`/api/events?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    loadEvents()
+  }
   const [fringeArticles, setFringeArticles] = useState<any[]>([])
   const [fringeTopicFilter, setFringeTopicFilter] = useState('ufo-disclosure')
   const [showFringeForm, setShowFringeForm] = useState(false)
@@ -1837,13 +2028,14 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     <div>
       {/* Tab switcher */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${BDR2}` }}>
-        {(['courses', 'fringe'] as const).map(t => (
+        {(['courses', 'fringe', 'events'] as const).map(t => (
           <button key={t} onClick={() => {
             setActiveManagerTab(t)
             if (t === 'fringe') loadFringeArticles(fringeTopicFilter)
+            if (t === 'events') loadEvents()
           }}
             style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: activeManagerTab === t ? `2px solid ${GG}` : '2px solid transparent', color: activeManagerTab === t ? GG : MUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
-            {t === 'courses' ? '🎬 Courses' : '👁 Fringe Intel'}
+            {t === 'courses' ? '🎬 Courses' : t === 'fringe' ? '👁 Fringe Intel' : '📅 Events'}
           </button>
         ))}
       </div>
@@ -2107,6 +2299,127 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
         </div>
       )}
     </div>}
+
+      {/* Events manager */}
+      {activeManagerTab === 'events' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 15, color: GG, letterSpacing: '0.08em' }}>📅 Events</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginTop: 3 }}>Create and manage live sessions, training calls, and special events</div>
+            </div>
+            <button onClick={() => openEvtForm()} style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${GG}`, borderRadius: 8, color: GG, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer' }}>
+              + New Event
+            </button>
+          </div>
+
+          {evtMsg && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 12 }}>{evtMsg}</div>}
+
+          {evtLoading ? (
+            <div style={{ color: MUT, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>Loading...</div>
+          ) : evts.length === 0 ? (
+            <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 8, padding: '32px 24px', textAlign: 'center' as const }}>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: MUT }}>No events yet. Create your first event.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+              {evts.map(evt => {
+                const evtDate = new Date(evt.event_date)
+                const isPast = evtDate < new Date()
+                const typeColors: Record<string, string> = { live_training: GG, prayer_call: '#7a9e7e', q_and_a: '#8B9DCA', deliverance_workshop: '#b87333' }
+                const tc = typeColors[evt.event_type] || GG
+                return (
+                  <div key={evt.id} style={{ background: BG2, border: `1px solid ${BDR2}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '14px 18px', opacity: isPast ? 0.65 : 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' as const }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 13, color: TXT2, marginBottom: 4 }}>{evt.title}</div>
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: MUT }}>
+                          {evtDate.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} · {evt.duration_minutes} min
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' as const }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 9, color: tc, border: `1px solid ${tc}40`, borderRadius: 10, padding: '1px 8px', letterSpacing: '0.06em' }}>{evt.event_type.replace('_', ' ')}</span>
+                          <span style={{ fontFamily: cinzel, fontSize: 9, color: evt.is_published ? '#4ade80' : MUT, letterSpacing: '0.06em' }}>{evt.is_published ? '● Published' : '○ Draft'}</span>
+                          {evt.zoom_link && <span style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.06em' }}>🔗 Zoom ({evt.zoom_link_tier}+)</span>}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => openEvtForm(evt)} style={{ background: 'none', border: `1px solid ${BDR2}`, borderRadius: 4, color: MUT, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>Edit</button>
+                        <button onClick={() => deleteEvent(evt.id)} style={{ background: 'none', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer' }}>Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Event form modal */}
+          {showEvtForm && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+              <div style={{ background: isDark ? '#0D0B14' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 540, padding: 28, boxShadow: '0 24px 64px rgba(0,0,0,0.85)', maxHeight: '90vh', overflowY: 'auto' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, letterSpacing: '0.08em', marginBottom: 20 }}>{editingEvt ? 'Edit Event' : 'New Event'}</div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>TITLE</label>
+                    <input value={evtTitle} onChange={e => setEvtTitle(e.target.value)} style={{ ...inp2 }} placeholder="Event title" />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>DESCRIPTION</label>
+                    <textarea value={evtDesc} onChange={e => setEvtDesc(e.target.value)} rows={3} style={{ ...inp2, resize: 'vertical' as const }} placeholder="Event description" />
+                  </div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ flex: 2 }}>
+                      <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>DATE & TIME</label>
+                      <input type="datetime-local" value={evtDate} onChange={e => setEvtDate(e.target.value)} style={{ ...inp2 }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>DURATION (min)</label>
+                      <input type="number" value={evtDuration} onChange={e => setEvtDuration(e.target.value)} style={{ ...inp2 }} placeholder="60" />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>TYPE</label>
+                      <select value={evtType} onChange={e => setEvtType(e.target.value)} style={{ ...inp2 }}>
+                        <option value="live_training">Live Training</option>
+                        <option value="prayer_call">Prayer Call</option>
+                        <option value="q_and_a">Q&A Session</option>
+                        <option value="deliverance_workshop">Deliverance Workshop</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>MAX ATTENDEES</label>
+                      <input type="number" value={evtMaxAtt} onChange={e => setEvtMaxAtt(e.target.value)} style={{ ...inp2 }} placeholder="No limit" />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>ZOOM LINK</label>
+                    <input value={evtZoom} onChange={e => setEvtZoom(e.target.value)} style={{ ...inp2 }} placeholder="https://zoom.us/j/..." />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>ZOOM LINK — MINIMUM TIER</label>
+                    <select value={evtZoomTier} onChange={e => setEvtZoomTier(e.target.value)} style={{ ...inp2 }}>
+                      {['free', 'soldier', 'commander', 'general', 'minister'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input type="checkbox" id="evtPub" checked={evtPublished} onChange={e => setEvtPublished(e.target.checked)} style={{ width: 16, height: 16, accentColor: GG }} />
+                    <label htmlFor="evtPub" style={{ fontFamily: cinzel, fontSize: 10, color: TXT2, letterSpacing: '0.06em', cursor: 'pointer' }}>Published (visible to members)</label>
+                  </div>
+                  {evtMsg && <div style={{ color: '#f87171', fontFamily: crimson, fontSize: 13 }}>{evtMsg}</div>}
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                    <button onClick={() => { setShowEvtForm(false); setEditingEvt(null) }} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={saveEvent} disabled={evtSaving} style={{ padding: '8px 18px', background: GG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700 }}>
+                      {evtSaving ? 'Saving...' : 'Save Event'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }

@@ -1,10 +1,22 @@
 [build]
   command = "vite build"
   publish = "dist/client"
+
+[build.environment]
+  STRIPE_CHARTER_SOLDIER_PRICE_ID = "price_1Tb1mO5V5uqVT9So3ZRRltDC"
+  STRIPE_CHARTER_COMMANDER_PRICE_ID = "price_1Tb1ms5V5uqVT9Sodiu1xbrR"
+  STRIPE_CHARTER_SOLDIER_URL = "https://buy.stripe.com/9B6fZafJ689F1Zrb4XfrW03"
+  STRIPE_CHARTER_COMMANDER_URL = "https://buy.stripe.com/8x24gsaoMey39rT4GzfrW04"
 [dev]
   command = "npm run dev"
   targetPort = 3000
   port = 8888
 
-[functions.ai-spirit-enhance]
+[functions."ai-spirit-enhance"]
+  timeout = 26
+
+[functions."submit-assessment"]
+  timeout = 26
+
+[functions."generate-summary"]
   timeout = 26
