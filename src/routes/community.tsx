@@ -3622,6 +3622,7 @@ function CommunityPage() {
     return (stored === 'dark' || stored === 'light') ? stored : 'dark'
   })
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
+  const [isTablet, setIsTablet]       = useState(() => window.innerWidth >= 768 && window.innerWidth < 1100)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('intel')
   const [trainingExpanded, setTrainingExpanded] = useState(false)
@@ -3660,7 +3661,11 @@ function CommunityPage() {
 
   // Responsive breakpoint
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
+    const check = () => {
+      const w = window.innerWidth
+      setIsMobile(w < 768)
+      setIsTablet(w >= 768 && w < 1100)
+    }
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -4368,7 +4373,7 @@ function CommunityPage() {
       } : {
         display: 'flex', flexDirection: 'column',
         background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
-        height: '100vh', overflowY: 'auto' as const, flexShrink: 0, width: '280px',
+        height: '100vh', overflowY: 'auto' as const, flexShrink: 0, width: isTablet ? '220px' : '280px',
       }}>
         <SidebarContent />
       </div>
@@ -4480,7 +4485,7 @@ function CommunityPage() {
       )}
 
       {/* ── RIGHT SIDEBAR — desktop only ── */}
-      {!isMobile && (
+      {!isMobile && !isTablet && (
         <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden', height: '100vh', flexShrink: 0, width: '280px', position: 'relative' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
 

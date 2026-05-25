@@ -365,7 +365,7 @@ export function Header() {
 
       {/* ── Mobile Dropdown Menu — outside nav so it overlays correctly ── */}
       {menuOpen && (
-        <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 98 }} />
+        <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(6,4,15,0.92)', zIndex: 100 }} />
       )}
       {menuOpen && (
         <div style={{
@@ -373,7 +373,7 @@ export function Header() {
           background: 'var(--dropdown-bg)',
           backdropFilter: 'blur(16px)',
           borderBottom: `1px solid ${border}`,
-          zIndex: 199,
+          zIndex: 200,
           maxHeight: 'calc(100vh - 57px)',
           overflowY: 'auto',
         }}>
