@@ -145,40 +145,13 @@ CRITICAL SESSION RULES:
 
 RETURN ONLY VALID JSON. No markdown, no preamble. Only return fields that are missing or incomplete in the existing data.`
 
-// Call 1: fast classification fields — short answers, max_tokens 800, ~3-5s
-const FAST_FIELDS = ['phonetic', 'biblicalRank', 'caseType', 'isGenerational', 'isTerritorial', 'clusterSpirits', 'type', 'primaryBattlefield']
-
-// Call 2: research-heavy fields — longer answers, max_tokens 2000, ~8-12s
-const RESEARCH_FIELDS = [
-  'description', 'etymologyNotes', 'archaeologyNotes', 'scriptureContext',
-  'manifestation', 'entryPoints', 'transmissionVectors', 'legalRights',
-  'sessionIndicators', 'resistanceSignature', 'demonicAgreements',
-  'institutionalExpression', 'counterScriptures', 'deliveranceSequence',
-  'aftercareNotes', 'prayerPoints', 'biblicalReferences',
+// Single call — 13 high-value fields, fast enough for 26s limit
+const ENHANCE_FIELDS = [
+  'biblicalRank', 'caseType', 'phonetic', 'isGenerational', 'isTerritorial',
+  'sessionIndicators', 'transmissionVectors', 'clusterSpirits',
+  'resistanceSignature', 'legalRights', 'prayerPoints', 'aftercareNotes',
+  'etymologyNotes',
 ]
-
-async function callAnthropicHaiku(systemPrompt: string, userPrompt: string, maxTokens: number): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY || '',
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  })
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`Anthropic API error ${res.status}: ${errText}`)
-  }
-  const data = await res.json()
-  return data.content?.[0]?.text || ''
-}
 
 function parseJsonFields(rawText: string): Record<string, any> {
   const match = rawText.match(/\{[\s\S]*\}/)
@@ -263,11 +236,9 @@ export default async function handler(req: Request) {
 
   const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
 
-  // Determine which fields from each call are actually missing
-  const missingFast     = FAST_FIELDS.filter(k => isEmpty(existing[k]))
-  const missingResearch = RESEARCH_FIELDS.filter(k => isEmpty(existing[k]))
+  const missingFields = ENHANCE_FIELDS.filter(k => isEmpty(existing[k]))
 
-  if (missingFast.length === 0 && missingResearch.length === 0) {
+  if (missingFields.length === 0) {
     return new Response(
       JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }),
       { status: 200, headers }
@@ -277,33 +248,53 @@ export default async function handler(req: Request) {
   try {
     const preamble = await getLibraryPreamble(name, existing.description || '')
     const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
+    const userPrompt = buildUserPrompt(name, existing, missingFields)
 
-    // Two sequential Anthropic calls — each well under 26s individually
-    let combined: Record<string, any> = {}
+    console.log('[enhance] Requesting fields:', missingFields)
 
-    if (missingFast.length > 0) {
-      console.log('[enhance] Call 1 — fast fields:', missingFast)
-      const raw1 = await callAnthropicHaiku(systemPrompt, buildUserPrompt(name, existing, missingFast), 800)
-      const parsed1 = parseJsonFields(raw1)
-      Object.assign(combined, parsed1)
-      console.log('[enhance] Call 1 done, got:', Object.keys(parsed1))
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 20000)
+
+    let rawText: string
+    try {
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1500,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (!anthropicRes.ok) {
+        const errText = await anthropicRes.text()
+        throw new Error(`Anthropic API error ${anthropicRes.status}: ${errText}`)
+      }
+
+      const data = await anthropicRes.json()
+      rawText = data.content?.[0]?.text || ''
+    } catch (e: any) {
+      clearTimeout(timeoutId)
+      if (e.name === 'AbortError') throw new Error('AI research timed out — try again')
+      throw e
     }
 
-    if (missingResearch.length > 0) {
-      console.log('[enhance] Call 2 — research fields:', missingResearch)
-      const raw2 = await callAnthropicHaiku(systemPrompt, buildUserPrompt(name, existing, missingResearch), 2000)
-      const parsed2 = parseJsonFields(raw2)
-      Object.assign(combined, parsed2)
-      console.log('[enhance] Call 2 done, got:', Object.keys(parsed2))
-    }
+    const parsed = parseJsonFields(rawText)
 
-    // Strip any fields AI returned that already have values
     const filtered: Record<string, any> = {}
-    for (const [key, value] of Object.entries(combined)) {
+    for (const [key, value] of Object.entries(parsed)) {
       if (isEmpty(existing[key])) filtered[key] = value
     }
 
-    console.log('[enhance] Final filtered fields:', Object.keys(filtered))
+    console.log('[enhance] Done, fields returned:', Object.keys(filtered))
 
     return new Response(
       JSON.stringify({ success: true, spirit: name, fields: filtered, fieldCount: Object.keys(filtered).length }),
