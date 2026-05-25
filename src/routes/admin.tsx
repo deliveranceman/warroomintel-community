@@ -1130,19 +1130,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, jobId }),
       })
 
-      // Direct response (200) — Haiku returned within timeout
-      if (res.ok) {
-        const d = await res.json()
-        if (d.fields) {
-          applyAiFields(d.fields)
-        } else {
-          setAiError(d.error || 'AI enhancement failed')
-          setAiPhase('error')
-        }
-        return
-      }
-
-      // Background mode (202) — poll for result
+      // Background mode (202) — empty body, go straight to polling — MUST check before res.ok (202 is also ok=true)
       if (res.status === 202) {
         let attempts = 0
         const maxAttempts = 40
