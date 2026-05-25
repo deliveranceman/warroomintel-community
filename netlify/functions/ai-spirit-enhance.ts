@@ -143,7 +143,9 @@ CRITICAL SESSION RULES:
 - Aftercare notes must include: what the person needs to do to keep freedom, what mentor watches for, fill-up scriptures specific to this spirit's territory
 - Prayer points must follow session order: renunciation first, breaking legal rights, commanding expulsion, fill-up blessing
 
-RETURN ONLY VALID JSON. No markdown, no preamble. Research and return ALL requested fields — the minister will review and decide what to keep.`
+RETURN ONLY VALID JSON. No markdown, no preamble, no explanation outside the JSON object. Research and return ALL requested fields — the minister will review and decide what to keep.
+
+CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max. Array fields: 3-7 items max, each item one sentence. Boolean fields: true or false only. The JSON must be complete and valid — do not truncate.`
 
 // All fields researched every time — no isEmpty filtering — minister decides what to keep via Accept/Skip
 const ENHANCE_FIELDS = [
@@ -285,7 +287,7 @@ export default async function handler(req: Request) {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2000,
+          max_tokens: 4096,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         }),
