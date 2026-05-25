@@ -26,44 +26,69 @@ async function resolveMinister(token: string): Promise<boolean> {
   } catch { return false }
 }
 
-interface LibraryChunk { bookTitle: string; author: string; text: string }
-
-async function fetchLibraryContext(
-  baseUrl: string,
-  token: string,
-  spiritName: string,
-  spiritDescription: string
-): Promise<{ chunks: LibraryChunk[]; contextText: string }> {
+// Query library context directly from Supabase — no HTTP round-trip to another function
+async function getLibraryPreamble(spiritName: string, spiritDescription: string): Promise<string> {
   try {
-    const res = await fetch(`${baseUrl}/api/library-chunks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ spiritName, spiritDescription }),
-    })
-    if (!res.ok) return { chunks: [], contextText: '' }
-    const data = await res.json()
-    return { chunks: data.chunks || [], contextText: data.contextText || '' }
-  } catch {
-    return { chunks: [], contextText: '' }
-  }
-}
+    const client = sb()
+    const [booksResult, contextResult] = await Promise.all([
+      client.from('ministry_library').select('title,author,extracted_text').eq('is_enabled', true),
+      client.from('ministry_context').select('context_text').eq('is_active', true).order('updated_at', { ascending: false }).limit(1).single(),
+    ])
 
-function buildLibraryPreamble(chunks: LibraryChunk[], contextText: string): string {
-  const MAX_CHARS = 20000
-  let out = ''
-  if (contextText) {
-    out += `MINISTRY VOICE AND THEOLOGICAL FRAMEWORK:\n${contextText}\n\nApply this theological framework and voice to all content you generate.\n---\n\n`
-  }
-  if (chunks.length > 0) {
-    let section = `PERSONAL MINISTRY LIBRARY CONTEXT:\nThe following passages are from the minister's personal theological library. Weight these highly as they represent the specific theological framework this ministry operates from:\n\n`
-    for (const c of chunks) {
-      const entry = `[${c.bookTitle}${c.author ? ` by ${c.author}` : ''}]:\n${c.text}\n\n`
-      if ((out + section + entry).length > MAX_CHARS) break
-      section += entry
+    const contextText: string = contextResult.data?.context_text || ''
+    const books = booksResult.data || []
+
+    let preamble = ''
+    const MAX_CHARS = 20000
+
+    if (contextText) {
+      preamble += `MINISTRY VOICE AND THEOLOGICAL FRAMEWORK:\n${contextText}\n\nApply this theological framework and voice to all content you generate.\n---\n\n`
     }
-    out += section
+
+    if (books.length > 0) {
+      // Simple keyword search: score chunks by presence of spirit name terms
+      const terms = spiritName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+      if (spiritDescription) {
+        spiritDescription.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+          .filter(w => w.length > 5).slice(0, 15).forEach(w => terms.push(w))
+      }
+
+      interface ScoredChunk { title: string; author: string; text: string; score: number }
+      const scored: ScoredChunk[] = []
+
+      for (const book of books) {
+        if (!book.extracted_text) continue
+        const text = book.extracted_text
+        // Split into ~2000 char chunks
+        for (let i = 0; i < text.length; i += 1800) {
+          const chunk = text.slice(i, i + 2000).trim()
+          if (chunk.length < 150) continue
+          const lc = chunk.toLowerCase()
+          let score = 0
+          for (const term of terms) {
+            const matches = (lc.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
+            if (matches) score += matches * (term.length > 6 ? 3 : 1)
+          }
+          if (score > 0) scored.push({ title: book.title, author: book.author || '', text: chunk.slice(0, 1600), score })
+        }
+      }
+
+      if (scored.length > 0) {
+        scored.sort((a, b) => b.score - a.score)
+        let section = `PERSONAL MINISTRY LIBRARY CONTEXT:\nPassages from the minister's personal theological library — weight these highly:\n\n`
+        for (const c of scored.slice(0, 5)) {
+          const entry = `[${c.title}${c.author ? ` by ${c.author}` : ''}]:\n${c.text}\n\n`
+          if ((preamble + section + entry).length > MAX_CHARS) break
+          section += entry
+        }
+        preamble += section
+      }
+    }
+
+    return preamble
+  } catch {
+    return '' // Always graceful — missing library context must never break the core feature
   }
-  return out
 }
 
 const SYSTEM_PROMPT = `You are the personal theological research assistant for Pastor Justin Payne of Staffordtown Church (Church on Fire), Copperhill, Tennessee — a trained deliverance minister holding advanced degrees in Archaeology, Etymology, Biblical Demonology, and Theology.
@@ -162,26 +187,17 @@ export default async function handler(req: Request) {
   ].filter(k => isEmpty(existing[k]))
 
   if (missingFields.length === 0) {
-    if (jobId) {
-      await sb().from('ai_enhance_jobs')
-        .upsert({ id: jobId, status: 'done', spirit_name: name, fields: {} }, { onConflict: 'id' })
-        .catch(() => {})
-    }
-    return new Response(
-      JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }),
-      { status: 200, headers }
-    )
+    if (jobId) await sb().from('ai_enhance_jobs').upsert({ id: jobId, status: 'done', spirit_name: name, fields: {} }, { onConflict: 'id' }).catch(() => {})
+    return new Response(JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }), { status: 200, headers })
   }
 
-  // Fetch library context (graceful fallback if none configured)
-  const reqUrl = new URL(req.url)
-  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
-  const { chunks, contextText } = await fetchLibraryContext(baseUrl, token, name, existing.description || '')
-  const preamble = buildLibraryPreamble(chunks, contextText)
+  // Everything from here is inside try/catch — no unhandled exceptions possible
+  try {
+    // Library context query — direct Supabase, no HTTP call, always graceful
+    const preamble = await getLibraryPreamble(name, existing.description || '')
+    const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
 
-  const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
-
-  const userPrompt = `Research the spirit/demon/entity: "${name}"
+    const userPrompt = `Research the spirit/demon/entity: "${name}"
 
 Current data on file (DO NOT reproduce these — only provide MISSING fields):
 ${JSON.stringify(existing, null, 2)}
@@ -191,35 +207,33 @@ Fields that need to be filled (return ONLY these): ${missingFields.join(', ')}
 Return ONLY valid JSON containing ONLY the missing fields. No preamble, no markdown, no extra fields:
 
 {
-  "description": "3-5 sentences covering: nature and origin, primary assignment in the kingdom of darkness, biblical basis, and historical attestation. Graduate theological level, pastorally practical.",
-  "type": "Most precise classification. Choose from: Principality, Power, Ruler of Darkness, Spiritual Wickedness, Fallen Angel, Strongman, Demon, Familiar Spirit, Spirit of Infirmity, Unclean Spirit, Institutional Power, Occult Entity, False Deity, Seducing Spirit, Lying Spirit, Spirit of Divination",
-  "biblicalRank": "Ephesians 6:12 classification with brief rationale for the assignment.",
-  "etymologyNotes": "Full etymology: original language name(s), root words, Semitic language meaning, how the name reveals the spirit's nature or assignment.",
-  "archaeologyNotes": "ANE and archaeological context: ancient texts, excavations, cultural parallels that illuminate this entity's biblical profile.",
-  "scriptureContext": "Every significant biblical passage — what each reveals about this entity, with original language insights where relevant.",
-  "primaryBattlefield": "Where this spirit primarily operates: Mind, Emotions, Will, Body, Family, Marriage, Church, Government, Region, Nation, Economy, Education, Media, Religion.",
-  "manifestation": "Specific manifestations the team watches for in session: physical symptoms, behavioral patterns, emotional signatures, thought patterns, relational dynamics, spiritual symptoms. Actionable — what would Justin or his team actually observe?",
-  "entryPoints": "Legal rights categorized by type: generational sin, trauma/soul wounds, occult involvement, ungodly vows/oaths, unforgiveness, sexual sin, territorial assignment. Include inner healing wound types this spirit exploits.",
-  "transmissionVectors": "How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic/territorial exposure, media and entertainment.",
+  "description": "3-5 sentences: nature and origin, primary assignment in the kingdom of darkness, biblical basis, historical attestation. Graduate theological level, pastorally practical.",
+  "type": "Choose from: Principality, Power, Ruler of Darkness, Spiritual Wickedness, Fallen Angel, Strongman, Demon, Familiar Spirit, Spirit of Infirmity, Unclean Spirit, Institutional Power, Occult Entity, False Deity, Seducing Spirit, Lying Spirit, Spirit of Divination",
+  "biblicalRank": "Ephesians 6:12 classification with brief rationale.",
+  "etymologyNotes": "Full etymology: original language name(s), root words, Semitic language meaning, how the name reveals nature or assignment.",
+  "archaeologyNotes": "ANE and archaeological context: ancient texts, excavations, cultural parallels illuminating the biblical profile.",
+  "scriptureContext": "Every significant biblical passage — what each reveals, with original language insights.",
+  "primaryBattlefield": "Primary domain: Mind, Emotions, Will, Body, Family, Marriage, Church, Government, Region, Nation, Economy, Education, Media, Religion.",
+  "manifestation": "What Justin's team watches for in session: physical symptoms, behavioral patterns, emotional signatures, thought patterns, relational dynamics, spiritual symptoms. Actionable.",
+  "entryPoints": "Legal rights by category: generational sin, trauma/soul wounds, occult involvement, ungodly vows/oaths, unforgiveness, sexual sin, territorial assignment. Include inner healing wound types this spirit exploits.",
+  "transmissionVectors": "How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic/territorial exposure, media.",
   "caseType": "Personal Deliverance, Generational/Bloodline, Territorial/Regional, Institutional, Atmospheric/Intercessory, or Multiple.",
   "isGenerational": true,
   "isTerritorial": false,
-  "clusterSpirits": "Boss spirit identification (if this is a cluster member) AND the full subordinate cluster this spirit commands. Include how the boss maintains authority over the cluster.",
-  "legalRights": "Specific legal grounds organized by category: generational, trauma-based, vow-based, occult, sexual, territorial. Include what inner healing must address before expulsion is durable.",
-  "sessionIndicators": "What specifically tells Justin and his team THIS spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
-  "resistanceSignature": "Exactly how this spirit resists expulsion: deception tactics, hiding strategies, legal rights it will claim, counterfeit manifestations, how it tries to negotiate or re-enter.",
-  "demonicAgreements": "The specific lies, vows, and inner agreements this spirit plants: core identity lies, protective agreements the person makes, vows that function as invitations.",
-  "institutionalExpression": "If this spirit animates systems or regions: organizations, movements, geographic strongholds, cultural expressions of its agenda.",
-  "counterScriptures": "8-12 most effective scriptures for warfare against this spirit, selected because they directly address its specific legal territory and assignment.",
-  "deliveranceSequence": "Numbered steps following Justin's session model: inner healing work first, then legal rights renunciation, then binding the boss spirit, then addressing the cluster, then expulsion command, then fill-up.",
-  "aftercareNotes": "Specific aftercare: what the person must do to keep their freedom, what the mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
-  "prayerPoints": "3-5 targeted prayer declarations in session order: renunciation of legal rights, breaking generational/vow-based access, commanding expulsion by name, fill-up and blessing declarations.",
+  "clusterSpirits": "Boss spirit identification AND full subordinate cluster this spirit commands. How the boss maintains authority over the cluster.",
+  "legalRights": "Legal grounds by category: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address before expulsion is durable.",
+  "sessionIndicators": "What specifically tells Justin and his team this spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
+  "resistanceSignature": "How this spirit resists expulsion: deception tactics, hiding strategies, legal rights it claims, counterfeit manifestations, how it negotiates or attempts re-entry.",
+  "demonicAgreements": "Specific lies, vows, and inner agreements this spirit plants: core identity lies, protective agreements, vows that function as invitations.",
+  "institutionalExpression": "Organizations, movements, geographic strongholds, cultural expressions of this spirit's agenda.",
+  "counterScriptures": "8-12 most effective scriptures for warfare, selected because they directly address this spirit's legal territory and assignment.",
+  "deliveranceSequence": "Numbered steps following Justin's session model: inner healing first, then legal rights renunciation, then binding the boss spirit, then addressing the cluster, then expulsion, then fill-up.",
+  "aftercareNotes": "What the person must do to keep freedom, what the mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
+  "prayerPoints": "3-5 targeted prayer declarations in session order: renunciation → breaking legal rights → commanding expulsion by name → fill-up and blessing.",
   "phonetic": "Correct phonetic pronunciation using syllable capitalization.",
-  "biblicalReferences": "Complete reference list — every biblical passage where this entity appears directly or is referenced thematically."
+  "biblicalReferences": "Complete reference list — every biblical passage where this entity appears directly or thematically."
 }`
 
-  try {
-    // Direct fetch — no SDK dependency that could crash at import time
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -244,7 +258,7 @@ Return ONLY valid JSON containing ONLY the missing fields. No preamble, no markd
     const rawText: string = anthropicData.content?.[0]?.text || ''
 
     const jsonMatch = rawText.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error(`No JSON in AI response. Raw: ${rawText.slice(0, 200)}`)
+    if (!jsonMatch) throw new Error(`No JSON in AI response. Raw: ${rawText.slice(0, 300)}`)
     const enhanced = JSON.parse(jsonMatch[0])
 
     const filtered: Record<string, any> = {}
@@ -270,7 +284,7 @@ Return ONLY valid JSON containing ONLY the missing fields. No preamble, no markd
         .catch(() => {})
     }
     return new Response(
-      JSON.stringify({ error: e.message || 'Unknown error' }),
+      JSON.stringify({ error: e.message || 'Unknown error in AI enhancement' }),
       { status: 500, headers }
     )
   }
