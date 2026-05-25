@@ -1119,10 +1119,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setFieldDecisions({})
     setAiError('')
 
-    const jobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
-
     try {
       const token = await getToken()
+      const jobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
 
       const res = await fetch('/api/ai-spirit-enhance-background', {
         method: 'POST',
@@ -1130,40 +1129,21 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, jobId }),
       })
 
-      // Background mode (202) — empty body, go straight to polling — MUST check before res.ok (202 is also ok=true)
-      if (res.status === 202) {
-        let attempts = 0
-        const maxAttempts = 40
-
-        const poll = async (): Promise<void> => {
-          if (attempts >= maxAttempts) {
-            setAiError('Research timed out after 2 minutes. Try again.')
-            setAiPhase('error')
-            return
-          }
-          attempts++
-          await new Promise(r => setTimeout(r, 3000))
-          const pollRes = await fetch(`/api/ai-enhance-poll?jobId=${encodeURIComponent(jobId)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          const pollData = await pollRes.json()
-          if (pollData.status === 'done') {
-            applyAiFields(pollData.fields || {})
-          } else if (pollData.status === 'error') {
-            setAiError(pollData.error || 'AI enhancement failed')
-            setAiPhase('error')
-          } else {
-            return poll()
-          }
-        }
-
-        await poll()
-        return
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error((d as any).error || `Server error ${res.status}`)
       }
 
-      // Any other status is an error
-      const d = await res.json().catch(() => ({}))
-      throw new Error((d as any).error || `Server error ${res.status}`)
+      const d = await res.json()
+      if (d.fields && Object.keys(d.fields).length > 0) {
+        applyAiFields(d.fields)
+      } else if (d.fieldCount === 0) {
+        setAiError('All fields are already complete — nothing to enhance.')
+        setAiPhase('error')
+      } else {
+        setAiError(d.error || 'AI enhancement failed')
+        setAiPhase('error')
+      }
     } catch(e: any) {
       setAiError(e.message || 'Network error')
       setAiPhase('error')
@@ -1600,7 +1580,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   Consulting Scripture, Dead Sea Scrolls, archaeology,<br />and deliverance ministry sources
                 </div>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>
-                  This typically takes 30–60 seconds...
+                  This typically takes 10–15 seconds...
                 </div>
               </div>
             )}
