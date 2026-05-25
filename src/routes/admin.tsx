@@ -1386,6 +1386,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   const [cThumbnail, setCThumbnail] = useState('')
   const [cTier, setCTier]       = useState('free')
   const [cStatus, setCStatus]   = useState('draft')
+  const [cType, setCType]       = useState<'course' | 'protocol' | 'quick-hit'>('course')
 
   const [eTitle, setETitle]     = useState('')
   const [eDesc, setEDesc]       = useState('')
@@ -1414,8 +1415,10 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     if (course) {
       setEditingCourse(course); setCTitle(course.title); setCDesc(course.description || '')
       setCThumbnail(course.thumbnail_url || ''); setCTier(course.tier); setCStatus(course.status)
+      setCType(course.course_type || 'course')
     } else {
       setEditingCourse(null); setCTitle(''); setCDesc(''); setCThumbnail(''); setCTier('free'); setCStatus('draft')
+      setCType('course')
     }
     setShowCourseForm(true)
   }
@@ -1436,7 +1439,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     if (!cTitle.trim()) return
     setSaving(true)
     const token = await getToken()
-    const body = { title: cTitle, description: cDesc, thumbnail_url: cThumbnail, tier: cTier, status: cStatus }
+    const body = { title: cTitle, description: cDesc, thumbnail_url: cThumbnail, tier: cTier, status: cStatus, courseType: cType }
     const res = editingCourse
       ? await fetch(`/api/admin-courses?id=${editingCourse.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
       : await fetch('/api/admin-courses', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
@@ -1556,6 +1559,9 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                     <span style={{ fontSize: 9, color: tierColors[course.tier] || MUT, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[course.tier] || MUT}`, borderRadius: 10, padding: '1px 7px' }}>{course.tier}</span>
                     <span style={{ fontSize: 9, color: statusColor(course.status), fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>● {course.status}</span>
                     <span style={{ fontSize: 9, color: MUT, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
+                    <span style={{ fontSize: 9, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em' }}>
+                      {course.course_type === 'protocol' ? '📋 Protocol' : course.course_type === 'quick-hit' ? '⚡ Quick Hit' : '📚 Course'}
+                    </span>
                   </div>
                   <button onClick={e => { e.stopPropagation(); toggleCourseStatus(course) }}
                     style={{ marginTop: 8, fontSize: 9, padding: '2px 10px', background: course.status === 'published' ? 'rgba(239,68,68,0.1)' : 'rgba(74,222,128,0.1)', border: `1px solid ${course.status === 'published' ? '#ef4444' : '#4ade80'}`, borderRadius: 4, color: course.status === 'published' ? '#ef4444' : '#4ade80', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
@@ -1635,6 +1641,14 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
             <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, marginBottom: 20 }}>{editingCourse ? 'Edit Course' : 'New Course'}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input value={cTitle} onChange={e => setCTitle(e.target.value)} placeholder="Course title *" style={inp2} />
+              <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                {(['course', 'protocol', 'quick-hit'] as const).map(t => (
+                  <button key={t} onClick={() => setCType(t)}
+                    style={{ flex: 1, padding: '6px 8px', background: cType === t ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${cType === t ? GG : BDR2}`, borderRadius: 6, color: cType === t ? GG : MUT, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                    {t === 'course' ? '📚 Course' : t === 'protocol' ? '📋 Protocol' : '⚡ Quick Hit'}
+                  </button>
+                ))}
+              </div>
               <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} placeholder="Description" rows={3} style={{ ...inp2, resize: 'vertical' as const }} />
               <input value={cThumbnail} onChange={e => setCThumbnail(e.target.value)} placeholder="Thumbnail URL (optional)" style={inp2} />
               <div style={{ display: 'flex', gap: 10 }}>

@@ -1353,6 +1353,360 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
   )
 }
 
+// ── TRAINING VIEW ──────────────────────────────────────────
+function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#f5f0e8'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#1a1410'
+  const mut  = isDark ? '#9a8c74' : '#5c4a3a'
+  const dim  = isDark ? '#5a4f3a' : '#7a6555'
+  const G    = isDark ? '#C9A84C' : '#a07830'
+
+  const [view, setView]                     = useState<'list' | 'course' | 'episode'>('list')
+  const [courses, setCourses]               = useState<any[]>([])
+  const [selectedCourse, setSelectedCourse] = useState<any>(null)
+  const [episodes, setEpisodes]             = useState<any[]>([])
+  const [selectedEpisode, setSelectedEpisode] = useState<any>(null)
+  const [progress, setProgress]             = useState<any[]>([])
+  const [attachments, setAttachments]       = useState<any[]>([])
+  const [comments, setComments]             = useState<any[]>([])
+  const [activeTab, setActiveTab]           = useState<'notes' | 'resources' | 'discussion'>('notes')
+  const [commentBody, setCommentBody]       = useState('')
+  const [replyTo, setReplyTo]               = useState<any>(null)
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [loading, setLoading]               = useState(true)
+
+  function extractYouTubeId(url: string): string | null {
+    if (!url) return null
+    const patterns = [/youtu\.be\/([^?&]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/]
+    for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
+    return null
+  }
+
+  useEffect(() => { loadCourses() }, [])
+
+  async function loadCourses() {
+    setLoading(true)
+    const token = await getToken()
+    const res = await fetch('/api/courses', { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setCourses(d.courses || []) }
+    setLoading(false)
+  }
+
+  async function openCourse(course: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/courses?id=${course.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setEpisodes(d.episodes || []); setProgress(d.progress || []) }
+    setSelectedCourse(course); setSelectedEpisode(null); setView('course')
+  }
+
+  async function openEpisode(ep: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/episodes?id=${ep.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setAttachments(d.attachments || []) }
+    const cRes = await fetch(`/api/episode-comments?episodeId=${ep.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (cRes.ok) { const d = await cRes.json(); setComments(d.comments || []) }
+    setSelectedEpisode(ep); setActiveTab('notes'); setView('episode')
+  }
+
+  async function markWatched(episodeId: string, watched: boolean) {
+    const token = await getToken()
+    await fetch('/api/episode-progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ episodeId, watched }),
+    })
+    setProgress(prev => {
+      const existing = prev.find(p => p.episode_id === episodeId)
+      if (existing) return prev.map(p => p.episode_id === episodeId ? { ...p, watched } : p)
+      return [...prev, { episode_id: episodeId, watched }]
+    })
+  }
+
+  async function submitComment() {
+    if (!commentBody.trim() || !selectedEpisode) return
+    setSubmittingComment(true)
+    const token = await getToken()
+    const res = await fetch('/api/episode-comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ episodeId: selectedEpisode.id, body: commentBody.trim(), parentId: replyTo?.id || null }),
+    })
+    if (res.ok) { const d = await res.json(); setComments(prev => [...prev, d.comment]); setCommentBody(''); setReplyTo(null) }
+    setSubmittingComment(false)
+  }
+
+  const isWatched = (epId: string) => progress.find(p => p.episode_id === epId)?.watched === true
+  const watchedCount = episodes.filter(ep => isWatched(ep.id)).length
+  const tierColors: Record<string, string> = { free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+
+  // ── COURSE LIST VIEW ──
+  if (view === 'list') return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        <div>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>🎬 Training</h2>
+          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Courses, protocols, and quick-hit teachings</p>
+        </div>
+      </div>
+      {loading ? (
+        <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, padding: 40 }}>Loading training...</div>
+      ) : courses.length === 0 ? (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '48px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>🎬</div>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>Training Coming Soon</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>Courses and protocols are being prepared. Check back soon.</div>
+        </div>
+      ) : (
+        <div>
+          {courses.filter(c => c.course_type === 'course' || !c.course_type).length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 14 }}>📚 Courses</div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                {courses.filter(c => c.course_type === 'course' || !c.course_type).map(course => {
+                  const hasAccess = course.hasAccess !== false
+                  return (
+                    <div key={course.id} onClick={() => hasAccess && openCourse(course)}
+                      style={{ background: surf, border: `1px solid ${hasAccess ? bdr : 'rgba(255,255,255,0.06)'}`, borderRadius: 12, overflow: 'hidden', cursor: hasAccess ? 'pointer' : 'default', opacity: hasAccess ? 1 : 0.75, position: 'relative' as const }}
+                      onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
+                      onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
+                      <div style={{ height: 120, background: 'linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(13,11,20,0.8) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, borderBottom: `1px solid ${bdr}` }}>
+                        {course.thumbnail_url ? <img src={course.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : '📚'}
+                      </div>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
+                          {!hasAccess && <span style={{ fontSize: 14, flexShrink: 0 }}>🔒</span>}
+                        </div>
+                        {course.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>{course.description}</div>}
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                          <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{course.tier}</span>
+                          <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
+                          {hasAccess && course.watchedCount > 0 && <span style={{ fontSize: 11, color: '#4ade80', fontFamily: crimson }}>{course.watchedCount}/{course.episodeCount} watched</span>}
+                        </div>
+                        {!hasAccess && <button onClick={e => e.stopPropagation()} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {courses.filter(c => c.course_type === 'protocol').length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 14 }}>📋 Protocols</div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                {courses.filter(c => c.course_type === 'protocol').map(course => {
+                  const hasAccess = course.hasAccess !== false
+                  return (
+                    <div key={course.id} onClick={() => hasAccess && openCourse(course)}
+                      style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 18px', cursor: hasAccess ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 14, opacity: hasAccess ? 1 : 0.75 }}
+                      onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
+                      onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
+                      <span style={{ fontSize: 24, flexShrink: 0 }}>📋</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: 3 }}>{course.title}</div>
+                        {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{course.description}</div>}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                        <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{course.tier}</span>
+                        {!hasAccess ? <span style={{ fontSize: 14 }}>🔒</span> : <span style={{ fontSize: 12, color: G }}>›</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {courses.filter(c => c.course_type === 'quick-hit').length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 14 }}>⚡ Quick Hits</div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                {courses.filter(c => c.course_type === 'quick-hit').map(course => {
+                  const hasAccess = course.hasAccess !== false
+                  return (
+                    <div key={course.id} onClick={() => hasAccess && openCourse(course)}
+                      style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 16px', cursor: hasAccess ? 'pointer' : 'default', opacity: hasAccess ? 1 : 0.75 }}
+                      onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
+                      onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 18 }}>⚡</span>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
+                        {!hasAccess && <span style={{ fontSize: 12 }}>🔒</span>}
+                      </div>
+                      {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{course.description}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  // ── COURSE VIEW (episode list) ──
+  if (view === 'course' && selectedCourse) return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row' as const, minHeight: 0, background: bg }}>
+      <div style={{ width: isMobile ? '100%' : 280, flexShrink: 0, borderRight: isMobile ? 'none' : `1px solid ${bdr}`, borderBottom: isMobile ? `1px solid ${bdr}` : 'none', background: isDark ? '#13111e' : '#ede6db', display: 'flex', flexDirection: 'column' as const, maxHeight: isMobile ? 280 : undefined }}>
+        <div style={{ padding: '14px 16px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
+          <button onClick={() => { setView('list'); setSelectedCourse(null) }} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 8 }}>← Back to Training</button>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedCourse.title}</div>
+          {episodes.length > 0 && (
+            <div style={{ fontSize: 11, color: mut, fontFamily: crimson }}>
+              {watchedCount}/{episodes.length} complete
+              <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 6 }}>
+                <div style={{ height: '100%', width: `${episodes.length ? (watchedCount / episodes.length) * 100 : 0}%`, background: G, borderRadius: 2, transition: 'width 0.3s' }} />
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {episodes.map((ep, idx) => {
+            const watched = isWatched(ep.id)
+            const isActive = selectedEpisode?.id === ep.id
+            return (
+              <button key={ep.id} onClick={() => openEpisode(ep)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderBottom: `1px solid ${bdr}`, borderLeft: `3px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', textAlign: 'left' as const }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', border: `1px solid ${watched ? G : bdr}`, background: watched ? 'rgba(201,168,76,0.2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: watched ? G : mut, flexShrink: 0 }}>
+                  {watched ? '✓' : idx + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: isActive ? G : txt, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</div>
+                </div>
+              </button>
+            )
+          })}
+          {episodes.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center' as const, color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No episodes yet</div>}
+        </div>
+      </div>
+      {!selectedEpisode && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut, padding: 32 }}>
+          <div style={{ fontSize: 40 }}>▶</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>Select an episode to begin</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>{selectedCourse.description}</div>
+        </div>
+      )}
+      {selectedEpisode && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflowY: 'auto' }}>
+          {isMobile && <button onClick={() => setSelectedEpisode(null)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 16px', textAlign: 'left' as const, borderBottom: `1px solid ${bdr}` }}>← Episode List</button>}
+          <div style={{ background: '#000', width: '100%', aspectRatio: '16/9' as any, position: 'relative' as const }}>
+            {extractYouTubeId(selectedEpisode.youtube_url) ? (
+              <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut }}>
+                <div style={{ fontSize: 48 }}>🎬</div>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em' }}>Video Coming Soon</div>
+              </div>
+            )}
+          </div>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 15, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedEpisode.title}</div>
+              {selectedEpisode.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>{selectedEpisode.description}</div>}
+            </div>
+            <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
+              style={{ flexShrink: 0, padding: '7px 14px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+              {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
+            </button>
+          </div>
+          <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, padding: '0 20px' }}>
+            {(['notes', 'resources', 'discussion'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                style={{ padding: '10px 16px', background: 'transparent', border: 'none', borderBottom: activeTab === tab ? `2px solid ${G}` : '2px solid transparent', color: activeTab === tab ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
+                {tab === 'notes' ? '📝 Notes' : tab === 'resources' ? '📎 Resources' : '💬 Discussion'}
+                {tab === 'discussion' && comments.length > 0 && <span style={{ marginLeft: 4, fontSize: 9, background: 'rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 6px', color: G }}>{comments.length}</span>}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+            {activeTab === 'notes' && (
+              selectedEpisode.notes
+                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{selectedEpisode.notes}</div>
+                : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No notes for this episode yet.</div>
+            )}
+            {activeTab === 'resources' && (
+              attachments.length === 0
+                ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No resources attached to this episode.</div>
+                : <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                    {attachments.map(att => (
+                      <div key={att.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>📄</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em' }}>{att.title}</div>
+                          {att.file_size && <div style={{ fontSize: 11, color: mut, marginTop: 2 }}>{att.file_size}</div>}
+                        </div>
+                        <button onClick={async () => {
+                          const token = await getToken()
+                          const res = await fetch(`/api/arsenal-resources?id=${att.resource_id || att.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } })
+                          if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = att.title || 'resource'; a.click(); URL.revokeObjectURL(url) }
+                        }} style={{ padding: '6px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0 }}>↓ Download</button>
+                      </div>
+                    ))}
+                  </div>
+            )}
+            {activeTab === 'discussion' && (
+              <div>
+                <div style={{ marginBottom: 24 }}>
+                  {replyTo && <div style={{ fontSize: 11, color: mut, fontFamily: crimson, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>Replying to {replyTo.user_name} <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: mut, cursor: 'pointer', fontSize: 12 }}>×</button></div>}
+                  <textarea value={commentBody} onChange={e => setCommentBody(e.target.value)} placeholder="Share a thought, question, or insight from this teaching..." rows={3}
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6, marginBottom: 8 }} />
+                  <button onClick={submitComment} disabled={submittingComment || !commentBody.trim()}
+                    style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700, opacity: !commentBody.trim() ? 0.5 : 1 }}>
+                    {submittingComment ? 'Posting...' : 'Post Comment'}
+                  </button>
+                </div>
+                {comments.length === 0
+                  ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No discussion yet — be the first to comment.</div>
+                  : <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+                      {comments.filter(c => !c.parent_id).map(comment => (
+                        <div key={comment.id}>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 12, color: G, flexShrink: 0, overflow: 'hidden' }}>
+                              {comment.user_image ? <img src={comment.user_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : (comment.user_name?.[0] || '?').toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <span style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{comment.user_name}</span>
+                                <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(comment.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                              </div>
+                              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6, marginBottom: 6 }}>{comment.body}</div>
+                              <button onClick={() => setReplyTo(comment)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>↩ Reply</button>
+                            </div>
+                          </div>
+                          {comments.filter(c => c.parent_id === comment.id).map(reply => (
+                            <div key={reply.id} style={{ display: 'flex', gap: 10, marginLeft: 42, marginTop: 10 }}>
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0 }}>
+                                {(reply.user_name?.[0] || '?').toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                                  <span style={{ fontFamily: cinzel, fontSize: 10, color: txt, letterSpacing: '0.04em' }}>{reply.user_name}</span>
+                                  <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(reply.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6 }}>{reply.body}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  return null
+}
+
 // ── WAR ROOM CHAT VIEW ─────────────────────────────────────
 interface WarRoomChatViewProps {
   streamToken: string
@@ -3934,7 +4288,8 @@ function CommunityPage() {
         </button>
         {trainingExpanded && (
           <>
-            {[{ label: 'Courses', icon: '🎓' }, { label: "General's Table", icon: '✦' }, { label: 'Protocols', icon: '⚔' }].map(({ label, icon }) => (
+            {navItem('Courses', 'training', '🎬')}
+            {[{ label: "General's Table", icon: '✦' }, { label: 'Protocols', icon: '⚔' }].map(({ label, icon }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
                 <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
                 <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555', flex: 1 }}>{label}</span>
@@ -4078,6 +4433,17 @@ function CommunityPage() {
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'training'    && (
+          <TrainingView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            userId={user?.id || ''}
+            userTier={tier}
+            getToken={getToken}
+            setActiveSection={setActiveSection}
+          />
+        )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
       </div>
@@ -4250,7 +4616,7 @@ function CommunityPage() {
                 <div>
                   <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{user?.firstName || 'You'}</div>
                   <TierBadge tier={tier} />
-                  <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>Active now</div>
+                  <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>Minister</div>
                 </div>
               </div>
               {/* Other members — sorted by last active */}
@@ -4301,16 +4667,7 @@ function CommunityPage() {
                         <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{displayName}</div>
                         <TierBadge tier={memberTier} />
                         <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>
-                          {timeAgo(
-                            member.lastActiveAt ||
-                            member.lastSignInAt ||
-                            member.last_active_at ||
-                            member.last_sign_in_at ||
-                            member.updatedAt ||
-                            member.updated_at ||
-                            member.createdAt ||
-                            member.created_at
-                          )}
+                          {member.createdAt ? `Joined ${new Date(member.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
                         </div>
                       </div>
                     </button>

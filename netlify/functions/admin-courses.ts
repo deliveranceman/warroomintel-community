@@ -76,6 +76,7 @@ export default async function handler(req: Request) {
         tier: body.tier || 'free',
         status: body.status || 'draft',
         sort_order: body.sort_order || 0,
+        course_type: body.courseType || 'course',
       })
       .select()
       .single()
@@ -87,9 +88,12 @@ export default async function handler(req: Request) {
   // PATCH update course
   if (req.method === 'PATCH' && id) {
     const body = await req.json()
+    const updateObj: Record<string, any> = { ...body }
+    if (body.courseType !== undefined) updateObj.course_type = body.courseType
+    delete updateObj.courseType
     const { data, error } = await supabase
       .from('courses')
-      .update(body)
+      .update(updateObj)
       .eq('id', id)
       .select()
       .single()
