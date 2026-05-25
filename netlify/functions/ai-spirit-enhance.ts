@@ -154,10 +154,37 @@ const ENHANCE_FIELDS = [
   'entryPoints',
 ]
 
-function parseJsonFields(rawText: string): Record<string, any> {
-  const match = rawText.match(/\{[\s\S]*\}/)
-  if (!match) return {}
-  try { return JSON.parse(match[0]) } catch { return {} }
+function parseJsonFields(raw: string): Record<string, any> {
+  if (!raw || raw.trim() === '') return {}
+
+  // Try direct parse first
+  try {
+    const direct = JSON.parse(raw.trim())
+    if (typeof direct === 'object' && !Array.isArray(direct)) return direct
+  } catch {}
+
+  // Strip markdown code fences then try again
+  const stripped = raw.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim()
+  try {
+    const parsed = JSON.parse(stripped)
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
+  } catch {}
+
+  // Extract largest {...} block and try each from longest to shortest
+  const matches = raw.match(/\{[\s\S]*?\}/g) || []
+  const allBlocks = raw.match(/\{[\s\S]*\}/g) || []
+  const candidates = [...new Set([...allBlocks, ...matches])].sort((a, b) => b.length - a.length)
+  for (const block of candidates) {
+    try {
+      const parsed = JSON.parse(block)
+      if (typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
+        return parsed
+      }
+    } catch {}
+  }
+
+  console.error('[enhance] Could not parse JSON. raw[:300]:', raw.slice(0, 300))
+  return {}
 }
 
 function buildUserPrompt(name: string, existing: Record<string, any>, fields: string[]): string {
@@ -184,14 +211,21 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
 
   const fieldSchema = fields.map(f => `  "${f}": "${fieldDescriptions[f] || f}"`).join(',\n')
 
+  // Only include existing values for the fields we are requesting — not the entire demon record
+  const relevantExisting: Record<string, any> = {}
+  for (const f of fields) {
+    const v = existing[f]
+    if (v !== null && v !== undefined && v !== '' && v !== false) {
+      relevantExisting[f] = v
+    }
+  }
+  const existingNote = Object.keys(relevantExisting).length > 0
+    ? `Existing data for these fields (improve upon or confirm as accurate — do not simply repeat):\n${JSON.stringify(relevantExisting, null, 2)}\n\n`
+    : ''
+
   return `Research the spirit/demon/entity: "${name}"
 
-Existing data for context (do not simply repeat this — improve and expand upon it where you can, or confirm if it is already accurate):
-${JSON.stringify(existing, null, 2)}
-
-Research and return expert-level content for ALL of the following fields: ${fields.join(', ')}
-
-Return ONLY valid JSON with ALL fields populated:
+${existingNote}Research and return expert-level content for ALL of the following fields. Return ONLY valid JSON — no preamble, no markdown, no explanation outside the JSON:
 
 {
 ${fieldSchema}
@@ -251,7 +285,7 @@ export default async function handler(req: Request) {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1500,
+          max_tokens: 2000,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         }),
@@ -266,6 +300,9 @@ export default async function handler(req: Request) {
 
       const data = await anthropicRes.json()
       rawText = data.content?.[0]?.text || ''
+      console.log('[enhance] rawText length:', rawText.length)
+      console.log('[enhance] rawText first 500:', rawText.slice(0, 500))
+      console.log('[enhance] rawText last 200:', rawText.slice(-200))
     } catch (e: any) {
       clearTimeout(timeoutId)
       if (e.name === 'AbortError') throw new Error('AI research timed out — try again')
@@ -274,7 +311,8 @@ export default async function handler(req: Request) {
 
     const fields = parseJsonFields(rawText)
 
-    console.log('[enhance] Done, fields returned:', Object.keys(fields))
+    console.log('[enhance] parsed field count:', Object.keys(fields).length)
+    console.log('[enhance] parsed field keys:', Object.keys(fields))
 
     return new Response(
       JSON.stringify({ success: true, spirit: name, fields, fieldCount: Object.keys(fields).length }),
