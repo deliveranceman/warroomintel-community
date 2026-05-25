@@ -92,6 +92,81 @@ export default async function handler(req: Request) {
   const category    = (formData.get('category') as string) || 'Reference'
   const tagsRaw     = formData.get('tags') as string
   const tags        = tagsRaw ? JSON.parse(tagsRaw) : []
+  const aiAnalyze   = formData.get('aiAnalyze') === 'true'
+
+  if (aiAnalyze) {
+    if (!file) {
+      return new Response(JSON.stringify({ error: 'file is required for analysis' }), { status: 400, headers })
+    }
+
+    const fileName = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
+    const fileBuffer = await file.arrayBuffer()
+    const fileText = new TextDecoder('utf-8', { fatal: false })
+      .decode(fileBuffer.slice(0, 8000))
+
+    const prompt = `You are analyzing a deliverance ministry document for the War Room Intel platform.
+
+Filename: ${file.name}
+Content preview (first portion):
+${fileText.slice(0, 3000)}
+
+Based on the filename and content, provide metadata in JSON format only. No other text.
+
+Return exactly this structure:
+{
+  "title": "Clean readable title (remove underscores, file extensions, WRI_R01 prefixes etc)",
+  "description": "2-3 sentence description of what this document is and how ministers would use it",
+  "category": "one of: Session Tools, Teaching, Protocol, Reference, Renunciation, Worksheet",
+  "tier": "one of: free, soldier, commander, general",
+  "tags": ["tag1", "tag2", "tag3"]
+}
+
+For tier: free = basic/intro content, soldier = intermediate ministry tools, commander = advanced protocols, general = leadership/comprehensive guides.
+For tags: 3-5 short keywords relevant to deliverance ministry (e.g. forgiveness, generational, soul ties, renunciation, inner healing, strongholds).
+Respond with valid JSON only.`
+
+    try {
+      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 500,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+
+      if (aiRes.ok) {
+        const aiData = await aiRes.json()
+        const text = aiData.content?.[0]?.text || ''
+        const clean = text.replace(/```json|```/g, '').trim()
+        const parsed = JSON.parse(clean)
+        return new Response(JSON.stringify(parsed), {
+          status: 200,
+          headers: { ...headers, 'Content-Type': 'application/json' },
+        })
+      }
+    } catch(e) {
+      // Fall through to filename-based metadata
+    }
+
+    const cleanTitle = fileName
+      .replace(/^WRI[_\s]R?\d+[_\s]/i, '')
+      .replace(/\b\w/g, c => c.toUpperCase())
+      .trim()
+
+    return new Response(JSON.stringify({
+      title: cleanTitle,
+      description: '',
+      category: 'Reference',
+      tier: 'free',
+      tags: [],
+    }), { status: 200, headers })
+  }
 
   if (!file || !title) {
     return new Response(JSON.stringify({ error: 'file and title are required' }), { status: 400 })

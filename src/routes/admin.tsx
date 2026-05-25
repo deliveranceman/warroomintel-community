@@ -72,6 +72,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [bulkProcessing, setBulkProcessing] = useState(false)
   const [bulkUploading, setBulkUploading] = useState(false)
   const [dragOver, setDragOver]           = useState(false)
+  const [analyzingIdx, setAnalyzingIdx]   = useState<number>(-1)
 
   const TIERS      = ['Free', 'Soldier', 'Commander', 'General']
   const CATEGORIES = ['Session Tools', 'Teaching', 'Protocol', 'Reference', 'Renunciation', 'Worksheet']
@@ -257,7 +258,9 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
             onClick={async () => {
               setBulkProcessing(true)
               const results: any[] = []
-              for (const file of bulkFiles) {
+              for (let i = 0; i < bulkFiles.length; i++) {
+                setAnalyzingIdx(i)
+                const file = bulkFiles[i]
                 const formData = new FormData()
                 formData.append('file', file)
                 formData.append('aiAnalyze', 'true')
@@ -296,12 +299,13 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                 }
               }
               setBulkPreviews(results)
+              setAnalyzingIdx(-1)
               setBulkProcessing(false)
             }}
             disabled={bulkProcessing}
             style={{ padding: '10px 24px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 20, width: '100%', textTransform: 'uppercase' as const }}
           >
-            {bulkProcessing ? '⚙ Analyzing with AI...' : `✦ Analyze ${bulkFiles.length} Files with AI`}
+            {bulkProcessing ? `⚙ Analyzing file ${analyzingIdx + 1} of ${bulkFiles.length}...` : `✦ Analyze ${bulkFiles.length} Files with AI`}
           </button>
         )}
 
@@ -341,6 +345,47 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                   style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 12, marginBottom: 6, outline: 'none', resize: 'vertical' as const }}
                   placeholder="Description"
                 />
+                {/* Tags input */}
+                <div style={{ marginBottom: 6 }}>
+                  <input
+                    value={Array.isArray(preview.tags) ? preview.tags.join(', ') : preview.tags || ''}
+                    onChange={e => setBulkPreviews(prev => prev.map((p, i) =>
+                      i === idx ? {
+                        ...p,
+                        tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
+                      } : p
+                    ))}
+                    placeholder="Tags (comma separated): forgiveness, generational, soul ties..."
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box' as const,
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(201,168,76,0.2)',
+                      borderRadius: 5,
+                      padding: '6px 10px',
+                      color: TXT,
+                      fontFamily: crimson,
+                      fontSize: 12,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                {Array.isArray(preview.tags) && preview.tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 6 }}>
+                    {preview.tags.map((tag: string, ti: number) => (
+                      <span key={ti} style={{
+                        background: 'rgba(201,168,76,0.12)',
+                        border: '1px solid rgba(201,168,76,0.3)',
+                        borderRadius: 20,
+                        padding: '2px 8px',
+                        fontSize: 10,
+                        color: G,
+                        fontFamily: cinzel,
+                        letterSpacing: '0.04em',
+                      }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <select
                     value={preview.tier}
