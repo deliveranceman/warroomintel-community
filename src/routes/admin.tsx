@@ -1123,7 +1123,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       const token = await getToken()
       const jobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
 
-      const res = await fetch('/api/ai-spirit-enhance', {
+      const res = await fetch('/api/ai-spirit-enhance-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, jobId }),

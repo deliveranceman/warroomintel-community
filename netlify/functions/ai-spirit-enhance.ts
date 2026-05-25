@@ -166,7 +166,7 @@ async function callAnthropicHaiku(systemPrompt: string, userPrompt: string, maxT
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
@@ -318,4 +318,4 @@ export default async function handler(req: Request) {
   }
 }
 
-export const config = { path: '/api/ai-spirit-enhance' }
+export const config = { path: '/api/ai-spirit-enhance-background' }
