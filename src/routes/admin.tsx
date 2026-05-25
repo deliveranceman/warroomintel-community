@@ -1532,6 +1532,13 @@ function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
   const [tab, setTab]      = useState<'arsenal' | 'intel' | 'moderation'>('arsenal')
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   if (!isLoaded) {
     return (
@@ -1568,6 +1575,14 @@ function AdminPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: BG, color: TXT, fontFamily: crimson }}>
+      {isMobile && (
+        <div style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: '12px 16px', margin: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>⚠</span>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>
+            Admin panel is optimized for desktop. Some features may be limited on mobile.
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div style={{ background: SURF, borderBottom: `1px solid ${BDR}`, padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1579,7 +1594,7 @@ function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ borderBottom: `1px solid ${BDR}`, padding: '0 32px', display: 'flex', background: SURF }}>
+      <div style={{ borderBottom: `1px solid ${BDR}`, padding: '0 32px', display: 'flex', background: SURF, overflowX: 'auto' as const, WebkitOverflowScrolling: 'touch' as any }}>
         {TABS.map(t => (
           <button
             key={t.key}
