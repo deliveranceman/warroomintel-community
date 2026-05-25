@@ -318,4 +318,4 @@ export default async function handler(req: Request) {
   }
 }
 
-export const config = { path: '/api/ai-spirit-enhance-background' }
+export const config = { path: '/api/ai-spirit-enhance' }

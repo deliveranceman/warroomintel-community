@@ -1123,25 +1123,36 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       const token = await getToken()
       const jobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
 
-      const res = await fetch('/api/ai-spirit-enhance-background', {
+      const res = await fetch('/api/ai-spirit-enhance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, jobId }),
       })
 
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}))
-        throw new Error((d as any).error || `Server error ${res.status}`)
+      // Read as text first — guards against empty body (202 or error with no body)
+      const text = await res.text()
+      if (!text || text.trim() === '') {
+        throw new Error(`Server returned empty response (status ${res.status})`)
       }
 
-      const d = await res.json()
+      let d: any
+      try {
+        d = JSON.parse(text)
+      } catch {
+        throw new Error(`Invalid JSON response: ${text.slice(0, 100)}`)
+      }
+
+      if (!res.ok) {
+        throw new Error(d.error || `Server error ${res.status}`)
+      }
+
       if (d.fields && Object.keys(d.fields).length > 0) {
         applyAiFields(d.fields)
       } else if (d.fieldCount === 0) {
         setAiError('All fields are already complete — nothing to enhance.')
         setAiPhase('error')
       } else {
-        setAiError(d.error || 'AI enhancement failed')
+        setAiError(d.error || 'AI enhancement failed — no fields returned')
         setAiPhase('error')
       }
     } catch(e: any) {
