@@ -12,9 +12,6 @@
   targetPort = 3000
   port = 8888
 
-[functions."ai-spirit-enhance"]
-  timeout = 26
-
 [functions."submit-assessment"]
   timeout = 26
 

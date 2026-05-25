@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -8,40 +9,74 @@ const headers = {
   'Content-Type': 'application/json',
 }
 
-async function resolveUser(token: string) {
+function sb() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+}
+
+async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
     if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
+    if (!res.ok) return null
+    const userData = await res.json()
     return { userId, userData }
-  } catch(e) { return null }
+  } catch { return null }
 }
 
-export default async function handler(req: Request) {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers })
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+interface LibraryChunk { bookTitle: string; author: string; text: string }
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const auth = await resolveUser(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-
-  const role = auth.userData?.public_metadata?.role
-  if (role !== 'minister') {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+async function fetchLibraryContext(
+  baseUrl: string,
+  token: string,
+  spiritName: string,
+  spiritDescription: string
+): Promise<{ chunks: LibraryChunk[]; contextText: string }> {
+  try {
+    const res = await fetch(`${baseUrl}/api/library-chunks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ spiritName, spiritDescription }),
+    })
+    if (!res.ok) return { chunks: [], contextText: '' }
+    const data = await res.json()
+    return { chunks: data.chunks || [], contextText: data.contextText || '' }
+  } catch {
+    return { chunks: [], contextText: '' }
   }
+}
 
-  const body = await req.json()
-  const name: string = body.name || body.spiritName
-  const existing: Record<string, any> = body.existing || body.currentData || {}
-  if (!name) return new Response(JSON.stringify({ error: 'name required' }), { status: 400, headers })
+function buildLibraryPreamble(chunks: LibraryChunk[], contextText: string): string {
+  const MAX_CHARS = 20000
+  let out = ''
+  if (contextText) {
+    out += `MINISTRY VOICE AND THEOLOGICAL FRAMEWORK:\n${contextText}\n\nApply this theological framework and voice to all content you generate.\n---\n\n`
+  }
+  if (chunks.length > 0) {
+    let section = `PERSONAL MINISTRY LIBRARY CONTEXT:\nThe following passages are from the minister's personal theological library. Weight these highly as they represent the specific theological framework this ministry operates from:\n\n`
+    for (const c of chunks) {
+      const entry = `[${c.bookTitle}${c.author ? ` by ${c.author}` : ''}]:\n${c.text}\n\n`
+      if ((out + section + entry).length > MAX_CHARS) break
+      section += entry
+    }
+    out += section
+  }
+  return out
+}
+
+async function runResearch(
+  jobId: string,
+  token: string,
+  name: string,
+  existing: Record<string, any>,
+  baseUrl: string
+): Promise<void> {
+  const client = sb()
 
   const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
 
@@ -56,10 +91,14 @@ export default async function handler(req: Request) {
   ].filter(k => isEmpty(existing[k]))
 
   if (missingFields.length === 0) {
-    return new Response(JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }), { status: 200, headers })
+    await client.from('ai_enhance_jobs').update({ status: 'done', fields: {} }).eq('id', jobId)
+    return
   }
 
-  const prompt = `You are an advanced theological and demonological research system serving a trained Christian deliverance minister who holds advanced degrees in archaeology, etymology, biblical demonology, and theology. This minister operates within an evangelical/charismatic framework with deep respect for Scripture as the primary authority.
+  const { chunks, contextText } = await fetchLibraryContext(baseUrl, token, name, existing.description || '')
+  const preamble = buildLibraryPreamble(chunks, contextText)
+
+  const prompt = `${preamble}You are an advanced theological and demonological research system serving a trained Christian deliverance minister who holds advanced degrees in archaeology, etymology, biblical demonology, and theology. This minister operates within an evangelical/charismatic framework with deep respect for Scripture as the primary authority.
 
 Research the spirit/demon/entity: "${name}"
 
@@ -147,22 +186,55 @@ CRITICAL INSTRUCTIONS:
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
     const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error('No JSON found in response')
+    if (!jsonMatch) throw new Error('No JSON in AI response')
     const enhanced = JSON.parse(jsonMatch[0])
 
-    // Strip any fields AI returned that already have values (belt-and-suspenders)
     const filtered: Record<string, any> = {}
     for (const [key, value] of Object.entries(enhanced)) {
-      if (isEmpty(existing[key])) {
-        filtered[key] = value
-      }
+      if (isEmpty(existing[key])) filtered[key] = value
     }
 
-    return new Response(JSON.stringify({ success: true, spirit: name, fields: filtered, fieldCount: Object.keys(filtered).length }), { status: 200, headers })
-  } catch(e: any) {
-    console.error('AI enhance error:', e)
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })
+    await client.from('ai_enhance_jobs').update({ status: 'done', fields: filtered }).eq('id', jobId)
+  } catch (e: any) {
+    console.error('runResearch error:', e)
+    await client.from('ai_enhance_jobs').update({ status: 'error', error: e.message }).eq('id', jobId)
   }
 }
 
-export const config = { path: '/api/ai-spirit-enhance' }
+export default async function handler(req: Request) {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers })
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+
+  const auth = await resolveUser(token)
+  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  if (auth.userData?.public_metadata?.role !== 'minister') {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+  }
+
+  let body: any
+  try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers }) }
+
+  const { name, existing = {}, jobId } = body
+  if (!name || !jobId) return new Response(JSON.stringify({ error: 'name and jobId required' }), { status: 400, headers })
+
+  // Insert initial pending record
+  const client = sb()
+  await client.from('ai_enhance_jobs').upsert({ id: jobId, status: 'pending', spirit_name: name }, { onConflict: 'id' })
+
+  // Derive base URL from request for intra-function calls
+  const reqUrl = new URL(req.url)
+  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
+
+  // Fire async research — NOT awaited. Netlify background function keeps running after 202 is returned.
+  runResearch(jobId, token, name, existing, baseUrl).catch(async (e) => {
+    console.error('Background research uncaught error:', e)
+    await sb().from('ai_enhance_jobs').update({ status: 'error', error: String(e?.message || e) }).eq('id', jobId)
+  })
+
+  return new Response(JSON.stringify({ jobId, status: 'pending' }), { status: 202, headers })
+}
+
+export const config = { path: '/api/ai-spirit-enhance-background' }

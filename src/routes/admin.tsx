@@ -1103,29 +1103,66 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setAiResult({})
     setFieldDecisions({})
     setAiError('')
+
+    const jobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
+
     try {
       const token = await getToken()
-      const res = await fetch('/api/ai-spirit-enhance', {
+
+      // Kick off background function — returns 202 immediately
+      const res = await fetch('/api/ai-spirit-enhance-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon }),
+        body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, jobId }),
       })
-      const d = await res.json()
-      if (d.fields && Object.keys(d.fields).length > 0) {
-        const init: Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }> = {}
-        Object.entries(d.fields).forEach(([k, v]) => {
-          init[k] = { status: 'pending', value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v ?? ''), editing: false }
-        })
-        setAiResult(d.fields)
-        setFieldDecisions(init)
-        setAiPhase('review')
-      } else if (d.fieldCount === 0) {
-        setAiError('All fields are already complete — nothing to enhance.')
-        setAiPhase('error')
-      } else {
-        setAiError(d.error || 'AI enhancement failed')
-        setAiPhase('error')
+
+      if (res.status !== 202) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error((d as any).error || `Unexpected status ${res.status}`)
       }
+
+      // Poll every 3 seconds, up to 20 attempts (60 seconds)
+      let attempts = 0
+      const maxAttempts = 20
+
+      const poll = async (): Promise<void> => {
+        if (attempts >= maxAttempts) {
+          setAiError('Research timed out after 60 seconds. Try again.')
+          setAiPhase('error')
+          return
+        }
+        attempts++
+
+        await new Promise(r => setTimeout(r, 3000))
+
+        const pollRes = await fetch(`/api/ai-enhance-poll?jobId=${encodeURIComponent(jobId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const pollData = await pollRes.json()
+
+        if (pollData.status === 'done') {
+          const fields = pollData.fields || {}
+          if (Object.keys(fields).length === 0) {
+            setAiError('All fields are already complete — nothing to enhance.')
+            setAiPhase('error')
+            return
+          }
+          const init: Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }> = {}
+          Object.entries(fields).forEach(([k, v]) => {
+            init[k] = { status: 'pending', value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v ?? ''), editing: false }
+          })
+          setAiResult(fields)
+          setFieldDecisions(init)
+          setAiPhase('review')
+        } else if (pollData.status === 'error') {
+          setAiError(pollData.error || 'AI enhancement failed')
+          setAiPhase('error')
+        } else {
+          return poll()
+        }
+      }
+
+      await poll()
     } catch(e: any) {
       setAiError(e.message || 'Network error')
       setAiPhase('error')
@@ -1557,9 +1594,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             {/* LOADING */}
             {aiPhase === 'loading' && (
               <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>⚙ RESEARCHING...</div>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', lineHeight: 1.7 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>◉ RESEARCHING...</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 14 }}>
                   Consulting Scripture, Dead Sea Scrolls, archaeology,<br />and deliverance ministry sources
+                </div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>
+                  This typically takes 30–60 seconds...
                 </div>
               </div>
             )}
@@ -2597,10 +2637,363 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
   )
 }
 
+// ─── LIBRARY MANAGER ─────────────────────────────────────────────────────────
+function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const LBG   = isDark ? '#0D0B14' : '#f5f0e8'
+  const LSURF = isDark ? '#13111a' : '#fff'
+  const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
+  const LTXT  = isDark ? '#e8e0d0' : '#1a1410'
+  const LMUT  = isDark ? '#9a8c74' : '#5c4a3a'
+  const LG    = '#C9A84C'
+
+  // Context state
+  const [ctxText, setCtxText]       = useState('')
+  const [ctxLabel, setCtxLabel]     = useState('Main Ministry Voice')
+  const [ctxUpdated, setCtxUpdated] = useState<string | null>(null)
+  const [ctxSaving, setCtxSaving]   = useState(false)
+  const [ctxMsg, setCtxMsg]         = useState('')
+
+  // Books state
+  const [books, setBooks]           = useState<any[]>([])
+  const [booksLoading, setBooksLoading] = useState(true)
+
+  // Upload state
+  const [uploadTitle, setUploadTitle]   = useState('')
+  const [uploadAuthor, setUploadAuthor] = useState('')
+  const [uploadNotes, setUploadNotes]   = useState('')
+  const [uploadFile, setUploadFile]     = useState<File | null>(null)
+  const [uploadPhase, setUploadPhase]   = useState<'idle' | 'reading' | 'uploading' | 'extracting' | 'done' | 'error'>('idle')
+  const [uploadMsg, setUploadMsg]       = useState('')
+  const [dragOver, setDragOver]         = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box' as const,
+    background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+    border: `1px solid ${LBDR}`, borderRadius: 6,
+    padding: '8px 12px', color: LTXT, fontFamily: crimson, fontSize: 14, outline: 'none',
+  }
+
+  useEffect(() => { loadContext(); loadBooks() }, [])
+
+  async function loadContext() {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-context', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        if (d.context) {
+          setCtxText(d.context.context_text || '')
+          setCtxLabel(d.context.label || 'Main Ministry Voice')
+          setCtxUpdated(d.context.updated_at || null)
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function saveContext() {
+    if (!ctxText.trim()) { setCtxMsg('Context text required'); return }
+    setCtxSaving(true); setCtxMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ context_text: ctxText, label: ctxLabel }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setCtxUpdated(d.context?.updated_at || new Date().toISOString())
+        setCtxMsg('✓ Context saved')
+      } else {
+        const d = await res.json(); setCtxMsg(`⚠ ${d.error}`)
+      }
+    } catch(e: any) { setCtxMsg(`⚠ ${e.message}`) }
+    setCtxSaving(false)
+  }
+
+  async function loadBooks() {
+    setBooksLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-library', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setBooks(d.books || []) }
+    } catch { /* ignore */ }
+    setBooksLoading(false)
+  }
+
+  function handleFileSelect(file: File) {
+    if (!file.name.endsWith('.pdf')) { setUploadMsg('Only PDF files are supported'); return }
+    if (file.size > 50 * 1024 * 1024) { setUploadMsg('File must be under 50MB'); return }
+    setUploadFile(file)
+    setUploadMsg('')
+    if (!uploadTitle) setUploadTitle(file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '))
+  }
+
+  async function uploadBook() {
+    if (!uploadFile || !uploadTitle.trim()) { setUploadMsg('Title and file required'); return }
+    setUploadPhase('reading')
+    try {
+      // Read file as base64
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1]) // strip data URL prefix
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(uploadFile)
+      })
+
+      setUploadPhase('uploading')
+      const token = await getToken()
+      const res = await fetch('/api/admin-library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: uploadTitle.trim(),
+          author: uploadAuthor.trim() || null,
+          notes: uploadNotes.trim() || null,
+          fileBase64,
+          fileName: uploadFile.name,
+          fileSize: uploadFile.size,
+        }),
+      })
+      setUploadPhase('extracting')
+      const d = await res.json()
+      if (res.ok) {
+        setUploadPhase('done')
+        setUploadMsg(`✓ Uploaded — ${d.pagesExtracted} pages, ${(d.textLength || 0).toLocaleString()} characters extracted`)
+        setUploadTitle(''); setUploadAuthor(''); setUploadNotes(''); setUploadFile(null)
+        await loadBooks()
+        setTimeout(() => setUploadPhase('idle'), 3000)
+      } else {
+        setUploadPhase('error')
+        setUploadMsg(`⚠ ${d.error}`)
+      }
+    } catch(e: any) {
+      setUploadPhase('error')
+      setUploadMsg(`⚠ ${e.message}`)
+    }
+  }
+
+  async function toggleBook(id: string, is_enabled: boolean) {
+    const token = await getToken()
+    const res = await fetch('/api/admin-library', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, is_enabled }),
+    })
+    if (res.ok) setBooks(prev => prev.map(b => b.id === id ? { ...b, is_enabled } : b))
+  }
+
+  async function deleteBook(id: string, file_path: string, title: string) {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
+    const token = await getToken()
+    const res = await fetch('/api/admin-library', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, file_path }),
+    })
+    if (res.ok) setBooks(prev => prev.filter(b => b.id !== id))
+  }
+
+  function fmtBytes(b: number) {
+    if (!b) return '—'
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`
+    return `${(b / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  const uploading = ['reading', 'uploading', 'extracting'].includes(uploadPhase)
+  const phaseLabel: Record<string, string> = { reading: 'Reading file...', uploading: 'Uploading...', extracting: 'Extracting text...' }
+
+  return (
+    <div style={{ color: LTXT, fontFamily: crimson }}>
+
+      {/* ── MINISTRY CONTEXT ── */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 5 }}>Ministry Voice & Theological Framework</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.6 }}>
+            This text is prepended to every AI enhancement call. Write in your own voice — your theology, your approach, your doctrinal positions. The AI will apply this framework to all spirit research.
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>CONTEXT LABEL</label>
+          <input value={ctxLabel} onChange={e => setCtxLabel(e.target.value)} style={{ ...inp, width: 280 }} placeholder="Main Ministry Voice" />
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>YOUR MINISTRY VOICE</label>
+          <textarea
+            value={ctxText}
+            onChange={e => setCtxText(e.target.value)}
+            rows={10}
+            style={{ ...inp, resize: 'vertical' as const, lineHeight: 1.65 }}
+            placeholder={`Example: I am a Pentecostal deliverance minister operating from a charismatic evangelical framework. I believe in the authority of Scripture as the final word, the ongoing gifts of the Spirit, and the biblical mandate for deliverance ministry (Mark 16:17). My approach to spirits is through the lens of legal rights — every demon needs a door. I hold to the teaching of Derek Prince on blessings and curses, Frank Hammond on demonic groupings, and Peter Wagner on territorial spirits...`}
+          />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
+            {ctxText.length.toLocaleString()} characters
+            {ctxUpdated && <span> · Last saved {new Date(ctxUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+          </div>
+        </div>
+        {ctxMsg && (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: ctxMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{ctxMsg}</div>
+        )}
+        <button onClick={saveContext} disabled={ctxSaving}
+          style={{ padding: '10px 28px', background: LG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: ctxSaving ? 'not-allowed' : 'pointer', fontWeight: 700, opacity: ctxSaving ? 0.7 : 1 }}>
+          {ctxSaving ? 'Saving...' : '✓ Save Context'}
+        </button>
+      </div>
+
+      {/* ── PERSONAL LIBRARY ── */}
+      <div style={{ borderTop: `1px solid ${LBDR}`, paddingTop: 32 }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 5 }}>Personal Ministry Library</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.6 }}>
+            Upload your personal PDF books. AI will reference relevant passages when enhancing spirits.
+          </div>
+        </div>
+
+        {/* Upload zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f) }}
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          style={{ border: `2px dashed ${dragOver ? LG : 'rgba(201,168,76,0.44)'}`, borderRadius: 10, padding: '24px 20px', marginBottom: 16, cursor: uploading ? 'default' : 'pointer', background: dragOver ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
+        >
+          <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
+          {uploading ? (
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.1em', marginBottom: 4 }}>{phaseLabel[uploadPhase]}</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT }}>Please wait...</div>
+            </div>
+          ) : uploadFile ? (
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, marginBottom: 4 }}>📄 {uploadFile.name}</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>{fmtBytes(uploadFile.size)} · Click to change</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, letterSpacing: '0.06em', marginBottom: 4 }}>Drop PDF here or click to select</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>PDF only · Max 50MB</div>
+            </div>
+          )}
+        </div>
+
+        {uploadFile && !uploading && (
+          <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+              <div style={{ flex: 2, minWidth: 180 }}>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TITLE *</label>
+                <input value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} style={inp} placeholder="Book title" />
+              </div>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>AUTHOR</label>
+                <input value={uploadAuthor} onChange={e => setUploadAuthor(e.target.value)} style={inp} placeholder="Author name" />
+              </div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>NOTES (optional)</label>
+              <input value={uploadNotes} onChange={e => setUploadNotes(e.target.value)} style={inp} placeholder="Personal notes about this book..." />
+            </div>
+            <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button onClick={uploadBook} disabled={!uploadTitle.trim()}
+                style={{ padding: '10px 24px', background: uploadTitle.trim() ? LG : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 6, color: uploadTitle.trim() ? '#0D0B14' : LMUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: uploadTitle.trim() ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                Upload & Extract
+              </button>
+              <button onClick={() => { setUploadFile(null); setUploadMsg(''); setUploadPhase('idle') }}
+                style={{ padding: '10px 16px', background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 6, color: LMUT, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {uploadMsg && (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: uploadMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 14 }}>{uploadMsg}</div>
+        )}
+
+        {/* Book list */}
+        {booksLoading ? (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, fontStyle: 'italic', padding: '20px 0' }}>Loading library...</div>
+        ) : books.length === 0 ? (
+          <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: LMUT, marginBottom: 10 }}>No books uploaded yet</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.7 }}>
+              Add your personal ministry library to give the AI your theological framework.
+            </div>
+            <div style={{ marginTop: 18, padding: '14px 18px', background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, textAlign: 'left' as const }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 8 }}>SUGGESTED UPLOADS</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.9 }}>
+                Pigs in the Parlor — Frank Hammond<br />
+                Blessing or Curse — Derek Prince<br />
+                Battling the Hosts of Hell — Win Worley<br />
+                He Came to Set the Captives Free — Rebecca Brown<br />
+                Unbroken Curses — Rebecca Greenwood
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
+              {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.is_enabled).length} active in AI context
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+              {books.map(book => (
+                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.is_enabled ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.is_enabled ? 1 : 0.6, transition: 'all 0.15s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
+                      {book.author && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>}
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em', marginBottom: book.notes ? 6 : 0 }}>
+                        {fmtBytes(book.file_size_bytes)}
+                        {book.page_count ? ` · ${book.page_count} pages` : ''}
+                        {book.upload_date ? ` · ${new Date(book.upload_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                      </div>
+                      {book.notes && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>{book.notes}</div>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                      {/* Toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em' }}>AI</span>
+                        <button
+                          onClick={() => toggleBook(book.id, !book.is_enabled)}
+                          style={{ width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', background: book.is_enabled ? LG : 'rgba(255,255,255,0.15)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
+                        >
+                          <div style={{ position: 'absolute' as const, top: 3, left: book.is_enabled ? 20 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                        </button>
+                      </div>
+                      <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
+                        style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 20, padding: '14px 18px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.12)`, borderRadius: 8 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 6 }}>SUGGESTED UPLOADS</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.9 }}>
+                Pigs in the Parlor — Frank Hammond · Blessing or Curse — Derek Prince · Battling the Hosts of Hell — Win Worley · He Came to Set the Captives Free — Rebecca Brown · Unbroken Curses — Rebecca Greenwood
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'arsenal' | 'intel' | 'moderation' | 'training'>('arsenal')
+  const [tab, setTab]      = useState<'arsenal' | 'intel' | 'moderation' | 'training' | 'library'>('arsenal')
   const [isMobile, setIsMobile] = useState(false)
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === 'undefined') return true
@@ -2647,10 +3040,11 @@ function AdminPage() {
   }
 
   const TABS = [
-    { key: 'arsenal',    label: 'Arsenal Manager' },
-    { key: 'intel',      label: 'Intel Archive'   },
-    { key: 'moderation', label: 'Moderation'      },
-    { key: 'training',   label: 'Training'        },
+    { key: 'arsenal',    label: 'Arsenal Manager'   },
+    { key: 'intel',      label: 'Intel Archive'     },
+    { key: 'moderation', label: 'Moderation'        },
+    { key: 'training',   label: 'Training'          },
+    { key: 'library',    label: 'Ministry Library'  },
   ] as const
 
   return (
@@ -2708,6 +3102,7 @@ function AdminPage() {
         {tab === 'intel'      && <IntelArchive getToken={getToken} isDark={isDark} />}
         {tab === 'moderation' && <ModerationPanel getToken={getToken} />}
         {tab === 'training'   && <TrainingManager getToken={getToken} isDark={isDark} />}
+        {tab === 'library'    && <LibraryManager getToken={getToken} isDark={isDark} />}
       </div>
     </div>
   )
