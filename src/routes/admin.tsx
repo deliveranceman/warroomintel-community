@@ -1121,13 +1121,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         throw new Error((d as any).error || `Unexpected status ${res.status}`)
       }
 
-      // Poll every 3 seconds, up to 20 attempts (60 seconds)
+      // Poll every 3 seconds, up to 40 attempts (120 seconds)
       let attempts = 0
-      const maxAttempts = 20
+      const maxAttempts = 40
 
       const poll = async (): Promise<void> => {
         if (attempts >= maxAttempts) {
-          setAiError('Research timed out after 60 seconds. Try again.')
+          setAiError('Research timed out after 2 minutes. Try again.')
           setAiPhase('error')
           return
         }

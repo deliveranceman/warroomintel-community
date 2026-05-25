@@ -3,30 +3,24 @@ import { createClient } from '@supabase/supabase-js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
-}
-
 function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 }
 
-async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
+async function resolveMinister(token: string): Promise<boolean> {
   try {
     const parts = token.split('.')
-    if (parts.length !== 3) return null
+    if (parts.length !== 3) return false
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
-    if (!userId) return null
+    if (!userId) return false
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return null
-    const userData = await res.json()
-    return { userId, userData }
-  } catch { return null }
+    if (!res.ok) return false
+    const data = await res.json()
+    return data?.public_metadata?.role === 'minister'
+  } catch { return false }
 }
 
 interface LibraryChunk { bookTitle: string; author: string; text: string }
@@ -95,10 +89,11 @@ async function runResearch(
     return
   }
 
-  const { chunks, contextText } = await fetchLibraryContext(baseUrl, token, name, existing.description || '')
-  const preamble = buildLibraryPreamble(chunks, contextText)
+  try {
+    const { chunks, contextText } = await fetchLibraryContext(baseUrl, token, name, existing.description || '')
+    const preamble = buildLibraryPreamble(chunks, contextText)
 
-  const prompt = `${preamble}You are an advanced theological and demonological research system serving a trained Christian deliverance minister who holds advanced degrees in archaeology, etymology, biblical demonology, and theology. This minister operates within an evangelical/charismatic framework with deep respect for Scripture as the primary authority.
+    const prompt = `${preamble}You are an advanced theological and demonological research system serving a trained Christian deliverance minister who holds advanced degrees in archaeology, etymology, biblical demonology, and theology. This minister operates within an evangelical/charismatic framework with deep respect for Scripture as the primary authority.
 
 Research the spirit/demon/entity: "${name}"
 
@@ -177,7 +172,6 @@ CRITICAL INSTRUCTIONS:
 - Ground every claim in primary sources where possible
 - If a spirit name is extra-biblical, note this and provide what legitimate sources say`
 
-  try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
@@ -197,44 +191,52 @@ CRITICAL INSTRUCTIONS:
     await client.from('ai_enhance_jobs').update({ status: 'done', fields: filtered }).eq('id', jobId)
   } catch (e: any) {
     console.error('runResearch error:', e)
-    await client.from('ai_enhance_jobs').update({ status: 'error', error: e.message }).eq('id', jobId)
+    await client.from('ai_enhance_jobs').update({ status: 'error', error: e.message || String(e) }).eq('id', jobId)
   }
 }
 
+// Background function: Netlify returns 202 immediately and runs this entire body async.
+// DO NOT fire-and-forget — just await the work. The type:'background' config is what enables this.
 export default async function handler(req: Request) {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers })
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+  if (req.method === 'OPTIONS') return
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-
-  const auth = await resolveUser(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  if (auth.userData?.public_metadata?.role !== 'minister') {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
-  }
 
   let body: any
-  try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers }) }
+  try { body = await req.json() } catch { return }
 
-  const { name, existing = {}, jobId } = body
-  if (!name || !jobId) return new Response(JSON.stringify({ error: 'name and jobId required' }), { status: 400, headers })
+  const { name, existing = {}, jobId } = body || {}
+  if (!name || !jobId) return
 
-  // Insert initial pending record
   const client = sb()
-  await client.from('ai_enhance_jobs').upsert({ id: jobId, status: 'pending', spirit_name: name }, { onConflict: 'id' })
 
-  // Derive base URL from request for intra-function calls
+  // Auth check — if it fails, record the error so the poller can surface it
+  if (!token || !(await resolveMinister(token))) {
+    await client.from('ai_enhance_jobs').upsert(
+      { id: jobId, status: 'error', spirit_name: name || '', error: 'Unauthorized' },
+      { onConflict: 'id' }
+    )
+    return
+  }
+
+  // Mark job pending
+  await client.from('ai_enhance_jobs').upsert(
+    { id: jobId, status: 'pending', spirit_name: name },
+    { onConflict: 'id' }
+  )
+
+  // Build base URL for intra-function calls (library-chunks)
   const reqUrl = new URL(req.url)
   const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
 
-  // Fire async research — NOT awaited. Netlify background function keeps running after 202 is returned.
-  runResearch(jobId, token, name, existing, baseUrl).catch(async (e) => {
-    console.error('Background research uncaught error:', e)
-    await sb().from('ai_enhance_jobs').update({ status: 'error', error: String(e?.message || e) }).eq('id', jobId)
-  })
-
-  return new Response(JSON.stringify({ jobId, status: 'pending' }), { status: 202, headers })
+  // Await research — background function stays alive for up to 15 minutes
+  await runResearch(jobId, token, name, existing, baseUrl)
 }
 
-export const config = { path: '/api/ai-spirit-enhance-background' }
+// type:'background' is the critical config that was missing.
+// Without it, Netlify treats this as a regular function and terminates
+// the process the moment any response (or return) is issued, killing runResearch.
+export const config = {
+  path: '/api/ai-spirit-enhance-background',
+  type: 'background',
+}
