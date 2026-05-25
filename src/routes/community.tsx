@@ -3299,63 +3299,174 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
 }
 
 // ── FRINGE INTEL VIEW ─────────────────────────────────────
-function FringeIntelView({ theme, isMobile, setSidebarOpen }: {
-  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
-}) {
+function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
   const isDark = theme !== 'light'
-  const bg      = isDark ? '#0D0B14' : '#faf8f4'
-  const surface = isDark ? 'rgba(201,168,76,0.03)' : '#f0ebe3'
-  const border  = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
-  const muted   = isDark ? '#8B7355' : '#5c4a3a'
-  const dim     = isDark ? '#5a4f3a' : '#7a6555'
-  const gold    = isDark ? G : '#a07830'
+  const bg = isDark ? '#0D0B14' : '#faf8f4'
+  const surf = isDark ? 'rgba(201,168,76,0.03)' : '#f0ebe3'
+  const border = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
+  const muted = isDark ? '#8B7355' : '#5c4a3a'
+  const txt = isDark ? '#f0e8d8' : '#1a1410'
+  const gold = isDark ? G : '#a07830'
+  const { getToken } = useAuth()
 
   const TOPICS = [
-    { icon: '👽', label: 'UFO Disclosure',      desc: 'Craft sightings, government programs, interdimensional origins' },
-    { icon: '📖', label: 'Genesis 6',           desc: 'The Nephilim, sons of God, ancient giants and their bloodlines' },
-    { icon: '🧬', label: 'Bloodline Warfare',   desc: 'Generational corruption, hybrid entities, seed war' },
-    { icon: '👁',  label: 'Nephilim',            desc: 'Pre-flood entities, giant clans, post-flood remnants' },
-    { icon: '🛸', label: 'Gov. Programming',    desc: 'MK Ultra, monarch programming, demonic tech interfaces' },
-    { icon: '🔬', label: 'Fringe Science',      desc: 'Quantum, frequency, AI consciousness — the demonic angle' },
+    { key: 'ufo-disclosure',   icon: '👽', label: 'UFO Disclosure',    desc: 'Craft sightings, government programs, interdimensional origins', tier: 'free' },
+    { key: 'genesis-6',        icon: '📖', label: 'Genesis 6',         desc: 'The Nephilim, sons of God, ancient giants and their bloodlines', tier: 'free' },
+    { key: 'bloodline-warfare',icon: '🧬', label: 'Bloodline Warfare',  desc: 'Generational corruption, hybrid entities, seed war', tier: 'soldier' },
+    { key: 'nephilim',         icon: '👁', label: 'Nephilim',           desc: 'Pre-flood entities, giant clans, post-flood remnants', tier: 'soldier' },
+    { key: 'gov-programming',  icon: '🖥', label: 'Gov. Programming',   desc: 'MK Ultra, monarch programming, demonic tech interfaces', tier: 'commander' },
+    { key: 'fringe-science',   icon: '⚗️', label: 'Fringe Science',     desc: 'Quantum, frequency, AI consciousness — the demonic angle', tier: 'commander' },
   ]
 
-  return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: gold, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+  const [selectedTopic, setSelectedTopic] = useState<any>(null)
+  const [selectedArticle, setSelectedArticle] = useState<any>(null)
+  const [articles, setArticles] = useState<any[]>([])
+  const [articleBody, setArticleBody] = useState<string>('')
+  const [loadingArticles, setLoadingArticles] = useState(false)
+  const [loadingBody, setLoadingBody] = useState(false)
+
+  async function openTopic(topic: any) {
+    setSelectedTopic(topic)
+    setSelectedArticle(null)
+    setArticleBody('')
+    setLoadingArticles(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/fringe-articles?topic=${topic.key}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setArticles(d.articles || [])
+      }
+    } catch(e) {}
+    setLoadingArticles(false)
+  }
+
+  async function openArticle(article: any) {
+    if (!article.hasAccess) return
+    setSelectedArticle(article)
+    setLoadingBody(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/fringe-articles?id=${article.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setArticleBody(d.article?.body || '')
+      }
+    } catch(e) {}
+    setLoadingBody(false)
+  }
+
+  const tierColors: Record<string, string> = { free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+
+  if (selectedArticle) return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <button onClick={() => { setSelectedArticle(null); setArticleBody('') }}
+        style={{ background: 'none', border: 'none', color: gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 4 }}>
+        ← Back to {selectedTopic?.label}
+      </button>
+      <div style={{ maxWidth: 720 }}>
+        <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, letterSpacing: '0.04em', marginBottom: 8 }}>{selectedArticle.title}</div>
+        <div style={{ fontSize: 11, color: muted, fontFamily: crimson, marginBottom: 24 }}>
+          {selectedArticle.author_name} · {new Date(selectedArticle.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+        </div>
+        {loadingBody ? (
+          <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic' }}>Loading...</div>
+        ) : (
+          <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{articleBody}</div>
+        )}
+      </div>
+    </div>
+  )
+
+  if (selectedTopic) return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <button onClick={() => { setSelectedTopic(null); setArticles([]) }}
+        style={{ background: 'none', border: 'none', color: gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 4 }}>
+        ← Fringe Intelligence
+      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <span style={{ fontSize: 28 }}>{selectedTopic.icon}</span>
         <div>
-          <div style={{ fontSize: 10, color: gold, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 6, textTransform: 'uppercase' as const }}>⚠ CLASSIFIED — LEVEL 5 CLEARANCE</div>
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, fontWeight: 700, marginBottom: 4 }}>👁 Fringe Intelligence</div>
-          <div style={{ fontSize: 13, color: muted, lineHeight: 1.6, fontFamily: crimson }}>
-            Where the strange things get explained. Aliens are demons in meat suits. Giants were real. The cover-up is spiritual.
-          </div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 16 : 20, color: gold, letterSpacing: '0.06em' }}>{selectedTopic.label}</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: muted, marginTop: 2 }}>{selectedTopic.desc}</div>
         </div>
       </div>
-
-      <div style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.06) 0%, rgba(13,11,20,0.8) 100%)', border: `1px solid ${border}`, borderLeft: `3px solid ${gold}`, borderRadius: 10, padding: '24px 28px', marginBottom: 32, textAlign: 'center' as const }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>🛸</div>
-        <div style={{ fontFamily: cinzel, fontSize: 16, color: gold, marginBottom: 8 }}>Fringe Intelligence — Coming July 2026</div>
-        <div style={{ fontFamily: crimson, fontSize: 15, color: muted, lineHeight: 1.7, maxWidth: 500, margin: '0 auto 16px' }}>
-          Launching alongside the Close Encounters of Some Kind event. Genesis 6, Nephilim, UFO Disclosure, Government Programming — all explained through the lens of spiritual warfare.
+      {loadingArticles ? (
+        <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic' }}>Loading intelligence...</div>
+      ) : articles.length === 0 ? (
+        <div style={{ background: surf, border: `1px solid ${border}`, borderRadius: 12, padding: '40px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: gold, letterSpacing: '0.08em', marginBottom: 8 }}>Intelligence Incoming</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: muted, fontStyle: 'italic' }}>Articles for this topic are being prepared. Check back soon.</div>
         </div>
-        <div style={{ display: 'inline-block', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '6px 16px', fontFamily: cinzel, fontSize: 10, color: gold, letterSpacing: '0.1em' }}>
-          JULY 18, 2026 · STAFFORDTOWN CHURCH
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.18em', color: dim, textTransform: 'uppercase' as const, marginBottom: 14 }}>Intelligence Categories</div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-          {TOPICS.map(({ icon, label, desc }) => (
-            <div key={label} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <span style={{ fontSize: 22, flexShrink: 0 }}>{icon}</span>
-              <div>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#1a1410', marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
-                <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5 }}>{desc}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+          {articles.map((article: any) => (
+            <div
+              key={article.id}
+              onClick={() => openArticle(article)}
+              style={{
+                background: surf, border: `1px solid ${article.hasAccess ? border : 'rgba(255,255,255,0.05)'}`,
+                borderLeft: `3px solid ${article.hasAccess ? gold : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: 10, padding: '16px 18px',
+                cursor: article.hasAccess ? 'pointer' : 'default', opacity: article.hasAccess ? 1 : 0.6,
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => article.hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = gold)}
+              onMouseLeave={e => article.hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = border)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 13, color: article.hasAccess ? txt : muted, letterSpacing: '0.04em', marginBottom: 4 }}>
+                    {!article.hasAccess && '🔒 '}{article.title}
+                  </div>
+                  {article.summary && <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5 }}>{article.summary}</div>}
+                </div>
+                <span style={{ fontSize: 9, color: tierColors[article.tier] || muted, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[article.tier] || muted}`, borderRadius: 10, padding: '2px 8px', flexShrink: 0 }}>
+                  {article.tier}
+                </span>
               </div>
             </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: gold, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        <div>
+          <div style={{ fontSize: 10, color: gold, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 6, textTransform: 'uppercase' as const }}>⚠ CLASSIFIED — LEVEL 5 CLEARANCE</div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, fontWeight: 700, marginBottom: 4 }}>👁 Fringe Intelligence</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.6 }}>
+            Where the strange things get explained. Aliens are demons in meat suits. Giants were real. The cover-up is spiritual.
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+        {TOPICS.map(({ key, icon, label, desc, tier }) => (
+          <div
+            key={key}
+            onClick={() => openTopic({ key, icon, label, desc, tier })}
+            style={{ background: surf, border: `1px solid ${border}`, borderRadius: 10, padding: '18px 20px', display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = gold)}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = border)}
+          >
+            <span style={{ fontSize: 24, flexShrink: 0 }}>{icon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5, marginBottom: 8 }}>{desc}</div>
+              <span style={{ fontSize: 9, color: tierColors[tier] || muted, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[tier] || muted}`, borderRadius: 10, padding: '1px 7px' }}>{tier}</span>
+            </div>
+            <span style={{ fontSize: 16, color: gold, flexShrink: 0 }}>›</span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -3598,6 +3709,311 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
   )
 }
 
+// ── BODY MAP VIEW ──────────────────────────────────────────
+function BodyMapView({ theme, isMobile, setSidebarOpen, demons }: any) {
+  const isDark = theme !== 'light'
+  const bg = isDark ? '#0D0B14' : '#f5f0e8'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const bdr = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt = isDark ? '#f0e8d8' : '#1a1410'
+  const mut = isDark ? '#9a8c74' : '#5c4a3a'
+  const GC = isDark ? '#C9A84C' : '#a07830'
+
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null)
+
+  const BODY_REGIONS: Record<string, { label: string, keywords: string[], cx: number, cy: number, r: number }> = {
+    head:    { label: 'Head / Mind',    keywords: ['mind', 'mind control', 'confusion', 'mental', 'thought', 'psychic', 'intelligence'], cx: 200, cy: 60,  r: 35 },
+    eyes:    { label: 'Eyes / Vision',  keywords: ['blindness', 'eye', 'vision', 'sight', 'third eye', 'occult sight'], cx: 200, cy: 85,  r: 15 },
+    throat:  { label: 'Throat / Voice', keywords: ['throat', 'voice', 'speech', 'tongue', 'lying', 'silence', 'mute'], cx: 200, cy: 130, r: 20 },
+    heart:   { label: 'Heart / Chest',  keywords: ['heart', 'chest', 'love', 'rejection', 'pain', 'grief', 'sorrow', 'fear'], cx: 190, cy: 190, r: 28 },
+    stomach: { label: 'Stomach / Gut',  keywords: ['stomach', 'gut', 'anxiety', 'gluttony', 'appetite', 'hunger', 'nausea'], cx: 200, cy: 250, r: 24 },
+    hands:   { label: 'Hands / Arms',   keywords: ['hands', 'violence', 'stealing', 'witchcraft', 'occult practice'], cx: 130, cy: 220, r: 20 },
+    loins:   { label: 'Loins / Sexual', keywords: ['sexual', 'lust', 'perversion', 'fornication', 'adultery', 'pornography', 'soul tie'], cx: 200, cy: 310, r: 26 },
+    legs:    { label: 'Legs / Feet',    keywords: ['legs', 'feet', 'running', 'escape', 'restlessness', 'instability', 'wandering'], cx: 200, cy: 390, r: 22 },
+    spine:   { label: 'Spine / Back',   keywords: ['spine', 'back', 'leviathan', 'pride', 'stiff', 'rebellion', 'serpent'], cx: 200, cy: 220, r: 18 },
+  }
+
+  function getSpiritsForRegion(regionKey: string) {
+    const region = BODY_REGIONS[regionKey]
+    if (!region || !demons.length) return []
+    return demons.filter((d: any) => {
+      const searchText = [d.name, d.description, d.manifestation, d.symptoms, d.primaryBattlefield]
+        .filter(Boolean).join(' ').toLowerCase()
+      return region.keywords.some(kw => searchText.includes(kw.toLowerCase()))
+    }).slice(0, 8)
+  }
+
+  const activeRegion = selectedRegion || hoveredRegion
+  const regionSpirits = activeRegion ? getSpiritsForRegion(activeRegion) : []
+  const activeLabel = activeRegion ? BODY_REGIONS[activeRegion]?.label : null
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        <div>
+          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: isMobile ? 16 : 20, margin: 0, letterSpacing: '0.08em' }}>🗺 Body Map</h2>
+          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Click a body region to see spirits that manifest there</p>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+          <svg viewBox="0 0 400 500" width={isMobile ? 280 : 320} height={isMobile ? 350 : 400} style={{ cursor: 'pointer' }}>
+            <ellipse cx="200" cy="60" rx="34" ry="34" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
+            <rect x="170" y="100" width="60" height="140" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
+            <rect x="110" y="105" width="55" height="110" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
+            <rect x="235" y="105" width="55" height="110" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
+            <rect x="165" y="245" width="70" height="90" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
+            <rect x="155" y="340" width="38" height="100" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
+            <rect x="207" y="340" width="38" height="100" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
+            {Object.entries(BODY_REGIONS).map(([key, region]) => {
+              const isActive = selectedRegion === key || hoveredRegion === key
+              const hasSpirits = getSpiritsForRegion(key).length > 0
+              return (
+                <circle key={key} cx={region.cx} cy={region.cy} r={region.r}
+                  fill={isActive ? 'rgba(201,168,76,0.25)' : hasSpirits ? 'rgba(201,168,76,0.08)' : 'rgba(201,168,76,0.03)'}
+                  stroke={isActive ? GC : hasSpirits ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}
+                  strokeWidth={isActive ? 2 : 1}
+                  style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                  onClick={() => setSelectedRegion(selectedRegion === key ? null : key)}
+                  onMouseEnter={() => setHoveredRegion(key)}
+                  onMouseLeave={() => setHoveredRegion(null)}
+                />
+              )
+            })}
+            {Object.entries(BODY_REGIONS).map(([key, region]) => (
+              <text key={`label-${key}`} x={region.cx} y={region.cy + region.r + 14}
+                textAnchor="middle" fontSize="8" fontFamily="'Cinzel', serif"
+                fill={selectedRegion === key ? GC : isDark ? 'rgba(201,168,76,0.5)' : 'rgba(160,120,48,0.6)'}
+                style={{ pointerEvents: 'none', userSelect: 'none' as const }}>
+                {region.label.split(' / ')[0]}
+              </text>
+            ))}
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {!activeRegion ? (
+            <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '32px 24px', textAlign: 'center' as const }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>👆</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: GC, letterSpacing: '0.06em', marginBottom: 6 }}>Select a Region</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>
+                Click any highlighted area on the body to see which spirits manifest there
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.06em', marginBottom: 16 }}>
+                {activeLabel}
+                <span style={{ fontSize: 11, color: mut, marginLeft: 8, fontFamily: crimson }}>
+                  {regionSpirits.length} spirit{regionSpirits.length !== 1 ? 's' : ''} found
+                </span>
+              </div>
+              {regionSpirits.length === 0 ? (
+                <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No spirits mapped to this region yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  {regionSpirits.map((spirit: any) => (
+                    <div key={spirit.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 16px' }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{spirit.name}</div>
+                      {spirit.symptoms && (
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5 }}>
+                          {String(spirit.symptoms).slice(0, 120)}{String(spirit.symptoms).length > 120 ? '...' : ''}
+                        </div>
+                      )}
+                      {spirit.hierarchyCategory && (
+                        <span style={{ fontSize: 9, color: mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px', marginTop: 6, display: 'inline-block' }}>
+                          {spirit.hierarchyCategory}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── SPIRIT NETWORK VIEW ────────────────────────────────────
+function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons }: any) {
+  const isDark = theme !== 'light'
+  const bg = isDark ? '#0D0B14' : '#f5f0e8'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const bdr = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt = isDark ? '#f0e8d8' : '#1a1410'
+  const mut = isDark ? '#9a8c74' : '#5c4a3a'
+  const GC = isDark ? '#C9A84C' : '#a07830'
+
+  const [selectedSpirit, setSelectedSpirit] = useState<any>(null)
+  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const HIERARCHY_COLORS: Record<string, string> = {
+    'Principality': '#ef4444', 'Power': '#f97316', 'Ruler of Darkness': '#8b5cf6',
+    'Spiritual Wickedness': '#6366f1', 'Fear / Rejection': '#3b82f6',
+    'Marine Kingdom': '#06b6d4', 'General Oppression': '#9a8c74', 'Sexual Perversion': '#ec4899',
+  }
+
+  const categories = ['all', ...Array.from(new Set(demons.map((d: any) => d.hierarchyCategory).filter(Boolean))) as string[]]
+
+  const filtered = demons.filter((d: any) => {
+    const matchCat = filterCategory === 'all' || d.hierarchyCategory === filterCategory
+    const matchSearch = !searchQuery || d.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchCat && matchSearch
+  })
+
+  const grouped = filtered.reduce((acc: any, d: any) => {
+    const cat = d.hierarchyCategory || 'General Oppression'
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(d)
+    return acc
+  }, {})
+
+  function getRelated(spirit: any) {
+    return demons.filter((d: any) =>
+      d.id !== spirit.id && (
+        d.hierarchyCategory === spirit.hierarchyCategory ||
+        (spirit.parentStrongman && d.name?.toLowerCase().includes(spirit.parentStrongman?.toLowerCase())) ||
+        (d.parentStrongman && spirit.name && d.parentStrongman?.toLowerCase().includes(spirit.name?.toLowerCase()))
+      )
+    ).slice(0, 6)
+  }
+
+  if (selectedSpirit) {
+    const related = getRelated(selectedSpirit)
+    const color = HIERARCHY_COLORS[selectedSpirit.hierarchyCategory] || '#9a8c74'
+    return (
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+        <button onClick={() => setSelectedSpirit(null)}
+          style={{ background: 'none', border: 'none', color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 20 }}>
+          ← Spirit Network
+        </button>
+        <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `4px solid ${color}`, borderRadius: 12, padding: '20px 22px', marginBottom: 20 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 18, color: txt, letterSpacing: '0.06em', marginBottom: 4 }}>{selectedSpirit.name}</div>
+              {selectedSpirit.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 8 }}>Also known as: {selectedSpirit.aka}</div>}
+              <span style={{ fontSize: 9, color, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid ${color}`, borderRadius: 10, padding: '2px 8px' }}>
+                {selectedSpirit.hierarchyCategory}
+              </span>
+              {selectedSpirit.parentStrongman && (
+                <div style={{ marginTop: 12, fontSize: 12, color: mut, fontFamily: crimson }}>
+                  <span style={{ color: GC }}>Parent Strongman:</span> {selectedSpirit.parentStrongman}
+                </div>
+              )}
+              {selectedSpirit.description && (
+                <div style={{ marginTop: 12, fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>{selectedSpirit.description}</div>
+              )}
+              {selectedSpirit.deliveranceSequence && (
+                <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 8 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Deliverance Sequence</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: txt }}>{selectedSpirit.deliveranceSequence}</div>
+                </div>
+              )}
+            </div>
+          </div>
+          {related.length > 0 && (
+            <div style={{ width: isMobile ? '100%' : 260, flexShrink: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Connected Spirits</div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                {related.map((r: any) => {
+                  const rColor = HIERARCHY_COLORS[r.hierarchyCategory] || '#9a8c74'
+                  return (
+                    <button key={r.id} onClick={() => setSelectedSpirit(r)}
+                      style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${rColor}`, borderRadius: 8, padding: '10px 12px', cursor: 'pointer', textAlign: 'left' as const }}
+                      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = GC)}
+                      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em', marginBottom: 2 }}>{r.name}</div>
+                      <div style={{ fontSize: 9, color: rColor, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{r.hierarchyCategory}</div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        <div>
+          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: isMobile ? 16 : 20, margin: 0, letterSpacing: '0.08em' }}>🕸 Spirit Network</h2>
+          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Relationships between spirits — hierarchies, strongmen, and connected entities</p>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' as const }}>
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search spirits..."
+          style={{ flex: 1, minWidth: 180, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '8px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
+        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+          style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '8px 12px', color: txt, fontFamily: cinzel, fontSize: 10, outline: 'none', letterSpacing: '0.06em' }}>
+          {categories.slice(0, 10).map((cat: string) => (
+            <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' as const }}>
+        {Object.entries(HIERARCHY_COLORS).map(([cat, color]) => {
+          const count = demons.filter((d: any) => d.hierarchyCategory === cat).length
+          if (!count) return null
+          return (
+            <button key={cat} onClick={() => setFilterCategory(filterCategory === cat ? 'all' : cat)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: filterCategory === cat ? `${color}20` : 'transparent', border: `1px solid ${filterCategory === cat ? color : bdr}`, borderRadius: 20, padding: '4px 10px', cursor: 'pointer', transition: 'all 0.15s' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: filterCategory === cat ? color : mut, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{cat.split(' ')[0]}</span>
+              <span style={{ fontSize: 9, color: mut, fontFamily: crimson }}>{count}</span>
+            </button>
+          )
+        })}
+      </div>
+      {Object.entries(grouped).map(([category, spirits]: [string, any]) => {
+        const color = HIERARCHY_COLORS[category] || '#9a8c74'
+        return (
+          <div key={category} style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+              <div style={{ fontFamily: cinzel, fontSize: 10, color, letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>{category}</div>
+              <div style={{ fontSize: 10, color: mut, fontFamily: crimson }}>({spirits.length})</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+              {spirits.map((spirit: any) => (
+                <button key={spirit.id} onClick={() => setSelectedSpirit(spirit)}
+                  style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${color}`, borderRadius: 8, padding: '10px 12px', cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${color}10`; (e.currentTarget as HTMLElement).style.borderColor = color }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = surf; (e.currentTarget as HTMLElement).style.borderColor = bdr }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em', marginBottom: spirit.parentStrongman ? 3 : 0 }}>{spirit.name}</div>
+                  {spirit.parentStrongman && <div style={{ fontSize: 9, color: mut, fontFamily: crimson }}>Under: {spirit.parentStrongman}</div>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── STREAM TIME AGO (uses last_active from Stream API) ─────
+function streamTimeAgo(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 2) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return `${Math.floor(days / 30)}mo ago`
+}
+
 // ── TIME AGO HELPER ────────────────────────────────────────
 function timeAgo(dateStr: string | null | undefined): string {
   if (!dateStr) return ''
@@ -3644,6 +4060,8 @@ function CommunityPage() {
   const [hoveredPrayer, setHoveredPrayer] = useState<any>(null)
   const [hoverY, setHoverY]               = useState(0)
   const [members, setMembers]             = useState<any[]>([])
+  const [memberPresence, setMemberPresence] = useState<Record<string, { online: boolean, lastActive: string | null }>>({})
+  const [demons, setDemons]               = useState<any[]>([])
   const [viewingProfile, setViewingProfile] = useState<any>(null)
   const [editingProfile, setEditingProfile] = useState(false)
   const [pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
@@ -3846,6 +4264,43 @@ function CommunityPage() {
       })
       .catch(err => console.error('get-members error:', err))
   }, [user?.id])
+
+  // Fetch demons for Body Map + Spirit Network
+  useEffect(() => {
+    if (!user?.id) return
+    fetch('/api/demons')
+      .then(r => r.json())
+      .then(d => setDemons(d.demons || d.records || []))
+      .catch(() => {})
+  }, [user?.id])
+
+  // Fetch Stream presence for Warriors section
+  useEffect(() => {
+    if (!streamToken || !apiKey || !members.length) return
+    async function fetchPresence() {
+      try {
+        const ids = members.map((m: any) => m.id).filter(Boolean).slice(0, 25)
+        if (!ids.length) return
+        const filter = encodeURIComponent(JSON.stringify({ id: { $in: ids } }))
+        const sort = encodeURIComponent(JSON.stringify([{ field: 'last_active', direction: -1 }]))
+        const res = await fetch(
+          `https://chat.stream-io-api.com/users?api_key=${apiKey}&filter_conditions=${filter}&sort=${sort}&presence=true&limit=25`,
+          { headers: { Authorization: streamToken, 'Stream-Auth-Type': 'jwt' } }
+        )
+        const data = await res.json()
+        const presenceMap: Record<string, { online: boolean, lastActive: string | null }> = {}
+        ;(data.users || []).forEach((u: any) => {
+          presenceMap[u.id] = { online: u.online === true, lastActive: u.last_active || null }
+        })
+        setMemberPresence(presenceMap)
+      } catch(e) {
+        console.log('Presence fetch failed:', e)
+      }
+    }
+    fetchPresence()
+    const interval = setInterval(fetchPresence, 60000)
+    return () => clearInterval(interval)
+  }, [streamToken, apiKey, members.length])
 
   useEffect(() => {
     if (!streamToken || !apiKey) return
@@ -4255,16 +4710,14 @@ function CommunityPage() {
             <span style={{ fontSize: 11 }}>🔍</span>
             <span>Symptom Investigator</span>
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px', opacity: 0.4 }}>
+          <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
             <span style={{ fontSize: 11 }}>🗺</span>
-            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555' }}>Body Map</span>
-            <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 16px', opacity: 0.4 }}>
+            <span>Body Map</span>
+          </button>
+          <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
             <span style={{ fontSize: 11 }}>🕸</span>
-            <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555' }}>Spirit Network</span>
-            <span style={{ marginLeft: 'auto', fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em' }}>SOON</span>
-          </div>
+            <span>Spirit Network</span>
+          </button>
         </div>
 
         <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
@@ -4442,6 +4895,8 @@ function CommunityPage() {
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'body-map' && <BodyMapView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} />}
+        {activeSection === 'spirit-network' && <SpiritNetworkView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} />}
         {activeSection === 'training'    && (
           <TrainingView
             theme={theme}
@@ -4615,7 +5070,12 @@ function CommunityPage() {
             {/* Warriors */}
             <div style={{ padding: '14px 16px', position: 'relative', overflow: 'visible' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>WARRIORS</span>
+                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>
+                  <span style={{ color: '#4ade80', fontSize: 8 }}>●</span>{' '}WARRIORS
+                </span>
+                <span style={{ fontSize: 9, color: V.mut, fontFamily: cinzel }}>
+                  ({Object.values(memberPresence).filter(p => p.online).length} online)
+                </span>
               </div>
               {/* Current user always shown first */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -4625,7 +5085,10 @@ function CommunityPage() {
                 <div>
                   <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{user?.firstName || 'You'}</div>
                   <TierBadge tier={tier} />
-                  <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>Minister</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
+                    <div style={{ fontSize: 9, color: '#4ade80', fontFamily: crimson }}>Online now</div>
+                  </div>
                 </div>
               </div>
               {/* Other members — sorted by last active */}
@@ -4647,6 +5110,9 @@ function CommunityPage() {
                   if (member.username && !member.username.startsWith('user_')) return member.username
                   return 'Warrior'
                 })()
+                const presence = memberPresence[member.id]
+                const isOnline = presence?.online === true
+                const lastActive = presence?.lastActive ?? null
                 return (
                   <div
                     key={member.id}
@@ -4675,8 +5141,16 @@ function CommunityPage() {
                       <div>
                         <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{displayName}</div>
                         <TierBadge tier={memberTier} />
-                        <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>
-                          {member.createdAt ? `Joined ${new Date(member.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                          <div style={{
+                            width: 7, height: 7, borderRadius: '50%',
+                            background: isOnline ? '#4ade80' : 'rgba(255,255,255,0.15)',
+                            flexShrink: 0,
+                            boxShadow: isOnline ? '0 0 4px rgba(74,222,128,0.6)' : 'none',
+                          }} />
+                          <div style={{ fontSize: 9, color: isOnline ? '#4ade80' : V.mut, fontFamily: crimson }}>
+                            {isOnline ? 'Online' : lastActive ? streamTimeAgo(lastActive) : ''}
+                          </div>
                         </div>
                       </div>
                     </button>

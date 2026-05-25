@@ -1371,6 +1371,71 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     fontFamily: crimson, fontSize: 14, outline: 'none',
   }
 
+  const [activeManagerTab, setActiveManagerTab] = useState<'courses' | 'fringe'>('courses')
+  const [fringeArticles, setFringeArticles] = useState<any[]>([])
+  const [fringeTopicFilter, setFringeTopicFilter] = useState('ufo-disclosure')
+  const [showFringeForm, setShowFringeForm] = useState(false)
+  const [editingFringe, setEditingFringe]   = useState<any | null>(null)
+  const [fringeSaving, setFringeSaving]     = useState(false)
+  const [faTitle, setFaTitle]   = useState('')
+  const [faSummary, setFaSummary] = useState('')
+  const [faBody, setFaBody]     = useState('')
+  const [faTier, setFaTier]     = useState('free')
+  const [faStatus, setFaStatus] = useState('draft')
+
+  const FRINGE_TOPICS = [
+    { key: 'ufo-disclosure', label: 'UFO Disclosure' },
+    { key: 'genesis-6', label: 'Genesis 6' },
+    { key: 'bloodline-warfare', label: 'Bloodline Warfare' },
+    { key: 'nephilim', label: 'Nephilim' },
+    { key: 'gov-programming', label: 'Gov. Programming' },
+    { key: 'fringe-science', label: 'Fringe Science' },
+  ]
+
+  async function loadFringeArticles(topic: string) {
+    const token = await getToken()
+    const res = await fetch(`/api/fringe-articles?topic=${topic}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setFringeArticles(d.articles || []) }
+  }
+
+  async function saveFringeArticle() {
+    setFringeSaving(true)
+    const token = await getToken()
+    const body = { topic: fringeTopicFilter, title: faTitle, summary: faSummary, body: faBody, tier: faTier, status: faStatus }
+    if (editingFringe) {
+      await fetch(`/api/fringe-articles?id=${editingFringe.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    } else {
+      await fetch('/api/fringe-articles', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    }
+    setFringeSaving(false)
+    setShowFringeForm(false)
+    setEditingFringe(null)
+    setFaTitle(''); setFaSummary(''); setFaBody(''); setFaTier('free'); setFaStatus('draft')
+    loadFringeArticles(fringeTopicFilter)
+  }
+
+  async function deleteFringeArticle(id: string) {
+    if (!confirm('Delete this article?')) return
+    const token = await getToken()
+    await fetch(`/api/fringe-articles?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    loadFringeArticles(fringeTopicFilter)
+  }
+
+  function openFringeForm(article?: any) {
+    if (article) {
+      setEditingFringe(article)
+      setFaTitle(article.title || '')
+      setFaSummary(article.summary || '')
+      setFaBody(article.body || '')
+      setFaTier(article.tier || 'free')
+      setFaStatus(article.status || 'draft')
+    } else {
+      setEditingFringe(null)
+      setFaTitle(''); setFaSummary(''); setFaBody(''); setFaTier('free'); setFaStatus('draft')
+    }
+    setShowFringeForm(true)
+  }
+
   const [courses, setCourses]               = useState<any[]>([])
   const [loading, setLoading]               = useState(true)
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null)
@@ -1515,6 +1580,91 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
 
   return (
     <div>
+      {/* Tab switcher */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${BDR2}` }}>
+        {(['courses', 'fringe'] as const).map(t => (
+          <button key={t} onClick={() => {
+            setActiveManagerTab(t)
+            if (t === 'fringe') loadFringeArticles(fringeTopicFilter)
+          }}
+            style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: activeManagerTab === t ? `2px solid ${GG}` : '2px solid transparent', color: activeManagerTab === t ? GG : MUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
+            {t === 'courses' ? '🎬 Courses' : '👁 Fringe Intel'}
+          </button>
+        ))}
+      </div>
+
+      {/* Fringe article manager */}
+      {activeManagerTab === 'fringe' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <select value={fringeTopicFilter} onChange={e => { setFringeTopicFilter(e.target.value); loadFringeArticles(e.target.value) }}
+              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontFamily: cinzel, fontSize: 10, outline: 'none', letterSpacing: '0.06em' }}>
+              {FRINGE_TOPICS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+            <button onClick={() => openFringeForm()}
+              style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${GG}`, borderRadius: 8, color: GG, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+              + New Article
+            </button>
+          </div>
+          {fringeArticles.length === 0 ? (
+            <div style={{ color: MUT, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>No articles for this topic yet.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {fringeArticles.map((a: any) => (
+                <div key={a.id} style={{ background: SURF3, border: `1px solid ${BDR2}`, borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT2, letterSpacing: '0.04em', marginBottom: 2 }}>{a.title}</div>
+                    {a.summary && <div style={{ fontFamily: crimson, fontSize: 12, color: MUT }}>{a.summary}</div>}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <span style={{ fontSize: 9, color: MUT, fontFamily: cinzel, textTransform: 'uppercase', border: `1px solid ${BDR2}`, borderRadius: 8, padding: '1px 6px' }}>{a.tier}</span>
+                      <span style={{ fontSize: 9, color: a.status === 'published' ? '#4ade80' : MUT, fontFamily: cinzel, textTransform: 'uppercase', border: `1px solid ${a.status === 'published' ? '#4ade8040' : BDR2}`, borderRadius: 8, padding: '1px 6px' }}>{a.status}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => openFringeForm(a)} style={{ padding: '6px 12px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Edit</button>
+                  <button onClick={() => deleteFringeArticle(a.id)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Delete</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showFringeForm && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+              <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, marginBottom: 20 }}>{editingFringe ? 'Edit Article' : 'New Article'}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <input value={faTitle} onChange={e => setFaTitle(e.target.value)} placeholder="Title"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
+                  <input value={faSummary} onChange={e => setFaSummary(e.target.value)} placeholder="Summary (shown in article list)"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
+                  <textarea value={faBody} onChange={e => setFaBody(e.target.value)} placeholder="Full article body..."
+                    rows={12}
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const }} />
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <select value={faTier} onChange={e => setFaTier(e.target.value)}
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
+                      {['free', 'soldier', 'commander', 'general'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <select value={faStatus} onChange={e => setFaStatus(e.target.value)}
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
+                      {['draft', 'published'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button onClick={() => { setShowFringeForm(false); setEditingFringe(null) }}
+                      style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={saveFringeArticle} disabled={fringeSaving || !faTitle.trim()}
+                      style={{ padding: '8px 18px', background: GG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>
+                      {fringeSaving ? 'Saving...' : editingFringe ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Courses panel — only show when tab is courses */}
+      {activeManagerTab === 'courses' && <div>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
@@ -1701,6 +1851,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
           </div>
         </div>
       )}
+    </div>}
     </div>
   )
 }
