@@ -116,13 +116,13 @@ Return exactly this structure:
 {
   "title": "Clean readable title (remove underscores, file extensions, WRI_R01 prefixes etc)",
   "description": "2-3 sentence description of what this document is and how ministers would use it",
-  "category": "one of: Session Tools, Teaching, Protocol, Reference, Renunciation, Worksheet",
+  "category": "one of: Session Tools, Teaching, Protocol, Reference, Renunciation, Worksheet, Scripture, Prayer, Deliverance Guide, Inner Healing, Generational Curses, Soul Ties, Occult & Freemasonry, Sexual Bondage, Mental Strongholds",
   "tier": "one of: free, soldier, commander, general",
   "tags": ["tag1", "tag2", "tag3"]
 }
 
 For tier: free = basic/intro content, soldier = intermediate ministry tools, commander = advanced protocols, general = leadership/comprehensive guides.
-For tags: 3-5 short keywords relevant to deliverance ministry (e.g. forgiveness, generational, soul ties, renunciation, inner healing, strongholds).
+For tags: 3-6 short keywords from this list or similar: forgiveness, generational, soul ties, renunciation, inner healing, strongholds, repentance, freemasonry, occult, sexual sin, mind control, witchcraft, fear, rejection, trauma, vows, identity, healing, deliverance, prayer, scripture.
 Respond with valid JSON only.`
 
     try {

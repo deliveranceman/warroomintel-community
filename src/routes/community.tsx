@@ -2386,7 +2386,24 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     'image/jpeg': '🖼️',
   }
 
-  const CATEGORIES = ['All', 'Session Tools', 'Teaching', 'Protocol', 'Reference', 'Renunciation', 'Worksheet']
+  const CATEGORIES = [
+    'All',
+    'Session Tools',
+    'Teaching',
+    'Protocol',
+    'Reference',
+    'Renunciation',
+    'Worksheet',
+    'Scripture',
+    'Prayer',
+    'Deliverance Guide',
+    'Inner Healing',
+    'Generational Curses',
+    'Soul Ties',
+    'Occult & Freemasonry',
+    'Sexual Bondage',
+    'Mental Strongholds',
+  ]
   const TIERS      = ['All', 'Free', 'Soldier', 'Commander', 'General']
 
   const TIER_COLORS: Record<string, string> = {

@@ -73,10 +73,30 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [bulkUploading, setBulkUploading] = useState(false)
   const [dragOver, setDragOver]           = useState(false)
   const [analyzingIdx, setAnalyzingIdx]   = useState<number>(-1)
+  const [showCatManager, setShowCatManager] = useState(false)
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [newCategory, setNewCategory]     = useState('')
 
   const TIERS      = ['Free', 'Soldier', 'Commander', 'General']
-  const CATEGORIES = ['Session Tools', 'Teaching', 'Protocol', 'Reference', 'Renunciation', 'Worksheet']
+  const CATEGORIES = [
+    'Session Tools',
+    'Teaching',
+    'Protocol',
+    'Reference',
+    'Renunciation',
+    'Worksheet',
+    'Scripture',
+    'Prayer',
+    'Deliverance Guide',
+    'Inner Healing',
+    'Generational Curses',
+    'Soul Ties',
+    'Occult & Freemasonry',
+    'Sexual Bondage',
+    'Mental Strongholds',
+  ]
   const ALL_TAGS   = ['deliverance','prayer','freemasonry','soul-ties','generational','forgiveness','warfare','inner-healing','renunciation','assessment','protocol','worksheet','teaching','occult','sexual-bondage','rejection','fear','witchcraft','marine-kingdom','strongman','legal-rights','aftercare','session','intake']
+  const allCategories = [...CATEGORIES, ...customCategories]
 
   async function fetchResources() {
     setResLoading(true)
@@ -100,6 +120,24 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   }
 
   useEffect(() => { fetchResources() }, [])
+  useEffect(() => {
+    const stored = localStorage.getItem('wri-custom-categories')
+    if (stored) setCustomCategories(JSON.parse(stored))
+  }, [])
+
+  function addCategory() {
+    if (!newCategory.trim()) return
+    const updated = [...customCategories, newCategory.trim()]
+    setCustomCategories(updated)
+    localStorage.setItem('wri-custom-categories', JSON.stringify(updated))
+    setNewCategory('')
+  }
+
+  function removeCategory(cat: string) {
+    const updated = customCategories.filter(c => c !== cat)
+    setCustomCategories(updated)
+    localStorage.setItem('wri-custom-categories', JSON.stringify(updated))
+  }
 
   async function analyzeFile(f: File) {
     setAnalyzing(true)
@@ -113,7 +151,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       const filled = new Set<string>()
       if (data.title)    { setTitle(data.title);    filled.add('title') }
       if (data.description) { setDesc(data.description); filled.add('description') }
-      if (data.category && CATEGORIES.includes(data.category)) { setCategory(data.category); filled.add('category') }
+      if (data.category && allCategories.includes(data.category)) { setCategory(data.category); filled.add('category') }
       if (data.tags?.length) { setTags(data.tags);  filled.add('tags') }
       if (filled.size > 0) { setAiFields(filled); setAiSuggested(true) }
     } catch (e) { console.error('Analysis failed', e) }
@@ -402,7 +440,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, category: e.target.value } : p))}
                     style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}
                   >
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                    {allCategories.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
@@ -513,7 +551,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
               onChange={e => { setCategory(e.target.value); setAiFields(prev => { const n = new Set(prev); n.delete('category'); return n }) }}
               style={{ ...inputStyle }}
             >
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              {allCategories.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
@@ -626,6 +664,68 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
           ))}
         </div>
       )}
+
+      {/* Category Manager */}
+      <div style={{ marginTop: 24, borderTop: `1px solid rgba(201,168,76,0.15)`, paddingTop: 16 }}>
+        <button
+          onClick={() => setShowCatManager(c => !c)}
+          style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+        >
+          {showCatManager ? '▲' : '▼'} Manage Custom Categories
+        </button>
+        {showCatManager && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 12 }}>
+              {customCategories.map(cat => (
+                <span key={cat} style={{
+                  background: 'rgba(201,168,76,0.08)',
+                  border: '1px solid rgba(201,168,76,0.2)',
+                  borderRadius: 20,
+                  padding: '3px 10px',
+                  fontSize: 10,
+                  color: G,
+                  fontFamily: cinzel,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  {cat}
+                  <button
+                    onClick={() => removeCategory(cat)}
+                    style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                  >×</button>
+                </span>
+              ))}
+              {customCategories.length === 0 && (
+                <span style={{ fontSize: 11, color: DIM, fontFamily: crimson, fontStyle: 'italic' }}>No custom categories yet</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={newCategory}
+                onChange={e => setNewCategory(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addCategory()}
+                placeholder="New category name..."
+                style={{
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(201,168,76,0.2)',
+                  borderRadius: 5,
+                  padding: '6px 10px',
+                  color: TXT,
+                  fontFamily: cinzel,
+                  fontSize: 11,
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={addCategory}
+                style={{ padding: '6px 16px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+              >+ Add</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
