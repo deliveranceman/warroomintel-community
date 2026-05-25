@@ -100,7 +100,7 @@ RETURN ONLY VALID JSON. No markdown, no preamble, no explanation outside the JSO
 
 CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max. Array fields: 3-7 items max, each item one sentence. Boolean fields: true or false only. The JSON must be complete and valid — do not truncate.`
 
-// 10 most critical fields — minister decides what to keep via Accept/Skip
+// 10 most critical fields — keys match camelToAirtable in admin-demon.ts exactly
 const ENHANCE_FIELDS = [
   'biblicalRank',
   'caseType',
@@ -110,9 +110,26 @@ const ENHANCE_FIELDS = [
   'sessionIndicators',
   'clusterSpirits',
   'resistanceSignature',
-  'legalRightsFramework',
+  'legalRights',
   'etymologyNotes',
 ]
+
+// Map AI-invented key names to the canonical camelCase keys used in admin-demon.ts
+const KEY_ALIASES: Record<string, string> = {
+  companionSpirits: 'clusterSpirits',
+  wriNotes: 'aftercareNotes',
+  legalRightsFramework: 'legalRights',
+  entryPoints: 'transmissionVectors',
+  counterScriptures: 'scriptureContext',
+  deliveranceSequence: 'prayerPoints',
+  personalityPresentation: 'caseType',
+  symptoms: 'sessionIndicators',
+  scripture: 'scriptureContext',
+  protocol: 'prayerPoints',
+  operationalNotes: 'aftercareNotes',
+  primaryBattlefield: 'sessionIndicators',
+  manifestation: 'sessionIndicators',
+}
 
 function parseJsonFields(raw: string): Record<string, any> {
   if (!raw || raw.trim() === '') return {}
@@ -163,7 +180,6 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     entryPoints: 'Legal rights by category: generational sin, trauma/soul wounds, occult involvement, ungodly vows/oaths, unforgiveness, sexual sin, territorial assignment. Include inner healing wound types this spirit exploits.',
     transmissionVectors: 'How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic/territorial exposure, media.',
     legalRights: 'Legal grounds by category: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address before expulsion is durable.',
-    legalRightsFramework: 'Legal grounds by category: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address before expulsion is durable.',
     sessionIndicators: "What specifically tells Justin and his team this spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
     resistanceSignature: 'How this spirit resists expulsion: deception tactics, hiding strategies, legal rights it claims, counterfeit manifestations, how it negotiates or attempts re-entry.',
     aftercareNotes: "What the person must do to keep freedom, what mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
@@ -270,10 +286,18 @@ export default async function handler(req: Request) {
       throw e
     }
 
-    const fields = parseJsonFields(rawText)
+    const rawFields = parseJsonFields(rawText)
+    console.log('[enhance] AI raw keys:', Object.keys(rawFields))
 
-    console.log('[enhance] parsed field count:', Object.keys(fields).length)
-    console.log('[enhance] parsed field keys:', Object.keys(fields))
+    // Remap AI-invented key names to canonical camelCase keys
+    const fields: Record<string, any> = {}
+    for (const [key, value] of Object.entries(rawFields)) {
+      const canonical = KEY_ALIASES[key] || key
+      // Don't overwrite if canonical key already set from a more specific entry
+      if (!(canonical in fields)) fields[canonical] = value
+    }
+    console.log('[enhance] After remap keys:', Object.keys(fields))
+    console.log('[enhance] fieldCount:', Object.keys(fields).length)
 
     return new Response(
       JSON.stringify({ success: true, spirit: name, fields, fieldCount: Object.keys(fields).length }),
