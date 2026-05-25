@@ -1097,6 +1097,21 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setShowAiPanel(true)
   }
 
+  function applyAiFields(fields: Record<string, any>) {
+    if (Object.keys(fields).length === 0) {
+      setAiError('All fields are already complete — nothing to enhance.')
+      setAiPhase('error')
+      return
+    }
+    const init: Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }> = {}
+    Object.entries(fields).forEach(([k, v]) => {
+      init[k] = { status: 'pending', value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v ?? ''), editing: false }
+    })
+    setAiResult(fields)
+    setFieldDecisions(init)
+    setAiPhase('review')
+  }
+
   async function startAiResearch() {
     if (!aiTargetDemon) return
     setAiPhase('loading')
@@ -1109,60 +1124,58 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     try {
       const token = await getToken()
 
-      // Kick off background function — returns 202 immediately
       const res = await fetch('/api/ai-spirit-enhance-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, jobId }),
       })
 
-      if (res.status !== 202) {
-        const d = await res.json().catch(() => ({}))
-        throw new Error((d as any).error || `Unexpected status ${res.status}`)
+      // Direct response (200) — Haiku returned within timeout
+      if (res.ok) {
+        const d = await res.json()
+        if (d.fields) {
+          applyAiFields(d.fields)
+        } else {
+          setAiError(d.error || 'AI enhancement failed')
+          setAiPhase('error')
+        }
+        return
       }
 
-      // Poll every 3 seconds, up to 40 attempts (120 seconds)
-      let attempts = 0
-      const maxAttempts = 40
+      // Background mode (202) — poll for result
+      if (res.status === 202) {
+        let attempts = 0
+        const maxAttempts = 40
 
-      const poll = async (): Promise<void> => {
-        if (attempts >= maxAttempts) {
-          setAiError('Research timed out after 2 minutes. Try again.')
-          setAiPhase('error')
-          return
-        }
-        attempts++
-
-        await new Promise(r => setTimeout(r, 3000))
-
-        const pollRes = await fetch(`/api/ai-enhance-poll?jobId=${encodeURIComponent(jobId)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const pollData = await pollRes.json()
-
-        if (pollData.status === 'done') {
-          const fields = pollData.fields || {}
-          if (Object.keys(fields).length === 0) {
-            setAiError('All fields are already complete — nothing to enhance.')
+        const poll = async (): Promise<void> => {
+          if (attempts >= maxAttempts) {
+            setAiError('Research timed out after 2 minutes. Try again.')
             setAiPhase('error')
             return
           }
-          const init: Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }> = {}
-          Object.entries(fields).forEach(([k, v]) => {
-            init[k] = { status: 'pending', value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v ?? ''), editing: false }
+          attempts++
+          await new Promise(r => setTimeout(r, 3000))
+          const pollRes = await fetch(`/api/ai-enhance-poll?jobId=${encodeURIComponent(jobId)}`, {
+            headers: { Authorization: `Bearer ${token}` },
           })
-          setAiResult(fields)
-          setFieldDecisions(init)
-          setAiPhase('review')
-        } else if (pollData.status === 'error') {
-          setAiError(pollData.error || 'AI enhancement failed')
-          setAiPhase('error')
-        } else {
-          return poll()
+          const pollData = await pollRes.json()
+          if (pollData.status === 'done') {
+            applyAiFields(pollData.fields || {})
+          } else if (pollData.status === 'error') {
+            setAiError(pollData.error || 'AI enhancement failed')
+            setAiPhase('error')
+          } else {
+            return poll()
+          }
         }
+
+        await poll()
+        return
       }
 
-      await poll()
+      // Any other status is an error
+      const d = await res.json().catch(() => ({}))
+      throw new Error((d as any).error || `Server error ${res.status}`)
     } catch(e: any) {
       setAiError(e.message || 'Network error')
       setAiPhase('error')
