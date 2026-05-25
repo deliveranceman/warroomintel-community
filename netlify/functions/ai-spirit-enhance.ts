@@ -46,7 +46,7 @@ async function getLibraryPreamble(_spiritName: string, _spiritDescription: strin
   return '' // disabled for speed — re-enable when library is populated
 }
 
-const SYSTEM_PROMPT = `CRITICAL: Respond with RAW JSON only. Do not use markdown. Do not use code blocks. Do not use backticks. Your entire response must start with { and end with }. Any other format will cause system failure.
+const SYSTEM_PROMPT = `CRITICAL OUTPUT RULE: Your response must be RAW JSON only. No markdown. No code blocks. No backticks. No explanation. Start with { end with }. Any other format breaks the system.
 
 You are the personal theological research assistant for Pastor Justin Payne of Staffordtown Church (Church on Fire), Copperhill, Tennessee — a trained deliverance minister holding advanced degrees in Archaeology, Etymology, Biblical Demonology, and Theology.
 
@@ -104,82 +104,93 @@ CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max.
 
 CRITICAL: Respond with RAW JSON only. Do not use markdown. Do not use code blocks. Do not use backticks. Your entire response must start with { and end with }. Any other format will cause system failure.`
 
-// 10 most critical fields — keys match camelToAirtable in admin-demon.ts exactly
+// All fields — canonical camelCase keys from admin-demon.ts camelToAirtable + natural AI fields
 const ENHANCE_FIELDS = [
-  'biblicalRank',
-  'caseType',
+  'description',
+  'manifestation',
+  'entryPoints',
+  'type',
+  'legalRights',
+  'sessionIndicators',
+  'transmissionVectors',
+  'clusterSpirits',
+  'resistanceSignature',
+  'legalRightsFramework',
+  'etymologyNotes',
+  'archaeologyNotes',
+  'scriptureContext',
+  'institutionalExpression',
+  'prayerPoints',
+  'aftercareNotes',
   'phonetic',
   'isGenerational',
   'isTerritorial',
-  'sessionIndicators',
-  'clusterSpirits',
-  'resistanceSignature',
-  'legalRights',
-  'etymologyNotes',
+  'biblicalRank',
+  'caseType',
+  'strongman',
+  'assignment',
+  'primaryBattlefield',
+  'personalityPresentation',
+  'companionSpirits',
+  'counterScriptures',
+  'deliveranceSequence',
+  'operationalNotes',
+  'wriNotes',
 ]
 
-// Map AI-invented key names to the canonical camelCase keys used in admin-demon.ts
+// Map AI-invented key names to canonical camelCase keys (matches admin-demon.ts camelToAirtable)
 const KEY_ALIASES: Record<string, string> = {
-  companionSpirits: 'clusterSpirits',
-  wriNotes: 'aftercareNotes',
+  description: 'description',
+  manifestation: 'manifestation',
+  type: 'type',
+  entryPoints: 'entryPoints',
+  legalRights: 'legalRights',
   legalRightsFramework: 'legalRights',
-  entryPoints: 'transmissionVectors',
-  counterScriptures: 'scriptureContext',
-  deliveranceSequence: 'prayerPoints',
-  personalityPresentation: 'caseType',
+  companionSpirits: 'clusterSpirits',
   symptoms: 'sessionIndicators',
-  scripture: 'scriptureContext',
-  protocol: 'prayerPoints',
+  wriNotes: 'aftercareNotes',
   operationalNotes: 'aftercareNotes',
-  primaryBattlefield: 'sessionIndicators',
-  manifestation: 'sessionIndicators',
+  deliveranceSequence: 'prayerPoints',
+  protocol: 'prayerPoints',
+  counterScriptures: 'scriptureContext',
+  scripture: 'scriptureContext',
+  primaryBattlefield: 'primaryBattlefield',
+  personalityPresentation: 'personalityPresentation',
+  strongman: 'strongman',
+  assignment: 'assignment',
+  archaeology: 'archaeologyNotes',
+  institutional: 'institutionalExpression',
 }
 
 function parseJsonFields(raw: string): Record<string, any> {
   if (!raw || raw.trim() === '') return {}
-
   let text = raw.trim()
-
-  // Remove ALL variations of markdown code fences
+  // Strip all markdown fence variations
   text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```\s*$/i, '').trim()
   text = text.replace(/^~~~[\w]*\s*/i, '').replace(/\s*~~~\s*$/i, '').trim()
-
   // Try direct parse
   try {
     const parsed = JSON.parse(text)
-    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-      console.log('[enhance] Direct parse succeeded, keys:', Object.keys(parsed))
-      return parsed
-    }
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
   } catch {}
-
-  // Find the first { and last } and extract everything between
+  // Extract between first { and last }
   const firstBrace = text.indexOf('{')
   const lastBrace = text.lastIndexOf('}')
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    const extracted = text.slice(firstBrace, lastBrace + 1)
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
     try {
-      const parsed = JSON.parse(extracted)
-      if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-        console.log('[enhance] Brace extraction succeeded, keys:', Object.keys(parsed))
-        return parsed
-      }
+      const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1))
+      if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
     } catch {}
   }
-
-  // Last resort — regex match for JSON object
+  // Regex fallback
   const match = raw.match(/\{[\s\S]*\}/)
   if (match) {
     try {
       const parsed = JSON.parse(match[0])
-      if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-        console.log('[enhance] Regex match succeeded, keys:', Object.keys(parsed))
-        return parsed
-      }
+      if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
     } catch {}
   }
-
-  console.error('[enhance] All parse attempts failed. Raw:', raw.slice(0, 300))
+  console.error('[enhance] Parse failed. Raw preview:', raw.slice(0, 200))
   return {}
 }
 
@@ -188,21 +199,35 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     phonetic: 'Correct phonetic pronunciation using syllable capitalization.',
     biblicalRank: 'Ephesians 6:12 classification with brief rationale.',
     caseType: 'Personal Deliverance, Generational/Bloodline, Territorial/Regional, Institutional, Atmospheric/Intercessory, or Multiple.',
+    type: 'Same as caseType — classification of this spirit.',
     isGenerational: 'true or false — is this spirit typically generational/bloodline?',
     isTerritorial: 'true or false — is this spirit typically territorial/regional?',
-    clusterSpirits: 'Boss spirit identification AND full subordinate cluster this spirit commands. How the boss maintains authority.',
-    strongman: 'The primary strongman spirit this entity operates under, if any. Single name only.',
-    assignment: 'The specific demonic assignment/mission of this spirit — what it is tasked to accomplish in the person or region.',
-    description: '3-5 sentences: nature and origin, primary assignment in the kingdom of darkness, biblical basis, historical attestation. Graduate theological level, pastorally practical.',
-    etymologyNotes: 'Full etymology: original language name(s), root words, Semitic language meaning, how the name reveals nature or assignment.',
-    manifestation: "What Justin's team watches for in session: physical symptoms, behavioral patterns, emotional signatures, thought patterns, relational dynamics, spiritual symptoms. Actionable.",
-    entryPoints: 'Legal rights by category: generational sin, trauma/soul wounds, occult involvement, ungodly vows/oaths, unforgiveness, sexual sin, territorial assignment. Include inner healing wound types this spirit exploits.',
-    transmissionVectors: 'How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic/territorial exposure, media.',
-    legalRights: 'Legal grounds by category: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address before expulsion is durable.',
-    sessionIndicators: "What specifically tells Justin and his team this spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
-    resistanceSignature: 'How this spirit resists expulsion: deception tactics, hiding strategies, legal rights it claims, counterfeit manifestations, how it negotiates or attempts re-entry.',
-    aftercareNotes: "What the person must do to keep freedom, what mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
-    prayerPoints: '3-5 targeted prayer declarations in session order: renunciation → breaking legal rights → commanding expulsion by name → fill-up and blessing.',
+    clusterSpirits: 'Boss spirit AND full subordinate cluster. How the boss maintains authority.',
+    companionSpirits: 'Companion or subordinate spirits that typically accompany this entity.',
+    strongman: 'Primary strongman this entity operates under, if any. Single name only.',
+    assignment: 'Specific demonic assignment — what it is tasked to accomplish in the person or region.',
+    description: '2-3 sentences: nature, origin, primary assignment in the kingdom of darkness, biblical basis.',
+    etymologyNotes: 'Full etymology: original language name(s), root words, meaning, how the name reveals assignment.',
+    archaeologyNotes: 'Archaeological or historical attestation from ANE, Dead Sea Scrolls, or patristic sources.',
+    manifestation: "Physical symptoms, behavioral patterns, emotional signatures, thought patterns the team watches for in session.",
+    entryPoints: 'Entry points by category: generational, trauma/soul wounds, occult, ungodly vows, unforgiveness, sexual sin, territorial.',
+    transmissionVectors: 'How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic exposure.',
+    legalRights: 'Legal grounds: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address.',
+    legalRightsFramework: 'Same as legalRights — legal grounds that must be addressed for durable freedom.',
+    sessionIndicators: "What tells the team this spirit is present in real time: manifestations, emotional surges, resistance patterns, verbal indicators.",
+    resistanceSignature: 'How this spirit resists expulsion: deception, hiding, legal claims, counterfeit manifestations, re-entry attempts.',
+    scriptureContext: 'Key scriptures for authority, renunciation, and fill-up specific to this spirit.',
+    counterScriptures: 'Same as scriptureContext — scriptures used against this spirit.',
+    institutionalExpression: 'How this spirit expresses through institutions, organizations, or societal systems.',
+    prayerPoints: '3-5 prayer declarations in session order: renunciation → breaking legal rights → commanding expulsion → fill-up and blessing.',
+    deliveranceSequence: 'Same as prayerPoints — sequential prayer declarations for session use.',
+    aftercareNotes: "What the person must do to keep freedom, what mentor watches for, fill-up scriptures, warning signs of re-entry.",
+    operationalNotes: 'Same as aftercareNotes — operational guidance for post-session.',
+    wriNotes: 'Same as aftercareNotes — War Room Intel notes for this spirit.',
+    primaryBattlefield: 'The primary arena where this spirit operates: mind, will, emotions, body, relationships, finances, calling.',
+    personalityPresentation: 'How this spirit presents as a personality pattern or character trait in the host.',
+    demonicAgreements: 'Specific agreements, vows, or lies the host must renounce.',
+    relatedSpirits: 'Other spirits closely related to or frequently paired with this entity.',
   }
 
   const fieldSchema = fields.map(f => `  "${f}": "${fieldDescriptions[f] || f}"`).join(',\n')
@@ -226,6 +251,19 @@ ${existingNote}Research and return expert-level content for ALL of the following
 {
 ${fieldSchema}
 }`
+}
+
+async function fetchWikimediaImage(spiritName: string): Promise<string> {
+  try {
+    const query = encodeURIComponent(spiritName)
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${query}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    if (!res.ok) return ''
+    const data = await res.json()
+    return data.thumbnail?.source || data.originalimage?.source || ''
+  } catch {
+    return ''
+  }
 }
 
 export default async function handler(req: Request) {
@@ -281,7 +319,7 @@ export default async function handler(req: Request) {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1500,
+          max_tokens: 3000,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         }),
@@ -312,11 +350,16 @@ export default async function handler(req: Request) {
     const fields: Record<string, any> = {}
     for (const [key, value] of Object.entries(rawFields)) {
       const canonical = KEY_ALIASES[key] || key
-      // Don't overwrite if canonical key already set from a more specific entry
       if (!(canonical in fields)) fields[canonical] = value
     }
     console.log('[enhance] After remap keys:', Object.keys(fields))
     console.log('[enhance] fieldCount:', Object.keys(fields).length)
+
+    // Wikipedia image — non-blocking, best-effort
+    const imageUrl = await fetchWikimediaImage(name).catch(() => '')
+    if (imageUrl && !fields.images) {
+      fields.images = imageUrl
+    }
 
     return new Response(
       JSON.stringify({ success: true, spirit: name, fields, fieldCount: Object.keys(fields).length }),
