@@ -1487,7 +1487,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                           <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
                           {hasAccess && course.watchedCount > 0 && <span style={{ fontSize: 11, color: '#4ade80', fontFamily: crimson }}>{course.watchedCount}/{course.episodeCount} watched</span>}
                         </div>
-                        {!hasAccess && <button onClick={e => e.stopPropagation()} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
+                        {!hasAccess && <button onClick={e => { e.stopPropagation(); window.open(STRIPE_LINKS[course.tier] || '/membership', '_blank') }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
                       </div>
                     </div>
                   )
@@ -2020,6 +2020,9 @@ const STRIPE_LINKS: Record<string, string> = {
   Soldier:   'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
   Commander: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
   General:   'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
+  soldier:   'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
+  commander: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
+  general:   'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
 }
 const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
 const tierNum = (t: string) => TIER_LEVEL[t?.toLowerCase()] ?? 0
