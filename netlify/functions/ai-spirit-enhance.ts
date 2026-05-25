@@ -42,55 +42,8 @@ async function resolveMinister(token: string): Promise<{ ok: boolean; reason: st
   }
 }
 
-async function getLibraryPreamble(spiritName: string, spiritDescription: string): Promise<string> {
-  try {
-    const client = sb()
-    const [booksResult, contextResult] = await Promise.all([
-      client.from('ministry_library').select('title,author,extracted_text').eq('is_enabled', true),
-      client.from('ministry_context').select('context_text').eq('is_active', true).order('updated_at', { ascending: false }).limit(1).single(),
-    ])
-    const contextText: string = contextResult.data?.context_text || ''
-    const books = booksResult.data || []
-    let preamble = ''
-    const MAX_CHARS = 20000
-    if (contextText) {
-      preamble += `MINISTRY VOICE AND THEOLOGICAL FRAMEWORK:\n${contextText}\n\nApply this theological framework and voice to all content you generate.\n---\n\n`
-    }
-    if (books.length > 0) {
-      const terms = spiritName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
-      if (spiritDescription) {
-        spiritDescription.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
-          .filter(w => w.length > 5).slice(0, 15).forEach(w => terms.push(w))
-      }
-      interface ScoredChunk { title: string; author: string; text: string; score: number }
-      const scored: ScoredChunk[] = []
-      for (const book of books) {
-        if (!book.extracted_text) continue
-        for (let i = 0; i < book.extracted_text.length; i += 1800) {
-          const chunk = book.extracted_text.slice(i, i + 2000).trim()
-          if (chunk.length < 150) continue
-          const lc = chunk.toLowerCase()
-          let score = 0
-          for (const term of terms) {
-            const matches = (lc.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
-            if (matches) score += matches * (term.length > 6 ? 3 : 1)
-          }
-          if (score > 0) scored.push({ title: book.title, author: book.author || '', text: chunk.slice(0, 1600), score })
-        }
-      }
-      if (scored.length > 0) {
-        scored.sort((a, b) => b.score - a.score)
-        let section = `PERSONAL MINISTRY LIBRARY CONTEXT:\nPassages from the minister's personal theological library:\n\n`
-        for (const c of scored.slice(0, 5)) {
-          const entry = `[${c.title}${c.author ? ` by ${c.author}` : ''}]:\n${c.text}\n\n`
-          if ((preamble + section + entry).length > MAX_CHARS) break
-          section += entry
-        }
-        preamble += section
-      }
-    }
-    return preamble
-  } catch { return '' }
+async function getLibraryPreamble(_spiritName: string, _spiritDescription: string): Promise<string> {
+  return '' // disabled for speed — re-enable when library is populated
 }
 
 const SYSTEM_PROMPT = `You are the personal theological research assistant for Pastor Justin Payne of Staffordtown Church (Church on Fire), Copperhill, Tennessee — a trained deliverance minister holding advanced degrees in Archaeology, Etymology, Biblical Demonology, and Theology.
@@ -147,13 +100,18 @@ RETURN ONLY VALID JSON. No markdown, no preamble, no explanation outside the JSO
 
 CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max. Array fields: 3-7 items max, each item one sentence. Boolean fields: true or false only. The JSON must be complete and valid — do not truncate.`
 
-// All fields researched every time — no isEmpty filtering — minister decides what to keep via Accept/Skip
+// 10 most critical fields — minister decides what to keep via Accept/Skip
 const ENHANCE_FIELDS = [
-  'biblicalRank', 'caseType', 'phonetic', 'isGenerational', 'isTerritorial',
-  'sessionIndicators', 'transmissionVectors', 'clusterSpirits',
-  'resistanceSignature', 'legalRights', 'prayerPoints', 'aftercareNotes',
-  'etymologyNotes', 'strongman', 'assignment', 'description', 'manifestation',
-  'entryPoints',
+  'biblicalRank',
+  'caseType',
+  'phonetic',
+  'isGenerational',
+  'isTerritorial',
+  'sessionIndicators',
+  'clusterSpirits',
+  'resistanceSignature',
+  'legalRightsFramework',
+  'etymologyNotes',
 ]
 
 function parseJsonFields(raw: string): Record<string, any> {
@@ -205,6 +163,7 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     entryPoints: 'Legal rights by category: generational sin, trauma/soul wounds, occult involvement, ungodly vows/oaths, unforgiveness, sexual sin, territorial assignment. Include inner healing wound types this spirit exploits.',
     transmissionVectors: 'How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic/territorial exposure, media.',
     legalRights: 'Legal grounds by category: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address before expulsion is durable.',
+    legalRightsFramework: 'Legal grounds by category: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address before expulsion is durable.',
     sessionIndicators: "What specifically tells Justin and his team this spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
     resistanceSignature: 'How this spirit resists expulsion: deception tactics, hiding strategies, legal rights it claims, counterfeit manifestations, how it negotiates or attempts re-entry.',
     aftercareNotes: "What the person must do to keep freedom, what mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
@@ -274,7 +233,7 @@ export default async function handler(req: Request) {
     console.log('[enhance] Requesting all fields:', ENHANCE_FIELDS)
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 20000)
+    const timeoutId = setTimeout(() => controller.abort(), 24000)
 
     let rawText: string
     try {
@@ -287,7 +246,7 @@ export default async function handler(req: Request) {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4096,
+          max_tokens: 1500,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         }),
