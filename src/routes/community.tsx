@@ -1188,6 +1188,171 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
   )
 }
 
+// ── TESTIMONY WALL VIEW ────────────────────────────────────
+function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, userTier, userImage }: any) {
+  const isDark = theme !== 'light'
+  const { getToken } = useAuth()
+  const bg   = isDark ? '#0D0B14' : '#f5f0e8'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#1a1410'
+  const mut  = isDark ? '#9a8c74' : '#5c4a3a'
+  const GG   = isDark ? '#C9A84C' : '#a07830'
+
+  const [testimonies, setTestimonies]   = useState<any[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [showForm, setShowForm]         = useState(false)
+  const [title, setTitle]               = useState('')
+  const [body, setBody]                 = useState('')
+  const [category, setCategory]         = useState('personal')
+  const [isAnonymous, setIsAnonymous]   = useState(false)
+  const [submitting, setSubmitting]     = useState(false)
+  const [submitted, setSubmitted]       = useState(false)
+  const [expandedId, setExpandedId]     = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/testimonies', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setTestimonies(d.testimonies || []) }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  async function submitTestimony() {
+    if (!title.trim() || !body.trim()) return
+    setSubmitting(true)
+    const token = await getToken()
+    const res = await fetch('/api/testimonies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title, body, category, isAnonymous }),
+    })
+    setSubmitting(false)
+    if (res.ok) { setSubmitted(true); setShowForm(false); setTitle(''); setBody('') }
+  }
+
+  const categories = ['personal', 'healing', 'deliverance', 'restoration', 'ministry']
+  const categoryLabels: Record<string, string> = {
+    personal: '✝ Personal', healing: '🙏 Healing', deliverance: '⚔ Deliverance',
+    restoration: '💛 Restoration', ministry: '📡 Ministry',
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: 0 }}>☰</button>}
+        <div>
+          <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>✝ Testimony Wall</h2>
+          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>What God has done — shared for His glory</p>
+        </div>
+        <button
+          onClick={() => { setShowForm(f => !f); setSubmitted(false) }}
+          style={{ marginLeft: 'auto', padding: '8px 18px', background: showForm ? 'transparent' : 'rgba(201,168,76,0.15)', border: `1px solid ${GG}`, borderRadius: 8, color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0 }}
+        >
+          {showForm ? 'Cancel' : '+ Share Testimony'}
+        </button>
+      </div>
+
+      {/* Submission success */}
+      {submitted && (
+        <div style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 10, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 20 }}>✓</span>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: '#4ade80', letterSpacing: '0.06em', marginBottom: 2 }}>Testimony Submitted</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>Your testimony is pending review and will appear here once approved by leadership.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit form */}
+      {showForm && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '20px 24px', marginBottom: 28 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: GG, letterSpacing: '0.1em', marginBottom: 16 }}>Share What God Did</div>
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Title — e.g. 'Freedom from 20 years of fear'"
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.04em', outline: 'none', marginBottom: 10 }}
+          />
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            placeholder="Share what happened in your own words. How did God move? What changed?"
+            rows={5}
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6, marginBottom: 10 }}
+          />
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' as const }}>
+            {categories.map(cat => (
+              <button key={cat} onClick={() => setCategory(cat)}
+                style={{ padding: '4px 12px', background: category === cat ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${category === cat ? GG : bdr}`, borderRadius: 20, color: category === cat ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                {categoryLabels[cat]}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <input type="checkbox" id="anon-check" checked={isAnonymous} onChange={e => setIsAnonymous(e.target.checked)} style={{ accentColor: GG, width: 14, height: 14 }} />
+            <label htmlFor="anon-check" style={{ fontFamily: crimson, fontSize: 13, color: mut, cursor: 'pointer' }}>Post anonymously</label>
+          </div>
+          <button
+            onClick={submitTestimony}
+            disabled={submitting || !title.trim() || !body.trim()}
+            style={{ padding: '10px 24px', background: GG, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700, opacity: (!title.trim() || !body.trim()) ? 0.5 : 1 }}
+          >
+            {submitting ? 'Submitting...' : '✝ Submit Testimony'}
+          </button>
+        </div>
+      )}
+
+      {/* Testimonies list */}
+      {loading ? (
+        <div style={{ textAlign: 'center' as const, color: mut, fontFamily: crimson, fontStyle: 'italic', padding: 40 }}>Loading testimonies...</div>
+      ) : testimonies.length === 0 ? (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '40px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>✝</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: GG, letterSpacing: '0.08em', marginBottom: 8 }}>No Testimonies Yet</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>Be the first to share what God has done.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+          {testimonies.map(t => {
+            const isExpanded = expandedId === t.id
+            const preview = t.body.length > 200 ? t.body.slice(0, 200) + '...' : t.body
+            const initial = (t.user_name || 'A')[0].toUpperCase()
+            return (
+              <div key={t.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '20px 22px', borderLeft: `3px solid ${GG}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 12, color: GG, flexShrink: 0, overflow: 'hidden' }}>
+                    {t.user_image ? <img src={t.user_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : initial}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{t.user_name}</div>
+                    <div style={{ fontSize: 10, color: mut, marginTop: 1 }}>
+                      {categoryLabels[t.category] || t.category} · {new Date(t.approved_at || t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, letterSpacing: '0.04em', marginBottom: 10 }}>{t.title}</div>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7, marginBottom: t.body.length > 200 ? 10 : 0 }}>
+                  {isExpanded ? t.body : preview}
+                </div>
+                {t.body.length > 200 && (
+                  <button onClick={() => setExpandedId(isExpanded ? null : t.id)}
+                    style={{ background: 'none', border: 'none', color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>
+                    {isExpanded ? '▲ Show Less' : '▼ Read More'}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── WAR ROOM CHAT VIEW ─────────────────────────────────────
 interface WarRoomChatViewProps {
   streamToken: string
@@ -3715,6 +3880,7 @@ function CommunityPage() {
         {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
         {navItem('War Room Chat', 'war-room-chat', '✕')}
+        {navItem('Testimony Wall', 'testimony-wall', '✝')}
 
         {/* ── INTELLIGENCE ── */}
         {sectionLabel('Intelligence')}
@@ -3895,6 +4061,17 @@ function CommunityPage() {
         {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'arsenal'     && <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'testimony-wall' && (
+          <TestimonyWallView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            userId={user?.id || ''}
+            userName={user?.firstName || 'Warrior'}
+            userTier={tier}
+            userImage={user?.imageUrl || ''}
+          />
+        )}
 
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
@@ -4071,6 +4248,7 @@ function CommunityPage() {
                 <div>
                   <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{user?.firstName || 'You'}</div>
                   <TierBadge tier={tier} />
+                  <div style={{ fontSize: 9, color: V.mut, marginTop: 1, fontFamily: crimson }}>Active now</div>
                 </div>
               </div>
               {/* Other members — sorted by last active */}
@@ -4126,8 +4304,10 @@ function CommunityPage() {
                             member.lastSignInAt ||
                             member.last_active_at ||
                             member.last_sign_in_at ||
-                            (member as any).lastActiveAt ||
-                            (member as any).lastSignInAt
+                            member.updatedAt ||
+                            member.updated_at ||
+                            member.createdAt ||
+                            member.created_at
                           )}
                         </div>
                       </div>

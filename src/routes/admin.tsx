@@ -886,7 +886,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   // Demons
   const [demons, setDemons]     = useState<any[]>([])
   const [dLoading, setDLoading] = useState(true)
-  const [quickFilter, setQuickFilter] = useState<'all' | 'missing-seq' | 'missing-sc'>('all')
+  const [quickFilter, setQuickFilter] = useState<'all' | 'missing-seq' | 'missing-sc' | 'missing-notes' | 'recent'>('all')
 
   // Table controls
   const [search, setSearch]       = useState('')
@@ -914,7 +914,10 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
       const res = await fetch('/api/demons')
       const d = await res.json()
       setDemons(d.demons || [])
-      if (d.demons?.length > 0) console.log('DEMON KEYS:', Object.keys(d.demons[0] || {}))
+      if (d.demons?.length > 0) {
+        console.log('DEMON SAMPLE KEYS:', Object.keys(d.demons[0] || {}))
+        console.log('DEMON SAMPLE VALUES:', JSON.stringify(d.demons[0] || {}))
+      }
     } catch { setDemons([]) }
     finally { setDLoading(false) }
   }
@@ -934,13 +937,28 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
   }
 
   useEffect(() => { fetchPosts(); fetchLinks(); fetchDemons() }, [])
-  const emptySeq = dLoading ? null : demons.filter(d => !d.deliveranceSequence || String(d.deliveranceSequence).trim() === '').length
-  const emptySc  = dLoading ? null : demons.filter(d => !d.counterScriptures  || String(d.counterScriptures).trim()  === '').length
+  const emptySeq = dLoading ? null : demons.filter(d => {
+    const val = d.deliveranceSequence || d['Deliverance Sequence'] || d.deliverance_sequence
+    return !val || String(val).trim() === ''
+  }).length
+  const emptySc = dLoading ? null : demons.filter(d => {
+    const val = d.counterScriptures || d['Counter Scriptures'] || d.counter_scriptures
+    return !val || String(val).trim() === ''
+  }).length
+  const emptyNotes = dLoading ? null : demons.filter(d =>
+    !d.operationalNotes || String(d.operationalNotes).trim() === ''
+  ).length
+  const recentlyAdded = dLoading ? null : demons.filter(d => {
+    if (!d.createdTime) return false
+    return Date.now() - new Date(d.createdTime).getTime() < 30 * 24 * 60 * 60 * 1000
+  }).length
 
   // Filtered + sorted + paginated
   const filtered = demons
-    .filter(d => quickFilter === 'missing-seq' ? (!d.deliveranceSequence || String(d.deliveranceSequence).trim() === '') :
-                 quickFilter === 'missing-sc'  ? (!d.counterScriptures  || String(d.counterScriptures).trim()  === '') : true)
+    .filter(d => quickFilter === 'missing-seq'   ? (!d.deliveranceSequence || String(d.deliveranceSequence).trim() === '') :
+                 quickFilter === 'missing-sc'    ? (!d.counterScriptures  || String(d.counterScriptures).trim()  === '') :
+                 quickFilter === 'missing-notes' ? (!d.operationalNotes   || String(d.operationalNotes).trim()   === '') :
+                 quickFilter === 'recent'        ? (d.createdTime ? (Date.now() - new Date(d.createdTime).getTime() < 30*24*60*60*1000) : false) : true)
     .filter(d => !search || d.name.toLowerCase().includes(search.toLowerCase()))
     .filter(d => !filterCat || d.hierarchyCategory === filterCat)
     .sort((a, b) => {
@@ -1098,9 +1116,9 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
       <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' as const }}>
         {([
           ['Total Entries',              dLoading ? null : demons.length, G,                                            'all'        ],
-          ['Missing Del. Sequence',      emptySeq,                        emptySeq === null || emptySeq === 0 ? '#4ade80' : '#f97316', 'missing-seq'],
-          ['Missing Counter Scriptures', emptySc,                         emptySc  === null || emptySc  === 0 ? '#4ade80' : '#f97316', 'missing-sc' ],
-        ] as [string, number | null, string, 'all' | 'missing-seq' | 'missing-sc'][]).map(([label, val, color, qf]) => (
+          ['Missing Notes',    emptyNotes,    emptyNotes === null || emptyNotes === 0 ? '#4ade80' : '#f97316', 'missing-notes'],
+          ['Added This Month', recentlyAdded, recentlyAdded === null ? '#4ade80' : G,                         'recent'       ],
+        ] as [string, number | null, string, 'all' | 'missing-seq' | 'missing-sc' | 'missing-notes' | 'recent'][]).map(([label, val, color, qf]) => (
           <button key={label}
             onClick={() => { if (!dLoading) { setQuickFilter(qf === quickFilter ? 'all' : qf); setPage(0) } }}
             style={{ background: quickFilter === qf ? `${color}15` : SURF, border: `1px solid ${quickFilter === qf ? color : BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: dLoading ? 'default' : 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
@@ -1135,7 +1153,7 @@ function IntelArchive({ getToken }: { getToken: () => Promise<string | null> }) 
         <button onClick={exportCSV} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, padding: '7px 14px', color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>↓ CSV</button>
         {quickFilter !== 'all' && (
           <button onClick={() => setQuickFilter('all')} style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 999, padding: '3px 12px', color: G, fontSize: 11, fontFamily: cinzel, cursor: 'pointer', flexShrink: 0 }}>
-            ✕ {quickFilter === 'missing-seq' ? 'Missing Sequence' : 'Missing Scriptures'}
+            ✕ {quickFilter === 'missing-seq' ? 'Missing Sequence' : quickFilter === 'missing-sc' ? 'Missing Scriptures' : quickFilter === 'missing-notes' ? 'Missing Notes' : 'Recent Additions'}
           </button>
         )}
       </div>
@@ -1349,6 +1367,18 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
   const [editingFb, setEditingFb] = useState<string | null>(null)
   const [editStatus, setEditStatus] = useState('')
   const [editNotes, setEditNotes]   = useState('')
+  const [testimonies, setTestimonies] = useState<any[]>([])
+  const [testLoading, setTestLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/testimonies?all=true', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setTestimonies(d.testimonies || []) }
+      setTestLoading(false)
+    }
+    load()
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -1434,6 +1464,66 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
           ))}
         </div>
       )}
+
+      {/* ── TESTIMONY QUEUE ── */}
+      <div style={{ marginTop: 32, borderTop: `1px solid ${BDR}`, paddingTop: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14 }}>
+          TESTIMONY QUEUE — {testimonies.filter(t => t.status === 'pending').length} pending
+        </div>
+        {testLoading ? (
+          <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading...</div>
+        ) : (
+          <div>
+            {testimonies.map(t => (
+              <div key={t.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 2 }}>{t.title}</div>
+                    <div style={{ fontSize: 10, color: DIM }}>{t.user_name} · {t.category} · {new Date(t.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: t.status === 'approved' ? 'rgba(74,222,128,0.1)' : t.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.1)', color: t.status === 'approved' ? '#4ade80' : t.status === 'rejected' ? '#ef4444' : G, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                    {t.status}
+                  </span>
+                </div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, lineHeight: 1.5, marginBottom: 10 }}>
+                  {t.body.slice(0, 150)}{t.body.length > 150 ? '...' : ''}
+                </div>
+                {t.status === 'pending' && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={async () => {
+                        const token = await getToken()
+                        await fetch(`/api/testimonies?id=${t.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ status: 'approved' }),
+                        })
+                        setTestimonies(prev => prev.map(x => x.id === t.id ? { ...x, status: 'approved', approved_at: new Date().toISOString() } : x))
+                      }}
+                      style={{ padding: '4px 14px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 5, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                    >✓ Approve</button>
+                    <button
+                      onClick={async () => {
+                        const token = await getToken()
+                        await fetch(`/api/testimonies?id=${t.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ status: 'rejected' }),
+                        })
+                        setTestimonies(prev => prev.map(x => x.id === t.id ? { ...x, status: 'rejected' } : x))
+                      }}
+                      style={{ padding: '4px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                    >✗ Reject</button>
+                  </div>
+                )}
+              </div>
+            ))}
+            {testimonies.length === 0 && (
+              <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No testimonies yet</div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
