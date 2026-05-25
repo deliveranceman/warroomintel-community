@@ -71,6 +71,21 @@ export const Route = createFileRoute('/api/demons')({
                 : [],
               relatedSpirits: r.fields['Related Spirits'] || '',
               createdTime: r.createdTime || '',
+              biblicalRank: r.fields['Biblical Rank'] || '',
+              transmissionVectors: r.fields['Transmission Vectors'] || '',
+              caseType: r.fields['Case Type'] || '',
+              clusterSpirits: r.fields['Cluster Spirits'] || '',
+              sessionIndicators: r.fields['Session Indicators'] || '',
+              demonicAgreements: r.fields['Demonic Agreements'] || '',
+              aftercareNotes: r.fields['Aftercare Notes'] || '',
+              etymologyNotes: r.fields['Etymology Notes'] || '',
+              archaeologyNotes: r.fields['Archaeology Notes'] || '',
+              scriptureContext: r.fields['Scripture Context'] || '',
+              resistanceSignature: r.fields['Resistance Signature'] || '',
+              institutionalExpression: r.fields['Institutional Expression'] || '',
+              prayerPoints: r.fields['Prayer Points'] || '',
+              isGenerational: r.fields['Is Generational'] === true || r.fields['Is Generational'] === 'true',
+              isTerritorial: r.fields['Is Territorial'] === true || r.fields['Is Territorial'] === 'true',
             }))
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')

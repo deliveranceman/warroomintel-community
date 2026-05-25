@@ -689,6 +689,11 @@ function blankSpiritFields(): Record<string, string> {
     'Counter Scriptures': '', 'Scripture Reference': '', 'Source / Orgin': '',
     'Kingdom': '', 'Strongman': '', 'Assignment': '',
     'Phonetic': '', 'Images': '', 'Related Spirits': '',
+    'Biblical Rank': '', 'Transmission Vectors': '', 'Case Type': '', 'Cluster Spirits': '',
+    'Session Indicators': '', 'Demonic Agreements': '', 'Aftercare Notes': '',
+    'Etymology Notes': '', 'Archaeology Notes': '', 'Scripture Context': '',
+    'Resistance Signature': '', 'Institutional Expression': '', 'Prayer Points': '',
+    'Is Generational': 'false', 'Is Territorial': 'false',
   }
 }
 
@@ -708,6 +713,21 @@ function demonToSpiritFields(d: any): Record<string, string> {
     'Phonetic': d.phonetic || '',
     'Images': Array.isArray(d.images) ? d.images.join('\n') : d.images || '',
     'Related Spirits': d.relatedSpirits || '',
+    'Biblical Rank': d.biblicalRank || '',
+    'Transmission Vectors': d.transmissionVectors || '',
+    'Case Type': d.caseType || '',
+    'Cluster Spirits': d.clusterSpirits || '',
+    'Session Indicators': d.sessionIndicators || '',
+    'Demonic Agreements': d.demonicAgreements || '',
+    'Aftercare Notes': d.aftercareNotes || '',
+    'Etymology Notes': d.etymologyNotes || '',
+    'Archaeology Notes': d.archaeologyNotes || '',
+    'Scripture Context': d.scriptureContext || '',
+    'Resistance Signature': d.resistanceSignature || '',
+    'Institutional Expression': d.institutionalExpression || '',
+    'Prayer Points': d.prayerPoints || '',
+    'Is Generational': String(d.isGenerational || false),
+    'Is Territorial': String(d.isTerritorial || false),
   }
 }
 
@@ -810,6 +830,54 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
             placeholder="Comma separated: Jezebel, Ahab, Leviathan"
             style={{ ...i }} />
         </div>
+
+        {/* Biblical Classification Section */}
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>⚔ Biblical Classification</div>
+        <div>
+          <label style={l}>Biblical Rank (Eph. 6:12)</label>
+          <select value={f('Biblical Rank')} onChange={e => setField('Biblical Rank', e.target.value)} style={{ ...i }}>
+            <option value="">— Select —</option>
+            {['Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(r => <option key={r}>{r}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={l}>Case Type</label>
+          <select value={f('Case Type')} onChange={e => setField('Case Type', e.target.value)} style={{ ...i }}>
+            <option value="">— Select —</option>
+            {['Personal Deliverance', 'Generational/Bloodline', 'Territorial/Regional', 'Institutional', 'Atmospheric/Intercessory', 'Multiple'].map(r => <option key={r}>{r}</option>)}
+          </select>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Transmission Vectors</label>{ta('Transmission Vectors', 2)}</div>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 24 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={f('Is Generational') === 'true'} onChange={e => setField('Is Generational', e.target.checked ? 'true' : 'false')} style={{ accentColor: G, width: 14, height: 14 }} />
+            <span style={{ fontFamily: crimson, fontSize: 13, color: TXT }}>Primarily Generational/Bloodline</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={f('Is Territorial') === 'true'} onChange={e => setField('Is Territorial', e.target.checked ? 'true' : 'false')} style={{ accentColor: G, width: 14, height: 14 }} />
+            <span style={{ fontFamily: crimson, fontSize: 13, color: TXT }}>Primarily Territorial/Regional</span>
+          </label>
+        </div>
+
+        {/* Operational Intelligence Section */}
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>🔍 Operational Intelligence</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Session Indicators</label>{ta('Session Indicators', 3)}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Resistance Signature</label>{ta('Resistance Signature', 2)}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Demonic Agreements / Lies Planted</label>{ta('Demonic Agreements', 3)}</div>
+        <div><label style={l}>Cluster Spirits (comma-separated)</label>{ti('Cluster Spirits')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Legal Rights Framework</label>{ta('Legal Rights Framework', 3)}</div>
+
+        {/* Scholarly Section */}
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>📚 Scholarly Research</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Etymology Notes</label>{ta('Etymology Notes', 3)}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Archaeology Notes</label>{ta('Archaeology Notes', 3)}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Scripture Context</label>{ta('Scripture Context', 4)}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Institutional Expression</label>{ta('Institutional Expression', 2)}</div>
+
+        {/* Ministry Section */}
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>🙏 Ministry Application</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Prayer Points</label>{ta('Prayer Points', 3)}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Aftercare Notes</label>{ta('Aftercare Notes', 3)}</div>
       </div>
       {msg && <div style={{ fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 12 }}>{msg}</div>}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
@@ -885,6 +953,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [newFields, setNewFields] = useState<Record<string, string>>(blankSpiritFields())
   const [newSaving, setNewSaving] = useState(false)
   const [newMsg, setNewMsg]       = useState('')
+
+  // AI Enhancement
+  const [aiTargetDemon, setAiTargetDemon] = useState<any>(null)
+  const [aiResult, setAiResult]           = useState<any>(null)
+  const [aiLoading, setAiLoading]         = useState(false)
+  const [showAiPanel, setShowAiPanel]     = useState(false)
+  const [aiMsg, setAiMsg]                 = useState('')
 
   async function fetchDemons() {
     setDLoading(true)
@@ -997,6 +1072,26 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         const d = await res.json(); setNewMsg(`⚠ ${d.error}`)
       }
     } finally { setNewSaving(false) }
+  }
+
+  async function runAiEnhance(demon: any) {
+    setAiTargetDemon(demon)
+    setAiResult(null)
+    setAiMsg('')
+    setShowAiPanel(true)
+    setAiLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/ai-spirit-enhance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ spiritName: demon.name, currentData: demon }),
+      })
+      const d = await res.json()
+      if (d.enhanced) { setAiResult(d.enhanced); setAiMsg('') }
+      else setAiMsg(d.error || 'AI enhancement failed')
+    } catch(e: any) { setAiMsg(e.message) }
+    finally { setAiLoading(false) }
   }
 
   async function savePost() {
@@ -1197,11 +1292,18 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                         : <span style={{ color: '#f97316', fontSize: 10 }}>⚠ Empty</span>}
                     </td>
                     <td style={{ ...tdS }}>
-                      <button
-                        onClick={() => editingId === d.airtableId ? setEditingId(null) : startEdit(d)}
-                        style={{ background: 'transparent', border: `1px solid ${editingId === d.airtableId ? G : BDR}`, borderRadius: 5, color: editingId === d.airtableId ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
-                        {editingId === d.airtableId ? 'Close' : 'Edit'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 4, flexDirection: 'column' }}>
+                        <button
+                          onClick={() => editingId === d.airtableId ? setEditingId(null) : startEdit(d)}
+                          style={{ background: 'transparent', border: `1px solid ${editingId === d.airtableId ? G : BDR}`, borderRadius: 5, color: editingId === d.airtableId ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                          {editingId === d.airtableId ? 'Close' : 'Edit'}
+                        </button>
+                        <button
+                          onClick={() => runAiEnhance(d)}
+                          style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.04em', padding: '3px 8px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                          ✦ AI
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   {editingId === d.airtableId && (
@@ -1327,6 +1429,112 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
               <button onClick={() => deleteLink(l.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>Remove</button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* AI Enhancement Panel */}
+      {showAiPanel && (
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, background: BG, borderLeft: `1px solid ${BDR}`, zIndex: 9999, display: 'flex', flexDirection: 'column' as const, boxShadow: '-4px 0 32px rgba(0,0,0,0.4)' }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 2 }}>✦ AI Research Panel</div>
+              {aiTargetDemon && <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{aiTargetDemon.name}</div>}
+            </div>
+            <button onClick={() => setShowAiPanel(false)} style={{ background: 'none', border: 'none', color: DIM, fontSize: 20, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+            {aiLoading && (
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚙ Researching...</div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>Consulting Scripture, archaeology, and deliverance ministry sources</div>
+              </div>
+            )}
+            {aiMsg && !aiLoading && (
+              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '12px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13 }}>{aiMsg}</div>
+            )}
+            {aiResult && !aiLoading && (() => {
+              const labels: Record<string, string> = {
+                description: '📖 Description',
+                type: '🏷 Entity Type',
+                biblicalRank: '⚔ Biblical Rank (Eph. 6:12)',
+                etymologyNotes: '📚 Etymology & Name Analysis',
+                archaeologyNotes: '🏺 Archaeological & ANE Context',
+                scriptureContext: '✝ Scripture Context',
+                primaryBattlefield: '🎯 Primary Battlefield',
+                manifestation: '⚠ Manifestations & Symptoms',
+                entryPoints: '🚪 Entry Points',
+                transmissionVectors: '🧬 Transmission Vectors',
+                caseType: '📋 Case Type',
+                clusterSpirits: '🕸 Cluster Spirits',
+                legalRights: '⚖ Legal Rights Framework',
+                sessionIndicators: '🔍 Session Indicators',
+                resistanceSignature: '🛡 Resistance Signature',
+                demonicAgreements: '🤥 Demonic Agreements & Lies',
+                institutionalExpression: '🏛 Institutional Expression',
+                counterScriptures: '🗡 Counter Scriptures',
+                deliveranceSequence: '📋 Deliverance Sequence',
+                aftercareNotes: '🌱 Aftercare Notes',
+                prayerPoints: '🙏 Prayer Points',
+                phonetic: '🔊 Phonetic Pronunciation',
+                biblicalReferences: '📖 Biblical References',
+                isGenerational: '🧬 Generational?',
+                isTerritorial: '🗺 Territorial?',
+              }
+              const applyAllAndSave = async () => {
+                const merged = {
+                  ...aiTargetDemon,
+                  ...aiResult,
+                  isGenerational: aiResult.isGenerational !== undefined ? aiResult.isGenerational : aiTargetDemon.isGenerational,
+                  isTerritorial: aiResult.isTerritorial !== undefined ? aiResult.isTerritorial : aiTargetDemon.isTerritorial,
+                }
+                setAiTargetDemon(merged)
+                setDemons((prev: any[]) => prev.map(d => d.id === aiTargetDemon.id ? merged : d))
+                // Save to Airtable
+                const token = await getToken()
+                await fetch('/api/admin-demon', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ id: aiTargetDemon.airtableId, fields: merged }),
+                })
+                setAiMsg('✓ All fields applied and saved to Airtable')
+              }
+              return (
+                <div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                    <button onClick={applyAllAndSave}
+                      style={{ flex: 1, padding: '10px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
+                      ✓ Apply All + Save to Airtable
+                    </button>
+                    <button onClick={() => { setAiResult(null); setAiMsg(''); runAiEnhance(aiTargetDemon) }}
+                      style={{ padding: '10px 14px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 8, color: DIM, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                      ↺ Re-run
+                    </button>
+                  </div>
+                  {Object.entries(aiResult).map(([key, value]: [string, any]) => {
+                    if (!value && value !== false || !labels[key]) return null
+                    return (
+                      <div key={key} style={{ marginBottom: 12, background: 'rgba(201,168,76,0.03)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{labels[key]}</div>
+                          <button
+                            onClick={() => {
+                              setDemons((prev: any[]) => prev.map(d => d.id === aiTargetDemon.id ? { ...d, [key]: value } : d))
+                              setAiTargetDemon((prev: any) => ({ ...prev, [key]: value }))
+                            }}
+                            style={{ fontSize: 8, padding: '2px 8px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, color: G, fontFamily: cinzel, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                            Apply
+                          </button>
+                        </div>
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.6 }}>
+                          {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </div>
         </div>
       )}
     </div>

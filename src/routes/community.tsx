@@ -2415,6 +2415,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [spiritResources, setSpiritResources] = useState<any[]>([])
   const [loadingResources, setLoadingResources] = useState(false)
+  const [modalTab, setModalTab] = useState<'overview' | 'intelligence' | 'warfare' | 'scholarly'>('overview')
+  const [rankFilter, setRankFilter] = useState('')
+  const [generationalFilter, setGenerationalFilter] = useState(false)
+  const [territorialFilter, setTerritorialFilter] = useState(false)
+  const [showLegend, setShowLegend] = useState(false)
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -2441,6 +2446,14 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
       .then(d => { setEntries(d.demons || d.records || []) })
       .catch(console.error)
       .finally(() => setDbLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const seen = localStorage.getItem('wri-archive-legend-seen')
+    if (!seen) {
+      setShowLegend(true)
+      localStorage.setItem('wri-archive-legend-seen', 'true')
+    }
   }, [])
 
   const CLASS_COLOR: Record<string, string> = {
@@ -2475,7 +2488,10 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
       e.hierarchyCategory, e.deliveranceSequence, e.counterScriptures, e.operationalNotes,
     ].some(s => s && String(s).toLowerCase().includes(query.toLowerCase()))
     const matchesCat = !categoryFilter || e.hierarchyCategory === categoryFilter
-    return matchesSearch && matchesCat
+    const matchesRank = !rankFilter || (e.biblicalRank || '').toLowerCase().includes(rankFilter.toLowerCase())
+    const matchesGen = !generationalFilter || e.isGenerational === true
+    const matchesTerr = !territorialFilter || e.isTerritorial === true
+    return matchesSearch && matchesCat && matchesRank && matchesGen && matchesTerr
   })
 
   const dbIsDark = theme !== 'light'
@@ -2500,18 +2516,25 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
           )}
           <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: G }}>⚔ INTEL DATABASE</span>
         </div>
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search spirits, symptoms, manifestations, entry points..."
-          style={{
-            width: '100%', padding: '10px 14px',
-            background: dbBg, border: `1px solid ${query ? G : dbBorder}`,
-            borderRadius: 8, fontFamily: crimson, fontSize: 15,
-            color: dbText, outline: 'none', boxSizing: 'border-box',
-            marginBottom: 4, transition: 'border-color 0.2s',
-          }}
-        />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search spirits, symptoms, manifestations, entry points..."
+            style={{
+              flex: 1, padding: '10px 14px',
+              background: dbBg, border: `1px solid ${query ? G : dbBorder}`,
+              borderRadius: 8, fontFamily: crimson, fontSize: 15,
+              color: dbText, outline: 'none', boxSizing: 'border-box' as const,
+              marginBottom: 4, transition: 'border-color 0.2s',
+            }}
+          />
+          <button
+            onClick={() => setShowLegend(true)}
+            style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, color: G, fontFamily: cinzel, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            title="How to use the Intel Archive"
+          >?</button>
+        </div>
         <p style={{ fontSize: 11, color: dbDim, marginTop: 4, marginBottom: 8 }}>
           Search by name, symptom, manifestation, entry point, or emotional pattern
         </p>
@@ -2541,6 +2564,26 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
               </button>
             )
           })}
+        </div>
+        {/* Biblical rank filter */}
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginTop: 8 }}>
+          {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
+            <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
+              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
+              {rank}
+            </button>
+          ))}
+        </div>
+        {/* Generational / Territorial badges */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 6 }}>
+          <button onClick={() => setGenerationalFilter(f => !f)}
+            style={{ padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
+            🧬 Generational
+          </button>
+          <button onClick={() => setTerritorialFilter(f => !f)}
+            style={{ padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${territorialFilter ? '#8B9DCA' : dbBorder}`, background: territorialFilter ? 'rgba(139,157,202,0.15)' : 'transparent', color: territorialFilter ? '#8B9DCA' : dbDim }}>
+            🗺 Territorial
+          </button>
         </div>
       </div>
 
@@ -2611,6 +2654,21 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                 </span>
               )}
 
+              {/* Rank + generational/territorial badges */}
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: entry.aka ? 0 : 6 }}>
+                {entry.biblicalRank && (
+                  <span style={{ fontSize: 8, color: G, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '1px 6px', fontFamily: cinzel, letterSpacing: '0.04em' }}>
+                    {entry.biblicalRank}
+                  </span>
+                )}
+                {entry.isGenerational && (
+                  <span style={{ fontSize: 8, color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 10, padding: '1px 6px', fontFamily: cinzel, letterSpacing: '0.04em' }}>🧬 Gen.</span>
+                )}
+                {entry.isTerritorial && (
+                  <span style={{ fontSize: 8, color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', borderRadius: 10, padding: '1px 6px', fontFamily: cinzel, letterSpacing: '0.04em' }}>🗺 Terr.</span>
+                )}
+              </div>
+
               {/* Aliases */}
               {aliases && (
                 <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginBottom: 6 }}>
@@ -2656,316 +2714,314 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
       {/* Intel Dossier Modal */}
       {selectedEntry && (() => {
         const entry = selectedEntry
-        const name           = entry.name || 'Unknown'
-        const cls            = entry.type || entry.rank || ''
-        const aliases        = entry.aka || ''
-        const description    = entry.description || ''
-        const manifestations = entry.manifestation || ''
-        const companions     = entry.companionSpirits || ''
-        const scriptures     = entry.scripture || ''
-        const protocol       = entry.protocol || ''
-        const wriNotes       = entry.wriNotes || ''
-        const entryPoints    = entry.entryPoints || ''
-        const legalRights    = entry.legalRights || ''
-        const symptoms       = entry.symptoms || ''
-        const color          = getColor(cls)
-        const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
+        const name  = entry.name || 'Unknown'
+        const cls   = entry.type || entry.rank || ''
+        const color = getColor(cls)
+        const bdr   = dbBorder
+        const surf  = dbSurf
+        const txt   = dbText
+        const mut   = dbDim
+        const MODAL_STRIPE: Record<string, string> = {
+          soldier: STRIPE_LINKS.soldier, commander: STRIPE_LINKS.commander, general: STRIPE_LINKS.general,
+        }
+
+        const TierGate = ({ tierName, children }: { tierName: string; children: React.ReactNode }) => {
+          if (atLeast(tierName)) return <>{children}</>
+          return (
+            <div style={{ padding: '40px 24px', textAlign: 'center' as const, background: 'rgba(201,168,76,0.03)', borderRadius: 10, border: `1px solid ${bdr}` }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🔒</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em', marginBottom: 8 }}>{tierName} Access Required</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 16, fontStyle: 'italic' }}>Reserved for {tierName} tier members and above.</div>
+              <button onClick={() => window.open(MODAL_STRIPE[tierName.toLowerCase()] || '/membership', '_blank')}
+                style={{ padding: '10px 24px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase' as const }}>
+                Upgrade to Unlock
+              </button>
+            </div>
+          )
+        }
+
+        const FieldBlock = ({ label, value, color: c }: { label: string; value: string | null | undefined; color?: string }) => {
+          if (!value) return null
+          return (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: (c || color) + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>{label}</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65 }}>{value}</div>
+            </div>
+          )
+        }
 
         return (
-          <div
-            onClick={() => setSelectedEntry(null)}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 9999,
-              background: 'rgba(0,0,0,0.75)',
-              display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center',
-              padding: isMobile ? 8 : 20,
-              paddingTop: isMobile ? 20 : undefined,
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              style={{
-                background: dbSurf,
-                border: `1px solid ${color}55`,
-                borderLeft: `4px solid ${color}`,
-                borderRadius: 12,
-                width: isMobile ? '95vw' : '100%',
-                maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700,
-                margin: isMobile ? '10px' : undefined,
-                maxHeight: isMobile ? '90vh' : '85vh',
-                overflowY: 'auto' as const,
-                padding: 28,
-                position: 'relative',
-              }}
-            >
-              {/* Close button */}
-              <button
-                onClick={() => setSelectedEntry(null)}
-                style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: dbDim, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}
-              >✕</button>
+          <div onClick={() => setSelectedEntry(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? 8 : 20, paddingTop: isMobile ? 20 : undefined, backdropFilter: 'blur(4px)' }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto' as const, padding: 28, position: 'relative' }}>
 
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 22, color, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>{name}</div>
-                  {cls && <div style={{ display: 'inline-block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', background: color + '22', color, padding: '3px 10px', borderRadius: 4 }}>{cls.toUpperCase()}</div>}
+              <button onClick={() => setSelectedEntry(null)}
+                style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
+
+              {/* Name + badges header */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 22, color, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>{name}</div>
+                {entry.phonetic && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</span>
+                    <button onClick={() => { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(entry.phonetic); u.rate = 0.75; u.pitch = 0.9; window.speechSynthesis.speak(u) } }}
+                      style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '2px 10px', color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                      🔊 Hear
+                    </button>
+                  </div>
+                )}
+                {/* Classification badges */}
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                  {cls && <span style={{ fontFamily: cinzel, fontSize: 8, background: color + '22', color, padding: '3px 10px', borderRadius: 4 }}>{cls.toUpperCase()}</span>}
+                  {entry.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(201,168,76,0.12)', color: G, border: '1px solid rgba(201,168,76,0.3)', padding: '3px 10px', borderRadius: 4 }}>⚔ {entry.biblicalRank}</span>}
+                  {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
+                  {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
+                  {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', padding: '3px 10px', borderRadius: 4 }}>🗺 Territorial</span>}
                 </div>
               </div>
 
-              {/* Phonetic + Hear It */}
-              {entry.phonetic && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <div style={{ fontFamily: crimson, fontSize: 15, color: dbDim, fontStyle: 'italic' }}>
-                    /{entry.phonetic}/
-                  </div>
-                  <button
-                    onClick={() => {
-                      if ('speechSynthesis' in window) {
-                        window.speechSynthesis.cancel()
-                        const utterance = new SpeechSynthesisUtterance(entry.phonetic)
-                        utterance.rate = 0.75
-                        utterance.pitch = 0.9
-                        window.speechSynthesis.speak(utterance)
-                      }
-                    }}
-                    style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                  >
-                    🔊 Hear It
+              {/* Tab bar */}
+              <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 20, overflowX: 'auto' as const }}>
+                {([
+                  { key: 'overview', label: '📖 Overview' },
+                  { key: 'intelligence', label: '🔍 Intel' },
+                  { key: 'warfare', label: '⚔ Warfare' },
+                  { key: 'scholarly', label: '📚 Research' },
+                ] as const).map(t => (
+                  <button key={t.key} onClick={() => setModalTab(t.key)}
+                    style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: modalTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: modalTab === t.key ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
+                    {t.label}
                   </button>
-                  {entry.audio_url && (
-                    <audio controls style={{ height: 28, flex: 1 }}>
-                      <source src={entry.audio_url} />
-                    </audio>
-                  )}
-                </div>
-              )}
+                ))}
+              </div>
 
-              {aliases && (
-                <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, fontStyle: 'italic', marginBottom: 14 }}>aka {aliases}</div>
-              )}
-
-              {/* Image Gallery */}
-              {entry.images && entry.images.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Historical Depictions</div>
-                  <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                    {(Array.isArray(entry.images) ? entry.images : String(entry.images).split(',').map((s: string) => s.trim()).filter(Boolean)).map((img: string, i: number) => (
-                      <div key={i} style={{ flexShrink: 0, width: 140, height: 140, borderRadius: 8, overflow: 'hidden', border: `1px solid ${dbBorder}`, background: 'rgba(0,0,0,0.3)', cursor: 'pointer' }}
-                        onClick={() => window.open(img, '_blank')}>
-                        <img src={img} alt={`${name} depiction ${i + 1}`}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' as const }}
-                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 10, color: dbDim, fontFamily: crimson, fontStyle: 'italic', marginTop: 6 }}>
-                    Historical and artistic depictions — click to view full size
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              {description && (
-                <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${dbBorder}` }}>
-                  <div style={{ fontFamily: crimson, fontSize: 16, color: dbText, lineHeight: 1.7 }}>{description}</div>
-                </div>
-              )}
-
-              {/* Tier-gated fields */}
-              {[
-                { label: 'ENTRY POINTS',        value: entryPoints,    tierName: 'Commander' },
-                { label: 'LEGAL RIGHTS',         value: legalRights,    tierName: 'Commander' },
-                { label: 'MANIFESTATIONS',       value: manifestations, tierName: 'Soldier'   },
-                { label: 'SYMPTOMS',             value: symptoms,       tierName: 'General'   },
-                { label: 'DELIVERANCE PROTOCOL', value: protocol || entry.deliveranceSequence, tierName: 'General' },
-                { label: 'WRI EXORCIST NOTES',   value: wriNotes,       tierName: 'General'   },
-              ].map(({ label, value, tierName }) => (
-                (value || atLeast('General')) && (
-                  <div key={label} style={{ marginBottom: 14 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6 }}>{label}</div>
-                    {atLeast(tierName)
-                      ? <div style={{ fontFamily: crimson, fontSize: 14, color: value ? dbText : dbDim, lineHeight: 1.65, fontStyle: value ? 'normal' : 'italic' }}>{value || 'No data on file'}</div>
-                      : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
-                    }
-                  </div>
-                )
-              ))}
-
-              {/* Key Scriptures */}
-              {(scriptures || atLeast('General')) && (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: G + 'BB', marginBottom: 6 }}>KEY SCRIPTURES</div>
-                  {atLeast('Commander')
-                    ? <div style={{ fontFamily: crimson, fontSize: 14, color: scriptures ? G : dbDim, lineHeight: 1.65, fontStyle: 'italic' }}>{scriptures || 'No data on file'}</div>
-                    : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 Commander tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
-                  }
-                </div>
-              )}
-
-              {/* Companions */}
-              {companionList.length > 0 && (
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${dbBorder}` }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8 }}>COMPANION SPIRITS</div>
-                  {atLeast('Commander')
-                    ? <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {companionList.map((c: string, ci: number) => (
-                          <span key={ci}
-                            onClick={() => { setSelectedEntry(null); setQuery(c) }}
-                            style={{ fontFamily: cinzel, fontSize: 9, color, border: `1px solid ${color}44`, padding: '3px 10px', borderRadius: 4, cursor: 'pointer' }}
-                            title={`Search for ${c}`}>{c}</span>
+              {/* TAB 1: OVERVIEW */}
+              {modalTab === 'overview' && (
+                <div>
+                  {/* Image gallery */}
+                  {entry.images && entry.images.length > 0 && (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Historical Depictions</div>
+                      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+                        {(Array.isArray(entry.images) ? entry.images : String(entry.images).split(',').map((s: string) => s.trim()).filter(Boolean)).map((img: string, i: number) => (
+                          <div key={i} style={{ flexShrink: 0, width: 120, height: 120, borderRadius: 8, overflow: 'hidden', border: `1px solid ${bdr}`, cursor: 'pointer' }}
+                            onClick={() => window.open(img, '_blank')}>
+                            <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }}
+                              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                          </div>
                         ))}
                       </div>
-                    : <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>🔒 Commander tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a></div>
-                  }
-                </div>
-              )}
-
-              {/* ── Operational Intelligence ── */}
-              {(entry.hierarchyCategory || entry.primaryBattlefield || entry.personalityPresentation || entry.deliveranceSequence || entry.counterScriptures || entry.operationalNotes || entry.parentStrongman) && (
-                <div style={{ marginTop: 24, borderTop: `1px solid rgba(201,168,76,0.2)`, paddingTop: 20 }}>
-                  <div style={{ color: '#C9A84C', fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 16 }}>
-                    ⚔ Operational Intelligence
-                  </div>
-
+                    </div>
+                  )}
+                  {entry.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 14 }}>aka {entry.aka}</div>}
+                  <FieldBlock label="Description" value={entry.description} />
+                  <FieldBlock label="Primary Battlefield" value={entry.primaryBattlefield} />
+                  {/* Hierarchy category */}
                   {entry.hierarchyCategory && (() => {
                     const cat = entry.hierarchyCategory
                     const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
                     return (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Kingdom Category</div>
-                        <span style={{ padding: '5px 14px', borderRadius: 999, fontSize: 12, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, letterSpacing: '0.05em', display: 'inline-block' }}>
-                          {cat}
-                        </span>
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Kingdom Category</div>
+                        <span style={{ padding: '5px 14px', borderRadius: 999, fontSize: 12, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, letterSpacing: '0.05em', display: 'inline-block' }}>{cat}</span>
                       </div>
                     )
                   })()}
+                </div>
+              )}
 
-                  {entry.primaryBattlefield && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Primary Battlefield</div>
-                      <div style={{ color: '#E8D5B0', fontSize: 14 }}>
-                        {BATTLEFIELD_ICONS[entry.primaryBattlefield] || '⚔'} {entry.primaryBattlefield}
+              {/* TAB 2: INTELLIGENCE */}
+              {modalTab === 'intelligence' && (
+                <TierGate tierName="Commander">
+                  <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation} />
+                  <FieldBlock label="Session Indicators" value={entry.sessionIndicators} />
+                  <FieldBlock label="Resistance Signature" value={entry.resistanceSignature} />
+                  <FieldBlock label="Demonic Agreements & Lies" value={entry.demonicAgreements} />
+                  <FieldBlock label="Entry Points" value={entry.entryPoints} />
+                  <FieldBlock label="Transmission Vectors" value={entry.transmissionVectors} />
+                  {entry.clusterSpirits && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cluster Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {String(entry.clusterSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
+                          const linked = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={n} onClick={() => linked && setSelectedEntry(linked)}
+                              style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
+                  <FieldBlock label="Legal Rights Framework" value={entry.legalRights} />
+                  <FieldBlock label="Institutional Expression" value={entry.institutionalExpression} />
+                </TierGate>
+              )}
 
-                  {entry.personalityPresentation && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Typical Personality Presentation</div>
-                      <div style={{ color: '#E8D5B0', fontSize: 14 }}>{entry.personalityPresentation}</div>
-                    </div>
-                  )}
-
+              {/* TAB 3: WARFARE */}
+              {modalTab === 'warfare' && (
+                <TierGate tierName="Soldier">
+                  <FieldBlock label="Counter Scriptures" value={entry.counterScriptures || entry.scripture} color={G} />
                   {entry.deliveranceSequence && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Deliverance Sequence</div>
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Deliverance Sequence</div>
                       <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
                         {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
-                          <span key={i}>
-                            <span style={{ color: '#E8D5B0' }}>{step.trim()}</span>
-                            {i < arr.length - 1 && <span style={{ color: '#C9A84C', margin: '0 6px' }}>→</span>}
-                          </span>
+                          <span key={i}><span style={{ color: txt }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: G, margin: '0 6px' }}>→</span>}</span>
                         ))}
                       </div>
                     </div>
                   )}
-
-                  {entry.counterScriptures && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Counter Scriptures</div>
-                      <div style={{ background: 'rgba(0,30,10,0.5)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#86efac', fontFamily: crimson }}>
-                        📖 {entry.counterScriptures}
+                  {entry.prayerPoints && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Prayer Points</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                        {String(entry.prayerPoints).split(/\n|\d+\./).filter((s: string) => s.trim()).map((p: string, i: number) => (
+                          <div key={i} style={{ background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, padding: '10px 14px', fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6 }}>
+                            {p.trim()}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
-
-                  {entry.operationalNotes && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Operational Notes</div>
-                      <div style={{ color: '#B8A882', fontSize: 13, lineHeight: 1.6, fontStyle: 'italic' }}>{entry.operationalNotes}</div>
+                  <FieldBlock label="Aftercare Notes" value={entry.aftercareNotes} />
+                  {/* Spirit connections */}
+                  {(entry.parentStrongman || entry.relatedSpirits) && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>🕸 Spirit Connections</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {entry.parentStrongman && (
+                          <div style={{ width: '100%', marginBottom: 4 }}>
+                            <span style={{ color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>UNDER STRONGMAN: </span>
+                            <button onClick={() => { const p = entries.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
+                              style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                              {entry.parentStrongman}
+                            </button>
+                          </div>
+                        )}
+                        {entry.relatedSpirits && String(entry.relatedSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
+                          const rel = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={n} onClick={() => rel && setSelectedEntry(rel)}
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: rel ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: rel ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   )}
-
-                  {entry.parentStrongman && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Parent Strongman</div>
-                      <div style={{ color: '#E8D5B0', fontSize: 14 }}>👑 {entry.parentStrongman}</div>
+                  {/* Related Arsenal resources */}
+                  {spiritResources.length > 0 && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>📎 Related Resources</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {spiritResources.map((r: any) => (
+                          <div key={r.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 16 }}>📄</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title}</div>
+                              <div style={{ fontSize: 10, color: mut }}>{r.topic || r.category}</div>
+                            </div>
+                            <button onClick={async () => {
+                              const token = await getToken()
+                              const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } })
+                              if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = r.title; a.click(); URL.revokeObjectURL(url) }
+                            }} style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel }}>↓ Get</button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                </div>
+                </TierGate>
               )}
 
-              {/* Spirit Connections */}
-              {(entry.parentStrongman || entry.relatedSpirits) && (
-                <div style={{ marginTop: 20, marginBottom: 20 }}>
-                  <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>🕸 Spirit Connections</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                    {entry.parentStrongman && (
-                      <div style={{ fontSize: 11, color: dbDim, fontFamily: crimson, width: '100%', marginBottom: 4 }}>
-                        <span style={{ color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>UNDER STRONGMAN: </span>
-                        <button
-                          onClick={() => {
-                            const parent = entries.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase())
-                            if (parent) setSelectedEntry(parent)
-                          }}
-                          style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
-                        >
-                          {entry.parentStrongman}
-                        </button>
-                      </div>
-                    )}
-                    {entry.relatedSpirits && String(entry.relatedSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((spiritName: string) => {
-                      const related = entries.find((d: any) => d.name?.toLowerCase() === spiritName.toLowerCase())
-                      return (
-                        <button key={spiritName}
-                          onClick={() => related && setSelectedEntry(related)}
-                          style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: related ? G : dbDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: related ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
-                          {spiritName}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+              {/* TAB 4: SCHOLARLY */}
+              {modalTab === 'scholarly' && (
+                <TierGate tierName="General">
+                  <FieldBlock label="Etymology & Name Analysis" value={entry.etymologyNotes} />
+                  <FieldBlock label="Archaeological & ANE Context" value={entry.archaeologyNotes} />
+                  <FieldBlock label="Scripture Context" value={entry.scriptureContext} />
+                  {entry.counterScriptures && <FieldBlock label="Counter Scriptures" value={entry.counterScriptures} color={G} />}
+                  <FieldBlock label="Biblical References" value={entry.biblicalReferences} />
+                  <FieldBlock label="WRI Exorcist Notes" value={entry.wriNotes} />
+                </TierGate>
               )}
 
-              {/* Related Arsenal Resources */}
-              {spiritResources.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>📎 Related Resources</div>
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
-                    {spiritResources.map((r: any) => (
-                      <div key={r.id} style={{ background: dbSurf, border: `1px solid ${dbBorder}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 16, flexShrink: 0 }}>📄</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 11, color: dbText, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title}</div>
-                          <div style={{ fontSize: 10, color: dbDim, marginTop: 1 }}>{r.topic || r.category}</div>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            const token = await getToken()
-                            const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, {
-                              headers: { Authorization: `Bearer ${token}` },
-                            })
-                            if (res.ok) {
-                              const blob = await res.blob()
-                              const url = URL.createObjectURL(blob)
-                              const a = document.createElement('a')
-                              a.href = url; a.download = r.title; a.click()
-                              URL.revokeObjectURL(url)
-                            }
-                          }}
-                          style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', flexShrink: 0 }}
-                        >↓ Get</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )
       })()}
+
+      {/* Intel Archive Legend */}
+      {showLegend && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowLegend(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: dbIsDark ? '#0D0B14' : '#f5f0e8', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 14, width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', padding: '28px 32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>📚 Intel Archive Guide</div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, fontStyle: 'italic' }}>Understanding your intelligence database</div>
+              </div>
+              <button onClick={() => setShowLegend(false)} style={{ background: 'none', border: 'none', color: dbDim, fontSize: 22, cursor: 'pointer' }}>×</button>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>What Is This?</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: dbText, lineHeight: 1.7 }}>
+                The Intel Archive is a comprehensive spiritual warfare database containing intelligence on demonic entities, principalities, and spiritual forces. Each entry is a complete dossier drawing from Scripture, biblical archaeology, etymology, and decades of deliverance ministry research. This is not a casual reference — it is a minister's field manual.
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Biblical Hierarchy (Ephesians 6:12)</div>
+              {[
+                { rank: 'Principality', color: '#ef4444', desc: 'Ruling spirits over nations and regions. Highest rank. Require territorial-level authority to displace.', ref: 'Dan. 10:13 — "Prince of Persia"' },
+                { rank: 'Power', color: '#f97316', desc: 'Delegated authority — enforce the will of principalities. Assigned to cities, institutions, and families.', ref: 'Eph. 1:21, Col. 2:15' },
+                { rank: 'Ruler of Darkness', color: '#8b5cf6', desc: 'Control world systems — media, government, education, finance, false religion.', ref: 'John 12:31 — "prince of this world"' },
+                { rank: 'Spiritual Wickedness', color: '#6366f1', desc: 'Atmospheric spirits in the heavenly realms. Affect thoughts and spiritual climate.', ref: 'Eph. 2:2 — "prince of the power of the air"' },
+                { rank: 'Demon / Familiar Spirit', color: '#9a8c74', desc: 'Ground-level spirits. Personal assignment, generational access, operate in individuals.', ref: 'Luke 13:11, Mark 5:9' },
+              ].map(item => (
+                <div key={item.rank} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: `${item.color}10`, border: `1px solid ${item.color}30`, borderLeft: `3px solid ${item.color}`, borderRadius: 8, marginBottom: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: item.color, letterSpacing: '0.06em', marginBottom: 3 }}>{item.rank}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.5, marginBottom: 4 }}>{item.desc}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: dbDim, letterSpacing: '0.04em' }}>{item.ref}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>What Each Tab Contains</div>
+              {[
+                { tab: '📖 Overview', tier: 'All members', desc: 'Identity, classification, biblical rank, manifestations, primary battlefield.' },
+                { tab: '🔍 Intel', tier: 'Commander+', desc: 'Session indicators, resistance signature, demonic agreements, entry points, transmission vectors, cluster spirits, legal rights.' },
+                { tab: '⚔ Warfare', tier: 'Soldier+', desc: 'Counter scriptures, deliverance sequence, prayer points, aftercare notes, linked resources.' },
+                { tab: '📚 Research', tier: 'General+', desc: 'Etymology, archaeological context, comprehensive scripture study, historical sources.' },
+              ].map(item => (
+                <div key={item.tab} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, marginBottom: 6 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.04em' }}>{item.tab}</span>
+                      <span style={{ fontSize: 9, color: dbDim, fontFamily: cinzel, letterSpacing: '0.06em', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 7px' }}>{item.tier}</span>
+                    </div>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, lineHeight: 1.5 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={() => setShowLegend(false)}
+              style={{ width: '100%', padding: '12px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase' as const }}>
+              Enter the Archive ⚔
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

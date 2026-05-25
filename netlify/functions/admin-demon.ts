@@ -70,6 +70,21 @@ export default async function handler(req: Request) {
         ? String(data.fields['Images']).split(',').map((s: string) => s.trim()).filter(Boolean)
         : [],
       relatedSpirits: data.fields['Related Spirits'] || '',
+      biblicalRank: data.fields['Biblical Rank'] || '',
+      transmissionVectors: data.fields['Transmission Vectors'] || '',
+      caseType: data.fields['Case Type'] || '',
+      clusterSpirits: data.fields['Cluster Spirits'] || '',
+      sessionIndicators: data.fields['Session Indicators'] || '',
+      demonicAgreements: data.fields['Demonic Agreements'] || '',
+      aftercareNotes: data.fields['Aftercare Notes'] || '',
+      etymologyNotes: data.fields['Etymology Notes'] || '',
+      archaeologyNotes: data.fields['Archaeology Notes'] || '',
+      scriptureContext: data.fields['Scripture Context'] || '',
+      resistanceSignature: data.fields['Resistance Signature'] || '',
+      institutionalExpression: data.fields['Institutional Expression'] || '',
+      prayerPoints: data.fields['Prayer Points'] || '',
+      isGenerational: data.fields['Is Generational'] === true || data.fields['Is Generational'] === 'true',
+      isTerritorial: data.fields['Is Territorial'] === true || data.fields['Is Territorial'] === 'true',
     }
     return new Response(JSON.stringify({ record: mapped }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
@@ -91,10 +106,38 @@ export default async function handler(req: Request) {
     const { id, fields } = body
     if (!id || !fields) return new Response(JSON.stringify({ error: 'id and fields required' }), { status: 400 })
 
+    // Map camelCase AI fields to Airtable field names
+    const airtableFields: Record<string, any> = { ...fields }
+    const camelToAirtable: Record<string, string> = {
+      biblicalRank: 'Biblical Rank',
+      transmissionVectors: 'Transmission Vectors',
+      caseType: 'Case Type',
+      clusterSpirits: 'Cluster Spirits',
+      sessionIndicators: 'Session Indicators',
+      demonicAgreements: 'Demonic Agreements',
+      aftercareNotes: 'Aftercare Notes',
+      etymologyNotes: 'Etymology Notes',
+      archaeologyNotes: 'Archaeology Notes',
+      scriptureContext: 'Scripture Context',
+      resistanceSignature: 'Resistance Signature',
+      institutionalExpression: 'Institutional Expression',
+      prayerPoints: 'Prayer Points',
+      isGenerational: 'Is Generational',
+      isTerritorial: 'Is Territorial',
+      phonetic: 'Phonetic',
+      relatedSpirits: 'Related Spirits',
+    }
+    for (const [camel, airtable] of Object.entries(camelToAirtable)) {
+      if (camel in airtableFields) {
+        airtableFields[airtable] = airtableFields[camel]
+        delete airtableFields[camel]
+      }
+    }
+
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: cleanFields(fields) }),
+      body: JSON.stringify({ fields: cleanFields(airtableFields) }),
     })
     if (!res.ok) return new Response(JSON.stringify({ error: await airtableError(res) }), { status: res.status })
     const data = await res.json()
