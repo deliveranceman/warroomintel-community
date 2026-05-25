@@ -1,7 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -69,48 +66,7 @@ function buildLibraryPreamble(chunks: LibraryChunk[], contextText: string): stri
   return out
 }
 
-export default async function handler(req: Request) {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers })
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
-
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-
-  const ok = await resolveMinister(token)
-  if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
-
-  let body: any
-  try { body = await req.json() } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers })
-  }
-
-  const { name, existing = {}, jobId } = body || {}
-  if (!name) return new Response(JSON.stringify({ error: 'name required' }), { status: 400, headers })
-
-  const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
-
-  const missingFields = [
-    'description', 'type', 'biblicalRank', 'etymologyNotes', 'archaeologyNotes',
-    'scriptureContext', 'primaryBattlefield', 'manifestation', 'entryPoints',
-    'transmissionVectors', 'caseType', 'isGenerational', 'isTerritorial',
-    'clusterSpirits', 'legalRights', 'sessionIndicators', 'resistanceSignature',
-    'demonicAgreements', 'institutionalExpression', 'counterScriptures',
-    'deliveranceSequence', 'aftercareNotes', 'prayerPoints', 'phonetic',
-    'biblicalReferences',
-  ].filter(k => isEmpty(existing[k]))
-
-  if (missingFields.length === 0) {
-    if (jobId) await sb().from('ai_enhance_jobs').upsert({ id: jobId, status: 'done', spirit_name: name, fields: {} }, { onConflict: 'id' })
-    return new Response(JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }), { status: 200, headers })
-  }
-
-  // Fetch library context (graceful fallback if none configured)
-  const reqUrl = new URL(req.url)
-  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
-  const { chunks, contextText } = await fetchLibraryContext(baseUrl, token, name, existing.description || '')
-  const preamble = buildLibraryPreamble(chunks, contextText)
-
-  const prompt = `${preamble}You are the personal theological research assistant for Pastor Justin Payne of Staffordtown Church (Church on Fire), Copperhill, Tennessee — a trained deliverance minister holding advanced degrees in Archaeology, Etymology, Biblical Demonology, and Theology.
+const SYSTEM_PROMPT = `You are the personal theological research assistant for Pastor Justin Payne of Staffordtown Church (Church on Fire), Copperhill, Tennessee — a trained deliverance minister holding advanced degrees in Archaeology, Etymology, Biblical Demonology, and Theology.
 
 MINISTRY MODEL — write all content through this lens:
 This ministry operates like a hospital. The full session process is:
@@ -161,14 +117,78 @@ CRITICAL SESSION RULES TO REFLECT IN ALL CONTENT:
 - Aftercare notes must include: what the person needs to do to keep their freedom, what the mentor should watch for, fill-up scriptures specific to this spirit's territory
 - Prayer points must follow the session order: renunciation first, then breaking legal rights, then commanding expulsion, then fill-up blessing
 
-Research the spirit/demon/entity: "${name}"
+RETURN ONLY VALID JSON. No markdown, no preamble. Only return fields that are missing or incomplete in the existing data.`
+
+export default async function handler(req: Request) {
+  if (req.method === 'OPTIONS') {
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
+  }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers })
+  }
+
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  }
+
+  const ok = await resolveMinister(token)
+  if (!ok) {
+    return new Response(JSON.stringify({ error: 'Forbidden — minister role required' }), { status: 403, headers })
+  }
+
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers })
+  }
+
+  const { name, existing = {}, jobId } = body || {}
+  if (!name) {
+    return new Response(JSON.stringify({ error: 'name required' }), { status: 400, headers })
+  }
+
+  const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
+
+  const missingFields = [
+    'description', 'type', 'biblicalRank', 'etymologyNotes', 'archaeologyNotes',
+    'scriptureContext', 'primaryBattlefield', 'manifestation', 'entryPoints',
+    'transmissionVectors', 'caseType', 'isGenerational', 'isTerritorial',
+    'clusterSpirits', 'legalRights', 'sessionIndicators', 'resistanceSignature',
+    'demonicAgreements', 'institutionalExpression', 'counterScriptures',
+    'deliveranceSequence', 'aftercareNotes', 'prayerPoints', 'phonetic',
+    'biblicalReferences',
+  ].filter(k => isEmpty(existing[k]))
+
+  if (missingFields.length === 0) {
+    if (jobId) {
+      await sb().from('ai_enhance_jobs')
+        .upsert({ id: jobId, status: 'done', spirit_name: name, fields: {} }, { onConflict: 'id' })
+        .catch(() => {})
+    }
+    return new Response(
+      JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }),
+      { status: 200, headers }
+    )
+  }
+
+  // Fetch library context (graceful fallback if none configured)
+  const reqUrl = new URL(req.url)
+  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
+  const { chunks, contextText } = await fetchLibraryContext(baseUrl, token, name, existing.description || '')
+  const preamble = buildLibraryPreamble(chunks, contextText)
+
+  const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
+
+  const userPrompt = `Research the spirit/demon/entity: "${name}"
 
 Current data on file (DO NOT reproduce these — only provide MISSING fields):
 ${JSON.stringify(existing, null, 2)}
 
 Fields that need to be filled (return ONLY these): ${missingFields.join(', ')}
 
-Return ONLY valid JSON containing ONLY the missing fields listed above. No preamble, no markdown, no extra fields:
+Return ONLY valid JSON containing ONLY the missing fields. No preamble, no markdown, no extra fields:
 
 {
   "description": "3-5 sentences covering: nature and origin, primary assignment in the kingdom of darkness, biblical basis, and historical attestation. Graduate theological level, pastorally practical.",
@@ -178,7 +198,7 @@ Return ONLY valid JSON containing ONLY the missing fields listed above. No pream
   "archaeologyNotes": "ANE and archaeological context: ancient texts, excavations, cultural parallels that illuminate this entity's biblical profile.",
   "scriptureContext": "Every significant biblical passage — what each reveals about this entity, with original language insights where relevant.",
   "primaryBattlefield": "Where this spirit primarily operates: Mind, Emotions, Will, Body, Family, Marriage, Church, Government, Region, Nation, Economy, Education, Media, Religion.",
-  "manifestation": "Specific manifestations the team watches for in session: physical symptoms, behavioral patterns, emotional signatures, thought patterns, relational dynamics, spiritual symptoms. Make this actionable — what would Justin or his team actually observe?",
+  "manifestation": "Specific manifestations the team watches for in session: physical symptoms, behavioral patterns, emotional signatures, thought patterns, relational dynamics, spiritual symptoms. Actionable — what would Justin or his team actually observe?",
   "entryPoints": "Legal rights categorized by type: generational sin, trauma/soul wounds, occult involvement, ungodly vows/oaths, unforgiveness, sexual sin, territorial assignment. Include inner healing wound types this spirit exploits.",
   "transmissionVectors": "How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic/territorial exposure, media and entertainment.",
   "caseType": "Personal Deliverance, Generational/Bloodline, Territorial/Regional, Institutional, Atmospheric/Intercessory, or Multiple.",
@@ -186,30 +206,45 @@ Return ONLY valid JSON containing ONLY the missing fields listed above. No pream
   "isTerritorial": false,
   "clusterSpirits": "Boss spirit identification (if this is a cluster member) AND the full subordinate cluster this spirit commands. Include how the boss maintains authority over the cluster.",
   "legalRights": "Specific legal grounds organized by category: generational, trauma-based, vow-based, occult, sexual, territorial. Include what inner healing must address before expulsion is durable.",
-  "sessionIndicators": "What specifically tells Justin and his team THIS spirit is present in real time during session: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
+  "sessionIndicators": "What specifically tells Justin and his team THIS spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
   "resistanceSignature": "Exactly how this spirit resists expulsion: deception tactics, hiding strategies, legal rights it will claim, counterfeit manifestations, how it tries to negotiate or re-enter.",
   "demonicAgreements": "The specific lies, vows, and inner agreements this spirit plants: core identity lies, protective agreements the person makes, vows that function as invitations.",
   "institutionalExpression": "If this spirit animates systems or regions: organizations, movements, geographic strongholds, cultural expressions of its agenda.",
   "counterScriptures": "8-12 most effective scriptures for warfare against this spirit, selected because they directly address its specific legal territory and assignment.",
   "deliveranceSequence": "Numbered steps following Justin's session model: inner healing work first, then legal rights renunciation, then binding the boss spirit, then addressing the cluster, then expulsion command, then fill-up.",
-  "aftercareNotes": "Specific aftercare: what the person must do to keep their freedom (renewing the mind, removing access points), what the mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
+  "aftercareNotes": "Specific aftercare: what the person must do to keep their freedom, what the mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
   "prayerPoints": "3-5 targeted prayer declarations in session order: renunciation of legal rights, breaking generational/vow-based access, commanding expulsion by name, fill-up and blessing declarations.",
   "phonetic": "Correct phonetic pronunciation using syllable capitalization.",
   "biblicalReferences": "Complete reference list — every biblical passage where this entity appears directly or is referenced thematically."
-}
-
-Only return fields that are missing or incomplete in the existing data.`
+}`
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-3-5-20241022',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
+    // Direct fetch — no SDK dependency that could crash at import time
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-3-5-20241022',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
     })
 
-    const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error('No JSON in AI response')
+    if (!anthropicRes.ok) {
+      const errText = await anthropicRes.text()
+      throw new Error(`Anthropic API error ${anthropicRes.status}: ${errText}`)
+    }
+
+    const anthropicData = await anthropicRes.json()
+    const rawText: string = anthropicData.content?.[0]?.text || ''
+
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error(`No JSON in AI response. Raw: ${rawText.slice(0, 200)}`)
     const enhanced = JSON.parse(jsonMatch[0])
 
     const filtered: Record<string, any> = {}
@@ -217,12 +252,10 @@ Only return fields that are missing or incomplete in the existing data.`
       if (isEmpty(existing[key])) filtered[key] = value
     }
 
-    // Cache result in Supabase for poll fallback
     if (jobId) {
-      await sb().from('ai_enhance_jobs').upsert(
-        { id: jobId, status: 'done', spirit_name: name, fields: filtered },
-        { onConflict: 'id' }
-      )
+      await sb().from('ai_enhance_jobs')
+        .upsert({ id: jobId, status: 'done', spirit_name: name, fields: filtered }, { onConflict: 'id' })
+        .catch(() => {})
     }
 
     return new Response(
@@ -232,12 +265,14 @@ Only return fields that are missing or incomplete in the existing data.`
   } catch (e: any) {
     console.error('AI enhance error:', e)
     if (jobId) {
-      await sb().from('ai_enhance_jobs').upsert(
-        { id: jobId, status: 'error', spirit_name: name, error: e.message },
-        { onConflict: 'id' }
-      ).catch(() => {})
+      await sb().from('ai_enhance_jobs')
+        .upsert({ id: jobId, status: 'error', spirit_name: name, error: e.message }, { onConflict: 'id' })
+        .catch(() => {})
     }
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })
+    return new Response(
+      JSON.stringify({ error: e.message || 'Unknown error' }),
+      { status: 500, headers }
+    )
   }
 }
 
