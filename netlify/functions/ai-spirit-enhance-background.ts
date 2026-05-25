@@ -10,20 +10,40 @@ function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 }
 
-async function resolveMinister(token: string): Promise<boolean> {
+async function resolveMinister(token: string): Promise<{ ok: boolean; reason: string }> {
   try {
+    if (!token || token.split('.').length !== 3) {
+      return { ok: false, reason: 'Token is not a valid JWT' }
+    }
     const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return false
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+    const userId = payload.sub || payload.userId || payload.user_id
+    if (!userId) {
+      return { ok: false, reason: 'No userId in JWT payload' }
+    }
+    if (!String(userId).startsWith('user_')) {
+      console.log('[enhance] JWT sub does not start with user_:', userId)
+      return { ok: false, reason: `Invalid userId format: ${userId}` }
+    }
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return false
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText)
+      console.log('[enhance] Clerk lookup failed:', res.status, errText)
+      return { ok: false, reason: `Clerk lookup failed ${res.status}: ${errText}` }
+    }
     const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
+    const role = data?.public_metadata?.role
+    console.log('[enhance] userId:', userId, 'role:', role)
+    if (role !== 'minister') {
+      return { ok: false, reason: `Role is '${role}' — minister required` }
+    }
+    return { ok: true, reason: '' }
+  } catch (e: any) {
+    console.error('[enhance] Auth error:', e)
+    return { ok: false, reason: e.message || 'Auth exception' }
+  }
 }
 
 // Query library context directly from Supabase — no HTTP round-trip to another function
@@ -152,16 +172,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers })
   }
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  }
-
-  const ok = await resolveMinister(token)
-  if (!ok) {
-    return new Response(JSON.stringify({ error: 'Forbidden — minister role required' }), { status: 403, headers })
-  }
-
+  // Parse body first so jobId is available for Supabase error tracking
   let body: any
   try {
     body = await req.json()
@@ -172,6 +183,25 @@ export default async function handler(req: Request) {
   const { name, existing = {}, jobId } = body || {}
   if (!name) {
     return new Response(JSON.stringify({ error: 'name required' }), { status: 400, headers })
+  }
+
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  }
+
+  const auth = await resolveMinister(token)
+  if (!auth.ok) {
+    console.error('[enhance] Auth failed for jobId:', jobId, '—', auth.reason)
+    if (jobId) {
+      await sb().from('ai_enhance_jobs')
+        .upsert(
+          { id: jobId, status: 'error', spirit_name: name, error: `Auth failed: ${auth.reason}` },
+          { onConflict: 'id' }
+        )
+        .catch(() => {})
+    }
+    return new Response(JSON.stringify({ error: auth.reason }), { status: 403, headers })
   }
 
   const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
