@@ -143,14 +143,15 @@ CRITICAL SESSION RULES:
 - Aftercare notes must include: what the person needs to do to keep freedom, what mentor watches for, fill-up scriptures specific to this spirit's territory
 - Prayer points must follow session order: renunciation first, breaking legal rights, commanding expulsion, fill-up blessing
 
-RETURN ONLY VALID JSON. No markdown, no preamble. Only return fields that are missing or incomplete in the existing data.`
+RETURN ONLY VALID JSON. No markdown, no preamble. Research and return ALL requested fields — the minister will review and decide what to keep.`
 
-// Single call — 13 high-value fields, fast enough for 26s limit
+// All fields researched every time — minister decides what to keep via Accept/Skip
 const ENHANCE_FIELDS = [
   'biblicalRank', 'caseType', 'phonetic', 'isGenerational', 'isTerritorial',
   'sessionIndicators', 'transmissionVectors', 'clusterSpirits',
   'resistanceSignature', 'legalRights', 'prayerPoints', 'aftercareNotes',
-  'etymologyNotes',
+  'etymologyNotes', 'strongman', 'assignment', 'description', 'manifestation',
+  'entryPoints',
 ]
 
 function parseJsonFields(rawText: string): Record<string, any> {
@@ -167,35 +168,30 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     isGenerational: 'true or false — is this spirit typically generational/bloodline?',
     isTerritorial: 'true or false — is this spirit typically territorial/regional?',
     clusterSpirits: 'Boss spirit identification AND full subordinate cluster this spirit commands. How the boss maintains authority.',
-    type: 'Choose from: Principality, Power, Ruler of Darkness, Spiritual Wickedness, Fallen Angel, Strongman, Demon, Familiar Spirit, Spirit of Infirmity, Unclean Spirit, Institutional Power, Occult Entity, False Deity, Seducing Spirit, Lying Spirit, Spirit of Divination',
-    primaryBattlefield: 'Primary domain: Mind, Emotions, Will, Body, Family, Marriage, Church, Government, Region, Nation, Economy, Education, Media, Religion.',
+    strongman: 'The primary strongman spirit this entity operates under, if any. Single name only.',
+    assignment: 'The specific demonic assignment/mission of this spirit — what it is tasked to accomplish in the person or region.',
     description: '3-5 sentences: nature and origin, primary assignment in the kingdom of darkness, biblical basis, historical attestation. Graduate theological level, pastorally practical.',
     etymologyNotes: 'Full etymology: original language name(s), root words, Semitic language meaning, how the name reveals nature or assignment.',
-    archaeologyNotes: 'ANE and archaeological context: ancient texts, excavations, cultural parallels illuminating the biblical profile.',
-    scriptureContext: 'Every significant biblical passage — what each reveals, with original language insights.',
-    manifestation: 'What Justin\'s team watches for in session: physical symptoms, behavioral patterns, emotional signatures, thought patterns, relational dynamics, spiritual symptoms. Actionable.',
+    manifestation: "What Justin's team watches for in session: physical symptoms, behavioral patterns, emotional signatures, thought patterns, relational dynamics, spiritual symptoms. Actionable.",
     entryPoints: 'Legal rights by category: generational sin, trauma/soul wounds, occult involvement, ungodly vows/oaths, unforgiveness, sexual sin, territorial assignment. Include inner healing wound types this spirit exploits.',
     transmissionVectors: 'How this spirit transmits: bloodline, trauma bonding, occult initiation, soul ties, geographic/territorial exposure, media.',
     legalRights: 'Legal grounds by category: generational, trauma-based, vow-based, occult, sexual, territorial. What inner healing must address before expulsion is durable.',
-    sessionIndicators: 'What specifically tells Justin and his team this spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.',
+    sessionIndicators: "What specifically tells Justin and his team this spirit is present in real time: physical manifestations, emotional surges, counterfeit spiritual activity, resistance patterns, verbal indicators.",
     resistanceSignature: 'How this spirit resists expulsion: deception tactics, hiding strategies, legal rights it claims, counterfeit manifestations, how it negotiates or attempts re-entry.',
-    demonicAgreements: 'Specific lies, vows, and inner agreements this spirit plants: core identity lies, protective agreements, vows that function as invitations.',
-    institutionalExpression: 'Organizations, movements, geographic strongholds, cultural expressions of this spirit\'s agenda.',
-    counterScriptures: '8-12 most effective scriptures for warfare, selected because they directly address this spirit\'s legal territory and assignment.',
-    deliveranceSequence: 'Numbered steps following Justin\'s session model: inner healing first, legal rights renunciation, binding boss spirit, addressing cluster, expulsion, fill-up.',
-    aftercareNotes: 'What the person must do to keep freedom, what mentor watches for, fill-up scriptures specific to this spirit\'s territory, warning signs of re-entry.',
+    aftercareNotes: "What the person must do to keep freedom, what mentor watches for, fill-up scriptures specific to this spirit's territory, warning signs of re-entry.",
     prayerPoints: '3-5 targeted prayer declarations in session order: renunciation → breaking legal rights → commanding expulsion by name → fill-up and blessing.',
-    biblicalReferences: 'Complete reference list — every biblical passage where this entity appears directly or thematically.',
   }
 
   const fieldSchema = fields.map(f => `  "${f}": "${fieldDescriptions[f] || f}"`).join(',\n')
 
   return `Research the spirit/demon/entity: "${name}"
 
-Current data on file (DO NOT reproduce — only provide MISSING fields):
+Existing data for context (do not simply repeat this — improve and expand upon it where you can, or confirm if it is already accurate):
 ${JSON.stringify(existing, null, 2)}
 
-Return ONLY valid JSON for these specific fields: ${fields.join(', ')}
+Research and return expert-level content for ALL of the following fields: ${fields.join(', ')}
+
+Return ONLY valid JSON with ALL fields populated:
 
 {
 ${fieldSchema}
@@ -234,23 +230,12 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: auth.reason }), { status: 403, headers })
   }
 
-  const isEmpty = (v: any) => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && v.length === 0)
-
-  const missingFields = ENHANCE_FIELDS.filter(k => isEmpty(existing[k]))
-
-  if (missingFields.length === 0) {
-    return new Response(
-      JSON.stringify({ success: true, spirit: name, fields: {}, fieldCount: 0 }),
-      { status: 200, headers }
-    )
-  }
-
   try {
     const preamble = await getLibraryPreamble(name, existing.description || '')
     const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
-    const userPrompt = buildUserPrompt(name, existing, missingFields)
+    const userPrompt = buildUserPrompt(name, existing, ENHANCE_FIELDS)
 
-    console.log('[enhance] Requesting fields:', missingFields)
+    console.log('[enhance] Requesting all fields:', ENHANCE_FIELDS)
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 20000)
@@ -287,17 +272,12 @@ export default async function handler(req: Request) {
       throw e
     }
 
-    const parsed = parseJsonFields(rawText)
+    const fields = parseJsonFields(rawText)
 
-    const filtered: Record<string, any> = {}
-    for (const [key, value] of Object.entries(parsed)) {
-      if (isEmpty(existing[key])) filtered[key] = value
-    }
-
-    console.log('[enhance] Done, fields returned:', Object.keys(filtered))
+    console.log('[enhance] Done, fields returned:', Object.keys(fields))
 
     return new Response(
-      JSON.stringify({ success: true, spirit: name, fields: filtered, fieldCount: Object.keys(filtered).length }),
+      JSON.stringify({ success: true, spirit: name, fields, fieldCount: Object.keys(fields).length }),
       { status: 200, headers }
     )
   } catch (e: any) {
