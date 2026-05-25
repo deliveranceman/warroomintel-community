@@ -2849,9 +2849,24 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [loading, setLoading]       = useState(true)
   const [query, setQuery]           = useState('')
   const [tierFilter, setTierFilter] = useState('All')
-  const [catFilter, setCatFilter]   = useState('All')
+  const [topicFilter, setTopicFilter] = useState('')
+  const [tagFilter, setTagFilter]   = useState('')
   const [downloading, setDownloading] = useState<string | null>(null)
   const [error, setError]           = useState('')
+
+  const ARSENAL_TOPICS = [
+    'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
+    'Freemasonry & Secret Societies', 'Sexual Bondage', 'Fear & Rejection',
+    'Identity & Sonship', 'Inner Healing', 'Witchcraft & Occult',
+    'Marine Kingdom', 'Mind Control', 'Leviathan & Pride', 'Jezebel & Control',
+    'Python & Constriction', 'Deliverance Foundations', 'Aftercare',
+    'Prayer & Intercession', 'Scripture Reference', 'General Ministry',
+  ]
+  const ARSENAL_TAGS = [
+    'Renunciation Prayer', 'Worksheet', 'Teaching', 'Protocol', 'Session Tool',
+    'Scripture Reference', 'Aftercare', 'Assessment Tool', 'Quick Reference',
+    'Leader Guide', 'Self-Deliverance', 'Group Exercise',
+  ]
 
   const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
 
@@ -2911,24 +2926,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     'image/jpeg': '🖼️',
   }
 
-  const CATEGORIES = [
-    'All',
-    'Session Tools',
-    'Teaching',
-    'Protocol',
-    'Reference',
-    'Renunciation',
-    'Worksheet',
-    'Scripture',
-    'Prayer',
-    'Deliverance Guide',
-    'Inner Healing',
-    'Generational Curses',
-    'Soul Ties',
-    'Occult & Freemasonry',
-    'Sexual Bondage',
-    'Mental Strongholds',
-  ]
   const TIERS      = ['All', 'Free', 'Soldier', 'Commander', 'General']
 
   const TIER_COLORS: Record<string, string> = {
@@ -2936,13 +2933,14 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   }
 
   const filtered = resources.filter(r => {
-    const matchQ = !query ||
-      r.title.toLowerCase().includes(query.toLowerCase()) ||
+    const matchSearch = !query ||
+      r.title?.toLowerCase().includes(query.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(query.toLowerCase()) ||
-      (r.tags || []).some((t: string) => t.toLowerCase().includes(query.toLowerCase()))
-    const matchT = tierFilter === 'All' || r.tier === tierFilter
-    const matchC = catFilter === 'All'  || r.category === catFilter
-    return matchQ && matchT && matchC
+      (Array.isArray(r.tags) ? r.tags.some((t: string) => t.toLowerCase().includes(query.toLowerCase())) : false)
+    const matchTier  = tierFilter === 'All' || r.tier === tierFilter
+    const matchTopic = !topicFilter || r.topic === topicFilter || r.category === topicFilter
+    const matchTag   = !tagFilter || (Array.isArray(r.tags) ? r.tags.includes(tagFilter) : String(r.tags || '').includes(tagFilter))
+    return matchSearch && matchTier && matchTopic && matchTag
   })
 
   const recent = [...resources]
@@ -2966,7 +2964,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, alignItems: 'center' }}>
               <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${tc}20`, color: tc, border: `1px solid ${tc}40`, letterSpacing: '0.06em' }}>{resource.tier}</span>
-              <span style={{ fontSize: 11, color: muted }}>{resource.category}</span>
+              <span style={{ fontSize: 10, color: muted, fontFamily: crimson }}>{resource.topic || resource.category}</span>
               {sizeMB && <span style={{ fontSize: 11, color: muted }}>· {sizeMB} MB</span>}
             </div>
           </div>
@@ -2985,12 +2983,12 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
           )}
         </div>
         {resource.description && (
-          <div style={{ fontSize: 12, color: muted, lineHeight: 1.5, marginBottom: resource.tags?.length > 0 ? 8 : 0 }}>{resource.description}</div>
+          <div style={{ fontSize: 12, color: muted, lineHeight: 1.5, marginBottom: 6 }}>{resource.description}</div>
         )}
-        {resource.tags?.length > 0 && (
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
-            {resource.tags.map((tag: string, i: number) => (
-              <span key={i} style={{ fontSize: 9, padding: '1px 7px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: G, border: '1px solid rgba(201,168,76,0.2)', fontFamily: cinzel, letterSpacing: '0.04em' }}>{tag}</span>
+        {Array.isArray(resource.tags) && resource.tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 4 }}>
+            {resource.tags.slice(0, 3).map((tag: string) => (
+              <span key={tag} style={{ fontSize: 8, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 7px', color: muted, fontFamily: cinzel, letterSpacing: '0.04em' }}>{tag}</span>
             ))}
           </div>
         )}
@@ -3019,7 +3017,8 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+      {/* Tier filter */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 10 }}>
         {TIERS.map(t => (
           <button key={t} onClick={() => setTierFilter(t)} style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${tierFilter === t ? G : border}`, background: tierFilter === t ? G : 'transparent', color: tierFilter === t ? '#0D0B14' : muted }}>
             {t}
@@ -3027,12 +3026,30 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 24 }}>
-        {CATEGORIES.map(c => (
-          <button key={c} onClick={() => setCatFilter(c)} style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${catFilter === c ? G : border}`, background: catFilter === c ? `${G}20` : 'transparent', color: catFilter === c ? G : muted }}>
-            {c}
-          </button>
-        ))}
+      {/* Topic filter */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Topic</div>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, paddingBottom: 4 }}>
+          {['All', ...ARSENAL_TOPICS].map(t => (
+            <button key={t} onClick={() => setTopicFilter(t === 'All' ? '' : t)}
+              style={{ flexShrink: 0, padding: '4px 12px', background: (topicFilter === t || (t === 'All' && !topicFilter)) ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${(topicFilter === t || (t === 'All' && !topicFilter)) ? G : border}`, borderRadius: 20, color: (topicFilter === t || (t === 'All' && !topicFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Function tag filter */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Function</div>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, paddingBottom: 4 }}>
+          {['All', ...ARSENAL_TAGS].map(t => (
+            <button key={t} onClick={() => setTagFilter(t === 'All' ? '' : t)}
+              style={{ flexShrink: 0, padding: '4px 12px', background: (tagFilter === t || (t === 'All' && !tagFilter)) ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${(tagFilter === t || (t === 'All' && !tagFilter)) ? G : border}`, borderRadius: 20, color: (tagFilter === t || (t === 'All' && !tagFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -3041,7 +3058,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{error}</div>
       ) : (
         <>
-          {!query && tierFilter === 'All' && catFilter === 'All' && recent.length > 0 && (
+          {!query && tierFilter === 'All' && !topicFilter && !tagFilter && recent.length > 0 && (
             <div style={{ marginBottom: 32 }}>
               <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>Recently Added</div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
@@ -3051,7 +3068,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
           )}
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>
-              {query || tierFilter !== 'All' || catFilter !== 'All' ? `${filtered.length} Results` : `All Resources (${resources.length})`}
+              {query || tierFilter !== 'All' || topicFilter || tagFilter ? `${filtered.length} Results` : `All Resources (${resources.length})`}
             </div>
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>

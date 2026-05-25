@@ -51,9 +51,8 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [title, setTitle]           = useState('')
   const [description, setDesc]      = useState('')
   const [tier, setTier]             = useState('Free')
-  const [category, setCategory]     = useState('Session Tools')
+  const [topic, setTopic]           = useState('General Ministry')
   const [tags, setTags]             = useState<string[]>([])
-  const [tagInput, setTagInput]     = useState('')
   const [analyzing, setAnalyzing]   = useState(false)
   const [aiSuggested, setAiSuggested] = useState(false)
   // Track which fields were AI-filled and haven't been manually edited
@@ -66,7 +65,6 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [resLoading, setResLoading] = useState(true)
   const [deleting, setDeleting]     = useState<string | null>(null)
   const fileRef    = useRef<HTMLInputElement>(null)
-  const tagInputRef = useRef<HTMLInputElement>(null)
   const [bulkFiles, setBulkFiles]         = useState<File[]>([])
   const [bulkPreviews, setBulkPreviews]   = useState<any[]>([])
   const [bulkProcessing, setBulkProcessing] = useState(false)
@@ -78,25 +76,20 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [newCategory, setNewCategory]     = useState('')
 
   const TIERS      = ['Free', 'Soldier', 'Commander', 'General']
-  const CATEGORIES = [
-    'Session Tools',
-    'Teaching',
-    'Protocol',
-    'Reference',
-    'Renunciation',
-    'Worksheet',
-    'Scripture',
-    'Prayer',
-    'Deliverance Guide',
-    'Inner Healing',
-    'Generational Curses',
-    'Soul Ties',
-    'Occult & Freemasonry',
-    'Sexual Bondage',
-    'Mental Strongholds',
+  const TOPICS = [
+    'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
+    'Freemasonry & Secret Societies', 'Sexual Bondage', 'Fear & Rejection',
+    'Identity & Sonship', 'Inner Healing', 'Witchcraft & Occult',
+    'Marine Kingdom', 'Mind Control', 'Leviathan & Pride', 'Jezebel & Control',
+    'Python & Constriction', 'Deliverance Foundations', 'Aftercare',
+    'Prayer & Intercession', 'Scripture Reference', 'General Ministry',
   ]
-  const ALL_TAGS   = ['deliverance','prayer','freemasonry','soul-ties','generational','forgiveness','warfare','inner-healing','renunciation','assessment','protocol','worksheet','teaching','occult','sexual-bondage','rejection','fear','witchcraft','marine-kingdom','strongman','legal-rights','aftercare','session','intake']
-  const allCategories = [...CATEGORIES, ...customCategories]
+  const FUNCTION_TAGS = [
+    'Renunciation Prayer', 'Worksheet', 'Teaching', 'Protocol', 'Session Tool',
+    'Scripture Reference', 'Aftercare', 'Assessment Tool', 'Quick Reference',
+    'Leader Guide', 'Self-Deliverance', 'Group Exercise',
+  ]
+  const allTopics = [...TOPICS, ...customCategories]
 
   async function fetchResources() {
     setResLoading(true)
@@ -151,7 +144,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       const filled = new Set<string>()
       if (data.title)    { setTitle(data.title);    filled.add('title') }
       if (data.description) { setDesc(data.description); filled.add('description') }
-      if (data.category && allCategories.includes(data.category)) { setCategory(data.category); filled.add('category') }
+      if (data.topic && allTopics.includes(data.topic)) { setTopic(data.topic); filled.add('topic') }
       if (data.tags?.length) { setTags(data.tags);  filled.add('tags') }
       if (filled.size > 0) { setAiFields(filled); setAiSuggested(true) }
     } catch (e) { console.error('Analysis failed', e) }
@@ -171,23 +164,6 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     if (f) analyzeFile(f)
   }
 
-  function addTag(tag: string) {
-    const t = tag.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-    if (t && !tags.includes(t)) setTags(prev => [...prev, t])
-  }
-
-  function removeTag(tag: string) { setTags(prev => prev.filter(t => t !== tag)) }
-
-  function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      addTag(tagInput)
-      setTagInput('')
-    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
-      setTags(prev => prev.slice(0, -1))
-    }
-  }
-
   async function handleUpload() {
     if (!file || !title.trim()) return
     setUploading(true); setUploadMsg(''); setUploadErr('')
@@ -196,14 +172,14 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     fd.append('title', title.trim())
     fd.append('description', description.trim())
     fd.append('tier', tier)
-    fd.append('category', category)
+    fd.append('topic', topic)
     fd.append('tags', JSON.stringify(tags))
     try {
       const res = await authFetch('/api/admin-upload', getToken, { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setUploadMsg(`✓ "${data.resource?.title}" uploaded successfully`)
-      setFile(null); setTitle(''); setDesc(''); setTags([]); setAiFields(new Set()); setAiSuggested(false)
+      setFile(null); setTitle(''); setDesc(''); setTags([]); setTopic('General Ministry'); setAiFields(new Set()); setAiSuggested(false)
       if (fileRef.current) fileRef.current.value = ''
       await fetchResources()
     } catch (err: any) { setUploadErr(err.message) }
@@ -232,8 +208,6 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const AiBadge = () => (
     <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', color: G, background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '1px 5px', marginLeft: 6, verticalAlign: 'middle' }}>✦ AI</span>
   )
-
-  const suggestedTags = ALL_TAGS.filter(t => !tags.includes(t)).slice(0, 8)
 
   return (
     <div>
@@ -315,7 +289,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     fileName: file.name,
                     title: d.title || file.name.replace(/\.[^.]+$/, ''),
                     description: d.description || '',
-                    category: d.category || 'Reference',
+                    topic: d.topic || d.category || 'General Ministry',
                     tags: d.tags || [],
                     tier: d.tier || 'free',
                     fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
@@ -327,7 +301,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     fileName: file.name,
                     title: file.name.replace(/\.[^.]+$/, ''),
                     description: '',
-                    category: 'Reference',
+                    topic: 'General Ministry',
                     tags: [],
                     tier: 'free',
                     fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
@@ -383,47 +357,26 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                   style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 12, marginBottom: 6, outline: 'none', resize: 'vertical' as const }}
                   placeholder="Description"
                 />
-                {/* Tags input */}
+                {/* Function Tags checklist */}
                 <div style={{ marginBottom: 6 }}>
-                  <input
-                    value={Array.isArray(preview.tags) ? preview.tags.join(', ') : preview.tags || ''}
-                    onChange={e => setBulkPreviews(prev => prev.map((p, i) =>
-                      i === idx ? {
-                        ...p,
-                        tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
-                      } : p
-                    ))}
-                    placeholder="Tags (comma separated): forgiveness, generational, soul ties..."
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box' as const,
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(201,168,76,0.2)',
-                      borderRadius: 5,
-                      padding: '6px 10px',
-                      color: TXT,
-                      fontFamily: crimson,
-                      fontSize: 12,
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-                {Array.isArray(preview.tags) && preview.tags.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 6 }}>
-                    {preview.tags.map((tag: string, ti: number) => (
-                      <span key={ti} style={{
-                        background: 'rgba(201,168,76,0.12)',
-                        border: '1px solid rgba(201,168,76,0.3)',
-                        borderRadius: 20,
-                        padding: '2px 8px',
-                        fontSize: 10,
-                        color: G,
-                        fontFamily: cinzel,
-                        letterSpacing: '0.04em',
-                      }}>{tag}</span>
-                    ))}
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Function Tags</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                    {FUNCTION_TAGS.map(tag => {
+                      const selected = (Array.isArray(preview.tags) ? preview.tags : []).includes(tag)
+                      return (
+                        <button key={tag}
+                          onClick={() => setBulkPreviews(prev => prev.map((p, i) => {
+                            if (i !== idx) return p
+                            const cur = Array.isArray(p.tags) ? p.tags : []
+                            return { ...p, tags: selected ? cur.filter((t: string) => t !== tag) : [...cur, tag] }
+                          }))}
+                          style={{ padding: '3px 10px', background: selected ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${selected ? G : 'rgba(201,168,76,0.2)'}`, borderRadius: 20, color: selected ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s' }}>
+                          {selected ? '✓ ' : ''}{tag}
+                        </button>
+                      )
+                    })}
                   </div>
-                )}
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <select
                     value={preview.tier}
@@ -436,11 +389,11 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     <option value="general">General</option>
                   </select>
                   <select
-                    value={preview.category}
-                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, category: e.target.value } : p))}
+                    value={preview.topic || preview.category || 'General Ministry'}
+                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, topic: e.target.value } : p))}
                     style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}
                   >
-                    {allCategories.map(c => <option key={c}>{c}</option>)}
+                    {allTopics.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
@@ -457,7 +410,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     formData.append('file', preview.file)
                     formData.append('title', preview.title)
                     formData.append('description', preview.description)
-                    formData.append('category', preview.category)
+                    formData.append('topic', preview.topic || preview.category || 'General Ministry')
                     formData.append('tier', preview.tier)
                     formData.append('tags', JSON.stringify(preview.tags))
                     const token = await getToken()
@@ -544,14 +497,14 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
           </div>
           <div>
             <label style={labelStyle}>
-              Category{aiFields.has('category') && <AiBadge />}
+              Topic{aiFields.has('topic') && <AiBadge />}
             </label>
             <select
-              value={category}
-              onChange={e => { setCategory(e.target.value); setAiFields(prev => { const n = new Set(prev); n.delete('category'); return n }) }}
+              value={topic}
+              onChange={e => { setTopic(e.target.value); setAiFields(prev => { const n = new Set(prev); n.delete('topic'); return n }) }}
               style={{ ...inputStyle }}
             >
-              {allCategories.map(c => <option key={c}>{c}</option>)}
+              {allTopics.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
@@ -567,44 +520,22 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
             <div style={{ fontSize: 10, color: DIM, textAlign: 'right' as const, marginTop: 2 }}>{description.length}/200</div>
           </div>
 
-          {/* Tags pill input */}
+          {/* Function Tags checklist */}
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={labelStyle}>
-              Tags{aiFields.has('tags') && <AiBadge />}
+              Function Tags{aiFields.has('tags') && <AiBadge />}
             </label>
-            {/* Pills + input row */}
-            <div
-              onClick={() => tagInputRef.current?.focus()}
-              style={{
-                ...inputStyle, display: 'flex', flexWrap: 'wrap', gap: 6,
-                alignItems: 'center', cursor: 'text', minHeight: 44, padding: '6px 10px',
-              }}
-            >
-              {tags.map(tag => (
-                <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.15)', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 999, padding: '2px 8px', fontSize: 11, color: G, fontFamily: cinzel, letterSpacing: '0.04em', flexShrink: 0 }}>
-                  {tag}
-                  <button onClick={e => { e.stopPropagation(); removeTag(tag) }} style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1, opacity: 0.7 }}>×</button>
-                </span>
-              ))}
-              <input
-                ref={tagInputRef}
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={() => { if (tagInput.trim()) { addTag(tagInput); setTagInput('') } }}
-                placeholder={tags.length === 0 ? 'Type a tag and press Enter...' : ''}
-                style={{ background: 'transparent', border: 'none', outline: 'none', color: TXT, fontFamily: crimson, fontSize: 13, flex: 1, minWidth: 120, padding: '2px 0' }}
-              />
-            </div>
-            {/* Suggested tags */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-              {suggestedTags.map(tag => (
-                <button key={tag} onClick={() => addTag(tag)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 999, padding: '2px 10px', fontSize: 10, color: DIM, fontFamily: cinzel, cursor: 'pointer', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = G; (e.currentTarget as HTMLButtonElement).style.color = G }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = BDR; (e.currentTarget as HTMLButtonElement).style.color = DIM }}>
-                  + {tag}
-                </button>
-              ))}
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+              {FUNCTION_TAGS.map(tag => {
+                const selected = tags.includes(tag)
+                return (
+                  <button key={tag}
+                    onClick={() => setTags(prev => selected ? prev.filter(t => t !== tag) : [...prev, tag])}
+                    style={{ padding: '3px 10px', background: selected ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${selected ? G : 'rgba(201,168,76,0.2)'}`, borderRadius: 20, color: selected ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s' }}>
+                    {selected ? '✓ ' : ''}{tag}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -645,7 +576,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                 <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 3 }}>{r.title}</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <span style={{ fontFamily: cinzel, fontSize: 8, color: TIER_COLORS[r.tier], border: `1px solid ${TIER_COLORS[r.tier]}44`, padding: '1px 7px', borderRadius: 10 }}>{r.tier}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{r.category}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{r.topic || r.category}</span>
                   <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{fmtBytes(r.file_size || 0)}</span>
                   <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{r.created_at ? fmtDate(r.created_at) : ''}</span>
                   {r.tags?.length > 0 && r.tags.map((t: string) => (
@@ -671,7 +602,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
           onClick={() => setShowCatManager(c => !c)}
           style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
         >
-          {showCatManager ? '▲' : '▼'} Manage Custom Categories
+          {showCatManager ? '▲' : '▼'} Manage Custom Topics
         </button>
         {showCatManager && (
           <div style={{ marginTop: 12 }}>

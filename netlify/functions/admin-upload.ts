@@ -89,7 +89,7 @@ export default async function handler(req: Request) {
   const title       = (formData.get('title') as string || '').trim()
   const description = (formData.get('description') as string || '').trim()
   const tier        = (formData.get('tier') as string) || 'Free'
-  const category    = (formData.get('category') as string) || 'Reference'
+  const topic       = (formData.get('topic') as string) || (formData.get('category') as string) || 'General Ministry'
   const tagsRaw     = formData.get('tags') as string
   const tags        = tagsRaw ? JSON.parse(tagsRaw) : []
   const aiAnalyze   = formData.get('aiAnalyze') === 'true'
@@ -116,13 +116,12 @@ Return exactly this structure:
 {
   "title": "Clean readable title (remove underscores, file extensions, WRI_R01 prefixes etc)",
   "description": "2-3 sentence description of what this document is and how ministers would use it",
-  "category": "one of: Session Tools, Teaching, Protocol, Reference, Renunciation, Worksheet, Scripture, Prayer, Deliverance Guide, Inner Healing, Generational Curses, Soul Ties, Occult & Freemasonry, Sexual Bondage, Mental Strongholds",
+  "topic": "one of: Soul Ties, Generational Curses, Forgiveness, Ungodly Vows, Freemasonry & Secret Societies, Sexual Bondage, Fear & Rejection, Identity & Sonship, Inner Healing, Witchcraft & Occult, Marine Kingdom, Mind Control, Leviathan & Pride, Jezebel & Control, Python & Constriction, Deliverance Foundations, Aftercare, Prayer & Intercession, Scripture Reference, General Ministry",
   "tier": "one of: free, soldier, commander, general",
-  "tags": ["tag1", "tag2", "tag3"]
+  "tags": ["pick 1-4 from: Renunciation Prayer, Worksheet, Teaching, Protocol, Session Tool, Scripture Reference, Aftercare, Assessment Tool, Quick Reference, Leader Guide, Self-Deliverance, Group Exercise"]
 }
 
 For tier: free = basic/intro content, soldier = intermediate ministry tools, commander = advanced protocols, general = leadership/comprehensive guides.
-For tags: 3-6 short keywords from this list or similar: forgiveness, generational, soul ties, renunciation, inner healing, strongholds, repentance, freemasonry, occult, sexual sin, mind control, witchcraft, fear, rejection, trauma, vows, identity, healing, deliverance, prayer, scripture.
 Respond with valid JSON only.`
 
     try {
@@ -162,7 +161,7 @@ Respond with valid JSON only.`
     return new Response(JSON.stringify({
       title: cleanTitle,
       description: '',
-      category: 'Reference',
+      topic: 'General Ministry',
       tier: 'free',
       tags: [],
     }), { status: 200, headers })
@@ -205,7 +204,7 @@ Respond with valid JSON only.`
       title,
       description: description || null,
       tier,
-      category,
+      topic,
       tags: tags.length > 0 ? tags : [],
       file_path: filePath,
       file_type: file.type,
