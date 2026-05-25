@@ -1099,7 +1099,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
   function applyAiFields(fields: Record<string, any>) {
     if (Object.keys(fields).length === 0) {
-      setAiError('All fields are already complete — nothing to enhance.')
+      setAiError('AI returned no fields — the model may have returned non-JSON output. Try again.')
       setAiPhase('error')
       return
     }
@@ -1146,13 +1146,10 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         throw new Error(d.error || `Server error ${res.status}`)
       }
 
-      if (d.fields && Object.keys(d.fields).length > 0) {
+      if (d.fields) {
         applyAiFields(d.fields)
-      } else if (d.fieldCount === 0) {
-        setAiError('All fields are already complete — nothing to enhance.')
-        setAiPhase('error')
       } else {
-        setAiError(d.error || 'AI enhancement failed — no fields returned')
+        setAiError(d.error || 'AI enhancement failed — no fields in response')
         setAiPhase('error')
       }
     } catch(e: any) {

@@ -145,7 +145,7 @@ CRITICAL SESSION RULES:
 
 RETURN ONLY VALID JSON. No markdown, no preamble. Research and return ALL requested fields — the minister will review and decide what to keep.`
 
-// All fields researched every time — minister decides what to keep via Accept/Skip
+// All fields researched every time — no isEmpty filtering — minister decides what to keep via Accept/Skip
 const ENHANCE_FIELDS = [
   'biblicalRank', 'caseType', 'phonetic', 'isGenerational', 'isTerritorial',
   'sessionIndicators', 'transmissionVectors', 'clusterSpirits',
