@@ -41,10 +41,36 @@ export const Route = createFileRoute('/api/demons')({
           const demons = records
             .map((r: any, i: number) => ({
               id: i + 1,
+              airtableId: r.id,
               name: r.fields[NAME_FIELD] || '',
               aka: r.fields['Also Known As'] || '',
               type: r.fields['Type / Rank'] || '',
               function: r.fields['Function / Role'] || '',
+              description: r.fields['Description'] || '',
+              manifestation: r.fields['Manifestiation'] || '',
+              entryPoints: r.fields['Entry Points'] || '',
+              legalRights: r.fields['Legal Rights'] || '',
+              symptoms: r.fields['Symptoms'] || '',
+              companionSpirits: r.fields['Companion Spirits'] || '',
+              wriNotes: r.fields['WRI Exorcist Notes'] || '',
+              hierarchyCategory: r.fields['Hierarchy Category'] || '',
+              parentStrongman: r.fields['Parent Strongman'] || '',
+              deliveranceSequence: r.fields['Deliverance Sequence'] || '',
+              operationalNotes: r.fields['Operational Notes'] || '',
+              primaryBattlefield: r.fields['Primary Battlefield'] || '',
+              personalityPresentation: r.fields['Typical Personality Presentation'] || '',
+              counterScriptures: r.fields['Counter Scriptures'] || '',
+              scripture: r.fields['Scripture Reference'] || '',
+              sourceOrgin: r.fields['Source / Orgin'] || '',
+              kingdom: r.fields['Kingdom'] || '',
+              strongman: r.fields['Strongman'] || '',
+              assignment: r.fields['Assignment'] || '',
+              phonetic: r.fields['Phonetic'] || '',
+              images: r.fields['Images']
+                ? String(r.fields['Images']).split(',').map((s: string) => s.trim()).filter(Boolean)
+                : [],
+              relatedSpirits: r.fields['Related Spirits'] || '',
+              createdTime: r.createdTime || '',
             }))
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')

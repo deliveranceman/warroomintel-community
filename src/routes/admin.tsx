@@ -688,6 +688,7 @@ function blankSpiritFields(): Record<string, string> {
     'Primary Battlefield': '', 'Typical Personality Presentation': '',
     'Counter Scriptures': '', 'Scripture Reference': '', 'Source / Orgin': '',
     'Kingdom': '', 'Strongman': '', 'Assignment': '',
+    'Phonetic': '', 'Images': '', 'Related Spirits': '',
   }
 }
 
@@ -704,6 +705,9 @@ function demonToSpiritFields(d: any): Record<string, string> {
     'Counter Scriptures': d.counterScriptures || '', 'Scripture Reference': d.scripture || '',
     'Source / Orgin': d.sourceOrgin || '', 'Kingdom': d.kingdom || '',
     'Strongman': d.strongman || '', 'Assignment': d.assignment || '',
+    'Phonetic': d.phonetic || '',
+    'Images': Array.isArray(d.images) ? d.images.join('\n') : d.images || '',
+    'Related Spirits': d.relatedSpirits || '',
   }
 }
 
@@ -767,6 +771,45 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
         <div><label style={l}>Source / Orgin</label>{ti('Source / Orgin')}</div>
         <div><label style={l}>Strongman</label>{ti('Strongman')}</div>
         <div><label style={l}>Assignment</label>{ti('Assignment')}</div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={l}>Phonetic Pronunciation</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={f('Phonetic')} onChange={e => setField('Phonetic', e.target.value)}
+              placeholder="e.g. BAY-uhl-zee-bub"
+              style={{ flex: 1, ...i }} />
+            <button
+              onClick={() => {
+                const ph = f('Phonetic')
+                if (ph && 'speechSynthesis' in window) {
+                  window.speechSynthesis.cancel()
+                  const u = new SpeechSynthesisUtterance(ph)
+                  u.rate = 0.75
+                  window.speechSynthesis.speak(u)
+                }
+              }}
+              style={{ padding: '6px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+              🔊 Test
+            </button>
+          </div>
+          <div style={{ fontSize: 10, color: DIM, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
+            Use ALL-CAPS syllables, hyphens between. Click Test to hear browser TTS preview.
+          </div>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={l}>Historical Image URLs</label>
+          <textarea value={f('Images')} onChange={e => setField('Images', e.target.value)}
+            placeholder={'One URL per line\nhttps://upload.wikimedia.org/...'}
+            rows={3} style={{ ...i, resize: 'vertical' as const }} />
+          <div style={{ fontSize: 10, color: DIM, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
+            One image URL per line. Wikimedia Commons, historical manuscripts, etc.
+          </div>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={l}>Related Spirits</label>
+          <input value={f('Related Spirits')} onChange={e => setField('Related Spirits', e.target.value)}
+            placeholder="Comma separated: Jezebel, Ahab, Leviathan"
+            style={{ ...i }} />
+        </div>
       </div>
       {msg && <div style={{ fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 12 }}>{msg}</div>}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>

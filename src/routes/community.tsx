@@ -2407,11 +2407,33 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
   setSidebarOpen: (open: boolean) => void
   userTier: string
 }) {
+  const { getToken } = useAuth()
   const [query, setQuery]         = useState('')
   const [entries, setEntries]     = useState<any[]>([])
   const [dbLoading, setDbLoading] = useState(true)
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [spiritResources, setSpiritResources] = useState<any[]>([])
+  const [loadingResources, setLoadingResources] = useState(false)
+
+  useEffect(() => {
+    if (!selectedEntry) { setSpiritResources([]); return }
+    async function load() {
+      setLoadingResources(true)
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/arsenal-resources?search=${encodeURIComponent(selectedEntry.name)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const d = await res.json()
+          setSpiritResources(d.resources?.slice(0, 4) || [])
+        }
+      } catch(e) {}
+      setLoadingResources(false)
+    }
+    load()
+  }, [selectedEntry?.id])
 
   useEffect(() => {
     fetch('/api/demons')
@@ -2684,15 +2706,63 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
               >✕</button>
 
               {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 22, color, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>{name}</div>
                   {cls && <div style={{ display: 'inline-block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', background: color + '22', color, padding: '3px 10px', borderRadius: 4 }}>{cls.toUpperCase()}</div>}
                 </div>
               </div>
 
+              {/* Phonetic + Hear It */}
+              {entry.phonetic && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ fontFamily: crimson, fontSize: 15, color: dbDim, fontStyle: 'italic' }}>
+                    /{entry.phonetic}/
+                  </div>
+                  <button
+                    onClick={() => {
+                      if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel()
+                        const utterance = new SpeechSynthesisUtterance(entry.phonetic)
+                        utterance.rate = 0.75
+                        utterance.pitch = 0.9
+                        window.speechSynthesis.speak(utterance)
+                      }
+                    }}
+                    style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    🔊 Hear It
+                  </button>
+                  {entry.audio_url && (
+                    <audio controls style={{ height: 28, flex: 1 }}>
+                      <source src={entry.audio_url} />
+                    </audio>
+                  )}
+                </div>
+              )}
+
               {aliases && (
                 <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, fontStyle: 'italic', marginBottom: 14 }}>aka {aliases}</div>
+              )}
+
+              {/* Image Gallery */}
+              {entry.images && entry.images.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Historical Depictions</div>
+                  <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+                    {(Array.isArray(entry.images) ? entry.images : String(entry.images).split(',').map((s: string) => s.trim()).filter(Boolean)).map((img: string, i: number) => (
+                      <div key={i} style={{ flexShrink: 0, width: 140, height: 140, borderRadius: 8, overflow: 'hidden', border: `1px solid ${dbBorder}`, background: 'rgba(0,0,0,0.3)', cursor: 'pointer' }}
+                        onClick={() => window.open(img, '_blank')}>
+                        <img src={img} alt={`${name} depiction ${i + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' as const }}
+                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: dbDim, fontFamily: crimson, fontStyle: 'italic', marginTop: 6 }}>
+                    Historical and artistic depictions — click to view full size
+                  </div>
+                </div>
               )}
 
               {/* Description */}
@@ -2823,6 +2893,73 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                       <div style={{ color: '#E8D5B0', fontSize: 14 }}>👑 {entry.parentStrongman}</div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Spirit Connections */}
+              {(entry.parentStrongman || entry.relatedSpirits) && (
+                <div style={{ marginTop: 20, marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>🕸 Spirit Connections</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                    {entry.parentStrongman && (
+                      <div style={{ fontSize: 11, color: dbDim, fontFamily: crimson, width: '100%', marginBottom: 4 }}>
+                        <span style={{ color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>UNDER STRONGMAN: </span>
+                        <button
+                          onClick={() => {
+                            const parent = entries.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase())
+                            if (parent) setSelectedEntry(parent)
+                          }}
+                          style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                        >
+                          {entry.parentStrongman}
+                        </button>
+                      </div>
+                    )}
+                    {entry.relatedSpirits && String(entry.relatedSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((spiritName: string) => {
+                      const related = entries.find((d: any) => d.name?.toLowerCase() === spiritName.toLowerCase())
+                      return (
+                        <button key={spiritName}
+                          onClick={() => related && setSelectedEntry(related)}
+                          style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: related ? G : dbDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: related ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                          {spiritName}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Related Arsenal Resources */}
+              {spiritResources.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>📎 Related Resources</div>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                    {spiritResources.map((r: any) => (
+                      <div key={r.id} style={{ background: dbSurf, border: `1px solid ${dbBorder}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>📄</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 11, color: dbText, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title}</div>
+                          <div style={{ fontSize: 10, color: dbDim, marginTop: 1 }}>{r.topic || r.category}</div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            const token = await getToken()
+                            const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, {
+                              headers: { Authorization: `Bearer ${token}` },
+                            })
+                            if (res.ok) {
+                              const blob = await res.blob()
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url; a.download = r.title; a.click()
+                              URL.revokeObjectURL(url)
+                            }
+                          }}
+                          style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', flexShrink: 0 }}
+                        >↓ Get</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

@@ -63,7 +63,15 @@ export default async function handler(req: Request) {
     })
     if (!res.ok) return new Response(JSON.stringify({ error: await airtableError(res) }), { status: res.status })
     const data = await res.json()
-    return new Response(JSON.stringify({ record: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    const mapped = {
+      ...data,
+      phonetic: data.fields['Phonetic'] || '',
+      images: data.fields['Images']
+        ? String(data.fields['Images']).split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [],
+      relatedSpirits: data.fields['Related Spirits'] || '',
+    }
+    return new Response(JSON.stringify({ record: mapped }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()

@@ -45,6 +45,7 @@ export default async function handler(req: Request) {
   const reqUrl = new URL(req.url)
   const resourceId = reqUrl.searchParams.get('id')
   const action = reqUrl.searchParams.get('action')
+  const searchParam = reqUrl.searchParams.get('search')
 
   if (action === 'download' && resourceId) {
     const { data: resource, error: resourceError } = await supabase
@@ -69,11 +70,18 @@ export default async function handler(req: Request) {
     })
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('resources')
-    .select('id, title, description, tier, category, file_path, file_type, file_size, created_at')
+    .select('id, title, description, tier, category, topic, tags, file_path, file_type, file_size, created_at')
     .in('tier', allowedTiers)
-    .order('tier').order('category').order('title')
+
+  if (searchParam) {
+    query = query.or(`title.ilike.%${searchParam}%,description.ilike.%${searchParam}%`)
+  }
+
+  query = query.order('tier').order('title')
+
+  const { data, error } = await query
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
 
