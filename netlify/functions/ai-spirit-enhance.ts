@@ -134,33 +134,28 @@ const KEY_ALIASES: Record<string, string> = {
 function parseJsonFields(raw: string): Record<string, any> {
   if (!raw || raw.trim() === '') return {}
 
-  // Try direct parse first
-  try {
-    const direct = JSON.parse(raw.trim())
-    if (typeof direct === 'object' && !Array.isArray(direct)) return direct
-  } catch {}
+  // Strip markdown code fences (```json ... ``` or ``` ... ```)
+  const cleaned = raw
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim()
 
-  // Strip markdown code fences then try again
-  const stripped = raw.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim()
   try {
-    const parsed = JSON.parse(stripped)
+    const parsed = JSON.parse(cleaned)
     if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
   } catch {}
 
-  // Extract largest {...} block and try each from longest to shortest
-  const matches = raw.match(/\{[\s\S]*?\}/g) || []
-  const allBlocks = raw.match(/\{[\s\S]*\}/g) || []
-  const candidates = [...new Set([...allBlocks, ...matches])].sort((a, b) => b.length - a.length)
-  for (const block of candidates) {
+  // Fallback: extract largest {...} block
+  const match = raw.match(/\{[\s\S]*\}/)
+  if (match) {
     try {
-      const parsed = JSON.parse(block)
-      if (typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
-        return parsed
-      }
+      const parsed = JSON.parse(match[0])
+      if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
     } catch {}
   }
 
-  console.error('[enhance] Could not parse JSON. raw[:300]:', raw.slice(0, 300))
+  console.error('[enhance] Could not parse JSON:', raw.slice(0, 200))
   return {}
 }
 
