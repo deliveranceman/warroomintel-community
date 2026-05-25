@@ -46,7 +46,9 @@ async function getLibraryPreamble(_spiritName: string, _spiritDescription: strin
   return '' // disabled for speed — re-enable when library is populated
 }
 
-const SYSTEM_PROMPT = `You are the personal theological research assistant for Pastor Justin Payne of Staffordtown Church (Church on Fire), Copperhill, Tennessee — a trained deliverance minister holding advanced degrees in Archaeology, Etymology, Biblical Demonology, and Theology.
+const SYSTEM_PROMPT = `CRITICAL: Respond with RAW JSON only. Do not use markdown. Do not use code blocks. Do not use backticks. Your entire response must start with { and end with }. Any other format will cause system failure.
+
+You are the personal theological research assistant for Pastor Justin Payne of Staffordtown Church (Church on Fire), Copperhill, Tennessee — a trained deliverance minister holding advanced degrees in Archaeology, Etymology, Biblical Demonology, and Theology.
 
 MINISTRY MODEL — write all content through this lens:
 This ministry operates like a hospital. The full session process is:
@@ -98,7 +100,9 @@ CRITICAL SESSION RULES:
 
 RETURN ONLY VALID JSON. No markdown, no preamble, no explanation outside the JSON object. Research and return ALL requested fields — the minister will review and decide what to keep.
 
-CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max. Array fields: 3-7 items max, each item one sentence. Boolean fields: true or false only. The JSON must be complete and valid — do not truncate.`
+CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max. Array fields: 3-7 items max, each item one sentence. Boolean fields: true or false only. The JSON must be complete and valid — do not truncate.
+
+CRITICAL: Respond with RAW JSON only. Do not use markdown. Do not use code blocks. Do not use backticks. Your entire response must start with { and end with }. Any other format will cause system failure.`
 
 // 10 most critical fields — keys match camelToAirtable in admin-demon.ts exactly
 const ENHANCE_FIELDS = [
@@ -134,28 +138,48 @@ const KEY_ALIASES: Record<string, string> = {
 function parseJsonFields(raw: string): Record<string, any> {
   if (!raw || raw.trim() === '') return {}
 
-  // Strip markdown code fences (```json ... ``` or ``` ... ```)
-  const cleaned = raw
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```\s*$/i, '')
-    .trim()
+  let text = raw.trim()
 
+  // Remove ALL variations of markdown code fences
+  text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+  text = text.replace(/^~~~[\w]*\s*/i, '').replace(/\s*~~~\s*$/i, '').trim()
+
+  // Try direct parse
   try {
-    const parsed = JSON.parse(cleaned)
-    if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
+    const parsed = JSON.parse(text)
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      console.log('[enhance] Direct parse succeeded, keys:', Object.keys(parsed))
+      return parsed
+    }
   } catch {}
 
-  // Fallback: extract largest {...} block
+  // Find the first { and last } and extract everything between
+  const firstBrace = text.indexOf('{')
+  const lastBrace = text.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const extracted = text.slice(firstBrace, lastBrace + 1)
+    try {
+      const parsed = JSON.parse(extracted)
+      if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+        console.log('[enhance] Brace extraction succeeded, keys:', Object.keys(parsed))
+        return parsed
+      }
+    } catch {}
+  }
+
+  // Last resort — regex match for JSON object
   const match = raw.match(/\{[\s\S]*\}/)
   if (match) {
     try {
       const parsed = JSON.parse(match[0])
-      if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
+      if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+        console.log('[enhance] Regex match succeeded, keys:', Object.keys(parsed))
+        return parsed
+      }
     } catch {}
   }
 
-  console.error('[enhance] Could not parse JSON:', raw.slice(0, 200))
+  console.error('[enhance] All parse attempts failed. Raw:', raw.slice(0, 300))
   return {}
 }
 
@@ -273,8 +297,8 @@ export default async function handler(req: Request) {
       const data = await anthropicRes.json()
       rawText = data.content?.[0]?.text || ''
       console.log('[enhance] rawText length:', rawText.length)
-      console.log('[enhance] rawText first 500:', rawText.slice(0, 500))
-      console.log('[enhance] rawText last 200:', rawText.slice(-200))
+      console.log('[enhance] rawText preview:', rawText.slice(0, 100))
+      console.log('[enhance] starts with:', rawText.trimStart().slice(0, 10))
     } catch (e: any) {
       clearTimeout(timeoutId)
       if (e.name === 'AbortError') throw new Error('AI research timed out — try again')
