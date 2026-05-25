@@ -2400,9 +2400,10 @@ const HIERARCHY_CATEGORIES = [
   'Freemasonry', 'Perversion', 'Death / Destruction', 'Religious', 'General Oppression',
 ]
 
-function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
+function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
   theme: string
   isMobile: boolean
+  isTablet: boolean
   setSidebarOpen: (open: boolean) => void
   userTier: string
 }) {
@@ -2668,7 +2669,7 @@ function DatabaseView({ theme, isMobile, setSidebarOpen, userTier }: {
                 borderLeft: `4px solid ${color}`,
                 borderRadius: 12,
                 width: isMobile ? '95vw' : '100%',
-                maxWidth: isMobile ? '95vw' : 640,
+                maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700,
                 margin: isMobile ? '10px' : undefined,
                 maxHeight: isMobile ? '90vh' : '85vh',
                 overflowY: 'auto' as const,
@@ -4423,7 +4424,7 @@ function CommunityPage() {
             isMobile={isMobile}
           />
         )}
-        {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+        {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'arsenal'     && <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'testimony-wall' && (

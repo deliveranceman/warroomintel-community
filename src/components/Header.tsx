@@ -365,18 +365,29 @@ export function Header() {
 
       {/* ── Mobile Dropdown Menu — outside nav so it overlays correctly ── */}
       {menuOpen && (
-        <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(6,4,15,0.92)', zIndex: 100 }} />
-      )}
-      {menuOpen && (
-        <div style={{
-          position: 'fixed', top: '57px', left: 0, right: 0,
-          background: 'var(--dropdown-bg)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: `1px solid ${border}`,
-          zIndex: 200,
-          maxHeight: 'calc(100vh - 57px)',
-          overflowY: 'auto',
-        }}>
+        <>
+          {/* tap-outside-to-close */}
+          <div
+            onClick={() => setMenuOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 99 }}
+          />
+          {/* full-screen overlay container */}
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 100, background: 'rgba(6,4,15,0.97)', pointerEvents: 'none' as const,
+          }}>
+            {/* nav panel */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0,
+              background: 'var(--dropdown-bg)', zIndex: 101,
+              maxHeight: '100vh', overflowY: 'auto',
+              pointerEvents: 'all' as const,
+            }}>
+              {/* panel header with close button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 1.5rem', borderBottom: `1px solid ${border}` }}>
+                <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.22em', color: gold }}>⚔ MENU</span>
+                <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', color: gold, fontSize: '20px', cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
+              </div>
           {/* Features */}
           <a href="/#features" onClick={closeAll} style={{
             display: 'block', fontFamily: cinzel, fontSize: '13px',
@@ -576,7 +587,9 @@ export function Header() {
               </>
             )}
           </div>
-        </div>
+            </div>{/* end nav panel */}
+          </div>{/* end overlay container */}
+        </>
       )}
     </>
   )
