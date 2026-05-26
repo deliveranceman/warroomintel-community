@@ -58,10 +58,20 @@ export default async function handler(req: Request) {
     let newThisMonth = 0
     let activeThisWeek = 0
 
+    // Diagnostic: log every user's metadata so we can see what tiers are actually set
+    console.log('[admin-members] User tiers:', JSON.stringify(allUsers.map((u: any) => ({
+      email: u.email_addresses?.[0]?.email_address,
+      tier: u.public_metadata?.tier,
+      role: u.public_metadata?.role,
+      metadata: u.public_metadata,
+    }))))
+
     for (const u of allUsers) {
-      const tier = (u.public_metadata?.tier as string)?.toLowerCase() || 'free'
-      const role = (u.public_metadata?.role as string)?.toLowerCase() || ''
-      const key = role === 'minister' ? 'minister' : (byTier[tier] !== undefined ? tier : 'free')
+      const rawTier = (u.public_metadata?.tier as string)?.toLowerCase()
+      const role    = (u.public_metadata?.role as string)?.toLowerCase() || ''
+      // No tier set → watchman (base registered member, not truly "free" anonymous)
+      const tier = rawTier || 'watchman'
+      const key  = role === 'minister' ? 'minister' : (byTier[tier] !== undefined ? tier : 'watchman')
       byTier[key] = (byTier[key] || 0) + 1
 
       const createdMs = u.created_at || 0

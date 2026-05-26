@@ -3373,18 +3373,40 @@ function DashboardView({ getToken, isDark, setTab }: {
     load()
   }, [])
 
-  // Spirit completeness
-  const CONTENT_FIELDS = ['description','manifestation','entryPoints','legalRights','sessionIndicators',
-    'resistanceSignature','clusterSpirits','etymologyNotes','prayerPoints','aftercareNotes',
-    'scriptureContext','transmissionVectors','demonicAgreements','counterScriptures',
-    'biblicalRank','caseType','phonetic','deliveranceSequence','operationalNotes','wriNotes']
-  const countFields = (d: any) => CONTENT_FIELDS.filter(f => d[f] && String(d[f]).length > 3).length
-  const full    = demons.filter(d => countFields(d) >= 15).length
-  const partial = demons.filter(d => { const c = countFields(d); return c >= 5 && c < 15 }).length
-  const empty   = demons.filter(d => countFields(d) < 5).length
-  const pctComplete = demons.length ? Math.round((full / demons.length) * 100) : 0
-  const noImage = demons.filter(d => !d.images || (Array.isArray(d.images) ? d.images.length === 0 : !d.images)).length
-  const needsEnhance = demons.filter(d => countFields(d) < 15).length
+  // Spirit completeness — category breakdown
+  const coreFields     = ['name', 'aka', 'description', 'manifestation', 'symptoms']
+  const intelFields    = ['entryPoints', 'legalRights', 'sessionIndicators', 'resistanceSignature', 'transmissionVectors']
+  const warfareFields  = ['prayerPoints', 'clusterSpirits', 'deliveranceSequence', 'counterScriptures', 'wriNotes']
+  const researchFields = ['etymologyNotes', 'archaeologyNotes', 'scriptureContext', 'biblicalRank', 'caseType']
+  const mediaFields    = ['images', 'phonetic', 'relatedSpirits', 'companionSpirits']
+  const allTracked     = [...coreFields, ...intelFields, ...warfareFields, ...researchFields, ...mediaFields]
+
+  const fieldScore = (d: any, fields: string[]) =>
+    fields.filter(f => {
+      const v = d[f]
+      if (!v) return false
+      if (Array.isArray(v)) return v.length > 0
+      return String(v).trim().length > 2
+    }).length
+
+  const pct = (sum: number, max: number) => max === 0 ? 0 : Math.round((sum / max) * 100)
+
+  const getCompletionStats = (ds: any[]) => {
+    if (!ds.length) return null
+    const n = ds.length
+    return {
+      core:     pct(ds.reduce((s, d) => s + fieldScore(d, coreFields),     0), n * coreFields.length),
+      intel:    pct(ds.reduce((s, d) => s + fieldScore(d, intelFields),    0), n * intelFields.length),
+      warfare:  pct(ds.reduce((s, d) => s + fieldScore(d, warfareFields),  0), n * warfareFields.length),
+      research: pct(ds.reduce((s, d) => s + fieldScore(d, researchFields), 0), n * researchFields.length),
+      media:    pct(ds.reduce((s, d) => s + fieldScore(d, mediaFields),    0), n * mediaFields.length),
+      overall:  pct(ds.reduce((s, d) => s + fieldScore(d, allTracked),     0), n * allTracked.length),
+    }
+  }
+
+  const stats = getCompletionStats(demons)
+  const noImage    = demons.filter(d => !d.images || (Array.isArray(d.images) ? d.images.length === 0 : !d.images)).length
+  const needsEnhance = demons.filter(d => fieldScore(d, allTracked) < Math.round(allTracked.length * 0.5)).length
 
   const card = (label: string, value: string | number, subtitle: string) => (
     <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: '20px 24px', flex: 1, minWidth: 160 }}>
@@ -3410,7 +3432,7 @@ function DashboardView({ getToken, isDark, setTab }: {
 
       {/* Row 1 — Hero stats */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' as const }}>
-        {card('Total Spirits', demons.length, `${full} fully researched`)}
+        {card('Total Spirits', demons.length, `${stats?.overall ?? 0}% overall complete`)}
         {card('Total Members', memberStats?.total ?? '…', `${memberStats?.newThisMonth ?? 0} joined this month`)}
         {card('AI Calls This Month', aiStats?.thisMonth?.calls ?? '…', `vs ${aiStats?.lastMonth?.calls ?? 0} last month`)}
         {card('Est. Monthly Cost', aiStats?.thisMonth ? `$${aiStats.thisMonth.estimatedCost.toFixed(2)}` : '…', `${((aiStats?.thisMonth?.inputTokens || 0) + (aiStats?.thisMonth?.outputTokens || 0)).toLocaleString()} tokens`)}
@@ -3420,17 +3442,32 @@ function DashboardView({ getToken, isDark, setTab }: {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
         {/* DB completion */}
         <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Intelligence Database</div>
-          <div style={{ fontFamily: cinzel, fontSize: 40, color: G, fontWeight: 700, marginBottom: 4 }}>{pctComplete}%</div>
-          <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 14 }}>{demons.length} total spirits</div>
-          <div style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 12 }}>
-            <div style={{ width: `${pctComplete}%`, height: '100%', background: G, borderRadius: 4, transition: 'width 0.5s' }} />
-          </div>
-          <div style={{ display: 'flex', gap: 16, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>
-            <span style={{ color: '#4ade80' }}>✓ {full} complete</span>
-            <span style={{ color: G }}>◑ {partial} partial</span>
-            <span style={{ color: MUT }}>○ {empty} empty</span>
-          </div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 14 }}>Intelligence Database</div>
+          {loading || !stats ? (
+            <div style={{ color: MUT, fontFamily: crimson, fontSize: 13 }}>Loading...</div>
+          ) : (
+            <>
+              <div style={{ fontFamily: cinzel, fontSize: 42, color: G, fontWeight: 700, lineHeight: 1 }}>{stats.overall}%</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 18, marginTop: 4 }}>Overall · {demons.length} spirits</div>
+              {([
+                { label: 'Core Data', pct: stats.core,     color: '#C9A84C' },
+                { label: 'Intel',     pct: stats.intel,    color: '#8B9DCA' },
+                { label: 'Warfare',   pct: stats.warfare,  color: '#7a9e7e' },
+                { label: 'Research',  pct: stats.research, color: '#9B7BB8' },
+                { label: 'Media',     pct: stats.media,    color: '#CA8B8B' },
+              ] as const).map(cat => (
+                <div key={cat.label} style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: MUT, marginBottom: 4 }}>
+                    <span>{cat.label.toUpperCase()}</span>
+                    <span style={{ color: cat.color }}>{cat.pct}%</span>
+                  </div>
+                  <div style={{ height: 4, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)', borderRadius: 2 }}>
+                    <div style={{ height: '100%', width: `${cat.pct}%`, background: cat.color, borderRadius: 2, transition: 'width 0.8s ease' }} />
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         {/* Member tiers */}
@@ -3438,18 +3475,20 @@ function DashboardView({ getToken, isDark, setTab }: {
           <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Warriors</div>
           {loading || !memberStats ? (
             <div style={{ color: MUT, fontFamily: crimson, fontSize: 13 }}>Loading...</div>
-          ) : (['general','commander','soldier','watchman','free'] as const).map(tier => {
+          ) : (['minister','general','commander','soldier','watchman','free']).map(tier => {
             const count = memberStats.byTier?.[tier] || 0
+            if (count === 0 && tier === 'free') return null
             const total = memberStats.total || 1
-            const pct = Math.round((count / total) * 100)
+            const pct   = Math.round((count / total) * 100)
+            const col   = TIER_COLORS[tier] || MUT
             return (
-              <div key={tier} style={{ marginBottom: 12 }}>
+              <div key={tier} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>
-                  <span style={{ color: TIER_COLORS[tier] }}>{tier.toUpperCase()}</span>
+                  <span style={{ color: col }}>{tier.toUpperCase()}</span>
                   <span style={{ color: MUT }}>{count} ({pct}%)</span>
                 </div>
-                <div style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)', borderRadius: 3, height: 6 }}>
-                  <div style={{ width: `${pct}%`, height: '100%', background: TIER_COLORS[tier], borderRadius: 3 }} />
+                <div style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)', borderRadius: 3, height: 5 }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: col, borderRadius: 3, transition: 'width 0.6s ease' }} />
                 </div>
               </div>
             )
