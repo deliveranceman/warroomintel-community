@@ -2044,6 +2044,263 @@ const STRIPE_LINKS: Record<string, string> = {
 const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
 const tierNum = (t: string) => TIER_LEVEL[t?.toLowerCase()] ?? 0
 
+// ── MARKDOWN → HTML ─────────────────────────────────────────────────────────
+function markdownToHtml(md: string): string {
+  if (!md) return ''
+  return md
+    .replace(/^### (.+)$/gm, '<h3 style="font-family:Cinzel,serif;color:#C9A84C;font-size:14px;letter-spacing:0.08em;margin:20px 0 8px">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-family:Cinzel,serif;color:#C9A84C;font-size:18px;letter-spacing:0.06em;margin:24px 0 10px">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 style="font-family:Cinzel,serif;color:#C9A84C;font-size:22px;margin:28px 0 12px">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #C9A84C;padding:8px 16px;margin:16px 0;color:#8B7355;font-style:italic">$1</blockquote>')
+    .replace(/^- (.+)$/gm, '<li style="margin:4px 0">$1</li>')
+    .replace(/(<li[^>]*>.*?<\/li>\n?)+/g, '<ul style="padding-left:20px;margin:12px 0">$&</ul>')
+    .replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0">$1</li>')
+    .replace(/\n\n/g, '</p><p style="margin:0 0 16px">')
+    .replace(/^(?!<[hbuol])(.+)$/gm, '<p style="margin:0 0 16px">$1</p>')
+    .replace(/<p style="margin:0 0 16px"><\/p>/g, '')
+}
+
+function getYouTubeId(url: string): string {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([^&\n?#]+)/)
+  return match?.[1] || ''
+}
+
+// ── FIELD MINISTRY VIEW ──────────────────────────────────────────────────────
+function FieldMinistryView({ theme, userTier, isMobile, setSidebarOpen }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const GG  = '#C9A84C'
+  const bg  = isDark ? '#0D0B14' : '#faf8f4'
+  const bdr = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt = isDark ? '#E8D5B0' : '#1a1410'
+  const mut = isDark ? '#8B7355' : '#5c4a3a'
+  const navBg   = isDark ? 'rgba(13,11,20,0.95)' : '#f0ebe3'
+  const navBdr  = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
+  const artBg   = isDark ? 'rgba(201,168,76,0.04)' : '#ffffff'
+
+  const TIER_NUM: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+  const userTierNum = TIER_NUM[userTier?.toLowerCase()] ?? 0
+
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [openCats, setOpenCats]     = useState<Set<string>>(new Set(['understanding-deliverance']))
+  const [activeArticle, setActiveArticle] = useState<any>(null)
+  const [showPanel, setShowPanel]   = useState(false) // mobile: show article panel
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/field-manual', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setCategories(d.categories || [])
+        // Auto-open first category
+        if (d.categories?.[0]) {
+          setOpenCats(new Set([d.categories[0].category_slug]))
+        }
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  function toggleCat(slug: string) {
+    setOpenCats(prev => {
+      const next = new Set(prev)
+      if (next.has(slug)) next.delete(slug)
+      else next.add(slug)
+      return next
+    })
+  }
+
+  function selectArticle(article: any) {
+    if (article.locked) return
+    setActiveArticle(article)
+    if (isMobile) setShowPanel(true)
+  }
+
+  const TIER_COLORS: Record<string, string> = {
+    soldier: '#60a5fa', commander: '#a78bfa', general: '#f59e0b', minister: '#C9A84C',
+  }
+
+  // ── NAV PANEL ──
+  const navPanel = (
+    <div style={{
+      width: isMobile ? '100%' : 240, flexShrink: 0,
+      background: navBg, borderRight: isMobile ? 'none' : `1px solid ${navBdr}`,
+      overflowY: 'auto', display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Header */}
+      <div style={{ padding: '16px 16px 10px', borderBottom: `1px solid ${navBdr}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)}
+            style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}>☰</button>
+        )}
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.14em', color: GG, fontWeight: 700 }}>📖 FIELD MINISTRY</div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 24, fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 13, textAlign: 'center' }}>Loading…</div>
+      ) : categories.length === 0 ? (
+        <div style={{ padding: 24, fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 13, textAlign: 'center', fontStyle: 'italic' }}>No articles published yet.</div>
+      ) : categories.map(cat => (
+        <div key={cat.category_slug}>
+          {/* Category header */}
+          <div
+            onClick={() => toggleCat(cat.category_slug)}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '9px 16px', cursor: 'pointer',
+              background: 'rgba(201,168,76,0.06)', borderBottom: `1px solid ${navBdr}`,
+              fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: GG,
+              userSelect: 'none',
+            }}
+          >
+            <span>{cat.category_icon} {cat.category.toUpperCase()}</span>
+            <span style={{ fontSize: 9, display: 'inline-block', transition: 'transform 0.2s', transform: openCats.has(cat.category_slug) ? 'rotate(180deg)' : 'none' }}>▼</span>
+          </div>
+
+          {/* Articles */}
+          {openCats.has(cat.category_slug) && cat.articles.map((article: any) => (
+            <div
+              key={article.id}
+              onClick={() => selectArticle(article)}
+              style={{
+                padding: '8px 16px 8px 24px', cursor: article.locked ? 'default' : 'pointer',
+                background: activeArticle?.id === article.id ? 'rgba(201,168,76,0.12)' : 'transparent',
+                borderLeft: activeArticle?.id === article.id ? `2px solid ${GG}` : '2px solid transparent',
+                borderBottom: `1px solid ${navBdr}20`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                fontFamily: "'Crimson Pro', serif", fontSize: 13,
+                color: article.locked ? (isDark ? '#4a4032' : '#aaa') : activeArticle?.id === article.id ? GG : (isDark ? '#a09888' : '#5c4a3a'),
+                transition: 'background 0.15s',
+              }}
+            >
+              <span style={{ flex: 1, lineHeight: 1.3 }}>{article.locked ? '🔒 ' : ''}{article.title}</span>
+              {article.locked && (
+                <span style={{
+                  fontSize: 8, fontFamily: "'Cinzel', serif", letterSpacing: '0.06em',
+                  color: TIER_COLORS[article.min_tier] || mut,
+                  background: 'rgba(255,255,255,0.04)', padding: '2px 5px', borderRadius: 3,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                  {article.min_tier.toUpperCase()}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+
+  // ── ARTICLE PANEL ──
+  const articlePanel = (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '32px 40px', minHeight: 0 }}>
+      {isMobile && showPanel && (
+        <button onClick={() => setShowPanel(false)}
+          style={{ background: 'none', border: 'none', color: GG, fontSize: 13, cursor: 'pointer', fontFamily: "'Cinzel', serif", letterSpacing: '0.08em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+          ← Back
+        </button>
+      )}
+
+      {!activeArticle ? (
+        <div style={{ textAlign: 'center', padding: isMobile ? '40px 20px' : '80px 40px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📖</div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: GG, marginBottom: 10, letterSpacing: '0.06em' }}>Field Ministry</div>
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, color: mut, lineHeight: 1.8, maxWidth: 420, margin: '0 auto' }}>
+            Your guide to understanding and walking in deliverance ministry.
+            Select a topic from the menu to begin.
+          </div>
+        </div>
+      ) : activeArticle.locked ? (
+        <div style={{ textAlign: 'center', padding: isMobile ? '40px 20px' : '80px 40px' }}>
+          <div style={{ display: 'inline-block', padding: '40px', background: 'rgba(201,168,76,0.04)', borderRadius: 12, border: `1px solid ${bdr}` }}>
+            <div style={{ fontSize: 36, marginBottom: 14 }}>🔒</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG, letterSpacing: '0.1em', marginBottom: 10 }}>
+              {activeArticle.min_tier.toUpperCase()} ACCESS REQUIRED
+            </div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: mut, marginBottom: 24, lineHeight: 1.7 }}>
+              This content is available to {activeArticle.min_tier} members and above.
+            </div>
+            <a href="/membership" style={{
+              display: 'inline-block', padding: '10px 28px',
+              background: GG, color: '#0D0B14', borderRadius: 4,
+              fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.08em', textDecoration: 'none',
+            }}>Upgrade Now</a>
+          </div>
+        </div>
+      ) : (
+        <div style={{ maxWidth: 720 }}>
+          {/* Breadcrumb */}
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', color: mut, marginBottom: 10 }}>
+            {categories.find(c => c.articles.some((a: any) => a.id === activeArticle.id))?.category_icon}{' '}
+            {categories.find(c => c.articles.some((a: any) => a.id === activeArticle.id))?.category}
+          </div>
+
+          {/* Title */}
+          <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: isMobile ? 20 : 26, color: GG, margin: '0 0 8px', letterSpacing: '0.04em', lineHeight: 1.3 }}>
+            {activeArticle.title}
+          </h1>
+
+          {/* Tier badge */}
+          {activeArticle.min_tier !== 'free' && (
+            <span style={{
+              display: 'inline-block', marginBottom: 20,
+              fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em',
+              color: TIER_COLORS[activeArticle.min_tier] || GG,
+              background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`,
+              padding: '3px 10px', borderRadius: 4,
+            }}>
+              {activeArticle.min_tier.toUpperCase()} CONTENT
+            </span>
+          )}
+
+          {/* YouTube embed */}
+          {activeArticle.youtube_url && getYouTubeId(activeArticle.youtube_url) && (
+            <div style={{ marginBottom: 28, borderRadius: 8, overflow: 'hidden', border: `1px solid rgba(201,168,76,0.2)` }}>
+              <iframe
+                src={`https://www.youtube.com/embed/${getYouTubeId(activeArticle.youtube_url)}?rel=0`}
+                style={{ width: '100%', height: isMobile ? 220 : 360, border: 'none', display: 'block' }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
+          {/* Content */}
+          <div
+            style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, lineHeight: 1.85, color: txt }}
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(activeArticle.content || '') }}
+          />
+        </div>
+      )}
+    </div>
+  )
+
+  if (isMobile) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: bg, minHeight: 0 }}>
+        {!showPanel ? navPanel : articlePanel}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: bg, minHeight: 0 }}>
+      {navPanel}
+      {articlePanel}
+    </div>
+  )
+}
+
 // ── WEEKLY INTEL VIEW ────────────────────────────────────────────────────────
 function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection: (s: string) => void
@@ -5043,6 +5300,7 @@ function CommunityPage() {
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
+        {navItem('Field Ministry', 'field-ministry', '📖')}
 
         {/* ── INTELLIGENCE ── */}
         {sectionLabel('Intelligence')}
@@ -5177,6 +5435,7 @@ function CommunityPage() {
       {/* ── CENTER ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
+        {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
           <WarRoomChatView

@@ -3549,6 +3549,325 @@ function DashboardView({ getToken, isDark, setTab }: {
   )
 }
 
+// ─── FIELD MINISTRY MANAGER ───────────────────────────────────────────────────
+function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const BG2 = isDark ? '#13111a' : '#fff'
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
+  const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
+  const TXT2 = isDark ? '#e8e0d0' : '#1a1410'
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8',
+    border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2,
+    fontSize: 13, fontFamily: crimson, outline: 'none',
+  }
+
+  const TIERS = ['free', 'soldier', 'commander', 'general', 'minister']
+
+  const [articles, setArticles] = useState<any[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId]     = useState<string | null>(null)
+  const [saving, setSaving]     = useState(false)
+  const [msg, setMsg]           = useState('')
+  const [preview, setPreview]   = useState(false)
+
+  const blankForm = () => ({
+    category: '', category_slug: '', category_order: 0, category_icon: '📖',
+    title: '', slug: '', content: '', youtube_url: '', min_tier: 'free', is_published: false,
+  })
+  const [form, setForm] = useState<any>(blankForm())
+
+  async function load() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/field-manual', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        const all: any[] = []
+        for (const cat of d.categories || []) for (const a of cat.articles || []) all.push({ ...a, category: cat.category, category_slug: cat.category_slug, category_order: cat.category_order, category_icon: cat.category_icon })
+        setArticles(all)
+      }
+    } finally { setLoading(false) }
+  }
+
+  // Also load all (including unpublished) for admin
+  async function loadAll() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/field-manual?all=1', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        const all: any[] = []
+        for (const cat of d.categories || []) for (const a of cat.articles || []) all.push({ ...a, category: cat.category, category_slug: cat.category_slug, category_order: cat.category_order, category_icon: cat.category_icon })
+        setArticles(all)
+      }
+    } finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadAll() }, [])
+
+  const existingCategories = [...new Set(articles.map(a => a.category))].filter(Boolean)
+
+  function slugify(s: string) { return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }
+
+  function setF(key: string, val: any) {
+    setForm((f: any) => {
+      const next = { ...f, [key]: val }
+      if (key === 'title' && !editId) next.slug = slugify(val)
+      if (key === 'category' && !editId) next.category_slug = slugify(val)
+      return next
+    })
+  }
+
+  function startEdit(a: any) {
+    setForm({
+      category: a.category || '', category_slug: a.category_slug || '',
+      category_order: a.category_order ?? 0, category_icon: a.category_icon || '📖',
+      title: a.title || '', slug: a.slug || '', content: a.content || '',
+      youtube_url: a.youtube_url || '', min_tier: a.min_tier || 'free',
+      is_published: a.is_published ?? false,
+    })
+    setEditId(a.id)
+    setShowForm(true)
+    setMsg('')
+    setPreview(false)
+  }
+
+  function cancelForm() { setShowForm(false); setEditId(null); setForm(blankForm()); setMsg(''); setPreview(false) }
+
+  async function save() {
+    if (!form.title || !form.category || !form.slug) { setMsg('Title, category, and slug are required.'); return }
+    setSaving(true); setMsg('')
+    try {
+      const token = await getToken()
+      const method = editId ? 'PATCH' : 'POST'
+      const url    = editId ? `/api/field-manual?id=${editId}` : '/api/field-manual'
+      const res = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      })
+      const d = await res.json()
+      if (!res.ok) { setMsg(d.error || 'Save failed'); return }
+      setMsg('Saved!')
+      setTimeout(() => { cancelForm(); loadAll() }, 800)
+    } finally { setSaving(false) }
+  }
+
+  async function remove(id: string, title: string) {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
+    const token = await getToken()
+    const res = await fetch(`/api/field-manual?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) loadAll()
+    else { const d = await res.json(); alert(d.error || 'Delete failed') }
+  }
+
+  async function seedContent() {
+    const token = await getToken()
+    const SEED = [
+      { category: 'Understanding Deliverance', category_slug: 'understanding-deliverance', category_order: 1, category_icon: '✝', title: 'What is Deliverance?', slug: 'what-is-deliverance', min_tier: 'free', is_published: true, content: '## What is Deliverance?\n\nDeliverance is the process by which a believer is freed from demonic oppression through the authority of Jesus Christ. It is not a magic formula — it is an encounter with the living God.\n\n> *"The Spirit of the Lord is upon me... to proclaim liberty to the captives."* — Luke 4:18\n\nDeliverance ministry recognizes that spiritual bondage is real, that Jesus purchased our freedom at Calvary, and that believers have been given authority to apply that freedom.' },
+      { category: 'Understanding Deliverance', category_slug: 'understanding-deliverance', category_order: 1, category_icon: '✝', title: 'Why Do We Need It?', slug: 'why-do-we-need-deliverance', min_tier: 'free', is_published: true, content: '## Why Do We Need Deliverance?\n\nSin, trauma, and generational patterns can create legal access points for demonic oppression. Salvation opens the door to freedom — deliverance ministry walks through it.\n\nMany believers are saved but not free. They have accepted Christ but continue to struggle with compulsive behaviors, persistent fears, or spiritual heaviness that does not respond to counseling or willpower alone.\n\nDeliverance addresses the spiritual root.' },
+      { category: 'Understanding Deliverance', category_slug: 'understanding-deliverance', category_order: 1, category_icon: '✝', title: 'Biblical Foundation', slug: 'biblical-foundation', min_tier: 'free', is_published: true, content: '## Biblical Foundation\n\nDeliverance ministry is not a fringe practice — it is woven throughout the gospels and the early church.\n\n- Jesus cast out demons as a central part of His ministry (Matthew 8, Mark 1, Luke 13)\n- He commissioned believers to do the same (Mark 16:17)\n- The early church continued this ministry (Acts 16:18, Acts 19)\n\n> *"And these signs shall follow them that believe: In my name shall they cast out devils."* — Mark 16:17' },
+      { category: 'The Ministry Process', category_slug: 'the-ministry-process', category_order: 2, category_icon: '🏥', title: 'Readiness Evaluation', slug: 'readiness-evaluation', min_tier: 'free', is_published: true, content: '## Readiness Evaluation\n\nNot every person who desires deliverance is ready for a session. A brief readiness evaluation helps the ministry team determine the right timing.\n\n**Key readiness indicators:**\n- The person is born again or seeking to be\n- They want freedom — not just relief\n- They are willing to forgive those who have wronged them\n- They understand that post-session lifestyle changes are required\n\nReadiness is not perfection — it is willingness.' },
+      { category: 'The Ministry Process', category_slug: 'the-ministry-process', category_order: 2, category_icon: '🏥', title: 'The Assessment Process', slug: 'assessment-process', min_tier: 'free', is_published: true, content: '## The Assessment Process\n\nBefore a deliverance session, the team completes a thorough intake assessment. This covers:\n\n- Family history and generational patterns\n- Trauma timeline\n- Areas of persistent struggle\n- Any occult or sexual sin history\n- Current spiritual disciplines\n\nThe assessment is confidential and treated with pastoral care. It is not an interrogation — it is a map.' },
+      { category: 'The Ministry Process', category_slug: 'the-ministry-process', category_order: 2, category_icon: '🏥', title: 'Prayer & Team Listening', slug: 'prayer-team-listening', min_tier: 'soldier', is_published: true, content: '## Prayer & Team Listening\n\nBefore the session begins, the ministry team prays and listens to the Holy Spirit. This is not preparation theater — it is essential intelligence gathering.\n\nThe Spirit often reveals specific spirits, entry points, or areas of resistance before the session opens. Write down what you receive. Compare notes with the team.\n\n**Common forms of receiving:**\n- Words of knowledge\n- Scriptures that arise spontaneously\n- Physical sensations (heaviness, pressure)\n- Mental pictures or impressions\n\nTest everything against scripture.' },
+      { category: 'The Ministry Process', category_slug: 'the-ministry-process', category_order: 2, category_icon: '🏥', title: 'The Deliverance Session', slug: 'deliverance-session', min_tier: 'soldier', is_published: true, content: '## The Deliverance Session\n\nA deliverance session follows a general pattern, though the Spirit leads each one differently.\n\n### Opening\nWorship, establishing the presence of God, and prayer covering for all team members.\n\n### Renunciation\nThe person verbally renounces any legal rights granted to spirits through sin, trauma, or agreement.\n\n### Command\nThe minister commands named spirits to leave in the name of Jesus Christ.\n\n### Filling\nAfter spirits depart, the person is prayed over for infilling of the Holy Spirit in every vacated area.\n\n### Aftercare Planning\nThe session closes with a clear aftercare plan.' },
+      { category: 'Inner Healing', category_slug: 'inner-healing', category_order: 3, category_icon: '💛', title: 'What is Inner Healing?', slug: 'what-is-inner-healing', min_tier: 'free', is_published: true, content: '## What is Inner Healing?\n\nInner healing addresses the emotional and psychological wounds that create legal access for demonic oppression. It is not therapy — it is the ministry of the Holy Spirit to the wounded soul.\n\nJesus said He came to heal the brokenhearted (Luke 4:18). Inner healing is the fulfillment of that promise applied personally.\n\nTrauma, rejection, abuse, and loss leave marks on the soul. These marks can become doors. Inner healing closes those doors through forgiveness, truth, and the presence of God.' },
+      { category: 'Inner Healing', category_slug: 'inner-healing', category_order: 3, category_icon: '💛', title: 'Trauma & Legal Rights', slug: 'trauma-legal-rights', min_tier: 'soldier', is_published: true, content: '## Trauma & Legal Rights\n\nUnhealed trauma is one of the most common entry points for demonic oppression. When a person experiences severe trauma without processing it in the presence of God, it can create what we call a *legal right* — a basis upon which a spirit claims permission to remain.\n\n**Common trauma-based legal rights:**\n- Childhood abuse (physical, sexual, emotional)\n- Betrayal by a trusted authority\n- Involvement in occult practices\n- Oaths, vows, or agreements made in crisis\n\nRevoking legal rights requires both forgiveness of the offender and renunciation of any vow or agreement made in response to the wound.' },
+      { category: 'Inner Healing', category_slug: 'inner-healing', category_order: 3, category_icon: '💛', title: 'The Attachment Loop', slug: 'attachment-loop', min_tier: 'commander', is_published: true, content: '## The Attachment Loop\n\nThe attachment loop describes how unhealed wounds perpetuate demonic cycles. A wound creates a need. The need creates an unhealthy attachment (to a behavior, substance, person, or belief). The attachment provides a legal ground for a spirit. The spirit reinforces the wound.\n\n**Breaking the loop requires:**\n1. Identifying the original wound\n2. Bringing it to Jesus in prayer\n3. Forgiving the source of the wound\n4. Renouncing the attachment\n5. Commanding the spirit to leave\n6. Receiving healing and filling\n\nThis is why surface-level deliverance without inner healing often produces temporary results.' },
+      { category: 'After Your Session', category_slug: 'after-your-session', category_order: 4, category_icon: '🌱', title: 'Aftercare Principles', slug: 'aftercare-principles', min_tier: 'free', is_published: true, content: '## Aftercare Principles\n\nWhat happens after a deliverance session is as important as the session itself. Jesus warned that a house left empty can be reoccupied (Matthew 12:43-45).\n\n**Core aftercare principles:**\n- Daily scripture intake and prayer\n- Accountability with a trusted believer\n- Avoid environments or relationships that triggered old patterns\n- Regular worship and praise\n- Continue inner healing work as needed\n- Stay connected to a healthy local church\n\nFreedom is a door you walk through — but you must continue walking.' },
+      { category: 'After Your Session', category_slug: 'after-your-session', category_order: 4, category_icon: '🌱', title: 'Walking in Freedom', slug: 'walking-in-freedom', min_tier: 'free', is_published: true, content: '## Walking in Freedom\n\nDeliverance is a moment. Freedom is a lifestyle. The session breaks the power — but renewing the mind (Romans 12:2) establishes new patterns.\n\n> *"And be not conformed to this world: but be ye transformed by the renewing of your mind."* — Romans 12:2\n\nPractical freedom disciplines:\n- Replace old thought patterns with scripture declarations\n- Journal what the Holy Spirit reveals\n- Find a spiritual father or mother who can speak into your life\n- Serve others — walking in your calling accelerates healing' },
+      { category: 'After Your Session', category_slug: 'after-your-session', category_order: 4, category_icon: '🌱', title: 'Working With a Mentor', slug: 'working-with-mentor', min_tier: 'soldier', is_published: true, content: '## Working With a Mentor\n\nA post-deliverance mentor is not a therapist — they are a spiritual companion who has walked the road ahead of you. Their role is to help you identify when old patterns are returning and to pray with you through new challenges.\n\nA good mentor:\n- Has their own deliverance experience\n- Is accountable to pastoral leadership\n- Meets regularly (weekly or bi-weekly)\n- Listens more than they speak\n- Points you to Jesus, not to themselves\n\nWar Room Intel can connect you with a trained mentor through the assessment process.' },
+      { category: 'Common Questions', category_slug: 'common-questions', category_order: 5, category_icon: '❓', title: 'Is This Biblical?', slug: 'is-this-biblical', min_tier: 'free', is_published: true, content: '## Is This Biblical?\n\nYes. Deliverance ministry is thoroughly biblical.\n\n**Old Testament precedent:** Saul\'s torment by an evil spirit (1 Samuel 16:14-23)\n\n**Jesus\' ministry:** Matthew 4:24, 8:16, 8:28-34, Mark 1:23-27, Mark 5:1-20, Luke 13:10-17\n\n**Commission to believers:** Mark 16:17, Luke 9:1, Luke 10:17-20\n\n**Early church:** Acts 5:16, Acts 8:7, Acts 16:18, Acts 19:11-12\n\n**Pauline theology:** Ephesians 6:10-18, 2 Corinthians 10:3-5\n\nThe question is not whether deliverance is biblical — it is whether we will operate in the full counsel of God.' },
+      { category: 'Common Questions', category_slug: 'common-questions', category_order: 5, category_icon: '❓', title: 'What to Expect in a Session', slug: 'what-to-expect', min_tier: 'free', is_published: true, content: '## What to Expect in a Session\n\nMany people come to their first session with fear about what might happen. Here is what a typical War Room Intel session looks like:\n\n**Duration:** 2-3 hours (intake + session + aftercare plan)\n\n**Team:** 1-2 trained ministers, possibly an intercessor\n\n**Setting:** A private, peaceful room — no audience\n\n**What you will do:** Share your story, renounce specific things as led, receive prayer\n\n**What might happen:** Some people experience physical manifestations (shaking, coughing, yawning). This is normal and not dangerous.\n\n**What will not happen:** We do not use theatrical techniques, loud shouting, or physical restraint.' },
+      { category: 'Common Questions', category_slug: 'common-questions', category_order: 5, category_icon: '❓', title: 'How to Prepare', slug: 'how-to-prepare', min_tier: 'free', is_published: true, content: '## How to Prepare for Your Session\n\nPreparation significantly affects outcomes. Here is how to prepare:\n\n**In the days before:**\n- Fast if you are able (even one meal)\n- Spend time in worship and scripture\n- Write down key areas of struggle and timeline of trauma\n- Begin forgiving people on your list — even if feelings have not followed yet\n\n**Day of session:**\n- Eat lightly\n- Avoid alcohol and sleep deprivation\n- Come expectant, not fearful\n- Bring a notebook for the aftercare plan\n\n**Spiritually:**\n- Confess any known sin\n- Ask the Holy Spirit to reveal anything that needs to surface\n- Come surrendered — not trying to control the session' },
+    ]
+
+    let seeded = 0
+    for (const article of SEED) {
+      const res = await fetch('/api/field-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(article),
+      })
+      if (res.ok) seeded++
+    }
+    setMsg(`Seeded ${seeded} articles.`)
+    loadAll()
+  }
+
+  async function handleSeed() {
+    if (articles.length > 0) { if (!confirm(`Table already has ${articles.length} articles. Seed anyway? (duplicates will fail silently)`)) return }
+    await seedContent()
+  }
+
+  const thS: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, borderBottom: `1px solid ${BDR2}`, whiteSpace: 'nowrap' }
+  const tdS: React.CSSProperties = { padding: '9px 12px', borderBottom: `1px solid ${BDR2}20`, fontSize: 12, verticalAlign: 'middle' }
+  const TIER_COLORS: Record<string, string> = { free: '#7a9e7e', soldier: '#60a5fa', commander: '#a78bfa', general: '#f59e0b', minister: G }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.06em' }}>📖 Field Ministry Manager</div>
+          <div style={{ fontFamily: crimson, color: MUT, fontSize: 13, marginTop: 4 }}>Manage knowledge base articles visible to community members</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {articles.length === 0 && !loading && (
+            <button onClick={handleSeed}
+              style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${BDR2}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+              Seed Starter Content
+            </button>
+          )}
+          <button
+            onClick={() => { setShowForm(true); setEditId(null); setForm(blankForm()); setMsg('') }}
+            style={{ padding: '8px 18px', background: G, color: '#0D0B14', border: 'none', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, cursor: 'pointer' }}>
+            + New Article
+          </button>
+        </div>
+      </div>
+
+      {msg && <div style={{ marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR2}`, borderRadius: 6, fontFamily: crimson, color: G, fontSize: 13 }}>{msg}</div>}
+
+      {/* Article table */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: MUT, fontFamily: crimson, fontStyle: 'italic' }}>Loading articles…</div>
+      ) : (
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, overflow: 'hidden', marginBottom: showForm ? 32 : 0 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: isDark ? 'rgba(201,168,76,0.06)' : '#f0ebe3' }}>
+                <th style={thS}>Title</th>
+                <th style={thS}>Category</th>
+                <th style={thS}>Tier</th>
+                <th style={thS}>Status</th>
+                <th style={{ ...thS, width: 100 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {articles.length === 0 ? (
+                <tr><td colSpan={5} style={{ ...tdS, textAlign: 'center', color: MUT, padding: 32, fontStyle: 'italic', fontFamily: crimson }}>No articles yet. Click "+ New Article" or seed starter content.</td></tr>
+              ) : articles.map(a => (
+                <tr key={a.id} style={{ background: 'transparent', transition: 'background 0.1s' }}>
+                  <td style={{ ...tdS, fontFamily: cinzel, fontSize: 11, color: TXT2 }}>{a.title}</td>
+                  <td style={{ ...tdS, color: MUT }}>{a.category_icon} {a.category}</td>
+                  <td style={{ ...tdS }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: TIER_COLORS[a.min_tier] || MUT, background: `${TIER_COLORS[a.min_tier]}18`, border: `1px solid ${TIER_COLORS[a.min_tier]}40`, padding: '2px 8px', borderRadius: 3 }}>
+                      {a.min_tier.toUpperCase()}
+                    </span>
+                  </td>
+                  <td style={{ ...tdS }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: a.is_published ? '#7a9e7e' : MUT }}>
+                      {a.is_published ? '● Published' : '○ Draft'}
+                    </span>
+                  </td>
+                  <td style={{ ...tdS }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => startEdit(a)}
+                        style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR2}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Edit</button>
+                      <button onClick={() => remove(a.id, a.title)}
+                        style={{ padding: '3px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Del</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Create / Edit form */}
+      {showForm && (
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 28, marginTop: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>
+            {editId ? '✏ Edit Article' : '+ New Article'}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <div>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>Category *</label>
+              <input list="fm-categories" value={form.category} onChange={e => setF('category', e.target.value)} placeholder="Understanding Deliverance" style={inp} />
+              <datalist id="fm-categories">{existingCategories.map((c: string) => <option key={c} value={c} />)}</datalist>
+            </div>
+            <div>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>Category Slug</label>
+              <input value={form.category_slug} onChange={e => setF('category_slug', e.target.value)} placeholder="understanding-deliverance" style={inp} />
+            </div>
+            <div>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>Category Icon</label>
+              <input value={form.category_icon} onChange={e => setF('category_icon', e.target.value)} placeholder="📖" style={{ ...inp, width: 80 }} />
+            </div>
+            <div>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>Category Order</label>
+              <input type="number" value={form.category_order} onChange={e => setF('category_order', Number(e.target.value))} style={{ ...inp, width: 80 }} />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>Title *</label>
+              <input value={form.title} onChange={e => setF('title', e.target.value)} placeholder="What is Deliverance?" style={inp} />
+            </div>
+            <div>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>Slug (URL)</label>
+              <input value={form.slug} onChange={e => setF('slug', e.target.value)} placeholder="what-is-deliverance" style={inp} />
+            </div>
+            <div>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>Min Tier</label>
+              <select value={form.min_tier} onChange={e => setF('min_tier', e.target.value)} style={inp}>
+                {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, display: 'block', marginBottom: 4 }}>YouTube URL (optional)</label>
+              <input value={form.youtube_url} onChange={e => setF('youtube_url', e.target.value)} placeholder="https://youtube.com/watch?v=..." style={inp} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT }}>Content (Markdown)</label>
+              <button onClick={() => setPreview(p => !p)}
+                style={{ padding: '3px 10px', background: preview ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${BDR2}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                {preview ? 'Edit' : 'Preview'}
+              </button>
+            </div>
+            {preview ? (
+              <div style={{ minHeight: 240, background: isDark ? 'rgba(13,11,20,0.6)' : '#f9f6f1', border: `1px solid ${BDR2}`, borderRadius: 6, padding: 16, fontFamily: crimson, fontSize: 15, lineHeight: 1.8, color: TXT2 }}
+                dangerouslySetInnerHTML={{ __html: markdownToHtml(form.content) }} />
+            ) : (
+              <textarea
+                value={form.content}
+                onChange={e => setF('content', e.target.value)}
+                rows={14}
+                placeholder={'## Section Header\n\nWrite your article content here using Markdown.\n\n**Bold text**, *italic text*, and > blockquotes are supported.\n\n- Bullet list item\n- Another item'}
+                style={{ ...inp, resize: 'vertical', minHeight: 240, lineHeight: 1.6 }}
+              />
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: crimson, fontSize: 13, color: TXT2 }}>
+              <input type="checkbox" checked={form.is_published} onChange={e => setF('is_published', e.target.checked)} />
+              Published (visible to community)
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button onClick={save} disabled={saving}
+              style={{ padding: '10px 24px', background: G, color: '#0D0B14', border: 'none', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Saving…' : editId ? 'Update Article' : 'Create Article'}
+            </button>
+            <button onClick={cancelForm}
+              style={{ padding: '10px 20px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: MUT, cursor: 'pointer' }}>
+              Cancel
+            </button>
+            {msg && <span style={{ fontFamily: crimson, fontSize: 13, color: msg.includes('ailed') ? '#f87171' : G }}>{msg}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── DOCUMENTS VIEW ───────────────────────────────────────────────────────────
 function DocumentsView({ getToken, isDark, demons }: {
   getToken: any; isDark: boolean; demons: any[]
@@ -3793,7 +4112,7 @@ function DocumentsView({ getToken, isDark, demons }: {
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'documents' | 'library'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -3844,13 +4163,14 @@ function AdminPage() {
   }
 
   const TABS = [
-    { key: 'dashboard',  label: '⚡ Dashboard'     },
-    { key: 'arsenal',    label: 'Arsenal Manager'  },
-    { key: 'intel',      label: 'Intel Archive'    },
-    { key: 'moderation', label: 'Moderation'       },
-    { key: 'training',   label: 'Training'         },
-    { key: 'documents',  label: '📄 Documents'     },
-    { key: 'library',    label: 'Ministry Library' },
+    { key: 'dashboard',       label: '⚡ Dashboard'      },
+    { key: 'arsenal',         label: 'Arsenal Manager'   },
+    { key: 'intel',           label: 'Intel Archive'     },
+    { key: 'moderation',      label: 'Moderation'        },
+    { key: 'training',        label: 'Training'          },
+    { key: 'field-ministry',  label: '📖 Field Ministry' },
+    { key: 'documents',       label: '📄 Documents'      },
+    { key: 'library',         label: 'Ministry Library'  },
   ] as const
 
   return (
@@ -3903,14 +4223,15 @@ function AdminPage() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: tab === 'documents' ? 1200 : 900, margin: '0 auto', padding: '32px 24px' }}>
-        {tab === 'dashboard'  && <DashboardView getToken={getToken} isDark={isDark} setTab={setTab} />}
-        {tab === 'arsenal'    && <ArsenalManager getToken={getToken} />}
-        {tab === 'intel'      && <IntelArchive getToken={getToken} isDark={isDark} />}
-        {tab === 'moderation' && <ModerationPanel getToken={getToken} />}
-        {tab === 'training'   && <TrainingManager getToken={getToken} isDark={isDark} />}
-        {tab === 'documents'  && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
-        {tab === 'library'    && <LibraryManager getToken={getToken} isDark={isDark} />}
+      <div style={{ maxWidth: tab === 'documents' || tab === 'field-ministry' ? 1200 : 900, margin: '0 auto', padding: '32px 24px' }}>
+        {tab === 'dashboard'      && <DashboardView getToken={getToken} isDark={isDark} setTab={setTab} />}
+        {tab === 'arsenal'        && <ArsenalManager getToken={getToken} />}
+        {tab === 'intel'          && <IntelArchive getToken={getToken} isDark={isDark} />}
+        {tab === 'moderation'     && <ModerationPanel getToken={getToken} />}
+        {tab === 'training'       && <TrainingManager getToken={getToken} isDark={isDark} />}
+        {tab === 'field-ministry' && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
+        {tab === 'documents'      && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
+        {tab === 'library'        && <LibraryManager getToken={getToken} isDark={isDark} />}
       </div>
     </div>
   )
