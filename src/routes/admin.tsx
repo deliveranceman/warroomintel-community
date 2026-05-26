@@ -396,6 +396,14 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     {allTopics.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
+                <div style={{ marginTop: 6 }}>
+                  <input
+                    value={preview.spirit_tags || ''}
+                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, spirit_tags: e.target.value } : p))}
+                    placeholder="Spirit Tags (optional): Baal, Jezebel, Leviathan"
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: crimson, fontSize: 12, outline: 'none' }}
+                  />
+                </div>
               </div>
             ))}
 
@@ -413,6 +421,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     formData.append('topic', preview.topic || preview.category || 'General Ministry')
                     formData.append('tier', preview.tier)
                     formData.append('tags', JSON.stringify(preview.tags))
+                    if (preview.spirit_tags) formData.append('spirit_tags', preview.spirit_tags)
                     const token = await getToken()
                     const res = await fetch('/api/admin-upload', {
                       method: 'POST',
@@ -847,7 +856,13 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Name *</label>{ti(INTEL_NAME_F)}</div>
         <div><label style={l}>Also Known As</label>{ti('Also Known As')}</div>
-        <div><label style={l}>Type / Rank</label>{ti('Type / Rank')}</div>
+        <div>
+          <label style={l}>Type / Rank</label>
+          <select value={f('Type / Rank')} onChange={e => setField('Type / Rank', e.target.value)} style={{ ...i }}>
+            <option value="">— Select —</option>
+            {['Principality', 'Power', 'Ruler of Darkness', 'Spirit of Infirmity', 'Familiar Spirit', 'False God', 'Fallen Angel', 'Demon', 'Principal King of Hell / False God'].map(t => <option key={t}>{t}</option>)}
+          </select>
+        </div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Description</label>{ta('Description')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Manifestiation</label>{ta('Manifestiation')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Entry Points</label>{ta('Entry Points')}</div>
@@ -857,7 +872,13 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
           <label style={l}>Companion Spirits</label>
           <SpiritTypeahead mode="multi" value={f('Companion Spirits')} onChange={v => setField('Companion Spirits', v)} demons={demons} placeholder="Type spirit name to add..." />
         </div>
-        <div><label style={l}>Kingdom</label>{ti('Kingdom')}</div>
+        <div>
+          <label style={l}>Kingdom</label>
+          <select value={f('Kingdom')} onChange={e => setField('Kingdom', e.target.value)} style={{ ...i }}>
+            <option value="">— Select —</option>
+            {['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft', 'Occult'].map(k => <option key={k}>{k}</option>)}
+          </select>
+        </div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>WRI Exorcist Notes</label>{ta('WRI Exorcist Notes')}</div>
         <div>
           <label style={l}>Hierarchy Category</label>

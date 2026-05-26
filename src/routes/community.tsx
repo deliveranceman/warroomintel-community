@@ -2444,12 +2444,15 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
       setLoadingResources(true)
       try {
         const token = await getToken()
-        const res = await fetch(`/api/arsenal-resources?search=${encodeURIComponent(selectedEntry.name)}`, {
-          headers: { Authorization: `Bearer ${token}` },
+        // Use spirit-resources endpoint for tag-based matching; fall back to arsenal-resources
+        const params = new URLSearchParams({ spirit: selectedEntry.name })
+        if (selectedEntry.hierarchyCategory) params.set('category', selectedEntry.hierarchyCategory)
+        const res = await fetch(`/api/spirit-resources?${params}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
         if (res.ok) {
           const d = await res.json()
-          setSpiritResources(d.resources?.slice(0, 4) || [])
+          setSpiritResources(d.resources?.slice(0, 5) || [])
         }
       } catch(e) {}
       setLoadingResources(false)
@@ -2883,6 +2886,22 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>🗺 Territorial Region</div>
                       <div style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.region}</div>
+                    </div>
+                  )}
+                  {/* Related Resources — visible to all tiers */}
+                  {spiritResources.length > 0 && (
+                    <div style={{ marginTop: 20, borderTop: `1px solid rgba(201,168,76,0.15)`, paddingTop: 16 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Related Resources</div>
+                      {spiritResources.map((r: any) => (
+                        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid rgba(201,168,76,0.08)`, cursor: 'pointer' }}
+                          onClick={() => window.open('/community#arsenal', '_blank')}>
+                          <span style={{ fontSize: 16, flexShrink: 0 }}>📄</span>
+                          <div>
+                            <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{r.title}</div>
+                            <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{r.topic}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

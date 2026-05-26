@@ -157,7 +157,19 @@ export default async function handler(req: Request) {
     }
     for (const [camel, airtable] of Object.entries(camelToAirtable)) {
       if (camel in airtableFields) {
-        airtableFields[airtable] = airtableFields[camel]
+        const value = airtableFields[camel]
+        console.log('[PATCH] Processing field:', camel, '→', airtable, '| value:', JSON.stringify(value))
+
+        // Kingdom is a Single Select — only send known valid options
+        if (camel === 'kingdom') {
+          const validKingdoms = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft', 'Occult']
+          if (!value || !validKingdoms.includes(value)) {
+            delete airtableFields[camel]
+            continue
+          }
+        }
+
+        airtableFields[airtable] = value
         delete airtableFields[camel]
       }
     }
