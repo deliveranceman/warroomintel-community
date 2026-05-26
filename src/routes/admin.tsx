@@ -1198,6 +1198,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   async function saveAiAccepted() {
     const toSave: Record<string, any> = {}
     const savedLabels: string[] = []
+
     Object.entries(fieldDecisions).forEach(([k, dec]) => {
       if (dec.status !== 'accepted') return
       if (AI_BOOL_FIELDS.has(k)) {
@@ -1207,28 +1208,46 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       }
       savedLabels.push(AI_LABELS[k] || k)
     })
+
     if (Object.keys(toSave).length === 0) return
     setAiPhase('saving')
+
     try {
       const merged = { ...aiTargetDemon, ...toSave }
-      setDemons((prev: any[]) => prev.map(d => d.id === aiTargetDemon.id ? merged : d))
+      setDemons((prev: any[]) => prev.map(d =>
+        d.id === aiTargetDemon.id || d.airtableId === aiTargetDemon.airtableId ? merged : d
+      ))
       setAiTargetDemon(merged)
+
       const token = await getToken()
+      console.log('[save] Sending to admin-demon:', {
+        id: aiTargetDemon.airtableId,
+        fieldCount: Object.keys(toSave).length,
+        keys: Object.keys(toSave),
+      })
+
       const res = await fetch('/api/admin-demon', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: aiTargetDemon.airtableId, fields: toSave }),
       })
+
+      const responseText = await res.text()
+      console.log('[save] Response status:', res.status, 'body:', responseText.slice(0, 200))
+
       if (res.ok) {
         setAiSavedLog(savedLabels)
         setAiPhase('done')
+        fetchDemons()
       } else {
-        const d = await res.json()
-        setAiError(`Save failed: ${d.error}`)
+        let errMsg = `Save failed: ${res.status}`
+        try { errMsg = JSON.parse(responseText).error || errMsg } catch {}
+        setAiError(errMsg)
         setAiPhase('error')
       }
     } catch(e: any) {
-      setAiError(e.message || 'Save error')
+      console.error('[save] Exception:', e)
+      setAiError(e.message || 'Save failed')
       setAiPhase('error')
     }
   }

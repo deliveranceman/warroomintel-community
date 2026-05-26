@@ -127,6 +127,20 @@ export default async function handler(req: Request) {
       phonetic: 'Phonetic',
       relatedSpirits: 'Related Spirits',
       legalRights: 'Legal Rights',
+      legalRightsFramework: 'Legal Rights Framework',
+      images: 'Images',
+      strongman: 'Strongman',
+      assignment: 'Assignment',
+      primaryBattlefield: 'Primary Battlefield',
+      personalityPresentation: 'Personality Presentation',
+      companionSpirits: 'Companion Spirits',
+      counterScriptures: 'Counter Scriptures',
+      deliveranceSequence: 'Deliverance Sequence',
+      operationalNotes: 'Operational Notes',
+      wriNotes: 'WRI Notes',
+      manifestation: 'Manifestation',
+      description: 'Description',
+      entryPoints: 'Entry Points',
     }
     for (const [camel, airtable] of Object.entries(camelToAirtable)) {
       if (camel in airtableFields) {
