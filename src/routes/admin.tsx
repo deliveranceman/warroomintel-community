@@ -693,6 +693,7 @@ function blankSpiritFields(): Record<string, string> {
     'Session Indicators': '', 'Demonic Agreements': '', 'Aftercare Notes': '',
     'Etymology Notes': '', 'Archaeology Notes': '', 'Scripture Context': '',
     'Resistance Signature': '', 'Institutional Expression': '', 'Prayer Points': '',
+    'Legal Rights Framework': '',
     'Is Generational': 'false', 'Is Territorial': 'false',
   }
 }
@@ -726,6 +727,7 @@ function demonToSpiritFields(d: any): Record<string, string> {
     'Resistance Signature': d.resistanceSignature || '',
     'Institutional Expression': d.institutionalExpression || '',
     'Prayer Points': d.prayerPoints || '',
+    'Legal Rights Framework': d.legalRightsFramework || '',
     'Is Generational': String(d.isGenerational || false),
     'Is Territorial': String(d.isTerritorial || false),
   }
@@ -864,7 +866,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Session Indicators</label>{ta('Session Indicators', 3)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Resistance Signature</label>{ta('Resistance Signature', 2)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Demonic Agreements / Lies Planted</label>{ta('Demonic Agreements', 3)}</div>
-        <div><label style={l}>Cluster Spirits (comma-separated)</label>{ti('Cluster Spirits')}</div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={l}>Cluster Spirits</label>{ta('Cluster Spirits', 3)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Legal Rights Framework</label>{ta('Legal Rights Framework', 3)}</div>
 
         {/* Scholarly Section */}

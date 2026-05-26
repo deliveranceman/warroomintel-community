@@ -72,6 +72,28 @@ export const Route = createFileRoute('/api/demons')({
               personalityPresentation: r.fields['Typical Personality Presentation'] || '',
               counterScriptures: r.fields['Counter Scriptures'] || '',
               region: r.fields['Region'] || '', // TODO: Create 'Region' field in Airtable
+              // AI-enhanced fields — mapped from new Airtable columns
+              phonetic: r.fields['Phonetic'] || '',
+              images: r.fields['Images']
+                ? String(r.fields['Images']).split(',').map((s: string) => s.trim()).filter(Boolean)
+                : [],
+              relatedSpirits: r.fields['Related Spirits'] || '',
+              biblicalRank: r.fields['Biblical Rank'] || '',
+              caseType: r.fields['Case Type'] || '',
+              isGenerational: r.fields['Is Generational'] === true || r.fields['Is Generational'] === 'true',
+              isTerritorial: r.fields['Is Territorial'] === true || r.fields['Is Territorial'] === 'true',
+              clusterSpirits: r.fields['Cluster Spirits'] || '',
+              legalRightsFramework: r.fields['Legal Rights Framework'] || '',
+              institutionalExpression: r.fields['Institutional Expression'] || '',
+              sessionIndicators: r.fields['Session Indicators'] || '',
+              resistanceSignature: r.fields['Resistance Signature'] || '',
+              demonicAgreements: r.fields['Demonic Agreements'] || '',
+              transmissionVectors: r.fields['Transmission Vectors'] || '',
+              etymologyNotes: r.fields['Etymology Notes'] || '',
+              archaeologyNotes: r.fields['Archaeology Notes'] || '',
+              scriptureContext: r.fields['Scripture Context'] || '',
+              prayerPoints: r.fields['Prayer Points'] || '',
+              aftercareNotes: r.fields['Aftercare Notes'] || '',
             }))
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')
