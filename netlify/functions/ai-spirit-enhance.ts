@@ -268,7 +268,7 @@ function parseJsonFields(raw: string): Record<string, any> {
 function buildUserPrompt(name: string, existing: Record<string, any>, fields: string[]): string {
   const fieldDescriptions: Record<string, string> = {
     phonetic: 'Correct phonetic pronunciation using syllable capitalization.',
-    biblicalRank: 'Ephesians 6:12 classification with brief rationale.',
+    biblicalRank: 'STRICT: Return ONLY one of these exact values — no other text, no descriptions, no punctuation: "Principality" | "Power" | "Ruler of Darkness" | "Spiritual Wickedness in High Places" | "Fallen Angel" | "Demon" | "Familiar Spirit" | "Spirit of Infirmity". Example correct: "Principality". Example WRONG: "Principality - supreme territorial...".',
     caseType: 'Personal Deliverance, Generational/Bloodline, Territorial/Regional, Institutional, Atmospheric/Intercessory, or Multiple.',
     isGenerational: 'true or false — is this spirit typically generational/bloodline?',
     isTerritorial: 'true or false — is this spirit typically territorial/regional?',
@@ -471,6 +471,23 @@ export default async function handler(req: Request) {
     }
     console.log('[enhance] After remap keys:', Object.keys(remappedFields))
     console.log('[enhance] fieldCount:', Object.keys(remappedFields).length)
+
+    // Sanitize biblicalRank — must be one of the 8 exact Eph. 6:12 values
+    const VALID_BIBLICAL_RANKS = [
+      'Principality', 'Power', 'Ruler of Darkness',
+      'Spiritual Wickedness in High Places', 'Fallen Angel',
+      'Demon', 'Familiar Spirit', 'Spirit of Infirmity',
+    ]
+    if (remappedFields.biblicalRank) {
+      const raw = String(remappedFields.biblicalRank)
+      const exact = VALID_BIBLICAL_RANKS.find(r => r.toLowerCase() === raw.toLowerCase())
+      if (exact) {
+        remappedFields.biblicalRank = exact
+      } else {
+        const partial = VALID_BIBLICAL_RANKS.find(r => raw.toLowerCase().includes(r.toLowerCase()))
+        remappedFields.biblicalRank = partial || ''
+      }
+    }
 
     // Wikipedia image — non-blocking, best-effort
     const imageUrl = await fetchWikimediaImage(name).catch(() => '')

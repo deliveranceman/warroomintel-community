@@ -22,6 +22,8 @@ export const Route = createFileRoute('/api/demons')({
             const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
             url.searchParams.set('pageSize', '100')
             url.searchParams.set('view', 'viw1ickrF5zgNGifc')
+            url.searchParams.set('sort[0][field]', 'Created')
+            url.searchParams.set('sort[0][direction]', 'desc')
             if (offset) url.searchParams.set('offset', offset)
 
             const res = await fetch(url.toString(), {
@@ -42,6 +44,7 @@ export const Route = createFileRoute('/api/demons')({
             .map((r: any, i: number) => ({
               id: i + 1,
               airtableId: r.id,
+              createdTime: r.createdTime || '',
               name: r.fields[NAME_FIELD] || '',
               aka: r.fields['Also Known As'] || '',
               kingdom: r.fields['Kingdom'] || '',

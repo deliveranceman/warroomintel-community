@@ -2398,9 +2398,8 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
     </div>
   )
 
-  const recentDemons = [...demons]
-    .sort((a, b) => (b.createdTime || '').localeCompare(a.createdTime || ''))
-    .slice(0, 3)
+  // Demons arrive sorted newest-first from the API (sort by Created desc)
+  const recentDemons = demons.slice(0, 6)
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
@@ -2420,10 +2419,19 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
           ⚡ Intel Briefing
         </div>
         {posts.length === 0 ? (
-          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>📡</div>
-            <div style={{ fontFamily: "'Cinzel', serif", color: GG, fontSize: 14, marginBottom: 8 }}>No Briefings Yet</div>
-            <div style={{ color: mut, fontSize: 14 }}>Leadership will post operational intel here. Check back soon.</div>
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '40px 24px', textAlign: 'center' as const }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
+            <div style={{ fontFamily: cinzel, color: GG, fontSize: 16, marginBottom: 8 }}>No Briefings Yet</div>
+            <div style={{ fontFamily: crimson, color: mut, fontSize: 14, marginBottom: userTier === 'minister' ? 20 : 0 }}>
+              Leadership will post operational intel here.
+            </div>
+            {userTier === 'minister' && (
+              <button
+                onClick={() => { window.location.href = '/admin' }}
+                style={{ padding: '8px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, fontFamily: cinzel, fontSize: 10, color: GG, cursor: 'pointer', letterSpacing: '0.08em' }}>
+                + POST FIRST BRIEFING
+              </button>
+            )}
           </div>
         ) : posts.slice(0, 3).map(post => (
           <div key={post.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${GG}`, borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
@@ -2911,14 +2919,9 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
               borderLeft: `3px solid ${hierColors ? hierColors.border : color}`, borderRadius: 8,
               padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
             }}>
-              {/* Name + classification badge */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 14, color, fontWeight: 600 }}>{name}</div>
-                {cls && (
-                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', background: color + '20', color, padding: '2px 7px', borderRadius: 3, flexShrink: 0, marginLeft: 8 }}>
-                    {cls.toUpperCase()}
-                  </div>
-                )}
+              {/* Name row — no classification badge here; biblicalRank shown as pill below */}
+              <div style={{ marginBottom: 4 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
               </div>
               {/* Hierarchy category badge */}
               {hierCat && hierColors && (
@@ -2934,8 +2937,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
               {/* Rank + generational/territorial badges */}
               <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: entry.aka ? 0 : 6 }}>
                 {entry.biblicalRank && (
-                  <span style={{ fontSize: 8, color: G, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '1px 6px', fontFamily: cinzel, letterSpacing: '0.04em' }}>
-                    {entry.biblicalRank}
+                  <span style={{ fontSize: 8, color: '#8B9DCA', background: 'rgba(139,157,202,0.12)', border: '1px solid rgba(139,157,202,0.3)', borderRadius: 3, padding: '2px 7px', fontFamily: cinzel, letterSpacing: '0.06em', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'inline-block' }}>
+                    {entry.biblicalRank.length > 40 ? entry.biblicalRank.slice(0, 40) + '…' : entry.biblicalRank}
                   </span>
                 )}
                 {entry.isGenerational && (

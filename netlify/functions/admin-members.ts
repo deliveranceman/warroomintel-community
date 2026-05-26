@@ -58,20 +58,18 @@ export default async function handler(req: Request) {
     let newThisMonth = 0
     let activeThisWeek = 0
 
-    // Diagnostic: log every user's metadata so we can see what tiers are actually set
-    console.log('[admin-members] User tiers:', JSON.stringify(allUsers.map((u: any) => ({
-      email: u.email_addresses?.[0]?.email_address,
-      tier: u.public_metadata?.tier,
-      role: u.public_metadata?.role,
-      metadata: u.public_metadata,
-    }))))
+    const getTier = (u: any): string =>
+      (u.public_metadata?.tier || u.publicMetadata?.tier || 'watchman').toLowerCase()
+
+    console.log('[admin-members] All user tiers:',
+      allUsers.map((u: any) => getTier(u)))
 
     for (const u of allUsers) {
-      const rawTier = (u.public_metadata?.tier as string)?.toLowerCase()
-      const role    = (u.public_metadata?.role as string)?.toLowerCase() || ''
-      // No tier set → watchman (base registered member, not truly "free" anonymous)
-      const tier = rawTier || 'watchman'
-      const key  = role === 'minister' ? 'minister' : (byTier[tier] !== undefined ? tier : 'watchman')
+      const tier = getTier(u)
+      const role = (u.public_metadata?.role as string)?.toLowerCase() || ''
+      // minister role overrides tier
+      const key = role === 'minister' ? 'minister'
+        : (['general', 'commander', 'soldier', 'watchman', 'free'].includes(tier) ? tier : 'watchman')
       byTier[key] = (byTier[key] || 0) + 1
 
       const createdMs = u.created_at || 0

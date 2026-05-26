@@ -167,6 +167,15 @@ export default async function handler(req: Request) {
           }
         }
 
+        // Biblical Rank is a Single Select — only send exact Eph. 6:12 values
+        if (camel === 'biblicalRank') {
+          const validRanks = ['Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity']
+          if (!value || !validRanks.includes(value)) {
+            delete airtableFields[camel]
+            continue
+          }
+        }
+
         airtableFields[airtable] = value
         delete airtableFields[camel]
       }
