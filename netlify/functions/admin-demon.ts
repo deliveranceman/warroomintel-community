@@ -132,13 +132,13 @@ export default async function handler(req: Request) {
       strongman: 'Strongman',
       assignment: 'Assignment',
       primaryBattlefield: 'Primary Battlefield',
-      personalityPresentation: 'Personality Presentation',
+      personalityPresentation: 'Typical Personality Presentation',
       companionSpirits: 'Companion Spirits',
       counterScriptures: 'Counter Scriptures',
       deliveranceSequence: 'Deliverance Sequence',
       operationalNotes: 'Operational Notes',
-      wriNotes: 'WRI Notes',
-      manifestation: 'Manifestation',
+      wriNotes: 'WRI Exorcist Notes',
+      manifestation: 'Manifestiation', // Airtable field has this typo
       description: 'Description',
       entryPoints: 'Entry Points',
     }
@@ -149,12 +149,21 @@ export default async function handler(req: Request) {
       }
     }
 
+    console.log('[admin-demon] PATCH airtableFields keys:', Object.keys(airtableFields))
+
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: cleanFields(airtableFields) }),
     })
-    if (!res.ok) return new Response(JSON.stringify({ error: await airtableError(res) }), { status: res.status })
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ error: { message: res.statusText } }))
+      console.error('[admin-demon] Airtable error:', JSON.stringify(errBody))
+      return new Response(JSON.stringify({
+        error: errBody?.error?.message || 'Airtable update failed',
+        detail: JSON.stringify(errBody),
+      }), { status: res.status, headers: { 'Content-Type': 'application/json' } })
+    }
     const data = await res.json()
     return new Response(JSON.stringify({ record: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
