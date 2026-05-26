@@ -4305,119 +4305,197 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
 }
 
 // ── BODY MAP VIEW ──────────────────────────────────────────
-function BodyMapView({ theme, isMobile, setSidebarOpen, demons }: any) {
+function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }: any) {
   const isDark = theme !== 'light'
-  const bg = isDark ? '#0D0B14' : '#f5f0e8'
+  const bg   = isDark ? '#0D0B14' : '#f5f0e8'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
-  const bdr = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
-  const txt = isDark ? '#f0e8d8' : '#1a1410'
-  const mut = isDark ? '#9a8c74' : '#5c4a3a'
-  const GC = isDark ? '#C9A84C' : '#a07830'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#1a1410'
+  const mut  = isDark ? '#9a8c74' : '#5c4a3a'
+  const GC   = isDark ? '#C9A84C' : '#a07830'
 
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
-  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null)
+  const [hoveredRegion, setHoveredRegion]   = useState<string | null>(null)
 
-  const BODY_REGIONS: Record<string, { label: string, keywords: string[], cx: number, cy: number, r: number }> = {
-    head:    { label: 'Head / Mind',    keywords: ['mind', 'mind control', 'confusion', 'mental', 'thought', 'psychic', 'intelligence'], cx: 200, cy: 60,  r: 35 },
-    eyes:    { label: 'Eyes / Vision',  keywords: ['blindness', 'eye', 'vision', 'sight', 'third eye', 'occult sight'], cx: 200, cy: 85,  r: 15 },
-    throat:  { label: 'Throat / Voice', keywords: ['throat', 'voice', 'speech', 'tongue', 'lying', 'silence', 'mute'], cx: 200, cy: 130, r: 20 },
-    heart:   { label: 'Heart / Chest',  keywords: ['heart', 'chest', 'love', 'rejection', 'pain', 'grief', 'sorrow', 'fear'], cx: 190, cy: 190, r: 28 },
-    stomach: { label: 'Stomach / Gut',  keywords: ['stomach', 'gut', 'anxiety', 'gluttony', 'appetite', 'hunger', 'nausea'], cx: 200, cy: 250, r: 24 },
-    hands:   { label: 'Hands / Arms',   keywords: ['hands', 'violence', 'stealing', 'witchcraft', 'occult practice'], cx: 130, cy: 220, r: 20 },
-    loins:   { label: 'Loins / Sexual', keywords: ['sexual', 'lust', 'perversion', 'fornication', 'adultery', 'pornography', 'soul tie'], cx: 200, cy: 310, r: 26 },
-    legs:    { label: 'Legs / Feet',    keywords: ['legs', 'feet', 'running', 'escape', 'restlessness', 'instability', 'wandering'], cx: 200, cy: 390, r: 22 },
-    spine:   { label: 'Spine / Back',   keywords: ['spine', 'back', 'leviathan', 'pride', 'stiff', 'rebellion', 'serpent'], cx: 200, cy: 220, r: 18 },
-  }
+  // Image is 1024×1536. Hotspot cx/cy/rx/ry are % of 100×150 viewBox (keeps 2:3 ratio)
+  const BODY_REGIONS = [
+    { id: 'head-mind',    label: 'Head & Mind',      icon: '🧠', description: 'Mental strongholds, mind control, confusion spirits',
+      cx: 50, cy: 7,   rx: 9,  ry: 6.5,
+      keywords: ['mind', 'mind control', 'confusion', 'mental', 'thought', 'psychic', 'intelligence', 'head'] },
+    { id: 'eyes',         label: 'Eyes & Vision',    icon: '👁', description: 'Spiritual blindness, seducing sight, occult vision',
+      cx: 50, cy: 12,  rx: 7,  ry: 2.5,
+      keywords: ['blindness', 'eye', 'vision', 'sight', 'third eye'] },
+    { id: 'throat',       label: 'Throat & Voice',   icon: '🗣', description: 'Lying spirits, mute spirits, throat manifestations',
+      cx: 50, cy: 17,  rx: 6,  ry: 3,
+      keywords: ['throat', 'voice', 'speech', 'tongue', 'lying', 'silence', 'mute'] },
+    { id: 'heart-chest',  label: 'Heart & Chest',    icon: '❤', description: 'Rejection, grief, fear, emotional wounding',
+      cx: 50, cy: 27,  rx: 10, ry: 7,
+      keywords: ['heart', 'chest', 'rejection', 'grief', 'sorrow', 'fear', 'love'] },
+    { id: 'shoulders',    label: 'Shoulders',         icon: '⚖', description: 'Burden-bearing, heavy yoke, false responsibility',
+      cx: 50, cy: 21,  rx: 18, ry: 3.5,
+      keywords: ['shoulders', 'burden', 'yoke', 'weight', 'responsibility'] },
+    { id: 'stomach',      label: 'Stomach & Gut',    icon: '🫁', description: 'Fear, anxiety, gut manifestations, gluttony',
+      cx: 50, cy: 37,  rx: 9,  ry: 6,
+      keywords: ['stomach', 'gut', 'anxiety', 'gluttony', 'appetite', 'hunger', 'nausea'] },
+    { id: 'hands-arms',   label: 'Hands & Arms',     icon: '🙌', description: 'Self-harm, works of the flesh, witchcraft acts',
+      cx: 50, cy: 43,  rx: 28, ry: 3.5,
+      keywords: ['hands', 'arms', 'violence', 'stealing', 'witchcraft', 'self-harm', 'self-mutilation'] },
+    { id: 'reproductive', label: 'Reproductive',     icon: '🔱', description: 'Sexual spirits, shame, soul ties, fertility spirits',
+      cx: 50, cy: 50,  rx: 9,  ry: 5,
+      keywords: ['sexual', 'lust', 'perversion', 'fornication', 'adultery', 'pornography', 'soul tie', 'reproductive', 'fertility', 'shame'] },
+    { id: 'spine-back',   label: 'Spine & Back',     icon: '🦴', description: 'Leviathan, pride, infirmity, spinal manifestations',
+      cx: 50, cy: 32,  rx: 4,  ry: 14,
+      keywords: ['spine', 'back', 'leviathan', 'pride', 'stiff', 'rebellion', 'serpent', 'infirmity'] },
+    { id: 'legs-feet',    label: 'Legs & Feet',      icon: '👣', description: 'Wandering, restlessness, path, grounding spirits',
+      cx: 50, cy: 75,  rx: 14, ry: 18,
+      keywords: ['legs', 'feet', 'running', 'escape', 'restlessness', 'instability', 'wandering', 'walk', 'path'] },
+  ]
 
-  function getSpiritsForRegion(regionKey: string) {
-    const region = BODY_REGIONS[regionKey]
+  function getSpiritsForRegion(id: string) {
+    const region = BODY_REGIONS.find(r => r.id === id)
     if (!region || !demons.length) return []
     return demons.filter((d: any) => {
-      const searchText = [d.name, d.description, d.manifestation, d.symptoms, d.primaryBattlefield]
+      const text = [d.name, d.description, d.manifestation, d.symptoms, d.primaryBattlefield, d.operationalNotes]
         .filter(Boolean).join(' ').toLowerCase()
-      return region.keywords.some(kw => searchText.includes(kw.toLowerCase()))
-    }).slice(0, 8)
+      return region.keywords.some(kw => text.includes(kw.toLowerCase()))
+    }).slice(0, 10)
   }
 
-  const activeRegion = selectedRegion || hoveredRegion
-  const regionSpirits = activeRegion ? getSpiritsForRegion(activeRegion) : []
-  const activeLabel = activeRegion ? BODY_REGIONS[activeRegion]?.label : null
+  const activeId      = selectedRegion
+  const activeRegion  = BODY_REGIONS.find(r => r.id === activeId)
+  const regionSpirits = activeId ? getSpiritsForRegion(activeId) : []
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg }}>
+      {/* Header */}
+      <div style={{ padding: isMobile ? '16px 16px 0' : '24px 32px 0', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
         <div>
-          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: isMobile ? 16 : 20, margin: 0, letterSpacing: '0.08em' }}>🗺 Body Map</h2>
-          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Click a body region to see spirits that manifest there</p>
+          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: isMobile ? 16 : 20, margin: 0, letterSpacing: '0.08em' }}>🧬 Spirit Body Map</h2>
+          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Click a region to see spirits that manifest there</p>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-          <svg viewBox="0 0 400 500" width={isMobile ? 280 : 320} height={isMobile ? 350 : 400} style={{ cursor: 'pointer' }}>
-            <ellipse cx="200" cy="60" rx="34" ry="34" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
-            <rect x="170" y="100" width="60" height="140" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
-            <rect x="110" y="105" width="55" height="110" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
-            <rect x="235" y="105" width="55" height="110" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
-            <rect x="165" y="245" width="70" height="90" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
-            <rect x="155" y="340" width="38" height="100" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
-            <rect x="207" y="340" width="38" height="100" rx="8" fill="none" stroke={isDark ? 'rgba(201,168,76,0.3)' : 'rgba(160,120,48,0.3)'} strokeWidth="1.5" />
-            {Object.entries(BODY_REGIONS).map(([key, region]) => {
-              const isActive = selectedRegion === key || hoveredRegion === key
-              const hasSpirits = getSpiritsForRegion(key).length > 0
-              return (
-                <circle key={key} cx={region.cx} cy={region.cy} r={region.r}
-                  fill={isActive ? 'rgba(201,168,76,0.25)' : hasSpirits ? 'rgba(201,168,76,0.08)' : 'rgba(201,168,76,0.03)'}
-                  stroke={isActive ? GC : hasSpirits ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}
-                  strokeWidth={isActive ? 2 : 1}
-                  style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                  onClick={() => setSelectedRegion(selectedRegion === key ? null : key)}
-                  onMouseEnter={() => setHoveredRegion(key)}
-                  onMouseLeave={() => setHoveredRegion(null)}
-                />
-              )
-            })}
-            {Object.entries(BODY_REGIONS).map(([key, region]) => (
-              <text key={`label-${key}`} x={region.cx} y={region.cy + region.r + 14}
-                textAnchor="middle" fontSize="8" fontFamily="'Cinzel', serif"
-                fill={selectedRegion === key ? GC : isDark ? 'rgba(201,168,76,0.5)' : 'rgba(160,120,48,0.6)'}
-                style={{ pointerEvents: 'none', userSelect: 'none' as const }}>
-                {region.label.split(' / ')[0]}
-              </text>
-            ))}
-          </svg>
+
+      {/* Region pill tabs */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: isMobile ? '0 16px 12px' : '0 32px 16px', scrollbarWidth: 'none' as any }}>
+        {BODY_REGIONS.map(r => (
+          <button key={r.id} onClick={() => setSelectedRegion(selectedRegion === r.id ? null : r.id)}
+            style={{ flexShrink: 0, padding: '4px 12px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const,
+              border: `1px solid ${selectedRegion === r.id ? GC : bdr}`,
+              background: selectedRegion === r.id ? 'rgba(201,168,76,0.15)' : 'transparent',
+              color: selectedRegion === r.id ? GC : mut }}>
+            {r.icon} {r.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Two-panel layout */}
+      <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const, padding: isMobile ? '0 16px 24px' : '0 32px 32px' }}>
+
+        {/* Body image with SVG hotspot overlay */}
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', width: isMobile ? '100%' : 'auto', marginBottom: isMobile ? 20 : 0 }}>
+          <div style={{ position: 'relative', display: 'inline-block', width: isMobile ? 220 : 280 }}>
+            <img
+              src="/body-map.png"
+              alt="Body Map"
+              style={{
+                display: 'block', width: '100%',
+                filter: 'brightness(0.08) sepia(1) saturate(6) hue-rotate(10deg)',
+                mixBlendMode: 'screen',
+                borderRadius: 8,
+              }}
+            />
+            {/* SVG hotspot overlay — viewBox matches 2:3 image ratio */}
+            <svg
+              viewBox="0 0 100 150"
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+            >
+              <defs>
+                <style>{`
+                  @keyframes bm-pulse {
+                    0%,100% { opacity: 0.18 }
+                    50%      { opacity: 0.38 }
+                  }
+                `}</style>
+              </defs>
+              {BODY_REGIONS.map(region => {
+                const isActive  = selectedRegion === region.id
+                const isHovered = hoveredRegion === region.id
+                const hasSpirits = getSpiritsForRegion(region.id).length > 0
+                return (
+                  <ellipse
+                    key={region.id}
+                    cx={region.cx} cy={region.cy} rx={region.rx} ry={region.ry}
+                    fill={isActive ? 'rgba(201,168,76,0.45)' : isHovered ? 'rgba(201,168,76,0.3)' : 'rgba(201,168,76,0.12)'}
+                    stroke={isActive ? '#C9A84C' : isHovered ? '#C9A84C' : 'rgba(201,168,76,0.5)'}
+                    strokeWidth={isActive ? 0.6 : 0.3}
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'fill 0.2s, stroke 0.2s',
+                      animation: hasSpirits && !isActive ? 'bm-pulse 2.5s ease-in-out infinite' : 'none',
+                    }}
+                    onClick={() => setSelectedRegion(selectedRegion === region.id ? null : region.id)}
+                    onMouseEnter={() => setHoveredRegion(region.id)}
+                    onMouseLeave={() => setHoveredRegion(null)}
+                  />
+                )
+              })}
+              {/* Labels on active/hovered */}
+              {BODY_REGIONS.map(region => {
+                if (selectedRegion !== region.id && hoveredRegion !== region.id) return null
+                return (
+                  <text key={`lbl-${region.id}`} x={region.cx} y={region.cy - region.ry - 1.5}
+                    textAnchor="middle" fontSize="3.5" fontFamily="Cinzel, serif" fill="#C9A84C"
+                    style={{ pointerEvents: 'none', userSelect: 'none' as const }}>
+                    {region.label}
+                  </text>
+                )
+              })}
+            </svg>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+
+        {/* Right panel */}
+        <div style={{ flex: 1, minWidth: 0, paddingLeft: isMobile ? 0 : 32 }}>
           {!activeRegion ? (
-            <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '32px 24px', textAlign: 'center' as const }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>👆</div>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: GC, letterSpacing: '0.06em', marginBottom: 6 }}>Select a Region</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>
-                Click any highlighted area on the body to see which spirits manifest there
+            <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '40px 28px', textAlign: 'center' as const }}>
+              <div style={{ fontSize: 40, marginBottom: 14 }}>🧬</div>
+              <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.06em', marginBottom: 8 }}>Select a Region</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.7, fontStyle: 'italic' }}>
+                Click any glowing area on the body map or select a region tab above to see associated spirits.
               </div>
             </div>
           ) : (
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.06em', marginBottom: 16 }}>
-                {activeLabel}
-                <span style={{ fontSize: 11, color: mut, marginLeft: 8, fontFamily: crimson }}>
-                  {regionSpirits.length} spirit{regionSpirits.length !== 1 ? 's' : ''} found
-                </span>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: GC, letterSpacing: '0.06em' }}>
+                  {activeRegion.icon} {activeRegion.label}
+                </div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 4 }}>{activeRegion.description}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em', marginTop: 8 }}>
+                  {regionSpirits.length} SPIRIT{regionSpirits.length !== 1 ? 'S' : ''} MAPPED TO THIS AREA
+                </div>
               </div>
+
               {regionSpirits.length === 0 ? (
-                <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No spirits mapped to this region yet.</div>
+                <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '24px 20px', fontFamily: crimson, color: mut, fontStyle: 'italic', fontSize: 14, lineHeight: 1.7 }}>
+                  No spirits mapped to this area yet.<br/>
+                  Use the AI Enhance tool on spirits to populate their <em>Primary Battlefield</em> field and they will appear here.
+                </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                   {regionSpirits.map((spirit: any) => (
-                    <div key={spirit.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 16px' }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{spirit.name}</div>
+                    <div key={spirit.id}
+                      onClick={() => onSelectSpirit && onSelectSpirit(spirit)}
+                      style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '12px 16px', cursor: onSelectSpirit ? 'pointer' : 'default', transition: 'background 0.15s' }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: spirit.symptoms ? 4 : 0 }}>{spirit.name}</div>
                       {spirit.symptoms && (
                         <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5 }}>
-                          {String(spirit.symptoms).slice(0, 120)}{String(spirit.symptoms).length > 120 ? '...' : ''}
+                          {String(spirit.symptoms).slice(0, 140)}{String(spirit.symptoms).length > 140 ? '…' : ''}
                         </div>
                       )}
                       {spirit.hierarchyCategory && (
-                        <span style={{ fontSize: 9, color: mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px', marginTop: 6, display: 'inline-block' }}>
+                        <span style={{ marginTop: 6, display: 'inline-block', fontSize: 8, color: mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px' }}>
                           {spirit.hierarchyCategory}
                         </span>
                       )}
@@ -5496,7 +5574,7 @@ function CommunityPage() {
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
-        {activeSection === 'body-map' && <BodyMapView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} />}
+        {activeSection === 'body-map' && <BodyMapView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} onSelectSpirit={(spirit: any) => { setActiveSection('database') }} />}
         {activeSection === 'spirit-network' && <SpiritNetworkView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} />}
         {activeSection === 'training'    && (
           <TrainingView

@@ -29,11 +29,24 @@ export default async function handler(req: Request) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
 
-  const auth = await resolveUser(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  // Decode tier from JWT first — never 401 a logged-in user for a Clerk failure
+  let userTier = 'free'
+  try {
+    const parts = token.split('.')
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+      const auth = await resolveUser(token)
+      if (auth) {
+        userTier = (auth.userData?.public_metadata?.tier as string) || 'free'
+      } else {
+        // Clerk call failed — read tier directly from JWT if present
+        userTier = payload?.public_metadata?.tier || payload?.publicMetadata?.tier || 'free'
+      }
+    }
+  } catch {
+    userTier = 'free'
+  }
 
-  const { userId, userData } = auth
-  const userTier = (userData?.public_metadata?.tier as string || 'Free')
   const userTierLevel = TIER_ORDER[userTier] ?? 0
   const allowedTiers = Object.entries(TIER_ORDER)
     .filter(([, lvl]) => lvl <= userTierLevel)
