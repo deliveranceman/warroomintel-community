@@ -2745,14 +2745,17 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
         const TierGate = ({ tierName, children }: { tierName: string; children: React.ReactNode }) => {
           if (atLeast(tierName)) return <>{children}</>
           return (
-            <div style={{ padding: '40px 24px', textAlign: 'center' as const, background: 'rgba(201,168,76,0.03)', borderRadius: 10, border: `1px solid ${bdr}` }}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>🔒</div>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em', marginBottom: 8 }}>{tierName} Access Required</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 16, fontStyle: 'italic' }}>Reserved for {tierName} tier members and above.</div>
-              <button onClick={() => window.open(MODAL_STRIPE[tierName.toLowerCase()] || '/membership', '_blank')}
-                style={{ padding: '10px 24px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase' as const }}>
-                Upgrade to Unlock
-              </button>
+            <div style={{ position: 'relative', minHeight: 180 }}>
+              <div style={{ filter: 'blur(4px)', userSelect: 'none' as const, pointerEvents: 'none' as const }}>
+                {children}
+              </div>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', background: 'rgba(13,11,20,0.75)', borderRadius: 8 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ {tierName.toUpperCase()} INTEL</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
+                  Upgrade to {tierName} to unlock this intelligence.
+                </div>
+                <a href="/membership" style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textDecoration: 'none' }}>Upgrade Now</a>
+              </div>
             </div>
           )
         }
@@ -2833,8 +2836,62 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   )}
                   {entry.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 14 }}>aka {entry.aka}</div>}
                   <FieldBlock label="Description" value={entry.description} />
-                  <FieldBlock label="Primary Battlefield" value={entry.primaryBattlefield} />
-                  {/* Hierarchy category */}
+                  <FieldBlock label="Kingdom" value={entry.kingdom} />
+                  <FieldBlock label="Rank" value={entry.rank} />
+                  {entry.isTerritorial && entry.region && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>🗺 Territorial Region</div>
+                      <div style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.region}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: INTELLIGENCE — Soldier+ */}
+              {modalTab === 'intelligence' && (
+                <TierGate tierName="Soldier">
+                  <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation || entry.symptoms} />
+                  {entry.symptoms && entry.symptoms !== entry.manifestation && <FieldBlock label="Symptoms" value={entry.symptoms} />}
+                  <FieldBlock label="Entry Points" value={entry.entryPoints} />
+                  <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
+                  <FieldBlock label="Source & Origin" value={entry.sourceOrigin} />
+                  <FieldBlock label="Strongman" value={entry.strongman} />
+                  {entry.parentStrongman && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Parent Strongman</div>
+                      <button onClick={() => { const p = entries.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
+                        style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                        {entry.parentStrongman}
+                      </button>
+                    </div>
+                  )}
+                  {entry.companionSpirits && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Companion Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {String(entry.companionSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
+                          const linked = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={n} onClick={() => linked && setSelectedEntry(linked)}
+                              style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <FieldBlock label="Counter Scriptures" value={entry.counterScriptures} color={G} />
+                  {entry.deliveranceSequence && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Deliverance Sequence</div>
+                      <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
+                        {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
+                          <span key={i}><span style={{ color: txt }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: G, margin: '0 6px' }}>→</span>}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {entry.hierarchyCategory && (() => {
                     const cat = entry.hierarchyCategory
                     const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
@@ -2845,18 +2902,14 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                       </div>
                     )
                   })()}
-                </div>
+                </TierGate>
               )}
 
-              {/* TAB 2: INTELLIGENCE */}
-              {modalTab === 'intelligence' && (
+              {/* TAB 3: WARFARE — Commander+ */}
+              {modalTab === 'warfare' && (
                 <TierGate tierName="Commander">
-                  <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation} />
                   <FieldBlock label="Session Indicators" value={entry.sessionIndicators} />
                   <FieldBlock label="Resistance Signature" value={entry.resistanceSignature} />
-                  <FieldBlock label="Demonic Agreements & Lies" value={entry.demonicAgreements} />
-                  <FieldBlock label="Entry Points" value={entry.entryPoints} />
-                  <FieldBlock label="Transmission Vectors" value={entry.transmissionVectors} />
                   {entry.clusterSpirits && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cluster Spirits</div>
@@ -2873,25 +2926,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                       </div>
                     </div>
                   )}
-                  <FieldBlock label="Legal Rights Framework" value={entry.legalRights} />
-                  <FieldBlock label="Institutional Expression" value={entry.institutionalExpression} />
-                </TierGate>
-              )}
-
-              {/* TAB 3: WARFARE */}
-              {modalTab === 'warfare' && (
-                <TierGate tierName="Soldier">
-                  <FieldBlock label="Counter Scriptures" value={entry.counterScriptures || entry.scripture} color={G} />
-                  {entry.deliveranceSequence && (
-                    <div style={{ marginBottom: 18 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Deliverance Sequence</div>
-                      <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
-                        {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
-                          <span key={i}><span style={{ color: txt }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: G, margin: '0 6px' }}>→</span>}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <FieldBlock label="Transmission Vectors" value={entry.transmissionVectors} />
+                  <FieldBlock label="Legal Rights" value={entry.legalRights} />
+                  <FieldBlock label="Legal Rights Framework" value={entry.legalRightsFramework} />
+                  <FieldBlock label="Demonic Agreements & Lies" value={entry.demonicAgreements} />
+                  <FieldBlock label="Assignment" value={entry.assignment} />
+                  <FieldBlock label="WRI Exorcist Notes" value={entry.wriNotes} />
+                  <FieldBlock label="Operational Notes" value={entry.operationalNotes} />
                   {entry.prayerPoints && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Prayer Points</div>
@@ -2905,32 +2946,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                     </div>
                   )}
                   <FieldBlock label="Aftercare Notes" value={entry.aftercareNotes} />
-                  {/* Spirit connections */}
-                  {(entry.parentStrongman || entry.relatedSpirits) && (
-                    <div style={{ marginBottom: 18 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>🕸 Spirit Connections</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                        {entry.parentStrongman && (
-                          <div style={{ width: '100%', marginBottom: 4 }}>
-                            <span style={{ color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>UNDER STRONGMAN: </span>
-                            <button onClick={() => { const p = entries.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
-                              style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
-                              {entry.parentStrongman}
-                            </button>
-                          </div>
-                        )}
-                        {entry.relatedSpirits && String(entry.relatedSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
-                          const rel = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
-                          return (
-                            <button key={n} onClick={() => rel && setSelectedEntry(rel)}
-                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: rel ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: rel ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
-                              {n}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
                   {/* Related Arsenal resources */}
                   {spiritResources.length > 0 && (
                     <div style={{ marginBottom: 18 }}>
@@ -2956,14 +2971,33 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                 </TierGate>
               )}
 
-              {/* TAB 4: SCHOLARLY */}
+              {/* TAB 4: RESEARCH — General+ */}
               {modalTab === 'scholarly' && (
                 <TierGate tierName="General">
                   <FieldBlock label="Etymology & Name Analysis" value={entry.etymologyNotes} />
                   <FieldBlock label="Archaeological & ANE Context" value={entry.archaeologyNotes} />
                   <FieldBlock label="Scripture Context" value={entry.scriptureContext} />
-                  {entry.counterScriptures && <FieldBlock label="Counter Scriptures" value={entry.counterScriptures} color={G} />}
-                  <FieldBlock label="Biblical References" value={entry.biblicalReferences} />
+                  <FieldBlock label="Institutional Expression" value={entry.institutionalExpression} />
+                  <FieldBlock label="Primary Battlefield" value={entry.primaryBattlefield} />
+                  <FieldBlock label="Personality Presentation" value={entry.personalityPresentation} />
+                  <FieldBlock label="Case Type" value={entry.caseType} />
+                  <FieldBlock label="Biblical Rank" value={entry.biblicalRank} />
+                  {entry.relatedSpirits && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Related Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {String(entry.relatedSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
+                          const rel = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={n} onClick={() => rel && setSelectedEntry(rel)}
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: rel ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: rel ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <FieldBlock label="WRI Exorcist Notes" value={entry.wriNotes} />
                 </TierGate>
               )}

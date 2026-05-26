@@ -71,6 +71,7 @@ export const Route = createFileRoute('/api/demons')({
               primaryBattlefield: r.fields['Primary Battlefield'] || '',
               personalityPresentation: r.fields['Typical Personality Presentation'] || '',
               counterScriptures: r.fields['Counter Scriptures'] || '',
+              region: r.fields['Region'] || '', // TODO: Create 'Region' field in Airtable
             }))
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')

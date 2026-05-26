@@ -110,28 +110,53 @@ const ENHANCE_FIELDS_DEFAULT = [
   'sessionIndicators', 'clusterSpirits', 'legalRights',
 ]
 
-// Map AI-invented key names to canonical camelCase keys (matches admin-demon.ts camelToAirtable)
+// Map AI key names to canonical camelCase keys matching admin-demon.ts camelToAirtable
 const KEY_ALIASES: Record<string, string> = {
-  description: 'description',
-  manifestation: 'manifestation',
+  // Identity aliases — canonical keys pass through unchanged
+  aka: 'aka',
   type: 'type',
+  description: 'description',
+  kingdom: 'kingdom',
+  strongman: 'strongman',
+  rank: 'rank',
+  assignment: 'assignment',
+  phonetic: 'phonetic',
+  images: 'images',
+  relatedSpirits: 'relatedSpirits',
+  biblicalRank: 'biblicalRank',
+  caseType: 'caseType',
+  isGenerational: 'isGenerational',
+  isTerritorial: 'isTerritorial',
+  // Common AI variations → canonical keys
+  manifestation: 'manifestation',
+  symptoms: 'manifestation',
   entryPoints: 'entryPoints',
   legalRights: 'legalRights',
-  legalRightsFramework: 'legalRights',
   companionSpirits: 'clusterSpirits',
-  symptoms: 'sessionIndicators',
-  wriNotes: 'aftercareNotes',
-  operationalNotes: 'aftercareNotes',
-  deliveranceSequence: 'prayerPoints',
-  protocol: 'prayerPoints',
-  counterScriptures: 'scriptureContext',
-  scripture: 'scriptureContext',
+  clusterSpirits: 'clusterSpirits',
+  wriNotes: 'wriNotes',
+  operationalNotes: 'operationalNotes',
   primaryBattlefield: 'primaryBattlefield',
   personalityPresentation: 'personalityPresentation',
-  strongman: 'strongman',
-  assignment: 'assignment',
+  counterScriptures: 'counterScriptures',
+  deliveranceSequence: 'deliveranceSequence',
+  protocol: 'deliveranceSequence',
+  parentStrongman: 'parentStrongman',
+  hierarchyCategory: 'hierarchyCategory',
+  sourceOrigin: 'sourceOrigin',
+  scripture: 'scripture',
+  sessionIndicators: 'sessionIndicators',
+  resistanceSignature: 'resistanceSignature',
+  demonicAgreements: 'demonicAgreements',
+  legalRightsFramework: 'legalRightsFramework',
+  transmissionVectors: 'transmissionVectors',
+  institutionalExpression: 'institutionalExpression',
+  etymologyNotes: 'etymologyNotes',
+  archaeologyNotes: 'archaeologyNotes',
   archaeology: 'archaeologyNotes',
-  institutional: 'institutionalExpression',
+  scriptureContext: 'scriptureContext',
+  prayerPoints: 'prayerPoints',
+  aftercareNotes: 'aftercareNotes',
 }
 
 function parseJsonFields(raw: string): Record<string, any> {
@@ -227,15 +252,32 @@ ${fieldSchema}
 
 async function fetchWikimediaImage(spiritName: string): Promise<string> {
   try {
-    const query = encodeURIComponent(spiritName)
-    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${query}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
-    if (!res.ok) return ''
-    const data = await res.json()
-    return data.thumbnail?.source || data.originalimage?.source || ''
-  } catch {
-    return ''
-  }
+    const encoded = encodeURIComponent(spiritName)
+    // Try Wikipedia page summary first
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`,
+      { signal: AbortSignal.timeout(4000) }
+    )
+    if (res.ok) {
+      const data = await res.json()
+      const url = data.thumbnail?.source || data.originalimage?.source
+      if (url) return url
+    }
+    // Fallback: Wikimedia Commons search via MediaWiki API
+    const searchRes = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=query&titles=${encoded}&prop=pageimages&format=json&pithumbsize=400&origin=*`,
+      { signal: AbortSignal.timeout(4000) }
+    )
+    if (searchRes.ok) {
+      const searchData = await searchRes.json()
+      const pages = searchData.query?.pages
+      if (pages) {
+        const page = Object.values(pages)[0] as any
+        if (page?.thumbnail?.source) return page.thumbnail.source
+      }
+    }
+  } catch {}
+  return ''
 }
 
 export default async function handler(req: Request) {

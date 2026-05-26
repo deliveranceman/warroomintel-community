@@ -1359,12 +1359,18 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         ))}
       </div>
 
-      {/* Subtle Airtable link */}
-      <div style={{ textAlign: 'right' as const, marginBottom: 22 }}>
+      {/* Refresh + Airtable link */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+        <button onClick={fetchDemons} disabled={dLoading}
+          style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '6px 14px', cursor: dLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: dLoading ? 0.5 : 1 }}>
+          ↺ Refresh
+        </button>
+      <div style={{ textAlign: 'right' as const }}>
         <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
           style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: DIM, textDecoration: 'none', opacity: 0.65 }}>
           View raw data in Airtable →
         </a>
+      </div>
       </div>
 
       {/* Table toolbar */}

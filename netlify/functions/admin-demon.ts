@@ -106,41 +106,52 @@ export default async function handler(req: Request) {
     const { id, fields } = body
     if (!id || !fields) return new Response(JSON.stringify({ error: 'id and fields required' }), { status: 400 })
 
-    // Map camelCase AI fields to Airtable field names
+    // Map camelCase AI fields to exact Airtable field names
     const airtableFields: Record<string, any> = { ...fields }
     const camelToAirtable: Record<string, string> = {
+      name: '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE',
+      aka: 'Also Known As',
+      type: 'Type / Rank',
+      description: 'Description',
+      manifestation: 'Manifestiation', // Airtable field has this typo
+      scripture: 'Scripture Reference',
+      entryPoints: 'Entry Points',
+      sourceOrigin: 'Source / Orgin', // Airtable field has this typo
+      kingdom: 'Kingdom',
+      strongman: 'Strongman',
+      rank: 'Rank',
+      legalRights: 'Legal Rights',
+      symptoms: 'Symptoms',
+      companionSpirits: 'Companion Spirits',
+      wriNotes: 'WRI Exorcist Notes',
+      assignment: 'Assignment',
+      hierarchyCategory: 'Hierarchy Category',
+      parentStrongman: 'Parent Strongman',
+      deliveranceSequence: 'Deliverance Sequence',
+      operationalNotes: 'Operational Notes',
+      primaryBattlefield: 'Primary Battlefield',
+      personalityPresentation: 'Typical Personality Presentation',
+      counterScriptures: 'Counter Scriptures',
+      phonetic: 'Phonetic',
+      images: 'Images',
+      relatedSpirits: 'Related Spirits',
       biblicalRank: 'Biblical Rank',
-      transmissionVectors: 'Transmission Vectors',
       caseType: 'Case Type',
+      isGenerational: 'Is Generational',
+      isTerritorial: 'Is Territorial',
       clusterSpirits: 'Cluster Spirits',
+      legalRightsFramework: 'Legal Rights Framework',
+      institutionalExpression: 'Institutional Expression',
       sessionIndicators: 'Session Indicators',
+      resistanceSignature: 'Resistance Signature',
       demonicAgreements: 'Demonic Agreements',
-      aftercareNotes: 'Aftercare Notes',
+      transmissionVectors: 'Transmission Vectors',
       etymologyNotes: 'Etymology Notes',
       archaeologyNotes: 'Archaeology Notes',
       scriptureContext: 'Scripture Context',
-      resistanceSignature: 'Resistance Signature',
-      institutionalExpression: 'Institutional Expression',
       prayerPoints: 'Prayer Points',
-      isGenerational: 'Is Generational',
-      isTerritorial: 'Is Territorial',
-      phonetic: 'Phonetic',
-      relatedSpirits: 'Related Spirits',
-      legalRights: 'Legal Rights',
-      legalRightsFramework: 'Legal Rights Framework',
-      images: 'Images',
-      strongman: 'Strongman',
-      assignment: 'Assignment',
-      primaryBattlefield: 'Primary Battlefield',
-      personalityPresentation: 'Typical Personality Presentation',
-      companionSpirits: 'Companion Spirits',
-      counterScriptures: 'Counter Scriptures',
-      deliveranceSequence: 'Deliverance Sequence',
-      operationalNotes: 'Operational Notes',
-      wriNotes: 'WRI Exorcist Notes',
-      manifestation: 'Manifestiation', // Airtable field has this typo
-      description: 'Description',
-      entryPoints: 'Entry Points',
+      aftercareNotes: 'Aftercare Notes',
+      region: 'Region', // TODO: Create 'Region' field in Airtable
     }
     for (const [camel, airtable] of Object.entries(camelToAirtable)) {
       if (camel in airtableFields) {
