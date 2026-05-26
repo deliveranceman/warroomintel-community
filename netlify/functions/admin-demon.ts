@@ -175,7 +175,8 @@ export default async function handler(req: Request) {
       }
     }
 
-    console.log('[admin-demon] PATCH airtableFields keys:', Object.keys(airtableFields))
+    console.log('[admin-demon] PATCH fields being sent to Airtable:', JSON.stringify(Object.keys(airtableFields)))
+    if ('Type / Rank' in airtableFields) console.log('[admin-demon] Type/Rank value:', airtableFields['Type / Rank'])
 
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`, {
       method: 'PATCH',

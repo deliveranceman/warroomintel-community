@@ -989,7 +989,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
 }
 
 const FIELD_GROUPS = [
-  ['biblicalRank', 'caseType', 'type', 'phonetic', 'isGenerational', 'isTerritorial', 'clusterSpirits'],
+  ['biblicalRank', 'caseType', 'type', 'phonetic', 'isGenerational', 'isTerritorial', 'clusterSpirits', 'relatedSpirits'],
   ['sessionIndicators', 'resistanceSignature', 'legalRights', 'transmissionVectors', 'entryPoints', 'manifestation'],
   ['etymologyNotes', 'archaeologyNotes', 'description', 'prayerPoints', 'aftercareNotes', 'scriptureContext'],
 ]

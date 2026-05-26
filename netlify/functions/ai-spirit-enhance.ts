@@ -42,34 +42,81 @@ async function resolveMinister(token: string): Promise<{ ok: boolean; reason: st
   }
 }
 
-async function getContextPreamble(isTerritorial: boolean, requestedFields: string[]): Promise<string> {
+async function getPreamble(
+  spiritName: string,
+  spiritDescription: string,
+  isTerritorial: boolean,
+  requestedFields: string[]
+): Promise<string> {
   try {
     const client = sb()
-    const { data, error } = await client
-      .from('ministry_context')
-      .select('label, context_text, scope')
-      .eq('is_active', true)
-      .order('scope')
-    if (error || !data?.length) return ''
-
     const isSessionRequest = requestedFields.some(f =>
       ['sessionIndicators', 'resistanceSignature', 'prayerPoints', 'aftercareNotes', 'legalRights'].includes(f)
     )
 
-    const sections: string[] = []
-    for (const ctx of data) {
+    // Fetch contexts and books in parallel
+    const [contextResult, booksResult] = await Promise.all([
+      client.from('ministry_context').select('label, context_text, scope').eq('is_active', true).order('scope'),
+      client.from('ministry_library').select('title, author, extracted_text').eq('is_enabled', true),
+    ])
+
+    const MAX_CHARS = 8000
+    let preamble = ''
+
+    // Inject ministry contexts by scope
+    const contexts = contextResult.data || []
+    const contextSections: string[] = []
+    for (const ctx of contexts) {
       const { scope, label, context_text } = ctx
       if (scope === 'global') {
-        sections.push(`[${label || 'Ministry Context'}]:\n${context_text}`)
+        contextSections.push(`[${label || 'Ministry Context'}]:\n${context_text}`)
       } else if (scope === 'regional' && isTerritorial) {
-        sections.push(`[${label || 'Regional Context'}]:\n${context_text}`)
+        contextSections.push(`[${label || 'Regional Context'}]:\n${context_text}`)
       } else if (scope === 'session' && isSessionRequest) {
-        sections.push(`[${label || 'Session Context'}]:\n${context_text}`)
+        contextSections.push(`[${label || 'Session Context'}]:\n${context_text}`)
       }
-      // assessment scope not used in spirit enhance
     }
-    if (!sections.length) return ''
-    return `MINISTRY CONTEXT:\n${sections.join('\n\n---\n\n')}\n\nApply the above ministry framework and voice to all content you generate.\n---\n`
+    if (contextSections.length) {
+      preamble += `MINISTRY CONTEXT:\n${contextSections.join('\n\n---\n\n')}\n\nApply the above ministry framework and voice to all content you generate.\n---\n\n`
+    }
+
+    // Inject relevant library book chunks
+    const books = booksResult.data || []
+    if (books.length > 0) {
+      const terms = spiritName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+      if (spiritDescription) {
+        spiritDescription.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+          .filter(w => w.length > 5).slice(0, 10).forEach(w => terms.push(w))
+      }
+      interface ScoredChunk { title: string; author: string; text: string; score: number }
+      const scored: ScoredChunk[] = []
+      for (const book of books) {
+        if (!book.extracted_text) continue
+        for (let i = 0; i < book.extracted_text.length; i += 1800) {
+          const chunk = book.extracted_text.slice(i, i + 2000).trim()
+          if (chunk.length < 150) continue
+          const lc = chunk.toLowerCase()
+          let score = 0
+          for (const term of terms) {
+            const matches = (lc.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
+            if (matches) score += matches * (term.length > 6 ? 3 : 1)
+          }
+          if (score > 0) scored.push({ title: book.title, author: book.author || '', text: chunk.slice(0, 1400), score })
+        }
+      }
+      if (scored.length > 0) {
+        scored.sort((a, b) => b.score - a.score)
+        let bookSection = `PERSONAL MINISTRY LIBRARY:\n`
+        for (const c of scored.slice(0, 3)) {
+          const entry = `[${c.title}${c.author ? ` by ${c.author}` : ''}]:\n${c.text}\n\n`
+          if ((preamble + bookSection + entry).length > MAX_CHARS) break
+          bookSection += entry
+        }
+        if (bookSection.length > 30) preamble += bookSection
+      }
+    }
+
+    return preamble
   } catch { return '' }
 }
 
@@ -358,7 +405,7 @@ export default async function handler(req: Request) {
 
   try {
     const isTerritorial = existing.isTerritorial === true || existing.isTerritorial === 'true'
-    const preamble = await getContextPreamble(isTerritorial, requestedFields)
+    const preamble = await getPreamble(name, existing.description || '', isTerritorial, requestedFields)
     const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
     const userPrompt = buildUserPrompt(name, existing, requestedFields)
 
