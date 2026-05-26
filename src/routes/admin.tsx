@@ -733,13 +733,99 @@ function demonToSpiritFields(d: any): Record<string, string> {
   }
 }
 
-function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
+function SpiritTypeahead({ value, onChange, demons, mode, placeholder }: {
+  value: string
+  onChange: (val: string) => void
+  demons: any[]
+  mode: 'single' | 'multi'
+  placeholder?: string
+}) {
+  const [localInput, setLocalInput] = useState('')
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const selected = mode === 'multi' ? value.split(',').map(s => s.trim()).filter(Boolean) : []
+  const filterText = mode === 'single' ? value : localInput
+  const suggestions = filterText.length > 0
+    ? demons
+        .filter(d => d.name && d.name.toLowerCase().includes(filterText.toLowerCase()))
+        .filter(d => mode === 'multi' ? !selected.includes(d.name) : true)
+        .slice(0, 8)
+    : []
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box' as const, background: '#0a0813',
+    border: `1px solid ${BDR}`, borderRadius: 6, padding: '9px 11px',
+    color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none',
+  }
+
+  const handleSelect = (name: string) => {
+    if (mode === 'single') {
+      onChange(name)
+    } else {
+      onChange([...selected, name].join(', '))
+      setLocalInput('')
+    }
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      {mode === 'multi' && selected.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 8 }}>
+          {selected.map(name => (
+            <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em' }}>
+              {name}
+              <button onMouseDown={e => { e.preventDefault(); onChange(selected.filter(s => s !== name).join(', ')) }}
+                style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', padding: 0, fontSize: 11, lineHeight: 1 }}>✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        value={mode === 'single' ? value : localInput}
+        onChange={e => {
+          if (mode === 'single') { onChange(e.target.value); setOpen(true) }
+          else { setLocalInput(e.target.value); setOpen(true) }
+        }}
+        onFocus={() => { if (filterText.length > 0) setOpen(true) }}
+        placeholder={placeholder || (mode === 'multi' ? 'Type spirit name to add...' : 'Type to search...')}
+        style={inp}
+      />
+      {open && suggestions.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#1a1625', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, marginTop: 2, maxHeight: 200, overflowY: 'auto' as const, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+          {suggestions.map(d => (
+            <div key={d.airtableId || d.name}
+              onMouseDown={e => { e.preventDefault(); handleSelect(d.name) }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.1)'; (e.currentTarget as HTMLDivElement).style.color = G }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = DIM }}
+              style={{ padding: '8px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {d.name}
+              {d.type && <span style={{ fontSize: 8, opacity: 0.5 }}>{d.type}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demons = [] }: {
   fields: Record<string, string>
   setField: (name: string, val: string) => void
   onSave: () => void
   onCancel: () => void
   saving: boolean
   msg: string
+  demons?: any[]
 }) {
   const i: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', background: '#0a0813',
@@ -767,7 +853,10 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Entry Points</label>{ta('Entry Points')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Legal Rights</label>{ta('Legal Rights')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Symptoms</label>{ta('Symptoms')}</div>
-        <div><label style={l}>Companion Spirits</label>{ti('Companion Spirits')}</div>
+        <div>
+          <label style={l}>Companion Spirits</label>
+          <SpiritTypeahead mode="multi" value={f('Companion Spirits')} onChange={v => setField('Companion Spirits', v)} demons={demons} placeholder="Type spirit name to add..." />
+        </div>
         <div><label style={l}>Kingdom</label>{ti('Kingdom')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>WRI Exorcist Notes</label>{ta('WRI Exorcist Notes')}</div>
         <div>
@@ -777,7 +866,10 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
             {HIER_CATS.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
-        <div><label style={l}>Parent Strongman</label>{ti('Parent Strongman')}</div>
+        <div>
+          <label style={l}>Parent Strongman</label>
+          <SpiritTypeahead mode="single" value={f('Parent Strongman')} onChange={v => setField('Parent Strongman', v)} demons={demons} placeholder="Type to search spirits..." />
+        </div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Deliverance Sequence</label>{ta('Deliverance Sequence', 4)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Operational Notes</label>{ta('Operational Notes')}</div>
         <div>
@@ -1192,6 +1284,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     institutionalExpression: '🏛 Institutional Expression', counterScriptures: '🗡 Counter Scriptures',
     deliveranceSequence: '📋 Deliverance Sequence', aftercareNotes: '🌱 Aftercare Notes',
     prayerPoints: '🙏 Prayer Points', phonetic: '🔊 Phonetic',
+    images: '🖼 Image (Wikipedia)',
     biblicalReferences: '📖 Biblical References', isGenerational: '🧬 Generational?',
     isTerritorial: '🗺 Territorial?',
   }
@@ -1408,6 +1501,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             onCancel={() => { setShowNew(false); setNewMsg('') }}
             saving={newSaving}
             msg={newMsg}
+            demons={demons}
           />
         </div>
       )}
@@ -1482,6 +1576,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           onCancel={() => { setEditingId(null); setEditMsg('') }}
                           saving={editSaving}
                           msg={editMsg}
+                          demons={demons}
                         />
                       </td>
                     </tr>

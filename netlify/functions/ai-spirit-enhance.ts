@@ -108,6 +108,7 @@ CRITICAL: Respond with RAW JSON only. Do not use markdown. Do not use code block
 const ENHANCE_FIELDS_DEFAULT = [
   'biblicalRank', 'caseType', 'phonetic',
   'sessionIndicators', 'clusterSpirits', 'legalRights',
+  'images',
 ]
 
 // Map AI key names to canonical camelCase keys matching admin-demon.ts camelToAirtable
@@ -251,32 +252,47 @@ ${fieldSchema}
 }
 
 async function fetchWikimediaImage(spiritName: string): Promise<string> {
-  try {
-    const encoded = encodeURIComponent(spiritName)
-    // Try Wikipedia page summary first
-    const res = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`,
-      { signal: AbortSignal.timeout(4000) }
-    )
-    if (res.ok) {
-      const data = await res.json()
-      const url = data.thumbnail?.source || data.originalimage?.source
-      if (url) return url
-    }
-    // Fallback: Wikimedia Commons search via MediaWiki API
-    const searchRes = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&titles=${encoded}&prop=pageimages&format=json&pithumbsize=400&origin=*`,
-      { signal: AbortSignal.timeout(4000) }
-    )
-    if (searchRes.ok) {
-      const searchData = await searchRes.json()
-      const pages = searchData.query?.pages
-      if (pages) {
-        const page = Object.values(pages)[0] as any
-        if (page?.thumbnail?.source) return page.thumbnail.source
+  const names = [
+    spiritName,
+    spiritName.split(' ')[0],
+    spiritName.replace(/[^a-zA-Z]/g, ''),
+  ].filter((n, i, a) => n && a.indexOf(n) === i) // deduplicate
+
+  for (const name of names) {
+    try {
+      const encoded = encodeURIComponent(name)
+      // Method 1: Wikipedia REST summary
+      const r1 = await fetch(
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`,
+        { signal: AbortSignal.timeout(4000) }
+      )
+      if (r1.ok) {
+        const d = await r1.json()
+        const url = d.thumbnail?.source || d.originalimage?.source
+        if (url) {
+          console.log('[enhance] Image found via summary for', name, ':', url.slice(0, 80))
+          return url
+        }
       }
+      // Method 2: MediaWiki pageimages API
+      const r2 = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&titles=${encoded}&prop=pageimages&format=json&pithumbsize=400&origin=*`,
+        { signal: AbortSignal.timeout(4000) }
+      )
+      if (r2.ok) {
+        const d = await r2.json()
+        const pages = Object.values(d.query?.pages || {}) as any[]
+        const url = pages[0]?.thumbnail?.source
+        if (url) {
+          console.log('[enhance] Image found via pageimages for', name, ':', url.slice(0, 80))
+          return url
+        }
+      }
+    } catch (e) {
+      console.log('[enhance] Image fetch failed for:', name, (e as any)?.message)
     }
-  } catch {}
+  }
+  console.log('[enhance] No image found for:', spiritName)
   return ''
 }
 
@@ -372,7 +388,8 @@ export default async function handler(req: Request) {
 
     // Wikipedia image — non-blocking, best-effort
     const imageUrl = await fetchWikimediaImage(name).catch(() => '')
-    if (imageUrl && !remappedFields.images) {
+    console.log('[enhance] imageUrl result:', imageUrl ? imageUrl.slice(0, 80) : 'EMPTY')
+    if (imageUrl) {
       remappedFields.images = imageUrl
     }
 

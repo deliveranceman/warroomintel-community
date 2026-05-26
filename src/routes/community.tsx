@@ -2824,11 +2824,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Historical Depictions</div>
                       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                        {(Array.isArray(entry.images) ? entry.images : String(entry.images).split(',').map((s: string) => s.trim()).filter(Boolean)).map((img: string, i: number) => (
-                          <div key={i} style={{ flexShrink: 0, width: 120, height: 120, borderRadius: 8, overflow: 'hidden', border: `1px solid ${bdr}`, cursor: 'pointer' }}
+                        {(Array.isArray(entry.images) ? entry.images : String(entry.images).split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean)).map((img: string, i: number) => (
+                          <div key={i} style={{ flexShrink: 0, width: i === 0 ? '100%' : 120, maxHeight: i === 0 ? 220 : 120, borderRadius: 8, overflow: 'hidden', border: `1px solid ${bdr}`, cursor: 'pointer', background: 'rgba(0,0,0,0.3)' }}
                             onClick={() => window.open(img, '_blank')}>
-                            <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }}
-                              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                            <img src={img} alt={entry.name} style={{ width: '100%', height: '100%', maxHeight: i === 0 ? 220 : 120, objectFit: 'contain' as const }}
+                              onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }} />
                           </div>
                         ))}
                       </div>
@@ -2851,7 +2851,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
               {modalTab === 'intelligence' && (
                 <TierGate tierName="Soldier">
                   <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation || entry.symptoms} />
-                  {entry.symptoms && entry.symptoms !== entry.manifestation && <FieldBlock label="Symptoms" value={entry.symptoms} />}
                   <FieldBlock label="Entry Points" value={entry.entryPoints} />
                   <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
                   <FieldBlock label="Source & Origin" value={entry.sourceOrigin} />
