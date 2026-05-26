@@ -37,8 +37,10 @@ async function resolveUser(token: string): Promise<{ userId: string; userData: a
 function cleanFields(fields: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {}
   for (const [k, v] of Object.entries(fields)) {
-    if (v === null || v === undefined) continue
-    out[k] = v === '' ? null : v
+    // Skip null, undefined, and empty strings — Airtable rejects the entire PATCH
+    // if any field name doesn't exist as a column, even with a null value
+    if (v === null || v === undefined || v === '') continue
+    out[k] = v
   }
   return out
 }

@@ -197,7 +197,7 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     phonetic: 'Correct phonetic pronunciation using syllable capitalization.',
     biblicalRank: 'Ephesians 6:12 classification with brief rationale.',
     caseType: 'Personal Deliverance, Generational/Bloodline, Territorial/Regional, Institutional, Atmospheric/Intercessory, or Multiple.',
-    type: 'Same as caseType — classification of this spirit.',
+    type: 'The spirit\'s rank/type classification. Single value: Principality, Power, Ruler of Darkness, Spiritual Wickedness, Fallen Angel, Demon, or Familiar Spirit.',
     isGenerational: 'true or false — is this spirit typically generational/bloodline?',
     isTerritorial: 'true or false — is this spirit typically territorial/regional?',
     clusterSpirits: 'Boss spirit AND full subordinate cluster. How the boss maintains authority.',
