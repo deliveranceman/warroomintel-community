@@ -62,7 +62,7 @@ export const Route = createFileRoute('/api/demons')({
               symptoms: r.fields['Symptoms'] || '',
               companionSpirits: r.fields['Companion Spirits'] || '',
               wriNotes: r.fields['WRI Exorcist Notes'] || '',
-              sourceOrgin: r.fields['Source / Orgin'] || '',
+              sourceOrigin: r.fields['Source / Orgin'] || '',
               // Operational intel (new fields)
               hierarchyCategory: r.fields['Hierarchy Category'] || '',
               parentStrongman: r.fields['Parent Strongman'] || '',

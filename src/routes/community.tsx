@@ -2770,6 +2770,46 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
           )
         }
 
+        // Render text with demon names as clickable links
+        const linkifySpirits = (text: string): React.ReactNode => {
+          if (!text || !entries?.length) return text
+          const matchList: { start: number; end: number; name: string }[] = []
+          for (const d of entries as any[]) {
+            if (!d.name) continue
+            const lower = text.toLowerCase()
+            const nameLower = d.name.toLowerCase()
+            let idx = 0
+            while (idx < lower.length) {
+              const found = lower.indexOf(nameLower, idx)
+              if (found === -1) break
+              matchList.push({ start: found, end: found + d.name.length, name: d.name })
+              idx = found + d.name.length
+            }
+          }
+          if (!matchList.length) return text
+          matchList.sort((a, b) => a.start - b.start || b.end - a.end)
+          const filtered: typeof matchList = []
+          let lastEnd = 0
+          for (const m of matchList) {
+            if (m.start >= lastEnd) { filtered.push(m); lastEnd = m.end }
+          }
+          const parts: React.ReactNode[] = []
+          let pos = 0
+          for (const m of filtered) {
+            if (m.start > pos) parts.push(text.slice(pos, m.start))
+            parts.push(
+              <span key={`${m.name}-${m.start}`}
+                onClick={() => { const d = (entries as any[]).find(e => e.name?.toLowerCase() === m.name.toLowerCase()); if (d) setSelectedEntry(d) }}
+                style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontWeight: 600 }}>
+                {text.slice(m.start, m.end)}
+              </span>
+            )
+            pos = m.end
+          }
+          if (pos < text.length) parts.push(text.slice(pos))
+          return <>{parts}</>
+        }
+
         return (
           <div onClick={() => setSelectedEntry(null)}
             style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? 8 : 20, paddingTop: isMobile ? 20 : undefined, backdropFilter: 'blur(4px)' }}>
@@ -2802,7 +2842,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
               </div>
 
               {/* Tab bar */}
-              <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 20, overflowX: 'auto' as const }}>
+              <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 20, overflowX: 'auto' as const, scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any }}>
                 {([
                   { key: 'overview', label: '📖 Overview' },
                   { key: 'intelligence', label: '🔍 Intel' },
@@ -2819,21 +2859,22 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
               {/* TAB 1: OVERVIEW */}
               {modalTab === 'overview' && (
                 <div>
-                  {/* Image gallery */}
-                  {entry.images && entry.images.length > 0 && (
-                    <div style={{ marginBottom: 20 }}>
-                      <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Historical Depictions</div>
-                      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                        {(Array.isArray(entry.images) ? entry.images : String(entry.images).split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean)).map((img: string, i: number) => (
-                          <div key={i} style={{ flexShrink: 0, width: i === 0 ? '100%' : 120, maxHeight: i === 0 ? 220 : 120, borderRadius: 8, overflow: 'hidden', border: `1px solid ${bdr}`, cursor: 'pointer', background: 'rgba(0,0,0,0.3)' }}
-                            onClick={() => window.open(img, '_blank')}>
-                            <img src={img} alt={entry.name} style={{ width: '100%', height: '100%', maxHeight: i === 0 ? 220 : 120, objectFit: 'contain' as const }}
-                              onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }} />
-                          </div>
-                        ))}
+                  {/* Image display */}
+                  {(() => {
+                    const imgArr = Array.isArray(entry.images) ? entry.images : String(entry.images || '').split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean)
+                    const url = imgArr[0]
+                    if (!url || !url.startsWith('http')) return null
+                    return (
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Historical Depiction</div>
+                        <img src={url} alt={entry.name}
+                          style={{ maxWidth: '100%', maxHeight: 250, borderRadius: 8, border: `1px solid rgba(201,168,76,0.15)`, objectFit: 'contain' as const, display: 'block', margin: '0 auto', cursor: 'pointer' }}
+                          onClick={() => window.open(url, '_blank')}
+                          onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
+                        />
                       </div>
-                    </div>
-                  )}
+                    )
+                  })()}
                   {entry.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 14 }}>aka {entry.aka}</div>}
                   <FieldBlock label="Description" value={entry.description} />
                   <FieldBlock label="Kingdom" value={entry.kingdom} />
@@ -2912,16 +2953,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   {entry.clusterSpirits && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cluster Spirits</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                        {String(entry.clusterSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
-                          const linked = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
-                          return (
-                            <button key={n} onClick={() => linked && setSelectedEntry(linked)}
-                              style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
-                              {n}
-                            </button>
-                          )
-                        })}
+                      <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>
+                        {linkifySpirits(String(entry.clusterSpirits))}
                       </div>
                     </div>
                   )}
@@ -2984,16 +3017,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   {entry.relatedSpirits && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Related Spirits</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                        {String(entry.relatedSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
-                          const rel = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
-                          return (
-                            <button key={n} onClick={() => rel && setSelectedEntry(rel)}
-                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: rel ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: rel ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
-                              {n}
-                            </button>
-                          )
-                        })}
+                      <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>
+                        {linkifySpirits(String(entry.relatedSpirits))}
                       </div>
                     </div>
                   )}

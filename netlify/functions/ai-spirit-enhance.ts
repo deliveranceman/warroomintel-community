@@ -225,7 +225,7 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     primaryBattlefield: 'The primary arena where this spirit operates: mind, will, emotions, body, relationships, finances, calling.',
     personalityPresentation: 'How this spirit presents as a personality pattern or character trait in the host.',
     demonicAgreements: 'Specific agreements, vows, or lies the host must renounce.',
-    relatedSpirits: 'Other spirits closely related to or frequently paired with this entity.',
+    relatedSpirits: 'Comma-separated list of spirit names directly related to or subordinate to this spirit. Use exact names only — no descriptions or parenthetical notes. Example: "Jezebel, Ahab, Molech, Asherah"',
   }
 
   const fieldSchema = fields.map(f => `  "${f}": "${fieldDescriptions[f] || f}"`).join(',\n')

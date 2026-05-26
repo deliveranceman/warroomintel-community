@@ -709,7 +709,7 @@ function demonToSpiritFields(d: any): Record<string, string> {
     'Operational Notes': d.operationalNotes || '', 'Primary Battlefield': d.primaryBattlefield || '',
     'Typical Personality Presentation': d.personalityPresentation || '',
     'Counter Scriptures': d.counterScriptures || '', 'Scripture Reference': d.scripture || '',
-    'Source / Orgin': d.sourceOrgin || '', 'Kingdom': d.kingdom || '',
+    'Source / Orgin': d.sourceOrigin || '', 'Kingdom': d.kingdom || '',
     'Strongman': d.strongman || '', 'Assignment': d.assignment || '',
     'Phonetic': d.phonetic || '',
     'Images': Array.isArray(d.images) ? d.images.join('\n') : d.images || '',
