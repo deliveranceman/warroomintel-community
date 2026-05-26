@@ -162,6 +162,19 @@ export default async function handler(req: Request) {
       }
     }
 
+    // Checkbox fields: Airtable only accepts boolean true — never false, never strings
+    for (const checkboxField of ['Is Generational', 'Is Territorial']) {
+      if (checkboxField in airtableFields) {
+        const v = airtableFields[checkboxField]
+        const isTrue = v === true || v === 'true' || v === 'Yes' || v === 'yes'
+        if (isTrue) {
+          airtableFields[checkboxField] = true
+        } else {
+          delete airtableFields[checkboxField] // omit false — never send it
+        }
+      }
+    }
+
     console.log('[admin-demon] PATCH airtableFields keys:', Object.keys(airtableFields))
 
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`, {

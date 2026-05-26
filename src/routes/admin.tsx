@@ -2777,12 +2777,21 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const LMUT  = isDark ? '#9a8c74' : '#5c4a3a'
   const LG    = '#C9A84C'
 
-  // Context state
-  const [ctxText, setCtxText]       = useState('')
-  const [ctxLabel, setCtxLabel]     = useState('Main Ministry Voice')
-  const [ctxUpdated, setCtxUpdated] = useState<string | null>(null)
-  const [ctxSaving, setCtxSaving]   = useState(false)
-  const [ctxMsg, setCtxMsg]         = useState('')
+  // Multi-context state
+  const [contexts, setContexts]         = useState<any[]>([])
+  const [ctxLoading, setCtxLoading]     = useState(true)
+  const [editingCtxId, setEditingCtxId] = useState<string | null>(null)
+  const [editCtxLabel, setEditCtxLabel] = useState('')
+  const [editCtxScope, setEditCtxScope] = useState('global')
+  const [editCtxText, setEditCtxText]   = useState('')
+  const [editCtxSaving, setEditCtxSaving] = useState(false)
+  const [editCtxMsg, setEditCtxMsg]     = useState('')
+  const [showNewCtx, setShowNewCtx]     = useState(false)
+  const [newCtxLabel, setNewCtxLabel]   = useState('')
+  const [newCtxScope, setNewCtxScope]   = useState('global')
+  const [newCtxText, setNewCtxText]     = useState('')
+  const [newCtxSaving, setNewCtxSaving] = useState(false)
+  const [newCtxMsg, setNewCtxMsg]       = useState('')
 
   // Books state
   const [books, setBooks]           = useState<any[]>([])
@@ -2805,42 +2814,82 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     padding: '8px 12px', color: LTXT, fontFamily: crimson, fontSize: 14, outline: 'none',
   }
 
-  useEffect(() => { loadContext(); loadBooks() }, [])
+  useEffect(() => { loadContexts(); loadBooks() }, [])
 
-  async function loadContext() {
+  async function loadContexts() {
+    setCtxLoading(true)
     try {
       const token = await getToken()
       const res = await fetch('/api/admin-context', { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) {
-        const d = await res.json()
-        if (d.context) {
-          setCtxText(d.context.context_text || '')
-          setCtxLabel(d.context.label || 'Main Ministry Voice')
-          setCtxUpdated(d.context.updated_at || null)
-        }
-      }
+      if (res.ok) { const d = await res.json(); setContexts(d.contexts || []) }
     } catch { /* ignore */ }
+    setCtxLoading(false)
   }
 
-  async function saveContext() {
-    if (!ctxText.trim()) { setCtxMsg('Context text required'); return }
-    setCtxSaving(true); setCtxMsg('')
+  async function createContext() {
+    if (!newCtxText.trim()) { setNewCtxMsg('Context text required'); return }
+    setNewCtxSaving(true); setNewCtxMsg('')
     try {
       const token = await getToken()
       const res = await fetch('/api/admin-context', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ context_text: ctxText, label: ctxLabel }),
+        body: JSON.stringify({ label: newCtxLabel || 'Ministry Context', context_text: newCtxText, scope: newCtxScope, is_active: true }),
       })
       if (res.ok) {
         const d = await res.json()
-        setCtxUpdated(d.context?.updated_at || new Date().toISOString())
-        setCtxMsg('✓ Context saved')
-      } else {
-        const d = await res.json(); setCtxMsg(`⚠ ${d.error}`)
-      }
-    } catch(e: any) { setCtxMsg(`⚠ ${e.message}`) }
-    setCtxSaving(false)
+        setContexts(prev => [d.context, ...prev])
+        setShowNewCtx(false); setNewCtxLabel(''); setNewCtxText(''); setNewCtxScope('global')
+      } else { const d = await res.json(); setNewCtxMsg(`⚠ ${d.error}`) }
+    } catch(e: any) { setNewCtxMsg(`⚠ ${e.message}`) }
+    setNewCtxSaving(false)
+  }
+
+  async function updateContext() {
+    if (!editingCtxId || !editCtxText.trim()) return
+    setEditCtxSaving(true); setEditCtxMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-context', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: editingCtxId, label: editCtxLabel, context_text: editCtxText, scope: editCtxScope }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setContexts(prev => prev.map(c => c.id === editingCtxId ? d.context : c))
+        setEditingCtxId(null); setEditCtxMsg('')
+      } else { const d = await res.json(); setEditCtxMsg(`⚠ ${d.error}`) }
+    } catch(e: any) { setEditCtxMsg(`⚠ ${e.message}`) }
+    setEditCtxSaving(false)
+  }
+
+  async function toggleContextActive(id: string, is_active: boolean) {
+    const token = await getToken()
+    const res = await fetch('/api/admin-context', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, is_active }),
+    })
+    if (res.ok) setContexts(prev => prev.map(c => c.id === id ? { ...c, is_active } : c))
+  }
+
+  async function deleteContext(id: string, label: string) {
+    if (!confirm(`Delete "${label || 'this context'}"? Cannot be undone.`)) return
+    const token = await getToken()
+    const res = await fetch('/api/admin-context', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    })
+    if (res.ok) setContexts(prev => prev.filter(c => c.id !== id))
+  }
+
+  const SCOPE_LABELS: Record<string, { label: string; color: string; desc: string }> = {
+    global:     { label: 'GLOBAL',     color: '#C9A84C', desc: 'Prepended to every AI call' },
+    regional:   { label: 'REGIONAL',   color: '#8B9DCA', desc: 'Used for territorial/regional spirits' },
+    session:    { label: 'SESSION',    color: '#7a9e7e', desc: 'Used for session indicators, prayer & aftercare' },
+    assessment: { label: 'ASSESSMENT', color: '#b87a3d', desc: 'Used for assessment AI summaries' },
   }
 
   async function loadBooks() {
@@ -2941,43 +2990,138 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   return (
     <div style={{ color: LTXT, fontFamily: crimson }}>
 
-      {/* ── MINISTRY CONTEXT ── */}
+      {/* ── MINISTRY CONTEXTS ── */}
       <div style={{ marginBottom: 40 }}>
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 5 }}>Ministry Voice & Theological Framework</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.6 }}>
-            This text is prepended to every AI enhancement call. Write in your own voice — your theology, your approach, your doctrinal positions. The AI will apply this framework to all spirit research.
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 5 }}>Ministry Contexts</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.6, maxWidth: 520 }}>
+              Contexts are injected into AI calls based on their scope. Write in your own voice — your theology, approach, and doctrinal positions.
+            </div>
           </div>
+          <button onClick={() => { setShowNewCtx(s => !s); setNewCtxLabel(''); setNewCtxText(''); setNewCtxScope('global'); setNewCtxMsg('') }}
+            style={{ background: showNewCtx ? 'rgba(201,168,76,0.1)' : LG, color: showNewCtx ? LG : '#0D0B14', border: showNewCtx ? `1px solid ${LG}` : 'none', borderRadius: 6, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+            {showNewCtx ? '✕ Cancel' : '+ Add Context'}
+          </button>
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>CONTEXT LABEL</label>
-          <input value={ctxLabel} onChange={e => setCtxLabel(e.target.value)} style={{ ...inp, width: 280 }} placeholder="Main Ministry Voice" />
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>YOUR MINISTRY VOICE</label>
-          <textarea
-            value={ctxText}
-            onChange={e => setCtxText(e.target.value)}
-            rows={10}
-            style={{ ...inp, resize: 'vertical' as const, lineHeight: 1.65 }}
-            placeholder={`Example: I am a Pentecostal deliverance minister operating from a charismatic evangelical framework. I believe in the authority of Scripture as the final word, the ongoing gifts of the Spirit, and the biblical mandate for deliverance ministry (Mark 16:17). My approach to spirits is through the lens of legal rights — every demon needs a door. I hold to the teaching of Derek Prince on blessings and curses, Frank Hammond on demonic groupings, and Peter Wagner on territorial spirits...`}
-          />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
-            {ctxText.length.toLocaleString()} characters
-            {ctxUpdated && <span> · Last saved {new Date(ctxUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+        {/* New context form */}
+        {showNewCtx && (
+          <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 10, padding: 20, marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.1em', marginBottom: 14 }}>✦ New Context</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>LABEL</label>
+                <input value={newCtxLabel} onChange={e => setNewCtxLabel(e.target.value)} style={inp} placeholder="My Ministry Voice" />
+              </div>
+              <div>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>SCOPE</label>
+                <select value={newCtxScope} onChange={e => setNewCtxScope(e.target.value)} style={{ ...inp }}>
+                  {Object.entries(SCOPE_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label} — {v.desc}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>CONTEXT TEXT</label>
+              <textarea value={newCtxText} onChange={e => setNewCtxText(e.target.value)} rows={8}
+                style={{ ...inp, resize: 'vertical' as const, lineHeight: 1.65 }}
+                placeholder="Write your ministry voice, theological framework, and approach here..." />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT }}>{newCtxText.length.toLocaleString()} characters</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {newCtxMsg && <span style={{ fontFamily: crimson, fontSize: 13, color: newCtxMsg.startsWith('⚠') ? '#f87171' : '#4ade80' }}>{newCtxMsg}</span>}
+                <button onClick={createContext} disabled={newCtxSaving || !newCtxText.trim()}
+                  style={{ padding: '8px 20px', background: newCtxText.trim() ? LG : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 6, color: newCtxText.trim() ? '#0D0B14' : LMUT, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: newCtxText.trim() ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                  {newCtxSaving ? 'Saving...' : '✓ Create Context'}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-        {ctxMsg && (
-          <div style={{ fontFamily: crimson, fontSize: 13, color: ctxMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{ctxMsg}</div>
         )}
-        <button onClick={saveContext} disabled={ctxSaving}
-          style={{ padding: '10px 28px', background: LG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: ctxSaving ? 'not-allowed' : 'pointer', fontWeight: 700, opacity: ctxSaving ? 0.7 : 1 }}>
-          {ctxSaving ? 'Saving...' : '✓ Save Context'}
-        </button>
+
+        {/* Context cards */}
+        {ctxLoading ? (
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: LMUT, letterSpacing: '0.1em' }}>Loading contexts...</div>
+        ) : contexts.length === 0 ? (
+          <div style={{ fontFamily: crimson, fontSize: 14, color: LMUT, fontStyle: 'italic', padding: '20px 0' }}>
+            No contexts yet. Add one to start shaping the AI's voice.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+            {contexts.map(ctx => {
+              const scopeMeta = SCOPE_LABELS[ctx.scope] || SCOPE_LABELS.global
+              const isEditing = editingCtxId === ctx.id
+              return (
+                <div key={ctx.id} style={{ background: LSURF, border: `1px solid ${isEditing ? LG + '88' : LBDR}`, borderRadius: 10, overflow: 'hidden' }}>
+                  {/* Card header */}
+                  <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 13, color: LTXT }}>{ctx.label || 'Ministry Context'}</span>
+                        <span style={{ fontFamily: cinzel, fontSize: 8, background: scopeMeta.color + '22', color: scopeMeta.color, border: `1px solid ${scopeMeta.color}55`, padding: '2px 8px', borderRadius: 4, letterSpacing: '0.1em' }}>{scopeMeta.label}</span>
+                      </div>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
+                        {(ctx.context_text || '').length.toLocaleString()} chars
+                        {ctx.updated_at && <span> · {new Date(ctx.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                        <span style={{ marginLeft: 8, color: LMUT + '88' }}>{scopeMeta.desc}</span>
+                      </div>
+                    </div>
+                    {/* Always Active toggle */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
+                      <input type="checkbox" checked={ctx.is_active} onChange={e => toggleContextActive(ctx.id, e.target.checked)}
+                        style={{ accentColor: LG, width: 14, height: 14 }} />
+                      <span style={{ fontFamily: cinzel, fontSize: 9, color: ctx.is_active ? LG : LMUT, letterSpacing: '0.06em' }}>ACTIVE</span>
+                    </label>
+                    <button onClick={() => {
+                      if (isEditing) { setEditingCtxId(null) }
+                      else { setEditingCtxId(ctx.id); setEditCtxLabel(ctx.label || ''); setEditCtxScope(ctx.scope || 'global'); setEditCtxText(ctx.context_text || ''); setEditCtxMsg('') }
+                    }} style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, padding: '5px 12px', color: LMUT, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                      {isEditing ? 'Close' : 'Edit'}
+                    </button>
+                    <button onClick={() => deleteContext(ctx.id, ctx.label)}
+                      style={{ background: 'transparent', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 5, padding: '5px 12px', color: '#f87171', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                      Delete
+                    </button>
+                  </div>
+                  {/* Inline edit form */}
+                  {isEditing && (
+                    <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${LBDR}` }}>
+                      <div style={{ paddingTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <div>
+                          <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>LABEL</label>
+                          <input value={editCtxLabel} onChange={e => setEditCtxLabel(e.target.value)} style={inp} />
+                        </div>
+                        <div>
+                          <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>SCOPE</label>
+                          <select value={editCtxScope} onChange={e => setEditCtxScope(e.target.value)} style={{ ...inp }}>
+                            {Object.entries(SCOPE_LABELS).map(([k, v]) => (
+                              <option key={k} value={k}>{v.label} — {v.desc}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <textarea value={editCtxText} onChange={e => setEditCtxText(e.target.value)} rows={8}
+                        style={{ ...inp, resize: 'vertical' as const, lineHeight: 1.65, marginBottom: 10 }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT }}>{editCtxText.length.toLocaleString()} characters</div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          {editCtxMsg && <span style={{ fontFamily: crimson, fontSize: 13, color: editCtxMsg.startsWith('⚠') ? '#f87171' : '#4ade80' }}>{editCtxMsg}</span>}
+                          <button onClick={updateContext} disabled={editCtxSaving}
+                            style={{ padding: '8px 20px', background: LG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, opacity: editCtxSaving ? 0.7 : 1 }}>
+                            {editCtxSaving ? 'Saving...' : '✓ Save Changes'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── PERSONAL LIBRARY ── */}

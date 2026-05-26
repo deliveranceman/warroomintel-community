@@ -42,8 +42,35 @@ async function resolveMinister(token: string): Promise<{ ok: boolean; reason: st
   }
 }
 
-async function getLibraryPreamble(_spiritName: string, _spiritDescription: string): Promise<string> {
-  return '' // disabled for speed — re-enable when library is populated
+async function getContextPreamble(isTerritorial: boolean, requestedFields: string[]): Promise<string> {
+  try {
+    const client = sb()
+    const { data, error } = await client
+      .from('ministry_context')
+      .select('label, context_text, scope')
+      .eq('is_active', true)
+      .order('scope')
+    if (error || !data?.length) return ''
+
+    const isSessionRequest = requestedFields.some(f =>
+      ['sessionIndicators', 'resistanceSignature', 'prayerPoints', 'aftercareNotes', 'legalRights'].includes(f)
+    )
+
+    const sections: string[] = []
+    for (const ctx of data) {
+      const { scope, label, context_text } = ctx
+      if (scope === 'global') {
+        sections.push(`[${label || 'Ministry Context'}]:\n${context_text}`)
+      } else if (scope === 'regional' && isTerritorial) {
+        sections.push(`[${label || 'Regional Context'}]:\n${context_text}`)
+      } else if (scope === 'session' && isSessionRequest) {
+        sections.push(`[${label || 'Session Context'}]:\n${context_text}`)
+      }
+      // assessment scope not used in spirit enhance
+    }
+    if (!sections.length) return ''
+    return `MINISTRY CONTEXT:\n${sections.join('\n\n---\n\n')}\n\nApply the above ministry framework and voice to all content you generate.\n---\n`
+  } catch { return '' }
 }
 
 const SYSTEM_PROMPT = `CRITICAL OUTPUT RULE: Your response must be RAW JSON only. No markdown. No code blocks. No backticks. No explanation. Start with { end with }. Any other format breaks the system.
@@ -330,7 +357,8 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const preamble = await getLibraryPreamble(name, existing.description || '')
+    const isTerritorial = existing.isTerritorial === true || existing.isTerritorial === 'true'
+    const preamble = await getContextPreamble(isTerritorial, requestedFields)
     const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
     const userPrompt = buildUserPrompt(name, existing, requestedFields)
 
