@@ -189,7 +189,6 @@ const ENHANCE_FIELDS_DEFAULT = [
 const KEY_ALIASES: Record<string, string> = {
   // Identity aliases — canonical keys pass through unchanged
   aka: 'aka',
-  type: 'type',
   description: 'description',
   kingdom: 'kingdom',
   strongman: 'strongman',
@@ -271,7 +270,6 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     phonetic: 'Correct phonetic pronunciation using syllable capitalization.',
     biblicalRank: 'Ephesians 6:12 classification with brief rationale.',
     caseType: 'Personal Deliverance, Generational/Bloodline, Territorial/Regional, Institutional, Atmospheric/Intercessory, or Multiple.',
-    type: 'The entity type and rank — one of: "Principality", "Power", "Ruler of Darkness", "Spirit of Infirmity", "Familiar Spirit", "False God", "Fallen Angel", "Demon". Match the closest category.',
     isGenerational: 'true or false — is this spirit typically generational/bloodline?',
     isTerritorial: 'true or false — is this spirit typically territorial/regional?',
     clusterSpirits: 'Boss spirit AND full subordinate cluster. How the boss maintains authority.',

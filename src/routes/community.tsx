@@ -2362,7 +2362,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                     onClick={() => setActiveSection('database')}
                   >
                     <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{d.name}</div>
-                    <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.type || ''}</div>
+                    <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.biblicalRank || ''}</div>
                   </div>
                 ))}
               </div>
@@ -2632,7 +2632,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
         {filtered.map((entry, i) => {
           const id             = entry.id || String(i)
           const name           = entry.name || 'Unknown'
-          const cls            = entry.type || entry.rank || ''
+          const cls            = entry.biblicalRank || ''
           const aliases        = entry.aka || ''
           const description    = entry.description || ''
           const manifestations = entry.manifestation || ''
@@ -2735,7 +2735,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
       {selectedEntry && (() => {
         const entry = selectedEntry
         const name  = entry.name || 'Unknown'
-        const cls   = entry.type || entry.rank || ''
+        const cls   = entry.biblicalRank || ''
         const color = getColor(cls)
         const bdr   = dbBorder
         const surf  = dbSurf
@@ -2881,7 +2881,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   {entry.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 14 }}>aka {entry.aka}</div>}
                   <FieldBlock label="Description" value={entry.description} />
                   <FieldBlock label="Kingdom" value={entry.kingdom} />
-                  <FieldBlock label="Rank" value={entry.rank} />
                   {entry.isTerritorial && entry.region && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>🗺 Territorial Region</div>

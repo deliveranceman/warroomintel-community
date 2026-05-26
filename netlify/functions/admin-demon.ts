@@ -113,7 +113,6 @@ export default async function handler(req: Request) {
     const camelToAirtable: Record<string, string> = {
       name: '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE',
       aka: 'Also Known As',
-      type: 'Type / Rank',
       description: 'Description',
       manifestation: 'Manifestiation', // Airtable field has this typo
       scripture: 'Scripture Reference',
@@ -121,7 +120,6 @@ export default async function handler(req: Request) {
       sourceOrigin: 'Source / Orgin', // Airtable field has this typo
       kingdom: 'Kingdom',
       strongman: 'Strongman',
-      rank: 'Rank',
       legalRights: 'Legal Rights',
       symptoms: 'Symptoms',
       companionSpirits: 'Companion Spirits',
@@ -188,7 +186,6 @@ export default async function handler(req: Request) {
     }
 
     console.log('[admin-demon] PATCH fields being sent to Airtable:', JSON.stringify(Object.keys(airtableFields)))
-    if ('Type / Rank' in airtableFields) console.log('[admin-demon] Type/Rank value:', airtableFields['Type / Rank'])
 
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${id}`, {
       method: 'PATCH',

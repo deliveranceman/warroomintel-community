@@ -60,7 +60,7 @@ export const Route = createFileRoute('/api/generate-field-card')({
             id: targetId,
             name: f[NAME_FIELD] || '',
             aka: f['Also Known As'] || '',
-            type: f['Type / Rank'] || '',
+            type: f['Rank'] || '',
             kingdom: f['Kingdom'] || '',
             description: f['Description'] || '',
             assignment: f['Assignment'] || '',
@@ -69,7 +69,6 @@ export const Route = createFileRoute('/api/generate-field-card')({
             manifestation: f['Manifestations'] || '',
             scripture: f['Scripture References'] || '',
             strongman: f['Strongman'] || '',
-            rank: f['Rank'] || '',
             // Commander tier
             entryPoints: f['Entry Points'] || '',
             legalRights: f['Legal Rights'] || '',

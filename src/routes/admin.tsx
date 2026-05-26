@@ -690,7 +690,7 @@ const BATTLEFIELDS = [
 
 function blankSpiritFields(): Record<string, string> {
   return {
-    [INTEL_NAME_F]: '', 'Also Known As': '', 'Type / Rank': '', 'Description': '',
+    [INTEL_NAME_F]: '', 'Also Known As': '', 'Description': '',
     'Manifestiation': '', 'Entry Points': '', 'Legal Rights': '', 'Symptoms': '',
     'Companion Spirits': '', 'WRI Exorcist Notes': '', 'Hierarchy Category': '',
     'Parent Strongman': '', 'Deliverance Sequence': '', 'Operational Notes': '',
@@ -709,7 +709,7 @@ function blankSpiritFields(): Record<string, string> {
 
 function demonToSpiritFields(d: any): Record<string, string> {
   return {
-    [INTEL_NAME_F]: d.name || '', 'Also Known As': d.aka || '', 'Type / Rank': d.type || '',
+    [INTEL_NAME_F]: d.name || '', 'Also Known As': d.aka || '',
     'Description': d.description || '', 'Manifestiation': d.manifestation || '',
     'Entry Points': d.entryPoints || '', 'Legal Rights': d.legalRights || '',
     'Symptoms': d.symptoms || '', 'Companion Spirits': d.companionSpirits || '',
@@ -856,13 +856,6 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Name *</label>{ti(INTEL_NAME_F)}</div>
         <div><label style={l}>Also Known As</label>{ti('Also Known As')}</div>
-        <div>
-          <label style={l}>Type / Rank</label>
-          <select value={f('Type / Rank')} onChange={e => setField('Type / Rank', e.target.value)} style={{ ...i }}>
-            <option value="">— Select —</option>
-            {['Principality', 'Power', 'Ruler of Darkness', 'Spirit of Infirmity', 'Familiar Spirit', 'False God', 'Fallen Angel', 'Demon', 'Principal King of Hell / False God'].map(t => <option key={t}>{t}</option>)}
-          </select>
-        </div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Description</label>{ta('Description')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Manifestiation</label>{ta('Manifestiation')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Entry Points</label>{ta('Entry Points')}</div>
@@ -1010,7 +1003,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
 }
 
 const FIELD_GROUPS = [
-  ['biblicalRank', 'caseType', 'type', 'phonetic', 'isGenerational', 'isTerritorial', 'clusterSpirits', 'relatedSpirits'],
+  ['biblicalRank', 'caseType', 'phonetic', 'isGenerational', 'isTerritorial', 'clusterSpirits', 'relatedSpirits'],
   ['sessionIndicators', 'resistanceSignature', 'legalRights', 'transmissionVectors', 'entryPoints', 'manifestation'],
   ['etymologyNotes', 'archaeologyNotes', 'description', 'prayerPoints', 'aftercareNotes', 'scriptureContext'],
 ]
@@ -1058,7 +1051,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   // Table controls
   const [search, setSearch]       = useState('')
   const [filterCat, setFilterCat] = useState('')
-  const [sortCol, setSortCol]     = useState<'name' | 'type' | 'hierarchyCategory'>('name')
+  const [sortCol, setSortCol]     = useState<'name' | 'biblicalRank' | 'hierarchyCategory'>('name')
   const [sortDir, setSortDir]     = useState<'asc' | 'desc'>('asc')
   const [page, setPage]           = useState(0)
   const PAGE_SIZE = 20
@@ -1156,7 +1149,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const pageCount = Math.ceil(filtered.length / PAGE_SIZE) || 1
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  function handleSort(col: 'name' | 'type' | 'hierarchyCategory') {
+  function handleSort(col: 'name' | 'biblicalRank' | 'hierarchyCategory') {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortCol(col); setSortDir('asc') }
     setPage(0)
@@ -1534,7 +1527,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             <thead>
               <tr style={{ background: adHeaderBg }}>
                 <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
-                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('type')}>Type{sortInd('type')}</th>
+                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('biblicalRank')}>Biblical Rank{sortInd('biblicalRank')}</th>
                 <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('hierarchyCategory')}>Category{sortInd('hierarchyCategory')}</th>
                 <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5c4a3a' }}>Del. Sequence</th>
                 <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5c4a3a' }}>Counter Scriptures</th>
@@ -1550,7 +1543,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 <Fragment key={d.airtableId || d.id}>
                   <tr style={{ background: editingId === d.airtableId ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
                     <td style={{ ...tdS, fontFamily: cinzel, fontSize: 11, maxWidth: 160, wordBreak: 'break-word' as const }}>{d.name}</td>
-                    <td style={{ ...tdS, color: DIM, maxWidth: 110, fontSize: 12 }}>{d.type || '—'}</td>
+                    <td style={{ ...tdS, color: DIM, maxWidth: 110, fontSize: 12 }}>{d.biblicalRank || '—'}</td>
                     <td style={{ ...tdS }}>
                       {d.hierarchyCategory ? (
                         <span style={{

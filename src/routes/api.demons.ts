@@ -44,7 +44,6 @@ export const Route = createFileRoute('/api/demons')({
               airtableId: r.id,
               name: r.fields[NAME_FIELD] || '',
               aka: r.fields['Also Known As'] || '',
-              type: r.fields['Type / Rank'] || '',
               kingdom: r.fields['Kingdom'] || '',
               description: r.fields['Description'] || '',
               assignment: r.fields['Assignment'] || '',
@@ -53,7 +52,6 @@ export const Route = createFileRoute('/api/demons')({
               manifestation: r.fields['Manifestiation'] || '',
               scripture: r.fields['Scripture Reference'] || '',
               strongman: r.fields['Strongman'] || '',
-              rank: r.fields['Rank'] || '',
               // Commander tier
               entryPoints: r.fields['Entry Points'] || '',
               legalRights: r.fields['Legal Rights'] || '',
