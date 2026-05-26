@@ -894,6 +894,12 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg }: {
   )
 }
 
+const FIELD_GROUPS = [
+  ['biblicalRank', 'caseType', 'phonetic', 'isGenerational', 'isTerritorial', 'clusterSpirits'],
+  ['sessionIndicators', 'resistanceSignature', 'legalRights', 'transmissionVectors', 'entryPoints', 'manifestation'],
+  ['etymologyNotes', 'archaeologyNotes', 'description', 'prayerPoints', 'aftercareNotes', 'scriptureContext'],
+]
+
 // ─── INTEL ARCHIVE TAB ───────────────────────────────────────────────────────
 function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
   const adStatBg  = isDark ? SURF : '#fff'
@@ -1119,37 +1125,51 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setFieldDecisions({})
     setAiError('')
 
+    const allFields: Record<string, any> = {}
+    const baseJobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
+
     try {
       const token = await getToken()
-      const jobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
 
-      const res = await fetch('/api/ai-spirit-enhance-background', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, jobId }),
-      })
+      for (let i = 0; i < FIELD_GROUPS.length; i++) {
+        const group = FIELD_GROUPS[i]
+        const jobId = `${baseJobId}-part-${i + 1}`
 
-      // Read as text first — guards against empty body (202 or error with no body)
-      const text = await res.text()
-      if (!text || text.trim() === '') {
-        throw new Error(`Server returned empty response (status ${res.status})`)
+        try {
+          const res = await fetch('/api/ai-spirit-enhance-background', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, fields: group, jobId }),
+          })
+
+          const text = await res.text()
+          if (!text || text.trim() === '') {
+            console.warn(`[enhance] Group ${i + 1} returned empty body`)
+            continue
+          }
+
+          let d: any
+          try { d = JSON.parse(text) } catch {
+            console.warn(`[enhance] Group ${i + 1} returned non-JSON:`, text.slice(0, 100))
+            continue
+          }
+
+          if (d.fields && Object.keys(d.fields).length > 0) {
+            Object.assign(allFields, d.fields)
+            console.log(`[enhance] Group ${i + 1} returned fields:`, Object.keys(d.fields))
+          } else {
+            console.warn(`[enhance] Group ${i + 1} returned no fields:`, d.error || 'unknown')
+          }
+        } catch (groupErr: any) {
+          console.warn(`[enhance] Group ${i + 1} failed:`, groupErr.message)
+          // Continue to next group even if this one fails
+        }
       }
 
-      let d: any
-      try {
-        d = JSON.parse(text)
-      } catch {
-        throw new Error(`Invalid JSON response: ${text.slice(0, 100)}`)
-      }
-
-      if (!res.ok) {
-        throw new Error(d.error || `Server error ${res.status}`)
-      }
-
-      if (d.fields) {
-        applyAiFields(d.fields)
+      if (Object.keys(allFields).length > 0) {
+        applyAiFields(allFields)
       } else {
-        setAiError(d.error || 'AI enhancement failed — no fields in response')
+        setAiError('AI returned no fields — try again')
         setAiPhase('error')
       }
     } catch(e: any) {
@@ -1588,7 +1608,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   Consulting Scripture, Dead Sea Scrolls, archaeology,<br />and deliverance ministry sources
                 </div>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>
-                  This typically takes 10–15 seconds...
+                  Researching in 3 passes — this takes 30–45 seconds
                 </div>
               </div>
             )}

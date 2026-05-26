@@ -104,38 +104,10 @@ CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max.
 
 CRITICAL: Respond with RAW JSON only. Do not use markdown. Do not use code blocks. Do not use backticks. Your entire response must start with { and end with }. Any other format will cause system failure.`
 
-// All fields — canonical camelCase keys from admin-demon.ts camelToAirtable + natural AI fields
-const ENHANCE_FIELDS = [
-  'description',
-  'manifestation',
-  'entryPoints',
-  'type',
-  'legalRights',
-  'sessionIndicators',
-  'transmissionVectors',
-  'clusterSpirits',
-  'resistanceSignature',
-  'legalRightsFramework',
-  'etymologyNotes',
-  'archaeologyNotes',
-  'scriptureContext',
-  'institutionalExpression',
-  'prayerPoints',
-  'aftercareNotes',
-  'phonetic',
-  'isGenerational',
-  'isTerritorial',
-  'biblicalRank',
-  'caseType',
-  'strongman',
-  'assignment',
-  'primaryBattlefield',
-  'personalityPresentation',
-  'companionSpirits',
-  'counterScriptures',
-  'deliveranceSequence',
-  'operationalNotes',
-  'wriNotes',
+// Default fields — used when no fields array is provided in the request body
+const ENHANCE_FIELDS_DEFAULT = [
+  'biblicalRank', 'caseType', 'phonetic',
+  'sessionIndicators', 'clusterSpirits', 'legalRights',
 ]
 
 // Map AI-invented key names to canonical camelCase keys (matches admin-demon.ts camelToAirtable)
@@ -282,10 +254,11 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers })
   }
 
-  const { name, existing = {} } = body || {}
+  const { name, existing = {}, fields: reqFields } = body || {}
   if (!name) {
     return new Response(JSON.stringify({ error: 'name required' }), { status: 400, headers })
   }
+  const requestedFields: string[] = Array.isArray(reqFields) && reqFields.length > 0 ? reqFields : ENHANCE_FIELDS_DEFAULT
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) {
@@ -301,12 +274,12 @@ export default async function handler(req: Request) {
   try {
     const preamble = await getLibraryPreamble(name, existing.description || '')
     const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
-    const userPrompt = buildUserPrompt(name, existing, ENHANCE_FIELDS)
+    const userPrompt = buildUserPrompt(name, existing, requestedFields)
 
-    console.log('[enhance] Requesting all fields:', ENHANCE_FIELDS)
+    console.log('[enhance] Requesting fields:', requestedFields)
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 25000)
+    const timeoutId = setTimeout(() => controller.abort(), 20000)
 
     let rawText: string
     try {
@@ -319,7 +292,7 @@ export default async function handler(req: Request) {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 3000,
+          max_tokens: 800,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         }),
@@ -347,28 +320,28 @@ export default async function handler(req: Request) {
     console.log('[enhance] AI raw keys:', Object.keys(rawFields))
 
     // Remap AI-invented key names to canonical camelCase keys
-    const fields: Record<string, any> = {}
+    const remappedFields: Record<string, any> = {}
     for (const [key, value] of Object.entries(rawFields)) {
       const canonical = KEY_ALIASES[key] || key
-      if (!(canonical in fields)) fields[canonical] = value
+      if (!(canonical in remappedFields)) remappedFields[canonical] = value
     }
-    console.log('[enhance] After remap keys:', Object.keys(fields))
-    console.log('[enhance] fieldCount:', Object.keys(fields).length)
+    console.log('[enhance] After remap keys:', Object.keys(remappedFields))
+    console.log('[enhance] fieldCount:', Object.keys(remappedFields).length)
 
     // Wikipedia image — non-blocking, best-effort
     const imageUrl = await fetchWikimediaImage(name).catch(() => '')
-    if (imageUrl && !fields.images) {
-      fields.images = imageUrl
+    if (imageUrl && !remappedFields.images) {
+      remappedFields.images = imageUrl
     }
 
     return new Response(
-      JSON.stringify({ success: true, spirit: name, fields, fieldCount: Object.keys(fields).length }),
+      JSON.stringify({ success: true, spirit: name, fields: remappedFields, fieldCount: Object.keys(remappedFields).length }),
       { status: 200, headers }
     )
   } catch (e: any) {
     console.error('[enhance] Error:', e.message)
     return new Response(
-      JSON.stringify({ error: e.message || 'AI enhancement failed' }),
+      JSON.stringify({ success: false, error: e.message || 'Unknown error', fields: {}, fieldCount: 0 }),
       { status: 500, headers }
     )
   }
