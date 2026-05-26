@@ -3265,10 +3265,525 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   )
 }
 
+// ─── DOCUMENT TEMPLATES ──────────────────────────────────────────────────────
+const DOC_TEMPLATES = {
+  'renunciation-prayer': {
+    id: 'renunciation-prayer', name: 'Renunciation Prayer',
+    description: 'Spirit-specific renunciation and deliverance prayer',
+    icon: '🙏',
+    sections: [
+      { id: 'opening',        label: 'Opening Declaration',      instruction: 'Opening declaration of faith and authority in Christ' },
+      { id: 'renunciations',  label: 'Specific Renunciations',   instruction: 'Spirit-specific renunciations based on entry points and legal rights' },
+      { id: 'breaking',       label: 'Breaking Curses & Legal Rights', instruction: 'Break all legal rights, generational curses, and demonic agreements' },
+      { id: 'expulsion',      label: 'Command of Expulsion',     instruction: 'Direct command to the spirit to leave in Jesus\' name' },
+      { id: 'fillup',         label: 'Fill-Up & Blessing',       instruction: 'Fill-up prayer inviting Holy Spirit, blessings over the person' },
+    ],
+  },
+  'spirit-profile': {
+    id: 'spirit-profile', name: 'Spirit Profile Document',
+    description: 'Complete dossier document for a spirit pulled from the database',
+    icon: '📋',
+    sections: [
+      { id: 'overview',      label: 'Overview',             instruction: 'Name, rank, type, description, phonetic, biblical classification' },
+      { id: 'session-intel', label: 'Session Intelligence', instruction: 'Manifestations, entry points, session indicators, resistance signature' },
+      { id: 'warfare',       label: 'Warfare Protocol',     instruction: 'Legal rights, cluster spirits, prayer points, deliverance sequence' },
+      { id: 'research',      label: 'Research Notes',       instruction: 'Etymology, archaeology, scripture context' },
+      { id: 'aftercare',     label: 'Aftercare Plan',       instruction: 'Aftercare notes, fill-up scriptures, mentor watch list' },
+    ],
+  },
+  'aftercare-plan': {
+    id: 'aftercare-plan', name: 'Personal Aftercare Plan',
+    description: 'Personalized post-session aftercare document for a ministry candidate',
+    icon: '🌱',
+    sections: [
+      { id: 'summary',       label: 'Session Summary',          instruction: 'Brief summary of what was addressed in the session' },
+      { id: 'daily-actions', label: 'Daily Actions Required',   instruction: 'Specific daily declarations, scripture reading, practices to maintain freedom' },
+      { id: 'mentor-watch',  label: 'Mentor Watch List',        instruction: 'Signs mentor should watch for, warning indicators of regression' },
+      { id: 'fillup',        label: 'Fill-Up Scriptures',       instruction: 'Specific scriptures to meditate on and declare, personalized to what was addressed' },
+      { id: 'warning-signs', label: 'Warning Signs',            instruction: 'Specific warning signs this person should watch for based on spirit addressed' },
+      { id: 'next-steps',    label: 'Next Steps',               instruction: 'Recommended next steps, follow-up sessions if needed, resources' },
+    ],
+  },
+} as const
+
+type DocTemplateId = keyof typeof DOC_TEMPLATES
+
+// ─── DASHBOARD VIEW ───────────────────────────────────────────────────────────
+function DashboardView({ getToken, isDark, setTab }: {
+  getToken: any; isDark: boolean; setTab: (t: string) => void
+}) {
+  const BG2  = isDark ? '#13111a' : '#fff'
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
+  const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
+  const TXT2 = isDark ? '#e8e0d0' : '#1a1410'
+
+  const [demons, setDemons]         = useState<any[]>([])
+  const [aiStats, setAiStats]       = useState<any>(null)
+  const [memberStats, setMembers]   = useState<any>(null)
+  const [loading, setLoading]       = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = await getToken()
+        const authHdr = { Authorization: `Bearer ${token}` }
+        const [dRes, aRes, mRes] = await Promise.allSettled([
+          fetch('/api/demons').then(r => r.json()),
+          fetch('/api/ai-usage', { headers: authHdr }).then(r => r.json()),
+          fetch('/api/admin-members', { headers: authHdr }).then(r => r.json()),
+        ])
+        if (dRes.status === 'fulfilled') setDemons(dRes.value.demons || [])
+        if (aRes.status === 'fulfilled') setAiStats(aRes.value)
+        if (mRes.status === 'fulfilled') setMembers(mRes.value)
+      } catch {}
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  // Spirit completeness
+  const CONTENT_FIELDS = ['description','manifestation','entryPoints','legalRights','sessionIndicators',
+    'resistanceSignature','clusterSpirits','etymologyNotes','prayerPoints','aftercareNotes',
+    'scriptureContext','transmissionVectors','demonicAgreements','counterScriptures',
+    'biblicalRank','caseType','phonetic','deliveranceSequence','operationalNotes','wriNotes']
+  const countFields = (d: any) => CONTENT_FIELDS.filter(f => d[f] && String(d[f]).length > 3).length
+  const full    = demons.filter(d => countFields(d) >= 15).length
+  const partial = demons.filter(d => { const c = countFields(d); return c >= 5 && c < 15 }).length
+  const empty   = demons.filter(d => countFields(d) < 5).length
+  const pctComplete = demons.length ? Math.round((full / demons.length) * 100) : 0
+  const noImage = demons.filter(d => !d.images || (Array.isArray(d.images) ? d.images.length === 0 : !d.images)).length
+  const needsEnhance = demons.filter(d => countFields(d) < 15).length
+
+  const card = (label: string, value: string | number, subtitle: string) => (
+    <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: '20px 24px', flex: 1, minWidth: 160 }}>
+      <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.1em', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: cinzel, fontSize: 32, color: G, fontWeight: 700 }}>{loading ? '…' : value}</div>
+      <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 4 }}>{subtitle}</div>
+    </div>
+  )
+
+  const TIER_COLORS: Record<string,string> = { general: G, commander: '#8B9DCA', soldier: '#7a9e7e', watchman: '#9a8c74', free: '#555', minister: '#ef4444' }
+
+  const recentEnhancements = aiStats?.recentCalls?.filter((c: any) => c.call_type === 'enhance').slice(0, 8) || []
+
+  return (
+    <div style={{ color: TXT2, fontFamily: crimson }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 22, color: G, marginBottom: 4, letterSpacing: '0.06em' }}>⚔ War Room Intel — Command Center</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: MUT }}>
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </div>
+      </div>
+
+      {/* Row 1 — Hero stats */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' as const }}>
+        {card('Total Spirits', demons.length, `${full} fully researched`)}
+        {card('Total Members', memberStats?.total ?? '…', `${memberStats?.newThisMonth ?? 0} joined this month`)}
+        {card('AI Calls This Month', aiStats?.thisMonth?.calls ?? '…', `vs ${aiStats?.lastMonth?.calls ?? 0} last month`)}
+        {card('Est. Monthly Cost', aiStats?.thisMonth ? `$${aiStats.thisMonth.estimatedCost.toFixed(2)}` : '…', `${((aiStats?.thisMonth?.inputTokens || 0) + (aiStats?.thisMonth?.outputTokens || 0)).toLocaleString()} tokens`)}
+      </div>
+
+      {/* Row 2 — DB completion + Member tiers */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        {/* DB completion */}
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Intelligence Database</div>
+          <div style={{ fontFamily: cinzel, fontSize: 40, color: G, fontWeight: 700, marginBottom: 4 }}>{pctComplete}%</div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 14 }}>{demons.length} total spirits</div>
+          <div style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ width: `${pctComplete}%`, height: '100%', background: G, borderRadius: 4, transition: 'width 0.5s' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 16, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>
+            <span style={{ color: '#4ade80' }}>✓ {full} complete</span>
+            <span style={{ color: G }}>◑ {partial} partial</span>
+            <span style={{ color: MUT }}>○ {empty} empty</span>
+          </div>
+        </div>
+
+        {/* Member tiers */}
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Warriors</div>
+          {loading || !memberStats ? (
+            <div style={{ color: MUT, fontFamily: crimson, fontSize: 13 }}>Loading...</div>
+          ) : (['general','commander','soldier','watchman','free'] as const).map(tier => {
+            const count = memberStats.byTier?.[tier] || 0
+            const total = memberStats.total || 1
+            const pct = Math.round((count / total) * 100)
+            return (
+              <div key={tier} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>
+                  <span style={{ color: TIER_COLORS[tier] }}>{tier.toUpperCase()}</span>
+                  <span style={{ color: MUT }}>{count} ({pct}%)</span>
+                </div>
+                <div style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)', borderRadius: 3, height: 6 }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: TIER_COLORS[tier], borderRadius: 3 }} />
+                </div>
+              </div>
+            )
+          })}
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginTop: 8 }}>{memberStats?.activeThisWeek ?? '…'} active this week</div>
+        </div>
+      </div>
+
+      {/* Row 3 — AI usage + Action items */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        {/* AI usage */}
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>AI Research Activity</div>
+          {aiStats && (
+            <>
+              <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 3 }}>THIS MONTH</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 18, color: G }}>{aiStats.thisMonth?.calls} calls</div>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: MUT }}>${aiStats.thisMonth?.estimatedCost?.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 3 }}>LAST MONTH</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 18, color: MUT }}>{aiStats.lastMonth?.calls} calls</div>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: MUT }}>${aiStats.lastMonth?.estimatedCost?.toFixed(2)}</div>
+                </div>
+              </div>
+              {/* Mini bar chart */}
+              {aiStats.byDay?.length > 0 && (() => {
+                const last14 = aiStats.byDay.slice(-14)
+                const maxCalls = Math.max(...last14.map((d: any) => d.calls), 1)
+                return (
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 40, marginBottom: 8 }}>
+                    {last14.map((d: any) => (
+                      <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3 }}>
+                        <div style={{ width: '100%', background: G, borderRadius: 2, height: `${Math.max((d.calls / maxCalls) * 36, 2)}px` }} />
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+              {/* Recent calls */}
+              {recentEnhancements.slice(0, 5).map((c: any, i: number) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: `1px solid ${BDR2}`, fontFamily: crimson, fontSize: 12 }}>
+                  <span style={{ color: TXT2 }}>{c.spirit_name || c.call_type}</span>
+                  <span style={{ color: MUT }}>${c.estimatedCost?.toFixed(3)}</span>
+                </div>
+              ))}
+            </>
+          )}
+          {!aiStats && !loading && <div style={{ color: MUT, fontFamily: crimson, fontSize: 13, fontStyle: 'italic' }}>No AI usage data yet.</div>}
+        </div>
+
+        {/* Action items */}
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Action Required</div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+            {needsEnhance > 0 && (
+              <div onClick={() => setTab('intel')} style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em' }}>⚡ {needsEnhance} spirits need enhancement</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 2 }}>Fewer than 15 fields researched</div>
+              </div>
+            )}
+            {noImage > 0 && (
+              <div onClick={() => setTab('intel')} style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em' }}>🖼 {noImage} spirits missing images</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 2 }}>Run AI enhancement to auto-fetch Wikipedia images</div>
+              </div>
+            )}
+            <div onClick={() => setTab('moderation')} style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em' }}>✝ Testimonies & Field Reports</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 2 }}>Review pending community submissions</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 4 — Quick actions */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Quick Actions</div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' as const }}>
+          {[
+            { icon: '⚡', title: 'Enhance Next Spirit', sub: 'Research the least-complete spirit', action: () => setTab('intel') },
+            { icon: '📄', title: 'Generate Document',   sub: 'Create a ministry document',         action: () => setTab('documents') },
+            { icon: '+',  title: 'Add Spirit',          sub: 'Add a new entry to the database',    action: () => setTab('intel') },
+            { icon: '✍',  title: 'Write Briefing',      sub: 'Post weekly intel to the community', action: () => setTab('training') },
+          ].map(a => (
+            <div key={a.title} onClick={a.action}
+              style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '20px 24px', cursor: 'pointer', flex: 1, minWidth: 140, transition: 'all 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.12)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.06)' }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>{a.icon}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em', marginBottom: 4 }}>{a.title}</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: MUT }}>{a.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 5 — Recently researched */}
+      {recentEnhancements.length > 0 && (
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>Recently Researched</div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto' as const, paddingBottom: 4 }}>
+            {recentEnhancements.map((c: any, i: number) => c.spirit_name && (
+              <div key={i} onClick={() => setTab('intel')}
+                style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 20, padding: '6px 14px', fontFamily: cinzel, fontSize: 10, color: G, cursor: 'pointer', whiteSpace: 'nowrap' as const, letterSpacing: '0.06em', flexShrink: 0 }}>
+                {c.spirit_name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── DOCUMENTS VIEW ───────────────────────────────────────────────────────────
+function DocumentsView({ getToken, isDark, demons }: {
+  getToken: any; isDark: boolean; demons: any[]
+}) {
+  const BG2  = isDark ? '#13111a' : '#fff'
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
+  const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
+  const TXT2 = isDark ? '#e8e0d0' : '#1a1410'
+  const inp2: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box' as const,
+    background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+    border: `1px solid ${BDR2}`, borderRadius: 6,
+    padding: '9px 12px', color: TXT2, fontFamily: crimson, fontSize: 14, outline: 'none',
+  }
+
+  const [docSubTab, setDocSubTab] = useState<'templates' | 'generate'>('templates')
+  const [selectedTemplate, setSelectedTemplate] = useState<DocTemplateId>('renunciation-prayer')
+  const [subject, setSubject]       = useState('')
+  const [pullFromDB, setPullFromDB] = useState(true)
+  const [specialInstr, setSpecialInstr] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [genError, setGenError]     = useState('')
+  const [document, setDocument]     = useState<any>(null)
+  const [savingToArsenal, setSavingToArsenal] = useState(false)
+  const [arsenalMsg, setArsenalMsg] = useState('')
+
+  const template = DOC_TEMPLATES[selectedTemplate]
+
+  const matchedSpirit = pullFromDB && subject.trim()
+    ? demons.find(d => d.name?.toLowerCase() === subject.trim().toLowerCase())
+    : null
+
+  async function generate() {
+    if (!subject.trim()) { setGenError('Subject required'); return }
+    setGenerating(true); setGenError(''); setDocument(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/generate-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          templateId: template.id,
+          templateName: template.name,
+          sections: [...template.sections],
+          subject: subject.trim(),
+          spiritData: matchedSpirit || null,
+          specialInstructions: specialInstr.trim() || null,
+        }),
+      })
+      const text = await res.text()
+      let d: any
+      try { d = JSON.parse(text) } catch { throw new Error('Invalid response from server') }
+      if (!res.ok) throw new Error(d.error || `Server error ${res.status}`)
+      setDocument(d.document)
+    } catch(e: any) {
+      setGenError(e.message || 'Generation failed')
+    }
+    setGenerating(false)
+  }
+
+  async function saveToArsenal() {
+    if (!document) return
+    setSavingToArsenal(true); setArsenalMsg('')
+    try {
+      const token = await getToken()
+      const fullContent = document.sections.map((s: any) => `${s.label}\n\n${s.content}`).join('\n\n---\n\n')
+      const res = await fetch('/api/admin-resources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: document.title,
+          content: fullContent,
+          topic: 'ministry-document',
+          function_tags: ['ministry', 'document'],
+          tier: 'minister',
+        }),
+      })
+      if (res.ok) { setArsenalMsg('✓ Saved to Arsenal') }
+      else { const d = await res.json(); setArsenalMsg(`⚠ ${d.error}`) }
+    } catch(e: any) { setArsenalMsg(`⚠ ${e.message}`) }
+    setSavingToArsenal(false)
+  }
+
+  function exportPDF() {
+    window.print()
+  }
+
+  return (
+    <div style={{ color: TXT2, fontFamily: crimson }}>
+      {/* Print styles injected via head — only preview renders */}
+      <style>{`
+        @media print {
+          body > * { display: none !important; }
+          #doc-preview-print { display: block !important; }
+          #doc-preview-print * { display: revert !important; }
+        }
+        #doc-preview-print { display: none; }
+      `}</style>
+
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.06em' }}>📄 Document Creator</div>
+        <div style={{ display: 'flex', gap: 0, border: `1px solid ${BDR2}`, borderRadius: 6, overflow: 'hidden' }}>
+          {(['templates', 'generate'] as const).map(t => (
+            <button key={t} onClick={() => setDocSubTab(t)}
+              style={{ padding: '8px 20px', background: docSubTab === t ? G : 'transparent', color: docSubTab === t ? '#0D0B14' : MUT, border: 'none', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: docSubTab === t ? 700 : 400 }}>
+              {t === 'templates' ? 'Templates' : 'Generate'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* TEMPLATES sub-tab */}
+      {docSubTab === 'templates' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          {Object.values(DOC_TEMPLATES).map(t => (
+            <div key={t.id} style={{ background: BG2, border: `1px solid ${selectedTemplate === t.id ? G + '88' : BDR2}`, borderRadius: 10, padding: 20 }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>{t.icon}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.06em', marginBottom: 6 }}>{t.name}</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginBottom: 14, lineHeight: 1.5 }}>{t.description}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 14 }}>{t.sections.length} SECTIONS</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { setSelectedTemplate(t.id as DocTemplateId); setDocSubTab('generate') }}
+                  style={{ flex: 1, background: G, border: 'none', borderRadius: 5, padding: '8px 0', color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700 }}>
+                  Use Template
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* GENERATE sub-tab */}
+      {docSubTab === 'generate' && (
+        <div style={{ display: 'grid', gridTemplateColumns: document ? '1fr 1fr' : '1fr', gap: 24 }}>
+          {/* Form */}
+          <div>
+            <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24, marginBottom: 16 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>Generate Document</div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>DOCUMENT TYPE</label>
+                <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value as DocTemplateId)} style={{ ...inp2 }}>
+                  {Object.values(DOC_TEMPLATES).map(t => (
+                    <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>SUBJECT / TOPIC *</label>
+                <input value={subject} onChange={e => setSubject(e.target.value)}
+                  placeholder="Spirit name, person name, or topic"
+                  style={inp2} />
+                {matchedSpirit && (
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', marginTop: 4, letterSpacing: '0.06em' }}>
+                    ✓ Found in database: {matchedSpirit.name}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={pullFromDB} onChange={e => setPullFromDB(e.target.checked)}
+                    style={{ accentColor: G, width: 14, height: 14 }} />
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: TXT2, letterSpacing: '0.06em' }}>Pull data from Intel Database (if spirit name matches)</span>
+                </label>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>SPECIAL INSTRUCTIONS</label>
+                <textarea value={specialInstr} onChange={e => setSpecialInstr(e.target.value)}
+                  rows={3} style={{ ...inp2, resize: 'vertical' as const }}
+                  placeholder="Any specific requirements, people involved, regional context..." />
+              </div>
+
+              {genError && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 12 }}>⚠ {genError}</div>}
+
+              <button onClick={generate} disabled={generating || !subject.trim()}
+                style={{ width: '100%', padding: '14px', background: subject.trim() ? G : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 8, color: subject.trim() ? '#0D0B14' : MUT, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', cursor: subject.trim() ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: generating ? 0.7 : 1 }}>
+                {generating ? '⏳ Generating...' : '✦ Generate Document'}
+              </button>
+            </div>
+
+            {/* Sections preview */}
+            <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.1em', marginBottom: 12 }}>SECTIONS IN {template.name.toUpperCase()}</div>
+              {template.sections.map((s, i) => (
+                <div key={s.id} style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: G, width: 16, flexShrink: 0, paddingTop: 1 }}>{i + 1}</div>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT2, letterSpacing: '0.06em', marginBottom: 2 }}>{s.label}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: MUT }}>{s.instruction}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Preview */}
+          {document && (
+            <div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' as const }}>
+                <button onClick={exportPDF} style={{ flex: 1, padding: '10px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>📄 Export PDF</button>
+                <button onClick={saveToArsenal} disabled={savingToArsenal} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer' }}>💾 Save to Arsenal</button>
+                <button onClick={generate} disabled={generating} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer' }}>↺ Regenerate</button>
+              </div>
+              {arsenalMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: arsenalMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{arsenalMsg}</div>}
+
+              {/* Printable preview */}
+              <div id="doc-preview-print" style={{ background: isDark ? '#1a1625' : '#fff', border: `1px solid ${BDR2}`, borderRadius: 10, padding: 32, maxHeight: 680, overflowY: 'auto' as const }}>
+                {/* Document header */}
+                <div style={{ textAlign: 'center' as const, marginBottom: 28, paddingBottom: 20, borderBottom: `2px solid rgba(201,168,76,0.3)` }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.15em', marginBottom: 8 }}>⚔ WAR ROOM INTEL · STAFFORDTOWN CHURCH</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 22, color: G, letterSpacing: '0.05em', marginBottom: 6 }}>{document.title}</div>
+                  {document.subtitle && <div style={{ fontFamily: crimson, fontSize: 14, color: MUT, fontStyle: 'italic' }}>{document.subtitle}</div>}
+                </div>
+
+                {/* Sections */}
+                {document.sections?.map((s: any) => (
+                  <div key={s.id} style={{ marginBottom: 24 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid rgba(201,168,76,0.2)` }}>{s.label}</div>
+                    <div
+                      contentEditable suppressContentEditableWarning
+                      style={{ fontFamily: crimson, fontSize: 14, color: TXT2, lineHeight: 1.75, outline: 'none', whiteSpace: 'pre-wrap' as const }}
+                    >{s.content}</div>
+                  </div>
+                ))}
+
+                {/* Footer */}
+                <div style={{ marginTop: 32, paddingTop: 16, borderTop: `1px solid rgba(201,168,76,0.2)`, textAlign: 'center' as const }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.1em' }}>warroomintel.com · Staffordtown Church · Copperhill, Tennessee</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'arsenal' | 'intel' | 'moderation' | 'training' | 'library'>('arsenal')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'documents' | 'library'>('dashboard')
+  const [dashDemons, setDashDemons] = useState<any[]>([])
+  useEffect(() => {
+    fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
+  }, [])
   const [isMobile, setIsMobile] = useState(false)
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === 'undefined') return true
@@ -3315,11 +3830,13 @@ function AdminPage() {
   }
 
   const TABS = [
-    { key: 'arsenal',    label: 'Arsenal Manager'   },
-    { key: 'intel',      label: 'Intel Archive'     },
-    { key: 'moderation', label: 'Moderation'        },
-    { key: 'training',   label: 'Training'          },
-    { key: 'library',    label: 'Ministry Library'  },
+    { key: 'dashboard',  label: '⚡ Dashboard'     },
+    { key: 'arsenal',    label: 'Arsenal Manager'  },
+    { key: 'intel',      label: 'Intel Archive'    },
+    { key: 'moderation', label: 'Moderation'       },
+    { key: 'training',   label: 'Training'         },
+    { key: 'documents',  label: '📄 Documents'     },
+    { key: 'library',    label: 'Ministry Library' },
   ] as const
 
   return (
@@ -3372,11 +3889,13 @@ function AdminPage() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: tab === 'documents' ? 1200 : 900, margin: '0 auto', padding: '32px 24px' }}>
+        {tab === 'dashboard'  && <DashboardView getToken={getToken} isDark={isDark} setTab={setTab} />}
         {tab === 'arsenal'    && <ArsenalManager getToken={getToken} />}
         {tab === 'intel'      && <IntelArchive getToken={getToken} isDark={isDark} />}
         {tab === 'moderation' && <ModerationPanel getToken={getToken} />}
         {tab === 'training'   && <TrainingManager getToken={getToken} isDark={isDark} />}
+        {tab === 'documents'  && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
         {tab === 'library'    && <LibraryManager getToken={getToken} isDark={isDark} />}
       </div>
     </div>

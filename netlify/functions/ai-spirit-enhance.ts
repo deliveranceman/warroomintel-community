@@ -443,6 +443,19 @@ export default async function handler(req: Request) {
       console.log('[enhance] rawText length:', rawText.length)
       console.log('[enhance] rawText preview:', rawText.slice(0, 100))
       console.log('[enhance] starts with:', rawText.trimStart().slice(0, 10))
+
+      // Log usage — fire and forget, never block or throw
+      const inputTokens  = data.usage?.input_tokens  || 0
+      const outputTokens = data.usage?.output_tokens || 0
+      try {
+        const reqUrl = new URL(req.url)
+        const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
+        fetch(`${baseUrl}/api/ai-usage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ call_type: 'enhance', spirit_name: name, input_tokens: inputTokens, output_tokens: outputTokens, model: 'claude-sonnet-4-20250514' }),
+        }).catch(() => {})
+      } catch {}
     } catch (e: any) {
       clearTimeout(timeoutId)
       if (e.name === 'AbortError') throw new Error('AI research timed out — try again')
