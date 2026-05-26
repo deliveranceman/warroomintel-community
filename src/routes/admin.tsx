@@ -26,6 +26,24 @@ const FILE_ICONS: Record<string, string> = {
   pdf: '📄', docx: '📝', mp3: '🎵', png: '🖼', jpg: '🖼', jpeg: '🖼',
 }
 
+function markdownToHtml(md: string): string {
+  if (!md) return ''
+  return md
+    .replace(/^### (.+)$/gm, '<h3 style="font-family:Cinzel,serif;color:#C9A84C;font-size:14px;letter-spacing:0.08em;margin:20px 0 8px;font-weight:700">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-family:Cinzel,serif;color:#C9A84C;font-size:18px;letter-spacing:0.06em;margin:24px 0 10px;font-weight:700">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 style="font-family:Cinzel,serif;color:#C9A84C;font-size:22px;margin:28px 0 12px;font-weight:700">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em style="color:#a09888">$1</em>')
+    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #C9A84C;padding:8px 16px;margin:16px 0;color:#8B7355;font-style:italic;background:rgba(201,168,76,0.04);border-radius:0 4px 4px 0">$1</blockquote>')
+    .replace(/^- (.+)$/gm, '<li style="margin:6px 0;padding-left:4px">$1</li>')
+    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (match) => `<ul style="padding-left:20px;margin:12px 0;list-style:disc">${match}</ul>`)
+    .replace(/^\d+\. (.+)$/gm, '<li style="margin:6px 0">$1</li>')
+    .replace(/\n\n/g, '</p><p style="margin:0 0 16px;line-height:1.8">')
+    .replace(/\n/g, '<br/>')
+    .replace(/^([^<].+)$/gm, (match) => match.startsWith('<') ? match : `<p style="margin:0 0 16px;line-height:1.8">${match}</p>`)
+    .replace(/<p[^>]*><\/p>/g, '')
+}
+
 function fileExt(name: string) { return name.split('.').pop()?.toLowerCase() || '' }
 function fmtBytes(b: number) {
   if (b < 1024) return `${b} B`
