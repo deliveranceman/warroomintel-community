@@ -306,7 +306,7 @@ export default async function handler(req: Request) {
     console.log('[enhance] Requesting all fields:', ENHANCE_FIELDS)
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 24000)
+    const timeoutId = setTimeout(() => controller.abort(), 25000)
 
     let rawText: string
     try {
