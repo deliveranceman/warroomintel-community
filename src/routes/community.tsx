@@ -3170,7 +3170,14 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   <FieldBlock label="Entry Points" value={entry.entryPoints} />
                   <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
                   <FieldBlock label="Source & Origin" value={entry.sourceOrigin} />
-                  <FieldBlock label="Strongman" value={entry.strongman} />
+                  {entry.strongman ? (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Strongman</div>
+                      {(() => { const linked = entries.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase()); return linked ? (
+                        <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontFamily: crimson, fontSize: 14, fontWeight: 600 }} title={`View ${entry.strongman} dossier`}>{entry.strongman}</span>
+                      ) : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span> })()}
+                    </div>
+                  ) : null}
                   {entry.parentStrongman && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Parent Strongman</div>
@@ -5468,6 +5475,10 @@ function CommunityPage() {
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚙</span>
           Settings
         </button>
+        <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12 }}>
+          <a href="/terms" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? '#3a3428' : '#9a8c74', textDecoration: 'none' }}>TERMS</a>
+          <a href="/privacy" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? '#3a3428' : '#9a8c74', textDecoration: 'none' }}>PRIVACY</a>
+        </div>
       </div>
     </>
   )
