@@ -51,13 +51,24 @@ export default async function handler(req: Request) {
       .map(([t]) => t)
     if (!tierNames.includes('free')) tierNames.push('free', 'watchman')
 
-    // Query: spirit_tags matches OR topic matches the spirit/category
+    console.log('[SPIRIT-RESOURCES] spirit param:', spirit, '| category:', category, '| tier:', userTierNum)
+
+    // spirit_tags is text[] — use .cs (array contains) for tag matching, ilike for title/topic text fallback
+    const orClauses = [
+      `spirit_tags.cs.{${spirit}}`,
+      `title.ilike.%${spirit}%`,
+      `topic.ilike.%${spirit}%`,
+    ]
+    if (category) orClauses.push(`spirit_tags.cs.{${category}}`)
+
     const { data, error } = await sb
       .from('resources')
       .select('id, title, topic, function_tags, tier, spirit_tags')
       .in('tier', tierNames)
-      .or(`spirit_tags.ilike.%${spirit}%,topic.ilike.%${spirit}%${category ? `,spirit_tags.ilike.%${category}%` : ''}`)
+      .or(orClauses.join(','))
       .limit(5)
+
+    console.log('[SPIRIT-RESOURCES] results:', data?.length ?? 0, '| error:', error?.message ?? null)
 
     if (error) {
       // Gracefully handle if spirit_tags column doesn't exist yet

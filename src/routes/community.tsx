@@ -5678,21 +5678,21 @@ function CommunityPage() {
 
   // Fetch Stream presence for Warriors section
   useEffect(() => {
-    if (!streamToken || !apiKey || !members.length) return
+    if (!streamToken || !apiKey) return
     async function fetchPresence() {
       try {
-        const ids = members.map((m: any) => m.id).filter(Boolean).slice(0, 25)
-        if (!ids.length) return
-        const filter = encodeURIComponent(JSON.stringify({ id: { $in: ids } }))
-        const sort = encodeURIComponent(JSON.stringify([{ field: 'last_active', direction: -1 }]))
         const res = await fetch(
-          `https://chat.stream-io-api.com/users?api_key=${apiKey}&filter_conditions=${filter}&sort=${sort}&presence=true&limit=25`,
-          { headers: { Authorization: streamToken, 'Stream-Auth-Type': 'jwt' } }
+          `https://chat.stream-io-api.com/channels/messaging/war-room-general/query?api_key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: streamToken, 'stream-auth-type': 'jwt' },
+            body: JSON.stringify({ state: true, presence: true, watch: false }),
+          }
         )
         const data = await res.json()
         const presenceMap: Record<string, { online: boolean, lastActive: string | null }> = {}
-        ;(data.users || []).forEach((u: any) => {
-          presenceMap[u.id] = { online: u.online === true, lastActive: u.last_active || null }
+        ;(data.members || []).forEach((m: any) => {
+          if (m.user?.id) presenceMap[m.user.id] = { online: m.user.online === true, lastActive: m.user.last_active || null }
         })
         setMemberPresence(presenceMap)
       } catch(e) {
@@ -5702,7 +5702,7 @@ function CommunityPage() {
     fetchPresence()
     const interval = setInterval(fetchPresence, 60000)
     return () => clearInterval(interval)
-  }, [streamToken, apiKey, members.length])
+  }, [streamToken, apiKey])
 
   useEffect(() => {
     if (!streamToken || !apiKey) return
