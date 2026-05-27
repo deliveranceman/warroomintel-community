@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect, useRef, useMemo, Fragment, type CSSProperties } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { SpiritTagEditor } from '@/components/SpiritTagEditor'
@@ -4942,7 +4942,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'taxonomy'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -5003,6 +5003,7 @@ function AdminPage() {
     { key: 'library',         label: 'Min. Library'     },
     { key: 'spiritual-mapping', label: '📍 Sp. Mapping' },
     { key: 'lib-intel', label: '🔬 Lib. Intel'          },
+    { key: 'taxonomy',  label: '🔬 Taxonomy'            },
   ] as const
 
   return (
@@ -5055,8 +5056,8 @@ function AdminPage() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: tab === 'documents' || tab === 'field-ministry' ? 1200 : 900, margin: '0 auto', padding: '32px 24px' }}>
-        {tab === 'dashboard'      && <DashboardView getToken={getToken} isDark={isDark} setTab={setTab} />}
+      <div style={{ maxWidth: tab === 'documents' || tab === 'field-ministry' || tab === 'taxonomy' ? 1200 : 900, margin: '0 auto', padding: '32px 24px' }}>
+        {tab === 'dashboard'      && <DashboardView getToken={getToken} isDark={isDark} setTab={(t: string) => setTab(t as any)} />}
         {tab === 'arsenal'        && <ArsenalManager getToken={getToken} />}
         {tab === 'intel'          && <IntelArchive getToken={getToken} isDark={isDark} />}
         {tab === 'moderation'     && <ModerationPanel getToken={getToken} />}
@@ -5066,6 +5067,254 @@ function AdminPage() {
         {tab === 'library'        && <LibraryManager getToken={getToken} isDark={isDark} />}
         {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
         {tab === 'lib-intel'        && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
+        {tab === 'taxonomy'         && <TaxonomyReview getToken={getToken} isDark={isDark} />}
+      </div>
+    </div>
+  )
+}
+
+// ─── TaxonomyReview ──────────────────────────────────────────────────────────
+
+const KINGDOM_OPTIONS = [
+  '', 'Hell / Darkness', 'Air', 'Water / Marine', 'Earth', 'Witchcraft', 'Occult',
+  'Religion / False Religion', 'Infirmity / Sickness', 'Mind / Intellect',
+  'Sexual Perversion', 'Death / Destruction', 'Fear / Torment', 'Pride / Self',
+  'Deception / Lies', 'Anger / Violence', 'Mammon / Greed',
+]
+
+const SUB_KINGDOM_OPTIONS = [
+  '', 'Norse / Germanic', 'Celtic / Druidic', 'Greek / Roman', 'Egyptian',
+  'Babylonian / Sumerian', 'Canaanite / Phoenician', 'Assyrian / Akkadian',
+  'Persian / Zoroastrian', 'Hindu / Vedic', 'Buddhist / Eastern',
+  'Native American / Indigenous', 'African Traditional / Vodou',
+  'Aztec / Mayan / Mesoamerican', 'Polynesian / Pacific',
+  'Freemasonry / Rosicrucian', 'Satanism / Luciferianism', 'New Age / Theosophy',
+  'Witchcraft / Wicca', 'Kabbalah / Jewish Mysticism', 'Gnosticism',
+  'Hermeticism / Alchemy', 'Marine / Aquatic', 'Celestial / Astral',
+  'Infernal / Hellish', 'Generational / Bloodline', 'Religious Spirit / False Religion',
+  'Sexual Covenant', 'Death Covenant', 'Mind / Intellect', 'Trauma / Wound',
+  'Fallen Angel / Watcher', 'Nephilim / Giant Bloodline', 'Goetic / Solomonic', 'Apocryphal',
+]
+
+const BIBLICAL_RANK_OPTIONS = [
+  '', 'Principality', 'World Ruler', 'Power', 'Wicked Spirit',
+  'Demon', 'Familiar Spirit', 'Spirit of Infirmity', 'Fallen Angel',
+]
+
+function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const [spirits, setSpirits] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter]   = useState<'all' | 'needs'>('all')
+  const [search, setSearch]   = useState('')
+  const [saves, setSaves]     = useState<Record<string, 'saving' | 'saved' | 'error'>>({})
+
+  useEffect(() => {
+    fetch('/api/demons').then(r => r.json()).then(d => {
+      setSpirits(d.demons || [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
+
+  async function handleChange(airtableId: string, field: string, value: string) {
+    const key = `${airtableId}_${field}`
+    setSaves(p => ({ ...p, [key]: 'saving' }))
+    setSpirits(p => p.map(s => s.airtableId === airtableId ? { ...s, [field]: value } : s))
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-taxonomy-patch', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ recordId: airtableId, field, value }),
+      })
+      if (res.ok) {
+        setSaves(p => ({ ...p, [key]: 'saved' }))
+        setTimeout(() => setSaves(p => { const n = { ...p }; delete n[key]; return n }), 1800)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        console.error('[TaxonomyReview] save error:', err)
+        setSaves(p => ({ ...p, [key]: 'error' }))
+        setTimeout(() => setSaves(p => { const n = { ...p }; delete n[key]; return n }), 3500)
+      }
+    } catch {
+      setSaves(p => ({ ...p, [key]: 'error' }))
+      setTimeout(() => setSaves(p => { const n = { ...p }; delete n[key]; return n }), 3500)
+    }
+  }
+
+  const filtered = useMemo(() => spirits.filter(s => {
+    if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false
+    if (filter === 'needs') return !s.kingdom || !s.subKingdom || !s.biblicalRank
+    return true
+  }), [spirits, search, filter])
+
+  const total      = spirits.length
+  const classified = spirits.filter(s => s.kingdom && s.subKingdom && s.biblicalRank).length
+  const pct        = total ? Math.round((classified / total) * 100) : 0
+
+  const G2   = isDark ? '#C9A84C' : '#a07830'
+  const surf = isDark ? '#1a1714' : '#ffffff'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.2)'
+  const txt2 = isDark ? '#f0e8d8' : '#1a1410'
+  const dim2 = isDark ? '#9a8c74' : '#5c4a3a'
+
+  const selStyle: CSSProperties = {
+    background: isDark ? '#1a1714' : '#fff',
+    color: txt2,
+    border: `1px solid ${bdr}`,
+    borderRadius: 3,
+    padding: '3px 5px',
+    fontFamily: "'Crimson Pro', serif",
+    fontSize: 12,
+    cursor: 'pointer',
+    width: '100%',
+    outline: 'none',
+  }
+
+  if (loading) return (
+    <div style={{ textAlign: 'center', padding: 60, fontFamily: "'Cinzel', serif", color: G2, letterSpacing: '0.12em', fontSize: 11 }}>
+      LOADING ARCHIVE...
+    </div>
+  )
+
+  return (
+    <div style={{ fontFamily: "'Crimson Pro', serif", color: txt2 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 17, color: G2, letterSpacing: '0.08em', marginBottom: 6 }}>
+          🔬 Taxonomy Review
+        </div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, marginBottom: 18 }}>
+          Bulk-classify every spirit's Kingdom, Sub-Kingdom, and Biblical Rank. Changes save instantly.
+        </div>
+
+        {/* Progress */}
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: dim2, letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>
+            {classified} / {total} classified
+          </div>
+          <div style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: G2, borderRadius: 4, transition: 'width 0.3s' }} />
+          </div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G2, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+            {pct}%
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
+          {(['all', 'needs'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              padding: '5px 14px',
+              background: filter === f ? G2 : 'transparent',
+              color: filter === f ? '#0D0B14' : dim2,
+              border: `1px solid ${filter === f ? G2 : bdr}`,
+              borderRadius: 4,
+              fontFamily: "'Cinzel', serif",
+              fontSize: 9,
+              letterSpacing: '0.08em',
+              cursor: 'pointer',
+            }}>
+              {f === 'all'
+                ? `ALL (${spirits.length})`
+                : `NEEDS REVIEW (${spirits.filter(s => !s.kingdom || !s.subKingdom || !s.biblicalRank).length})`}
+            </button>
+          ))}
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search spirit name..."
+            style={{
+              background: surf, color: txt2, border: `1px solid ${bdr}`,
+              borderRadius: 4, padding: '5px 12px', fontFamily: "'Crimson Pro', serif",
+              fontSize: 13, outline: 'none', marginLeft: 'auto', width: 200,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ overflowX: 'auto' as const, border: `1px solid ${bdr}`, borderRadius: 8 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: isDark ? 'rgba(201,168,76,0.07)' : 'rgba(160,120,48,0.06)', borderBottom: `1px solid ${bdr}` }}>
+              {['Spirit Name', 'Kingdom', 'Sub-Kingdom', 'Biblical Rank', ''].map((h, i) => (
+                <th key={i} style={{
+                  padding: '8px 12px', textAlign: 'left' as const,
+                  fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.12em',
+                  color: dim2, fontWeight: 600, whiteSpace: 'nowrap' as const,
+                  width: i === 0 ? 200 : i === 4 ? 50 : undefined,
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((spirit, idx) => {
+              const kKey  = `${spirit.airtableId}_kingdom`
+              const skKey = `${spirit.airtableId}_subKingdom`
+              const rKey  = `${spirit.airtableId}_biblicalRank`
+              const allFilled = !!(spirit.kingdom && spirit.subKingdom && spirit.biblicalRank)
+              const rowBg = idx % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)')
+
+              const flash = (key: string) => {
+                const s = saves[key]
+                if (!s) return null
+                return <span style={{ marginLeft: 4, fontSize: 11, color: s === 'saved' ? '#4ade80' : s === 'error' ? '#f87171' : dim2 }}>
+                  {s === 'saving' ? '…' : s === 'saved' ? '✓' : '✗'}
+                </span>
+              }
+
+              return (
+                <tr key={spirit.airtableId} style={{ background: rowBg, borderBottom: `1px solid ${bdr}`, height: 36 }}>
+                  <td style={{ padding: '4px 12px', maxWidth: 200 }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 600, color: txt2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }} title={spirit.name}>
+                      {spirit.name}
+                    </div>
+                    {spirit.aka && <div style={{ fontSize: 10, color: dim2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, fontStyle: 'italic' }}>{spirit.aka}</div>}
+                  </td>
+                  <td style={{ padding: '4px 8px', minWidth: 165 }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <select value={spirit.kingdom || ''} onChange={e => handleChange(spirit.airtableId, 'kingdom', e.target.value)} style={selStyle}>
+                        {KINGDOM_OPTIONS.map(o => <option key={o} value={o}>{o || '— select —'}</option>)}
+                      </select>
+                      {flash(kKey)}
+                    </div>
+                  </td>
+                  <td style={{ padding: '4px 8px', minWidth: 200 }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <select value={spirit.subKingdom || ''} onChange={e => handleChange(spirit.airtableId, 'subKingdom', e.target.value)} style={selStyle}>
+                        {SUB_KINGDOM_OPTIONS.map(o => <option key={o} value={o}>{o || '— select —'}</option>)}
+                      </select>
+                      {flash(skKey)}
+                    </div>
+                  </td>
+                  <td style={{ padding: '4px 8px', minWidth: 150 }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <select value={spirit.biblicalRank || ''} onChange={e => handleChange(spirit.airtableId, 'biblicalRank', e.target.value)} style={selStyle}>
+                        {BIBLICAL_RANK_OPTIONS.map(o => <option key={o} value={o}>{o || '— select —'}</option>)}
+                      </select>
+                      {flash(rKey)}
+                    </div>
+                  </td>
+                  <td style={{ padding: '4px 12px', textAlign: 'center' as const }}>
+                    <span title={allFilled ? 'Classified' : 'Needs classification'} style={{
+                      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                      background: allFilled ? '#4ade80' : '#f59e0b',
+                    }} />
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <div style={{ padding: '40px 0', textAlign: 'center' as const, color: dim2, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em' }}>
+            {search ? `No spirits matching "${search}"` : filter === 'needs' ? 'All spirits classified ✓' : 'No spirits found'}
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 10, fontFamily: "'Cinzel', serif", fontSize: 9, color: dim2, letterSpacing: '0.08em' }}>
+        Showing {filtered.length} of {total} spirits
       </div>
     </div>
   )
