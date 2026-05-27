@@ -38,3 +38,6 @@
 
 [functions."admin-library"]
   timeout = 30
+
+[functions."field-manual-progress"]
+  timeout = 10

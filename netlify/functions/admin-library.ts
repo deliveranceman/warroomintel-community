@@ -1,8 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { writeFile, unlink } from 'fs/promises'
-import { join } from 'path'
-import { randomUUID } from 'crypto'
-import { PDFParse } from 'pdf-parse'
+import Busboy from 'busboy'
 
 const BUCKET = 'ministry-library'
 const headers = {
@@ -12,10 +9,13 @@ const headers = {
 }
 
 function supabaseClient() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
 }
 
-async function resolveMinister(token: string): Promise<boolean> {
+async function isMinister(token: string): Promise<boolean> {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return false
@@ -31,21 +31,27 @@ async function resolveMinister(token: string): Promise<boolean> {
   } catch { return false }
 }
 
-async function extractPdfText(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
-  const tmpPath = join('/tmp', `wri-pdf-${randomUUID()}.pdf`)
-  try {
-    await writeFile(tmpPath, buffer)
-    const parser = new PDFParse({ url: tmpPath })
-    const result = await parser.getText()
-    const text = result.text || ''
-    console.log(`[admin-library] PDF text extracted: ${text.length} chars, ${result.numpages || 0} pages`)
-    return { text, pageCount: result.numpages || 0 }
-  } catch (e: any) {
-    console.error('[admin-library] PDF parse error:', e?.message || e)
-    return { text: '', pageCount: 0 }
-  } finally {
-    await unlink(tmpPath).catch(() => {})
-  }
+function parseMultipart(req: Request, bodyBuf: Buffer, contentType: string): Promise<{
+  fields: Record<string, string>
+  file?: { buffer: Buffer; filename: string; mimeType: string }
+}> {
+  return new Promise((resolve, reject) => {
+    const fields: Record<string, string> = {}
+    let file: { buffer: Buffer; filename: string; mimeType: string } | undefined
+    const busboy = Busboy({ headers: { 'content-type': contentType } })
+    busboy.on('field', (name, val) => { fields[name] = val })
+    busboy.on('file', (fieldname, stream, info) => {
+      const chunks: Buffer[] = []
+      stream.on('data', (c: Buffer) => chunks.push(c))
+      stream.on('end', () => {
+        file = { buffer: Buffer.concat(chunks), filename: info.filename, mimeType: info.mimeType }
+      })
+    })
+    busboy.on('finish', () => resolve({ fields, file }))
+    busboy.on('error', reject)
+    busboy.write(bodyBuf)
+    busboy.end()
+  })
 }
 
 export default async function handler(req: Request) {
@@ -53,7 +59,7 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const ok = await resolveMinister(token)
+  const ok = await isMinister(token)
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden — minister role required' }), { status: 403, headers })
 
   const sb = supabaseClient()
@@ -70,58 +76,86 @@ export default async function handler(req: Request) {
 
   // ── POST — upload new book ──────────────────────────────────────────────────
   if (req.method === 'POST') {
-    const body = await req.json()
-    const { title, author, notes, fileBase64, fileName, fileSize } = body
-    if (!title || !fileBase64 || !fileName) {
-      return new Response(JSON.stringify({ error: 'title, fileName, and fileBase64 required' }), { status: 400, headers })
-    }
+    const contentType = req.headers.get('content-type') || ''
 
-    const buffer = Buffer.from(fileBase64, 'base64')
-    const isTxt = fileName.toLowerCase().endsWith('.txt')
-    console.log(`[admin-library] Uploading: ${fileName} (${buffer.length} bytes, isTxt=${isTxt})`)
+    let title = '', author = '', notes = '', fileName = '', fileSize = 0
+    let fileBuffer: Buffer | undefined
 
-    // Extract text — UTF-8 for .txt, pdf-parse v2 temp file for .pdf
-    let extractedText = ''
-    let pageCount = 0
-    if (isTxt) {
-      extractedText = buffer.toString('utf-8')
-      console.log(`[admin-library] TXT decoded: ${extractedText.length} chars`)
+    if (contentType.includes('multipart/form-data')) {
+      // Parse multipart
+      const bodyBuf = Buffer.from(await req.arrayBuffer())
+      let parsed: Awaited<ReturnType<typeof parseMultipart>>
+      try {
+        parsed = await parseMultipart(req, bodyBuf, contentType)
+      } catch (e: any) {
+        return new Response(JSON.stringify({ error: `Multipart parse failed: ${e?.message}` }), { status: 400, headers })
+      }
+      title    = parsed.fields.title || ''
+      author   = parsed.fields.author || ''
+      notes    = parsed.fields.notes || ''
+      if (parsed.file) {
+        fileBuffer = parsed.file.buffer
+        fileName   = parsed.file.filename || parsed.fields.filename || 'upload'
+        fileSize   = fileBuffer.length
+      }
     } else {
-      const result = await extractPdfText(buffer)
-      extractedText = result.text
-      pageCount = result.pageCount
+      // Fallback: JSON with base64
+      const body = await req.json()
+      title  = body.title || ''
+      author = body.author || ''
+      notes  = body.notes || ''
+      fileName = body.fileName || ''
+      fileSize = body.fileSize || 0
+      if (body.fileBase64) {
+        fileBuffer = Buffer.from(body.fileBase64, 'base64')
+        fileSize = fileBuffer.length
+      }
     }
 
-    // Upload to Supabase storage
-    const safeName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-    const contentType = isTxt ? 'text/plain' : 'application/pdf'
-    const { error: uploadErr } = await sb.storage.from(BUCKET).upload(safeName, buffer, { contentType, upsert: false })
-    if (uploadErr) return new Response(JSON.stringify({ error: `Storage upload failed: ${uploadErr.message}` }), { status: 500, headers })
+    if (!title.trim() || !fileBuffer || !fileName) {
+      return new Response(JSON.stringify({ error: 'title, file, and fileName required' }), { status: 400, headers })
+    }
 
-    // Insert DB record
-    const { data: row, error: insertErr } = await sb.from('ministry_library').insert({
-      title: title.trim(),
-      author: author?.trim() || null,
-      file_path: safeName,
-      file_size_bytes: fileSize || buffer.length,
-      page_count: pageCount,
-      extracted_text: extractedText || null,
-      notes: notes?.trim() || null,
-      is_enabled: true,
-      ai_enabled: true,
-    }).select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes').single()
+    console.log(`[admin-library] Uploading: ${fileName} (${fileBuffer.length} bytes)`)
+
+    // Upload raw file to Supabase Storage — no text extraction
+    const safeName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+    const isTxt = fileName.toLowerCase().endsWith('.txt')
+    const mimeType = isTxt ? 'text/plain' : 'application/pdf'
+
+    const { error: uploadErr } = await sb.storage.from(BUCKET).upload(safeName, fileBuffer, {
+      contentType: mimeType,
+      upsert: false,
+    })
+    if (uploadErr) {
+      console.error('[admin-library] Storage upload error:', uploadErr.message)
+      return new Response(JSON.stringify({ error: `Storage upload failed: ${uploadErr.message}` }), { status: 500, headers })
+    }
+
+    // Insert DB record — extracted_text will remain null until a background job processes it
+    const { data: row, error: insertErr } = await sb
+      .from('ministry_library')
+      .insert({
+        title: title.trim(),
+        author: author?.trim() || null,
+        file_path: safeName,
+        file_size_bytes: fileSize || fileBuffer.length,
+        page_count: 0,
+        extracted_text: null,
+        notes: notes?.trim() || null,
+        is_enabled: true,
+        ai_enabled: true,
+      })
+      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes')
+      .single()
 
     if (insertErr) {
       await sb.storage.from(BUCKET).remove([safeName])
+      console.error('[admin-library] DB insert error:', insertErr.message)
       return new Response(JSON.stringify({ error: `DB insert failed: ${insertErr.message}` }), { status: 500, headers })
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      book: row,
-      pagesExtracted: pageCount,
-      textLength: extractedText.length,
-    }), { status: 200, headers })
+    return new Response(JSON.stringify({ success: true, book: row }), { status: 200, headers })
   }
 
   // ── PATCH — update book metadata ────────────────────────────────────────────
@@ -132,8 +166,12 @@ export default async function handler(req: Request) {
     const allowed = ['title', 'author', 'notes', 'is_enabled', 'ai_enabled']
     const update: Record<string, any> = {}
     for (const k of allowed) { if (k in fields) update[k] = fields[k] }
-    const { data, error } = await sb.from('ministry_library').update(update).eq('id', id)
-      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes').single()
+    const { data, error } = await sb
+      .from('ministry_library')
+      .update(update)
+      .eq('id', id)
+      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes')
+      .single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     return new Response(JSON.stringify({ success: true, book: data }), { status: 200, headers })
   }

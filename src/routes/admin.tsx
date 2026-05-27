@@ -2944,38 +2944,23 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   async function uploadBook() {
     if (!uploadFile || !uploadTitle.trim()) { setUploadMsg('Title and file required'); return }
-    setUploadPhase('reading')
+    setUploadPhase('uploading')
     try {
-      // Read file as base64
-      const fileBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const result = reader.result as string
-          resolve(result.split(',')[1]) // strip data URL prefix
-        }
-        reader.onerror = reject
-        reader.readAsDataURL(uploadFile)
-      })
-
-      setUploadPhase('uploading')
       const token = await getToken()
+      const formData = new FormData()
+      formData.append('file', uploadFile)
+      formData.append('title', uploadTitle.trim())
+      formData.append('author', uploadAuthor.trim())
+      formData.append('notes', uploadNotes.trim())
       const res = await fetch('/api/admin-library', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          title: uploadTitle.trim(),
-          author: uploadAuthor.trim() || null,
-          notes: uploadNotes.trim() || null,
-          fileBase64,
-          fileName: uploadFile.name,
-          fileSize: uploadFile.size,
-        }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       })
-      setUploadPhase('extracting')
       const d = await res.json()
       if (res.ok) {
         setUploadPhase('done')
-        setUploadMsg(`✓ Uploaded — ${d.pagesExtracted} pages, ${(d.textLength || 0).toLocaleString()} characters extracted`)
+        setUploadMsg('✓ Uploaded successfully')
         setUploadTitle(''); setUploadAuthor(''); setUploadNotes(''); setUploadFile(null)
         await loadBooks()
         setTimeout(() => setUploadPhase('idle'), 3000)
