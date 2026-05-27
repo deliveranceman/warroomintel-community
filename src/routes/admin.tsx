@@ -2858,6 +2858,114 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
             )}
           </div>
         )}
+
+      <ForumModerationPanel getToken={getToken} />
+    </div>
+  )
+}
+
+// ─── FORUM MODERATION ────────────────────────────────────────────────────────
+function ForumModerationPanel({ getToken }: { getToken: any }) {
+  const [flagged,  setFlagged]  = useState<any[]>([])
+  const [recent,   setRecent]   = useState<any[]>([])
+  const [loading,  setLoading]  = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      const token = await getToken()
+      // Fetch flagged posts
+      const r1 = await fetch('/api/forum-posts?sort=new&limit=50', { headers: { Authorization: `Bearer ${token}` } })
+      if (r1.ok) {
+        const d = await r1.json()
+        const all: any[] = d.posts || []
+        setFlagged(all.filter((p: any) => p.flagged))
+        setRecent(all.slice(0, 20))
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  async function pinPost(id: string, pinned: boolean) {
+    const token = await getToken()
+    await fetch('/api/forum-posts', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ id, pinned }) })
+    setRecent(prev => prev.map(p => p.id === id ? { ...p, pinned } : p))
+  }
+
+  async function unflag(id: string) {
+    const token = await getToken()
+    await fetch('/api/forum-posts', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ id, flagged: false }) })
+    setFlagged(prev => prev.filter(p => p.id !== id))
+  }
+
+  async function del(id: string, isRecent: boolean) {
+    if (!confirm('Delete this post?')) return
+    const token = await getToken()
+    await fetch(`/api/forum-posts?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (isRecent) setRecent(prev => prev.filter(p => p.id !== id))
+    setFlagged(prev => prev.filter(p => p.id !== id))
+  }
+
+  const rowSt: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 14px', background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, marginBottom: 6 }
+  const btnSt = (danger?: boolean): React.CSSProperties => ({ background: 'transparent', border: `1px solid ${danger ? 'rgba(248,113,113,0.3)' : BDR}`, borderRadius: 4, color: danger ? '#f87171' : DIM, fontFamily: cinzel, fontSize: 8, padding: '3px 10px', cursor: 'pointer' })
+
+  if (loading) return <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '16px 0', fontSize: 13 }}>Loading forum data…</div>
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ Forum — The War Room Board</div>
+
+      {/* Stats */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
+        {[
+          { label: 'Total Posts', value: recent.length },
+          { label: 'Flagged', value: flagged.length, warn: flagged.length > 0 },
+          { label: 'This Week', value: recent.filter(p => Date.now() - new Date(p.created_at).getTime() < 7 * 86400000).length },
+        ].map(s => (
+          <div key={s.label} style={{ background: SURF, border: `1px solid ${s.warn ? 'rgba(248,113,113,0.4)' : BDR}`, borderRadius: 8, padding: '10px 18px', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 16, color: s.warn ? '#f87171' : TXT }}>{s.value}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.08em', marginTop: 2 }}>{s.label}</div>
+          </div>
+        ))}
+        <a href="/community/forum" target="_blank" rel="noopener noreferrer" style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 8, padding: '10px 18px', color: DIM, fontFamily: cinzel, fontSize: 9, textDecoration: 'none', display: 'flex', alignItems: 'center', letterSpacing: '0.08em' }}>View Board →</a>
+      </div>
+
+      {/* Flagged */}
+      {flagged.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: '#f87171', letterSpacing: '0.1em', marginBottom: 10 }}>🚨 Flagged Posts ({flagged.length})</div>
+          {flagged.map(p => (
+            <div key={p.id} style={{ ...rowSt, borderLeft: '3px solid #f87171' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 3 }}>{p.title}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: DIM }}>{p.author_name} · {p.post_type} · {new Date(p.created_at).toLocaleDateString()}</div>
+                {p.body && <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.body.slice(0, 120)}</div>}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button onClick={() => unflag(p.id)} style={btnSt()}>Unflag</button>
+                <button onClick={() => del(p.id, false)} style={btnSt(true)}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recent posts */}
+      <div>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', marginBottom: 10 }}>Recent Posts</div>
+        {recent.slice(0, 20).map(p => (
+          <div key={p.id} style={rowSt}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 2 }}>{p.title}</div>
+              <div style={{ fontFamily: crimson, fontSize: 11, color: DIM }}>{p.author_name} · {p.post_type} · ▲{p.upvotes} · 💬{p.comment_count} · {new Date(p.created_at).toLocaleDateString()}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button onClick={() => pinPost(p.id, !p.pinned)} style={{ ...btnSt(), color: p.pinned ? G : DIM, borderColor: p.pinned ? 'rgba(201,168,76,0.4)' : BDR }}>{p.pinned ? '📌 Unpin' : '📌 Pin'}</button>
+              <button onClick={() => del(p.id, true)} style={btnSt(true)}>Delete</button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

@@ -5625,6 +5625,12 @@ function CommunityPage() {
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
+        <a href="/community/forum" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
+          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>💬</span>
+          <span>The Board</span>
+        </a>
         {navItem('Weekly Intel', 'intel', '📡')}
         {navItem('Field Ministry', 'field-ministry', '📖')}
 
