@@ -58,16 +58,24 @@ Rules:
 - Use proper title case; remove file extension from title
 - topic is always "ministry-library"
 
-SPIRIT TAGS — CRITICAL:
-You MUST always return the spirit_tags field as an array (never omit it, never return null).
-Identify every demonic spirit named, described, or implied anywhere in this document.
-Known spirit names to look for: Baal, Jezebel, Leviathan, Ahab, Python, Fear, Rejection, Pride,
-  Lust, Control, Witchcraft, Death, Infirmity, Bitterness, Unforgiveness, Shame, Rebellion,
-  Deception, Perversion, Confusion, Occult, Freemasonry, Marine spirits, Wormwood, Apollyon.
-IMPORTANT: If the filename itself contains a spirit name (e.g. "BAAL", "jezebel", "leviathan"),
-  that spirit MUST be included in spirit_tags — no exceptions.
-Return spirit names in proper case (e.g. "Baal", "Jezebel", "Leviathan").
-Maximum 10 entries. If you genuinely find no spirits at all, return [].`
+SPIRIT TAGS — CRITICAL RULES:
+You MUST return specific NAMED spirits only — never categories or concepts.
+
+GOOD examples (use these): Leviathan, Jezebel, Baal, Python, Ahab, Fear, Rejection, Pride,
+  Lust, Death, Witchcraft, Control, Deception, Bitterness, Rebellion, Infirmity, Shame,
+  Unforgiveness, Perversion, Confusion, Wormwood, Apollyon, Dagon, Molech, Asherah, Belial,
+  Marine spirits, Freemasonry, Occult, Python spirit, Spirit of Fear, Spirit of Death.
+
+BAD examples — NEVER use these category/concept words:
+  "Demons", "Territorial Spirits", "Supernatural Forces", "Evil Spirits",
+  "Demonic Forces", "Dark Forces", "Spiritual Entities", "Evil Forces",
+  "Spiritual Forces", "Principalities", "Powers", "Evil Beings".
+
+RULES:
+- If the filename itself contains a spirit name (e.g. "BAAL", "jezebel", "marine"), ALWAYS include it.
+- If a spirit has a compound name like "Spirit of Fear" or "Marine Spirits", include the full compound name.
+- Return empty array [] if no specifically named spirits are found — do NOT return generic category words.
+- Maximum 10 entries. Return proper case (e.g. "Baal", "Jezebel", "Leviathan").`
 
   let anthropicRes: Response
   try {

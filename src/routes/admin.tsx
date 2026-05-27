@@ -2835,6 +2835,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[] }>({ title: '', author: '', notes: '', topic: 'ministry-library', spirit_tags: [] })
   const [editLoading, setEditLoading] = useState(false)
 
+  // Re-tag state
+  const [retagRunning, setRetagRunning] = useState(false)
+  const [retagProgress, setRetagProgress] = useState<{ done: number; total: number; updated: number } | null>(null)
+
   // Library summary state
   const [libSummary, setLibSummary]     = useState<{ summary: string; books: any[] } | null>(null)
   const [libSummaryOpen, setLibSummaryOpen] = useState(false)
@@ -3211,6 +3215,54 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     await aiRenameInPanel()
   }
 
+  const GENERIC_TAGS = new Set([
+    'demons', 'territorial spirits', 'supernatural forces', 'evil spirits',
+    'demonic forces', 'dark forces', 'spiritual entities', 'evil forces',
+    'spiritual forces', 'principalities', 'powers', 'evil beings',
+  ])
+
+  function isGenericOnly(tags: string[]): boolean {
+    if (!Array.isArray(tags) || tags.length === 0) return true
+    return tags.every(t => GENERIC_TAGS.has(t.toLowerCase()))
+  }
+
+  async function retagAllBooks() {
+    const needsRetag = books.filter(b => isGenericOnly(b.spirit_tags))
+    if (needsRetag.length === 0) { alert('All books already have specific spirit tags.'); return }
+    setRetagRunning(true)
+    setRetagProgress({ done: 0, total: needsRetag.length, updated: 0 })
+    let updated = 0
+    try {
+      const token = await getToken()
+      for (let i = 0; i < needsRetag.length; i++) {
+        const book = needsRetag[i]
+        try {
+          const autofillRes = await fetch('/api/library-autofill', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
+          })
+          if (autofillRes.ok) {
+            const d = await autofillRes.json()
+            const newTags: string[] = Array.isArray(d.spirit_tags) ? d.spirit_tags : []
+            if (newTags.length > 0 && !isGenericOnly(newTags)) {
+              // Patch the book in Supabase
+              await fetch('/api/admin-library', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ id: book.id, spirit_tags: newTags }),
+              })
+              setBooks(prev => prev.map(b => b.id === book.id ? { ...b, spirit_tags: newTags } : b))
+              updated++
+            }
+          }
+        } catch { /* best-effort per book */ }
+        setRetagProgress({ done: i + 1, total: needsRetag.length, updated })
+      }
+    } catch { /* best-effort */ }
+    setRetagRunning(false)
+  }
+
   async function cleanTitle(book: any) {
     const token = await getToken()
     const res = await fetch('/api/admin-library', {
@@ -3554,8 +3606,25 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         ) : (
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: 10, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
-              {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.ai_generated).length} AI-generated
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>
+                {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.ai_generated).length} AI-generated
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {retagProgress && (
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
+                    {retagRunning ? `Re-tagging ${retagProgress.done}/${retagProgress.total}…` : `✓ Done — ${retagProgress.updated} updated`}
+                  </span>
+                )}
+                <button
+                  onClick={retagAllBooks}
+                  disabled={retagRunning}
+                  title="Re-run AI spirit tag analysis on books with empty or generic spirit tags"
+                  style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: retagRunning ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: retagRunning ? 0.6 : 1, whiteSpace: 'nowrap' as const }}
+                >
+                  {retagRunning ? '✦ Re-tagging…' : '✦ Re-run AI Tags'}
+                </button>
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {books.map(book => {

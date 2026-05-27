@@ -55,14 +55,10 @@ async function fetchAllRecords(): Promise<any[]> {
   do {
     const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
     url.searchParams.set('pageSize', '100')
-    url.searchParams.set('fields[]', NAME_FIELD)
-    url.searchParams.set('fields[]', 'Description')
-    url.searchParams.set('fields[]', 'Manifestiation')
-    url.searchParams.set('fields[]', 'Source / Orgin')
-    url.searchParams.set('fields[]', 'Kingdom')
-    url.searchParams.set('fields[]', 'Biblical Rank')
-    url.searchParams.set('fields[]', 'Sub-Kingdom')
-    url.searchParams.set('fields[]', 'Also Known As')
+    // Must use append (not set) — set() overwrites the previous fields[] value each time
+    for (const f of [NAME_FIELD, 'Description', 'Manifestiation', 'Source / Orgin', 'Kingdom', 'Biblical Rank', 'Sub-Kingdom', 'Also Known As']) {
+      url.searchParams.append('fields[]', f)
+    }
     if (offset) url.searchParams.set('offset', offset)
 
     const res = await fetch(url.toString(), {

@@ -55,10 +55,11 @@ async function fetchAllSpiritNames(): Promise<string[]> {
 
 async function fetchLibraryBooks() {
   const { data } = await sb()
-    .from('ministry_library')
+    .from('resources')
     .select('title, author, extracted_text')
-    .eq('is_enabled', true)
-    .eq('ai_enabled', true)
+    .eq('topic', 'ministry-library')
+    .eq('active', true)
+    .eq('ai_generated', true)
     .limit(MAX_BOOKS)
   return data || []
 }
