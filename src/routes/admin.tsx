@@ -4189,12 +4189,11 @@ function DocumentsView({ getToken, isDark, demons }: {
 
 function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const G2 = isDark ? G : '#A07C2C'
-  const bg2 = isDark ? BG : '#F5F0E8'
   const surf2 = isDark ? SURF : '#EDE6D3'
   const bdr2 = isDark ? BDR : 'rgba(139,105,20,0.25)'
   const txt2 = isDark ? TXT : '#1C1407'
   const dim2 = isDark ? DIM : '#6B5520'
-  const mut2 = isDark ? MUT : '#9a8c74'
+  const mut2 = isDark ? '#9a8c74' : '#5c4a3a'
 
   // Gap analysis state
   const [gapLoading, setGapLoading] = useState(false)
@@ -4262,9 +4261,9 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE': spirit.spirit_name,
         'Description': spirit.brief_description,
       }
-      const res = await fetch('https://api.airtable.com/v0/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4', {
+      const res = await fetch('/api/admin-demon', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ fields }),
       })
       if (res.ok) {
@@ -4410,7 +4409,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
   const bdr2 = isDark ? BDR : 'rgba(139,105,20,0.25)'
   const txt2 = isDark ? TXT : '#1C1407'
   const dim2 = isDark ? DIM : '#6B5520'
-  const mut2 = isDark ? MUT : '#9a8c74'
+  const mut2 = isDark ? '#9a8c74' : '#5c4a3a'
 
   useEffect(() => {
     loadSubmissions()
@@ -4565,16 +4564,16 @@ function AdminPage() {
   }
 
   const TABS = [
-    { key: 'dashboard',       label: '⚡ Dashboard'      },
-    { key: 'arsenal',         label: 'Arsenal Manager'   },
-    { key: 'intel',           label: 'Intel Archive'     },
-    { key: 'moderation',      label: 'Moderation'        },
-    { key: 'training',        label: 'Training'          },
-    { key: 'field-ministry',  label: '📖 Field Ministry' },
-    { key: 'documents',       label: '📄 Documents'      },
-    { key: 'library',         label: 'Ministry Library'  },
-    { key: 'spiritual-mapping', label: '📍 Spiritual Mapping' },
-    { key: 'lib-intel', label: '🔬 Library Intelligence' },
+    { key: 'dashboard',       label: '⚡ Dashboard'    },
+    { key: 'arsenal',         label: 'Arsenal'          },
+    { key: 'intel',           label: 'Intel Archive'    },
+    { key: 'moderation',      label: 'Moderation'       },
+    { key: 'training',        label: 'Training'         },
+    { key: 'field-ministry',  label: 'Field Min.'       },
+    { key: 'documents',       label: 'Documents'        },
+    { key: 'library',         label: 'Min. Library'     },
+    { key: 'spiritual-mapping', label: '📍 Sp. Mapping' },
+    { key: 'lib-intel', label: '🔬 Lib. Intel'          },
   ] as const
 
   return (
@@ -4607,18 +4606,18 @@ function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ borderBottom: `1px solid ${adBdr}`, padding: '0 32px', display: 'flex', background: headerBg, overflowX: 'auto' as const, WebkitOverflowScrolling: 'touch' as any }}>
+      <div style={{ borderBottom: `1px solid ${adBdr}`, padding: '0 16px', display: 'flex', background: headerBg, overflowX: 'auto' as const, WebkitOverflowScrolling: 'touch' as any, whiteSpace: 'nowrap' as const, scrollbarWidth: 'none' as any }}>
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             style={{
-              padding: '14px 22px', background: 'none', border: 'none',
+              padding: '11px 10px', background: 'none', border: 'none',
               borderBottom: `2px solid ${tab === t.key ? adGold : 'transparent'}`,
               color: tab === t.key ? adGold : adDim,
-              fontFamily: cinzel, fontSize: 10,
-              letterSpacing: '0.1em', cursor: 'pointer', marginBottom: '-1px',
-              transition: 'all 0.15s',
+              fontFamily: cinzel, fontSize: 9,
+              letterSpacing: '0.06em', cursor: 'pointer', marginBottom: '-1px',
+              transition: 'all 0.15s', whiteSpace: 'nowrap' as const, flexShrink: 0,
             }}
           >
             {t.label}
