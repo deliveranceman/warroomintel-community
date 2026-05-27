@@ -7,375 +7,875 @@ export const Route = createFileRoute('/community_/field-manual')({
   component: FieldManualPage,
 })
 
-const G       = '#C9A84C'
+// ── CONSTANTS ──────────────────────────────────────────────────────────────────
+const G      = '#C9A84C'
+const BG     = '#0D0B14'
+const SURF   = '#12101e'
+const SURF2  = '#1a1726'
+const BDR    = 'rgba(201,168,76,0.22)'
+const TXT    = '#e8dcc8'
+const DIM    = '#a09080'
+const MUT    = '#6b5e45'
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 
-const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+const TIER_LEVELS: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
 
-const MODULES = [
+// ── MODULE DATA ────────────────────────────────────────────────────────────────
+
+interface Section { heading: string; body: string; scripture?: string }
+interface Module {
+  id: string; number: number; icon: string; title: string
+  intro: string; tier: 'free' | 'soldier'; sections: Section[]
+}
+interface Article { id: string; title: string; pages: string; intro: string; sections: { heading: string; body: string; scripture?: string }[]; takeaway: string }
+
+const DOCTRINE_MODULES: Module[] = [
   {
-    id: 'authority-in-christ',
-    number: 1,
-    icon: '✦',
-    title: 'Authority in Christ',
-    subtitle: 'The foundation of all warfare',
-    tier: 'free',
-    intro: 'Every deliverance minister must first understand the legal and spiritual authority delegated to believers through Christ. Without this foundation, all other techniques are hollow.',
+    id: 'what-is-warfare', number: 1, icon: '⚔', tier: 'free',
+    title: 'What Is Spiritual Warfare',
+    intro: 'Heaven is a spiritual dimension, not a physical place. The cosmic conflict between God\'s will and evil is not a movie — it is the context in which every believer lives every day.',
     sections: [
       {
-        heading: 'What Is Delegated Authority?',
-        body: `When Jesus declared "All authority in heaven and on earth has been given to me" (Matthew 28:18), He immediately followed with a commissioning: "Therefore go." This is not coincidental. The authority is given TO Him and delegated THROUGH His body — the Church.
+        heading: 'The Nature of the Conflict',
+        scripture: 'Ephesians 6:12 — "For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places."',
+        body: `Spiritual warfare is the conflict between God's perfect plan and evil's attempt to destroy what God loves. It is not a conflict between equals — God has no equal. It is a conflict between the Creator's declared purpose and a defeated enemy's last-ditch resistance.
 
-Luke 10:19 makes this explicit: "I have given you authority to trample on snakes and scorpions and to overcome all the power of the enemy; nothing will harm you." This is present-tense, active delegation. The disciples were not told to pray for authority — they were told it had already been given.
+When Jesus died on the Cross, He won the war. What we engage in today is not a war to determine the victor — that has already been settled. We are enforcing a victory already won.
 
-Understanding the difference between praying FOR authority and operating FROM authority is the first major shift in a minister's development. Demons do not yield to desperation prayers. They yield to legal declarations made by those who know who they are in Christ.`,
+This distinction matters. A soldier who does not know the war is over fights differently than one who does. We fight from victory, not toward it. The posture of the spiritual warrior is not desperation — it is enforcement.`,
       },
       {
-        heading: 'The Name of Jesus — Jurisdiction, Not Magic',
-        body: `Acts 19 records the seven sons of Sceva attempting to cast out demons using "the Jesus whom Paul preaches." The demon's response is instructive: "Jesus I know, and Paul I know about, but who are you?" They were beaten and fled naked.
+        heading: 'The Cosmic Stakes',
+        scripture: 'Mark 10:45 — "For even the Son of Man did not come to be served, but to serve, and to give His life a ransom for many."',
+        body: `The stakes in spiritual warfare are the souls and destinies of human beings — the objects of God's love and the target of the enemy's hatred. The enemy does not hate you primarily — he hates God, and you bear God's image. That is why you are a target.
 
-The name of Jesus is not a magic word. It is a matter of jurisdiction. You must be in covenant with Jesus, walking in His authority by the Spirit, for His name to carry weight in the spirit realm. A minister who lives in unrepentant sin, operates in offense, or functions in pride will find their authority neutralized — not because the name is weak, but because they are operating outside of covenant.
-
-The name of Jesus represents His character, His victory, His blood, and His legal standing before the Father. When you declare in His name, you are invoking all of that. Walk worthy of that name.`,
+Understanding the "why" of the conflict changes how you engage. You are not fighting because you are in danger. You are fighting because others are. The warrior in spiritual warfare carries the burden of those who cannot yet fight for themselves.`,
       },
       {
-        heading: 'Practical Exercise: Identifying Your Position',
-        body: `Before engaging in any deliverance session, a minister must take time to "put on" their identity in Christ. This is not a ritual — it is a spiritual realignment.
+        heading: 'Field Note — The Goal',
+        body: `The goal of spiritual warfare is not survival. It is not maintenance. It is not even deliverance — though deliverance is part of it.
 
-Spend 5–10 minutes meditating on these declarations before ministry:
-• "I am seated with Christ in heavenly places" (Ephesians 2:6)
-• "Greater is He who is in me than he who is in the world" (1 John 4:4)
-• "I have been given authority over all the power of the enemy" (Luke 10:19)
-• "No weapon formed against me shall prosper" (Isaiah 54:17)
+The goal is the establishment of God's kingdom in human lives, families, communities, and regions. The warfare is simply the resistance that must be overcome to get there.
 
-This is not positive thinking. You are declaring legal realities that are already established in the spirit realm. You are reminding yourself — and any watching spirits — of your actual standing before God.`,
+A soldier who only fights when attacked is not winning ground — he is holding ground. The spiritual warrior is called to advance.`,
       },
     ],
   },
   {
-    id: 'enemy-hierarchy',
-    number: 2,
-    icon: '👁',
-    title: 'The Enemy\'s Hierarchy',
-    subtitle: 'Knowing who you\'re fighting',
-    tier: 'free',
-    intro: 'The enemy operates through a structured hierarchy. Understanding this chain of command helps ministers know what they are dealing with, how high up the chain a manifestation traces, and how to target the strongman effectively.',
+    id: 'angelic-realm', number: 2, icon: '✦', tier: 'free',
+    title: 'The Angelic Realm',
+    intro: 'Angels are not the chubby, harp-playing figures of greeting cards. They are created beings of immense power and function, organized into a hierarchy that mirrors the authority structure of God\'s kingdom.',
     sections: [
       {
-        heading: 'Principalities, Powers, and Rulers',
-        body: `Ephesians 6:12 lays out the hierarchy: "For our struggle is not against flesh and blood, but against the rulers, against the authorities, against the powers of this dark world and against the spiritual forces of evil in the heavenly realms."
+        heading: 'Three Spheres of Angels',
+        body: `The angelic hierarchy is organized into three spheres of increasing proximity to God's throne and decreasing positional authority.
 
-The Greek terms here — archē (rulers/principalities), exousia (authorities/powers), kosmokrators (world-rulers of darkness), pneumatika ponērias (spiritual forces of evil) — represent descending ranks from highest to lowest. Principalities govern nations and regions. Powers govern institutions, systems, and ideologies. Rulers of darkness operate within territorial and organizational structures. Ground-level spirits work directly on individuals.
+**First Sphere** — Closest to God's throne, highest function:
+- **Seraphim** — the burning ones, continual worshipers before God (Isaiah 6)
+- **Cherubim** — guardians of God's holiness, bearers of His presence (Ezekiel 1, Genesis 3)
+- **Thrones** — celestial courts, associated with divine justice and judgment
 
-This is not speculation — it is consistent with Daniel 10, where the prince of Persia (a principality) resisted the angel for 21 days, and the prince of Greece was also named. These are not human rulers. They are demonic princes over nations.`,
+**Second Sphere** — Administrative and governmental:
+- **Dominions** — govern and direct the lesser orders
+- **Virtues** — associated with miracles, signs, and the movement of God's power
+- **Powers** — bear authority over nations and cosmic order
+
+**Third Sphere** — Closest to the human realm, most active in earthly affairs:
+- **Principalities** — assigned governance over nations and regions
+- **Archangels** — highest-ranking among the third sphere; Michael and Gabriel are named
+- **Angels** — messengers and ministers to God's people (Hebrews 1:14)`,
       },
       {
-        heading: 'Strongmen and Underlings',
-        body: `Matthew 12:29 introduces the concept of the strongman: "Or again, how can anyone enter a strong man's house and carry off his possessions unless he first ties up the strong man?" This is a ministry principle: every complex demonic structure has a primary governor that must be bound before the lesser spirits can be evicted.
+        heading: 'The Three Named Angels',
+        scripture: '2 Peter 2:11 — "Angels, which are greater in power and might" than fallen powers.',
+        body: `Three angels are named in Scripture, each carrying a distinct function:
 
-In practice, the presenting spirit (the one manifesting) is often not the strongman. A spirit of addiction may be fronting for a spirit of rejection, which is under a spirit of Jezebel, which is governed by a spirit of antichrist. The presenting issue is not the root. The root is what must be addressed.
+**Michael** — The warrior archangel. His name means "Who is like God?" — a declaration, not a question. Michael leads God's armies, contends with territorial princes (Daniel 10), and is associated with the defense and deliverance of God's people. Jude 9 records his contention with Satan over the body of Moses. Revelation 12 records his war against the dragon.
 
-Identifying the strongman requires discernment — often given through the Spirit of God (1 Corinthians 12:10, distinguishing of spirits), through the pattern of symptoms, or through the demonized person's history.`,
+**Gabriel** — The messenger archangel. His name means "Man of God" or "God is my strength." Gabriel delivers God's most significant revelatory announcements: to Daniel (Daniel 8-9), to Zacharias announcing John the Baptist (Luke 1), and to Mary announcing the Incarnation (Luke 1). He is the herald of God's redemptive plan.
+
+**Lucifer** — The fallen worship leader. Created as the highest of created beings, assigned to lead heaven's worship. His name means "Light-bearer." His fall is recorded in Isaiah 14 and Ezekiel 28. He is now the adversary — Satan — the accuser of the brethren (Revelation 12:10).`,
       },
       {
-        heading: 'How Spirits Cluster',
-        body: `Demons rarely operate alone. Luke 8 records a man with a "legion" — approximately 6,000 spirits organized under one governance structure. Matthew 12:43-45 describes an unclean spirit returning with "seven other spirits more wicked than itself."
+        heading: 'Field Note — Understanding the Mirror',
+        body: `The enemy did not create his own system — he corrupted the one he fell from. The hierarchy of darkness mirrors the hierarchy of heaven that Lucifer once inhabited.
 
-Common clustering patterns observed in deliverance ministry:
-• Spirit of rejection often enters with abandonment, shame, and self-hatred
-• Jezebel commonly operates with Leviathan (pride), Athaliah (control of spiritual authority), and Ahab (passivity in the person's covenant relationships)
-• Spirit of fear clusters with torment, infirmity, and death
-• Spirit of witchcraft often accompanies familiar spirits, divination, and manipulation
+Principalities mirror the governmental angels of the Third Sphere. Powers mirror the Powers of the Second Sphere. Rulers of darkness mirror the Dominions. This is not coincidence — it is the architecture of a counterfeiter.
 
-When you encounter one, probe for others. Ask the Spirit what you are dealing with. The cluster must be fully evicted, or the remaining spirits will rebuild the structure.`,
+Understanding the angelic order gives you context for the ranks of darkness you face in ministry. You are not fighting random chaos — you are facing a structured, organized system that mimics the order it abandoned.`,
       },
     ],
   },
   {
-    id: 'legal-grounds',
-    number: 3,
-    icon: '⚖',
-    title: 'Legal Grounds',
-    subtitle: 'How the enemy gains access',
-    tier: 'soldier',
-    intro: 'Demons do not operate without legal access. Every foothold has a door — opened through sin, trauma, covenant, or inheritance. A minister who understands the legal framework can close doors permanently rather than simply driving spirits away temporarily.',
+    id: 'natural-vs-spiritual', number: 3, icon: '🔍', tier: 'free',
+    title: 'Natural vs Spiritual',
+    intro: 'One of the most critical skills in spiritual warfare is knowing what you are actually dealing with. Not everything is demonic. Not everything is natural. The failure to distinguish between the two causes catastrophic ministry errors.',
     sections: [
       {
-        heading: 'The Concept of Legal Ground',
-        body: `The spirit realm operates on legal principles. God is a God of justice, and His courts are real (Daniel 7:9-10, Revelation 4-5). This means that demonic access to a person's life is often permitted because of an open legal case — an unresolved sin, an inherited curse, a broken covenant, or a vow made to a false system.
+        heading: 'Two Errors to Avoid',
+        body: `**Error 1: Spiritual Numbness** — treating everything as natural when some things are spiritual in origin. This error produces ineffective ministry, counseling solutions where deliverance is needed, and a community that is constantly under attack without understanding why.
 
-This is why simple commands to "go" sometimes produce only temporary relief. The spirit may comply momentarily, but if the legal ground is not closed, it returns — often with reinforcements (Matthew 12:43-45). The command without the legal closure is like evicting a tenant without changing the locks.
+**Error 2: Spiritual Hyperactivity** — treating everything as demonic when some things are natural, medical, or relational. This error produces paranoia, false diagnoses, unnecessary trauma to hurting people, and a ministry environment that feels more like a horror film than a healing room.
 
-The minister's role is not just eviction — it is revocation of the legal access that allowed entry.`,
+The mature minister walks the narrow road between these two errors. She does not dismiss the supernatural, nor does she invoke it at every turn. She asks the right question: *What is the source of what I am seeing?*`,
       },
       {
-        heading: 'Common Legal Doors',
-        body: `The most common doors that give demons legal access:
+        heading: 'A Practical Framework for Testing',
+        scripture: '1 John 4:1 — "Beloved, do not believe every spirit, but test the spirits to see whether they are from God."',
+        body: `When you encounter a presenting issue — a physical symptom, a behavioral pattern, an emotional struggle — ask these questions in order:
 
-GENERATIONAL SIN — Exodus 20:5 speaks of iniquity visiting to the third and fourth generation. This is not God punishing children for parents' sins — it is a spiritual inheritance law. Demonic assignments attached to bloodlines must be renounced by name and cut off through the blood of Jesus.
+**1. Is there a natural explanation?** Medical conditions are real. Trauma responses are real. Mental health challenges are real. Hormonal imbalances, sleep deprivation, grief, and poverty all produce symptoms that can look spiritual.
 
-SOUL TIES — Unholy covenants formed through sexual sin, abusive relationships, or spiritually controlling relationships create spiritual bonds. These bonds must be broken through repentance, renunciation, and declaration of severance.
+**2. Has natural treatment been pursued?** If someone has never seen a doctor for symptoms that have a potential medical cause, send them first. Deliverance does not replace medicine.
 
-OATHS AND VOWS — Membership in fraternal orders (Freemasonry, Eastern Star), occult practices, ungodly covenants spoken in moments of crisis ("I vow to never trust anyone again") all create legal ground.
+**3. Is there a pattern of generational recurrence?** When the same issue runs in bloodlines — addiction, rage, certain illnesses, sexual sin patterns — the generational signature points to a spiritual component.
 
-UNFORGIVENESS — Matthew 18:34-35 describes the "tormentors" that come to those who refuse to forgive. This is one of the most common reasons deliverance does not hold.
+**4. Does prayer and repentance produce temporary relief that evaporates without structural change?** This is a strong indicator of spiritual roots.
 
-TRAUMA — Trauma creates spiritual "cracks" that can be exploited. This does not mean all trauma victims are demonized, but severe or repeated trauma often opens doors to spirits of fear, torment, and infirmity.`,
+**5. Does the person's spirit respond to the things of God or resist them?** A demonized person often exhibits an aversion to genuine worship, prayer, Scripture, or the name of Jesus that goes beyond normal discomfort.`,
       },
       {
-        heading: 'The Process of Closing Doors',
-        body: `Before or during deliverance, the legal ground must be closed:
+        heading: 'Field Note — Discernment Is the Difference',
+        body: `Not everything is a demon. Not everything is natural. Discernment is the difference — and discernment is not optional equipment for the spiritual warrior. It is standard issue.
 
-1. IDENTIFICATION — Through prayer, conversation, and the gifts of the Spirit, identify the specific legal grounds present.
+The gift of discerning of spirits (1 Corinthians 12:10) is a supernatural gift available to every Spirit-filled believer. But discernment also has an observational dimension that is developed through experience, study, and relationship with God.
 
-2. REPENTANCE — The person must genuinely repent (not just apologize) for any sin-based access. This includes renouncing generational sin not personally committed but inherited.
-
-3. FORGIVENESS — If unforgiveness is present, the person must choose to release the debt. This is an act of will, not feeling. Minister them through it if needed.
-
-4. RENUNCIATION — Spoken renunciation of oaths, vows, occult involvement, and soul ties. These must be verbalized, not just thought.
-
-5. DECLARATION — Closing the door with declaration: "I now close every door that [specific ground] has opened to the enemy. I plead the blood of Jesus over this access point and declare it permanently sealed."
-
-Only then should eviction commands be given. The legal work must precede the ministerial work.`,
+Ask the Holy Spirit before every ministry encounter: *What am I dealing with?* He will tell you. And He will be right.`,
       },
     ],
   },
   {
-    id: 'prayer-warfare',
-    number: 4,
-    icon: '🙏',
-    title: 'Prayer Warfare',
-    subtitle: 'Types, strategy, and posture',
-    tier: 'soldier',
-    intro: 'Not all prayer is warfare. Not all warfare prayer is correct. This module covers the distinct types of prayer, when to use each, the strategic posture of an intercessor, and why praying "if it be Thy will" during warfare is a tactical error.',
+    id: 'the-fall', number: 4, icon: '🔥', tier: 'free',
+    title: 'The Fall — How Evil Entered',
+    intro: 'Before we can understand how to fight evil, we must understand how it entered. The origin of evil is not a mystery — it is documented in Scripture with enough detail to explain everything that follows.',
     sections: [
       {
-        heading: 'Petition vs. Declaration vs. Intercession',
-        body: `There are at least three distinct modes of prayer that function differently in the spirit realm:
+        heading: 'Free Moral Agents',
+        body: `God created angels, and later humans, as free moral agents. This means they possessed genuine choice — the real capacity to align with God's will or to choose against it.
 
-PETITION is asking God to act. "Lord, heal my friend." This is appropriate in many contexts. It is the language of a child speaking to a Father.
+This is not a design flaw. It is the prerequisite for love. Love cannot be coerced. A being who has no choice but to obey is not worshipping — it is functioning like a machine. God wanted worshippers, not machines.
 
-DECLARATION is asserting what is already legally established in the spirit realm. "By the stripes of Jesus, [name] is healed." "Cancer, I command you to leave this body now in the name of Jesus." This is the language of a minister operating under delegated authority. You are not asking God to do what He already said He would do — you are enforcing it.
-
-INTERCESSION is standing in the gap between God's will and a person or situation's current reality. It involves travail, spiritual weight, and often fasting. Ezekiel 22:30 records God looking for an intercessor — someone who would stand in the gap. This is the most costly form of prayer and the most powerful.
-
-Mixing modes incorrectly causes confusion. You cannot both declare authority and petition God as if the outcome is uncertain in the same breath during a deliverance session.`,
+The power of choice means that the capacity for good and the capacity for evil coexist in free moral agents. God did not create evil. He created beings capable of choosing it — and the choice was theirs.`,
       },
       {
-        heading: 'Praying "If It Be Thy Will" in Warfare',
-        body: `This is a common and costly mistake. Ministers approach a demonized person and pray: "Lord, if it be Your will, please set this person free."
+        heading: 'The Moment of the Fall',
+        scripture: 'Isaiah 14:12-14 — "I will ascend into heaven, I will exalt my throne above the stars of God... I will be like the most High."',
+        body: `At some point prior to the creation of the world, Lucifer — the highest created being, the worship leader of heaven — made a choice. He chose his own will over God's will. That choice introduced evil into the universe.
 
-The problem: It is always God's will for His children to be free (John 8:36, Luke 13:16, Galatians 5:1). Praying "if it be Thy will" in the context of warfare signals uncertainty in the spirit realm — and demons respond to uncertainty with confidence.
+The declaration in Isaiah 14 is repeated five times: "I will." Five declarations of self-will against divine will. The root of sin is not rebellion for its own sake — it is SELFISHNESS. The elevation of self above God and above others.
 
-"If it be Thy will" belongs to prayers of petition in areas where the will of God is not explicitly revealed (career decisions, relationship choices, timing of events). It does not belong in deliverance ministry, healing prayer, or any arena where Scripture clearly establishes God's will.
-
-In warfare, you declare what God has already said. You enforce what the blood already purchased. Uncertainty is not humility — it is a tactical weakness.`,
+This is why the Cross works the way it does. Jesus is the inverse of Lucifer. Where Lucifer declared "I will ascend," Jesus descended. Where Lucifer said "I will exalt my throne," Jesus took the form of a servant. Where Lucifer said "I will be like the Most High," Jesus, being equal with God, emptied Himself (Philippians 2:6-8). The Cross is the reversal of the Fall.`,
       },
       {
-        heading: 'Building a Prayer Watch Culture',
-        body: `Individual ministers burn out. Sustained victory comes through a prayer watch — a community of intercessors covering ministry consistently.
+        heading: 'Field Note — Why Deliverance Works',
+        body: `Understanding the origin of evil clarifies why deliverance works — and why it is not optional for the Church.
 
-Key principles for establishing a watch:
-• Divide hours of prayer across team members so no single person carries the whole burden
-• Maintain a shared intelligence log of what the Spirit is revealing in prayer
-• Rotate intercessors to prevent compassion fatigue and spiritual depletion
-• Establish clear escalation protocols: some assignments require corporate fasting, not individual prayer
+Lucifer's choice was judged at the Cross. The verdict is not pending — it was rendered. "The ruler of this world is judged" (John 16:11). The enemy operates on borrowed time, in borrowed territory, with borrowed authority that he stole through deception.
 
-The enemy will always target the minister. An unwatched minister is a vulnerable minister. Priority must be given to covering those on the front lines of deliverance.`,
-      },
-    ],
-  },
-  {
-    id: 'deliverance-protocol',
-    number: 5,
-    icon: '⚔',
-    title: 'Deliverance Protocol',
-    subtitle: 'Step-by-step methodology',
-    tier: 'commander',
-    intro: 'Deliverance ministry is not improvisation — it is a Spirit-led but structured process. This module walks through the full deliverance protocol, from intake to post-session care, covering what to expect, how to handle resistance, and how to document outcomes.',
-    sections: [
-      {
-        heading: 'Pre-Session: Intake and Preparation',
-        body: `A deliverance session should never begin cold. Pre-session preparation is essential:
+When we engage in deliverance ministry, we are not struggling against a power equal to ours. We are enforcing the verdict of a court that already ruled. The Judge has spoken. We are the marshals.
 
-MINISTER PREPARATION — Spend time in prayer, ideally fasting, before the session. Ensure you are in right standing with God and your covenant relationships. Unresolved sin or offense in the minister is a liability in the room.
-
-INTAKE — Gather the person's history: spiritual background, generational history, trauma, occult involvement, sexual history (as relevant to identifying soul ties), any previous deliverance sessions and their results, and current spiritual practices.
-
-TEAM COMPOSITION — Do not minister alone if possible. A minimum of two ministers is preferred: one to lead, one to intercede and observe. A third for logistics and documentation is ideal.
-
-ROOM SETUP — Remove objects that may have spiritual attachment (crystals, occult art, ungodly symbols). The space should be physically clean and spiritually prepared through prayer and declaration.
-
-GROUND RULES — Explain the process to the person. They should understand they must want to be free, they must cooperate (not fight the process), and they may experience physical manifestations. Consent is important.`,
-      },
-      {
-        heading: 'The Session: Order of Operations',
-        body: `A structured deliverance session follows this general order:
-
-1. OPEN IN WORSHIP AND PRAYER — Establish the presence of God. Do not skip this. A session begun in His presence is a session positioned for victory.
-
-2. SEAL THE ROOM — Declare the blood of Jesus over the space. Command any spirits not directly attached to the person to be bound and removed from the room. Bind interference.
-
-3. ESTABLISH IDENTITY — Remind the person (and the spirits present) of the person's identity in Christ. Read or declare relevant scriptures.
-
-4. ADDRESS LEGAL GROUNDS — Walk through the identified doors (from intake). Lead the person in repentance, renunciation, and forgiveness prayers systematically.
-
-5. BIND THE STRONGMAN — Identify the governing spirit and bind it specifically before attempting to address underlings.
-
-6. COMMAND EVICTION — In the name of Jesus, command each spirit by name (or function if name is unknown) to leave. Be specific. "Spirit of rejection, I command you to release every part of this person and go now, in the name of Jesus."
-
-7. LISTEN TO THE SPIRIT — The Holy Spirit will direct which spirits remain, which need different legal ground addressed, and when the session is complete. Do not proceed faster than discernment allows.
-
-8. FILL THE EMPTY HOUSE — After eviction, immediately minister to the person. The empty space must be filled with the Spirit. Lead them in receiving the Holy Spirit, declaring truth, and establishing new identity declarations.`,
-      },
-      {
-        heading: 'Handling Resistance and Escalation',
-        body: `Some sessions will encounter strong resistance. Resistance is not failure — it is information.
-
-WHEN A SPIRIT WILL NOT LEAVE — Check for remaining legal ground. Ask the Spirit what is blocking. Common causes: unforgiveness not yet addressed, a hidden vow or oath, a generational assignment not yet renounced, or a spirit requiring a higher level of authority (Mark 9:29 — some require fasting).
-
-PHYSICAL MANIFESTATIONS — Expect: shaking, contorting, sounds, nausea, crying, laughter (rare), unconsciousness (rare). These are manifestations of spirits leaving or resisting eviction. They are normal. Do not panic. Do not stop. Keep commanding with calm authority.
-
-WHEN TO STOP — If the person becomes combative in ways that create safety risks, if you are spiritually depleted beyond capacity to continue safely, or if the Spirit clearly indicates to pause. Partial deliverance is better than a chaotic session that traumatizes the person further.
-
-ESCALATION PROTOCOLS — Some assignments require team escalation: bringing in more senior ministers, calling a corporate fast, or scheduling follow-up sessions. This is not defeat. Even Jesus sent the disciples back to the city for corporate prayer in difficult cases.`,
-      },
-    ],
-  },
-  {
-    id: 'maintaining-freedom',
-    number: 6,
-    icon: '🛡',
-    title: 'Maintaining Freedom',
-    subtitle: 'Post-deliverance discipleship',
-    tier: 'commander',
-    intro: 'The goal of deliverance is not the session — it is lasting freedom. Matthew 12:43-45 describes the spirit returning to an "empty, swept, and put in order" house. The house must be occupied, not just cleaned. Post-deliverance discipleship is not optional.',
-    sections: [
-      {
-        heading: 'The Empty House Problem',
-        body: `Jesus describes what happens when a spirit is evicted but the house is not filled: the spirit returns, finds the house empty, and brings seven spirits more wicked than itself. The person ends up worse than before.
-
-This is why deliverance without discipleship is often counterproductive. The minister who drives spirits out and then leaves the person with no community, no Word, no accountability, and no ongoing sanctification has set up a revolving door.
-
-The "filling" of the house includes:
-• Active relationship with the Holy Spirit (not just one-time reception)
-• Daily engagement with the Word
-• Covenant community — people who know the person's history and walk with them
-• Accountability for the specific areas where legal ground was previously open
-• A clear prayer life and ongoing spiritual disciplines`,
-      },
-      {
-        heading: 'Warning Signs of Re-infestation',
-        body: `Teach newly delivered people to recognize the signs of returning assignment:
-• Sudden, inexplicable return of old thought patterns that were clearly absent post-session
-• Compulsive urge to return to renounced behaviors
-• Isolation impulse — pulling away from community and accountability
-• Resurgence of old fears or torments after a period of peace
-• Dreams that were previously associated with demonic oppression
-
-These are not automatically signs of failure. They are often tests. The returning spirit is looking for an opening. If the person has been discipled well, they will recognize the knock at the door and refuse to answer.
-
-Teach them: "When that thought comes, it is a visitor, not a resident. Do not invite it in."`,
-      },
-      {
-        heading: 'Building a Deliverance Aftercare Plan',
-        body: `Every person who receives significant deliverance should leave with a written aftercare plan that includes:
-
-1. DAILY DECLARATIONS — 3-5 personalized identity declarations based on the legal ground that was closed and the spirits that were evicted
-
-2. ACCOUNTABILITY PARTNER — Someone from the community who checks in weekly for the first 3 months
-
-3. TRIGGER AWARENESS — A list of the situations, relationships, or environments that historically opened the doors that were closed; a plan for navigating those triggers
-
-4. ESCALATION PROTOCOL — Who to call and what to do if they feel the assignment returning. They should not feel alone in this.
-
-5. FOLLOW-UP SESSION — Schedule a 30-day check-in to assess how freedom is holding, close any remaining doors identified post-session, and celebrate what God has done.
-
-Freedom maintained is more powerful than freedom won and lost.`,
-      },
-    ],
-  },
-  {
-    id: 'equipping-others',
-    number: 7,
-    icon: '🔥',
-    title: 'Equipping Others',
-    subtitle: 'Raising up the next generation',
-    tier: 'general',
-    intro: 'The ministry of deliverance was never meant to be centralized in one person. Ephesians 4:12 describes the five-fold ministry as existing "for the equipping of the saints for the work of ministry." The goal is multiplication — ministers who make ministers.',
-    sections: [
-      {
-        heading: 'The Multiplication Mandate',
-        body: `2 Timothy 2:2 gives the generational model: "And the things you have heard me say in the presence of many witnesses entrust to reliable people who will also be qualified to teach others." This is a four-generation mandate: Paul → Timothy → reliable people → others.
-
-In deliverance ministry, this looks like:
-• Senior ministers who carry the protocol and the history
-• Mid-level ministers who are actively practicing under oversight
-• Apprentices who are observing and beginning to participate
-• Newly delivered people who are being discipled toward future ministry
-
-Every minister should be discipling someone. Every mature minister should be raising up those who will eventually outpace them. This is not competition — it is the Kingdom.`,
-      },
-      {
-        heading: 'What to Vet Before Releasing a Minister',
-        body: `Not everyone who wants to do deliverance is ready to do deliverance. Gatekeeping is an act of love — both for the apprentice and for the people they would minister to.
-
-Before releasing someone to lead deliverance sessions, they should demonstrate:
-
-PERSONAL FREEDOM — They should have been through their own significant deliverance. Ministers who have not dealt with their own doors carry those open doors into sessions. This is dangerous for them and for those they serve.
-
-CHARACTER STABILITY — Maturity in the fruit of the Spirit, particularly self-control and gentleness. Deliverance ministry done in anger, pride, or desperation causes harm.
-
-SCRIPTURAL FOUNDATION — They must understand the legal framework, the hierarchy, and the protocol. Enthusiasm without knowledge is dangerous.
-
-SUBMISSION — They must be submitted to covering — not independent operators. Independent deliverance ministers operating without accountability are prime targets for infiltration.
-
-DISCERNMENT — Not just the desire to cast things out, but the ability to hear the Spirit clearly in a session, to know what they are dealing with, and to know when to stop.`,
-      },
-      {
-        heading: 'Building a Team Culture',
-        body: `A healthy deliverance team functions like a special operations unit — high trust, clear roles, mutual submission, and a shared mission.
-
-Key team culture practices:
-• Regular team prayer and debrief after sessions — never let the spiritual weight accumulate without processing
-• Transparent communication about personal struggles — team members who are carrying unacknowledged warfare become liabilities
-• Clear chain of authority — everyone knows who leads, who intercedes, who documents, who handles logistics
-• Shared intelligence — what the Spirit is showing in prayer is shared with the team, not hoarded
-• Regular team deliverance — the minister is a target; the team should regularly pray over and minister to each other
-• Celebration of victories — deliverance ministry deals with heavy things; create rhythms of joy and worship
-
-The team that prays together, fasts together, and celebrates together will sustain the ministry long-term. Individual ministers burn out. Teams endure.`,
+The enemy knows his sentence. He is fighting not to win — he cannot win — but to take as many casualties as possible before the final judgment. Understanding this changes your posture. You do not beg a defeated enemy to leave. You enforce a verdict already handed down.`,
       },
     ],
   },
 ]
 
+const ENEMY_MODULES: Module[] = [
+  {
+    id: 'signs-symbols', number: 5, icon: '👁', tier: 'soldier',
+    title: 'Signs, Symbols & Occult Gateways',
+    intro: 'The enemy operates counterfeits of God\'s order. Symbols, holidays, objects, and practices can carry genuine spiritual weight — either as open doors or as indicators of the enemy\'s territory in a person\'s history.',
+    sections: [
+      {
+        heading: 'The Counterfeiting Strategy',
+        scripture: '2 Corinthians 11:14 — "And no wonder, for Satan himself masquerades as an angel of light."',
+        body: `The enemy does not primarily operate through obvious darkness. He operates through counterfeits — imitations of the genuine that are designed to capture those who are hungry for the real.
+
+Every occult system is a counterfeit of something genuine:
+- Divination counterfeits prophecy
+- Astrology counterfeits the discernment of times and seasons
+- Mediumship counterfeits communication with God
+- Witchcraft counterfeits the miraculous power of the Holy Spirit
+- Secret societies counterfeit covenant community
+
+The pattern is consistent: take a real hunger, provide a dark substitute, attach spiritual bondage to the transaction.`,
+      },
+      {
+        heading: 'Common Occult Gateways in Ministry Context',
+        body: `In deliverance ministry, certain categories of background information consistently correlate with specific types of demonic access:
+
+**Generational occult involvement** — Freemasonry, Eastern Star, Odd Fellows, Shriners, and similar fraternal orders involve oaths sworn to unnamed deities and ceremonies that mock the sacraments of Christ. These create strong generational assignments.
+
+**Active occult practice** — Tarot, Ouija boards, witchcraft, Wicca, Santería, voodoo, and similar practices constitute direct invitations to demonic access.
+
+**New Age practices** — Reiki, energy work, crystal healing, past-life regression, and channeling are often presented as spiritually neutral but involve direct contact with spirit entities not of God.
+
+**Occult objects** — Items consecrated to false deities, ritual objects, charms, and some cultural artifacts carry spiritual attachment and should be removed and destroyed (Acts 19:19).
+
+**Entertainment and media** — Prolonged immersion in occult media, horror, or spiritually dark content is not the same as active practice, but it opens the mind and can create spiritual desensitization.`,
+      },
+      {
+        heading: 'Field Note — Know Enough, Not Everything',
+        body: `You do not need to become an expert in darkness to recognize an open door. The minister who spends years cataloguing every occult system becomes vulnerable to what he studies and loses perspective.
+
+Know enough to recognize the category. Know that Freemasonry creates generational assignments. Know that occult sexual rituals create strong soul ties. Know that objects consecrated to other deities need to go. You do not need the detailed theology of every cult or the rank structure of every occult lodge.
+
+Ask the Holy Spirit what He wants you to know in the session. He will bring to light what needs light. He will not ask you to go digging in darkness alone.`,
+      },
+    ],
+  },
+  {
+    id: 'types-of-bondage', number: 6, icon: '⛓', tier: 'soldier',
+    title: 'Types of Bondage',
+    intro: '"Anything meant to hold you close to the world, tie you to Satan, keep you from God — that is bondage." Bondage is not always dramatic. Most people who come for ministry are bound by shame, patterns, and agreements, not Hollywood possession.',
+    sections: [
+      {
+        heading: 'The Spectrum of Bondage',
+        scripture: 'Isaiah 61:1 — "The Spirit of the Lord God is upon me... to proclaim liberty to the captives, and the opening of the prison to those who are bound."',
+        body: `Bondage exists on a spectrum from mild to severe. Understanding the spectrum prevents both under-treatment and over-diagnosis.
+
+**Worldly Attachment** — The lowest level: patterns of thinking, behaving, and relating that are shaped more by the world's system than by the Kingdom. The person is not demonized but is operating according to ungodly frameworks. Discipleship and renewing of the mind address this level.
+
+**Sin Patterns** — Recurring cycles of specific sin that persist despite genuine desire to stop. The person wants to be free but cannot break the cycle through willpower. This often has a spiritual root that needs to be addressed.
+
+**Oppression** — External demonic pressure on a person's life: financial destruction, relationship fracture, illness patterns, accidents, and persistent spiritual attack that cluster around a person. The person is not demonized but is under assignment.
+
+**Demonization** — Internal demonic presence: a spirit has established legal ground and taken residence. This ranges from mild influence in specific areas to stronger manifestation in multiple areas.`,
+      },
+      {
+        heading: 'What Bondage Is Not',
+        body: `Clarity on what bondage is NOT prevents harmful ministry errors:
+
+**Bondage is not weakness** — A person in significant bondage may be a genuine believer, a faithful church member, a person of prayer. The presence of bondage does not reflect the absence of faith.
+
+**Not every struggle is bondage** — The normal human experience includes temptation, grief, disappointment, and growth pains. Not every difficult season is a demonic attack.
+
+**Demonization is not possession in the Hollywood sense** — "Possession" implies total control. Most demonized people function normally in most areas of life and have localized areas of demonic influence.
+
+**Bondage is not permanent** — There is no bondage too deep for the power of the Cross. The enemy wants you to believe some situations are irreversible. They are not.`,
+      },
+      {
+        heading: 'Field Note — Most People Are Not Who You Think',
+        body: `Most people in your ministry sessions are not coming to you because they saw furniture move or heard voices. They are coming because they cannot stop drinking. Because their marriage is destroying itself by a force they do not understand. Because the same pattern of financial destruction runs in every generation of their family. Because they cannot feel God no matter how hard they try.
+
+These are bondage presentations. They are real. They are spiritual in significant part. And they respond to deliverance ministry when the legal ground is addressed and the spirits are properly evicted.
+
+Do not screen people out because they are "not dramatic enough." The quiet sufferer has been waiting for someone to tell him that there is a name for what has been happening to him — and that the Cross already paid for his freedom.`,
+      },
+    ],
+  },
+  {
+    id: 'red-flags-detection', number: 7, icon: '🎯', tier: 'soldier',
+    title: 'Red Flags & Detection',
+    intro: 'Two methods exist for identifying demonic activity: Discernment — a supernatural gift — and Detection — a learned observational skill. Every minister needs both.',
+    sections: [
+      {
+        heading: 'Discernment — The Supernatural Gift',
+        scripture: '1 Corinthians 12:10 — "To another the discerning of spirits."',
+        body: `The gift of discerning of spirits is a specific gift of the Holy Spirit listed among the gifts in 1 Corinthians 12. It gives the believer supernatural perception of the spiritual realm — the ability to sense the presence and nature of spirits, to know what is operating in a room or a person, and to distinguish between what is of God and what is not.
+
+This gift operates differently in different ministers. For some it is primarily sensory — physical sensations that correspond to spiritual realities. For others it is primarily visual — seeing in the spirit realm. For others it is primarily cognitive — a sudden knowing.
+
+The gift is not the result of experience or education. It is a grace gift given by the Spirit as He wills (1 Corinthians 12:11). But it can be exercised more fluently as the believer grows in intimacy with God and sensitivity to the Spirit.`,
+      },
+      {
+        heading: 'Detection — The Observational Skill',
+        body: `Detection is the learned ability to observe patterns, behaviors, and histories that indicate demonic activity. It is not supernatural — it is applied wisdom and pattern recognition built through experience.
+
+**Behavioral red flags in a ministry setting:**
+- Sudden change in voice, posture, or facial expression during prayer
+- Extreme aversion to the name of Jesus, the blood, or the Cross — disproportionate to religious background
+- Physical symptoms that appear specifically during worship or prayer (nausea, shaking, choking)
+- Eyes that shift, glaze, or show unusual dilation
+- Sudden extreme fatigue or desire to leave during spiritual engagement
+- Laughter that is inappropriate and disconnected from emotional context
+
+**Historical red flags in intake:**
+- Significant occult background (self or generational)
+- Repeated cycles of the same failure pattern across years despite genuine effort to stop
+- Consistent trauma history with no breakthrough despite significant counseling
+- Unexplained physical symptoms that medicine cannot diagnose
+- Persistent inability to sense God or engage in genuine prayer despite desire to do so`,
+      },
+      {
+        heading: 'Field Note — Both Are Required',
+        body: `Discernment without detection produces a minister who trusts impressions without observation — vulnerable to emotional manipulation and personal projection.
+
+Detection without discernment produces a minister who makes clinical lists but cannot hear the Spirit tell him what he is actually dealing with.
+
+The mature minister uses both simultaneously. He observes what is happening in the natural. He asks the Spirit what is happening in the spiritual. He holds both until they align. And when they align, he moves with confidence.
+
+Discernment is a gift. Detection is a discipline. Every minister needs both. And neither is a substitute for the other.`,
+      },
+    ],
+  },
+]
+
+const AUTHORITY_MODULES: Module[] = [
+  {
+    id: 'authority', number: 8, icon: '✦', tier: 'soldier',
+    title: 'Authority — How I Fight My Battles',
+    intro: 'Authority is only as good as what empowers it. A badge with no backing is a prop. Our authority in spiritual warfare derives from Christ — not from rank, title, experience, or volume.',
+    sections: [
+      {
+        heading: 'The Source of Authority',
+        scripture: 'Matthew 28:18-20 — "All authority in heaven and on earth has been given to me. Therefore go..."',
+        body: `The authority we carry in spiritual warfare is delegated authority. Jesus did not give us authority from Himself — He gave us His authority through Himself. This is a critical distinction.
+
+We do not generate spiritual authority. We do not earn it through years of ministry. We do not accumulate it through fasting or sacrifice. We receive it as a gift by virtue of our union with Christ.
+
+This means our authority is as strong on day one as on day ten thousand — because it is His, not ours. A new believer walking in full identity has the same delegated authority as a fifty-year veteran. The difference is often in clarity, experience, and spiritual maturity — not in the authority itself.`,
+      },
+      {
+        heading: 'The Name of Jesus — Not a Formula, a Verdict',
+        scripture: 'Luke 10:19 — "I have given you authority to trample on snakes and scorpions and to overcome all the power of the enemy."',
+        body: `The name of Jesus carries all authority in heaven and on earth. When we invoke His name, we are not using a magic formula — we are citing a legal verdict issued at the Cross.
+
+The seven sons of Sceva tried to invoke "the Jesus whom Paul preaches" and were beaten and chased out naked (Acts 19:13-16). The demon said: "Jesus I know, and Paul I know — but who are you?" The authority was rejected because they had no relationship, no covenant, and no standing before God.
+
+You do not use the name of Jesus. You stand in the name of Jesus — because you are in covenant with Him, united with Him, and bearing His delegated authority as His representative.
+
+The difference between a minister who commands with the name of Jesus and gets results, and one who uses the same words and gets none, is not the name — it is the relationship and the standing.`,
+      },
+      {
+        heading: 'Field Note — You Do Not Argue, You Enforce',
+        body: `You do not argue with the enemy. You do not negotiate. You do not beg. You enforce.
+
+A law enforcement officer does not ask a fugitive to please consider complying with the warrant. He presents the warrant and enforces it with the authority backing him.
+
+The Cross is the warrant. The name of Jesus is the credential. The authority of God is the backing. When you command a spirit to leave in the name of Jesus, you are not hoping it will listen — you are enforcing a verdict already handed down by the highest court in the universe.
+
+This is not arrogance. It is the posture of a representative who knows his authority is real and his warrant is valid.`,
+      },
+    ],
+  },
+  {
+    id: 'discernment-weapon', number: 9, icon: '🔍', tier: 'soldier',
+    title: 'Discernment — How I Fight My Battles',
+    intro: 'The Body of Christ has largely lost its spiritual common sense. Discernment is not a special ability reserved for elite believers — it is standard issue for the born-again, Holy Ghost-filled minister who stays close to God.',
+    sections: [
+      {
+        heading: 'What Discernment Is',
+        body: `Discernment is the capacity to distinguish — between truth and error, between what is of God and what is not, between the Spirit's movement and a counterfeit.
+
+Hebrews 5:14 describes it as a faculty developed through training and practice: "But solid food is for the mature, who by constant use have trained themselves to distinguish good from evil." The original Greek word for "trained" is the same root as the English word "gymnasium" — deliberate, repeated exercise.
+
+Discernment is not primarily a feeling — though it often comes through a feeling. It is not primarily a thought — though it comes through cognition. It is a perception of spiritual reality made available to the believer by the indwelling Holy Spirit, sharpened through intimacy with God and the consistent study of Scripture.`,
+      },
+      {
+        heading: 'How to Grow the Gift',
+        scripture: '1 Thessalonians 5:21 — "Test everything; hold fast what is good."',
+        body: `Discernment grows through four practices:
+
+**1. Stay in the Word** — The most reliable form of discernment is the ability to measure what you encounter against the unchanging standard of Scripture. A minister who does not know the Word will be fooled by anything that sounds spiritual. "Your word is a lamp to my feet" (Psalm 119:105).
+
+**2. Stay in intimacy with the Spirit** — The Holy Spirit knows all things. He will tell you what you need to know if you listen. But listening requires quiet — internal quiet — the capacity to hear the still, small voice above the noise of ministry and emotion.
+
+**3. Test everything, especially yourself** — The most dangerous errors in discernment come from confusing your own thoughts, impressions, and projections with what the Spirit is saying. Ask: "Is this consistent with Scripture? Is this motivated by love? Would this produce freedom or fear?"
+
+**4. Practice in community** — Discernment exercised alone, without accountability or correction, drifts toward error. Prophetic words tested by a team of mature believers are more reliable than impressions held privately.`,
+      },
+      {
+        heading: 'Field Note — Build It Like a Muscle',
+        body: `Discernment grows like a muscle. You do not build it by thinking about it. You build it by using it — and by being willing to be wrong while you are learning.
+
+The minister who never ventures a discernment call because he is afraid of being wrong will never develop the gift. The minister who ventures discernment calls, submits them to accountability, notes when he was right and when he was wrong, and asks the Spirit to sharpen him — that minister grows.
+
+Stay in intimate relationship with the One who knows all things. He is not hiding information from you. He is waiting for you to draw close enough to hear it.`,
+      },
+    ],
+  },
+  {
+    id: 'closing-gateways', number: 10, icon: '🚪', tier: 'soldier',
+    title: 'Closing Spiritual Gateways',
+    intro: '"Neither give place to the devil" (Ephesians 4:27). Every demonic foothold began as an open door. Every open door can be closed. The work of closing gateways is not optional maintenance — it is the structural work that makes deliverance hold.',
+    sections: [
+      {
+        heading: 'How the Enemy Gains Legal Access',
+        scripture: 'Ephesians 4:27 — "Neither give place to the devil."',
+        body: `The Greek word translated "place" in Ephesians 4:27 is topos — a physical location, a territory, a legally occupied space. The command is: do not give the enemy a legal place in your life.
+
+The enemy does not gate-crash. He enters through doors. Every door is a legal right — a specific sin, agreement, vow, trauma, or ancestral pattern that gave him access. And because God is just, access granted by a legal right can only be permanently revoked by closing that legal right.
+
+Common categories of open doors:
+**Sin** — Persistent, unrepented sin in specific areas creates habitual access.
+**Trauma** — Severe or repeated trauma creates spiritual vulnerability that can be exploited.
+**Agreements** — Spoken or believed lies about yourself, God, or others that you have come into agreement with.
+**Objects** — Items with spiritual consecration to other systems.
+**Ancestry** — Generational sin that has not been renounced creates inherited assignment.`,
+      },
+      {
+        heading: 'The Process of Closing Doors',
+        body: `Closing a spiritual gateway is a legal process with spiritual force. It has four steps:
+
+**1. Identification** — Through prayer, intake, and the Spirit's leading, identify the specific gateway: what is it, when did it open, and what has been accessing through it?
+
+**2. Repentance and Renunciation** — The person verbally repents of the specific sin or involvement and renounces any agreement made with the enemy through it. This must be spoken — not just thought. The spirit realm operates on words. Declarations have force.
+
+**3. Forgiveness** — If another person is involved in the open door (abuse, betrayal, ungodly soul tie), the person must release forgiveness. Unforgiveness is the most common reason deliverance does not hold. Matthew 18:34-35 is not metaphorical — the tormentors that come through unforgiveness are real.
+
+**4. Closure and Consecration** — Declare the door closed in the name of Jesus. Plead the blood of Jesus over the access point. Declare the space now consecrated to God.`,
+      },
+      {
+        heading: 'Field Note — From Pastor Justin\'s Sermon',
+        body: `"The devil doesn't want you to hear this. Pray for strength and revelation before you go deeper into this content. The enemy knows that a minister who understands gateways is one he cannot play games with."
+
+The work of closing gateways is not glamorous. It is not dramatic, usually. It is methodical, legal, and permanent — when done correctly.
+
+The minister who masters this step will find that the eviction commands that follow become almost anti-climactic. The spirit has no more legal standing. It is already defeated. You are simply serving the notice.
+
+The gate that is closed stays closed — as long as the person maintains the walk of freedom. That is why post-deliverance discipleship is not optional. Closing the door is one thing. Keeping it closed requires a changed life.`,
+      },
+    ],
+  },
+]
+
+const FIELD_NOTES: Article[] = [
+  {
+    id: 'prelude-to-a-battle',
+    title: 'Prelude to a Battle',
+    pages: 'Session 1',
+    intro: 'Before the battle is the preparation. Every significant spiritual engagement is preceded by a season of alignment — alignment with God, with your team, with the assignment. This session establishes the foundation.',
+    sections: [
+      {
+        heading: 'Why Preparation Matters',
+        scripture: 'Luke 14:31 — "What king, going out to wage war against another king, will not sit down first and consider whether he is able with ten thousand to meet him who comes against him with twenty thousand?"',
+        body: `Jesus used military language to describe spiritual readiness. The king who goes to battle without counting the cost does not exhibit faith — he exhibits foolishness. Preparation is not the opposite of faith. It is the infrastructure faith operates through.
+
+In spiritual warfare, preparation involves:
+- Personal alignment with God: Is there unconfessed sin, unresolved offense, or spiritual depletion in the minister?
+- Team preparation: Is the team in agreement, covered in prayer, and clear on the assignment?
+- Intelligence gathering: Do we understand what we are walking into?
+
+The warrior who skips preparation does not shortcut the process — he simply encounters the resistance unprepared.`,
+      },
+      {
+        heading: 'The State of the Church',
+        body: `The Church in the Western world largely does not know what it is doing in the spirit realm. This is not a condemnation — it is an observation. Generations of cessationist theology, comfort Christianity, and therapeutic ministry have produced a Church that is fully equipped for counseling but largely unequipped for combat.
+
+The people sitting in your sessions have often been in therapy for years. They have confessed the same sin cycles to the same pastor a hundred times. They have white-knuckled their way through sobriety programs and failed. They have prayed the same prayer over their marriage and watched it die anyway.
+
+They are not coming to you for more advice. They are coming because they are at the end of the natural. They need someone who can operate in the supernatural.
+
+You are that person. Whether you feel like it or not.`,
+      },
+      {
+        heading: 'Getting Ready to Fight',
+        body: `Before you step into any ministry environment — whether a one-on-one session or a large deliverance meeting — take the following seriously:
+
+**Your Personal Holiness** — The enemy will use what you have not addressed in your own life as leverage. You do not need to be perfect. You need to be current. Deal with what is between you and God before you deal with what is between someone else and the enemy.
+
+**Your Covering** — Who is praying for you? Who knows you are going into ministry today? Who will debrief with you afterward? A minister with no covering is a minister walking a tightrope without a net.
+
+**Your Expectation** — Go expecting God to show up. Not hoping He will. Expecting. Cynicism is a ministry killer. God delights in delivering His people. He wants to show up more than you want Him to.`,
+      },
+    ],
+    takeaway: 'The battle is won before it is fought — in the preparation. Get right, get covered, get your expectation aligned with what God has already said He will do. Then show up.',
+  },
+  {
+    id: 'the-edge',
+    title: 'The Edge',
+    pages: 'Session 2',
+    intro: 'What separates the minister who sees consistent breakthrough from the one who doesn\'t? It is not anointing, talent, or years of experience. It is the willingness to go further than comfort allows.',
+    sections: [
+      {
+        heading: 'Defining the Edge',
+        body: `"The Edge" is the place where your faith is required to function beyond your experience. It is where what you know is not enough and what you trust must carry you.
+
+Every significant breakthrough in ministry happened at someone's Edge. Peter did not walk on calm water from the shore. He walked on storm water, from a boat, at the invitation of Jesus. His Edge was the moment his foot left the boat.
+
+The minister who never reaches his Edge never tests his faith in ways that produce growth. He ministers safely, within what he has already seen, and is surprised when the outcomes are what he has always seen.`,
+      },
+      {
+        heading: 'The Enemy of the Edge — Comfort',
+        scripture: 'Joshua 1:9 — "Have I not commanded you? Be strong and courageous. Do not be frightened, and do not be dismayed, for the Lord your God is with you wherever you go."',
+        body: `The enemy of the Edge is not fear — though fear is its frequent companion. The enemy of the Edge is comfort.
+
+The comfortable minister does not go into hard sessions. He does not pursue training that challenges his theological assumptions. He does not volunteer for the difficult cases. He ministers within his comfort range, which grows smaller with each year he refuses to be stretched.
+
+God's command to Joshua — "Be strong and courageous" — was not a pep talk. It was a command. Courage is not the absence of fear. It is the decision to move forward in the presence of fear, anchored to the reality that God is with you.`,
+      },
+      {
+        heading: 'Going Deeper Without Going Dark',
+        body: `There is a kind of "going deeper" that is actually going darker — the minister who pursues esoteric knowledge about demonic ranks, who seeks to know the enemy more thoroughly than he knows God, who becomes fascinated by darkness under the guise of spiritual warfare research.
+
+This is not the Edge. This is a ditch.
+
+The Edge God calls us to is the Edge of our dependence on Him — going to places where we need Him so completely that we will not survive without His presence. It is not about knowing more about darkness. It is about trusting God more completely in the presence of darkness.
+
+Go deeper into the Word. Go deeper into prayer. Go deeper into intercession. Go deeper into the lives of broken people who need the power of God. That is the Edge that produces breakthrough.`,
+      },
+    ],
+    takeaway: 'The Edge is not a place of danger — it is a place of encounter. Every minister who has ever seen the impossible happen found God at the Edge of their own capability. Go there.',
+  },
+  {
+    id: 'authority-sermon',
+    title: 'Authority',
+    pages: 'Session 3',
+    intro: 'Authority in spiritual warfare is not about volume, emotion, or spiritual aggression. It is about knowing who you are, whose you are, and what has already been established in the spirit realm on your behalf.',
+    sections: [
+      {
+        heading: 'The Verdict Is In',
+        scripture: 'Colossians 2:15 — "Having disarmed the powers and authorities, He made a public spectacle of them, triumphing over them by the cross."',
+        body: `The Cross was not the low point of Christ's ministry — it was the apex of it. At the Cross, the enemy was disarmed, the powers and authorities were stripped of their dominion, and the verdict against humanity was reversed.
+
+"Having made a public spectacle of them" — this is the language of a Roman triumph. When a Roman general returned from victory, he would parade the defeated kings and generals through the streets in chains, as a public declaration that the war was over and the victor was established.
+
+The Cross was that parade. The principalities and powers were paraded in defeat, before all of heaven and earth, at the moment they thought they had won. The resurrection sealed the verdict.
+
+You fight from that verdict. You do not fight toward it.`,
+      },
+      {
+        heading: 'Why Some Ministers Have It and Some Don\'t',
+        body: `Walk into any gathering of people who call themselves deliverance ministers and you will quickly observe a difference. Some command and things happen. Others command with equal volume and equal sincerity and nothing happens.
+
+The difference is not talent. It is not anointing in some mystical, untouchable sense. The difference is this: *the ones who get results actually believe what they are saying.*
+
+They believe in the authority of the name of Jesus not as a theological proposition but as a present operational reality. They believe that the spirit realm responds to them because they have settled in their heart who they are in Christ. They do not beg. They do not perform. They enforce.
+
+You can have this. It is available to every believer. But it requires settling the question of your identity before you are in the session — not during it.`,
+      },
+      {
+        heading: 'Practical: Walking in Authority Daily',
+        body: `Authority in ministry flows from authority in life. The minister who submits to God's authority in his marriage, his finances, his disciplines, and his secret life carries genuine spiritual authority when he stands over a demonized person.
+
+The minister who compartmentalizes — who walks in rebellion in private and tries to enforce the Kingdom in public — is building a ministry on sand. The enemy knows the difference. The people in your sessions may not — but the spirits do.
+
+Daily maintenance of your authority:
+- Start each day with a declaration of your identity in Christ
+- Address sin quickly — do not let it accumulate
+- Stay under genuine spiritual covering and accountability
+- Walk in forgiveness; offense neutralizes authority faster than almost anything else
+- Feed your spirit more than your soul — spend more time in worship and the Word than in ministry reading`,
+      },
+    ],
+    takeaway: 'You carry real authority — not because you are special, but because you are His. Live accordingly in private and it will show in public. The authority you walk in daily is the authority you will have in the session.',
+  },
+  {
+    id: 'discernment-sermon',
+    title: 'Discernment',
+    pages: 'Session 4',
+    intro: 'Discernment is not rare. It is not complicated. It is the natural fruit of a life lived in close relationship with the God who knows all things. The reason the Church has so little of it is not that God is stingy — it is that we have not asked, and we have not trained.',
+    sections: [
+      {
+        heading: 'We Have Lost Our Spiritual Common Sense',
+        body: `Spiritual common sense — the basic ability to recognize what is of God and what is not, what is a natural struggle and what is a demonic attack, what is the Holy Spirit and what is a counterfeit — used to be assumed in the Church.
+
+It is no longer.
+
+Several generations of theology that denied the supernatural activity of God, coupled with a therapeutic model of ministry that prioritizes psychology over power, have produced a Church that is spiritually near-sighted. We can see the natural clearly. We can barely see the spiritual at all.
+
+This is not acceptable. We are in a war. A soldier who cannot see the enemy is not a ready soldier. Discernment is not a luxury — it is a necessity.`,
+      },
+      {
+        heading: 'The Gift is Available',
+        scripture: '1 John 2:27 — "But the anointing that you received from him abides in you, and you have no need that anyone should teach you. But as his anointing teaches you about everything..."',
+        body: `The gift of discernment is not reserved for a spiritual elite. It is available to every born-again, Spirit-filled believer as a function of the anointing that abides within them.
+
+The Holy Spirit who lives in you is omniscient. He knows what every spirit is, what every situation contains, and what every person needs. The question is not whether He has information for you — He always does. The question is whether you have cultivated the quiet and the intimacy to receive it.
+
+Discernment is learned not by seeking experiences but by seeking God. As you draw closer to the One who discerns all things, His discernment begins to operate more freely through you.`,
+      },
+      {
+        heading: 'What Blocks Discernment',
+        body: `Understanding what blocks discernment is as important as knowing how to develop it.
+
+**Unconfessed sin** — Sin creates spiritual static. It does not eliminate the Holy Spirit's presence, but it significantly impairs the clarity of His communication.
+
+**Offense and unforgiveness** — A minister who is carrying offense toward anyone — a church member, a family member, a former mentor — is partially blind. Offense darkens the spiritual perception.
+
+**Spiritual depletion** — A minister who is running on empty has no margin to perceive subtlety. Rest, silence, and Sabbath are not optional for the discerning minister. Elijah's discernment returned after he ate and slept (1 Kings 19).
+
+**Fear of being wrong** — The minister who is afraid to name what he senses because he might be wrong will suppress the gift. Make the call. Submit it to accountability. Learn from the results. Growth requires the willingness to be wrong.`,
+      },
+    ],
+    takeaway: 'The discerning minister is not a mystic or an elite — he is a person who has learned to stay close to God and stay quiet enough to hear. Start there. Everything else follows.',
+  },
+  {
+    id: 'closing-gateways-sermon',
+    title: 'Closing Spiritual Gateways',
+    pages: 'Session 5',
+    intro: 'Every door the enemy uses was opened by a legal right. Every legal right can be revoked. The work of closing spiritual gateways is the most practical and transferable skill in the deliverance minister\'s toolkit — because it can be taught to the person being ministered to.',
+    sections: [
+      {
+        heading: 'The Legal Architecture of Spiritual Access',
+        scripture: 'Ephesians 4:27 — "Neither give place to the devil." (KJV)',
+        body: `The King James translation — "give place" — captures the legal nature of what Paul is describing. You can give the enemy a legal location, a recognized territory, in your life. And once he has it, he defends it as his.
+
+The enemy is not random. He is strategic. He has legal teams. He presents arguments before courts. The book of Job opens with Satan appearing before God, making a legal case for access to Job's life (Job 1:6-12). The book of Zechariah shows Satan standing as accuser before the angel of the Lord (Zechariah 3:1).
+
+This is not mythology. The spirit realm operates on legal principles because it operates under the authority of a God who is perfectly just. And because He is just, legal access granted through human choice must be revoked through human choice — specifically through repentance, renunciation, and the application of the blood of Jesus.`,
+      },
+      {
+        heading: 'Walking Someone Through Gateway Closure',
+        body: `The greatest gift you can give a newly-delivered person is the ability to close their own gateways. If they depend on a minister every time they feel the enemy at the door, they will never walk in genuine freedom.
+
+Teach them to identify when a gateway is being knocked on — the familiar pull toward the old pattern, the familiar thought arriving uninvited. Teach them to say: "I recognize you. That door is closed in the name of Jesus. I renounce any agreement I have with this. The blood of Jesus covers this access point. Leave."
+
+This is not magic words. It is the application of what was already done in the session — maintained by the person who now knows who they are and what the enemy is doing.`,
+      },
+      {
+        heading: 'When Gateways Won\'t Close',
+        body: `Sometimes a gateway will not close despite repeated attempts. This is not failure — it is information. Common reasons a gateway persists:
+
+**Hidden unforgiveness** — Often the person has released forgiveness in words but not in heart. Press deeper. Ask: "Is there anyone in this situation you have not fully released?" It is often a person or a version of a memory they were not expecting.
+
+**Unidentified vow** — A spoken commitment made in a moment of pain ("I will never trust anyone again," "I deserve this") that was never consciously renounced. Ask the Spirit to surface what was spoken.
+
+**Object not removed** — Something in the physical environment is still consecrated to the system through which the access came. Ask about the physical space.
+
+**Generational assignment still active** — The personal legal ground has been closed, but the family line carries an active assignment. This requires generational renunciation and breaking of inherited agreements.`,
+      },
+    ],
+    takeaway: '"The devil doesn\'t want you to hear this." That sentence alone tells you how important this teaching is. The enemy\'s greatest vulnerability is a minister who understands legal access — because once you know how it works, you know how to revoke it. Learn this. Teach it. Watch what God does.',
+  },
+]
+
+// ── TIER GATE ─────────────────────────────────────────────────────────────────
+function TierGate({ tier }: { tier: string }) {
+  return (
+    <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 12, padding: '32px 28px', textAlign: 'center' as const, marginTop: 24 }}>
+      <div style={{ fontSize: 36, marginBottom: 14 }}>🔒</div>
+      <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>
+        {tier === 'soldier' ? 'SOLDIER+' : 'COMMANDER+'} ACCESS REQUIRED
+      </div>
+      <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, lineHeight: 1.6, marginBottom: 24, maxWidth: 360, margin: '0 auto 24px' }}>
+        This content is available to {tier.charAt(0).toUpperCase() + tier.slice(1)} tier members and above. Upgrade your membership to unlock full access.
+      </div>
+      <a href="/#pricing" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: BG, background: G, padding: '12px 28px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+        UPGRADE MEMBERSHIP
+      </a>
+    </div>
+  )
+}
+
+// ── MODULE CONTENT ─────────────────────────────────────────────────────────────
+function ModuleContent({ mod, hasAccess, completed, onMarkComplete, saving }: {
+  mod: Module; hasAccess: boolean; completed: boolean; onMarkComplete: () => void; saving: boolean
+}) {
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '28px 36px 60px' }}>
+      {/* Module header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+        <span style={{ fontSize: 28, flexShrink: 0, marginTop: 4 }}>{mod.icon}</span>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.14em', marginBottom: 6 }}>
+            MODULE {mod.number} · {mod.tier === 'free' ? 'FREE' : 'SOLDIER+'}
+          </div>
+          <div style={{ fontFamily: cinzel, fontSize: 20, color: G, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 8 }}>{mod.title}</div>
+        </div>
+      </div>
+
+      {/* Intro */}
+      <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '14px 18px', marginBottom: 28 }}>
+        <div style={{ fontFamily: crimson, fontSize: 15, color: DIM, lineHeight: 1.7, fontStyle: 'italic' }}>{mod.intro}</div>
+      </div>
+
+      {!hasAccess ? (
+        <TierGate tier={mod.tier} />
+      ) : (
+        <>
+          {mod.sections.map((sec, i) => (
+            <div key={i} style={{ marginBottom: 32 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 12, paddingBottom: 8, borderBottom: `1px solid ${BDR}` }}>
+                {sec.heading}
+              </div>
+              {sec.scripture && (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: G, fontStyle: 'italic', lineHeight: 1.6, marginBottom: 14, paddingLeft: 14, borderLeft: `2px solid rgba(201,168,76,0.4)` }}>
+                  {sec.scripture}
+                </div>
+              )}
+              <div style={{ fontFamily: crimson, fontSize: 16, color: TXT, lineHeight: 1.9, whiteSpace: 'pre-wrap' as const }}>
+                {sec.body.replace(/\*\*(.+?)\*\*/g, '$1')}
+              </div>
+            </div>
+          ))}
+
+          <div style={{ borderTop: `1px solid ${BDR}`, paddingTop: 24, marginTop: 8, display: 'flex', justifyContent: 'center' }}>
+            {completed ? (
+              <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, display: 'flex', alignItems: 'center', gap: 6 }}>
+                ✓ MODULE COMPLETE
+              </span>
+            ) : (
+              <button
+                onClick={onMarkComplete}
+                disabled={saving}
+                style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: BG, background: G, padding: '12px 32px', borderRadius: 4, border: 'none', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, fontWeight: 700 }}
+              >
+                {saving ? 'Saving...' : '✓ Mark Module Complete'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── MODULE TAB VIEW (left list + right content) ───────────────────────────────
+function ModuleTabView({ modules, progress, hasFullAccess, onMarkComplete, saving, isMobile }: {
+  modules: Module[]; progress: Set<string>; hasFullAccess: boolean
+  onMarkComplete: (id: string) => void; saving: boolean; isMobile: boolean
+}) {
+  const [selected, setSelected] = useState<Module>(modules[0])
+  const [showList, setShowList] = useState(!isMobile)
+
+  const hasAccess = (mod: Module) => mod.tier === 'free' || hasFullAccess
+  const done = (id: string) => progress.has(id)
+
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        {showList ? (
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {modules.map(mod => {
+              const active = selected.id === mod.id
+              const completed = done(mod.id)
+              return (
+                <button key={mod.id} onClick={() => { setSelected(mod); setShowList(false) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '14px 20px', background: active ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: `2px solid ${active ? G : 'transparent'}`, cursor: 'pointer', textAlign: 'left' as const }}>
+                  <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, border: `1px solid ${completed ? G : BDR}`, background: completed ? G : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: completed ? 11 : 9, color: completed ? BG : MUT, fontFamily: cinzel, fontWeight: 700 }}>
+                    {completed ? '✓' : mod.number}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: active ? G : TXT, letterSpacing: '0.04em', marginBottom: 2 }}>{mod.title}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.08em' }}>{mod.tier === 'free' ? 'FREE' : '🔒 SOLDIER+'}</div>
+                  </div>
+                  <span style={{ color: G, fontSize: 14 }}>›</span>
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            <button onClick={() => setShowList(true)} style={{ background: 'none', border: 'none', borderBottom: `1px solid ${BDR}`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: '14px 20px', textAlign: 'left' as const, display: 'flex', alignItems: 'center', gap: 6, minHeight: 44 }}>
+              ← All Modules
+            </button>
+            <ModuleContent mod={selected} hasAccess={hasAccess(selected)} completed={done(selected.id)} onMarkComplete={() => onMarkComplete(selected.id)} saving={saving} />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+      {/* Left list */}
+      <div style={{ width: 260, flexShrink: 0, borderRight: `1px solid ${BDR}`, background: SURF, overflowY: 'auto' }}>
+        {modules.map(mod => {
+          const active = selected.id === mod.id
+          const completed = done(mod.id)
+          return (
+            <button key={mod.id} onClick={() => setSelected(mod)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', background: active ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: `2px solid ${active ? G : 'transparent'}`, cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.03)' }}
+              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, border: `1px solid ${completed ? G : BDR}`, background: completed ? G : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: completed ? 10 : 9, color: completed ? BG : MUT, fontFamily: cinzel, fontWeight: 700 }}>
+                {completed ? '✓' : mod.number}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: active ? G : DIM, letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mod.title}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.06em', marginTop: 2 }}>{mod.tier === 'free' ? 'FREE' : '🔒 SOLDIER+'}</div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      {/* Right content */}
+      <ModuleContent mod={selected} hasAccess={hasAccess(selected)} completed={done(selected.id)} onMarkComplete={() => onMarkComplete(selected.id)} saving={saving} />
+    </div>
+  )
+}
+
+// ── FIELD NOTES TAB ───────────────────────────────────────────────────────────
+function FieldNotesTab({ hasAccess, isMobile }: { hasAccess: boolean; isMobile: boolean }) {
+  const [selected, setSelected] = useState<Article | null>(null)
+
+  if (selected) return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 20px 60px' : '28px 36px 60px' }}>
+      <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 4, minHeight: 44 }}>
+        ← Field Notes
+      </button>
+
+      <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.16em', marginBottom: 8 }}>
+        {selected.pages.toUpperCase()}
+      </div>
+      <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: G, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 8 }}>{selected.title}</div>
+      <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '14px 18px', marginBottom: 28 }}>
+        <div style={{ fontFamily: crimson, fontSize: 15, color: DIM, lineHeight: 1.7, fontStyle: 'italic' }}>{selected.intro}</div>
+      </div>
+
+      {!hasAccess ? <TierGate tier="soldier" /> : (
+        <>
+          {selected.sections.map((sec, i) => (
+            <div key={i} style={{ marginBottom: 32 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 12, paddingBottom: 8, borderBottom: `1px solid ${BDR}` }}>{sec.heading}</div>
+              {sec.scripture && (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: G, fontStyle: 'italic', lineHeight: 1.6, marginBottom: 14, paddingLeft: 14, borderLeft: `2px solid rgba(201,168,76,0.4)` }}>{sec.scripture}</div>
+              )}
+              <div style={{ fontFamily: crimson, fontSize: 16, color: TXT, lineHeight: 1.9 }}>{sec.body}</div>
+            </div>
+          ))}
+          <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '18px 22px', marginTop: 8 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 8 }}>⚔ TAKE IT TO THE FIELD</div>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: TXT, lineHeight: 1.7 }}>{selected.takeaway}</div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 20px 60px' : '28px 36px 60px' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.16em', marginBottom: 12 }}>PASTOR JUSTIN'S BOOTCAMP SERMONS</div>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12, maxWidth: 720 }}>
+        {FIELD_NOTES.map(article => (
+          <div key={article.id} onClick={() => setSelected(article)}
+            style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '18px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = G)}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = BDR)}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.04em', marginBottom: 4 }}>{article.title}</div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, lineHeight: 1.5 }}>{article.intro}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.1em' }}>{article.pages}</span>
+                {!hasAccess && <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5C7CBF', background: 'rgba(92,124,191,0.1)', padding: '2px 6px', borderRadius: 3 }}>🔒 SOLDIER+</span>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── MAIN PAGE ─────────────────────────────────────────────────────────────────
+type Tab = 'doctrine' | 'enemy' | 'authority' | 'notes'
+const TABS = [
+  { id: 'doctrine'   as Tab, label: 'Doctrine',          icon: '📖', minTier: 0 },
+  { id: 'enemy'      as Tab, label: 'The Enemy',         icon: '⚔',  minTier: 0 },
+  { id: 'authority'  as Tab, label: 'Authority & Weapons', icon: '🛡', minTier: 0 },
+  { id: 'notes'      as Tab, label: 'Field Notes',       icon: '📋', minTier: 0 },
+]
+
 function FieldManualPage() {
   const { getToken } = useAuth()
-  const { user } = useUser()
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-  const [selectedModule, setSelectedModule] = useState<typeof MODULES[0] | null>(null)
+  const { user, isLoaded } = useUser()
+  const [activeTab, setActiveTab] = useState<Tab>('doctrine')
   const [progress, setProgress] = useState<Set<string>>(new Set())
-  const [savingProgress, setSavingProgress] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [showList, setShowList] = useState(true)
 
   const tier = ((user?.publicMetadata?.tier as string) || 'watchman').toLowerCase()
-  const tierLevel = TIER_LEVEL[tier] ?? 0
-  const isDark = theme !== 'light'
-
-  const bg     = isDark ? '#0D0B14' : '#faf8f4'
-  const surf   = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
-  const surf2  = isDark ? '#16131e' : '#e8e0d4'
-  const border = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
-  const txt    = isDark ? '#f0e8d8' : '#1a1410'
-  const muted  = isDark ? '#8B7355' : '#5c4a3a'
-  const gold   = isDark ? G : '#a07830'
+  const tierLevel = TIER_LEVELS[tier] ?? 0
+  const hasFullAccess = tierLevel >= 1
+  const completedCount = [...DOCTRINE_MODULES, ...ENEMY_MODULES, ...AUTHORITY_MODULES].filter(m => progress.has(m.id)).length
+  const totalModules = DOCTRINE_MODULES.length + ENEMY_MODULES.length + AUTHORITY_MODULES.length
 
   useEffect(() => {
-    const saved = localStorage.getItem('wri-theme')
-    if (saved === 'light' || saved === 'dark') setTheme(saved as 'dark' | 'light')
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
     window.addEventListener('resize', check)
@@ -384,25 +884,19 @@ function FieldManualPage() {
 
   useEffect(() => {
     if (!user?.id) return
-    loadProgress()
+    getToken().then(token => {
+      fetch('/api/field-manual-progress', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.progress) setProgress(new Set(d.progress.filter((p: any) => p.completed).map((p: any) => p.module_id)))
+        })
+        .catch(() => {})
+    })
   }, [user?.id])
 
-  async function loadProgress() {
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/field-manual-progress', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const d = await res.json()
-        setProgress(new Set((d.progress || []).filter((p: any) => p.completed).map((p: any) => p.module_id)))
-      }
-    } catch (e) {}
-  }
-
   async function markComplete(moduleId: string) {
-    if (savingProgress) return
-    setSavingProgress(true)
+    if (saving || progress.has(moduleId)) return
+    setSaving(true)
     try {
       const token = await getToken()
       await fetch('/api/field-manual-progress', {
@@ -411,319 +905,91 @@ function FieldManualPage() {
         body: JSON.stringify({ module_id: moduleId, completed: true }),
       })
       setProgress(prev => new Set([...prev, moduleId]))
-    } catch (e) {}
-    setSavingProgress(false)
+    } catch {}
+    setSaving(false)
   }
 
-  function hasAccess(moduleTier: string) {
-    return tierLevel >= (TIER_LEVEL[moduleTier] ?? 0)
-  }
+  if (!isLoaded) return (
+    <div style={{ height: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: MUT }}>LOADING...</div>
+    </div>
+  )
 
-  const tierColors: Record<string, string> = { free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
-  const tierLabels: Record<string, string> = { free: 'FREE', soldier: 'SOLDIER+', commander: 'COMMANDER+', general: 'GENERAL+' }
-
-  const completedCount = MODULES.filter(m => progress.has(m.id)).length
-
-  return (
-    <div style={{ minHeight: '100vh', background: bg, display: 'flex', flexDirection: 'column' }}>
-      {/* Top bar */}
-      <div style={{ borderBottom: `1px solid ${border}`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, background: isDark ? '#0a0810' : '#f0ebe3', flexShrink: 0 }}>
-        <a href="/community" style={{ fontFamily: cinzel, fontSize: 10, color: gold, letterSpacing: '0.1em', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-          ← Community
-        </a>
-        <span style={{ color: border, fontSize: 14 }}>|</span>
-        <span style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.08em' }}>FIELD MANUAL</span>
-        <div style={{ flex: 1 }} />
-        <span style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.08em' }}>
-          {completedCount}/{MODULES.length} COMPLETE
-        </span>
-      </div>
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: 'calc(100vh - 49px)' }}>
-        {/* Module list sidebar */}
-        {(!isMobile || showList) && (
-          <div style={{
-            width: isMobile ? '100%' : 300, flexShrink: 0,
-            borderRight: isMobile ? 'none' : `1px solid ${border}`,
-            background: isDark ? '#0a0810' : '#ede6db',
-            overflowY: 'auto', display: 'flex', flexDirection: 'column',
-          }}>
-            {/* Header */}
-            <div style={{ padding: '24px 20px 16px', borderBottom: `1px solid ${border}` }}>
-              <div style={{ fontSize: 10, color: gold, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 8 }}>⚔ WAR ROOM INTEL</div>
-              <div style={{ fontFamily: cinzel, fontSize: 18, color: isDark ? '#f0e8d8' : '#1a1410', fontWeight: 700, letterSpacing: '0.06em', marginBottom: 6 }}>Field Manual</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5, marginBottom: 12 }}>
-                Foundational doctrine for the spiritual warfare minister
-              </div>
-              {/* Progress bar */}
-              <div style={{ background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(160,120,48,0.12)', borderRadius: 4, height: 4, overflow: 'hidden' }}>
-                <div style={{ background: gold, height: '100%', width: `${(completedCount / MODULES.length) * 100}%`, borderRadius: 4, transition: 'width 0.4s ease' }} />
-              </div>
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.08em', marginTop: 6 }}>
-                {completedCount} of {MODULES.length} modules completed
-              </div>
-            </div>
-
-            {/* Module list */}
-            <div style={{ padding: '8px 0', flex: 1 }}>
-              {MODULES.map((mod) => {
-                const accessible = hasAccess(mod.tier)
-                const done = progress.has(mod.id)
-                const active = selectedModule?.id === mod.id
-                return (
-                  <button
-                    key={mod.id}
-                    onClick={() => {
-                      if (!accessible) return
-                      setSelectedModule(mod)
-                      if (isMobile) setShowList(false)
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      width: '100%', padding: '12px 20px',
-                      background: active ? 'rgba(201,168,76,0.08)' : 'transparent',
-                      border: 'none', borderLeft: `2px solid ${active ? gold : 'transparent'}`,
-                      cursor: accessible ? 'pointer' : 'default',
-                      textAlign: 'left', opacity: accessible ? 1 : 0.5,
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { if (accessible && !active) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
-                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                  >
-                    {/* Number / checkmark */}
-                    <div style={{
-                      width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                      border: `1px solid ${done ? gold : border}`,
-                      background: done ? gold : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: done ? 12 : 10,
-                      color: done ? '#0D0B14' : muted,
-                      fontFamily: cinzel, fontWeight: 700,
-                    }}>
-                      {done ? '✓' : mod.number}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 11, color: active ? gold : (isDark ? '#c8b99a' : '#3d2e1e'), letterSpacing: '0.06em', marginBottom: 2 }}>
-                        {!accessible && '🔒 '}{mod.title}
-                      </div>
-                      <div style={{ fontFamily: crimson, fontSize: 11, color: muted, lineHeight: 1.3 }}>{mod.subtitle}</div>
-                    </div>
-                    <span style={{
-                      fontSize: 8, fontFamily: cinzel, letterSpacing: '0.06em',
-                      color: tierColors[mod.tier] || muted,
-                      border: `1px solid ${tierColors[mod.tier] || muted}`,
-                      borderRadius: 8, padding: '1px 5px', flexShrink: 0,
-                    }}>
-                      {tierLabels[mod.tier] || mod.tier.toUpperCase()}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Content area */}
-        {(!isMobile || !showList) && (
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg }}>
-            {!selectedModule ? (
-              // Welcome state
-              (<div style={{ padding: isMobile ? '24px 20px' : '48px 56px', maxWidth: 720 }}>
-                {isMobile && (
-                  <button onClick={() => setShowList(true)} style={{ background: 'none', border: 'none', color: gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    ← All Modules
-                  </button>
-                )}
-                <div style={{ fontSize: 10, color: gold, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 12, textTransform: 'uppercase' }}>
-                  ✦ Foundational Doctrine
-                </div>
-                <div style={{ fontFamily: cinzel, fontSize: isMobile ? 22 : 32, color: isDark ? '#f0e8d8' : '#1a1410', fontWeight: 700, letterSpacing: '0.04em', marginBottom: 16, lineHeight: 1.2 }}>
-                  The Field Manual
-                </div>
-                <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, marginBottom: 32 }}>
-                  Seven modules of foundational spiritual warfare doctrine drawn from Pastor Justin's Bootcamp curriculum.
-                  Each module builds on the last — work through them in order for the deepest foundation.
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-                  {MODULES.map(mod => {
-                    const accessible = hasAccess(mod.tier)
-                    const done = progress.has(mod.id)
-                    return (
-                      <div
-                        key={mod.id}
-                        onClick={() => accessible && setSelectedModule(mod)}
-                        style={{
-                          background: surf, border: `1px solid ${border}`,
-                          borderLeft: `3px solid ${done ? gold : (accessible ? border : 'rgba(255,255,255,0.05)')}`,
-                          borderRadius: 10, padding: '16px 18px',
-                          cursor: accessible ? 'pointer' : 'default',
-                          opacity: accessible ? 1 : 0.55, transition: 'border-color 0.15s',
-                          display: 'flex', alignItems: 'flex-start', gap: 12,
-                        }}
-                        onMouseEnter={e => accessible && ((e.currentTarget as HTMLElement).style.borderColor = gold)}
-                        onMouseLeave={e => accessible && ((e.currentTarget as HTMLElement).style.borderColor = border)}
-                      >
-                        <span style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{mod.icon}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                            <span style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.1em' }}>MODULE {mod.number}</span>
-                            {done && <span style={{ fontSize: 10, color: gold }}>✓</span>}
-                          </div>
-                          <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>
-                            {!accessible && '🔒 '}{mod.title}
-                          </div>
-                          <div style={{ fontFamily: crimson, fontSize: 12, color: muted, lineHeight: 1.4 }}>{mod.subtitle}</div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>)
-            ) : (
-              // Module content
-              (<ModuleView
-                mod={selectedModule}
-                isDark={isDark}
-                bg={bg} surf={surf} surf2={surf2} border={border}
-                txt={txt} muted={muted} gold={gold}
-                isMobile={isMobile}
-                hasAccess={hasAccess(selectedModule.tier)}
-                completed={progress.has(selectedModule.id)}
-                savingProgress={savingProgress}
-                onBack={() => { setSelectedModule(null); if (isMobile) setShowList(true) }}
-                onMarkComplete={() => markComplete(selectedModule.id)}
-                onPrev={() => {
-                  const idx = MODULES.findIndex(m => m.id === selectedModule.id)
-                  if (idx > 0) setSelectedModule(MODULES[idx - 1])
-                }}
-                onNext={() => {
-                  const idx = MODULES.findIndex(m => m.id === selectedModule.id)
-                  if (idx < MODULES.length - 1) setSelectedModule(MODULES[idx + 1])
-                }}
-                hasPrev={MODULES.findIndex(m => m.id === selectedModule.id) > 0}
-                hasNext={MODULES.findIndex(m => m.id === selectedModule.id) < MODULES.length - 1}
-                tierColors={{ free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }}
-                tierLabels={{ free: 'FREE', soldier: 'SOLDIER+', commander: 'COMMANDER+', general: 'GENERAL+' }}
-                userTier={tier}
-              />)
-            )}
-          </div>
-        )}
+  if (!user) return (
+    <div style={{ height: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center' as const }}>
+        <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 12 }}>⚔ Field Manual</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, marginBottom: 20 }}>Sign in to access the Field Manual</div>
+        <a href="/sign-in" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: BG, background: G, padding: '10px 24px', borderRadius: 4, textDecoration: 'none' }}>SIGN IN</a>
       </div>
     </div>
   )
-}
-
-function ModuleView({
-  mod, isDark, bg, surf, surf2, border, txt, muted, gold,
-  isMobile, hasAccess, completed, savingProgress,
-  onBack, onMarkComplete, onPrev, onNext, hasPrev, hasNext,
-  tierColors, tierLabels, userTier,
-}: any) {
-  const upgradeTier = mod.tier
 
   return (
-    <div style={{ padding: isMobile ? '20px 20px 40px' : '40px 56px 60px', maxWidth: 760 }}>
-      {/* Back */}
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 28, display: 'flex', alignItems: 'center', gap: 4 }}>
-        ← {isMobile ? 'All Modules' : 'Field Manual'}
-      </button>
-      {/* Module header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 28 }}>
-        <span style={{ fontSize: 32, flexShrink: 0 }}>{mod.icon}</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.12em' }}>MODULE {mod.number}</span>
-            <span style={{ fontSize: 9, fontFamily: cinzel, letterSpacing: '0.06em', color: tierColors[mod.tier] || muted, border: `1px solid ${tierColors[mod.tier] || muted}`, borderRadius: 8, padding: '1px 6px' }}>
-              {tierLabels[mod.tier] || mod.tier.toUpperCase()}
-            </span>
-            {completed && (
-              <span style={{ fontFamily: cinzel, fontSize: 9, color: gold, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 3 }}>
-                ✓ COMPLETED
-              </span>
-            )}
-          </div>
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 6 }}>{mod.title}</div>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: muted, letterSpacing: '0.08em' }}>{mod.subtitle}</div>
-        </div>
-      </div>
-      {/* Intro */}
-      <div style={{ background: surf, border: `1px solid ${border}`, borderLeft: `3px solid ${gold}`, borderRadius: 10, padding: '16px 20px', marginBottom: 32 }}>
-        <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#3d2e1e', lineHeight: 1.7, fontStyle: 'italic' }}>
-          {mod.intro}
-        </div>
-      </div>
-      {!hasAccess ? (
-        // Locked state
-        (<div style={{ background: surf, border: `1px solid ${border}`, borderRadius: 12, padding: `40px 32px`, textAlign: `center` }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🔒</div>
-          <div style={{ fontFamily: cinzel, fontSize: 14, color: gold, letterSpacing: '0.08em', marginBottom: 10 }}>
-            {tierLabels[upgradeTier]} Access Required
-          </div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: muted, lineHeight: 1.6, marginBottom: 24, maxWidth: 360, margin: '0 auto 24px' }}>
-            This module is available to {upgradeTier.charAt(0).toUpperCase() + upgradeTier.slice(1)} tier members and above.
-            Upgrade your membership to unlock this content.
-          </div>
-          <a
-            href="/#pricing"
-            style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: gold, padding: '12px 28px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}
-          >
-            Upgrade Membership
-          </a>
-        </div>)
-      ) : (
-        // Full content
-        (<>
-          {mod.sections.map((section: any, i: number) => (
-            <div key={i} style={{ marginBottom: 36 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: gold, letterSpacing: '0.06em', marginBottom: 14, paddingBottom: 8, borderBottom: `1px solid ${border}` }}>
-                {section.heading}
-              </div>
-              <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.85, whiteSpace: 'pre-wrap' as const }}>
-                {section.body}
-              </div>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: BG, overflow: 'hidden' }}>
+      {/* Hero banner — matching Spiritual Mapping exactly */}
+      <div style={{ padding: isMobile ? '0 16px' : '0 32px', background: `linear-gradient(180deg, rgba(201,168,76,0.08) 0%, transparent 100%)`, borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingBottom: 0 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <a href="/community" style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, textDecoration: 'none', minHeight: 44, display: 'flex', alignItems: 'center' }}>← COMMUNITY</a>
+              <span style={{ color: BDR }}>|</span>
+              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FIELD OPERATIONS</div>
             </div>
-          ))}
-          {/* Mark complete */}
-          {!completed && (
-            <div style={{ marginTop: 40, paddingTop: 24, borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'center' }}>
-              <button
-                onClick={onMarkComplete}
-                disabled={savingProgress}
-                style={{
-                  fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em',
-                  color: '#0D0B14', background: gold,
-                  padding: '14px 32px', borderRadius: 4, border: 'none',
-                  cursor: savingProgress ? 'default' : 'pointer',
-                  opacity: savingProgress ? 0.7 : 1,
-                  fontWeight: 700,
-                }}
-              >
-                {savingProgress ? 'Saving...' : '✓ Mark Module Complete'}
-              </button>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700, marginTop: 8, letterSpacing: '0.06em' }}>
+              ⚔ Field Manual
             </div>
-          )}
-          {completed && (
-            <div style={{ marginTop: 40, paddingTop: 24, borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'center' }}>
-              <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: gold, display: 'flex', alignItems: 'center', gap: 6 }}>
-                ✓ MODULE COMPLETE
+            <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 10, marginTop: 2 }}>
+              Foundational doctrine for the spiritual warrior
+            </div>
+            {/* Progress */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <div style={{ width: isMobile ? 100 : 140, height: 3, background: 'rgba(201,168,76,0.15)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(completedCount / totalModules) * 100}%`, background: G, borderRadius: 2, transition: 'width 0.4s ease' }} />
+              </div>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.08em' }}>
+                {completedCount}/{totalModules} MODULES COMPLETE
               </span>
             </div>
-          )}
-          {/* Prev / Next navigation */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 40, gap: 12 }}>
-            {hasPrev ? (
-              <button onClick={onPrev} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: gold, background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, padding: '10px 20px', borderRadius: 4, cursor: 'pointer' }}>
-                ← Previous Module
-              </button>
-            ) : <div />}
-            {hasNext ? (
-              <button onClick={onNext} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: gold, background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, padding: '10px 20px', borderRadius: 4, cursor: 'pointer' }}>
-                Next Module →
-              </button>
-            ) : <div />}
           </div>
-        </>)
-      )}
+          {!isMobile && (
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, textAlign: 'right' as const }}>
+              <div>{tier.toUpperCase()}</div>
+              <div style={{ color: G, marginTop: 2 }}>{user.firstName || user.username || 'Warrior'}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 0, overflowX: 'auto', scrollbarWidth: 'none' as any }}>
+          {TABS.map(tab => {
+            const active = activeTab === tab.id
+            return (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '10px 14px' : '12px 20px', background: 'none', border: 'none', borderBottom: `2px solid ${active ? G : 'transparent'}`, cursor: 'pointer', marginBottom: -1, flexShrink: 0 }}>
+                <span style={{ fontSize: 13 }}>{tab.icon}</span>
+                <span style={{ fontFamily: cinzel, fontSize: isMobile ? 9 : 10, letterSpacing: '0.1em', color: active ? G : MUT, whiteSpace: 'nowrap' as const }}>{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {activeTab === 'doctrine' && (
+          <ModuleTabView modules={DOCTRINE_MODULES} progress={progress} hasFullAccess={tierLevel >= 0} onMarkComplete={markComplete} saving={saving} isMobile={isMobile} />
+        )}
+        {activeTab === 'enemy' && (
+          <ModuleTabView modules={ENEMY_MODULES} progress={progress} hasFullAccess={hasFullAccess} onMarkComplete={markComplete} saving={saving} isMobile={isMobile} />
+        )}
+        {activeTab === 'authority' && (
+          <ModuleTabView modules={AUTHORITY_MODULES} progress={progress} hasFullAccess={hasFullAccess} onMarkComplete={markComplete} saving={saving} isMobile={isMobile} />
+        )}
+        {activeTab === 'notes' && (
+          <FieldNotesTab hasAccess={hasFullAccess} isMobile={isMobile} />
+        )}
+      </div>
     </div>
   )
 }

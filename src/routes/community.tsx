@@ -2442,7 +2442,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
             )}
           </div>
         ) : posts.slice(0, 3).map(post => (
-          <div key={post.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${GG}`, borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+          <div key={post.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${GG}`, borderRadius: 10, padding: isMobile ? '16px 16px' : '20px 24px', marginBottom: 16, minWidth: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
               <div>
                 <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: GG, fontWeight: 600, marginBottom: 4 }}>{post.title}</div>
@@ -2462,7 +2462,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                 )
               })()}
             </div>
-            <div style={{ fontSize: 15, color: txt, lineHeight: 1.75, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap' as const }}>{post.body}</div>
+            <div style={{ fontSize: 15, color: txt, lineHeight: 1.75, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>{post.body}</div>
             {post.scripture && (
               <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, fontSize: 13, color: '#86efac', fontFamily: "'Crimson Pro', serif", fontStyle: 'italic' }}>
                 📖 {post.scripture}
@@ -5366,13 +5366,13 @@ function CommunityPage() {
         {/* ── QUICK ACCESS ICON STRIP ── */}
         <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
-            { icon: '💬', label: 'War Room Chat',     section: 'war-room-chat'  },
-            { icon: '✉',  label: 'Direct Messages',   section: 'dms'            },
-            { icon: '🙏', label: 'Prayer Wall',       section: 'prayer-wall'    },
-            { icon: '✝',  label: 'Testimony Wall',    section: 'testimony-wall' },
-            { icon: '👥', label: 'Members',           section: 'members'        },
-            { icon: '❓', label: 'Feedback',          section: 'feedback'       },
-          ].map(({ icon, label, section }, idx) => (
+            { icon: '💬', label: 'War Room Chat',     mobileLabel: 'Chat',      section: 'war-room-chat'  },
+            { icon: '✉',  label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
+            { icon: '🙏', label: 'Prayer Wall',       mobileLabel: 'Prayer',    section: 'prayer-wall'    },
+            { icon: '✝',  label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
+            { icon: '👥', label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
+            { icon: '❓', label: 'Feedback',          mobileLabel: 'Feedback',  section: 'feedback'       },
+          ].map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
                 onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
@@ -5390,7 +5390,7 @@ function CommunityPage() {
               </button>
               {isMobile && (
                 <div style={{ fontFamily: cinzel, fontSize: 7, color: activeSection === section ? G : '#8B7355', letterSpacing: '0.04em', textAlign: 'center' as const, lineHeight: 1.2, maxWidth: 44, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {label.split(' ')[0]}
+                  {mobileLabel}
                 </div>
               )}
               {!isMobile && tooltipVisible === section && (
@@ -5410,7 +5410,7 @@ function CommunityPage() {
         <a href="/community/field-manual" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📖</span>
+          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚔</span>
           <span>Field Manual</span>
         </a>
 
@@ -5544,7 +5544,7 @@ function CommunityPage() {
         transition: 'transform 0.25s ease',
         display: 'flex', flexDirection: 'column',
         background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
-        overflowY: 'auto' as const, WebkitOverflowScrolling: 'touch' as any,
+        overflow: 'hidden' as const, WebkitOverflowScrolling: 'touch' as any,
         paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
         display: 'flex', flexDirection: 'column',
