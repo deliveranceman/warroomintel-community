@@ -62,6 +62,9 @@ export default async function handler(req: Request) {
     return Response.json({ error: 'title and file_path are required' }, { status: 400 })
   }
 
+  const resolvedFilename = filename || file_path.split('/').pop() || ''
+  const fileType = resolvedFilename.toLowerCase().endsWith('.pdf') ? 'pdf' : 'txt'
+
   const sb = makeSupabase()
 
   const { data: row, error } = await sb
@@ -70,14 +73,14 @@ export default async function handler(req: Request) {
       title: title.trim(),
       author: author?.trim() || 'Unknown',
       notes: notes?.trim() || '',
-      filename: filename || file_path.split('/').pop() || '',
+      filename: resolvedFilename,
       file_size: file_size || 0,
       file_path,
+      file_type: fileType,
       topic: 'ministry-library',
       user_id: userId,
       ai_generated: Boolean(ai_generated),
       active: true,
-      created_at: new Date().toISOString(),
     })
     .select()
     .single()
