@@ -99,7 +99,7 @@ function SectionHeader({ step, total }: { step: number; total: number }) {
         ))}
       </div>
       <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.25em', color: muted, marginBottom: '6px' }}>
-        Step {step + 1} of {total} {s.category ? `— Category ${s.category}` : ''}
+        Step {step + 1} of {total} {s.category ? `, Category ${s.category}` : ''}
       </div>
       <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(18px, 3vw, 26px)', fontWeight: 600, color: text, margin: 0 }}>{s.label}</h2>
     </div>
@@ -112,7 +112,7 @@ function StepIntro({ data, update }: { data: FormData; update: (n: string, v: st
       <div style={{ background: surface2, border: `1px solid ${border}`, borderRadius: '6px', padding: '16px 20px', marginBottom: '28px' }}>
         <div style={{ fontFamily: cinzel, fontSize: '11px', color: gold, letterSpacing: '0.1em', marginBottom: '8px' }}>🔒 Your Privacy</div>
         <div style={{ fontSize: '14px', color: textDim, lineHeight: 1.6 }}>
-          This intake form is completely confidential. Your name and email are only seen by the ministry leader — never published or shared. Submissions to the public board are fully anonymized.
+          This intake form is completely confidential. Your name and email are only seen by the ministry leader. Never published or shared. Submissions to the public board are fully anonymized.
         </div>
       </div>
       <Field>
@@ -156,7 +156,7 @@ function StepSpiritual({ data, update }: { data: FormData; update: (n: string, v
       </Field>
       <Field>
         <Label>Do you have assurance of salvation?</Label>
-        <RadioGroup name="Assurance of Salvation" value={data['Assurance of Salvation'] as string || ''} onChange={update} options={['Yes', 'No', 'Unsure — I struggle with this']} />
+        <RadioGroup name="Assurance of Salvation" value={data['Assurance of Salvation'] as string || ''} onChange={update} options={['Yes', 'No', 'Unsure, I struggle with this']} />
       </Field>
       <Field>
         <Label>Are you satisfied with your Christian walk?</Label>
@@ -206,7 +206,7 @@ function StepCatA({ data, update }: { data: FormData; update: (n: string, v: str
       </Field>
       <Field>
         <Label>Anything else about rejection, family wounds, or relationships you want to share?</Label>
-        <TextInput name="A - Rejection Notes" value={data['A - Rejection Notes'] as string || ''} onChange={update} placeholder="List any times you've been hurt, abandoned, or suffered injustice — pre-school, school, marriage, work, church..." multiline />
+        <TextInput name="A - Rejection Notes" value={data['A - Rejection Notes'] as string || ''} onChange={update} placeholder="List any times you've been hurt, abandoned, or suffered injustice. Include pre-school, school, marriage, work, church." multiline />
       </Field>
     </>
   )
@@ -221,7 +221,7 @@ function StepCatB({ data, update }: { data: FormData; update: (n: string, v: str
       </Field>
       <Field>
         <Label>Have you or close family members suffered from mental illness?</Label>
-        <SubLabel>e.g. schizophrenia, bipolar disorder, OCD, severe depression — in yourself, parents, or grandparents</SubLabel>
+        <SubLabel>e.g. schizophrenia, bipolar disorder, OCD, severe depression. In yourself, parents, or grandparents.</SubLabel>
         <TextInput name="B - Mental Notes" value={data['B - Mental Notes'] as string || ''} onChange={update} placeholder="Describe who and what condition..." multiline />
       </Field>
       <Field>
@@ -231,7 +231,7 @@ function StepCatB({ data, update }: { data: FormData; update: (n: string, v: str
       </Field>
       <Field>
         <Label>Have you ever had thoughts of suicide or wished to die?</Label>
-        <RadioGroup name="B - Suicide History" value={data['B - Suicide History'] as string || ''} onChange={update} options={['Never', 'Thoughts only — never acted', 'Attempted in the past', 'Currently struggling with this']} />
+        <RadioGroup name="B - Suicide History" value={data['B - Suicide History'] as string || ''} onChange={update} options={['Never', 'Thoughts only, never acted', 'Attempted in the past', 'Currently struggling with this']} />
       </Field>
       <Field>
         <Label>Do you have strong or prolonged fears? (select all that apply)</Label>
@@ -249,11 +249,11 @@ function StepCatC({ data, update }: { data: FormData; update: (n: string, v: str
   return (
     <>
       <div style={{ background: surface2, border: `1px solid ${border}`, borderRadius: '6px', padding: '14px 18px', marginBottom: '24px', fontSize: '13px', color: textDim, lineHeight: 1.6 }}>
-        Answer honestly — there is no condemnation here. These doors can all be closed through repentance and deliverance.
+        Answer honestly. There is no condemnation here. These doors can all be closed through repentance and deliverance.
       </div>
       <Field>
         <Label>Have you ever made a pact with the devil?</Label>
-        <RadioGroup name="C - Devil Pact" value={data['C - Devil Pact'] as string || ''} onChange={update} options={['Yes — blood pact', 'Yes — verbal/written', 'No']} />
+        <RadioGroup name="C - Devil Pact" value={data['C - Devil Pact'] as string || ''} onChange={update} options={['Yes, blood pact', 'Yes, verbal or written', 'No']} />
       </Field>
       <Field>
         <Label>Have you ever been involved in any of the following? (select all that apply)</Label>
@@ -267,16 +267,16 @@ function StepCatC({ data, update }: { data: FormData; update: (n: string, v: str
       </Field>
       <Field>
         <Label>Is there Freemasonry in your family history?</Label>
-        <RadioGroup name="C - Freemasonry" value={data['C - Freemasonry'] as string || ''} onChange={update} options={['Yes — in my direct family', 'Yes — extended family', 'Yes — myself', 'No', "Don't know"]} />
+        <RadioGroup name="C - Freemasonry" value={data['C - Freemasonry'] as string || ''} onChange={update} options={['Yes, in my direct family', 'Yes, extended family', 'Yes, myself', 'No', "Don't know"]} />
       </Field>
       <Field>
         <Label>Do you have or have you had any occult objects, symbols, or idols?</Label>
         <SubLabel>Zodiac signs, crystals, Buddha statues, pagan symbols, good luck charms, tattoos with occult meaning, etc.</SubLabel>
-        <RadioGroup name="C - Occult Objects" value={data['C - Occult Objects'] as string || ''} onChange={update} options={['Yes — still have them', 'Yes — already destroyed', 'No']} />
+        <RadioGroup name="C - Occult Objects" value={data['C - Occult Objects'] as string || ''} onChange={update} options={['Yes, still have them', 'Yes, already destroyed', 'No']} />
       </Field>
       <Field>
         <Label>Has a curse been placed on you or your family to your knowledge?</Label>
-        <RadioGroup name="C - Curses" value={data['C - Curses'] as string || ''} onChange={update} options={['Yes', 'Possibly — generational patterns', 'No', "Don't know"]} />
+        <RadioGroup name="C - Curses" value={data['C - Curses'] as string || ''} onChange={update} options={['Yes', 'Possibly, generational patterns', 'No', "Don't know"]} />
       </Field>
       <Field>
         <Label>Anything else about occult involvement you want to share?</Label>
@@ -290,7 +290,7 @@ function StepCatD({ data, update }: { data: FormData; update: (n: string, v: str
   return (
     <>
       <div style={{ background: surface2, border: `1px solid ${border}`, borderRadius: '6px', padding: '14px 18px', marginBottom: '24px', fontSize: '13px', color: textDim, lineHeight: 1.6 }}>
-        This section is handled with complete confidentiality. Your answers are seen only by the ministry leader. Be as honest as you are able — these are common entry points for demonic bondage and there is no shame in naming them.
+        This section is handled with complete confidentiality. Your answers are seen only by the ministry leader. Be as honest as you are able. These are common entry points for demonic bondage and there is no shame in naming them.
       </div>
       <Field>
         <Label>Do you struggle with any of the following? (select all that apply)</Label>
@@ -299,11 +299,11 @@ function StepCatD({ data, update }: { data: FormData; update: (n: string, v: str
       </Field>
       <Field>
         <Label>Have you struggled with pornography?</Label>
-        <RadioGroup name="D - Pornography History" value={data['D - Pornography History'] as string || ''} onChange={update} options={['No', 'Past only — not current', 'Currently struggling']} />
+        <RadioGroup name="D - Pornography History" value={data['D - Pornography History'] as string || ''} onChange={update} options={['No', 'Past only, not current', 'Currently struggling']} />
       </Field>
       <Field>
         <Label>Have you experienced sexual abuse or trauma?</Label>
-        <RadioGroup name="D - Abuse History" value={data['D - Abuse History'] as string || ''} onChange={update} options={['No', 'Yes — as a child', 'Yes — as an adult', 'Both']} />
+        <RadioGroup name="D - Abuse History" value={data['D - Abuse History'] as string || ''} onChange={update} options={['No', 'Yes, as a child', 'Yes, as an adult', 'Both']} />
       </Field>
       <Field>
         <Label>Is there anything else in this area you want to share privately?</Label>
@@ -351,7 +351,7 @@ function StepCatFG({ data, update }: { data: FormData; update: (n: string, v: st
       </Field>
       <Field>
         <Label>Have you experienced any severe accidents, traumas, or losses?</Label>
-        <SubLabel>Physical or emotional — accidents, deaths of loved ones, war experience, near-death experiences</SubLabel>
+        <SubLabel>Physical or emotional, including accidents, deaths of loved ones, war experience, near-death experiences</SubLabel>
         <TextInput name="G - Trauma History" value={data['G - Trauma History'] as string || ''} onChange={update} placeholder="Describe any significant traumas not already mentioned..." multiline />
       </Field>
       <Field>
@@ -366,7 +366,7 @@ function StepFreeText({ data, update }: { data: FormData; update: (n: string, v:
   return (
     <>
       <div style={{ background: surface2, border: `1px solid ${border}`, borderRadius: '6px', padding: '14px 18px', marginBottom: '24px', fontSize: '14px', color: textDim, lineHeight: 1.7, fontStyle: 'italic' }}>
-        "Ask God to remind you of specific incidents, large or small. If it comes to your mind during this time, it is probably the Holy Spirit reminding you — include it."
+        "Ask God to remind you of specific incidents, large or small. If it comes to your mind during this time, it is probably the Holy Spirit reminding you. Include it."
       </div>
       <Field>
         <Label>Describe what you are experiencing in your own words</Label>

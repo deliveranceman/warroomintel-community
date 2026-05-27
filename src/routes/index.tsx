@@ -43,11 +43,11 @@ const COMMUNITY_URL = '/community'
 const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
 
 const FEATURES = [
-  { icon: '⚔', title: 'Master Demon Database', desc: 'A growing database of documented spirits — names, aliases, types, functions, and manifestations. Free members see full entries. Detailed fields unlock with membership.' },
+  { icon: '⚔', title: 'Master Demon Database', desc: 'A growing database of documented spirits: names, aliases, types, functions, and manifestations. Free members see full entries. Detailed fields unlock with membership.' },
   { icon: '📋', title: 'Ministry Assessment Tool', desc: 'A confidential 9-step intake wizard. Submit your situation and receive a personal response from our deliverance team.' },
-  { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman — Freemasonry, soul ties, occult doorways, lust, addiction and more.' },
+  { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman: Freemasonry, soul ties, occult doorways, lust, addiction and more.' },
   { icon: '🗣', title: 'Live Ministry Calls', desc: 'Monthly group calls for Soldier members. Bi-weekly Q&A for Commander. Weekly intimate sessions for General members.' },
-  { icon: '✦', title: 'Scripture Arsenal', desc: 'Community-built warfare scripture library organized by battle category — fear, rejection, witchcraft, identity and more.' },
+  { icon: '✦', title: 'Scripture Arsenal', desc: 'Community-built warfare scripture library organized by battle category: fear, rejection, witchcraft, identity and more.' },
   { icon: '🗡', title: 'Community Submissions', desc: 'Submit new demon entries, suggest corrections, and contribute to the most comprehensive spiritual warfare database available.' },
 ]
 
@@ -187,7 +187,7 @@ function Hero() {
         </h1>
 
         <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', color: textDim, fontWeight: 300, fontStyle: 'italic', fontFamily: crimson, maxWidth: '600px', margin: '0 auto 36px', lineHeight: 1.7, animation: 'fadeUp 0.8s 0.3s both' }}>
-          The most comprehensive spiritual warfare resource available — a searchable demon database, ministry assessment tool, deliverance protocols, and a growing community of warriors.
+          The most complete spiritual warfare resource available: a searchable demon database, ministry assessment tool, deliverance protocols, and a growing community of warriors.
         </p>
 
         {/* CTAs */}

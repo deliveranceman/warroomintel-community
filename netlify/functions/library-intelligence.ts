@@ -59,7 +59,8 @@ async function fetchLibraryBooks() {
     .select('title, author, extracted_text')
     .eq('topic', 'ministry-library')
     .eq('active', true)
-    .eq('ai_generated', true)
+    .not('extracted_text', 'is', null)
+    .neq('extracted_text', '')
     .limit(MAX_BOOKS)
   return data || []
 }

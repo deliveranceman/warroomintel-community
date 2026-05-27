@@ -274,10 +274,10 @@ function SectionHeader({ tier }: { tier: string }) {
         {TIER_ICONS[tier]}
       </div>
       <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.18em', color: TIER_COLORS[tier], textTransform: 'uppercase' as const }}>
-        {tier === 'Free' ? 'Free — General Intelligence' :
-         tier === 'Soldier' ? 'Soldier — Field Protocols' :
-         tier === 'Commander' ? 'Commander — Advanced Intelligence' :
-         'General — Command-Level Resources'}
+        {tier === 'Free' ? 'Free: General Intelligence' :
+         tier === 'Soldier' ? 'Soldier: Field Protocols' :
+         tier === 'Commander' ? 'Commander: Advanced Intelligence' :
+         'General: Command-Level Resources'}
       </div>
       <div style={{ flex: 1, height: '1px', background: border }} />
     </div>
@@ -491,7 +491,7 @@ function ArsenalPage() {
           Resource Arsenal
         </h1>
         <p style={{ fontFamily: crimson, fontStyle: 'italic', fontSize: '15px', color: textDim, margin: 0 }}>
-          Protocols, worksheets, and field manuals — organized by tier and category.
+          Protocols, worksheets, and field manuals organized by tier and category.
         </p>
       </div>
 
@@ -507,7 +507,7 @@ function ArsenalPage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search resources — soul ties, Freemasonry, session flow..."
+            placeholder="Search resources: soul ties, Freemasonry, session flow..."
             style={{
               background: 'none', border: 'none', outline: 'none',
               color: '#e8e0d0', fontSize: '13px', width: '100%',

@@ -518,7 +518,7 @@ export function Header() {
             }}
               onMouseEnter={e => (e.currentTarget.style.background = goldLight)}
               onMouseLeave={e => (e.currentTarget.style.background = gold)}>
-              Join Now — 30 Days Free
+              Join Free for 30 Days
             </a>
 
             {mounted && (

@@ -24,7 +24,7 @@ function NotFound() {
       </div>
 
       <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 700, color: '#e8e0d0', marginBottom: 16, letterSpacing: '0.04em' }}>
-        404 — This Intel Does Not Exist
+        404: This Intel Does Not Exist
       </h1>
 
       <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: '18px', color: '#9a8c74', fontStyle: 'italic', maxWidth: 440, lineHeight: 1.7, marginBottom: 40 }}>

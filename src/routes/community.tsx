@@ -3967,8 +3967,10 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
     )
   }
 
+  const canSubmit = spiritName.trim().length > 0 || personContext.trim().length > 0
+
   async function handleInvestigate() {
-    if (!spiritName.trim()) return
+    if (!canSubmit) return
     setLoading(true); setError(''); setReport(null)
     try {
       const token = await getToken()
@@ -4015,14 +4017,14 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
             🚪 Gateway Investigator
           </h1>
           <p style={{ fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 14, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
-            Identify cultural entry points and exposure gateways for any spirit — music, media, games, subcultures, and more
+            Enter a spirit name, a cultural exposure, or both. Get a full intelligence report on gateways, entry points, and session questions.
           </p>
         </div>
 
         {/* Input form */}
         <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: isMobile ? '20px 16px' : '24px 28px', marginBottom: 28 }}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Spirit Name</label>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Spirit Name <span style={{ opacity: 0.55, fontFamily: "'Crimson Pro', serif", letterSpacing: 0, fontSize: 10, textTransform: 'none' as const }}>(optional)</span></label>
             <input
               value={spiritName}
               onChange={e => setSpiritName(e.target.value)}
@@ -4033,22 +4035,22 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
           </div>
           <div style={{ marginBottom: 20 }}>
             <label style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>
-              Known Context About This Person <span style={{ opacity: 0.6 }}>(optional)</span>
+              Cultural Exposure or Session Context <span style={{ opacity: 0.55, fontFamily: "'Crimson Pro', serif", letterSpacing: 0, fontSize: 10, textTransform: 'none' as const }}>(optional)</span>
             </label>
             <textarea
               value={personContext}
               onChange={e => setPersonContext(e.target.value)}
-              placeholder="e.g. Heavily into gaming, listens to metal, was in Freemasonry for 10 years, watches a lot of anime..."
+              placeholder="e.g. Watched the movie Chucky, heavily into D&D, listens to a lot of death metal, was in a fraternity..."
               rows={3}
               style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6 }}
             />
           </div>
           <button
             onClick={handleInvestigate}
-            disabled={loading || !spiritName.trim()}
-            style={{ background: loading ? 'rgba(201,168,76,0.4)' : G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', border: 'none', borderRadius: 6, padding: '11px 28px', cursor: loading || !spiritName.trim() ? 'wait' : 'pointer', opacity: !spiritName.trim() ? 0.5 : 1 }}
+            disabled={loading || !canSubmit}
+            style={{ background: loading ? 'rgba(201,168,76,0.4)' : G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', border: 'none', borderRadius: 6, padding: '11px 28px', cursor: loading || !canSubmit ? 'wait' : 'pointer', opacity: !canSubmit ? 0.5 : 1 }}
           >
-            {loading ? '🔍 Investigating…' : '🚪 Investigate Gateways'}
+            {loading ? '🔍 Investigating…' : '🚪 Run Gateway Report'}
           </button>
         </div>
 
@@ -4061,9 +4063,30 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
         {report && (
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>
-              Gateway Report — {report.spiritName}
+              {report.title || `Gateway Report: ${report.spiritName || personContext.slice(0, 50)}`}
             </div>
 
+            {/* Identified spirits */}
+            {Array.isArray(report.identifiedSpirits) && report.identifiedSpirits.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 16 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em', alignSelf: 'center' }}>Spirits identified:</span>
+                {report.identifiedSpirits.map((s: string) => (
+                  <span key={s} style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 10, fontFamily: cinzel, fontSize: 9, color: G, padding: '2px 10px', letterSpacing: '0.06em' }}>{s}</span>
+                ))}
+              </div>
+            )}
+
+            {/* Warning flags */}
+            {Array.isArray(report.warningFlags) && report.warningFlags.length > 0 && (
+              <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '12px 16px', marginBottom: 14 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.12em', marginBottom: 8 }}>⚠ WARNING FLAGS</div>
+                {report.warningFlags.map((f: string, i: number) => (
+                  <div key={i} style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: '#fca5a5', lineHeight: 1.5 }}>{f}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Database context (old response format) */}
             {report.databaseContext && (
               <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 10, padding: '14px 18px', marginBottom: 16 }}>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Database Intel</div>
@@ -4071,22 +4094,75 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
               </div>
             )}
 
-            <Section title="🎬 Media Gateways" items={report.mediaGateways} />
-            <Section title="🎵 Music Gateways" items={report.musicGateways} color="#8BA3D4" />
-            <Section title="🎮 Gaming Gateways" items={report.gamingGateways} color="#7a9e7e" />
-            <Section title="📚 Literary Gateways" items={report.literaryGateways} />
-            <Section title="🌐 Online / Social Gateways" items={report.onlineGateways} color="#8BA3D4" />
-            <Section title="🔮 Subculture & Practice Gateways" items={report.subcultureGateways} color="#a07830" />
-
-            {report.sessionQuestions && report.sessionQuestions.length > 0 && (
-              <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, marginBottom: 14, textTransform: 'uppercase' as const }}>⚡ Session Intake Questions</div>
-                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                  {report.sessionQuestions.map((q: string, i: number) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <span style={{ fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, marginTop: 3 }}>{i + 1}.</span>
-                      <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, fontStyle: 'italic' }}>{q}</span>
+            {/* New sections structure */}
+            {report.sections ? (
+              <>
+                {(['mediaGateways','musicGateways','gamingGateways','literaryGateways','occultGateways','culturalGateways'] as const).map(key => {
+                  const sec = report.sections[key]
+                  if (!sec) return null
+                  const items = Array.isArray(sec) ? sec : (sec.items || [])
+                  const heading = typeof sec === 'object' && sec.heading ? sec.heading : key.replace(/([A-Z])/g, ' $1').trim()
+                  const colors: Record<string, string> = { musicGateways: '#8BA3D4', gamingGateways: '#7a9e7e', occultGateways: '#c47c7c', culturalGateways: '#a07830' }
+                  return <Section key={key} title={heading} items={items} color={colors[key]} />
+                })}
+                {/* Session questions */}
+                {(() => {
+                  const sq = report.sections.sessionQuestions
+                  const items: string[] = sq ? (Array.isArray(sq) ? sq : (sq.items || [])) : []
+                  if (!items.length) return null
+                  return (
+                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, marginBottom: 14, textTransform: 'uppercase' as const }}>⚡ Session Intake Questions</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                        {items.map((q: string, i: number) => (
+                          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                            <span style={{ fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, marginTop: 3 }}>{i + 1}.</span>
+                            <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, fontStyle: 'italic' }}>{q}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  )
+                })()}
+                {/* Generational patterns */}
+                {(() => {
+                  const gp = report.sections.generationalPatterns
+                  const items: string[] = gp ? (Array.isArray(gp) ? gp : (gp.items || [])) : []
+                  return <Section title="Generational Patterns" items={items} color="#a07830" />
+                })()}
+              </>
+            ) : (
+              // Legacy flat response structure
+              <>
+                <Section title="Media Gateways" items={report.mediaGateways} />
+                <Section title="Music Gateways" items={report.musicGateways} color="#8BA3D4" />
+                <Section title="Gaming Gateways" items={report.gamingGateways} color="#7a9e7e" />
+                <Section title="Literary Gateways" items={report.literaryGateways} />
+                <Section title="Online and Social Gateways" items={report.onlineGateways} color="#8BA3D4" />
+                <Section title="Subculture and Practice Gateways" items={report.subcultureGateways} color="#a07830" />
+                {report.sessionQuestions?.length > 0 && (
+                  <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, marginBottom: 14, textTransform: 'uppercase' as const }}>Session Intake Questions</div>
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                      {report.sessionQuestions.map((q: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, marginTop: 3 }}>{i + 1}.</span>
+                          <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, fontStyle: 'italic' }}>{q}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Related spirits */}
+            {Array.isArray(report.relatedSpirits) && report.relatedSpirits.length > 0 && (
+              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 18px', marginBottom: 14 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', marginBottom: 10 }}>RELATED SPIRITS TO INVESTIGATE</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                  {report.relatedSpirits.map((s: string) => (
+                    <span key={s} style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${bdr}`, borderRadius: 10, fontFamily: cinzel, fontSize: 9, color: mut, padding: '2px 10px' }}>{s}</span>
                   ))}
                 </div>
               </div>

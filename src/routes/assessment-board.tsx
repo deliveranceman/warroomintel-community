@@ -47,7 +47,7 @@ function AssessmentBoard() {
             Assessment<br /><em style={{ color: gold, fontStyle: 'normal' }}>Response Board</em>
           </h1>
           <p style={{ fontSize: '16px', color: textDim, fontWeight: 300, fontStyle: 'italic', maxWidth: '520px', margin: '0 auto 24px' }}>
-            Real ministry responses to real cases — fully anonymized. If you see your situation described here, you are not alone.
+            Real ministry responses to real cases, fully anonymized. If you see your situation described here, you are not alone.
           </p>
           <a href="/assessment" style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', padding: '12px 28px', borderRadius: '3px', background: gold, color: deep, textDecoration: 'none', display: 'inline-block' }}>
             Submit Your Own Assessment ✦

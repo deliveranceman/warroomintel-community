@@ -22,7 +22,6 @@ async function resolveUser(token: string): Promise<{ ok: boolean; tier: string }
     const data = await res.json()
     const role = data?.public_metadata?.role
     const tier = data?.public_metadata?.tier || ''
-    // minister always has access; soldier/commander/general also have access
     const tierLevel = (t: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
     const hasAccess = role === 'minister' || tierLevel(tier) >= 1
     return { ok: hasAccess, tier }
@@ -39,6 +38,7 @@ async function fetchSpiritContext(spiritName: string): Promise<string> {
     }
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+      signal: AbortSignal.timeout(4000),
     })
     if (!res.ok) return ''
     const data = await res.json()
@@ -46,11 +46,11 @@ async function fetchSpiritContext(spiritName: string): Promise<string> {
     if (!rec) return ''
     const f = rec.fields || {}
     const parts: string[] = []
-    if (f['Description']) parts.push(`Description: ${String(f['Description']).slice(0, 300)}`)
-    if (f['Manifestiation']) parts.push(`Manifestations: ${String(f['Manifestiation']).slice(0, 200)}`)
-    if (f['Kingdom']) parts.push(`Kingdom: ${f['Kingdom']}`)
+    if (f['Description'])   parts.push(`Description: ${String(f['Description']).slice(0, 300)}`)
+    if (f['Manifestiation'])parts.push(`Manifestations: ${String(f['Manifestiation']).slice(0, 200)}`)
+    if (f['Kingdom'])       parts.push(`Kingdom: ${f['Kingdom']}`)
     if (f['Biblical Rank']) parts.push(`Biblical Rank: ${f['Biblical Rank']}`)
-    if (f['Sub-Kingdom']) parts.push(`Sub-Kingdom: ${f['Sub-Kingdom']}`)
+    if (f['Sub-Kingdom'])   parts.push(`Sub-Kingdom: ${f['Sub-Kingdom']}`)
     if (Array.isArray(f['Cultural Presence']) && f['Cultural Presence'].length) {
       parts.push(`Known Cultural Presence: ${f['Cultural Presence'].join(', ')}`)
     }
@@ -62,58 +62,77 @@ async function fetchSpiritContext(spiritName: string): Promise<string> {
 }
 
 async function callClaude(spiritName: string, dbContext: string, personContext: string): Promise<any> {
-  const systemPrompt = `You are a deliverance ministry intelligence analyst for War Room Intel. You have deep knowledge of how demonic spirits gain cultural entry points through media, music, gaming, literature, online subcultures, and social practices. Your job is to help ministers identify every cultural gateway a spirit used to gain access to a person's life so they can conduct a thorough, specific intake interview.
+  const mode = spiritName && personContext ? 'combined'
+             : spiritName                  ? 'spirit_lookup'
+             : 'exposure_analysis'
 
-Return ONLY valid JSON. No markdown. No code blocks. Start with { and end with }.`
+  const subject = spiritName || personContext.slice(0, 60)
 
-  const userPrompt = `You are investigating cultural entry points for the spirit: ${spiritName}
+  const prompt = `You are a deliverance ministry intelligence analyst with deep knowledge of spiritual warfare, demonology, and cultural influences.
 
-${dbContext ? `Database notes on this spirit:\n${dbContext}\n\n` : ''}${personContext ? `Minister's notes about this person:\n${personContext}\n\n` : ''}Research and return a comprehensive cultural gateway report. For each category, list specific titles, artists, games, franchises, communities, or practices — not vague generalities. If a spirit is depicted or glorified by a specific work, name it.
+Mode: ${mode}
+Spirit name: ${spiritName || 'not provided'}
+Cultural exposure or context: ${personContext || 'not provided'}
+Database notes on this spirit: ${dbContext || 'not in our database'}
 
-Return this exact JSON structure:
+${mode === 'exposure_analysis'
+  ? 'Analyze this cultural exposure and identify what spiritual entities, doorways, and legal rights it may carry. Think deeply about the spiritual content, themes, and what spirits are glorified or invoked.'
+  : mode === 'spirit_lookup'
+  ? 'Identify every cultural gateway where this spirit appears or gains entry. Use your knowledge of movies, music, games, books, subcultures, and occult practices. Be specific with real titles and names.'
+  : 'Use both the spirit information and the cultural exposure context together to build a complete gateway report.'
+}
+
+Return ONLY valid JSON in this exact structure. No markdown. No code blocks. Start with { and end with }.
+
 {
-  "spiritName": "${spiritName}",
-  "databaseContext": "1-2 sentences summarizing what's known about this spirit from our database",
-  "mediaGateways": [
-    "Specific movie/show title and how it features or glorifies this spirit",
-    "..."
-  ],
-  "musicGateways": [
-    "Specific artist name and album/song that references this spirit or its themes",
-    "..."
-  ],
-  "gamingGateways": [
-    "Specific video game, tabletop RPG, or card game featuring this spirit",
-    "..."
-  ],
-  "literaryGateways": [
-    "Specific book, graphic novel, manga, or online fiction featuring this spirit",
-    "..."
-  ],
-  "onlineGateways": [
-    "Specific online communities, social media trends, hashtags, or internet culture tied to this spirit",
-    "..."
-  ],
-  "subcultureGateways": [
-    "Specific subculture, practice, fashion trend, or aesthetic tied to this spirit",
-    "..."
-  ],
-  "sessionQuestions": [
-    "Specific, targeted intake question referencing actual titles/practices — e.g. 'Have you watched [specific show]?'",
-    "...",
-    "...",
-    "...",
-    "...",
-    "..."
-  ]
+  "title": "Gateway Intelligence Report: ${subject}",
+  "mode": "${mode}",
+  "identifiedSpirits": ["spirit1", "spirit2"],
+  "sections": {
+    "mediaGateways": {
+      "heading": "Media Gateways",
+      "items": ["Specific movie/show title: explanation of how it features or glorifies this spirit"]
+    },
+    "musicGateways": {
+      "heading": "Music Gateways",
+      "items": ["Specific artist or song: explanation of the spiritual connection"]
+    },
+    "gamingGateways": {
+      "heading": "Gaming Gateways",
+      "items": ["Specific video game, tabletop RPG, or card game: explanation"]
+    },
+    "literaryGateways": {
+      "heading": "Literary Gateways",
+      "items": ["Specific book, graphic novel, manga, or online fiction: explanation"]
+    },
+    "occultGateways": {
+      "heading": "Occult and Ritual Gateways",
+      "items": ["Specific occult practice, ritual, or system: how it opens this door"]
+    },
+    "culturalGateways": {
+      "heading": "Cultural and Subcultural Gateways",
+      "items": ["Specific subculture, aesthetic, practice, or trend: explanation"]
+    },
+    "sessionQuestions": {
+      "heading": "Session Interview Questions",
+      "items": ["Specific question referencing real titles or practices"]
+    },
+    "generationalPatterns": {
+      "heading": "Generational Patterns",
+      "items": ["Specific family or ancestral pattern that may be relevant"]
+    }
+  },
+  "warningFlags": ["any urgent spiritual warfare notes for the minister"],
+  "relatedSpirits": ["connected spirits to investigate in the same session"]
 }
 
 Rules:
-- Each array should have 3-7 specific items — never vague generalities like "horror movies"
-- Name actual titles, franchises, artists, or communities — be specific
-- Session questions must reference specific things, not generic "did you watch movies" questions
-- If you genuinely cannot find items for a category, return an empty array []
-- Include 5-6 session questions minimum`
+- Each section should have 3 to 6 specific items, never vague generalities
+- Name actual titles, franchises, artists, communities by name
+- Session questions must reference specific things the person may have been exposed to
+- If you genuinely cannot find items for a category return an empty array
+- Include at least 5 session questions
+- For identified spirits, list specifically named demonic entities (not general concepts)`
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -123,12 +142,12 @@ Rules:
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1500,
+      system: 'You are a deliverance ministry intelligence analyst. Return ONLY valid JSON. No markdown, no code blocks, no explanation. Start with { and end with }.',
+      messages: [{ role: 'user', content: prompt }],
     }),
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(20000),
   })
 
   if (!res.ok) throw new Error(`Claude error ${res.status}`)
@@ -156,15 +175,15 @@ export default async function handler(req: Request) {
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers }) }
 
-  const { spiritName, personContext = '' } = body || {}
-  if (!spiritName?.trim()) return new Response(JSON.stringify({ error: 'spiritName required' }), { status: 400, headers })
+  const { spiritName = '', personContext = '' } = body || {}
+  if (!spiritName?.trim() && !personContext?.trim()) {
+    return new Response(JSON.stringify({ error: 'Provide a spirit name, cultural exposure context, or both.' }), { status: 400, headers })
+  }
 
   try {
-    const [dbContext] = await Promise.all([
-      fetchSpiritContext(spiritName.trim()),
-    ])
-
-    const report = await callClaude(spiritName.trim(), dbContext, personContext)
+    // Fetch spirit context from Airtable in parallel with nothing else — don't block Claude start
+    const dbContext = spiritName?.trim() ? await fetchSpiritContext(spiritName.trim()) : ''
+    const report = await callClaude(spiritName?.trim() || '', dbContext, personContext?.trim() || '')
     return new Response(JSON.stringify(report), { status: 200, headers })
   } catch (e: any) {
     console.error('[gateway-investigator] Error:', e.message)

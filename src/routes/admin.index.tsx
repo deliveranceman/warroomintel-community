@@ -200,7 +200,7 @@ function UploadForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
 
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={labelStyle}>TAGS <span style={{ color: muted, fontFamily: crimson, fontSize: '10px', letterSpacing: 0 }}>(comma separated — used for search)</span></label>
+          <label style={labelStyle}>TAGS <span style={{ color: muted, fontFamily: crimson, fontSize: '10px', letterSpacing: 0 }}>(comma separated, used for search)</span></label>
           <input
             style={inputStyle}
             value={tags}

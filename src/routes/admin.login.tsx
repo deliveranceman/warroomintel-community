@@ -37,7 +37,7 @@ function AdminLogin() {
         setError(data.error || 'Invalid password')
       }
     } catch {
-      setError('Network error — try again')
+      setError('Network error. Try again.')
     } finally {
       setLoading(false)
     }
@@ -60,7 +60,7 @@ function AdminLogin() {
             Admin Access
           </div>
           <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>
-            Restricted — authorized personnel only
+            Restricted. Authorized personnel only.
           </div>
         </div>
 
