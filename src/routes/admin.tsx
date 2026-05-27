@@ -2948,7 +2948,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         .map(f => ({
           id: crypto.randomUUID(),
           file: f,
-          title: f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+          title: f.name.replace(/\.[^/.]+$/, '').replace(/^\d+[-\s]*/g, '').replace(/[-_]/g, ' ').trim(),
           author: '', notes: '',
           status: 'pending' as const,
           aiGenerated: false,

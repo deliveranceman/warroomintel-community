@@ -54,10 +54,11 @@ async function getPreamble(
       ['sessionIndicators', 'resistanceSignature', 'prayerPoints', 'aftercareNotes', 'legalRights'].includes(f)
     )
 
-    // Fetch contexts and books in parallel
-    const [contextResult, booksResult] = await Promise.all([
+    // Fetch contexts and books in parallel (books from both old ministry_library and new resources table)
+    const [contextResult, booksResult, resourceBooksResult] = await Promise.all([
       client.from('ministry_context').select('label, context_text, scope').eq('is_active', true).order('scope'),
       client.from('ministry_library').select('title, author, extracted_text').eq('is_enabled', true).eq('ai_enabled', true),
+      client.from('resources').select('title, author, notes').eq('topic', 'ministry-library').eq('active', true),
     ])
 
     const MAX_CHARS = 8000
@@ -123,6 +124,19 @@ async function getPreamble(
       } else {
         console.log(`[ai-spirit-enhance] Ministry library: ${books.length} books available, none matched spirit keywords`)
       }
+
+    // Inject uploaded resources library (title/author/notes — no extracted text)
+    const resourceBooks = resourceBooksResult.data || []
+    if (resourceBooks.length > 0) {
+      const entries = resourceBooks
+        .filter(b => b.title)
+        .map(b => `• ${b.title}${b.author ? ` — ${b.author}` : ''}${b.notes ? `: ${b.notes}` : ''}`)
+        .join('\n')
+      if (entries && preamble.length < MAX_CHARS - 500) {
+        preamble += `\nUPLOADED MINISTRY LIBRARY (${resourceBooks.length} books):\n${entries}\n\n`
+        console.log(`[ai-spirit-enhance] Injected ${resourceBooks.length} resource library entries`)
+      }
+    }
     }
 
     return preamble
