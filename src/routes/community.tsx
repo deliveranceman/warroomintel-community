@@ -4832,163 +4832,345 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
 }
 
 // ── SPIRIT NETWORK VIEW ────────────────────────────────────
-function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons }: any) {
+// STYLE RULE: No em dashes (—) in any UI text. Ever. Rewrite the phrase naturally.
+function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigateTo }: any) {
   const isDark = theme !== 'light'
-  const bg = isDark ? '#0D0B14' : '#f5f0e8'
-  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
-  const bdr = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
-  const txt = isDark ? '#f0e8d8' : '#1a1410'
-  const mut = isDark ? '#9a8c74' : '#5c4a3a'
-  const GC = isDark ? '#C9A84C' : '#a07830'
+  const BG   = isDark ? '#0D0B14' : '#f5f0e8'
+  const SURF = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const SURF2 = isDark ? 'rgba(255,255,255,0.03)' : '#fff'
+  const BDR  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
+  const TXT  = isDark ? '#f0e8d8' : '#1a1410'
+  const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
+  const GC   = isDark ? '#C9A84C' : '#a07830'
 
-  const [selectedSpirit, setSelectedSpirit] = useState<any>(null)
-  const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [selected, setSelected]         = useState<any>(null)
+  const [search, setSearch]             = useState('')
+  const [collapsed, setCollapsed]       = useState<Set<string>>(new Set())
+  const [resources, setResources]       = useState<any[]>([])
+  const [resLoading, setResLoading]     = useState(false)
 
-  const HIERARCHY_COLORS: Record<string, string> = {
+  const HIER_COLORS: Record<string, string> = {
     'Principality': '#ef4444', 'Power': '#f97316', 'Ruler of Darkness': '#8b5cf6',
-    'Spiritual Wickedness': '#6366f1', 'Fear / Rejection': '#3b82f6',
-    'Marine Kingdom': '#06b6d4', 'General Oppression': '#9a8c74', 'Sexual Perversion': '#ec4899',
+    'Spiritual Wickedness in High Places': '#6366f1',
+    'Fallen Angel': '#e11d48', 'Demon': '#ca8a04',
+    'Familiar Spirit': '#059669', 'Spirit of Infirmity': '#0ea5e9',
   }
 
-  const categories = ['all', ...Array.from(new Set(demons.map((d: any) => d.hierarchyCategory).filter(Boolean))) as string[]]
+  // Parse clusterSpirits field (comma-separated names) into bidirectional connections
+  function getConnected(spirit: any): any[] {
+    const clusterNames = spirit.clusterSpirits
+      ? String(spirit.clusterSpirits).split(',').map((n: string) => n.trim().toLowerCase()).filter(Boolean)
+      : []
+    const thisName = spirit.name?.toLowerCase()
+    const seen = new Set<number>()
+    const result: any[] = []
+    for (const d of demons) {
+      if (d.id === spirit.id) continue
+      if (seen.has(d.id)) continue
+      const forward = clusterNames.includes(d.name?.toLowerCase())
+      const reverse = thisName && d.clusterSpirits
+        ? String(d.clusterSpirits).split(',').map((n: string) => n.trim().toLowerCase()).includes(thisName)
+        : false
+      if (forward || reverse) { seen.add(d.id); result.push(d) }
+    }
+    return result
+  }
 
-  const filtered = demons.filter((d: any) => {
-    const matchCat = filterCategory === 'all' || d.hierarchyCategory === filterCategory
-    const matchSearch = !searchQuery || d.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchCat && matchSearch
-  })
+  // Fetch related library resources when a spirit is selected
+  useEffect(() => {
+    if (!selected) { setResources([]); return }
+    setResLoading(true)
+    fetch(`/api/spirit-resources?spirit=${encodeURIComponent(selected.name)}`)
+      .then(r => r.json())
+      .then(d => setResources(d.resources || []))
+      .catch(() => setResources([]))
+      .finally(() => setResLoading(false))
+  }, [selected?.id])
 
-  const grouped = filtered.reduce((acc: any, d: any) => {
-    const cat = d.hierarchyCategory || 'General Oppression'
-    if (!acc[cat]) acc[cat] = []
-    acc[cat].push(d)
+  // Group demons by kingdom for left panel
+  const filteredDemons = demons.filter((d: any) =>
+    !search || d.name?.toLowerCase().includes(search.toLowerCase()) || d.aka?.toLowerCase().includes(search.toLowerCase())
+  )
+  const KINGDOM_ORDER = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft', 'Occult']
+  const groupedByKingdom = filteredDemons.reduce((acc: any, d: any) => {
+    const k = d.kingdom || 'Other'
+    if (!acc[k]) acc[k] = []
+    acc[k].push(d)
     return acc
   }, {})
+  const kingdoms = Object.keys(groupedByKingdom).sort((a, b) => {
+    const ai = KINGDOM_ORDER.indexOf(a), bi = KINGDOM_ORDER.indexOf(b)
+    if (ai === -1 && bi === -1) return a.localeCompare(b)
+    if (ai === -1) return 1; if (bi === -1) return -1
+    return ai - bi
+  })
 
-  function getRelated(spirit: any) {
-    return demons.filter((d: any) =>
-      d.id !== spirit.id && (
-        d.hierarchyCategory === spirit.hierarchyCategory ||
-        (spirit.parentStrongman && d.name?.toLowerCase().includes(spirit.parentStrongman?.toLowerCase())) ||
-        (d.parentStrongman && spirit.name && d.parentStrongman?.toLowerCase().includes(spirit.name?.toLowerCase()))
-      )
-    ).slice(0, 6)
-  }
+  const toggleKingdom = (k: string) => setCollapsed(prev => {
+    const next = new Set(prev); next.has(k) ? next.delete(k) : next.add(k); return next
+  })
 
-  if (selectedSpirit) {
-    const related = getRelated(selectedSpirit)
-    const color = HIERARCHY_COLORS[selectedSpirit.hierarchyCategory] || '#9a8c74'
-    return (
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
-        <button onClick={() => setSelectedSpirit(null)}
-          style={{ background: 'none', border: 'none', color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 20 }}>
-          ← Spirit Network
-        </button>
-        <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
+  const connected = selected ? getConnected(selected) : []
+  const hierColor = selected ? (HIER_COLORS[selected.biblicalRank] || HIER_COLORS[selected.hierarchyCategory] || '#9a8c74') : '#9a8c74'
+
+  // ── LEFT PANEL ──────────────────────────────────────────────
+  const LeftPanel = (
+    <div style={{ width: 220, flexShrink: 0, borderRight: `1px solid ${BDR}`, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 12px 8px' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search spirits..."
+          style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${BDR}`, borderRadius: 6, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 12px' }}>
+        {kingdoms.map(kingdom => {
+          const isOpen = !collapsed.has(kingdom)
+          const spirits = groupedByKingdom[kingdom] || []
+          return (
+            <div key={kingdom}>
+              <button onClick={() => toggleKingdom(kingdom)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const }}>
+                <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.14em', color: GC, flex: 1, textTransform: 'uppercase' as const }}>{kingdom}</span>
+                <span style={{ fontSize: 9, color: MUT, fontFamily: crimson }}>{spirits.length}</span>
+                <span style={{ fontSize: 10, color: MUT, display: 'inline-block', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
+              </button>
+              {isOpen && spirits.map((d: any) => (
+                <button key={d.id} onClick={() => setSelected(d)}
+                  style={{ display: 'block', width: '100%', padding: '4px 16px 4px 20px', background: selected?.id === d.id ? 'rgba(201,168,76,0.1)' : 'transparent', borderLeft: `2px solid ${selected?.id === d.id ? GC : 'transparent'}`, border: 'none', borderBottom: 'none', borderRight: 'none', borderTop: 'none', cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.1s' }}
+                  onMouseEnter={e => { if (selected?.id !== d.id) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)' }}
+                  onMouseLeave={e => { if (selected?.id !== d.id) (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: selected?.id === d.id ? GC : TXT, letterSpacing: '0.04em' }}>{d.name}</span>
+                </button>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ padding: '10px 12px', borderTop: `1px solid ${BDR}`, fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.08em', textAlign: 'center' as const }}>
+        {filteredDemons.length} spirits
+      </div>
+    </div>
+  )
+
+  // ── CENTER: DOSSIER ──────────────────────────────────────────
+  const DossierView = selected && (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 28px', minWidth: 0 }}>
+      {/* Header */}
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `4px solid ${hierColor}`, borderRadius: 10, padding: '18px 20px', marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `4px solid ${color}`, borderRadius: 12, padding: '20px 22px', marginBottom: 20 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 18, color: txt, letterSpacing: '0.06em', marginBottom: 4 }}>{selectedSpirit.name}</div>
-              {selectedSpirit.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 8 }}>Also known as: {selectedSpirit.aka}</div>}
-              <span style={{ fontSize: 9, color, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid ${color}`, borderRadius: 10, padding: '2px 8px' }}>
-                {selectedSpirit.hierarchyCategory}
-              </span>
-              {selectedSpirit.parentStrongman && (
-                <div style={{ marginTop: 12, fontSize: 12, color: mut, fontFamily: crimson }}>
-                  <span style={{ color: GC }}>Parent Strongman:</span> {selectedSpirit.parentStrongman}
-                </div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 16 : 20, color: TXT, letterSpacing: '0.06em', marginBottom: 3 }}>{selected.name}</div>
+            {selected.phonetic && <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 4, fontStyle: 'italic' }}>{selected.phonetic}</div>}
+            {selected.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginBottom: 8 }}>Also known as: {selected.aka}</div>}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+              {selected.biblicalRank && (
+                <span style={{ fontSize: 8, color: hierColor, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid ${hierColor}`, borderRadius: 10, padding: '2px 8px' }}>
+                  {selected.biblicalRank}
+                </span>
               )}
-              {selectedSpirit.description && (
-                <div style={{ marginTop: 12, fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>{selectedSpirit.description}</div>
+              {selected.kingdom && (
+                <span style={{ fontSize: 8, color: GC, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '2px 8px' }}>
+                  {selected.kingdom}
+                </span>
               )}
-              {selectedSpirit.deliveranceSequence && (
-                <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 8 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Deliverance Sequence</div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: txt }}>{selectedSpirit.deliveranceSequence}</div>
-                </div>
+              {selected.subKingdom && (
+                <span style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '2px 8px' }}>
+                  {selected.subKingdom}
+                </span>
               )}
             </div>
           </div>
-          {related.length > 0 && (
-            <div style={{ width: isMobile ? '100%' : 260, flexShrink: 0 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Connected Spirits</div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-                {related.map((r: any) => {
-                  const rColor = HIERARCHY_COLORS[r.hierarchyCategory] || '#9a8c74'
-                  return (
-                    <button key={r.id} onClick={() => setSelectedSpirit(r)}
-                      style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${rColor}`, borderRadius: 8, padding: '10px 12px', cursor: 'pointer', textAlign: 'left' as const }}
-                      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = GC)}
-                      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
-                      <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em', marginBottom: 2 }}>{r.name}</div>
-                      <div style={{ fontSize: 9, color: rColor, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{r.hierarchyCategory}</div>
-                    </button>
-                  )
-                })}
-              </div>
+          {isMobile && (
+            <button onClick={() => setSelected(null)} style={{ background: 'none', border: `1px solid ${BDR}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer' }}>
+              ← Back
+            </button>
+          )}
+        </div>
+        {selected.parentStrongman && (
+          <div style={{ marginTop: 12, fontSize: 12, color: MUT, fontFamily: crimson }}>
+            <span style={{ color: GC }}>Parent Strongman:</span> {selected.parentStrongman}
+          </div>
+        )}
+      </div>
+
+      {/* Description */}
+      {selected.description && (
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Description</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.description}</div>
+        </div>
+      )}
+
+      {/* Deliverance Sequence */}
+      {selected.deliveranceSequence && (
+        <div style={{ marginBottom: 18, padding: '12px 16px', background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 8 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Deliverance Sequence</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.7 }}>{selected.deliveranceSequence}</div>
+        </div>
+      )}
+
+      {/* Session Indicators */}
+      {selected.sessionIndicators && (
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Session Indicators</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.7 }}>{selected.sessionIndicators}</div>
+        </div>
+      )}
+
+      {/* Connected Spirits (from Cluster Spirits field, bidirectional) */}
+      {connected.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Connected Spirits</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+            {connected.map((c: any) => {
+              const cColor = HIER_COLORS[c.biblicalRank] || HIER_COLORS[c.hierarchyCategory] || '#9a8c74'
+              return (
+                <button key={c.id} onClick={() => setSelected(c)}
+                  style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${cColor}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', textAlign: 'left' as const, minWidth: 120 }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = cColor; (e.currentTarget as HTMLElement).style.background = `${cColor}12` }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = BDR; (e.currentTarget as HTMLElement).style.background = SURF }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 2 }}>{c.name}</div>
+                  <div style={{ fontSize: 8, color: cColor, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{c.biblicalRank || c.hierarchyCategory || ''}</div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Related Library Resources */}
+      {(resources.length > 0 || resLoading) && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Related Resources</div>
+          {resLoading ? (
+            <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, fontStyle: 'italic' }}>Loading...</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+              {resources.map((r: any) => (
+                <div key={r.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 2 }}>{r.title}</div>
+                  {r.topic && <div style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{r.topic}</div>}
+                </div>
+              ))}
             </div>
           )}
         </div>
+      )}
+
+      {/* Gateway Investigator button */}
+      <div style={{ paddingTop: 4 }}>
+        <button onClick={() => onNavigateTo && onNavigateTo('gateway')}
+          style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+          🚪 Run Gateway Report for {selected.name}
+        </button>
+      </div>
+    </div>
+  )
+
+  // ── CENTER: DEFAULT (no selection) ──────────────────────────
+  const DefaultView = !selected && (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '40px 32px', minWidth: 0 }}>
+      {isMobile && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: 16, margin: 0, letterSpacing: '0.08em' }}>🕸 Spirit Network</h2>
+        </div>
+      )}
+      {!isMobile && (
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: 20, margin: '0 0 6px', letterSpacing: '0.08em' }}>🕸 Spirit Network</h2>
+          <p style={{ color: MUT, fontSize: 14, margin: 0, fontFamily: crimson }}>Select a spirit from the list to see its full dossier, cluster connections, and related resources.</p>
+        </div>
+      )}
+      {/* Kingdom overview cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+        {kingdoms.map(k => {
+          const count = (groupedByKingdom[k] || []).length
+          return (
+            <div key={k} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px 16px', cursor: 'default' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.08em', marginBottom: 4 }}>{k}</div>
+              <div style={{ fontFamily: crimson, fontSize: 22, color: TXT, fontWeight: 700 }}>{count}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>spirits</div>
+            </div>
+          )
+        })}
+      </div>
+      {isMobile && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>All Spirits</div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+            {filteredDemons.slice(0, 60).map((d: any) => (
+              <button key={d.id} onClick={() => setSelected(d)}
+                style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', textAlign: 'left' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 1 }}>{d.name}</div>
+                {d.kingdom && <div style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{d.kingdom}</div>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── RIGHT PANEL (spirit selected, not mobile) ────────────────
+  const RightPanel = selected && !isMobile && (
+    <div style={{ width: 200, flexShrink: 0, borderLeft: `1px solid ${BDR}`, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', padding: '16px 14px', overflowY: 'auto' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 14 }}>Intel Summary</div>
+
+      {/* Stats */}
+      {[
+        { label: 'Kingdom', value: selected.kingdom },
+        { label: 'Sub-Kingdom', value: selected.subKingdom },
+        { label: 'Biblical Rank', value: selected.biblicalRank },
+        { label: 'Case Type', value: selected.caseType },
+        { label: 'Parent Strongman', value: selected.parentStrongman },
+        { label: 'Generational', value: selected.isGenerational ? 'Yes' : null },
+        { label: 'Territorial', value: selected.isTerritorial ? 'Yes' : null },
+      ].filter(s => s.value).map(({ label, value }) => (
+        <div key={label} style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 2 }}>{label}</div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: TXT }}>{value}</div>
+        </div>
+      ))}
+
+      {/* Connections breakdown */}
+      {connected.length > 0 && (
+        <div style={{ marginTop: 8, paddingTop: 12, borderTop: `1px solid ${BDR}` }}>
+          <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Connections ({connected.length})</div>
+          {Object.entries(
+            connected.reduce((acc: any, c: any) => {
+              const k = c.kingdom || 'Unknown'; acc[k] = (acc[k] || 0) + 1; return acc
+            }, {})
+          ).map(([k, count]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{k}</span>
+              <span style={{ fontFamily: crimson, fontSize: 11, color: TXT }}>{String(count)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Primary Battlefield */}
+      {selected.primaryBattlefield && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BDR}` }}>
+          <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Battlefield</div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: TXT }}>{selected.primaryBattlefield}</div>
+        </div>
+      )}
+    </div>
+  )
+
+  if (isMobile) {
+    return (
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: BG, display: 'flex', flexDirection: 'column' as const }}>
+        {DefaultView}
+        {DossierView}
       </div>
     )
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
-        <div>
-          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: isMobile ? 16 : 20, margin: 0, letterSpacing: '0.08em' }}>🕸 Spirit Network</h2>
-          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Relationships between spirits — hierarchies, strongmen, and connected entities</p>
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' as const }}>
-        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search spirits..."
-          style={{ flex: 1, minWidth: 180, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '8px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
-        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-          style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '8px 12px', color: txt, fontFamily: cinzel, fontSize: 10, outline: 'none', letterSpacing: '0.06em' }}>
-          {categories.slice(0, 10).map((cat: string) => (
-            <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>
-          ))}
-        </select>
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' as const }}>
-        {Object.entries(HIERARCHY_COLORS).map(([cat, color]) => {
-          const count = demons.filter((d: any) => d.hierarchyCategory === cat).length
-          if (!count) return null
-          return (
-            <button key={cat} onClick={() => setFilterCategory(filterCategory === cat ? 'all' : cat)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: filterCategory === cat ? `${color}20` : 'transparent', border: `1px solid ${filterCategory === cat ? color : bdr}`, borderRadius: 20, padding: '4px 10px', cursor: 'pointer', transition: 'all 0.15s' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-              <span style={{ fontFamily: cinzel, fontSize: 9, color: filterCategory === cat ? color : mut, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{cat.split(' ')[0]}</span>
-              <span style={{ fontSize: 9, color: mut, fontFamily: crimson }}>{count}</span>
-            </button>
-          )
-        })}
-      </div>
-      {Object.entries(grouped).map(([category, spirits]: [string, any]) => {
-        const color = HIERARCHY_COLORS[category] || '#9a8c74'
-        return (
-          <div key={category} style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
-              <div style={{ fontFamily: cinzel, fontSize: 10, color, letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>{category}</div>
-              <div style={{ fontSize: 10, color: mut, fontFamily: crimson }}>({spirits.length})</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
-              {spirits.map((spirit: any) => (
-                <button key={spirit.id} onClick={() => setSelectedSpirit(spirit)}
-                  style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${color}`, borderRadius: 8, padding: '10px 12px', cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${color}10`; (e.currentTarget as HTMLElement).style.borderColor = color }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = surf; (e.currentTarget as HTMLElement).style.borderColor = bdr }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em', marginBottom: spirit.parentStrongman ? 3 : 0 }}>{spirit.name}</div>
-                  {spirit.parentStrongman && <div style={{ fontSize: 9, color: mut, fontFamily: crimson }}>Under: {spirit.parentStrongman}</div>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )
-      })}
+    <div style={{ flex: 1, minHeight: 0, background: BG, display: 'flex', overflow: 'hidden' }}>
+      {LeftPanel}
+      {DefaultView}
+      {DossierView}
+      {RightPanel}
     </div>
   )
 }
@@ -5037,6 +5219,12 @@ function CommunityPage() {
   const [activeSection, setActiveSection] = useState('intel')
   const [trainingExpanded, setTrainingExpanded] = useState(false)
   const [fringeExpanded, setFringeExpanded]     = useState(false)
+  const [intelligenceOpen, setIntelligenceOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_intelligence_open') !== 'false' } catch { return true }
+  })
+  const [intelArchiveOpen, setIntelArchiveOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
+  })
   const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
 
   const [streamToken, setStreamToken] = useState<string>('')
@@ -5375,10 +5563,27 @@ function CommunityPage() {
   }
 
   // ── NAV HELPERS ────────────────────────────────────────────
+  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed'])
+  const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network'])
+  const intelOpen    = intelligenceOpen || INTELLIGENCE_SECTS.has(activeSection)
+  const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
+
+  const chevronStyle = (open: boolean): React.CSSProperties => ({
+    fontSize: 10, color: isDark ? '#6b5e45' : '#7a6555', display: 'inline-block',
+    transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s',
+  })
+
   const sectionLabel = (label: string) => (
     <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#7a6555' }}>
       {label}
     </div>
+  )
+
+  const collapsibleSection = (label: string, open: boolean, toggle: () => void) => (
+    <button onClick={toggle} style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '12px 16px 4px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+      <span style={{ flex: 1, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#7a6555', textTransform: 'uppercase' as const }}>{label}</span>
+      <span style={chevronStyle(open)}>›</span>
+    </button>
   )
 
   const NAV_DEFAULT = isDark ? '#b8a98a' : '#3d2e1e'
@@ -5720,44 +5925,58 @@ function CommunityPage() {
         </a>
 
         {/* ── INTELLIGENCE ── */}
-        {sectionLabel('Intelligence')}
-        {navItem('Intel Archive', 'database', '📚')}
-        <div style={{ paddingLeft: 16 }}>
-          <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ fontSize: 11 }}>🔍</span>
-            <span>Symptom Investigator</span>
+        {collapsibleSection('Intelligence', intelOpen, () => {
+          const next = !intelligenceOpen
+          setIntelligenceOpen(next)
+          try { localStorage.setItem('sidebar_intelligence_open', String(next)) } catch {}
+        })}
+        <div style={{ overflow: 'hidden', maxHeight: intelOpen ? 800 : 0, transition: 'max-height 0.2s ease' }}>
+          {navItem('Intel Archive', 'database', '📚')}
+          {/* Intel Archive sub-tools */}
+          <button onClick={() => {
+            const next = !intelArchiveOpen
+            setIntelArchiveOpen(next)
+            try { localStorage.setItem('sidebar_intel_archive_open', String(next)) } catch {}
+          }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '4px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+            <span style={{ fontSize: 9, color: isDark ? '#6b5e45' : '#7a6555', fontFamily: cinzel, letterSpacing: '0.06em', flex: 1 }}>Archive Tools</span>
+            <span style={chevronStyle(archiveOpen)}>›</span>
           </button>
-          <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ fontSize: 11 }}>🗺</span>
-            <span>Body Map</span>
-          </button>
-          <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ fontSize: 11 }}>🕸</span>
-            <span>Spirit Network</span>
-          </button>
-          <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ fontSize: 11 }}>🚪</span>
-            <span>Gateway Investigator</span>
-          </button>
-        </div>
-
-        <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>👁</span>
-          <span style={{ flex: 1 }}>Fringe Intelligence</span>
-          <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#7a6555', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
-        </button>
-        {fringeExpanded && (
-          <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
-            {navItem('The Feed', 'fringe-feed', '📡')}
-            {[{ label: 'The Archive', icon: '🗂' }, { label: 'Fringe Chat', icon: '💬' }, { label: 'Courses', icon: '🎓' }].map(({ label, icon }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
-                <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555', flex: 1 }}>{label}</span>
-                <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
-              </div>
-            ))}
+          <div style={{ overflow: 'hidden', maxHeight: archiveOpen ? 200 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ paddingLeft: 16 }}>
+              <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <span style={{ fontSize: 11 }}>🔍</span>
+                <span>Symptom Investigator</span>
+              </button>
+              <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <span style={{ fontSize: 11 }}>🗺</span>
+                <span>Body Map</span>
+              </button>
+              <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <span style={{ fontSize: 11 }}>🕸</span>
+                <span>Spirit Network</span>
+              </button>
+            </div>
           </div>
-        )}
+          {navItem('Gateway Investigator', 'gateway', '🚪')}
+
+          <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+            <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>👁</span>
+            <span style={{ flex: 1 }}>Fringe Intelligence</span>
+            <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#7a6555', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+          </button>
+          {fringeExpanded && (
+            <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
+              {navItem('The Feed', 'fringe-feed', '📡')}
+              {[{ label: 'The Archive', icon: '🗂' }, { label: 'Fringe Chat', icon: '💬' }, { label: 'Courses', icon: '🎓' }].map(({ label, icon }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
+                  <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#7a6555', flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── FIELD OPERATIONS ── */}
         {sectionLabel('Field Operations')}
@@ -5928,7 +6147,7 @@ function CommunityPage() {
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'body-map' && <BodyMapView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} onSelectSpirit={(spirit: any) => { setActiveSection('database') }} />}
-        {activeSection === 'spirit-network' && <SpiritNetworkView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} />}
+        {activeSection === 'spirit-network' && <SpiritNetworkView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} onNavigateTo={(section: string) => setActiveSection(section)} />}
         {activeSection === 'gateway' && <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'training'    && (
           <TrainingView
