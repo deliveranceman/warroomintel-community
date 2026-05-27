@@ -5564,7 +5564,7 @@ function CommunityPage() {
 
   // ── NAV HELPERS ────────────────────────────────────────────
   const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed'])
-  const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network'])
+  const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network', 'gateway'])
   const intelOpen    = intelligenceOpen || INTELLIGENCE_SECTS.has(activeSection)
   const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
 
@@ -5906,13 +5906,13 @@ function CommunityPage() {
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
+        {navItem('Weekly Intel', 'intel', '📡')}
         <a href="/community/forum" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>💬</span>
-          <span>The Board</span>
+          <span>Ops Board</span>
         </a>
-        {navItem('Weekly Intel', 'intel', '📡')}
         {navItem('Field Ministry', 'field-ministry', '📖')}
 
         {/* ── FOUNDATION ── */}
@@ -5931,33 +5931,47 @@ function CommunityPage() {
           try { localStorage.setItem('sidebar_intelligence_open', String(next)) } catch {}
         })}
         <div style={{ overflow: 'hidden', maxHeight: intelOpen ? 800 : 0, transition: 'max-height 0.2s ease' }}>
-          {navItem('Intel Archive', 'database', '📚')}
-          {/* Intel Archive sub-tools */}
-          <button onClick={() => {
-            const next = !intelArchiveOpen
-            setIntelArchiveOpen(next)
-            try { localStorage.setItem('sidebar_intel_archive_open', String(next)) } catch {}
-          }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '4px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ fontSize: 9, color: isDark ? '#6b5e45' : '#7a6555', fontFamily: cinzel, letterSpacing: '0.06em', flex: 1 }}>Archive Tools</span>
-            <span style={chevronStyle(archiveOpen)}>›</span>
-          </button>
-          <div style={{ overflow: 'hidden', maxHeight: archiveOpen ? 200 : 0, transition: 'max-height 0.2s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button
+              onClick={() => { setActiveSection('database'); if (isMobile) setSidebarOpen(false) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, padding: '8px 8px 8px 16px', background: activeSection === 'database' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'database' ? navGold : 'transparent'}`, cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'database' ? navGold : NAV_DEFAULT, fontWeight: activeSection === 'database' ? 600 : 400, textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
+              onMouseLeave={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
+            >
+              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📚</span>
+              Intel Archive
+            </button>
+            <button
+              onClick={() => {
+                const next = !intelArchiveOpen
+                setIntelArchiveOpen(next)
+                try { localStorage.setItem('sidebar_intel_archive_open', String(next)) } catch {}
+              }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 12px 8px 4px', color: activeSection === 'database' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), flexShrink: 0 }}
+            >
+              <span style={chevronStyle(archiveOpen)}>›</span>
+            </button>
+          </div>
+          <div style={{ overflow: 'hidden', maxHeight: archiveOpen ? 250 : 0, transition: 'max-height 0.2s ease' }}>
             <div style={{ paddingLeft: 16 }}>
               <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
                 <span style={{ fontSize: 11 }}>🔍</span>
                 <span>Symptom Investigator</span>
               </button>
               <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <span style={{ fontSize: 11 }}>🗺</span>
+                <span style={{ fontSize: 11 }}>🗺️</span>
                 <span>Body Map</span>
               </button>
               <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <span style={{ fontSize: 11 }}>🕸</span>
+                <span style={{ fontSize: 11 }}>🕸️</span>
                 <span>Spirit Network</span>
+              </button>
+              <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <span style={{ fontSize: 11 }}>🧱</span>
+                <span>Gateway Investigator</span>
               </button>
             </div>
           </div>
-          {navItem('Gateway Investigator', 'gateway', '🚪')}
 
           <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
             <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>👁</span>
