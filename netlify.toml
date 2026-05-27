@@ -53,3 +53,6 @@
 
 [functions."library-index"]
   timeout = 26
+
+[functions."admin-taxonomy-ai"]
+  timeout = 60

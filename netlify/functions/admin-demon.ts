@@ -162,7 +162,14 @@ export default async function handler(req: Request) {
 
         // Kingdom is a Single Select — only send known valid options
         if (camel === 'kingdom') {
-          const validKingdoms = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft', 'Occult']
+          const validKingdoms = [
+            'Hell / Darkness', 'Air', 'Water / Marine', 'Earth', 'Witchcraft', 'Occult',
+            'Religion / False Religion', 'False Religion / Paganism', 'Infirmity / Sickness',
+            'Mind / Intellect', 'Sexual Perversion', 'Death / Destruction', 'Fear / Torment',
+            'Pride / Self', 'Deception / Lies', 'Anger / Violence', 'Mammon / Greed',
+            // Legacy short values kept for backward compat
+            'Hell', 'Darkness', 'Water', 'Occult',
+          ]
           if (!value || !validKingdoms.includes(value)) {
             delete airtableFields[camel]
             continue

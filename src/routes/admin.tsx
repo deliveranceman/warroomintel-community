@@ -5077,10 +5077,20 @@ function AdminPage() {
 
 const KINGDOM_OPTIONS = [
   '', 'Hell / Darkness', 'Air', 'Water / Marine', 'Earth', 'Witchcraft', 'Occult',
-  'Religion / False Religion', 'Infirmity / Sickness', 'Mind / Intellect',
-  'Sexual Perversion', 'Death / Destruction', 'Fear / Torment', 'Pride / Self',
-  'Deception / Lies', 'Anger / Violence', 'Mammon / Greed',
+  'Religion / False Religion', 'False Religion / Paganism', 'Infirmity / Sickness',
+  'Mind / Intellect', 'Sexual Perversion', 'Death / Destruction', 'Fear / Torment',
+  'Pride / Self', 'Deception / Lies', 'Anger / Violence', 'Mammon / Greed',
 ]
+
+interface TaxSuggestion {
+  recordId:   string
+  name:       string
+  current:    { biblicalRank: string; kingdom: string; subKingdom: string }
+  suggested:  { biblicalRank: string; kingdom: string; subKingdom: string }
+  confidence: 'high' | 'medium' | 'low'
+  reasoning:  string
+  changed:    boolean
+}
 
 const SUB_KINGDOM_OPTIONS = [
   '', 'Norse / Germanic', 'Celtic / Druidic', 'Greek / Roman', 'Egyptian',
@@ -5102,11 +5112,18 @@ const BIBLICAL_RANK_OPTIONS = [
 ]
 
 function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }) {
-  const [spirits, setSpirits] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter]   = useState<'all' | 'needs'>('all')
-  const [search, setSearch]   = useState('')
-  const [saves, setSaves]     = useState<Record<string, 'saving' | 'saved' | 'error'>>({})
+  const [spirits,     setSpirits]     = useState<any[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [filter,      setFilter]      = useState<'all' | 'needs'>('all')
+  const [search,      setSearch]      = useState('')
+  const [saves,       setSaves]       = useState<Record<string, 'saving' | 'saved' | 'error'>>({})
+
+  // AI suggestion state
+  const [aiRunning,   setAiRunning]   = useState(false)
+  const [aiMsg,       setAiMsg]       = useState('')
+  const [suggestions, setSuggestions] = useState<TaxSuggestion[]>([])
+  const [suggFilter,  setSuggFilter]  = useState<'all' | 'high' | 'changed'>('all')
+  const [applying,    setApplying]    = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 })
 
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => {
@@ -5140,6 +5157,60 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
       setTimeout(() => setSaves(p => { const n = { ...p }; delete n[key]; return n }), 3500)
     }
   }
+
+  async function runAiSuggest() {
+    setAiRunning(true)
+    setAiMsg(`Analyzing ${spirits.length} spirits with AI…`)
+    setSuggestions([])
+    try {
+      const token = await getToken()
+      const res   = await fetch('/api/admin-taxonomy-ai', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setAiMsg(`Error: ${err.error || res.statusText}`)
+        setAiRunning(false)
+        return
+      }
+      const data = await res.json()
+      setSuggestions(data.suggestions || [])
+      setAiMsg(`AI found ${data.changed} suggested changes (${data.highConfidence} high confidence)`)
+    } catch (e: any) {
+      setAiMsg(`Error: ${e.message}`)
+    }
+    setAiRunning(false)
+  }
+
+  async function applyRow(sugg: TaxSuggestion) {
+    const patches: Promise<void>[] = []
+    if (sugg.suggested.kingdom && sugg.suggested.kingdom !== sugg.current.kingdom)
+      patches.push(handleChange(sugg.recordId, 'kingdom', sugg.suggested.kingdom))
+    if (sugg.suggested.subKingdom && sugg.suggested.subKingdom !== 'None' && sugg.suggested.subKingdom !== sugg.current.subKingdom)
+      patches.push(handleChange(sugg.recordId, 'subKingdom', sugg.suggested.subKingdom))
+    if (sugg.suggested.biblicalRank && sugg.suggested.biblicalRank !== sugg.current.biblicalRank)
+      patches.push(handleChange(sugg.recordId, 'biblicalRank', sugg.suggested.biblicalRank))
+    await Promise.all(patches)
+    setSuggestions(p => p.filter(s => s.recordId !== sugg.recordId))
+  }
+
+  async function applyAllSuggestions(list: TaxSuggestion[]) {
+    if (!list.length) return
+    setApplying({ running: true, done: 0, total: list.length })
+    for (let i = 0; i < list.length; i += 5) {
+      const batch = list.slice(i, i + 5)
+      await Promise.all(batch.map(applyRow))
+      setApplying(p => ({ ...p, done: Math.min(i + 5, list.length) }))
+    }
+    setApplying({ running: false, done: 0, total: 0 })
+  }
+
+  const filteredSuggs = useMemo(() => {
+    if (suggFilter === 'high')    return suggestions.filter(s => s.confidence === 'high')
+    if (suggFilter === 'changed') return suggestions.filter(s => s.changed)
+    return suggestions
+  }, [suggestions, suggFilter])
 
   const filtered = useMemo(() => spirits.filter(s => {
     if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -5199,7 +5270,7 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         </div>
 
-        {/* Filters + Search */}
+        {/* Filters + Search + AI button */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginTop: 4 }}>
           <button
             onClick={() => setFilter('all')}
@@ -5235,6 +5306,29 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
           >
             NEEDS REVIEW ({spirits.filter(s => !s.kingdom || !s.subKingdom || !s.biblicalRank).length})
           </button>
+          <button
+            onClick={runAiSuggest}
+            disabled={aiRunning}
+            style={{
+              padding:      '6px 16px',
+              background:   aiRunning ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.15)',
+              color:        G2,
+              border:       `1px solid rgba(201,168,76,0.5)`,
+              borderRadius: 4,
+              fontFamily:   "'Cinzel', serif",
+              fontSize:     9,
+              letterSpacing:'0.1em',
+              cursor:       aiRunning ? 'not-allowed' : 'pointer',
+              opacity:      aiRunning ? 0.7 : 1,
+            }}
+          >
+            {aiRunning ? '✦ Analyzing…' : '✦ AI Suggest All'}
+          </button>
+          {aiMsg && !aiRunning && (
+            <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: dim2, fontStyle: 'italic' }}>
+              {aiMsg}
+            </span>
+          )}
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -5250,6 +5344,153 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
           />
         </div>
       </div>
+
+      {/* AI Suggestions Panel */}
+      {suggestions.length > 0 && (
+        <div style={{ marginBottom: 24, border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 10, overflow: 'hidden' }}>
+          {/* Panel header */}
+          <div style={{ background: isDark ? 'rgba(201,168,76,0.1)' : 'rgba(160,120,48,0.08)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const, borderBottom: `1px solid rgba(201,168,76,0.2)` }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G2, letterSpacing: '0.08em', fontWeight: 700 }}>
+              ✦ AI SUGGESTIONS — {suggestions.length} changes ({suggestions.filter(s => s.confidence === 'high').length} high confidence)
+            </div>
+            {/* Suggestion filter tabs */}
+            <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+              {(['all', 'high', 'changed'] as const).map(f => (
+                <button key={f} onClick={() => setSuggFilter(f)} style={{
+                  padding: '3px 10px',
+                  background: suggFilter === f ? G2 : 'transparent',
+                  color: suggFilter === f ? '#0D0B14' : G2,
+                  border: `1px solid rgba(201,168,76,${suggFilter === f ? '1' : '0.4'})`,
+                  borderRadius: 3, fontFamily: "'Cinzel', serif", fontSize: 8,
+                  letterSpacing: '0.08em', cursor: 'pointer',
+                }}>
+                  {f === 'all' ? `ALL (${suggestions.length})` : f === 'high' ? `HIGH (${suggestions.filter(s => s.confidence === 'high').length})` : `CHANGED (${suggestions.filter(s => s.changed).length})`}
+                </button>
+              ))}
+            </div>
+            {/* Bulk apply buttons */}
+            <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+              {applying.running ? (
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: G2, letterSpacing: '0.08em' }}>
+                  Applying {applying.done}/{applying.total}…
+                </span>
+              ) : (
+                <>
+                  <button onClick={() => applyAllSuggestions(suggestions.filter(s => s.confidence === 'high'))} style={{
+                    padding: '5px 12px', background: G2, color: '#0D0B14',
+                    border: 'none', borderRadius: 4,
+                    fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700,
+                  }}>
+                    ✓ Apply High Confidence ({suggestions.filter(s => s.confidence === 'high').length})
+                  </button>
+                  <button onClick={() => applyAllSuggestions(suggestions)} style={{
+                    padding: '5px 12px', background: 'transparent', color: G2,
+                    border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 4,
+                    fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer',
+                  }}>
+                    Apply All ({suggestions.length})
+                  </button>
+                  <button onClick={() => setSuggestions([])} style={{
+                    padding: '5px 10px', background: 'transparent', color: dim2,
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)'}`, borderRadius: 4,
+                    fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer',
+                  }}>
+                    ✕ Dismiss All
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Suggestion rows */}
+          <div style={{ maxHeight: 420, overflowY: 'auto' as const }}>
+            {filteredSuggs.map(sugg => {
+              const confColor = sugg.confidence === 'high' ? '#4ade80' : sugg.confidence === 'medium' ? '#f59e0b' : '#f87171'
+              const fieldDiff = (cur: string, sug: string) => cur !== sug && !!sug && sug !== 'None'
+
+              return (
+                <div key={sugg.recordId} style={{
+                  display: 'grid', gridTemplateColumns: '180px 1fr 1fr 1fr auto auto',
+                  gap: 0, padding: '8px 14px', borderBottom: `1px solid rgba(201,168,76,0.1)`,
+                  alignItems: 'center', fontSize: 12,
+                }}>
+                  {/* Name */}
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 600, color: txt2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }} title={sugg.name}>
+                    {sugg.name}
+                  </div>
+
+                  {/* Kingdom */}
+                  <div style={{ padding: '0 8px' }}>
+                    {fieldDiff(sugg.current.kingdom, sugg.suggested.kingdom) ? (
+                      <>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current.kingdom || '—'}</div>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: G2, fontWeight: 600, lineHeight: 1.3 }}>{sugg.suggested.kingdom}</div>
+                      </>
+                    ) : (
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current.kingdom || '—'}</div>
+                    )}
+                  </div>
+
+                  {/* Sub-Kingdom */}
+                  <div style={{ padding: '0 8px' }}>
+                    {fieldDiff(sugg.current.subKingdom, sugg.suggested.subKingdom) ? (
+                      <>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current.subKingdom || '—'}</div>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: G2, fontWeight: 600, lineHeight: 1.3 }}>{sugg.suggested.subKingdom}</div>
+                      </>
+                    ) : (
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current.subKingdom || '—'}</div>
+                    )}
+                  </div>
+
+                  {/* Biblical Rank + confidence + reasoning */}
+                  <div style={{ padding: '0 8px' }}>
+                    {fieldDiff(sugg.current.biblicalRank, sugg.suggested.biblicalRank) ? (
+                      <>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current.biblicalRank || '—'}</div>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: G2, fontWeight: 600, lineHeight: 1.3 }}>{sugg.suggested.biblicalRank}</div>
+                      </>
+                    ) : (
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current.biblicalRank || '—'}</div>
+                    )}
+                    {sugg.reasoning && (
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 10, color: dim2, fontStyle: 'italic', marginTop: 2, lineHeight: 1.3, whiteSpace: 'normal' as const }}>
+                        {sugg.reasoning}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confidence badge */}
+                  <div style={{ padding: '0 8px', textAlign: 'center' as const }}>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 7px', borderRadius: 10,
+                      background: confColor + '22', border: `1px solid ${confColor}66`,
+                      color: confColor, fontFamily: "'Cinzel', serif", fontSize: 7,
+                      letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+                    }}>
+                      {sugg.confidence}
+                    </span>
+                  </div>
+
+                  {/* Apply / Skip */}
+                  <div style={{ display: 'flex', gap: 5, padding: '0 4px', whiteSpace: 'nowrap' as const }}>
+                    <button onClick={() => applyRow(sugg)} style={{
+                      padding: '4px 10px', background: G2, color: '#0D0B14',
+                      border: 'none', borderRadius: 3,
+                      fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700,
+                    }}>✓</button>
+                    <button onClick={() => setSuggestions(p => p.filter(s => s.recordId !== sugg.recordId))} style={{
+                      padding: '4px 10px', background: 'transparent', color: dim2,
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.15)'}`, borderRadius: 3,
+                      fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer',
+                    }}>✕</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ overflowX: 'auto' as const, border: `1px solid ${bdr}`, borderRadius: 8 }}>
