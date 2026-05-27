@@ -15,17 +15,6 @@ function getUserId(authHeader: string | null): string | null {
   } catch { return null }
 }
 
-async function isMinister(userId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const d = await res.json()
-    return d?.public_metadata?.role === 'minister'
-  } catch { return false }
-}
-
 export default async function handler(req: Request) {
   console.log('[library-autofill] called:', req.method)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -34,14 +23,20 @@ export default async function handler(req: Request) {
   const authHeader = req.headers.get('authorization')
   const userId = getUserId(authHeader)
   console.log('[library-autofill] userId:', userId, 'hasAuth:', !!authHeader)
-  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
+  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized — valid Clerk JWT required' }), { status: 401, headers: CORS })
 
-  const ok = await isMinister(userId)
-  console.log('[library-autofill] isMinister:', ok)
-  if (!ok) return new Response(JSON.stringify({ error: 'Minister role required' }), { status: 403, headers: CORS })
+  // Auth check: require only a valid Clerk userId — no role restriction
+  // (minister check removed; any authenticated user may call this endpoint)
 
-  const { filename, contentSnippet } = await req.json().catch(() => ({}))
+  const body = await req.json().catch(() => ({}))
+  const { filename, contentSnippet } = body as { filename?: string; contentSnippet?: string }
   if (!filename) return new Response(JSON.stringify({ error: 'filename required' }), { status: 400, headers: CORS })
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    console.error('[library-autofill] ANTHROPIC_API_KEY is not set')
+    return new Response(JSON.stringify({ error: 'Server configuration error: ANTHROPIC_API_KEY is missing' }), { status: 500, headers: CORS })
+  }
 
   const snippetBlock = contentSnippet?.trim()
     ? `\n\nFile content (first ~2000 chars):\n"""\n${contentSnippet.slice(0, 2000)}\n"""`
@@ -59,28 +54,35 @@ Rules:
 - notes should describe the book's relevance to spiritual warfare or deliverance ministry
 - If you don't recognize the book, set notes to null`
 
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
+  let anthropicRes: Response
+  try {
+    anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+  } catch (fetchErr: any) {
+    console.error('[library-autofill] fetch to Anthropic threw:', fetchErr?.message)
+    return new Response(JSON.stringify({ error: `Network error calling Anthropic: ${fetchErr?.message}` }), { status: 500, headers: CORS })
+  }
 
   if (!anthropicRes.ok) {
-    const err = await anthropicRes.text()
-    console.error('[library-autofill] Anthropic error:', err)
-    return new Response(JSON.stringify({ error: 'AI request failed' }), { status: 500, headers: CORS })
+    const errText = await anthropicRes.text()
+    console.error('[library-autofill] Anthropic error:', anthropicRes.status, errText)
+    return new Response(JSON.stringify({ error: `Anthropic API error ${anthropicRes.status}: ${errText.slice(0, 300)}` }), { status: 500, headers: CORS })
   }
 
   const data = await anthropicRes.json()
   const raw = data.content?.[0]?.text?.trim() || ''
+  console.log('[library-autofill] raw response:', raw)
 
   let title: string | null = null
   let author: string | null = null
@@ -91,7 +93,7 @@ Rules:
     author = parsed.author || null
     notes = parsed.notes || null
   } catch {
-    title = filename.replace(/\.(pdf|txt|docx?)$/i, '').replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    title = filename.replace(/\.(pdf|txt|docx?)$/i, '').replace(/[_-]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
   }
 
   return new Response(JSON.stringify({ title, author, notes }), { status: 200, headers: CORS })
