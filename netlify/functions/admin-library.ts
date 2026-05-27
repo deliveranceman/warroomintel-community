@@ -162,11 +162,24 @@ export default async function handler(req: Request) {
   // ── PATCH — update book metadata ────────────────────────────────────────────
   if (req.method === 'PATCH') {
     const body = await req.json()
-    const { id, ...fields } = body
+    const { id, cleanTitle, ...fields } = body
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
     const allowed = ['title', 'author', 'notes', 'active', 'ai_generated']
     const update: Record<string, any> = {}
     for (const k of allowed) { if (k in fields) update[k] = fields[k] }
+    // Strip numeric prefix from title when cleanTitle flag is set
+    if (cleanTitle && update.title) {
+      update.title = update.title.replace(/^\d+[-\s]*/g, '').trim()
+    } else if (cleanTitle) {
+      // No title in payload — fetch current title and clean it
+      const { data: current } = await sb
+        .from('resources')
+        .select('title')
+        .eq('id', id)
+        .eq('topic', 'ministry-library')
+        .single()
+      if (current?.title) update.title = current.title.replace(/^\d+[-\s]*/g, '').trim()
+    }
     const { data, error } = await sb
       .from('resources')
       .update(update)

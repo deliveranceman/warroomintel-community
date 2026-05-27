@@ -2829,6 +2829,15 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [books, setBooks]           = useState<any[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
 
+  // AI Rename inline state — keyed by book id
+  type RenameState = { loading: boolean; editing: boolean; title: string; author: string; notes: string }
+  const [renameStates, setRenameStates] = useState<Record<string, RenameState>>({})
+
+  // Library summary state
+  const [libSummary, setLibSummary]     = useState<{ summary: string; books: any[] } | null>(null)
+  const [libSummaryOpen, setLibSummaryOpen] = useState(false)
+  const [libSummaryLoading, setLibSummaryLoading] = useState(false)
+
   // Staged files state
   type StagedFile = {
     id: string; file: File; title: string; author: string; notes: string
@@ -3110,6 +3119,74 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     return `${(b / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  async function handleAiRename(book: any) {
+    setRenameStates(prev => ({ ...prev, [book.id]: { loading: true, editing: false, title: book.title || '', author: book.author || '', notes: book.notes || '' } }))
+    try {
+      const token = await getToken()
+      const resp = await fetch('/api/library-autofill', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
+      })
+      const d = await resp.json()
+      if (!resp.ok) {
+        setRenameStates(prev => ({ ...prev, [book.id]: { loading: false, editing: false, title: book.title || '', author: book.author || '', notes: book.notes || '' } }))
+        return
+      }
+      setRenameStates(prev => ({
+        ...prev,
+        [book.id]: { loading: false, editing: true, title: d.title || book.title || '', author: d.author || book.author || '', notes: d.notes || book.notes || '' },
+      }))
+    } catch {
+      setRenameStates(prev => ({ ...prev, [book.id]: { loading: false, editing: false, title: book.title || '', author: book.author || '', notes: book.notes || '' } }))
+    }
+  }
+
+  function cancelRename(id: string) {
+    setRenameStates(prev => { const n = { ...prev }; delete n[id]; return n })
+  }
+
+  async function saveRename(id: string) {
+    const rs = renameStates[id]
+    if (!rs) return
+    const token = await getToken()
+    const res = await fetch('/api/admin-library', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, title: rs.title.trim(), author: rs.author.trim(), notes: rs.notes.trim() }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      if (d.book) setBooks(prev => prev.map(b => b.id === id ? { ...b, ...d.book } : b))
+      else setBooks(prev => prev.map(b => b.id === id ? { ...b, title: rs.title, author: rs.author, notes: rs.notes } : b))
+    }
+    cancelRename(id)
+  }
+
+  async function cleanTitle(book: any) {
+    const token = await getToken()
+    const res = await fetch('/api/admin-library', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id: book.id, cleanTitle: true }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      if (d.book) setBooks(prev => prev.map(b => b.id === book.id ? { ...b, ...d.book } : b))
+    }
+  }
+
+  async function loadLibrarySummary() {
+    if (libSummaryLoading) return
+    setLibSummaryLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/library-summary', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setLibSummary(d) }
+    } catch { /* ignore */ }
+    setLibSummaryLoading(false)
+  }
+
   const anyUploading = stagedFiles.some(f => f.status === 'uploading')
   const anyAnalyzing = stagedFiles.some(f => f.status === 'analyzing')
 
@@ -3259,6 +3336,48 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         </div>
 
+        {/* ── HOW AI USES YOUR LIBRARY — collapsible ── */}
+        <div style={{ marginBottom: 18, background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.18)`, borderRadius: 8 }}>
+          <button
+            onClick={() => {
+              const opening = !libSummaryOpen
+              setLibSummaryOpen(opening)
+              if (opening && !libSummary) loadLibrarySummary()
+            }}
+            style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '10px 14px', color: LMUT, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', textAlign: 'left' as const }}
+          >
+            <span style={{ fontSize: 13 }}>ℹ</span>
+            <span>HOW AI USES YOUR LIBRARY</span>
+            <span style={{ marginLeft: 'auto', fontSize: 14, transition: 'transform 0.2s', display: 'inline-block', transform: libSummaryOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+          </button>
+          {libSummaryOpen && (
+            <div style={{ padding: '0 14px 14px 14px' }}>
+              {libSummaryLoading ? (
+                <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>Loading...</div>
+              ) : libSummary ? (
+                <>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: LTXT, lineHeight: 1.7, marginBottom: 10 }}>{libSummary.summary}</div>
+                  {libSummary.books.filter((b: any) => b.active !== false).length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 6 }}>ACTIVE IN AI CONTEXT</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+                        {libSummary.books.filter((b: any) => b.active !== false).map((b: any) => (
+                          <div key={b.id} style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>
+                            <span style={{ color: LG }}>✦</span> {b.title}{b.author ? ` — ${b.author}` : ''}
+                            {b.ai_generated && <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5C7CBF', marginLeft: 6, letterSpacing: '0.08em' }}>AI</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>Could not load summary.</div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* ── DROPZONE — always visible ── */}
         <div
           onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -3383,7 +3502,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
               {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.ai_generated).length} AI-generated
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-              {books.map(book => (
+              {books.map(book => {
+                const rs = renameStates[book.id]
+                const hasNumericPrefix = /^\d+[-\s]/.test(book.title || '')
+                return (
                 <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -3395,7 +3517,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                       </div>
                       {book.notes && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>{book.notes}</div>}
                     </div>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
                       {/* Active toggle */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>VIS</span>
@@ -3417,14 +3539,77 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           <div style={{ position: 'absolute' as const, top: 2, left: book.ai_generated ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                         </button>
                       </div>
+                      {/* AI Rename button */}
+                      <button
+                        onClick={() => handleAiRename(book)}
+                        disabled={rs?.loading}
+                        style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: rs?.loading ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: rs?.loading ? 0.6 : 1 }}
+                        title="AI Rename — auto-fill title, author, and notes"
+                      >
+                        {rs?.loading ? '...' : '✦ AI Rename'}
+                      </button>
+                      {/* Clean Title button — only when numeric prefix detected */}
+                      {hasNumericPrefix && (
+                        <button
+                          onClick={() => cleanTitle(book)}
+                          style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
+                          title="Strip numeric prefix from title"
+                        >
+                          ✂ Clean Title
+                        </button>
+                      )}
                       <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
                         style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
                         Delete
                       </button>
                     </div>
                   </div>
+                  {/* AI Rename inline edit form */}
+                  {rs?.editing && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid rgba(201,168,76,0.18)` }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: '#8BA3D4', letterSpacing: '0.1em', marginBottom: 10 }}>✦ AI SUGGESTED — REVIEW & SAVE</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                        <div>
+                          <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TITLE</label>
+                          <input
+                            value={rs.title}
+                            onChange={e => setRenameStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], title: e.target.value } }))}
+                            style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>AUTHOR</label>
+                          <input
+                            value={rs.author}
+                            onChange={e => setRenameStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], author: e.target.value } }))}
+                            style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>NOTES</label>
+                        <textarea
+                          value={rs.notes}
+                          onChange={e => setRenameStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], notes: e.target.value } }))}
+                          rows={2}
+                          style={{ ...inp, fontSize: 12, padding: '6px 10px', resize: 'vertical' as const }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => saveRename(book.id)}
+                          style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}
+                        >Save</button>
+                        <button
+                          onClick={() => cancelRename(book.id)}
+                          style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}
+                        >Cancel</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+                )
+              })}
             </div>
             <div style={{ marginTop: 20, padding: '14px 18px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.12)`, borderRadius: 8 }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 6 }}>SUGGESTED UPLOADS</div>
