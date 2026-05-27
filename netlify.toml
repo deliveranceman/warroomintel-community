@@ -41,3 +41,9 @@
 
 [functions."field-manual-progress"]
   timeout = 10
+
+[functions."admin-library-url"]
+  timeout = 10
+
+[functions."admin-library-save"]
+  timeout = 10

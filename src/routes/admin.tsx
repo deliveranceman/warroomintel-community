@@ -2944,54 +2944,76 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   async function uploadBook() {
     if (!uploadFile || !uploadTitle.trim()) { setUploadMsg('Title and file required'); return }
-    setUploadPhase('uploading')
     try {
       const token = await getToken()
-      const formData = new FormData()
-      formData.append('file', uploadFile)
-      formData.append('title', uploadTitle.trim())
-      formData.append('author', uploadAuthor.trim())
-      formData.append('notes', uploadNotes.trim())
-      const res = await fetch('/api/admin-library', {
+
+      // Step A — get signed upload URL from Netlify
+      setUploadPhase('reading')
+      const urlRes = await fetch('/api/admin-library-url', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type || 'application/octet-stream' }),
       })
-      const d = await res.json()
-      if (res.ok) {
-        setUploadPhase('done')
-        setUploadMsg('✓ Uploaded successfully')
-        setUploadTitle(''); setUploadAuthor(''); setUploadNotes(''); setUploadFile(null)
-        await loadBooks()
-        setTimeout(() => setUploadPhase('idle'), 3000)
-      } else {
-        setUploadPhase('error')
-        setUploadMsg(`⚠ ${d.error}`)
-      }
+      const urlData = await urlRes.json()
+      if (!urlRes.ok) { setUploadPhase('error'); setUploadMsg(`⚠ ${urlData.error || 'Failed to get upload URL'}`); return }
+      const { signedUrl, filePath } = urlData
+
+      // Step B — upload directly to Supabase Storage (no Netlify)
+      setUploadPhase('uploading')
+      const storageRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': uploadFile.type || 'application/octet-stream' },
+        body: uploadFile,
+      })
+      if (!storageRes.ok) { setUploadPhase('error'); setUploadMsg(`⚠ Storage upload failed: ${storageRes.status}`); return }
+
+      // Step C — save metadata
+      setUploadPhase('extracting')
+      const saveRes = await fetch('/api/admin-library-save', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: uploadTitle.trim(),
+          author: uploadAuthor.trim() || null,
+          notes: uploadNotes.trim() || null,
+          filename: uploadFile.name,
+          file_size: uploadFile.size,
+          file_path: filePath,
+          ai_generated: false,
+        }),
+      })
+      const saveData = await saveRes.json()
+      if (!saveData.success) { setUploadPhase('error'); setUploadMsg(`⚠ ${saveData.error || 'Save failed'}`); return }
+
+      setUploadPhase('done')
+      setUploadMsg('✓ Uploaded successfully')
+      setUploadTitle(''); setUploadAuthor(''); setUploadNotes(''); setUploadFile(null)
+      await loadBooks()
+      setTimeout(() => setUploadPhase('idle'), 3000)
     } catch(e: any) {
       setUploadPhase('error')
       setUploadMsg(`⚠ ${e.message}`)
     }
   }
 
-  async function toggleBook(id: string, is_enabled: boolean) {
+  async function toggleBook(id: string, active: boolean) {
     const token = await getToken()
     const res = await fetch('/api/admin-library', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id, is_enabled }),
+      body: JSON.stringify({ id, active }),
     })
-    if (res.ok) setBooks(prev => prev.map(b => b.id === id ? { ...b, is_enabled } : b))
+    if (res.ok) setBooks(prev => prev.map(b => b.id === id ? { ...b, active } : b))
   }
 
-  async function toggleAiEnabled(id: string, ai_enabled: boolean) {
+  async function toggleAiEnabled(id: string, ai_generated: boolean) {
     const token = await getToken()
     const res = await fetch('/api/admin-library', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id, ai_enabled }),
+      body: JSON.stringify({ id, ai_generated }),
     })
-    if (res.ok) setBooks(prev => prev.map(b => b.id === id ? { ...b, ai_enabled } : b))
+    if (res.ok) setBooks(prev => prev.map(b => b.id === id ? { ...b, ai_generated } : b))
   }
 
   async function deleteBook(id: string, file_path: string, title: string) {
@@ -3243,42 +3265,41 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         ) : (
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 10, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
-              {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.ai_enabled !== false).length} enabled for AI context
+              {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.ai_generated).length} AI-generated
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {books.map(book => (
-                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.is_enabled ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.is_enabled ? 1 : 0.6, transition: 'all 0.15s' }}>
+                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
-                      {book.author && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>}
+                      {book.author && book.author !== 'Unknown' && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>}
                       <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em', marginBottom: book.notes ? 6 : 0 }}>
-                        {fmtBytes(book.file_size_bytes)}
-                        {book.page_count ? ` · ${book.page_count} pages` : ''}
-                        {book.upload_date ? ` · ${new Date(book.upload_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                        {fmtBytes(book.file_size)}
+                        {book.created_at ? ` · ${new Date(book.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                       </div>
                       {book.notes && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>{book.notes}</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-                      {/* Visible toggle */}
+                      {/* Active toggle */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>VIS</span>
                         <button
-                          onClick={() => toggleBook(book.id, !book.is_enabled)}
-                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.is_enabled ? LG : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
+                          onClick={() => toggleBook(book.id, !(book.active !== false))}
+                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.active !== false ? LG : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
                         >
-                          <div style={{ position: 'absolute' as const, top: 2, left: book.is_enabled ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                          <div style={{ position: 'absolute' as const, top: 2, left: book.active !== false ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                         </button>
                       </div>
-                      {/* AI context toggle */}
+                      {/* AI-generated toggle */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>AI</span>
                         <button
-                          onClick={() => toggleAiEnabled(book.id, !(book.ai_enabled !== false))}
-                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.ai_enabled !== false ? '#5C7CBF' : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
-                          title={book.ai_enabled !== false ? 'AI context: ON' : 'AI context: OFF'}
+                          onClick={() => toggleAiEnabled(book.id, !book.ai_generated)}
+                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.ai_generated ? '#5C7CBF' : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
+                          title={book.ai_generated ? 'AI-generated: ON' : 'AI-generated: OFF'}
                         >
-                          <div style={{ position: 'absolute' as const, top: 2, left: book.ai_enabled !== false ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                          <div style={{ position: 'absolute' as const, top: 2, left: book.ai_generated ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                         </button>
                       </div>
                       <button onClick={() => deleteBook(book.id, book.file_path, book.title)}

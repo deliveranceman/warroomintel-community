@@ -67,9 +67,10 @@ export default async function handler(req: Request) {
   // ── GET — list all books ────────────────────────────────────────────────────
   if (req.method === 'GET') {
     const { data, error } = await sb
-      .from('ministry_library')
-      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes')
-      .order('upload_date', { ascending: false })
+      .from('resources')
+      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes')
+      .eq('topic', 'ministry-library')
+      .order('created_at', { ascending: false })
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     return new Response(JSON.stringify({ books: data || [] }), { status: 200, headers })
   }
@@ -163,14 +164,15 @@ export default async function handler(req: Request) {
     const body = await req.json()
     const { id, ...fields } = body
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
-    const allowed = ['title', 'author', 'notes', 'is_enabled', 'ai_enabled']
+    const allowed = ['title', 'author', 'notes', 'active', 'ai_generated']
     const update: Record<string, any> = {}
     for (const k of allowed) { if (k in fields) update[k] = fields[k] }
     const { data, error } = await sb
-      .from('ministry_library')
+      .from('resources')
       .update(update)
       .eq('id', id)
-      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes')
+      .eq('topic', 'ministry-library')
+      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes')
       .single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     return new Response(JSON.stringify({ success: true, book: data }), { status: 200, headers })
@@ -184,7 +186,7 @@ export default async function handler(req: Request) {
     if (file_path) {
       await sb.storage.from(BUCKET).remove([file_path])
     }
-    const { error } = await sb.from('ministry_library').delete().eq('id', id)
+    const { error } = await sb.from('resources').delete().eq('id', id).eq('topic', 'ministry-library')
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     return new Response(JSON.stringify({ success: true }), { status: 200, headers })
   }
