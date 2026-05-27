@@ -56,12 +56,18 @@ Return this exact JSON shape:
 Rules:
 - Clean underscores/hyphens in filename to produce a readable title
 - Use proper title case; remove file extension from title
-- spirit_tags: array of specific named demonic spirits found in or implied by this document.
-  Use exact spirit names (e.g. "Leviathan", "Jezebel", "Fear", "Pride", "Rejection", "Lust",
-  "Control", "Witchcraft", "Python", "Baal", "Ahab", "Death", "Infirmity", "Bitterness").
-  Pull from actual spirit names mentioned or strongly implied in the content.
-  Max 10 entries. Return empty array [] if none found.
-- topic is always "ministry-library"`
+- topic is always "ministry-library"
+
+SPIRIT TAGS — CRITICAL:
+You MUST always return the spirit_tags field as an array (never omit it, never return null).
+Identify every demonic spirit named, described, or implied anywhere in this document.
+Known spirit names to look for: Baal, Jezebel, Leviathan, Ahab, Python, Fear, Rejection, Pride,
+  Lust, Control, Witchcraft, Death, Infirmity, Bitterness, Unforgiveness, Shame, Rebellion,
+  Deception, Perversion, Confusion, Occult, Freemasonry, Marine spirits, Wormwood, Apollyon.
+IMPORTANT: If the filename itself contains a spirit name (e.g. "BAAL", "jezebel", "leviathan"),
+  that spirit MUST be included in spirit_tags — no exceptions.
+Return spirit names in proper case (e.g. "Baal", "Jezebel", "Leviathan").
+Maximum 10 entries. If you genuinely find no spirits at all, return [].`
 
   let anthropicRes: Response
   try {

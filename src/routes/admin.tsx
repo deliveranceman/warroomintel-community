@@ -3653,10 +3653,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                       {/* Edit button */}
                       <button
                         onClick={() => es?.editing ? cancelEdit(book.id) : openEdit(book)}
-                        style={{ background: es?.editing ? 'rgba(201,168,76,0.1)' : 'transparent', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
+                        style={{ background: es?.editing ? 'rgba(201,168,76,0.18)' : 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
                         title="Edit metadata"
                       >
-                        {es?.editing ? '✕ Close' : '✎ Edit'}
+                        {es?.editing ? '✕ Close' : '✏ Edit'}
                       </button>
                       <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
                         style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>

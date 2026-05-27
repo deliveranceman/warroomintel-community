@@ -5367,7 +5367,7 @@ function CommunityPage() {
         <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
             { icon: '💬', label: 'War Room Chat',     mobileLabel: 'Chat',      section: 'war-room-chat'  },
-            { icon: '✉',  label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
+            { icon: '📨',  label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
             { icon: '🙏', label: 'Prayer Wall',       mobileLabel: 'Prayer',    section: 'prayer-wall'    },
             { icon: '✝',  label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
             { icon: '👥', label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
