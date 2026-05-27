@@ -27,13 +27,17 @@ async function isMinister(userId: string): Promise<boolean> {
 }
 
 export default async function handler(req: Request) {
+  console.log('[library-autofill] called:', req.method)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: CORS })
 
-  const userId = getUserId(req.headers.get('authorization'))
+  const authHeader = req.headers.get('authorization')
+  const userId = getUserId(authHeader)
+  console.log('[library-autofill] userId:', userId, 'hasAuth:', !!authHeader)
   if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
 
   const ok = await isMinister(userId)
+  console.log('[library-autofill] isMinister:', ok)
   if (!ok) return new Response(JSON.stringify({ error: 'Minister role required' }), { status: 403, headers: CORS })
 
   const { filename, contentSnippet } = await req.json().catch(() => ({}))

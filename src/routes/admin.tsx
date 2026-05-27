@@ -2963,9 +2963,11 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   async function handleAutoFill() {
     const token = await getToken()
+    console.log('[handleAutoFill] token present:', !!token)
     const pending = stagedFiles.filter(f => f.status === 'pending')
+    if (!pending.length) return
     await Promise.all(pending.map(async sf => {
-      updateStaged(sf.id, { status: 'analyzing' })
+      setStagedFiles(prev => prev.map(f => f.id === sf.id ? { ...f, status: 'analyzing' } : f))
       try {
         let contentSnippet = ''
         if (sf.file.name.toLowerCase().endsWith('.txt')) {
@@ -2982,15 +2984,28 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           body: JSON.stringify({ filename: sf.file.name, contentSnippet }),
         })
         const d = await resp.json()
-        updateStaged(sf.id, {
-          title: d.title || sf.title,
-          author: d.author || sf.author,
-          notes: d.notes || sf.notes,
-          aiGenerated: resp.ok,
+        console.log('[handleAutoFill] response', resp.status, d)
+        if (!resp.ok) {
+          console.error('[handleAutoFill] error from API:', d.error)
+          setStagedFiles(prev => prev.map(f => f.id === sf.id
+            ? { ...f, status: 'error', errorMsg: d.error || `HTTP ${resp.status}` }
+            : f))
+          return
+        }
+        setStagedFiles(prev => prev.map(f => f.id === sf.id ? {
+          ...f,
+          title: d.title || f.title,
+          author: d.author || f.author,
+          notes: d.notes || f.notes,
+          aiGenerated: true,
           status: 'pending',
-        })
-      } catch {
-        updateStaged(sf.id, { status: 'pending' })
+          errorMsg: undefined,
+        } : f))
+      } catch (e: any) {
+        console.error('[handleAutoFill] fetch threw:', e)
+        setStagedFiles(prev => prev.map(f => f.id === sf.id
+          ? { ...f, status: 'error', errorMsg: e.message || 'Network error' }
+          : f))
       }
     }))
   }
