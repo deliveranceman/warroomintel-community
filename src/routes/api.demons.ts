@@ -100,6 +100,8 @@ export const Route = createFileRoute('/api/demons')({
               scriptureContext: r.fields['Scripture Context'] || '',
               prayerPoints: r.fields['Prayer Points'] || '',
               aftercareNotes: r.fields['Aftercare Notes'] || '',
+              culturalPresence: Array.isArray(r.fields['Cultural Presence']) ? r.fields['Cultural Presence'] : [],
+              sessionTriggerQuestions: r.fields['Session Trigger Questions'] || '',
             }))
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')

@@ -48,29 +48,26 @@ async function resolveMinister(token: string): Promise<{ ok: boolean; reason: st
   }
 }
 
-async function fetchAllRecords(): Promise<any[]> {
-  const records: any[] = []
-  let offset: string | undefined
+/** Fetch one page (batchSize records) from Airtable, starting at the given cursor. */
+async function fetchPage(batchSize: number, airtableOffset?: string): Promise<{ records: any[]; nextOffset: string | null; total: number }> {
+  const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+  url.searchParams.set('pageSize', String(Math.min(batchSize, 100)))
+  // Must use append (not set) — set() overwrites the previous fields[] value each time
+  for (const f of [NAME_FIELD, 'Description', 'Manifestiation', 'Source / Orgin', 'Kingdom', 'Biblical Rank', 'Sub-Kingdom', 'Also Known As']) {
+    url.searchParams.append('fields[]', f)
+  }
+  if (airtableOffset) url.searchParams.set('offset', airtableOffset)
 
-  do {
-    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
-    url.searchParams.set('pageSize', '100')
-    // Must use append (not set) — set() overwrites the previous fields[] value each time
-    for (const f of [NAME_FIELD, 'Description', 'Manifestiation', 'Source / Orgin', 'Kingdom', 'Biblical Rank', 'Sub-Kingdom', 'Also Known As']) {
-      url.searchParams.append('fields[]', f)
-    }
-    if (offset) url.searchParams.set('offset', offset)
-
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-    })
-    if (!res.ok) throw new Error(`Airtable error ${res.status}`)
-    const data = await res.json()
-    records.push(...(data.records || []))
-    offset = data.offset
-  } while (offset)
-
-  return records
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+  })
+  if (!res.ok) throw new Error(`Airtable error ${res.status}`)
+  const data = await res.json()
+  return {
+    records:    data.records || [],
+    nextOffset: data.offset || null,
+    total:      0, // Airtable doesn't return total — caller tracks
+  }
 }
 
 function buildPrompt(r: any): string {
@@ -210,15 +207,9 @@ async function classifySpirit(record: any): Promise<any | null> {
   }
 }
 
-async function runBatches(records: any[], batchSize: number): Promise<any[]> {
-  const results: any[] = []
-  for (let i = 0; i < records.length; i += batchSize) {
-    const batch = records.slice(i, i + batchSize)
-    const batchResults = await Promise.all(batch.map(classifySpirit))
-    results.push(...batchResults.filter(Boolean))
-    console.log(`[taxonomy-ai] Processed ${Math.min(i + batchSize, records.length)}/${records.length}`)
-  }
-  return results
+async function classifyBatch(records: any[]): Promise<any[]> {
+  const results = await Promise.all(records.map(classifySpirit))
+  return results.filter(Boolean)
 }
 
 export default async function handler(req: Request) {
@@ -231,28 +222,36 @@ export default async function handler(req: Request) {
   const auth = await resolveMinister(token)
   if (!auth.ok) return new Response(JSON.stringify({ error: auth.reason }), { status: 403, headers })
 
+  let body: any = {}
+  try { body = await req.json() } catch { /* no body = first page */ }
+
+  // Paginated mode: process one page at a time (default 20 spirits)
+  const limit          = Math.min(Number(body.limit) || 20, 30)
+  const airtableOffset = body.airtableOffset || undefined
+
   try {
-    console.log('[taxonomy-ai] Fetching all Airtable records...')
-    const allRecords = await fetchAllRecords()
-    const records    = allRecords.filter(r => {
+    console.log(`[taxonomy-ai] Fetching page (limit=${limit}, offset=${airtableOffset || 'first'})`)
+    const { records: allPage, nextOffset } = await fetchPage(limit, airtableOffset)
+
+    const records = allPage.filter(r => {
       const name = r.fields?.[NAME_FIELD]
       return name && name !== 'Primary Name'
     })
-    console.log(`[taxonomy-ai] ${records.length} spirits to classify`)
+    console.log(`[taxonomy-ai] Classifying ${records.length} spirits`)
 
-    // Process in batches of 30 concurrent Haiku calls
-    const suggestions = await runBatches(records, 30)
+    // Classify all records in this page concurrently
+    const suggestions = await classifyBatch(records)
 
     // Only return spirits where something changed or fields are blank
     const relevant = suggestions.filter(s => s.changed)
-
     const highCount = relevant.filter(s => s.confidence === 'high').length
 
     return new Response(JSON.stringify({
-      suggestions: relevant,
-      total:       records.length,
-      changed:     relevant.length,
+      suggestions:    relevant,
+      batchCount:     records.length,
+      changed:        relevant.length,
       highConfidence: highCount,
+      nextOffset:     nextOffset || null, // null = no more pages
     }), { status: 200, headers })
 
   } catch (e: any) {

@@ -65,6 +65,31 @@ export default async function handler(req: Request) {
     })
   }
 
+  if (req.method === 'PATCH') {
+    let body: any
+    try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 }) }
+    const { id, title, tier, topic, notes, tags, spirit_tags } = body || {}
+    if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 })
+
+    const updates: Record<string, any> = {}
+    if (title      !== undefined) updates.title      = title
+    if (tier       !== undefined) updates.tier        = tier
+    if (topic      !== undefined) updates.topic       = topic
+    if (notes      !== undefined) updates.notes       = notes
+    if (tags       !== undefined) updates.tags        = Array.isArray(tags) ? tags : []
+    if (spirit_tags !== undefined) updates.spirit_tags = Array.isArray(spirit_tags) ? spirit_tags : []
+
+    const { data: row, error } = await supabase
+      .from('resources')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+    return new Response(JSON.stringify({ resource: row }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  }
+
   if (req.method === 'DELETE') {
     const url = new URL(req.url)
     const id  = url.searchParams.get('id')

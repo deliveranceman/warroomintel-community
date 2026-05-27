@@ -88,6 +88,8 @@ export default async function handler(req: Request) {
       isGenerational: data.fields['Is Generational'] === true || data.fields['Is Generational'] === 'true',
       isTerritorial: data.fields['Is Territorial'] === true || data.fields['Is Territorial'] === 'true',
       subKingdom: data.fields['Sub-Kingdom'] || '',
+      culturalPresence: Array.isArray(data.fields['Cultural Presence']) ? data.fields['Cultural Presence'] : [],
+      sessionTriggerQuestions: data.fields['Session Trigger Questions'] || '',
     }
     return new Response(JSON.stringify({ record: mapped }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
@@ -153,6 +155,8 @@ export default async function handler(req: Request) {
       scriptureContext: 'Scripture Context',
       prayerPoints: 'Prayer Points',
       aftercareNotes: 'Aftercare Notes',
+      culturalPresence: 'Cultural Presence',
+      sessionTriggerQuestions: 'Session Trigger Questions',
       region: 'Region', // TODO: Create 'Region' field in Airtable
     }
     for (const [camel, airtable] of Object.entries(camelToAirtable)) {
@@ -214,6 +218,26 @@ export default async function handler(req: Request) {
           }
           // Use the exact Airtable option string
           airtableFields[airtable] = exact
+          delete airtableFields[camel]
+          continue
+        }
+
+        // Cultural Presence is a Multiple Select — send as array of valid strings only
+        if (camel === 'culturalPresence') {
+          const VALID_CULTURAL = [
+            'Film / Cinema', 'Television / Streaming', 'Comics / Graphic Novels', 'Video Games',
+            'Music / Lyrics', 'Literature / Fiction', 'Ancient Documents / Texts', 'Religious Texts / Scripture',
+            'Secret Society Rituals', 'Academic / Occult Literature', 'Internet / Social Media',
+            'Tattoo Culture', 'Fashion / Aesthetics', 'Sports Culture', 'New Age / Wellness Industry',
+            'Anime / Manga', 'Role Playing Games / D&D', 'Astrology / Tarot', 'Horror Genre', 'True Crime',
+          ]
+          if (!Array.isArray(value) || value.length === 0) {
+            delete airtableFields[camel]
+            continue
+          }
+          const validated = value.filter((v: any) => VALID_CULTURAL.includes(String(v)))
+          if (validated.length === 0) { delete airtableFields[camel]; continue }
+          airtableFields[airtable] = validated
           delete airtableFields[camel]
           continue
         }

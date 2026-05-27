@@ -3292,6 +3292,40 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                     </div>
                   )}
                   <FieldBlock label="Aftercare Notes" value={entry.aftercareNotes} />
+
+                  {/* ── Session Intel: Cultural Presence + Trigger Questions ── */}
+                  {((Array.isArray(entry.culturalPresence) && entry.culturalPresence.length > 0) || entry.sessionTriggerQuestions) && (
+                    <div style={{ marginTop: 8, marginBottom: 18, paddingTop: 16, borderTop: `1px solid rgba(201,168,76,0.12)` }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>⚡</span><span>Session Intel</span>
+                      </div>
+                      {Array.isArray(entry.culturalPresence) && entry.culturalPresence.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cultural Presence</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                            {entry.culturalPresence.map((cat: string) => (
+                              <span key={cat} style={{ fontFamily: cinzel, fontSize: 9, color: G, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '4px 10px', letterSpacing: '0.06em', background: 'rgba(201,168,76,0.05)' }}>
+                                {cat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {entry.sessionTriggerQuestions && (
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Session Trigger Questions</div>
+                          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                            {String(entry.sessionTriggerQuestions).split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
+                              <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.65, fontStyle: 'italic', paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>
+                                {line.replace(/^\d+\.\s*/, '')}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Related Arsenal resources */}
                   {spiritResources.length > 0 && (
                     <div style={{ marginBottom: 18 }}>
@@ -3891,6 +3925,176 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
             <div style={{ fontSize: 11, color: '#5a4f3a', textAlign: 'center' as const, fontStyle: 'italic', fontFamily: crimson }}>
               📋 Feature coming: Export this report as a PDF — submit a field report to track this session
             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── GATEWAY INVESTIGATOR VIEW ──────────────────────────────
+function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: any) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const bg    = isDark ? '#0D0B14' : '#faf8f4'
+  const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
+  const bdr   = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(160,120,48,0.25)'
+  const txt   = isDark ? '#f0e8d8' : '#1a1410'
+  const mut   = isDark ? '#8B7355' : '#5c4a3a'
+  const dim   = isDark ? '#5a4f3a' : '#7a6555'
+
+  const [spiritName, setSpiritName]       = useState('')
+  const [personContext, setPersonContext] = useState('')
+  const [loading, setLoading]             = useState(false)
+  const [report, setReport]               = useState<any>(null)
+  const [error, setError]                 = useState('')
+
+  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+  const hasAccess = tierLvl(userTier) >= tierLvl('soldier')
+
+  if (!hasAccess) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: bg }}>
+        <div style={{ textAlign: 'center', maxWidth: 480 }}>
+          <div style={{ fontSize: 48, marginBottom: 20 }}>🔒</div>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: 20, marginBottom: 12 }}>Soldier Tier Required</h2>
+          <p style={{ color: mut, fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: "'Crimson Pro', serif" }}>
+            The Gateway Investigator is an AI-powered intake research tool that identifies cultural entry points for any spirit.
+            Available to Soldier, Commander, and General members.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  async function handleInvestigate() {
+    if (!spiritName.trim()) return
+    setLoading(true); setError(''); setReport(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/gateway-investigator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ spiritName: spiritName.trim(), personContext: personContext.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Investigation failed')
+      setReport(data)
+    } catch (e: any) { setError(e.message) }
+    setLoading(false)
+  }
+
+  const Section = ({ title, items, color: c }: { title: string; items: string[]; color?: string }) => {
+    if (!items || items.length === 0) return null
+    return (
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: c || G, marginBottom: 12, textTransform: 'uppercase' as const }}>{title}</div>
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+          {items.map((item: string, i: number) => (
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{ color: G, flexShrink: 0, marginTop: 3 }}>•</span>
+              <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65 }}>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: bg, minHeight: 0 }}>
+      <div style={{ maxWidth: 780, margin: '0 auto' }}>
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontFamily: cinzel, color: isDark ? '#E8D5B0' : '#1a1410', fontSize: isMobile ? 20 : 26, fontWeight: 700, marginBottom: 6, letterSpacing: '0.06em' }}>
+            🚪 Gateway Investigator
+          </h1>
+          <p style={{ fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 14, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
+            Identify cultural entry points and exposure gateways for any spirit — music, media, games, subcultures, and more
+          </p>
+        </div>
+
+        {/* Input form */}
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: isMobile ? '20px 16px' : '24px 28px', marginBottom: 28 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Spirit Name</label>
+            <input
+              value={spiritName}
+              onChange={e => setSpiritName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleInvestigate()}
+              placeholder="e.g. Leviathan, Jezebel, Baal, Python..."
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 16px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 15, outline: 'none' }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>
+              Known Context About This Person <span style={{ opacity: 0.6 }}>(optional)</span>
+            </label>
+            <textarea
+              value={personContext}
+              onChange={e => setPersonContext(e.target.value)}
+              placeholder="e.g. Heavily into gaming, listens to metal, was in Freemasonry for 10 years, watches a lot of anime..."
+              rows={3}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6 }}
+            />
+          </div>
+          <button
+            onClick={handleInvestigate}
+            disabled={loading || !spiritName.trim()}
+            style={{ background: loading ? 'rgba(201,168,76,0.4)' : G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', border: 'none', borderRadius: 6, padding: '11px 28px', cursor: loading || !spiritName.trim() ? 'wait' : 'pointer', opacity: !spiritName.trim() ? 0.5 : 1 }}
+          >
+            {loading ? '🔍 Investigating…' : '🚪 Investigate Gateways'}
+          </button>
+        </div>
+
+        {error && (
+          <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '12px 16px', color: '#f87171', fontFamily: "'Crimson Pro', serif", fontSize: 14, marginBottom: 20 }}>
+            ⚠ {error}
+          </div>
+        )}
+
+        {report && (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>
+              Gateway Report — {report.spiritName}
+            </div>
+
+            {report.databaseContext && (
+              <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 10, padding: '14px 18px', marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Database Intel</div>
+                <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, margin: 0 }}>{report.databaseContext}</p>
+              </div>
+            )}
+
+            <Section title="🎬 Media Gateways" items={report.mediaGateways} />
+            <Section title="🎵 Music Gateways" items={report.musicGateways} color="#8BA3D4" />
+            <Section title="🎮 Gaming Gateways" items={report.gamingGateways} color="#7a9e7e" />
+            <Section title="📚 Literary Gateways" items={report.literaryGateways} />
+            <Section title="🌐 Online / Social Gateways" items={report.onlineGateways} color="#8BA3D4" />
+            <Section title="🔮 Subculture & Practice Gateways" items={report.subcultureGateways} color="#a07830" />
+
+            {report.sessionQuestions && report.sessionQuestions.length > 0 && (
+              <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, marginBottom: 14, textTransform: 'uppercase' as const }}>⚡ Session Intake Questions</div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  {report.sessionQuestions.map((q: string, i: number) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, marginTop: 3 }}>{i + 1}.</span>
+                      <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, fontStyle: 'italic' }}>{q}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p style={{ fontSize: 12, color: dim, textAlign: 'center' as const, lineHeight: 1.6, marginTop: 16, fontFamily: "'Crimson Pro', serif", fontStyle: 'italic' }}>
+              This report is an AI-generated intelligence aid for trained ministers. Always lead with prayer and Holy Spirit discernment.
+            </p>
           </div>
         )}
       </div>
@@ -5449,6 +5653,10 @@ function CommunityPage() {
             <span style={{ fontSize: 11 }}>🕸</span>
             <span>Spirit Network</span>
           </button>
+          <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#6b5e45' : '#7a6555'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+            <span style={{ fontSize: 11 }}>🚪</span>
+            <span>Gateway Investigator</span>
+          </button>
         </div>
 
         <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
@@ -5639,6 +5847,7 @@ function CommunityPage() {
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'body-map' && <BodyMapView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} onSelectSpirit={(spirit: any) => { setActiveSection('database') }} />}
         {activeSection === 'spirit-network' && <SpiritNetworkView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} />}
+        {activeSection === 'gateway' && <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'training'    && (
           <TrainingView
             theme={theme}

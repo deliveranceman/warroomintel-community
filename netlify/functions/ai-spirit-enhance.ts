@@ -302,6 +302,8 @@ const KEY_ALIASES: Record<string, string> = {
   scriptureContext: 'scriptureContext',
   prayerPoints: 'prayerPoints',
   aftercareNotes: 'aftercareNotes',
+  culturalPresence: 'culturalPresence',
+  sessionTriggerQuestions: 'sessionTriggerQuestions',
 }
 
 function parseJsonFields(raw: string): Record<string, any> {
@@ -370,6 +372,8 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     personalityPresentation: 'How this spirit presents as a personality pattern or character trait in the host.',
     demonicAgreements: 'Specific agreements, vows, or lies the host must renounce.',
     relatedSpirits: 'Comma-separated list of spirit names directly related to or subordinate to this spirit. Use exact names only — no descriptions or parenthetical notes. Example: "Jezebel, Ahab, Molech, Asherah"',
+  culturalPresence: 'List which cultural categories this spirit appears in from this list ONLY: "Film / Cinema", "Television / Streaming", "Comics / Graphic Novels", "Video Games", "Music / Lyrics", "Literature / Fiction", "Ancient Documents / Texts", "Religious Texts / Scripture", "Secret Society Rituals", "Academic / Occult Literature", "Internet / Social Media", "Tattoo Culture", "Fashion / Aesthetics", "Sports Culture", "New Age / Wellness Industry", "Anime / Manga", "Role Playing Games / D&D", "Astrology / Tarot", "Horror Genre", "True Crime". Return as a JSON array of exact strings from that list only.',
+  sessionTriggerQuestions: 'Write 4-6 specific interview questions a deliverance minister would ask to identify if this spirit gained entry through cultural exposure. Be specific — not "did you watch movies" but questions that reference actual titles, franchises, artists, games, or practices. Examples: "Have you been deeply into the Marvel Cinematic Universe, particularly Thor, Loki, or Norse mythology content?", "Did you ever play Dungeons & Dragons, World of Warcraft, or similar games featuring this spirit by name?", "Do you listen to [specific artist] whose lyrics reference this spirit or its themes?". Write as a numbered list, 1 question per line.',
   }
 
   const fieldSchema = fields.map(f => `  "${f}": "${fieldDescriptions[f] || f}"`).join(',\n')
@@ -607,6 +611,28 @@ export default async function handler(req: Request) {
       } else {
         const partialSK = VALID_SUB_KINGDOMS.find(v => rawSK.toLowerCase().includes(v.toLowerCase().split('/')[0]))
         remappedFields.subKingdom = partialSK || ''
+      }
+    }
+
+    // Sanitize culturalPresence — must be array of exact option strings
+    const VALID_CULTURAL_PRESENCE = [
+      'Film / Cinema', 'Television / Streaming', 'Comics / Graphic Novels', 'Video Games',
+      'Music / Lyrics', 'Literature / Fiction', 'Ancient Documents / Texts', 'Religious Texts / Scripture',
+      'Secret Society Rituals', 'Academic / Occult Literature', 'Internet / Social Media',
+      'Tattoo Culture', 'Fashion / Aesthetics', 'Sports Culture', 'New Age / Wellness Industry',
+      'Anime / Manga', 'Role Playing Games / D&D', 'Astrology / Tarot', 'Horror Genre', 'True Crime',
+    ]
+    if (remappedFields.culturalPresence !== undefined) {
+      const raw = remappedFields.culturalPresence
+      if (Array.isArray(raw)) {
+        remappedFields.culturalPresence = raw.map((v: any) => {
+          const str = String(v).trim()
+          return VALID_CULTURAL_PRESENCE.find(opt => opt.toLowerCase() === str.toLowerCase())
+            || VALID_CULTURAL_PRESENCE.find(opt => str.toLowerCase().includes(opt.split('/')[0].toLowerCase().trim()))
+            || null
+        }).filter(Boolean)
+      } else {
+        delete remappedFields.culturalPresence
       }
     }
 

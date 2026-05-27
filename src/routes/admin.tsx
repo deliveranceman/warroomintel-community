@@ -83,6 +83,8 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [resources, setResources]   = useState<any[]>([])
   const [resLoading, setResLoading] = useState(true)
   const [deleting, setDeleting]     = useState<string | null>(null)
+  const [arsenalEditId, setArsenalEditId] = useState<string | null>(null)
+  const [arsenalEditForm, setArsenalEditForm] = useState<any>({})
   const fileRef    = useRef<HTMLInputElement>(null)
   const [bulkFiles, setBulkFiles]         = useState<File[]>([])
   const [bulkPreviews, setBulkPreviews]   = useState<any[]>([])
@@ -598,7 +600,8 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {resources.map((r: any) => (
-            <div key={r.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${TIER_COLORS[r.tier] || DIM}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Fragment key={r.id}>
+            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${TIER_COLORS[r.tier] || DIM}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 20, flexShrink: 0 }}>{FILE_ICONS[r.file_type?.split('/').pop() || ''] || '📎'}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 3 }}>{r.title}</div>
@@ -613,6 +616,22 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                 </div>
               </div>
               <button
+                onClick={() => {
+                  setArsenalEditId(arsenalEditId === r.id ? null : r.id)
+                  setArsenalEditForm({
+                    title:      r.title || '',
+                    topic:      r.topic || r.category || '',
+                    tier:       (r.tier || r.access_tier || 'free').toLowerCase(),
+                    tags:       Array.isArray(r.tags) ? r.tags : [],
+                    notes:      r.description || r.notes || '',
+                    spirit_tags: Array.isArray(r.spirit_tags) ? r.spirit_tags : [],
+                  })
+                }}
+                style={{ background: arsenalEditId === r.id ? 'rgba(201,168,76,0.2)' : 'transparent', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
+              >
+                {arsenalEditId === r.id ? '✕ Close' : '✎ Edit'}
+              </button>
+              <button
                 onClick={() => handleDelete(r.id)}
                 disabled={deleting === r.id}
                 style={{ background: 'transparent', border: `1px solid rgba(220,38,38,0.3)`, borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
@@ -620,6 +639,49 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                 {deleting === r.id ? '...' : '🗑 Delete'}
               </button>
             </div>
+            {/* ── Inline edit panel ── */}
+            {arsenalEditId === r.id && (
+              <div style={{ marginTop: 10, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                <div>
+                  <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TITLE</label>
+                  <input value={arsenalEditForm.title} onChange={e => setArsenalEditForm((f: any) => ({ ...f, title: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TIER</label>
+                    <select value={arsenalEditForm.tier} onChange={e => setArsenalEditForm((f: any) => ({ ...f, tier: e.target.value }))} style={{ width: '100%', background: BG, border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
+                      {['free','soldier','commander','general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TOPIC</label>
+                    <select value={arsenalEditForm.topic} onChange={e => setArsenalEditForm((f: any) => ({ ...f, topic: e.target.value }))} style={{ width: '100%', background: BG, border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
+                      {TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>DESCRIPTION</label>
+                  <textarea value={arsenalEditForm.notes} onChange={e => setArsenalEditForm((f: any) => ({ ...f, notes: e.target.value }))} rows={2} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={async () => {
+                    const token = await getToken()
+                    const res = await fetch('/api/admin-resources', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ id: r.id, ...arsenalEditForm }),
+                    })
+                    if (res.ok) {
+                      setResources((prev: any[]) => prev.map((x: any) => x.id === r.id ? { ...x, ...arsenalEditForm, tier: arsenalEditForm.tier } : x))
+                      setArsenalEditId(null)
+                    } else { const d = await res.json().catch(() => ({})); alert(d.error || 'Save failed') }
+                  }} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 18px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>Save</button>
+                  <button onClick={() => setArsenalEditId(null)} style={{ background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10 }}>Cancel</button>
+                </div>
+              </div>
+            )}
+            </Fragment>
           ))}
         </div>
       )}
@@ -5011,7 +5073,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'taxonomy'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'taxonomy' | 'tracker'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -5073,6 +5135,7 @@ function AdminPage() {
     { key: 'spiritual-mapping', label: '📍 Sp. Mapping' },
     { key: 'lib-intel', label: '🔬 Lib. Intel'          },
     { key: 'taxonomy',  label: '🔬 Taxonomy'            },
+    { key: 'tracker',   label: '🗂 Tracker'             },
   ] as const
 
   return (
@@ -5137,6 +5200,7 @@ function AdminPage() {
         {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
         {tab === 'lib-intel'        && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
         {tab === 'taxonomy'         && <TaxonomyReview getToken={getToken} isDark={isDark} />}
+        {tab === 'tracker'          && <TrackerView getToken={getToken} isDark={isDark} />}
       </div>
     </div>
   )
@@ -5195,8 +5259,10 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [applying,    setApplying]    = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 })
 
   useEffect(() => {
-    fetch('/api/demons').then(r => r.json()).then(d => {
-      setSpirits(d.demons || [])
+    // Use dedicated taxonomy-spirits endpoint (no view filter, correct field names)
+    fetch('/api/taxonomy-spirits').then(r => r.json()).then(d => {
+      // Map recordId → airtableId for compatibility with handleChange
+      setSpirits((d.spirits || []).map((s: any) => ({ ...s, airtableId: s.recordId })))
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -5229,23 +5295,37 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   async function runAiSuggest() {
     setAiRunning(true)
-    setAiMsg(`Analyzing ${spirits.length} spirits with AI…`)
     setSuggestions([])
+    let allSuggestions: TaxSuggestion[] = []
+    let totalSpirits = 0
+    let processed = 0
+    let cursor: string | null = null
+
     try {
       const token = await getToken()
-      const res   = await fetch('/api/admin-taxonomy-ai', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setAiMsg(`Error: ${err.error || res.statusText}`)
-        setAiRunning(false)
-        return
-      }
-      const data = await res.json()
-      setSuggestions(data.suggestions || [])
-      setAiMsg(`AI found ${data.changed} suggested changes (${data.highConfidence} high confidence)`)
+      setAiMsg('Starting AI analysis…')
+      do {
+        setAiMsg(`Analyzing spirits ${processed}/${totalSpirits || '?'}…`)
+        const res: Response = await fetch('/api/admin-taxonomy-ai', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body:    JSON.stringify({ airtableOffset: cursor || undefined, limit: 20 }),
+        })
+        if (!res.ok) {
+          const err: any = await res.json().catch(() => ({}))
+          setAiMsg(`Error: ${err.error || res.statusText}`)
+          break
+        }
+        const data: any = await res.json()
+        if (data.total) totalSpirits = data.total
+        processed += data.batchCount || 0
+        allSuggestions = [...allSuggestions, ...(data.suggestions || [])]
+        setSuggestions([...allSuggestions])
+        cursor = data.nextOffset || null
+      } while (cursor)
+
+      const highCount = allSuggestions.filter(s => s.confidence === 'high').length
+      setAiMsg(`AI found ${allSuggestions.length} suggested changes (${highCount} high confidence)`)
     } catch (e: any) {
       setAiMsg(`Error: ${e.message}`)
     }
@@ -5646,6 +5726,210 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
       <div style={{ marginTop: 10, fontFamily: "'Cinzel', serif", fontSize: 9, color: dim2, letterSpacing: '0.08em' }}>
         Showing {filtered.length} of {total} spirits
       </div>
+    </div>
+  )
+}
+
+// ─── TrackerView ─────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  in_progress:  { label: 'In Progress',  color: '#8BA3D4', bg: 'rgba(139,163,212,0.1)' },
+  needs_review: { label: 'Needs Review', color: '#d4903a', bg: 'rgba(212,144,58,0.1)' },
+  approved:     { label: 'Approved',     color: '#7a9e7e', bg: 'rgba(122,158,126,0.1)' },
+  known_bug:    { label: 'Known Bug',    color: '#e05555', bg: 'rgba(220,85,85,0.1)'  },
+  backlog:      { label: 'Backlog',      color: '#9a8c74', bg: 'rgba(154,140,116,0.1)' },
+}
+const PRIORITY_COLOR: Record<string, string> = { high: '#e05555', medium: '#d4903a', low: '#7a9e7e' }
+const CATEGORIES = ['page', 'feature', 'api', 'arsenal', 'demon']
+
+function TrackerView({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const G2   = isDark ? '#C9A84C' : '#a07830'
+  const surf = isDark ? '#1a1714' : '#ffffff'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.2)'
+  const txt  = isDark ? '#f0e8d8' : '#1a1410'
+  const dim  = isDark ? '#9a8c74' : '#5c4a3a'
+
+  const [items, setItems]           = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [seeding, setSeeding]       = useState(false)
+  const [seedMsg, setSeedMsg]       = useState('')
+  const [catFilter, setCatFilter]   = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [editingId, setEditingId]   = useState<string | null>(null)
+  const [editNotes, setEditNotes]   = useState('')
+  const [savingId, setSavingId]     = useState<string | null>(null)
+
+  useEffect(() => { loadItems() }, [])
+
+  async function loadItems() {
+    setLoading(true)
+    const token = await getToken()
+    const res = await fetch('/api/admin-tracker', { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setItems(d.items || []) }
+    setLoading(false)
+  }
+
+  async function seed() {
+    setSeeding(true); setSeedMsg('')
+    const token = await getToken()
+    const res = await fetch('/api/admin-tracker-seed', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+    const d = await res.json()
+    setSeedMsg(d.skipped ? `Already seeded (${d.message})` : `Seeded ${d.inserted} items`)
+    if (!d.skipped) await loadItems()
+    setSeeding(false)
+  }
+
+  async function updateStatus(id: string, status: string) {
+    setSavingId(id)
+    const token = await getToken()
+    const res = await fetch('/api/admin-tracker', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, status }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setItems(prev => prev.map(i => i.id === id ? { ...i, ...d.item } : i))
+    }
+    setSavingId(null)
+  }
+
+  async function saveNotes(id: string) {
+    setSavingId(id)
+    const token = await getToken()
+    const res = await fetch('/api/admin-tracker', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, notes: editNotes }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setItems(prev => prev.map(i => i.id === id ? { ...i, ...d.item } : i))
+    }
+    setEditingId(null)
+    setSavingId(null)
+  }
+
+  async function deleteItem(id: string) {
+    if (!confirm('Remove this tracker item?')) return
+    const token = await getToken()
+    await fetch(`/api/admin-tracker?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  const filtered = items.filter(i => {
+    if (catFilter !== 'all' && i.category !== catFilter) return false
+    if (statusFilter !== 'all' && i.status !== statusFilter) return false
+    return true
+  })
+
+  const counts: Record<string, number> = {}
+  for (const s of Object.keys(STATUS_CONFIG)) {
+    counts[s] = items.filter(i => i.status === s).length
+  }
+
+  const selStyle: CSSProperties = {
+    background: isDark ? '#1a1714' : '#fff', color: txt,
+    border: `1px solid ${bdr}`, borderRadius: 4, padding: '4px 8px',
+    fontFamily: "'Cinzel', serif", fontSize: 9, outline: 'none', letterSpacing: '0.06em',
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap' as const, gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: G2, letterSpacing: '0.08em', marginBottom: 4 }}>🗂 Product QA & Roadmap</div>
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim, fontStyle: 'italic' }}>
+            {items.length} items · {counts.approved || 0} approved · {counts.in_progress || 0} in progress
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {seedMsg && <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim, letterSpacing: '0.06em' }}>{seedMsg}</span>}
+          <button onClick={seed} disabled={seeding} style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, color: dim, fontFamily: "'Cinzel', serif", fontSize: 9, padding: '5px 12px', cursor: 'pointer', letterSpacing: '0.06em' }}>
+            {seeding ? 'Seeding…' : '✦ Seed Tracker'}
+          </button>
+          <button onClick={loadItems} style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, color: dim, fontFamily: "'Cinzel', serif", fontSize: 9, padding: '5px 12px', cursor: 'pointer' }}>↺</button>
+        </div>
+      </div>
+
+      {/* Status summary pills */}
+      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 18 }}>
+        {Object.entries(STATUS_CONFIG).map(([s, cfg]) => (
+          <button key={s} onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
+            style={{ background: statusFilter === s ? cfg.bg : 'transparent', border: `1px solid ${statusFilter === s ? cfg.color : bdr}`, borderRadius: 20, padding: '4px 12px', cursor: 'pointer', fontFamily: "'Cinzel', serif", fontSize: 9, color: statusFilter === s ? cfg.color : dim, letterSpacing: '0.06em' }}>
+            {cfg.label} ({counts[s] || 0})
+          </button>
+        ))}
+      </div>
+
+      {/* Category filter */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' as const }}>
+        {['all', ...CATEGORIES].map(c => (
+          <button key={c} onClick={() => setCatFilter(c)}
+            style={{ background: catFilter === c ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${catFilter === c ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', fontFamily: "'Cinzel', serif", fontSize: 9, color: catFilter === c ? G2 : dim, letterSpacing: '0.06em', textTransform: 'capitalize' as const }}>
+            {c === 'all' ? 'All' : c}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ padding: '40px 0', color: dim, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', textAlign: 'center' as const }}>Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: '40px 0', color: dim, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', textAlign: 'center' as const }}>
+          {items.length === 0 ? 'No items yet — click "✦ Seed Tracker" to populate' : 'No items match this filter'}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+          {filtered.map(item => {
+            const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG.in_progress
+            const pc = PRIORITY_COLOR[item.priority] || PRIORITY_COLOR.medium
+            return (
+              <div key={item.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${sc.color}`, borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' as const }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: txt, fontWeight: 600 }}>{item.name}</span>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 7, color: dim, border: `1px solid ${bdr}`, borderRadius: 3, padding: '1px 6px', textTransform: 'capitalize' as const }}>{item.category}</span>
+                      {item.route && <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: dim }}>{item.route}</span>}
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: pc, flexShrink: 0 }} title={`Priority: ${item.priority}`} />
+                    </div>
+                    {item.description && <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: dim, marginBottom: 4 }}>{item.description}</div>}
+                    {item.notes && <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: dim, fontStyle: 'italic', borderLeft: `2px solid ${bdr}`, paddingLeft: 8 }}>{item.notes}</div>}
+                    {item.status === 'approved' && item.approved_by && (
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: '#7a9e7e', marginTop: 4, letterSpacing: '0.06em' }}>
+                        ✓ Approved by {item.approved_by} · {new Date(item.approved_at).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                    <select value={item.status} onChange={e => updateStatus(item.id, e.target.value)} disabled={savingId === item.id}
+                      style={{ ...selStyle, background: sc.bg, color: sc.color, borderColor: sc.color + '66' }}>
+                      {Object.entries(STATUS_CONFIG).map(([s, cfg]) => <option key={s} value={s}>{cfg.label}</option>)}
+                    </select>
+                    <button onClick={() => { setEditingId(editingId === item.id ? null : item.id); setEditNotes(item.notes || '') }}
+                      style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: dim, fontFamily: "'Cinzel', serif", fontSize: 9, padding: '3px 8px', cursor: 'pointer' }}>
+                      {editingId === item.id ? '✕' : '✎'}
+                    </button>
+                    <button onClick={() => deleteItem(item.id)}
+                      style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 4, color: '#f87171', fontFamily: "'Cinzel', serif", fontSize: 9, padding: '3px 8px', cursor: 'pointer' }}>✕</button>
+                  </div>
+                </div>
+                {editingId === item.id && (
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                    <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} placeholder="Add notes…"
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: `1px solid ${bdr}`, borderRadius: 4, padding: '6px 8px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 12, outline: 'none', resize: 'vertical' as const }} />
+                    <button onClick={() => saveNotes(item.id)} disabled={savingId === item.id}
+                      style={{ background: G2, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700 }}>
+                      {savingId === item.id ? '…' : 'Save'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
