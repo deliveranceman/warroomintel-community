@@ -55,9 +55,9 @@ const FAQ = [
   { q: 'Is this a replacement for professional mental health care?', a: 'No. War Room Intel is a spiritual ministry resource only. We are not licensed therapists or medical practitioners. If you are experiencing a mental health crisis please seek professional support. We encourage maintaining any current medical or therapeutic treatment alongside ministry.' },
   { q: 'How is my assessment information kept confidential?', a: 'All assessment information is seen only by our ministry team and is never published, shared, or sold. Anything posted to the public response board is fully anonymized with your permission.' },
   { q: 'What denominations or theological traditions does this represent?', a: 'War Room Intel is rooted in Scripture and Charismatic/Pentecostal ministry tradition. We operate under the pastoral oversight of Staffordtown Church, Copperhill TN. We welcome all Spirit-filled believers regardless of denomination.' },
-  { q: 'When will paid membership be available?', a: 'We are currently building out the full membership platform. Sign up for our email list to be notified the moment we launch. In the meantime the database, assessment tool, and response board are fully available.' },
+  { q: 'What membership tiers are available?', a: 'Membership is live now. Watchman is free forever. Soldier is $19/mo, Commander $39/mo, General\'s Table $97/mo. Charter pricing (Soldier $9/mo, Commander $20/mo) is locked for life for the first 100 members. All paid tiers include a 30-day free trial.' },
   { q: 'Can I submit a demon that is not in the database?', a: 'Yes! Use the Submit a Demon form in the Assessment menu. All submissions are reviewed by our ministry team before being added. We credit contributors where possible.' },
-  { q: 'How do I get a personal ministry response?', a: 'Take the free assessment at warroomintel.com/assessment. Our ministry team personally reviews every submission and responds to the email address you provide.' },
+  { q: 'How do I get a personal ministry response?', a: 'Submit the free Ministry Assessment. Every submission receives a personal response from Pastor Justin. Soldier tier and above receive priority response.' },
 ]
 
 // ── HELPERS ──────────────────────────────────────────────
@@ -227,10 +227,10 @@ function Hero() {
         {/* Stats */}
         <div style={{ display: 'flex', gap: '40px', justifyContent: 'center', marginTop: '52px', paddingTop: '40px', borderTop: `1px solid ${border}`, flexWrap: 'wrap' as const, animation: 'fadeUp 0.8s 0.55s both' }}>
           {[
-            { n: 'Growing', l: 'Database Entries' },
-            { n: 'Free', l: 'To Use' },
-            { n: 'Personal', l: 'Ministry Response' },
-            { n: 'Live', l: 'Community' },
+            { n: '285+', l: 'Spirits Documented' },
+            { n: 'Free', l: 'Free Watchman Tier' },
+            { n: 'AI-Powered', l: 'Spirit Diagnostics' },
+            { n: 'Live', l: 'Active Community' },
           ].map(({ n, l }) => (
             <div key={l} style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 700, color: gold }}>{n}</div>
@@ -248,7 +248,6 @@ function FeaturesSection() {
   return (
     <section style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-        <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ What's Inside</p>
         <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '12px' }}>
           Built for Those Who Are <em style={{ color: gold, fontStyle: 'normal' }}>Serious About the Fight</em>
         </h2>
@@ -816,18 +815,18 @@ function PricingSection() {
       price: '$97',
       period: '/month',
       badge: null,
-      comingSoon: true,
+      comingSoon: false,
       features: [
         'Everything in Commander',
         'Leadership PDF library',
-        'Weekly intimate group call (Coming Soon)',
+        'Weekly intimate group call',
         'Direct ministry access',
         'Symptoms, Companion Spirits, Exorcist Notes',
-        'Ministry certification track (Coming Soon)',
-        'Priority assessment response (Coming Soon)',
+        'Ministry certification track',
+        'Priority assessment response',
       ],
       locked: [],
-      btn: 'Start Free Trial',
+      btn: "Join General's Table →",
       url: GENERAL_URL,
       featured: false,
     },
@@ -859,7 +858,7 @@ function PricingSection() {
           <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '12px' }}>
             Join the <em style={{ color: gold, fontStyle: 'normal' }}>War Room</em>
           </h2>
-          <p style={{ fontSize: '17px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>Start free. Upgrade to Soldier for full database access and protocol PDFs. Commander and General coming soon.</p>
+          <p style={{ fontSize: '17px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>Start free. All paid tiers include a 30-day free trial. Charter pricing locked for life for the first 100 members.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0', border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
@@ -958,7 +957,7 @@ function PricingSection() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: muted, fontFamily: crimson, fontStyle: 'italic' }}>
-          Want to be notified when membership launches? Email{' '}
+          Questions about membership? Email{' '}
           <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none' }}>exorcist@warroomintel.com</a>
         </p>
       </div>
@@ -1135,6 +1134,20 @@ function Footer() {
             Membership Inquiries:<br />
             <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none', fontSize: '11px' }}>
               exorcist@warroomintel.com
+            </a>
+          </div>
+          <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
+            <a href="https://youtube.com/@warroomintel" target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '13px', color: 'var(--gold)', textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--gold)')}>
+              YouTube
+            </a>
+            <a href="https://facebook.com/warroomintel" target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '13px', color: 'var(--gold)', textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--gold)')}>
+              Facebook
             </a>
           </div>
         </div>
