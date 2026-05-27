@@ -15,6 +15,7 @@ const crimson = "'Crimson Pro', serif"
 
 
 const THEME_CSS = `
+@keyframes pulse { 0%,100% { opacity: 0.4 } 50% { opacity: 0.8 } }
 .prayer-hover-item:hover .prayer-callout {
   opacity: 1 !important;
   transform: translateX(0) !important;
@@ -2301,8 +2302,8 @@ function FieldMinistryView({ theme, userTier, isMobile, setSidebarOpen }: {
 }
 
 // ── WEEKLY INTEL VIEW ────────────────────────────────────────────────────────
-function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection }: {
-  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection: (s: string) => void
+function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection, demons: demonsProp = [] }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection: (s: string) => void; demons?: any[]
 }) {
   const { user }     = useUser()
   const { getToken } = useAuth()
@@ -2325,8 +2326,6 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   const [posts, setPosts]         = useState<any[]>([])
   const [links, setLinks]         = useState<any[]>([])
   const [reports, setReports]     = useState<any[]>([])
-  const [resources, setResources] = useState<any[]>([])
-  const [demons, setDemons]       = useState<any[]>([])
   const [loading, setLoading]     = useState(true)
   const [recentResources, setRecentResources] = useState<any[]>([])
 
@@ -2340,28 +2339,15 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
     async function fetchAll() {
       const token = await getToken()
       const auth  = { 'Authorization': `Bearer ${token}` }
-      const [postsRes, linksRes, reportsRes, resourcesRes, demonsRes] = await Promise.allSettled([
+      const [postsRes, linksRes, reportsRes] = await Promise.allSettled([
         fetch('/api/intel-posts').then(r => r.json()),
         fetch('/api/intel-links').then(r => r.json()),
         fetch('/api/field-reports', { headers: auth }).then(r => r.json()),
-        fetch('/api/arsenal-resources', { headers: auth }).then(r => r.json()),
-        fetch('/api/demons').then(r => r.json()),
       ])
       if (cancelled) return
-      if (postsRes.status     === 'fulfilled') setPosts(postsRes.value.posts || [])
-      if (linksRes.status     === 'fulfilled') setLinks(linksRes.value.links || [])
-      if (reportsRes.status   === 'fulfilled') setReports(reportsRes.value.reports || [])
-      if (resourcesRes.status === 'fulfilled') setResources((resourcesRes.value.resources || []).slice(0, 4))
-      if (demonsRes.status    === 'fulfilled') {
-        const allDemons = demonsRes.value.demons || []
-        // Sort newest first by createdTime, then take first 5
-        const sorted = [...allDemons].sort((a: any, b: any) => {
-          const ta = a.createdTime ? new Date(a.createdTime).getTime() : 0
-          const tb = b.createdTime ? new Date(b.createdTime).getTime() : 0
-          return tb - ta
-        })
-        setDemons(sorted.slice(0, 5))
-      }
+      if (postsRes.status   === 'fulfilled') setPosts(postsRes.value.posts || [])
+      if (linksRes.status   === 'fulfilled') setLinks(linksRes.value.links || [])
+      if (reportsRes.status === 'fulfilled') setReports(reportsRes.value.reports || [])
       setLoading(false)
     }
     fetchAll()
@@ -2369,7 +2355,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   }, [])
 
   useEffect(() => {
-    async function load() {
+    const t = setTimeout(async () => {
       const token = await getToken()
       const res = await fetch('/api/arsenal-resources?limit=3&sort=newest', {
         headers: { Authorization: `Bearer ${token}` }
@@ -2378,8 +2364,8 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
         const d = await res.json()
         setRecentResources(d.resources?.slice(0, 3) || [])
       }
-    }
-    load()
+    }, 2500)
+    return () => clearTimeout(t)
   }, [])
 
   async function submitReport() {
@@ -2401,13 +2387,19 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   }
 
   if (loading) return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg }}>
-      <div style={{ fontFamily: "'Cinzel', serif", color: GG, fontSize: 13, letterSpacing: '0.1em' }}>Loading Intel...</div>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      {[1,2,3].map(i => (
+        <div key={i} style={{ height: 120, background: surf, borderRadius: 8, marginBottom: 16, border: `1px solid ${bdr}`, animation: 'pulse 1.5s ease-in-out infinite' }} />
+      ))}
     </div>
   )
 
-  // Demons arrive sorted newest-first from the API (sort by Created desc)
-  const recentDemons = demons.slice(0, 6)
+  // Use passed-in demons, sorted newest-first
+  const recentDemons = [...demonsProp].sort((a: any, b: any) => {
+    const ta = a.createdTime ? new Date(a.createdTime).getTime() : 0
+    const tb = b.createdTime ? new Date(b.createdTime).getTime() : 0
+    return tb - ta
+  }).slice(0, 6)
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
@@ -2690,17 +2682,17 @@ const HIERARCHY_CATEGORIES = [
   'Freemasonry', 'Perversion', 'Death / Destruction', 'Religious', 'General Oppression',
 ]
 
-function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
+function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [] }: {
   theme: string
   isMobile: boolean
   isTablet: boolean
   setSidebarOpen: (open: boolean) => void
   userTier: string
+  demons?: any[]
 }) {
   const { getToken } = useAuth()
   const [query, setQuery]         = useState('')
-  const [entries, setEntries]     = useState<any[]>([])
-  const [dbLoading, setDbLoading] = useState(true)
+  const [dbLoading, setDbLoading] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [spiritResources, setSpiritResources] = useState<any[]>([])
@@ -2733,13 +2725,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
     load()
   }, [selectedEntry?.id])
 
-  useEffect(() => {
-    fetch('/api/demons')
-      .then(r => r.json())
-      .then(d => { setEntries(d.demons || d.records || []) })
-      .catch(console.error)
-      .finally(() => setDbLoading(false))
-  }, [])
+  // demons come from parent — no separate fetch needed
 
   useEffect(() => {
     const seen = localStorage.getItem('wri-archive-legend-seen')
@@ -2774,7 +2760,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
     </div>
   )
 
-  const filtered = entries.filter(e => {
+  const filtered = demonsProp.filter((e: any) => {
     const matchesSearch = !query || [
       e.name, e.aka, e.description, e.manifestation, e.symptoms,
       e.entryPoints, e.legalRights, e.wriNotes, e.personalityPresentation,
@@ -3047,9 +3033,9 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
 
         // Render text with demon names as clickable links
         const linkifySpirits = (text: string): React.ReactNode => {
-          if (!text || !entries?.length) return text
+          if (!text || !demonsProp.length) return text
           const matchList: { start: number; end: number; name: string }[] = []
-          for (const d of entries as any[]) {
+          for (const d of demonsProp as any[]) {
             if (!d.name) continue
             const lower = text.toLowerCase()
             const nameLower = d.name.toLowerCase()
@@ -3074,7 +3060,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
             if (m.start > pos) parts.push(text.slice(pos, m.start))
             parts.push(
               <span key={`${m.name}-${m.start}`}
-                onClick={() => { const d = (entries as any[]).find(e => e.name?.toLowerCase() === m.name.toLowerCase()); if (d) setSelectedEntry(d) }}
+                onClick={() => { const d = (demonsProp as any[]).find(e => e.name?.toLowerCase() === m.name.toLowerCase()); if (d) setSelectedEntry(d) }}
                 style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontWeight: 600 }}>
                 {text.slice(m.start, m.end)}
               </span>
@@ -3205,7 +3191,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   {entry.strongman ? (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Strongman</div>
-                      {(() => { const linked = entries.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase()); return linked ? (
+                      {(() => { const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase()); return linked ? (
                         <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontFamily: crimson, fontSize: 14, fontWeight: 600 }} title={`View ${entry.strongman} dossier`}>{entry.strongman}</span>
                       ) : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span> })()}
                     </div>
@@ -3213,7 +3199,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   {entry.parentStrongman && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Parent Strongman</div>
-                      <button onClick={() => { const p = entries.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
+                      <button onClick={() => { const p = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
                         style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
                         {entry.parentStrongman}
                       </button>
@@ -3224,7 +3210,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Companion Spirits</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                         {String(entry.companionSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
-                          const linked = entries.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
                           return (
                             <button key={n} onClick={() => linked && setSelectedEntry(linked)}
                               style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
@@ -4834,6 +4820,7 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
 // ── SPIRIT NETWORK VIEW ────────────────────────────────────
 // STYLE RULE: No em dashes (—) in any UI text. Ever. Rewrite the phrase naturally.
 function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigateTo }: any) {
+  const { getToken } = useAuth()
   const isDark = theme !== 'light'
   const BG   = isDark ? '#0D0B14' : '#f5f0e8'
   const SURF = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
@@ -4843,11 +4830,14 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
   const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
   const GC   = isDark ? '#C9A84C' : '#a07830'
 
-  const [selected, setSelected]         = useState<any>(null)
-  const [search, setSearch]             = useState('')
-  const [collapsed, setCollapsed]       = useState<Set<string>>(new Set())
-  const [resources, setResources]       = useState<any[]>([])
-  const [resLoading, setResLoading]     = useState(false)
+  const [selected, setSelected]   = useState<any>(null)
+  const [search, setSearch]       = useState('')
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [activeTab, setActiveTab] = useState<'overview' | 'companions' | 'docs' | 'library' | 'gateway'>('overview')
+  const [libChunks, setLibChunks] = useState<string>('')
+  const [libLoading, setLibLoading] = useState(false)
+  const [spiritDocs, setSpiritDocs] = useState<any[]>([])
+  const [docsLoading, setDocsLoading] = useState(false)
 
   const HIER_COLORS: Record<string, string> = {
     'Principality': '#ef4444', 'Power': '#f97316', 'Ruler of Darkness': '#8b5cf6',
@@ -4856,25 +4846,54 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
     'Familiar Spirit': '#059669', 'Spirit of Infirmity': '#0ea5e9',
   }
 
-  // Parse Companion Spirits (clean comma-separated field) into names + optional demon references
+  // Parse companion spirits
   const companionNames: string[] = selected
-    ? String(selected.companionSpirits || '').split(',').map((n: string) => n.trim()).filter(Boolean)
+    ? String(selected.companionSpirits || selected.clusterSpirits || '').split(',').map((n: string) => n.trim()).filter(Boolean)
     : []
   const connectedDemons: Array<{ name: string; demon: any }> = companionNames.map((name: string) => ({
     name,
     demon: demons.find((d: any) => d.name?.toLowerCase() === name.toLowerCase()) ?? null,
   }))
 
-  // Fetch related library resources when a spirit is selected
+  const parentDemon = selected?.parentStrongman
+    ? (demons.find((d: any) => d.name?.toLowerCase() === selected.parentStrongman.toLowerCase()) ?? null)
+    : null
+
+  // Load library intel when Library tab is active
   useEffect(() => {
-    if (!selected) { setResources([]); return }
-    setResLoading(true)
+    if (activeTab !== 'library' || !selected) return
+    if (libChunks) return // already loaded for this spirit
+    setLibLoading(true)
+    getToken().then(token => {
+      fetch('/api/library-chunks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ spiritName: selected.name, spiritDescription: selected.description || selected.function || '' }),
+      })
+        .then(r => r.json())
+        .then(d => setLibChunks(d.result || d.text || d.chunks || 'No library content found for this spirit.'))
+        .catch(() => setLibChunks('Library search unavailable.'))
+        .finally(() => setLibLoading(false))
+    })
+  }, [activeTab, selected?.id])
+
+  // Clear lib intel when spirit changes
+  useEffect(() => { setLibChunks(''); setLibLoading(false) }, [selected?.id])
+
+  // Load spirit documents when Docs tab is active
+  useEffect(() => {
+    if (activeTab !== 'docs' || !selected) return
+    if (spiritDocs.length) return
+    setDocsLoading(true)
     fetch(`/api/spirit-resources?spirit=${encodeURIComponent(selected.name)}`)
       .then(r => r.json())
-      .then(d => setResources(d.resources || []))
-      .catch(() => setResources([]))
-      .finally(() => setResLoading(false))
-  }, [selected?.id])
+      .then(d => setSpiritDocs(d.resources || []))
+      .catch(() => setSpiritDocs([]))
+      .finally(() => setDocsLoading(false))
+  }, [activeTab, selected?.id])
+
+  // Clear docs when spirit changes
+  useEffect(() => { setSpiritDocs([]); setDocsLoading(false) }, [selected?.id])
 
   // Group demons by kingdom for left panel
   const filteredDemons = demons.filter((d: any) =>
@@ -4899,6 +4918,57 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
   })
 
   const hierColor = selected ? (HIER_COLORS[selected.biblicalRank] || HIER_COLORS[selected.hierarchyCategory] || '#9a8c74') : '#9a8c74'
+
+  const TABS = [
+    { id: 'overview',   label: 'Overview'    },
+    { id: 'companions', label: 'Companions'  },
+    { id: 'docs',       label: 'Documents'   },
+    { id: 'library',    label: 'Library Intel'},
+    { id: 'gateway',    label: 'Gateway'     },
+  ]
+
+  // ── SVG ORG CHART (desktop, spirit selected) ──────────────
+  const OrgChart = selected && !isMobile && (
+    <div style={{ padding: '16px 0 8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+      <svg width={Math.max(360, companionNames.length * 90 + 200)} height={160} style={{ display: 'block', margin: '0 auto' }}>
+        {/* Parent node */}
+        {selected.parentStrongman && (
+          <>
+            <rect x={160} y={8} width={120} height={36} rx={6} fill="rgba(201,168,76,0.08)" stroke="rgba(201,168,76,0.3)" strokeWidth={1} />
+            <text x={220} y={31} textAnchor="middle" fontFamily="Cinzel, serif" fontSize={9} fill={GC} letterSpacing="0.04em">
+              {selected.parentStrongman.length > 16 ? selected.parentStrongman.slice(0, 14) + '…' : selected.parentStrongman}
+            </text>
+            <line x1={220} y1={44} x2={220} y2={68} stroke="rgba(201,168,76,0.25)" strokeWidth={1} strokeDasharray="3,3" />
+          </>
+        )}
+        {/* Selected spirit node */}
+        <rect x={160} y={selected.parentStrongman ? 68 : 28} width={120} height={40} rx={8} fill="rgba(201,168,76,0.15)" stroke={GC} strokeWidth={1.5} />
+        <text x={220} y={selected.parentStrongman ? 93 : 52} textAnchor="middle" fontFamily="Cinzel, serif" fontSize={10} fill={GC} fontWeight="bold" letterSpacing="0.04em">
+          {selected.name.length > 14 ? selected.name.slice(0, 13) + '…' : selected.name}
+        </text>
+        {/* Companion nodes */}
+        {companionNames.slice(0, 5).map((name, i) => {
+          const total = Math.min(companionNames.length, 5)
+          const startX = 220 - ((total - 1) * 80) / 2
+          const cx = startX + i * 80
+          const cy = selected.parentStrongman ? 140 : 112
+          const hasD = connectedDemons[i]?.demon
+          return (
+            <g key={name} onClick={() => { if (hasD) setSelected(connectedDemons[i].demon) }} style={{ cursor: hasD ? 'pointer' : 'default' }}>
+              <line x1={220} y1={selected.parentStrongman ? 108 : 68} x2={cx} y2={cy - 14} stroke="rgba(201,168,76,0.2)" strokeWidth={1} />
+              <rect x={cx - 44} y={cy - 14} width={88} height={28} rx={6} fill={hasD ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.02)'} stroke={hasD ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'} strokeWidth={1} />
+              <text x={cx} y={cy + 5} textAnchor="middle" fontFamily="Cinzel, serif" fontSize={8} fill={hasD ? GC : MUT} letterSpacing="0.03em">
+                {name.length > 11 ? name.slice(0, 10) + '…' : name}
+              </text>
+            </g>
+          )
+        })}
+        {companionNames.length > 5 && (
+          <text x={220} y={selected.parentStrongman ? 155 : 135} textAnchor="middle" fontFamily="Cinzel, serif" fontSize={8} fill={MUT}>+{companionNames.length - 5} more</text>
+        )}
+      </svg>
+    </div>
+  )
 
   // ── LEFT PANEL ──────────────────────────────────────────────
   const LeftPanel = (
@@ -4936,141 +5006,8 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
     </div>
   )
 
-  // ── CENTER: DOSSIER ──────────────────────────────────────────
-  const DossierView = selected && (
-    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '32px 36px', minWidth: 0 }}>
-      {/* Back button (mobile) */}
-      {isMobile && (
-        <button onClick={() => setSelected(null)} style={{ background: 'none', border: `1px solid ${BDR}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', marginBottom: 16 }}>
-          ← Back
-        </button>
-      )}
-
-      {/* Name heading */}
-      <div style={{ fontFamily: cinzel, fontSize: isMobile ? 22 : 28, color: GC, letterSpacing: '0.06em', lineHeight: 1.1, marginBottom: 4 }}>
-        {selected.name}
-      </div>
-
-      {/* Phonetic + aliases */}
-      {selected.phonetic && (
-        <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, fontStyle: 'italic', marginBottom: 4 }}>{selected.phonetic}</div>
-      )}
-      {selected.aka && (
-        <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, fontStyle: 'italic', marginBottom: 10 }}>{selected.aka}</div>
-      )}
-
-      {/* Badge chips inline */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: selected.parentStrongman ? 10 : 18 }}>
-        {selected.biblicalRank && (
-          <span style={{ fontSize: 8, color: hierColor, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid ${hierColor}`, borderRadius: 10, padding: '2px 8px' }}>
-            {selected.biblicalRank}
-          </span>
-        )}
-        {selected.kingdom && (
-          <span style={{ fontSize: 8, color: GC, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '2px 8px' }}>
-            {selected.kingdom}
-          </span>
-        )}
-        {selected.subKingdom && (
-          <span style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '2px 8px' }}>
-            {selected.subKingdom}
-          </span>
-        )}
-      </div>
-      {selected.parentStrongman && (
-        <div style={{ fontSize: 12, color: MUT, fontFamily: crimson, marginBottom: 18 }}>
-          <span style={{ color: GC }}>Parent Strongman:</span> {selected.parentStrongman}
-        </div>
-      )}
-
-      {/* Gold divider */}
-      <div style={{ borderTop: `1px solid rgba(201,168,76,0.2)`, marginBottom: 20 }} />
-
-      {/* Description — flowing body text */}
-      {selected.description && (
-        <div style={{ fontFamily: crimson, fontSize: 15, color: TXT, lineHeight: 1.85, marginBottom: 22 }}>
-          {selected.description}
-        </div>
-      )}
-
-      {/* Companion Spirits */}
-      {companionNames.length > 0 && (
-        <>
-          <div style={{ borderTop: `1px solid rgba(201,168,76,0.2)`, marginBottom: 16 }} />
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Companion Spirits</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-              {connectedDemons.map(({ name, demon }) => (
-                <button
-                  key={name}
-                  onClick={() => { if (demon) setSelected(demon) }}
-                  style={{
-                    background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(160,120,48,0.06)',
-                    border: `1px solid ${demon ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.18)'}`,
-                    borderRadius: 20, padding: '4px 12px',
-                    cursor: demon ? 'pointer' : 'default',
-                    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em',
-                    color: demon ? GC : MUT,
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { if (demon) { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.16)'; (e.currentTarget as HTMLElement).style.borderColor = GC } }}
-                  onMouseLeave={e => { if (demon) { (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(201,168,76,0.06)' : 'rgba(160,120,48,0.06)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.5)' } }}
-                >
-                  {demon ? '⚔ ' : ''}{name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Deliverance Sequence */}
-      {selected.deliveranceSequence && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Deliverance Sequence</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.deliveranceSequence}</div>
-        </div>
-      )}
-
-      {/* Session Indicators */}
-      {selected.sessionIndicators && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Session Indicators</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.sessionIndicators}</div>
-        </div>
-      )}
-
-      {/* Related Library Resources */}
-      {(resources.length > 0 || resLoading) && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Related Resources</div>
-          {resLoading ? (
-            <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, fontStyle: 'italic' }}>Loading...</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-              {resources.map((r: any) => (
-                <div key={r.id} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 1 }}>{r.title}</div>
-                  {r.topic && <div style={{ fontSize: 9, color: MUT, fontFamily: crimson }}>{r.topic}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Gateway button */}
-      <div style={{ paddingTop: 8 }}>
-        <button onClick={() => onNavigateTo && onNavigateTo('gateway')}
-          style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
-          🚪 Run Gateway Report for {selected.name}
-        </button>
-      </div>
-    </div>
-  )
-
   // ── CENTER: DEFAULT (no selection) ──────────────────────────
-  const DefaultView = !selected && (
+  const DefaultView = (
     <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '40px 32px', minWidth: 0 }}>
       {isMobile && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -5084,7 +5021,6 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
           <p style={{ color: MUT, fontSize: 14, margin: 0, fontFamily: crimson }}>Select a spirit from the list to see its full dossier, cluster connections, and related resources.</p>
         </div>
       )}
-      {/* Kingdom overview cards */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
         {kingdoms.map(k => {
           const count = (groupedByKingdom[k] || []).length
@@ -5114,26 +5050,272 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
     </div>
   )
 
-  // ── RIGHT PANEL (spirit selected, not mobile) ────────────────
-  const RightPanel = selected && !isMobile && (
-    <div style={{ width: 200, flexShrink: 0, borderLeft: `1px solid ${BDR}`, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', padding: '20px 16px', overflowY: 'auto' }}>
-      <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 16 }}>Intel Summary</div>
-      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 13 }}>
-        {[
-          { label: 'Kingdom',         value: selected.kingdom },
-          { label: 'Sub-Kingdom',     value: selected.subKingdom },
-          { label: 'Biblical Rank',   value: selected.biblicalRank },
-          { label: 'Case Type',       value: selected.caseType },
-          { label: 'Parent Strongman',value: selected.parentStrongman },
-          { label: 'Battlefield',     value: selected.primaryBattlefield },
-          { label: 'Generational',    value: selected.isGenerational ? 'Yes' : null },
-          { label: 'Territorial',     value: selected.isTerritorial ? 'Yes' : null },
-        ].filter(s => s.value).map(({ label, value }) => (
-          <div key={label} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 2 }}>{label}</div>
-            <div style={{ fontFamily: crimson, fontSize: 12, color: TXT, lineHeight: 1.4 }}>{value}</div>
+  // ── CENTER: DOSSIER (spirit selected) ───────────────────────
+  const DossierView = selected && (
+    <div style={{ flex: 1, overflowY: 'auto', minWidth: 0, display: 'flex', flexDirection: 'column' as const }}>
+      {/* Header */}
+      <div style={{ padding: isMobile ? '16px 16px 0' : '28px 32px 0', flexShrink: 0 }}>
+        {isMobile && (
+          <button onClick={() => setSelected(null)} style={{ background: 'none', border: `1px solid ${BDR}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', marginBottom: 14 }}>
+            ← Back
+          </button>
+        )}
+        <div style={{ fontFamily: cinzel, fontSize: isMobile ? 20 : 26, color: GC, letterSpacing: '0.06em', lineHeight: 1.1, marginBottom: 4 }}>
+          {selected.name}
+        </div>
+        {selected.phonetic && (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, fontStyle: 'italic', marginBottom: 2 }}>{selected.phonetic}</div>
+        )}
+        {selected.aka && (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, fontStyle: 'italic', marginBottom: 8 }}>{selected.aka}</div>
+        )}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 10 }}>
+          {selected.biblicalRank && (
+            <span style={{ fontSize: 8, color: hierColor, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid ${hierColor}`, borderRadius: 10, padding: '2px 8px' }}>
+              {selected.biblicalRank}
+            </span>
+          )}
+          {selected.kingdom && (
+            <span style={{ fontSize: 8, color: GC, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '2px 8px' }}>
+              {selected.kingdom}
+            </span>
+          )}
+          {selected.subKingdom && (
+            <span style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '2px 8px' }}>
+              {selected.subKingdom}
+            </span>
+          )}
+          {selected.isGenerational && (
+            <span style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '2px 8px' }}>Generational</span>
+          )}
+          {selected.isTerritorial && (
+            <span style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '2px 8px' }}>Territorial</span>
+          )}
+        </div>
+        {selected.parentStrongman && (
+          <div style={{ fontSize: 12, color: MUT, fontFamily: crimson, marginBottom: 10 }}>
+            <span style={{ color: GC }}>Parent Strongman:</span>{' '}
+            {parentDemon ? (
+              <button onClick={() => setSelected(parentDemon)} style={{ background: 'none', border: 'none', padding: 0, color: GC, cursor: 'pointer', fontFamily: crimson, fontSize: 12, textDecoration: 'underline dotted' }}>
+                {selected.parentStrongman}
+              </button>
+            ) : selected.parentStrongman}
           </div>
-        ))}
+        )}
+        {/* SVG Org Chart — desktop only */}
+        {OrgChart}
+        <div style={{ borderBottom: `1px solid ${BDR}`, marginTop: 4 }} />
+        {/* Tab Bar */}
+        <div style={{ display: 'flex', gap: 0, overflowX: 'auto', marginTop: 0 }}>
+          {TABS.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                padding: '10px 16px', background: 'transparent', border: 'none',
+                borderBottom: activeTab === tab.id ? `2px solid ${GC}` : '2px solid transparent',
+                color: activeTab === tab.id ? GC : MUT,
+                fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer',
+                textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const, flexShrink: 0,
+                marginBottom: -1,
+              }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '20px 32px 32px' }}>
+
+        {/* ── OVERVIEW TAB ── */}
+        {activeTab === 'overview' && (
+          <div>
+            {/* Intel Summary metadata row */}
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 12, marginBottom: 20, padding: '12px 14px', background: isDark ? 'rgba(201,168,76,0.04)' : 'rgba(160,120,48,0.04)', borderRadius: 8, border: `1px solid ${BDR}` }}>
+              {[
+                { label: 'Battlefield',      value: selected.primaryBattlefield },
+                { label: 'Case Type',        value: selected.caseType },
+                { label: 'Assignment',       value: selected.assignment },
+                { label: 'Strongman',        value: selected.strongman },
+              ].filter(s => s.value).map(({ label, value }) => (
+                <div key={label} style={{ minWidth: 110 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: TXT, lineHeight: 1.4 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+            {selected.description && (
+              <div style={{ fontFamily: crimson, fontSize: 15, color: TXT, lineHeight: 1.85, marginBottom: 20 }}>{selected.description}</div>
+            )}
+            {selected.function && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Function / Role</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.function}</div>
+              </div>
+            )}
+            {selected.manifestation && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Manifestation</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.manifestation}</div>
+              </div>
+            )}
+            {selected.symptoms && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Symptoms</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.symptoms}</div>
+              </div>
+            )}
+            {selected.entryPoints && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Entry Points</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.entryPoints}</div>
+              </div>
+            )}
+            {selected.legalRights && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Legal Rights</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.legalRights}</div>
+              </div>
+            )}
+            {selected.counterScriptures && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Counter Scriptures</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.counterScriptures}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── COMPANIONS TAB ── */}
+        {activeTab === 'companions' && (
+          <div>
+            {companionNames.length === 0 ? (
+              <div style={{ fontFamily: crimson, fontSize: 14, color: MUT, fontStyle: 'italic' }}>No companion spirits recorded for this entity.</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 24 }}>
+                  {connectedDemons.map(({ name, demon }) => (
+                    <button key={name} onClick={() => { if (demon) setSelected(demon) }}
+                      style={{
+                        background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(160,120,48,0.06)',
+                        border: `1px solid ${demon ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.18)'}`,
+                        borderRadius: 20, padding: '5px 14px', cursor: demon ? 'pointer' : 'default',
+                        fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em',
+                        color: demon ? GC : MUT, transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { if (demon) { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.16)'; (e.currentTarget as HTMLElement).style.borderColor = GC } }}
+                      onMouseLeave={e => { if (demon) { (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(201,168,76,0.06)' : 'rgba(160,120,48,0.06)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.5)' } }}>
+                      {demon ? '⚔ ' : ''}{name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {selected.relatedSpirits && (
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Related Spirits</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.relatedSpirits}</div>
+              </div>
+            )}
+            {selected.transmissionVectors && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Transmission Vectors</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.transmissionVectors}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DOCUMENTS TAB ── */}
+        {activeTab === 'docs' && (
+          <div>
+            {selected.sessionIndicators && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Session Indicators</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.sessionIndicators}</div>
+              </div>
+            )}
+            {selected.deliveranceSequence && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Deliverance Sequence</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.deliveranceSequence}</div>
+              </div>
+            )}
+            {selected.demonicAgreements && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Demonic Agreements</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.demonicAgreements}</div>
+              </div>
+            )}
+            {selected.aftercareNotes && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Aftercare Notes</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.aftercareNotes}</div>
+              </div>
+            )}
+            {selected.wriNotes && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>WRI Exorcist Notes</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.wriNotes}</div>
+              </div>
+            )}
+            {/* Linked spirit resources */}
+            {docsLoading ? (
+              <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, fontStyle: 'italic' }}>Loading resources...</div>
+            ) : spiritDocs.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Related Resources</div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                  {spiritDocs.map((r: any) => (
+                    <div key={r.id} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 1 }}>{r.title}</div>
+                      {r.topic && <div style={{ fontSize: 9, color: MUT, fontFamily: crimson }}>{r.topic}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!selected.sessionIndicators && !selected.deliveranceSequence && !selected.demonicAgreements && !selected.aftercareNotes && !selected.wriNotes && !docsLoading && spiritDocs.length === 0 && (
+              <div style={{ fontFamily: crimson, fontSize: 14, color: MUT, fontStyle: 'italic' }}>No documents recorded for this entity.</div>
+            )}
+          </div>
+        )}
+
+        {/* ── LIBRARY INTEL TAB ── */}
+        {activeTab === 'library' && (
+          <div>
+            {libLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ height: 80, background: SURF, borderRadius: 6, border: `1px solid ${BDR}`, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+              </div>
+            ) : libChunks ? (
+              <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.85, whiteSpace: 'pre-wrap' as const }}>{libChunks}</div>
+            ) : (
+              <div style={{ fontFamily: crimson, fontSize: 14, color: MUT, fontStyle: 'italic' }}>No library content found for this spirit.</div>
+            )}
+          </div>
+        )}
+
+        {/* ── GATEWAY TAB ── */}
+        {activeTab === 'gateway' && (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start', gap: 16 }}>
+            <p style={{ fontFamily: crimson, fontSize: 14, color: MUT, margin: 0, lineHeight: 1.7 }}>
+              Run a full gateway intelligence report for <span style={{ color: TXT }}>{selected.name}</span>. This will pre-fill the Gateway with this spirit's profile and open the analysis interface.
+            </p>
+            <button
+              onClick={() => {
+                try { localStorage.setItem('gateway_prefill_spirit', selected.name) } catch {}
+                onNavigateTo && onNavigateTo('gateway')
+              }}
+              style={{ padding: '12px 24px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.22)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.12)' }}>
+              🚪 Open Gateway Report — {selected.name}
+            </button>
+          </div>
+        )}
+
       </div>
     </div>
   )
@@ -5141,8 +5323,7 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
   if (isMobile) {
     return (
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: BG, display: 'flex', flexDirection: 'column' as const }}>
-        {DefaultView}
-        {DossierView}
+        {selected ? DossierView : DefaultView}
       </div>
     )
   }
@@ -5150,9 +5331,7 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
   return (
     <div style={{ flex: 1, minHeight: 0, background: BG, display: 'flex', overflow: 'hidden' }}>
       {LeftPanel}
-      {DefaultView}
-      {DossierView}
-      {RightPanel}
+      {selected ? DossierView : DefaultView}
     </div>
   )
 }
@@ -5771,6 +5950,9 @@ function CommunityPage() {
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
   const [isTablet, setIsTablet]       = useState(() => window.innerWidth >= 768 && window.innerWidth < 1100)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
+  })
   const [activeSection, setActiveSection] = useState('intel')
   const [trainingExpanded, setTrainingExpanded] = useState(false)
   const [fringeExpanded, setFringeExpanded]     = useState(false)
@@ -5938,11 +6120,13 @@ function CommunityPage() {
 
   useEffect(() => {
     if (!streamToken || !apiKey) return
-    fetchPosts()
-    fetchPrayers()
-    if (pollRef.current) clearInterval(pollRef.current)
-    pollRef.current = setInterval(() => { fetchPosts(); fetchPrayers() }, 30000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+    const t = setTimeout(() => {
+      fetchPosts()
+      fetchPrayers()
+      if (pollRef.current) clearInterval(pollRef.current)
+      pollRef.current = setInterval(() => { fetchPosts(); fetchPrayers() }, 30000)
+    }, 2000)
+    return () => { clearTimeout(t); if (pollRef.current) clearInterval(pollRef.current) }
   }, [streamToken, apiKey, fetchPosts, fetchPrayers])
 
   useEffect(() => {
@@ -5990,16 +6174,15 @@ function CommunityPage() {
 
   useEffect(() => {
     if (!user?.id) return
-    fetch('/api/get-members')
-      .then(r => r.json())
-      .then(data => {
-        console.log('get-members response:', data)
-        if (Array.isArray(data.members)) {
-          setMembers(data.members)
-          if (data.members.length > 0) console.log('MEMBER FIELDS:', JSON.stringify(Object.keys(data.members[0])))
-        }
-      })
-      .catch(err => console.error('get-members error:', err))
+    const t = setTimeout(() => {
+      fetch('/api/get-members')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data.members)) setMembers(data.members)
+        })
+        .catch(err => console.error('get-members error:', err))
+    }, 3000)
+    return () => clearTimeout(t)
   }, [user?.id])
 
   // Fetch demons for Body Map + Spirit Network
@@ -6129,13 +6312,13 @@ function CommunityPage() {
     transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s',
   })
 
-  const sectionLabel = (label: string) => (
+  const sectionLabel = (label: string) => sidebarCollapsed && !isMobile ? null : (
     <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#7a6555' }}>
       {label}
     </div>
   )
 
-  const collapsibleSection = (label: string, open: boolean, toggle: () => void) => (
+  const collapsibleSection = (label: string, open: boolean, toggle: () => void) => sidebarCollapsed && !isMobile ? null : (
     <button onClick={toggle} style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '12px 16px 4px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
       <span style={{ flex: 1, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#7a6555', textTransform: 'uppercase' as const }}>{label}</span>
       <span style={chevronStyle(open)}>›</span>
@@ -6147,12 +6330,14 @@ function CommunityPage() {
 
   const navItem = (label: string, section: string, icon?: string) => {
     const active = activeSection === section
+    const collapsed = sidebarCollapsed && !isMobile
     return (
       <button
         onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
+        title={collapsed ? label : undefined}
         style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          width: '100%', padding: '8px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: collapsed ? 0 : 8,
+          width: '100%', padding: collapsed ? '10px 0' : '8px 16px',
           background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
           border: 'none', borderLeft: `2px solid ${active ? navGold : 'transparent'}`,
           textAlign: 'left', cursor: 'pointer',
@@ -6164,8 +6349,8 @@ function CommunityPage() {
         onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
       >
-        {icon && <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>{icon}</span>}
-        {label}
+        {icon && <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>}
+        {!collapsed && label}
       </button>
     )
   }
@@ -6373,7 +6558,7 @@ function CommunityPage() {
   const SidebarContent = () => (
     <>
       {/* Compact sidebar header */}
-      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+      <div style={{ padding: sidebarCollapsed && !isMobile ? '10px 4px' : '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed && !isMobile ? 'center' : undefined, gap: 10, flexShrink: 0, overflow: 'hidden' }}>
         <div style={{
           width: 34, height: 34, borderRadius: '50%',
           background: 'rgba(201,168,76,0.15)',
@@ -6387,44 +6572,48 @@ function CommunityPage() {
             : (user?.firstName?.[0] || 'W')
           }
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {user?.firstName || 'Warrior'}
-          </div>
-          <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
-            {tier}
-          </div>
-        </div>
-        <button
-          onClick={() => setTheme((t: string) => t === 'dark' ? 'light' : 'dark')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2, flexShrink: 0 }}
-          title="Toggle theme"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
-        <button
-          onClick={() => signOut()}
-          style={{
-            background: 'none',
-            border: `1px solid ${V.bdr}`,
-            borderRadius: 5,
-            color: V.mut,
-            fontFamily: cinzel,
-            fontSize: 8,
-            letterSpacing: '0.08em',
-            padding: '3px 8px',
-            cursor: 'pointer',
-            flexShrink: 0,
-            textTransform: 'uppercase' as const,
-          }}
-        >Out</button>
+        {!(sidebarCollapsed && !isMobile) && (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user?.firstName || 'Warrior'}
+              </div>
+              <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
+                {tier}
+              </div>
+            </div>
+            <button
+              onClick={() => setTheme((t: string) => t === 'dark' ? 'light' : 'dark')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2, flexShrink: 0 }}
+              title="Toggle theme"
+            >
+              {isDark ? '☀️' : '🌙'}
+            </button>
+            <button
+              onClick={() => signOut()}
+              style={{
+                background: 'none',
+                border: `1px solid ${V.bdr}`,
+                borderRadius: 5,
+                color: V.mut,
+                fontFamily: cinzel,
+                fontSize: 8,
+                letterSpacing: '0.08em',
+                padding: '3px 8px',
+                cursor: 'pointer',
+                flexShrink: 0,
+                textTransform: 'uppercase' as const,
+              }}
+            >Out</button>
+          </>
+        )}
       </div>
 
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
         {/* ── QUICK ACCESS ICON STRIP ── */}
-        <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
+        {!(sidebarCollapsed && !isMobile) && <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
             { icon: '💬', label: 'War Room Chat',     mobileLabel: 'Chat',      section: 'war-room-chat'  },
             { icon: '📨',  label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
@@ -6458,16 +6647,12 @@ function CommunityPage() {
               )}
             </div>
           ))}
-        </div>
+        </div>}
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
-        <button onClick={() => { setActiveSection('forum'); if (isMobile) setSidebarOpen(false) }}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'forum' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderLeft: activeSection === 'forum' ? '2px solid rgba(201,168,76,0.6)' : '2px solid transparent', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'forum' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>💬</span>
-          <span>Ops Board</span>
-        </button>
+        {navItem('Ops Board', 'forum', '💬')}
         {navItem('Field Ministry', 'field-ministry', '📖')}
 
         {/* ── FOUNDATION ── */}
@@ -6644,16 +6829,42 @@ function CommunityPage() {
         overflow: 'hidden' as const, WebkitOverflowScrolling: 'touch' as any,
         paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
-        display: 'flex', flexDirection: 'column',
+        display: 'flex', flexDirection: 'column', position: 'relative' as const,
         background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
-        height: '100vh', overflowY: 'auto' as const, flexShrink: 0, width: isTablet ? '220px' : '280px',
+        height: '100vh', overflowY: sidebarCollapsed ? 'hidden' : 'auto', flexShrink: 0,
+        width: sidebarCollapsed ? '48px' : (isTablet ? '220px' : '280px'),
+        transition: 'width 0.2s ease',
+        overflow: 'hidden' as const,
       }}>
         <SidebarContent />
+        {/* Desktop collapse toggle */}
+        {!isMobile && (
+          <button
+            onClick={() => {
+              const next = !sidebarCollapsed
+              setSidebarCollapsed(next)
+              try { localStorage.setItem('sidebar_collapsed', String(next)) } catch {}
+            }}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{
+              position: 'absolute' as const, bottom: 12, right: -12,
+              width: 24, height: 24, borderRadius: '50%',
+              background: isDark ? '#1a1714' : '#fff',
+              border: `1px solid ${V.bdr}`,
+              color: G, cursor: 'pointer', fontSize: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {sidebarCollapsed ? '›' : '‹'}
+          </button>
+        )}
       </div>
 
       {/* ── CENTER ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
-        {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
+        {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
         {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'war-room'      && <WarRoomView />}
         {activeSection === 'war-room-chat' && (
@@ -6697,7 +6908,7 @@ function CommunityPage() {
             isMobile={isMobile}
           />
         )}
-        {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+        {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} />}
         {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'arsenal'     && <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'testimony-wall' && (
