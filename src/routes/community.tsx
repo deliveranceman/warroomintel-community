@@ -5235,8 +5235,9 @@ function CommunityPage() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
   const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
-  const [hoveredWarriorY, setHoveredWarriorY] = useState(0)
   const warriorHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showWarriorCard = (id: string) => { clearTimeout(warriorHoverTimer.current!); setHoveredWarrior(id) }
+  const hideWarriorCard = () => { warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 150) }
   const [recentMessages, setRecentMessages] = useState<Array<{
     id: string; senderName: string; text: string; timeAgo: string
   }>>([])
@@ -6350,7 +6351,7 @@ function CommunityPage() {
                   return bTime - aTime
                 })
                 .slice(0, 6)
-                .map(member => {
+                .map((member, index) => {
                 const memberTier = member.publicMetadata?.tier || 'Watchman'
                 const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
                 const tierColor = tierColors[memberTier] || '#6b6b7a'
@@ -6368,19 +6369,8 @@ function CommunityPage() {
                   <div
                     key={member.id}
                     style={{ position: 'relative', overflow: 'visible' }}
-                    onMouseEnter={e => {
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                      const y = rect.top
-                      clearTimeout(warriorHoverTimer.current)
-                      warriorHoverTimer.current = setTimeout(() => {
-                        setHoveredWarriorY(y)
-                        setHoveredWarrior(member.id)
-                      }, 350)
-                    }}
-                    onMouseLeave={() => {
-                      clearTimeout(warriorHoverTimer.current)
-                      warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 300)
-                    }}
+                    onMouseEnter={() => showWarriorCard(member.id)}
+                    onMouseLeave={hideWarriorCard}
                   >
                     <button
                       onClick={() => setViewingProfile(member)}
@@ -6407,19 +6397,40 @@ function CommunityPage() {
                     </button>
                     {hoveredWarrior === member.id && member.id !== currentUserId && (
                       <div
-                        onMouseEnter={() => { if (warriorHoverTimer.current) clearTimeout(warriorHoverTimer.current) }}
-                        onMouseLeave={() => { warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 150) }}
-                        style={{ position: 'fixed', right: 288, top: hoveredWarriorY, background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '10px 12px', zIndex: 9999, minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}
+                        onMouseEnter={() => clearTimeout(warriorHoverTimer.current!)}
+                        onMouseLeave={hideWarriorCard}
+                        style={{
+                          position: 'absolute',
+                          bottom: index > 1 ? 'calc(100% + 6px)' : 'auto',
+                          top: index > 1 ? 'auto' : 'calc(100% + 6px)',
+                          right: 0,
+                          left: 0,
+                          background: '#0f0c07',
+                          border: '1px solid #3a3020',
+                          borderTop: index > 1 ? '2px solid #C9A84C' : '1px solid #3a3020',
+                          borderBottom: index > 1 ? '1px solid #3a3020' : '2px solid #C9A84C',
+                          borderRadius: 6,
+                          padding: '12px 14px',
+                          zIndex: 200,
+                          boxShadow: index > 1 ? '0 -8px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)',
+                          minWidth: 160,
+                        }}
                       >
-                        <div style={{ fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 8 }}>{displayName}</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 10, borderBottom: '1px solid #1e1a0e', paddingBottom: 8 }}>
+                          {displayName}
+                        </div>
                         <button
                           onClick={() => setViewingProfile(member)}
-                          style={{ width: '100%', padding: '5px 10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: V.mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, marginBottom: 6 }}
-                        >👤 Profile</button>
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 6, textAlign: 'left' as const }}
+                        >👤 PROFILE</button>
                         <button
                           onClick={() => { setPendingDMWith(member.id); setActiveSection('dms') }}
-                          style={{ width: '100%', padding: '5px 10px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-                        >💬 Message</button>
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'left' as const }}
+                        >💬 MESSAGE</button>
                       </div>
                     )}
                   </div>
