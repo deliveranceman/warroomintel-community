@@ -33,15 +33,15 @@ const THEME_CSS = `
   --wri-gold: #C9A84C;
 }
 :root[data-theme="light"] {
-  --wri-bg: #f0ebe0;
-  --wri-surface: #EDE6D3;
-  --wri-surface2: #E5DCC5;
-  --wri-border: rgba(139,105,20,0.25);
-  --wri-text: #1C1407;
-  --wri-dim: #3B2D0C;
-  --wri-muted: #6B5520;
-  --wri-card: #f5f0e8;
-  --wri-gold: #8B6914;
+  --wri-bg: #F8F6F2;
+  --wri-surface: #FFFFFF;
+  --wri-surface2: #F5F2EE;
+  --wri-border: rgba(212,196,176,0.85);
+  --wri-text: #1C1410;
+  --wri-dim: #4A3728;
+  --wri-muted: #7A6555;
+  --wri-card: #FFFFFF;
+  --wri-gold: #C9A84C;
 }
 `
 
@@ -1330,7 +1330,6 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
         <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '40px 24px', textAlign: 'center' as const }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>✝</div>
           <div style={{ fontFamily: cinzel, fontSize: 13, color: GG, letterSpacing: '0.08em', marginBottom: 8 }}>No Testimonies Yet</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>Be the first to share what God has done.</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
@@ -2353,7 +2352,16 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
       if (linksRes.status     === 'fulfilled') setLinks(linksRes.value.links || [])
       if (reportsRes.status   === 'fulfilled') setReports(reportsRes.value.reports || [])
       if (resourcesRes.status === 'fulfilled') setResources((resourcesRes.value.resources || []).slice(0, 4))
-      if (demonsRes.status    === 'fulfilled') setDemons((demonsRes.value.demons || []).slice(0, 5))
+      if (demonsRes.status    === 'fulfilled') {
+        const allDemons = demonsRes.value.demons || []
+        // Sort newest first by createdTime, then take first 5
+        const sorted = [...allDemons].sort((a: any, b: any) => {
+          const ta = a.createdTime ? new Date(a.createdTime).getTime() : 0
+          const tb = b.createdTime ? new Date(b.createdTime).getTime() : 0
+          return tb - ta
+        })
+        setDemons(sorted.slice(0, 5))
+      }
       setLoading(false)
     }
     fetchAll()
@@ -2423,7 +2431,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
             <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
             <div style={{ fontFamily: cinzel, color: GG, fontSize: 16, marginBottom: 8 }}>No Briefings Yet</div>
             <div style={{ fontFamily: crimson, color: mut, fontSize: 14, marginBottom: userTier === 'minister' ? 20 : 0 }}>
-              Leadership will post operational intel here.
+              Operational briefings and field intelligence from War Room Intel leadership.
             </div>
             {userTier === 'minister' && (
               <button
@@ -2532,7 +2540,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
 
         {reports.filter(r => r.status === 'approved').length === 0 ? (
           <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '20px 24px', textAlign: 'center', color: mut, fontSize: 13 }}>
-            No approved field reports yet. Ministers — submit what you're encountering in sessions.
+            Field reports from active ministers will appear here.
           </div>
         ) : reports.filter(r => r.status === 'approved').map(report => (
           <div key={report.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: '3px solid #7c3aed', borderRadius: 8, padding: '16px 20px', marginBottom: 12 }}>
@@ -2780,11 +2788,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
   })
 
   const dbIsDark = theme !== 'light'
-  const dbBg     = dbIsDark ? '#0D0B14' : '#f5f0e8'
-  const dbSurf   = dbIsDark ? '#1a1714' : '#f0ebe3'
-  const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
-  const dbText   = dbIsDark ? '#f0e8d8' : '#1a1410'
-  const dbDim    = dbIsDark ? '#c8b99a' : '#7a6555'
+  const dbBg     = dbIsDark ? '#0D0B14' : '#F8F6F2'
+  const dbSurf   = dbIsDark ? '#1a1714' : '#FFFFFF'
+  const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : '#D4C4B0'
+  const dbText   = dbIsDark ? '#f0e8d8' : '#1C1410'
+  const dbDim    = dbIsDark ? '#c8b99a' : '#4A3728'
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden', minHeight: 0 }}>
@@ -2915,19 +2923,23 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
 
           return (
             <div key={id} onClick={() => setSelectedEntry(entry)} style={{
-              background: dbSurf, border: `1px solid ${color}40`,
-              borderLeft: `3px solid ${hierColors ? hierColors.border : color}`, borderRadius: 8,
-              padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
+              background: dbSurf,
+              border: `1px solid ${dbIsDark ? color + '40' : dbBorder}`,
+              borderLeft: `3px solid ${hierColors ? hierColors.border : color}`,
+              borderRadius: 8, padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
+              boxShadow: dbIsDark ? 'none' : '0 1px 4px rgba(0,0,0,0.06)',
             }}>
               {/* Name row — no classification badge here; biblicalRank shown as pill below */}
               <div style={{ marginBottom: 4 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 14, color, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: dbIsDark ? color : '#1C1410', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
               </div>
               {/* Hierarchy category badge */}
               {hierCat && hierColors && (
                 <span style={{
                   fontSize: 9, padding: '2px 8px', borderRadius: 999, display: 'inline-block', marginBottom: 6,
-                  backgroundColor: hierColors.bg, color: hierColors.text, border: `1px solid ${hierColors.border}`,
+                  backgroundColor: dbIsDark ? hierColors.bg : hierColors.border + '22',
+                  color: dbIsDark ? hierColors.text : '#1C1410',
+                  border: `1px solid ${hierColors.border}`,
                   fontFamily: cinzel, letterSpacing: '0.05em',
                 }}>
                   {hierCat}

@@ -23,41 +23,41 @@
 /* ── Light mode — system preference (unless manually overridden to dark) ─── */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --gold: #A07C2C;
-    --gold-light: #C49A40;
-    --gold-dim: rgba(160,124,44,0.12);
-    --deep: #F5F0E8;
-    --surface: #EDE8DC;
-    --surface2: #E5DFD0;
-    --surface3: #DDD8C8;
-    --muted: #8A7A64;
-    --text: #1A1814;
-    --text-dim: #6B5E4A;
-    --border: rgba(160,124,44,0.2);
-    --border-bright: rgba(160,124,44,0.45);
-    --purple-glow: rgba(100,80,180,0.04);
-    --nav-bg: rgba(245,240,232,0.97);
-    --dropdown-bg: rgba(237,232,220,0.99);
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --gold-dim: rgba(201,168,76,0.15);
+    --deep: #F8F6F2;
+    --surface: #FFFFFF;
+    --surface2: #F5F2EE;
+    --surface3: #EDE8E0;
+    --muted: #7A6555;
+    --text: #1C1410;
+    --text-dim: #4A3728;
+    --border: rgba(212,196,176,0.85);
+    --border-bright: rgba(201,168,76,0.55);
+    --purple-glow: rgba(100,80,180,0.03);
+    --nav-bg: rgba(248,246,242,0.97);
+    --dropdown-bg: rgba(255,255,255,0.99);
   }
 }
 
 /* ── Manual light override ───────────────────────────────────────────────── */
 :root[data-theme="light"] {
-  --gold: #A07C2C;
-  --gold-light: #C49A40;
-  --gold-dim: rgba(160,124,44,0.12);
-  --deep: #F5F0E8;
-  --surface: #EDE8DC;
-  --surface2: #E5DFD0;
-  --surface3: #DDD8C8;
-  --muted: #8A7A64;
-  --text: #1A1814;
-  --text-dim: #6B5E4A;
-  --border: rgba(160,124,44,0.2);
-  --border-bright: rgba(160,124,44,0.45);
-  --purple-glow: rgba(100,80,180,0.04);
-  --nav-bg: rgba(245,240,232,0.97);
-  --dropdown-bg: rgba(237,232,220,0.99);
+  --gold: #C9A84C;
+  --gold-light: #E8C97A;
+  --gold-dim: rgba(201,168,76,0.15);
+  --deep: #F8F6F2;
+  --surface: #FFFFFF;
+  --surface2: #F5F2EE;
+  --surface3: #EDE8E0;
+  --muted: #7A6555;
+  --text: #1C1410;
+  --text-dim: #4A3728;
+  --border: rgba(212,196,176,0.85);
+  --border-bright: rgba(201,168,76,0.55);
+  --purple-glow: rgba(100,80,180,0.03);
+  --nav-bg: rgba(248,246,242,0.97);
+  --dropdown-bg: rgba(255,255,255,0.99);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

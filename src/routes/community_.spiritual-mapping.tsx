@@ -6,16 +6,14 @@ import { IntelligenceMap } from '@/components/spiritual-mapping/IntelligenceMap'
 import { Assessment } from '@/components/spiritual-mapping/Assessment'
 import { SubmitRegion } from '@/components/spiritual-mapping/SubmitRegion'
 
-export const Route = createFileRoute('/community/spiritual-mapping/')({
+export const Route = createFileRoute('/community_/spiritual-mapping')({
   ssr: false,
   component: SpiritualMappingPage,
 })
 
 const G = '#C9A84C'
 const BG = '#0D0B14'
-const SURF = '#12101e'
 const BDR = 'rgba(201,168,76,0.22)'
-const TXT = '#e8dcc8'
 const DIM = '#a09080'
 const MUT = '#6b5e45'
 const cinzel = "'Cinzel', serif"
@@ -27,19 +25,11 @@ const TIER_LEVELS: Record<string, number> = {
 
 type Tab = 'training' | 'map' | 'assessment' | 'submit'
 
-interface TabDef {
-  id: Tab
-  label: string
-  icon: string
-  minTier: number
-  tierLabel?: string
-}
-
-const TABS: TabDef[] = [
-  { id: 'training', label: 'Training Academy', icon: '📖', minTier: 0 },
-  { id: 'map', label: 'Intelligence Map', icon: '🌍', minTier: 1, tierLabel: 'SOLDIER+' },
-  { id: 'assessment', label: 'Field Assessment', icon: '🗂', minTier: 2, tierLabel: 'COMMANDER+' },
-  { id: 'submit', label: 'Submit Region', icon: '📤', minTier: 2, tierLabel: 'COMMANDER+' },
+const TABS = [
+  { id: 'training' as Tab, label: 'Training Academy', icon: '📖', minTier: 0 },
+  { id: 'map'      as Tab, label: 'Intelligence Map', icon: '🌍', minTier: 1, tierLabel: 'SOLDIER+' },
+  { id: 'assessment' as Tab, label: 'Field Assessment', icon: '🗂', minTier: 2, tierLabel: 'COMMANDER+' },
+  { id: 'submit'   as Tab, label: 'Submit Region',    icon: '📤', minTier: 2, tierLabel: 'COMMANDER+' },
 ]
 
 function SpiritualMappingPage() {
@@ -121,9 +111,9 @@ function SpiritualMappingPage() {
                 <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: active ? G : MUT }}>
                   {tab.label}
                 </span>
-                {locked && tab.tierLabel && (
+                {locked && (tab as any).tierLabel && (
                   <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', color: '#5C7CBF', background: 'rgba(92,124,191,0.1)', padding: '1px 5px', borderRadius: 3 }}>
-                    🔒 {tab.tierLabel}
+                    🔒 {(tab as any).tierLabel}
                   </span>
                 )}
               </button>
@@ -134,10 +124,10 @@ function SpiritualMappingPage() {
 
       {/* Content */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {activeTab === 'training' && <Training userTier={tier} />}
-        {activeTab === 'map' && <IntelligenceMap userTier={tier} />}
+        {activeTab === 'training'   && <Training userTier={tier} />}
+        {activeTab === 'map'        && <IntelligenceMap userTier={tier} />}
         {activeTab === 'assessment' && <Assessment userTier={tier} userId={userId} userName={userName} />}
-        {activeTab === 'submit' && <SubmitRegion userId={userId} userName={userName} />}
+        {activeTab === 'submit'     && <SubmitRegion userId={userId} userName={userName} />}
       </div>
     </div>
   )
