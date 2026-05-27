@@ -58,7 +58,7 @@ async function getPreamble(
     const [contextResult, booksResult, resourceBooksResult] = await Promise.all([
       client.from('ministry_context').select('label, context_text, scope').eq('is_active', true).order('scope'),
       client.from('ministry_library').select('title, author, extracted_text').eq('is_enabled', true).eq('ai_enabled', true),
-      client.from('resources').select('title, author, notes').eq('topic', 'ministry-library').eq('active', true),
+      client.from('resources').select('title, author, notes, extracted_text').eq('topic', 'ministry-library').eq('active', true),
     ])
 
     const MAX_CHARS = 8000
@@ -125,16 +125,59 @@ async function getPreamble(
         console.log(`[ai-spirit-enhance] Ministry library: ${books.length} books available, none matched spirit keywords`)
       }
 
-    // Inject uploaded resources library (title/author/notes — no extracted text)
+    // Inject uploaded resources library — use extracted_text chunks when available,
+    // fall back to title/author/notes metadata for books not yet indexed.
     const resourceBooks = resourceBooksResult.data || []
     if (resourceBooks.length > 0) {
-      const entries = resourceBooks
-        .filter(b => b.title)
-        .map(b => `• ${b.title}${b.author ? ` — ${b.author}` : ''}${b.notes ? `: ${b.notes}` : ''}`)
-        .join('\n')
-      if (entries && preamble.length < MAX_CHARS - 500) {
-        preamble += `\nUPLOADED MINISTRY LIBRARY (${resourceBooks.length} books):\n${entries}\n\n`
-        console.log(`[ai-spirit-enhance] Injected ${resourceBooks.length} resource library entries`)
+      const terms = spiritName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+      if (spiritDescription) {
+        spiritDescription.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+          .filter(w => w.length > 5).slice(0, 10).forEach(w => terms.push(w))
+      }
+
+      // Books with extracted text — score and include relevant chunks
+      interface RChunk { title: string; author: string; text: string; score: number }
+      const rScored: RChunk[] = []
+      for (const book of resourceBooks) {
+        if (!book.extracted_text) continue
+        for (let i = 0; i < book.extracted_text.length; i += 1800) {
+          const chunk = book.extracted_text.slice(i, i + 2000).trim()
+          if (chunk.length < 150) continue
+          const lc = chunk.toLowerCase()
+          let score = 0
+          for (const term of terms) {
+            const matches = (lc.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
+            if (matches) score += matches * (term.length > 6 ? 3 : 1)
+          }
+          if (score > 0) rScored.push({ title: book.title, author: book.author || '', text: chunk.slice(0, 1400), score })
+        }
+      }
+      if (rScored.length > 0) {
+        rScored.sort((a, b) => b.score - a.score)
+        let rsSection = `MINISTRY LIBRARY (uploaded):\n`
+        let usedR = 0
+        for (const c of rScored.slice(0, 4)) {
+          const entry = `[${c.title}${c.author ? ` by ${c.author}` : ''}]:\n${c.text}\n\n`
+          if ((preamble + rsSection + entry).length > MAX_CHARS) break
+          rsSection += entry
+          usedR++
+        }
+        if (usedR > 0) {
+          preamble += rsSection
+          console.log(`[ai-spirit-enhance] Injected ${usedR} resource-library text chunks`)
+        }
+      }
+
+      // Books without extracted text — fall back to metadata summary
+      const metaOnly = resourceBooks.filter(b => !b.extracted_text && b.title)
+      if (metaOnly.length > 0 && preamble.length < MAX_CHARS - 500) {
+        const entries = metaOnly
+          .map(b => `• ${b.title}${b.author ? ` — ${b.author}` : ''}${b.notes ? `: ${b.notes}` : ''}`)
+          .join('\n')
+        if (entries) {
+          preamble += `\nUPLOADED LIBRARY (metadata only — ${metaOnly.length} book${metaOnly.length !== 1 ? 's' : ''}):\n${entries}\n\n`
+          console.log(`[ai-spirit-enhance] Injected ${metaOnly.length} resource metadata entries`)
+        }
       }
     }
     }

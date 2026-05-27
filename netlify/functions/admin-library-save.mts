@@ -1,5 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
+const HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Content-Type': 'application/json',
+}
+
 function makeSupabase() {
   return createClient(
     process.env.SUPABASE_URL!,
@@ -29,14 +35,31 @@ async function isMinister(userId: string): Promise<boolean> {
   } catch { return false }
 }
 
+/** Fire-and-forget: ask library-index to extract + store text for this resource. */
+function triggerIndexing(req: Request, resourceId: string, filePath: string, fileType: string) {
+  const internalKey = process.env.INTERNAL_API_KEY || ''
+  if (!internalKey) {
+    console.log('[library-save] INTERNAL_API_KEY not set — skipping background indexing')
+    return
+  }
+  try {
+    const origin = new URL(req.url).origin
+    fetch(`${origin}/api/library-index`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-key': internalKey },
+      body: JSON.stringify({ resourceId, filePath, fileType }),
+    }).then(r => {
+      if (!r.ok) r.text().then(t => console.error('[library-save] index error:', r.status, t)).catch(() => {})
+      else console.log(`[library-save] indexing triggered for ${resourceId}`)
+    }).catch(e => console.error('[library-save] index fetch failed:', e?.message))
+  } catch (e: any) {
+    console.error('[library-save] triggerIndexing threw:', e?.message)
+  }
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    })
+    return new Response('ok', { headers: HEADERS })
   }
 
   if (req.method !== 'POST') {
@@ -89,6 +112,11 @@ export default async function handler(req: Request) {
     console.error('[admin-library-save] insert error:', error.message)
     return Response.json({ success: false, error: error.message }, { status: 500 })
   }
+
+  console.log(`[admin-library-save] inserted resource ${row.id} (${fileType})`)
+
+  // Kick off text extraction in the background — non-blocking, best effort
+  triggerIndexing(req, row.id, file_path, fileType)
 
   return Response.json({ success: true, book: row })
 }

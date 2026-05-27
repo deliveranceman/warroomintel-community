@@ -50,3 +50,6 @@
 
 [functions."library-autofill"]
   timeout = 15
+
+[functions."library-index"]
+  timeout = 26

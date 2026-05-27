@@ -2957,7 +2957,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         .map(f => ({
           id: crypto.randomUUID(),
           file: f,
-          title: f.name.replace(/\.[^/.]+$/, '').replace(/^\d+[-\s]*/g, '').replace(/[-_]/g, ' ').trim(),
+          // Strip extension → strip ALL leading numeric doc-ID blocks → normalise separators
+          // e.g. "355225898-32149476-Principles-Of-Mass-Deliverance.txt" → "Principles Of Mass Deliverance"
+          title: f.name.replace(/\.[^/.]+$/, '').replace(/^(\d+[-_\s]*)+/, '').replace(/[-_]/g, ' ').trim(),
           author: '', notes: '',
           status: 'pending' as const,
           aiGenerated: false,
@@ -2972,10 +2974,15 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   async function handleAutoFill() {
     const token = await getToken()
-    console.log('[handleAutoFill] token present:', !!token)
+    console.log('[handleAutoFill] token present:', !!token, '| staged pending:', stagedFiles.filter(f => f.status === 'pending').length)
+    if (!token) {
+      console.error('[handleAutoFill] no token — aborting')
+      return
+    }
     const pending = stagedFiles.filter(f => f.status === 'pending')
     if (!pending.length) return
     await Promise.all(pending.map(async sf => {
+      console.log('[handleAutoFill] processing file id:', sf.id, 'name:', sf.file.name)
       setStagedFiles(prev => prev.map(f => f.id === sf.id ? { ...f, status: 'analyzing' } : f))
       try {
         let contentSnippet = ''
@@ -2992,26 +2999,33 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: sf.file.name, contentSnippet }),
         })
-        const d = await resp.json()
-        console.log('[handleAutoFill] response', resp.status, d)
+        let d: any = {}
+        try { d = await resp.json() } catch { d = {} }
+        console.log('[handleAutoFill] resp status:', resp.status, '| body:', d)
         if (!resp.ok) {
-          console.error('[handleAutoFill] error from API:', d.error)
+          const msg = d.error || `HTTP ${resp.status}`
+          console.error('[handleAutoFill] API error for', sf.id, ':', msg)
           setStagedFiles(prev => prev.map(f => f.id === sf.id
-            ? { ...f, status: 'error', errorMsg: d.error || `HTTP ${resp.status}` }
+            ? { ...f, status: 'error', errorMsg: msg }
             : f))
           return
         }
-        setStagedFiles(prev => prev.map(f => f.id === sf.id ? {
-          ...f,
-          title: d.title || f.title,
-          author: d.author || f.author,
-          notes: d.notes || f.notes,
-          aiGenerated: true,
-          status: 'pending',
-          errorMsg: undefined,
-        } : f))
+        // Expect { title, author, notes } — populate only fields that came back non-empty
+        console.log('[handleAutoFill] success for', sf.id, '| title:', d.title, 'author:', d.author)
+        setStagedFiles(prev => prev.map(f => {
+          if (f.id !== sf.id) return f
+          return {
+            ...f,
+            title: d.title?.trim() || f.title,
+            author: d.author?.trim() || f.author,
+            notes: d.notes?.trim() || f.notes,
+            aiGenerated: true,
+            status: 'pending' as const,
+            errorMsg: undefined,
+          }
+        }))
       } catch (e: any) {
-        console.error('[handleAutoFill] fetch threw:', e)
+        console.error('[handleAutoFill] fetch threw for', sf.id, ':', e)
         setStagedFiles(prev => prev.map(f => f.id === sf.id
           ? { ...f, status: 'error', errorMsg: e.message || 'Network error' }
           : f))
