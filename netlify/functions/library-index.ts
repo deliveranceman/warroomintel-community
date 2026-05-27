@@ -9,7 +9,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { PDFParse } from 'pdf-parse'
+import pdfParse from 'pdf-parse'
 
 const BUCKET  = 'ministry-library'
 const MAX_CHARS = 120_000          // ~30k tokens — enough context without blowing the prompt
@@ -34,16 +34,13 @@ async function extractText(buffer: Buffer, fileType: string): Promise<string | n
 
   if (fileType === 'pdf') {
     try {
-      const parser = new PDFParse({ data: buffer })
-      const result  = await parser.getText()
-      await parser.destroy()
+      const result = await pdfParse(buffer)
       const raw = result.text || ''
-      // Normalise whitespace: collapse runs of blanks, keep paragraph breaks
       return raw
         .replace(/[ \t]+/g, ' ')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
-        .slice(0, MAX_CHARS)
+        .slice(0, MAX_CHARS) || null
     } catch (e: any) {
       console.error('[library-index] pdf-parse error:', e?.message)
       return null

@@ -14,7 +14,7 @@ const headers = {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
 
 async function resolveMinister(token: string): Promise<boolean> {
@@ -54,7 +54,8 @@ async function fetchAllSpiritNames(): Promise<string[]> {
 }
 
 async function fetchLibraryBooks() {
-  const { data } = await sb()
+  console.log('[LIBRARY-SEARCH] Supabase query params', { topic: 'ministry-library', active: true, filter: 'extracted_text IS NOT NULL AND extracted_text != empty' })
+  const { data, error } = await sb()
     .from('resources')
     .select('title, author, extracted_text')
     .eq('topic', 'ministry-library')
@@ -62,6 +63,7 @@ async function fetchLibraryBooks() {
     .not('extracted_text', 'is', null)
     .neq('extracted_text', '')
     .limit(MAX_BOOKS)
+  console.log('[LIBRARY-SEARCH] Supabase result', { count: data?.length ?? 0, error: error?.message ?? null })
   return data || []
 }
 
@@ -109,8 +111,10 @@ export default async function handler(req: Request) {
   const body = await req.json()
   const { tool, query } = body
 
+  console.log('[LIBRARY-SEARCH] Query received', { tool, query: query?.slice(0, 100) })
   const books = await fetchLibraryBooks()
   const { text: libraryText, titles: bookTitles } = buildLibraryText(books)
+  console.log('[LIBRARY-SEARCH] Sending to Claude', { contextLength: libraryText.length, bookCount: books.length })
 
   if (!libraryText) {
     return new Response(JSON.stringify({ error: 'No library content available. Upload books with AI enabled in the Ministry Library tab.' }), { status: 400, headers })

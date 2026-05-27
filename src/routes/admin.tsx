@@ -4880,6 +4880,10 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [cqTitles, setCqTitles] = useState<string[]>([])
   const [cqError, setCqError] = useState('')
 
+  // Reindex state
+  const [reindexing, setReindexing] = useState(false)
+  const [reindexResult, setReindexResult] = useState<string>('')
+
   async function runGapAnalysis() {
     setGapLoading(true)
     setGapResults([])
@@ -4920,6 +4924,22 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setCqLoading(false)
   }
 
+  async function runReindex() {
+    setReindexing(true)
+    setReindexResult('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/library-backfill', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (!res.ok) { setReindexResult(`Error: ${data.error}`); return }
+      setReindexResult(`Reindex complete: ${data.succeeded}/${data.processed} books extracted. Reload to test.`)
+    } catch (e: any) { setReindexResult(`Error: ${e.message}`) }
+    setReindexing(false)
+  }
+
   async function addToDatabase(spirit: any) {
     setAddingSpirit(spirit)
   }
@@ -4957,8 +4977,14 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   return (
     <div style={{ color: txt2, fontFamily: "'Crimson Pro', serif" }}>
       <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: G2, marginBottom: 4, letterSpacing: '0.08em' }}>🔬 Library Intelligence</div>
-      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic', marginBottom: 28 }}>
+      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic', marginBottom: 16 }}>
         AI-powered analysis of your ministry library against the spirit database
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        <button onClick={runReindex} disabled={reindexing} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: G2, background: 'transparent', border: `1px solid ${G2}55`, borderRadius: 4, padding: '7px 16px', cursor: reindexing ? 'wait' : 'pointer', opacity: reindexing ? 0.6 : 1 }}>
+          {reindexing ? '⏳ Reindexing...' : '🔄 Reindex Library'}
+        </button>
+        {reindexResult && <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: reindexResult.startsWith('Error') ? '#e09090' : '#80e090' }}>{reindexResult}</span>}
       </div>
 
       {/* ── Tool 1: Spirit Gap Analysis ── */}

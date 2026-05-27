@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+import pdfParse from 'pdf-parse'
+
+const BUCKET = 'ministry-library'
+const MAX_CHARS = 120_000
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -35,26 +39,26 @@ async function isMinister(userId: string): Promise<boolean> {
   } catch { return false }
 }
 
-/** Fire-and-forget: ask library-index to extract + store text for this resource. */
-function triggerIndexing(req: Request, resourceId: string, filePath: string, fileType: string) {
-  const internalKey = process.env.INTERNAL_API_KEY || ''
-  if (!internalKey) {
-    console.log('[library-save] INTERNAL_API_KEY not set — skipping background indexing')
-    return
+async function extractText(buffer: Buffer, fileType: string): Promise<string | null> {
+  if (fileType === 'txt') {
+    const text = buffer.toString('utf-8').replace(/\0/g, ' ').slice(0, MAX_CHARS)
+    return text || null
   }
-  try {
-    const origin = new URL(req.url).origin
-    fetch(`${origin}/api/library-index`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-key': internalKey },
-      body: JSON.stringify({ resourceId, filePath, fileType }),
-    }).then(r => {
-      if (!r.ok) r.text().then(t => console.error('[library-save] index error:', r.status, t)).catch(() => {})
-      else console.log(`[library-save] indexing triggered for ${resourceId}`)
-    }).catch(e => console.error('[library-save] index fetch failed:', e?.message))
-  } catch (e: any) {
-    console.error('[library-save] triggerIndexing threw:', e?.message)
+  if (fileType === 'pdf') {
+    try {
+      const result = await pdfParse(buffer)
+      const raw = result.text || ''
+      return raw
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, MAX_CHARS) || null
+    } catch (e: any) {
+      console.error('[LIBRARY-UPLOAD] pdf-parse error:', e?.message)
+      return null
+    }
   }
+  return null
 }
 
 export default async function handler(req: Request) {
@@ -81,6 +85,8 @@ export default async function handler(req: Request) {
 
   const { title, author, notes, spirit_tags, filename, file_size, file_path, ai_generated } = body
 
+  console.log('[LIBRARY-UPLOAD] Request received', { userId, filename, file_size, file_path })
+
   if (!title?.trim() || !file_path) {
     return Response.json({ error: 'title and file_path are required' }, { status: 400 })
   }
@@ -89,6 +95,8 @@ export default async function handler(req: Request) {
   const fileType = resolvedFilename.toLowerCase().endsWith('.pdf') ? 'pdf' : 'txt'
 
   const sb = makeSupabase()
+
+  console.log('[LIBRARY-UPLOAD] Writing to Supabase resources table...', { title: title.trim(), fileType, file_path })
 
   const { data: row, error } = await sb
     .from('resources')
@@ -110,14 +118,45 @@ export default async function handler(req: Request) {
     .single()
 
   if (error) {
-    console.error('[admin-library-save] insert error:', error.message)
+    console.error('[LIBRARY-UPLOAD] FAILED at step: Supabase insert', error.message)
     return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  console.log(`[admin-library-save] inserted resource ${row.id} (${fileType})`)
+  console.log('[LIBRARY-UPLOAD] Supabase insert result', { id: row.id, fileType })
 
-  // Kick off text extraction in the background — non-blocking, best effort
-  triggerIndexing(req, row.id, file_path, fileType)
+  // Extract text inline — best effort, non-fatal if it fails
+  try {
+    console.log('[LIBRARY-UPLOAD] Downloading file from storage for text extraction...', { file_path })
+    const { data: fileBlob, error: dlErr } = await sb.storage.from(BUCKET).download(file_path)
+    if (dlErr || !fileBlob) {
+      console.error('[LIBRARY-UPLOAD] FAILED at step: Storage download', dlErr?.message)
+    } else {
+      const fileBuffer = Buffer.from(await fileBlob.arrayBuffer())
+      console.log('[LIBRARY-UPLOAD] File downloaded from storage', { bytes: fileBuffer.length })
+
+      const extractedText = await extractText(fileBuffer, fileType)
+      console.log('[LIBRARY-UPLOAD] Text extraction result', {
+        textLength: extractedText?.length ?? 0,
+        preview: extractedText?.slice(0, 200) ?? '(none)',
+      })
+
+      if (extractedText) {
+        const { error: updateErr } = await sb
+          .from('resources')
+          .update({ extracted_text: extractedText })
+          .eq('id', row.id)
+        if (updateErr) {
+          console.error('[LIBRARY-UPLOAD] FAILED at step: Update extracted_text', updateErr.message)
+        } else {
+          console.log('[LIBRARY-UPLOAD] extracted_text stored', { chars: extractedText.length, resourceId: row.id })
+        }
+      } else {
+        console.log('[LIBRARY-UPLOAD] No text extracted — extracted_text remains null')
+      }
+    }
+  } catch (e: any) {
+    console.error('[LIBRARY-UPLOAD] FAILED at step: Text extraction', e?.message)
+  }
 
   return Response.json({ success: true, book: row })
 }
