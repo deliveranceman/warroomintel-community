@@ -2829,15 +2829,15 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [books, setBooks]           = useState<any[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
 
-  // Upload state
-  const [uploadTitle, setUploadTitle]   = useState('')
-  const [uploadAuthor, setUploadAuthor] = useState('')
-  const [uploadNotes, setUploadNotes]   = useState('')
-  const [uploadFile, setUploadFile]     = useState<File | null>(null)
-  const [uploadPhase, setUploadPhase]   = useState<'idle' | 'reading' | 'uploading' | 'extracting' | 'done' | 'error'>('idle')
-  const [uploadMsg, setUploadMsg]       = useState('')
-  const [dragOver, setDragOver]         = useState(false)
-  const [autoFilling, setAutoFilling]   = useState(false)
+  // Staged files state
+  type StagedFile = {
+    id: string; file: File; title: string; author: string; notes: string
+    status: 'pending' | 'analyzing' | 'uploading' | 'done' | 'error'
+    errorMsg?: string; aiGenerated: boolean
+  }
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
+  const [dragOver, setDragOver]       = useState(false)
+  const [uploadingAll, setUploadingAll] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const inp: React.CSSProperties = {
@@ -2935,103 +2935,128 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setBooksLoading(false)
   }
 
-  function handleFileSelect(file: File) {
-    if (!file.name.endsWith('.pdf') && !file.name.endsWith('.txt')) { setUploadMsg('Only PDF and TXT files are supported'); return }
-    if (file.size > 50 * 1024 * 1024) { setUploadMsg('File must be under 50MB'); return }
-    setUploadFile(file)
-    setUploadMsg('')
-    if (!uploadTitle) setUploadTitle(file.name.replace(/\.(pdf|txt)$/i, '').replace(/[_-]/g, ' '))
+  function addFiles(files: FileList | File[]) {
+    const valid = Array.from(files).filter(f => {
+      const ok = (f.name.endsWith('.pdf') || f.name.endsWith('.txt')) && f.size <= 50 * 1024 * 1024
+      return ok
+    })
+    setStagedFiles(prev => {
+      const existing = new Set(prev.map(s => s.file.name + s.file.size))
+      const fresh = valid
+        .filter(f => !existing.has(f.name + f.size))
+        .slice(0, 10 - prev.length)
+        .map(f => ({
+          id: crypto.randomUUID(),
+          file: f,
+          title: f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+          author: '', notes: '',
+          status: 'pending' as const,
+          aiGenerated: false,
+        }))
+      return [...prev, ...fresh]
+    })
+  }
+
+  function updateStaged(id: string, patch: Partial<{ title: string; author: string; notes: string; status: StagedFile['status']; errorMsg: string; aiGenerated: boolean }>) {
+    setStagedFiles(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f))
   }
 
   async function handleAutoFill() {
-    if (!uploadFile || autoFilling) return
-    setAutoFilling(true)
-    setUploadMsg('')
-    try {
-      // For TXT files, read first 2000 chars as context; PDFs use filename only
-      let contentSnippet = ''
-      if (uploadFile.name.toLowerCase().endsWith('.txt')) {
-        const slice = uploadFile.slice(0, 4000)
-        contentSnippet = await new Promise<string>((res, rej) => {
-          const reader = new FileReader()
-          reader.onload = () => res((reader.result as string).slice(0, 2000))
-          reader.onerror = rej
-          reader.readAsText(slice)
+    const token = await getToken()
+    const pending = stagedFiles.filter(f => f.status === 'pending')
+    await Promise.all(pending.map(async sf => {
+      updateStaged(sf.id, { status: 'analyzing' })
+      try {
+        let contentSnippet = ''
+        if (sf.file.name.toLowerCase().endsWith('.txt')) {
+          contentSnippet = await new Promise<string>((res, rej) => {
+            const reader = new FileReader()
+            reader.onload = () => res((reader.result as string).slice(0, 2000))
+            reader.onerror = rej
+            reader.readAsText(sf.file.slice(0, 4000))
+          })
+        }
+        const resp = await fetch('/api/library-autofill', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: sf.file.name, contentSnippet }),
         })
+        const d = await resp.json()
+        updateStaged(sf.id, {
+          title: d.title || sf.title,
+          author: d.author || sf.author,
+          notes: d.notes || sf.notes,
+          aiGenerated: resp.ok,
+          status: 'pending',
+        })
+      } catch {
+        updateStaged(sf.id, { status: 'pending' })
       }
-      const token = await getToken()
-      const resp = await fetch('/api/library-autofill', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: uploadFile.name, contentSnippet }),
-      })
-      const d = await resp.json()
-      if (!resp.ok) { setUploadMsg(`⚠ Auto-fill failed: ${d.error}`); return }
-      if (d.title) setUploadTitle(d.title)
-      if (d.author) setUploadAuthor(d.author)
-      if (d.notes) setUploadNotes(d.notes)
-      const filled = [d.title && 'title', d.author && 'author', d.notes && 'notes'].filter(Boolean).join(', ')
-      setUploadMsg(`✓ Filled: ${filled || 'title only'}`)
-    } catch (e: any) {
-      setUploadMsg(`⚠ Auto-fill error: ${e.message}`)
-    } finally {
-      setAutoFilling(false)
-    }
+    }))
   }
 
-  async function uploadBook() {
-    if (!uploadFile || !uploadTitle.trim()) { setUploadMsg('Title and file required'); return }
-    try {
-      const token = await getToken()
+  async function handleUploadAll() {
+    const token = await getToken()
+    const pending = stagedFiles.filter(f => f.status === 'pending')
+    if (!pending.length) return
+    setUploadingAll(true)
+    for (const sf of pending) {
+      // Step 1 — signed URL
+      updateStaged(sf.id, { status: 'uploading' })
+      let signedUrl = '', filePath = ''
+      try {
+        const urlRes = await fetch('/api/admin-library-url', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: sf.file.name, contentType: sf.file.type || 'application/octet-stream' }),
+        })
+        const urlData = await urlRes.json()
+        if (!urlRes.ok) { updateStaged(sf.id, { status: 'error', errorMsg: urlData.error || 'Failed to get upload URL' }); continue }
+        signedUrl = urlData.signedUrl
+        filePath = urlData.filePath
+      } catch (e: any) {
+        updateStaged(sf.id, { status: 'error', errorMsg: e.message }); continue
+      }
 
-      // Step A — get signed upload URL from Netlify
-      setUploadPhase('reading')
-      const urlRes = await fetch('/api/admin-library-url', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type || 'application/octet-stream' }),
-      })
-      const urlData = await urlRes.json()
-      if (!urlRes.ok) { setUploadPhase('error'); setUploadMsg(`⚠ ${urlData.error || 'Failed to get upload URL'}`); return }
-      const { signedUrl, filePath } = urlData
+      // Step 2 — PUT to Supabase
+      try {
+        const storageRes = await fetch(signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': sf.file.type || 'application/octet-stream' },
+          body: sf.file,
+        })
+        if (!storageRes.ok) { updateStaged(sf.id, { status: 'error', errorMsg: `Storage upload failed: ${storageRes.status}` }); continue }
+      } catch (e: any) {
+        updateStaged(sf.id, { status: 'error', errorMsg: e.message }); continue
+      }
 
-      // Step B — upload directly to Supabase Storage (no Netlify)
-      setUploadPhase('uploading')
-      const storageRes = await fetch(signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': uploadFile.type || 'application/octet-stream' },
-        body: uploadFile,
-      })
-      if (!storageRes.ok) { setUploadPhase('error'); setUploadMsg(`⚠ Storage upload failed: ${storageRes.status}`); return }
-
-      // Step C — save metadata
-      setUploadPhase('extracting')
-      const saveRes = await fetch('/api/admin-library-save', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: uploadTitle.trim(),
-          author: uploadAuthor.trim() || null,
-          notes: uploadNotes.trim() || null,
-          filename: uploadFile.name,
-          file_size: uploadFile.size,
-          file_path: filePath,
-          ai_generated: false,
-        }),
-      })
-      const saveData = await saveRes.json()
-      if (!saveData.success) { setUploadPhase('error'); setUploadMsg(`⚠ ${saveData.error || 'Save failed'}`); return }
-
-      setUploadPhase('done')
-      setUploadMsg('✓ Uploaded successfully')
-      setUploadTitle(''); setUploadAuthor(''); setUploadNotes(''); setUploadFile(null)
-      await loadBooks()
-      setTimeout(() => setUploadPhase('idle'), 3000)
-    } catch(e: any) {
-      setUploadPhase('error')
-      setUploadMsg(`⚠ ${e.message}`)
+      // Step 3 — save metadata
+      try {
+        const saveRes = await fetch('/api/admin-library-save', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: sf.title.trim() || sf.file.name,
+            author: sf.author.trim() || null,
+            notes: sf.notes.trim() || null,
+            filename: sf.file.name,
+            file_size: sf.file.size,
+            file_path: filePath,
+            ai_generated: sf.aiGenerated,
+            file_type: sf.file.name.endsWith('.pdf') ? 'pdf' : 'txt',
+          }),
+        })
+        const saveData = await saveRes.json()
+        if (!saveData.success) { updateStaged(sf.id, { status: 'error', errorMsg: saveData.error || 'Save failed' }); continue }
+        updateStaged(sf.id, { status: 'done' })
+        if (saveData.book) setBooks(prev => [saveData.book, ...prev])
+      } catch (e: any) {
+        updateStaged(sf.id, { status: 'error', errorMsg: e.message })
+      }
     }
+    setUploadingAll(false)
   }
+
 
   async function toggleBook(id: string, active: boolean) {
     const token = await getToken()
@@ -3070,8 +3095,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     return `${(b / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  const uploading = ['reading', 'uploading', 'extracting'].includes(uploadPhase)
-  const phaseLabel: Record<string, string> = { reading: 'Reading file...', uploading: 'Uploading...', extracting: 'Extracting text...' }
+  const anyUploading = stagedFiles.some(f => f.status === 'uploading')
+  const anyAnalyzing = stagedFiles.some(f => f.status === 'analyzing')
 
   return (
     <div style={{ color: LTXT, fontFamily: crimson }}>
@@ -3215,72 +3240,106 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 5 }}>Personal Ministry Library</div>
           <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.6 }}>
-            Upload your personal PDF books. AI will reference relevant passages when enhancing spirits.
+            Upload PDF or TXT books. AI will reference relevant passages when enhancing spirits.
           </div>
         </div>
 
-        {/* Upload zone */}
+        {/* ── DROPZONE — always visible ── */}
         <div
           onDragOver={e => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f) }}
-          onClick={() => !uploading && fileInputRef.current?.click()}
-          style={{ border: `2px dashed ${dragOver ? LG : 'rgba(201,168,76,0.44)'}`, borderRadius: 10, padding: '24px 20px', marginBottom: 16, cursor: uploading ? 'default' : 'pointer', background: dragOver ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
+          onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files) }}
+          onClick={() => fileInputRef.current?.click()}
+          style={{ border: `2px dashed ${dragOver ? LG : 'rgba(201,168,76,0.44)'}`, borderRadius: 10, padding: '20px', marginBottom: 16, cursor: 'pointer', background: dragOver ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
         >
-          <input ref={fileInputRef} type="file" accept=".pdf,.txt,application/pdf,text/plain" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
-          {uploading ? (
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.1em', marginBottom: 4 }}>{phaseLabel[uploadPhase]}</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT }}>Please wait...</div>
-            </div>
-          ) : uploadFile ? (
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, marginBottom: 4 }}>📄 {uploadFile.name}</div>
-              <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>{fmtBytes(uploadFile.size)} · Click to change</div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, letterSpacing: '0.06em', marginBottom: 4 }}>Drop PDF or TXT here or click to select</div>
-              <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>PDF or TXT · Max 50MB</div>
-            </div>
-          )}
+          <input ref={fileInputRef} type="file" multiple accept=".pdf,.txt" style={{ display: 'none' }}
+            onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }} />
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 4 }}>
+            Drop PDF or TXT files — up to 10 at once
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
         </div>
 
-        {uploadFile && !uploading && (
-          <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
-              <div style={{ flex: 2, minWidth: 180 }}>
-                <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TITLE *</label>
-                <input value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} style={inp} placeholder="Book title" />
-              </div>
-              <div style={{ flex: 1, minWidth: 140 }}>
-                <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>AUTHOR</label>
-                <input value={uploadAuthor} onChange={e => setUploadAuthor(e.target.value)} style={inp} placeholder="Author name" />
-              </div>
+        {/* ── STAGING TABLE ── */}
+        {stagedFiles.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center' }}>
+              <button
+                onClick={handleAutoFill}
+                disabled={anyAnalyzing || anyUploading || uploadingAll || stagedFiles.every(f => f.status !== 'pending')}
+                style={{ padding: '9px 18px', background: LG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, opacity: anyAnalyzing ? 0.6 : 1 }}
+              >
+                {anyAnalyzing ? '✦ Analyzing...' : '✦ Auto-fill with AI'}
+              </button>
+              <button
+                onClick={handleUploadAll}
+                disabled={uploadingAll || anyAnalyzing || stagedFiles.every(f => f.status !== 'pending')}
+                style={{ padding: '9px 20px', background: 'transparent', border: `1px solid ${LG}`, borderRadius: 6, color: LG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', opacity: uploadingAll ? 0.6 : 1 }}
+              >
+                {uploadingAll ? 'Uploading...' : `Upload All (${stagedFiles.filter(f => f.status === 'pending').length} pending)`}
+              </button>
+              <button
+                onClick={() => setStagedFiles(prev => prev.filter(f => f.status !== 'pending'))}
+                style={{ marginLeft: 'auto', padding: '9px 14px', background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 6, color: LMUT, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}
+              >
+                Clear Pending
+              </button>
             </div>
-            <div style={{ marginTop: 10 }}>
-              <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>NOTES (optional)</label>
-              <input value={uploadNotes} onChange={e => setUploadNotes(e.target.value)} style={inp} placeholder="Personal notes about this book..." />
-            </div>
-            <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
-              <button onClick={uploadBook} disabled={!uploadTitle.trim() || uploading}
-                style={{ padding: '10px 24px', background: uploadTitle.trim() ? LG : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 6, color: uploadTitle.trim() ? '#0D0B14' : LMUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: uploadTitle.trim() && !uploading ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: uploading ? 0.6 : 1 }}>
-                {uploading ? 'Uploading...' : 'Upload & Extract'}
-              </button>
-              <button onClick={handleAutoFill} disabled={autoFilling || uploading}
-                style={{ padding: '10px 18px', background: 'transparent', border: `1px solid ${LG}`, borderRadius: 6, color: LG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: autoFilling || uploading ? 'default' : 'pointer', opacity: autoFilling ? 0.6 : 1 }}>
-                {autoFilling ? '✦ Filling...' : '✦ Auto-fill with AI'}
-              </button>
-              <button onClick={() => { setUploadFile(null); setUploadMsg(''); setUploadPhase('idle'); setAutoFilling(false) }}
-                style={{ padding: '10px 16px', background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 6, color: LMUT, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>
-                Cancel
-              </button>
+
+            {/* File rows */}
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+              {stagedFiles.map(sf => {
+                const statusStyle: Record<string, { bg: string; color: string; label: string }> = {
+                  pending:   { bg: 'rgba(255,255,255,0.06)', color: '#9a8c74', label: 'Ready' },
+                  analyzing: { bg: 'rgba(201,168,76,0.12)', color: LG, label: 'Analyzing...' },
+                  uploading: { bg: 'rgba(92,124,191,0.15)', color: '#8B9DCA', label: 'Uploading...' },
+                  done:      { bg: 'rgba(74,222,128,0.1)',  color: '#4ade80', label: '✓ Done' },
+                  error:     { bg: 'rgba(248,113,113,0.1)', color: '#f87171', label: '✗ Failed' },
+                }
+                const st = statusStyle[sf.status]
+                const busy = sf.status === 'uploading' || sf.status === 'analyzing' || sf.status === 'done'
+                const nameShort = sf.file.name.length > 28 ? sf.file.name.slice(0, 25) + '…' : sf.file.name
+                return (
+                  <div key={sf.id} style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 8, padding: '12px 14px' }}>
+                    {/* Row header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.04em', minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                        {nameShort}
+                      </span>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, flexShrink: 0 }}>{fmtBytes(sf.file.size)}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 10, background: st.bg, color: st.color, flexShrink: 0 }}>
+                        {st.label}
+                      </span>
+                      {sf.errorMsg && <span style={{ fontFamily: crimson, fontSize: 11, color: '#f87171', flexShrink: 0 }}>{sf.errorMsg}</span>}
+                      {!busy && (
+                        <button onClick={() => setStagedFiles(prev => prev.filter(x => x.id !== sf.id))}
+                          style={{ background: 'none', border: 'none', color: LMUT, cursor: 'pointer', fontSize: 14, padding: '0 2px', flexShrink: 0, lineHeight: 1 }}>×</button>
+                      )}
+                    </div>
+                    {/* Editable fields */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      <div>
+                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TITLE</label>
+                        <input value={sf.title} onChange={e => updateStaged(sf.id, { title: e.target.value })} disabled={busy}
+                          style={{ ...inp, fontSize: 12, padding: '6px 10px' }} placeholder="Book title" />
+                      </div>
+                      <div>
+                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>AUTHOR</label>
+                        <input value={sf.author} onChange={e => updateStaged(sf.id, { author: e.target.value })} disabled={busy}
+                          style={{ ...inp, fontSize: 12, padding: '6px 10px' }} placeholder="Author name" />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>NOTES</label>
+                      <textarea value={sf.notes} onChange={e => updateStaged(sf.id, { notes: e.target.value })} disabled={busy}
+                        rows={2} style={{ ...inp, fontSize: 12, padding: '6px 10px', resize: 'vertical' as const }} placeholder="Ministry relevance..." />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
-        )}
-
-        {uploadMsg && (
-          <div style={{ fontFamily: crimson, fontSize: 13, color: uploadMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 14 }}>{uploadMsg}</div>
         )}
 
         {/* Book list */}
