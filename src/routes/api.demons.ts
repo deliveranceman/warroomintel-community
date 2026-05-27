@@ -11,7 +11,7 @@ export const Route = createFileRoute('/api/demons')({
         const TABLE_ID = 'tblcP4lgVykzOhLi4'
 
         if (!token) {
-          return Response.json({ error: 'Missing AIRTABLE_TOKEN env var' }, { status: 500 })
+          return Response.json({ error: 'Missing AIRTABLE_TOKEN' }, { status: 500 })
         }
 
         try {
@@ -22,8 +22,6 @@ export const Route = createFileRoute('/api/demons')({
             const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
             url.searchParams.set('pageSize', '100')
             url.searchParams.set('view', 'viw1ickrF5zgNGifc')
-            url.searchParams.set('sort[0][field]', 'Created')
-            url.searchParams.set('sort[0][direction]', 'desc')
             if (offset) url.searchParams.set('offset', offset)
 
             const res = await fetch(url.toString(), {
@@ -32,7 +30,9 @@ export const Route = createFileRoute('/api/demons')({
 
             if (!res.ok) {
               const detail = await res.text()
-              return Response.json({ error: `Airtable ${res.status}`, detail }, { status: 502 })
+              console.error(`[api.demons] Airtable ${res.status}:`, detail)
+              // Return empty array rather than crashing the page
+              return Response.json({ demons: [], total: 0, airtableError: `Airtable ${res.status}` })
             }
 
             const data = await res.json()

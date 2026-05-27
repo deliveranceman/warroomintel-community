@@ -2935,11 +2935,11 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   }
 
   function handleFileSelect(file: File) {
-    if (!file.name.endsWith('.pdf')) { setUploadMsg('Only PDF files are supported'); return }
+    if (!file.name.endsWith('.pdf') && !file.name.endsWith('.txt')) { setUploadMsg('Only PDF and TXT files are supported'); return }
     if (file.size > 50 * 1024 * 1024) { setUploadMsg('File must be under 50MB'); return }
     setUploadFile(file)
     setUploadMsg('')
-    if (!uploadTitle) setUploadTitle(file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '))
+    if (!uploadTitle) setUploadTitle(file.name.replace(/\.(pdf|txt)$/i, '').replace(/[_-]/g, ' '))
   }
 
   async function uploadBook() {
@@ -3173,7 +3173,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           onClick={() => !uploading && fileInputRef.current?.click()}
           style={{ border: `2px dashed ${dragOver ? LG : 'rgba(201,168,76,0.44)'}`, borderRadius: 10, padding: '24px 20px', marginBottom: 16, cursor: uploading ? 'default' : 'pointer', background: dragOver ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
         >
-          <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
+          <input ref={fileInputRef} type="file" accept=".pdf,.txt,application/pdf,text/plain" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
           {uploading ? (
             <div>
               <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.1em', marginBottom: 4 }}>{phaseLabel[uploadPhase]}</div>
@@ -4166,10 +4166,122 @@ function DocumentsView({ getToken, isDark, demons }: {
   )
 }
 
+function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
+  const [submissions, setSubmissions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({})
+  const [processing, setProcessing] = useState<Record<string, boolean>>({})
+  const adGold2 = isDark ? G : '#A07C2C'
+  const bg2 = isDark ? BG : '#F5F0E8'
+  const surf2 = isDark ? SURF : '#EDE6D3'
+  const bdr2 = isDark ? BDR : 'rgba(139,105,20,0.25)'
+  const txt2 = isDark ? TXT : '#1C1407'
+  const dim2 = isDark ? DIM : '#6B5520'
+  const mut2 = isDark ? MUT : '#9a8c74'
+
+  useEffect(() => {
+    loadSubmissions()
+  }, [])
+
+  async function loadSubmissions() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/sm-submission?pending=true')
+      const data = await res.json()
+      setSubmissions(data.submissions || [])
+    } catch {}
+    setLoading(false)
+  }
+
+  async function approveSubmission(subId: string, regionId: string) {
+    setProcessing(p => ({ ...p, [subId]: true }))
+    try {
+      await fetch('/api/sm-submission', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: subId, admin_status: 'approved', regionId }),
+      })
+      await loadSubmissions()
+    } catch {}
+    setProcessing(p => ({ ...p, [subId]: false }))
+  }
+
+  async function rejectSubmission(subId: string) {
+    setProcessing(p => ({ ...p, [subId]: true }))
+    try {
+      await fetch('/api/sm-submission', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: subId, admin_status: 'rejected', admin_notes: rejectNotes[subId] || '' }),
+      })
+      await loadSubmissions()
+    } catch {}
+    setProcessing(p => ({ ...p, [subId]: false }))
+  }
+
+  return (
+    <div style={{ color: txt2, fontFamily: "'Crimson Pro', serif" }}>
+      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: adGold2, marginBottom: 4, letterSpacing: '0.08em' }}>📍 Spiritual Mapping — Submission Review</div>
+      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic', marginBottom: 24 }}>Review and approve region submissions for the Global Intelligence Map</div>
+
+      {loading && <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.2em', color: mut2 }}>LOADING...</div>}
+
+      {!loading && submissions.length === 0 && (
+        <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic' }}>
+          No pending submissions
+        </div>
+      )}
+
+      {!loading && submissions.map((sub: any) => (
+        <div key={sub.id} style={{ background: surf2, border: `1px solid ${bdr2}`, borderRadius: 10, padding: '20px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: txt2, marginBottom: 4 }}>{sub.region?.name || 'Unknown Region'}</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut2, letterSpacing: '0.1em' }}>{sub.region?.tier?.toUpperCase()}</span>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut2, letterSpacing: '0.1em' }}>By: {sub.submitted_by_name}</span>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut2, letterSpacing: '0.1em' }}>{sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : ''}</span>
+              </div>
+            </div>
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: '#d4b84a', border: '1px solid rgba(212,184,74,0.4)', padding: '3px 10px', borderRadius: 20 }}>⏳ PENDING</span>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: mut2, display: 'block', marginBottom: 5 }}>REJECTION NOTES (optional)</label>
+            <input
+              value={rejectNotes[sub.id] || ''}
+              onChange={e => setRejectNotes(n => ({ ...n, [sub.id]: e.target.value }))}
+              placeholder="Reason for rejection if applicable..."
+              style={{ width: '100%', background: isDark ? BG : '#F5F0E8', border: `1px solid ${bdr2}`, borderRadius: 6, padding: '8px 12px', color: txt2, fontFamily: "'Crimson Pro', serif", fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => approveSubmission(sub.id, sub.region_id)}
+              disabled={!!processing[sub.id]}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: '#0D0B14', background: '#80e090', border: 'none', borderRadius: 4, padding: '9px 18px', cursor: 'pointer', opacity: processing[sub.id] ? 0.6 : 1 }}
+            >
+              {processing[sub.id] ? '...' : '✓ APPROVE — Add to Global Map'}
+            </button>
+            <button
+              onClick={() => rejectSubmission(sub.id)}
+              disabled={!!processing[sub.id]}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: '#e09090', background: 'transparent', border: '1px solid rgba(224,144,144,0.4)', borderRadius: 4, padding: '9px 18px', cursor: 'pointer', opacity: processing[sub.id] ? 0.6 : 1 }}
+            >
+              ✕ REJECT
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -4228,6 +4340,7 @@ function AdminPage() {
     { key: 'field-ministry',  label: '📖 Field Ministry' },
     { key: 'documents',       label: '📄 Documents'      },
     { key: 'library',         label: 'Ministry Library'  },
+    { key: 'spiritual-mapping', label: '📍 Spiritual Mapping' },
   ] as const
 
   return (
@@ -4289,6 +4402,7 @@ function AdminPage() {
         {tab === 'field-ministry' && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
         {tab === 'documents'      && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
         {tab === 'library'        && <LibraryManager getToken={getToken} isDark={isDark} />}
+        {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
       </div>
     </div>
   )

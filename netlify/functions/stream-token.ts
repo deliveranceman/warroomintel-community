@@ -13,14 +13,17 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const { userId, userName, userImage } = await req.json()
+    const { userId: rawUserId, userName, userImage } = await req.json()
 
-    if (!userId) {
+    if (!rawUserId) {
       return new Response(JSON.stringify({ error: 'userId required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       })
     }
+
+    // Stream requires user IDs to contain only alphanumeric, underscore, hyphen
+    const userId = rawUserId.replace(/[^a-zA-Z0-9_-]/g, '_')
 
     const apiKey    = process.env.VITE_STREAM_API_KEY!
     const apiSecret = process.env.STREAM_API_SECRET!
@@ -61,7 +64,7 @@ export default async (req: Request, _context: Context) => {
     // Generate a valid token for this user (1-hour expiry)
     const token = client.createToken(userId, Math.floor(Date.now() / 1000) + 3600)
 
-    return new Response(JSON.stringify({ token, apiKey }), {
+    return new Response(JSON.stringify({ token, apiKey, userId }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

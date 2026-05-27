@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MembershipRouteImport } from './routes/membership'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as InvestigateRouteImport } from './routes/investigate'
@@ -31,6 +33,9 @@ import { Route as ApiSubmitHelpRouteImport } from './routes/api.submit-help'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as ApiStreamTokenRouteImport } from './routes/api.stream-token'
+import { Route as ApiSmSubmissionRouteImport } from './routes/api.sm-submission'
+import { Route as ApiSmRegionsRouteImport } from './routes/api.sm-regions'
+import { Route as ApiSmAssessmentRouteImport } from './routes/api.sm-assessment'
 import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
 import { Route as ApiResourceDownloadRouteImport } from './routes/api.resource-download'
@@ -44,7 +49,13 @@ import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-
 import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as CommunitySpiritualMappingIndexRouteImport } from './routes/community/spiritual-mapping/index'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubmitDemonRoute = SubmitDemonRouteImport.update({
   id: '/submit-demon',
   path: '/submit-demon',
@@ -58,6 +69,11 @@ const SignUpRoute = SignUpRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MembershipRoute = MembershipRouteImport.update({
@@ -155,6 +171,21 @@ const ApiStreamTokenRoute = ApiStreamTokenRouteImport.update({
   path: '/api/stream-token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSmSubmissionRoute = ApiSmSubmissionRouteImport.update({
+  id: '/api/sm-submission',
+  path: '/api/sm-submission',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSmRegionsRoute = ApiSmRegionsRouteImport.update({
+  id: '/api/sm-regions',
+  path: '/api/sm-regions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSmAssessmentRoute = ApiSmAssessmentRouteImport.update({
+  id: '/api/sm-assessment',
+  path: '/api/sm-assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiResourcesDebugRoute = ApiResourcesDebugRouteImport.update({
   id: '/api/resources-debug',
   path: '/api/resources-debug',
@@ -220,6 +251,12 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const CommunitySpiritualMappingIndexRoute =
+  CommunitySpiritualMappingIndexRouteImport.update({
+    id: '/spiritual-mapping/',
+    path: '/spiritual-mapping/',
+    getParentRoute: () => CommunityRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -227,14 +264,16 @@ export interface FileRoutesByFullPath {
   '/arsenal': typeof ArsenalRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
-  '/community': typeof CommunityRoute
+  '/community': typeof CommunityRouteWithChildren
   '/help': typeof HelpRoute
   '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
+  '/privacy': typeof PrivacyRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
+  '/terms': typeof TermsRoute
   '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -248,6 +287,9 @@ export interface FileRoutesByFullPath {
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
+  '/api/sm-assessment': typeof ApiSmAssessmentRoute
+  '/api/sm-regions': typeof ApiSmRegionsRoute
+  '/api/sm-submission': typeof ApiSmSubmissionRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
@@ -257,20 +299,23 @@ export interface FileRoutesByFullPath {
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/community/spiritual-mapping/': typeof CommunitySpiritualMappingIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/arsenal': typeof ArsenalRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
-  '/community': typeof CommunityRoute
+  '/community': typeof CommunityRouteWithChildren
   '/help': typeof HelpRoute
   '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
+  '/privacy': typeof PrivacyRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
+  '/terms': typeof TermsRoute
   '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -284,6 +329,9 @@ export interface FileRoutesByTo {
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
+  '/api/sm-assessment': typeof ApiSmAssessmentRoute
+  '/api/sm-regions': typeof ApiSmRegionsRoute
+  '/api/sm-submission': typeof ApiSmSubmissionRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
@@ -293,6 +341,7 @@ export interface FileRoutesByTo {
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
+  '/community/spiritual-mapping': typeof CommunitySpiritualMappingIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -301,14 +350,16 @@ export interface FileRoutesById {
   '/arsenal': typeof ArsenalRoute
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
-  '/community': typeof CommunityRoute
+  '/community': typeof CommunityRouteWithChildren
   '/help': typeof HelpRoute
   '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
+  '/privacy': typeof PrivacyRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
+  '/terms': typeof TermsRoute
   '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -322,6 +373,9 @@ export interface FileRoutesById {
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
+  '/api/sm-assessment': typeof ApiSmAssessmentRoute
+  '/api/sm-regions': typeof ApiSmRegionsRoute
+  '/api/sm-submission': typeof ApiSmSubmissionRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
@@ -331,6 +385,7 @@ export interface FileRoutesById {
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/community/spiritual-mapping/': typeof CommunitySpiritualMappingIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -345,9 +400,11 @@ export interface FileRouteTypes {
     | '/investigate'
     | '/join'
     | '/membership'
+    | '/privacy'
     | '/sign-in'
     | '/sign-up'
     | '/submit-demon'
+    | '/terms'
     | '/admin/login'
     | '/api/admin-auth'
     | '/api/admin-upload'
@@ -361,6 +418,9 @@ export interface FileRouteTypes {
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
+    | '/api/sm-assessment'
+    | '/api/sm-regions'
+    | '/api/sm-submission'
     | '/api/stream-token'
     | '/api/stripe-webhook'
     | '/api/submit-assessment'
@@ -370,6 +430,7 @@ export interface FileRouteTypes {
     | '/api/warroom-chat'
     | '/products/$productId'
     | '/admin/'
+    | '/community/spiritual-mapping/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -381,9 +442,11 @@ export interface FileRouteTypes {
     | '/investigate'
     | '/join'
     | '/membership'
+    | '/privacy'
     | '/sign-in'
     | '/sign-up'
     | '/submit-demon'
+    | '/terms'
     | '/admin/login'
     | '/api/admin-auth'
     | '/api/admin-upload'
@@ -397,6 +460,9 @@ export interface FileRouteTypes {
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
+    | '/api/sm-assessment'
+    | '/api/sm-regions'
+    | '/api/sm-submission'
     | '/api/stream-token'
     | '/api/stripe-webhook'
     | '/api/submit-assessment'
@@ -406,6 +472,7 @@ export interface FileRouteTypes {
     | '/api/warroom-chat'
     | '/products/$productId'
     | '/admin'
+    | '/community/spiritual-mapping'
   id:
     | '__root__'
     | '/'
@@ -418,9 +485,11 @@ export interface FileRouteTypes {
     | '/investigate'
     | '/join'
     | '/membership'
+    | '/privacy'
     | '/sign-in'
     | '/sign-up'
     | '/submit-demon'
+    | '/terms'
     | '/admin/login'
     | '/api/admin-auth'
     | '/api/admin-upload'
@@ -434,6 +503,9 @@ export interface FileRouteTypes {
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
+    | '/api/sm-assessment'
+    | '/api/sm-regions'
+    | '/api/sm-submission'
     | '/api/stream-token'
     | '/api/stripe-webhook'
     | '/api/submit-assessment'
@@ -443,6 +515,7 @@ export interface FileRouteTypes {
     | '/api/warroom-chat'
     | '/products/$productId'
     | '/admin/'
+    | '/community/spiritual-mapping/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -451,14 +524,16 @@ export interface RootRouteChildren {
   ArsenalRoute: typeof ArsenalRoute
   AssessmentRoute: typeof AssessmentRoute
   AssessmentBoardRoute: typeof AssessmentBoardRoute
-  CommunityRoute: typeof CommunityRoute
+  CommunityRoute: typeof CommunityRouteWithChildren
   HelpRoute: typeof HelpRoute
   InvestigateRoute: typeof InvestigateRoute
   JoinRoute: typeof JoinRoute
   MembershipRoute: typeof MembershipRoute
+  PrivacyRoute: typeof PrivacyRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SubmitDemonRoute: typeof SubmitDemonRoute
+  TermsRoute: typeof TermsRoute
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
@@ -471,6 +546,9 @@ export interface RootRouteChildren {
   ApiResourceDownloadRoute: typeof ApiResourceDownloadRoute
   ApiResourcesRoute: typeof ApiResourcesRoute
   ApiResourcesDebugRoute: typeof ApiResourcesDebugRoute
+  ApiSmAssessmentRoute: typeof ApiSmAssessmentRoute
+  ApiSmRegionsRoute: typeof ApiSmRegionsRoute
+  ApiSmSubmissionRoute: typeof ApiSmSubmissionRoute
   ApiStreamTokenRoute: typeof ApiStreamTokenRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
@@ -483,6 +561,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/submit-demon': {
       id: '/submit-demon'
       path: '/submit-demon'
@@ -502,6 +587,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/membership': {
@@ -637,6 +729,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStreamTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sm-submission': {
+      id: '/api/sm-submission'
+      path: '/api/sm-submission'
+      fullPath: '/api/sm-submission'
+      preLoaderRoute: typeof ApiSmSubmissionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sm-regions': {
+      id: '/api/sm-regions'
+      path: '/api/sm-regions'
+      fullPath: '/api/sm-regions'
+      preLoaderRoute: typeof ApiSmRegionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sm-assessment': {
+      id: '/api/sm-assessment'
+      path: '/api/sm-assessment'
+      fullPath: '/api/sm-assessment'
+      preLoaderRoute: typeof ApiSmAssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/resources-debug': {
       id: '/api/resources-debug'
       path: '/api/resources-debug'
@@ -728,6 +841,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/community/spiritual-mapping/': {
+      id: '/community/spiritual-mapping/'
+      path: '/spiritual-mapping'
+      fullPath: '/community/spiritual-mapping/'
+      preLoaderRoute: typeof CommunitySpiritualMappingIndexRouteImport
+      parentRoute: typeof CommunityRoute
+    }
   }
 }
 
@@ -743,20 +863,34 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface CommunityRouteChildren {
+  CommunitySpiritualMappingIndexRoute: typeof CommunitySpiritualMappingIndexRoute
+}
+
+const CommunityRouteChildren: CommunityRouteChildren = {
+  CommunitySpiritualMappingIndexRoute: CommunitySpiritualMappingIndexRoute,
+}
+
+const CommunityRouteWithChildren = CommunityRoute._addFileChildren(
+  CommunityRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   ArsenalRoute: ArsenalRoute,
   AssessmentRoute: AssessmentRoute,
   AssessmentBoardRoute: AssessmentBoardRoute,
-  CommunityRoute: CommunityRoute,
+  CommunityRoute: CommunityRouteWithChildren,
   HelpRoute: HelpRoute,
   InvestigateRoute: InvestigateRoute,
   JoinRoute: JoinRoute,
   MembershipRoute: MembershipRoute,
+  PrivacyRoute: PrivacyRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SubmitDemonRoute: SubmitDemonRoute,
+  TermsRoute: TermsRoute,
   ApiAdminAuthRoute: ApiAdminAuthRoute,
   ApiAdminUploadRoute: ApiAdminUploadRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
@@ -769,6 +903,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiResourceDownloadRoute: ApiResourceDownloadRoute,
   ApiResourcesRoute: ApiResourcesRoute,
   ApiResourcesDebugRoute: ApiResourcesDebugRoute,
+  ApiSmAssessmentRoute: ApiSmAssessmentRoute,
+  ApiSmRegionsRoute: ApiSmRegionsRoute,
+  ApiSmSubmissionRoute: ApiSmSubmissionRoute,
   ApiStreamTokenRoute: ApiStreamTokenRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,

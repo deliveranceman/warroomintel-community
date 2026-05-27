@@ -66,25 +66,31 @@ export default async function handler(req: Request) {
     }
 
     const buffer = Buffer.from(fileBase64, 'base64')
+    const isTxt = fileName.toLowerCase().endsWith('.txt')
 
-    // Extract text from PDF
+    // Extract text — PDF parse or raw UTF-8 for .txt
     let extractedText = ''
     let pageCount = 0
-    try {
-      const parse = await getPdfParse()
-      if (parse) {
-        const result = await parse(buffer)
-        extractedText = result.text || ''
-        pageCount = result.numpages || 0
+    if (isTxt) {
+      extractedText = buffer.toString('utf-8')
+      pageCount = 0
+    } else {
+      try {
+        const parse = await getPdfParse()
+        if (parse) {
+          const result = await parse(buffer)
+          extractedText = result.text || ''
+          pageCount = result.numpages || 0
+        }
+      } catch (e) {
+        console.error('PDF parse error:', e)
       }
-    } catch (e) {
-      console.error('PDF parse error:', e)
-      // Continue without extracted text — not a fatal error
     }
 
-    // Upload PDF to Supabase storage
+    // Upload to Supabase storage
     const safeName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-    const { error: uploadErr } = await sb.storage.from(BUCKET).upload(safeName, buffer, { contentType: 'application/pdf', upsert: false })
+    const contentType = isTxt ? 'text/plain' : 'application/pdf'
+    const { error: uploadErr } = await sb.storage.from(BUCKET).upload(safeName, buffer, { contentType, upsert: false })
     if (uploadErr) return new Response(JSON.stringify({ error: `Storage upload failed: ${uploadErr.message}` }), { status: 500, headers })
 
     // Insert DB record
