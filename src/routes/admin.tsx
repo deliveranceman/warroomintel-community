@@ -5187,45 +5187,65 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
         </div>
 
         {/* Progress */}
-        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: dim2, letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>
+        <div style={{ background: isDark ? 'rgba(201,168,76,0.07)' : 'rgba(160,120,48,0.07)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 8, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: G2, letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>
             {classified} / {total} classified
           </div>
-          <div style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+          <div style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.12)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
             <div style={{ width: `${pct}%`, height: '100%', background: G2, borderRadius: 4, transition: 'width 0.3s' }} />
           </div>
-          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G2, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G2, letterSpacing: '0.06em', fontWeight: 700, whiteSpace: 'nowrap' as const }}>
             {pct}%
           </div>
         </div>
 
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
-          {(['all', 'needs'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding: '5px 14px',
-              background: filter === f ? G2 : 'transparent',
-              color: filter === f ? '#0D0B14' : dim2,
-              border: `1px solid ${filter === f ? G2 : bdr}`,
+        {/* Filters + Search */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginTop: 4 }}>
+          <button
+            onClick={() => setFilter('all')}
+            style={{
+              padding: '6px 16px',
+              background: filter === 'all' ? G2 : (isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.1)'),
+              color: filter === 'all' ? '#0D0B14' : G2,
+              border: `1px solid ${filter === 'all' ? G2 : 'rgba(201,168,76,0.45)'}`,
               borderRadius: 4,
               fontFamily: "'Cinzel', serif",
               fontSize: 9,
-              letterSpacing: '0.08em',
+              letterSpacing: '0.1em',
               cursor: 'pointer',
-            }}>
-              {f === 'all'
-                ? `ALL (${spirits.length})`
-                : `NEEDS REVIEW (${spirits.filter(s => !s.kingdom || !s.subKingdom || !s.biblicalRank).length})`}
-            </button>
-          ))}
+              fontWeight: filter === 'all' ? 700 : 500,
+            }}
+          >
+            ALL ({spirits.length})
+          </button>
+          <button
+            onClick={() => setFilter('needs')}
+            style={{
+              padding: '6px 16px',
+              background: filter === 'needs' ? G2 : (isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.1)'),
+              color: filter === 'needs' ? '#0D0B14' : G2,
+              border: `1px solid ${filter === 'needs' ? G2 : 'rgba(201,168,76,0.45)'}`,
+              borderRadius: 4,
+              fontFamily: "'Cinzel', serif",
+              fontSize: 9,
+              letterSpacing: '0.1em',
+              cursor: 'pointer',
+              fontWeight: filter === 'needs' ? 700 : 500,
+            }}
+          >
+            NEEDS REVIEW ({spirits.filter(s => !s.kingdom || !s.subKingdom || !s.biblicalRank).length})
+          </button>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search spirit name..."
             style={{
-              background: surf, color: txt2, border: `1px solid ${bdr}`,
-              borderRadius: 4, padding: '5px 12px', fontFamily: "'Crimson Pro', serif",
-              fontSize: 13, outline: 'none', marginLeft: 'auto', width: 200,
+              background: surf, color: txt2,
+              border: `1px solid rgba(201,168,76,0.35)`,
+              borderRadius: 4, padding: '5px 12px',
+              fontFamily: "'Crimson Pro', serif",
+              fontSize: 13, outline: 'none',
+              marginLeft: 'auto', width: 200,
             }}
           />
         </div>
