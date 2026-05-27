@@ -950,7 +950,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Kingdom</label>
           <select value={f('Kingdom')} onChange={e => setField('Kingdom', e.target.value)} style={{ ...i }}>
-            <option value=\"\">Select</option>
+            <option value="">Select</option>
             {['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft', 'Occult'].map(k => <option key={k}>{k}</option>)}
           </select>
         </div>
@@ -958,7 +958,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Hierarchy Category</label>
           <select value={f('Hierarchy Category')} onChange={e => setField('Hierarchy Category', e.target.value)} style={{ ...i }}>
-            <option value=\"\">Select</option>
+            <option value="">Select</option>
             {HIER_CATS.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
@@ -971,7 +971,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Primary Battlefield</label>
           <select value={f('Primary Battlefield')} onChange={e => setField('Primary Battlefield', e.target.value)} style={{ ...i }}>
-            <option value=\"\">Select</option>
+            <option value="">Select</option>
             {BATTLEFIELDS.map(b => <option key={b}>{b}</option>)}
           </select>
         </div>
@@ -1026,14 +1026,14 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Biblical Rank (Eph. 6:12)</label>
           <select value={f('Biblical Rank')} onChange={e => setField('Biblical Rank', e.target.value)} style={{ ...i }}>
-            <option value=\"\">Select</option>
+            <option value="">Select</option>
             {['Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(r => <option key={r}>{r}</option>)}
           </select>
         </div>
         <div>
           <label style={l}>Case Type</label>
           <select value={f('Case Type')} onChange={e => setField('Case Type', e.target.value)} style={{ ...i }}>
-            <option value=\"\">Select</option>
+            <option value="">Select</option>
             {['Personal Deliverance', 'Generational/Bloodline', 'Territorial/Regional', 'Institutional', 'Atmospheric/Intercessory', 'Multiple'].map(r => <option key={r}>{r}</option>)}
           </select>
         </div>
@@ -2859,6 +2859,7 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
             )}
           </div>
         )}
+      </div>
 
       <ForumModerationPanel getToken={getToken} />
     </div>
@@ -5681,11 +5682,11 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
                   <div style={{ padding: '0 8px' }}>
                     {fieldDiff(sugg.current.kingdom, sugg.suggested.kingdom) ? (
                       <>
-                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current\.kingdom || ''}</div>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current.kingdom || ''}</div>
                         <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: G2, fontWeight: 600, lineHeight: 1.3 }}>{sugg.suggested.kingdom}</div>
                       </>
                     ) : (
-                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current\.kingdom || ''}</div>
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current.kingdom || ''}</div>
                     )}
                   </div>
 
