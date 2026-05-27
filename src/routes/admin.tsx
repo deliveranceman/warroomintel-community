@@ -2837,6 +2837,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [uploadPhase, setUploadPhase]   = useState<'idle' | 'reading' | 'uploading' | 'extracting' | 'done' | 'error'>('idle')
   const [uploadMsg, setUploadMsg]       = useState('')
   const [dragOver, setDragOver]         = useState(false)
+  const [autoFilling, setAutoFilling]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const inp: React.CSSProperties = {
@@ -2940,6 +2941,42 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setUploadFile(file)
     setUploadMsg('')
     if (!uploadTitle) setUploadTitle(file.name.replace(/\.(pdf|txt)$/i, '').replace(/[_-]/g, ' '))
+  }
+
+  async function handleAutoFill() {
+    if (!uploadFile || autoFilling) return
+    setAutoFilling(true)
+    setUploadMsg('')
+    try {
+      // For TXT files, read first 2000 chars as context; PDFs use filename only
+      let contentSnippet = ''
+      if (uploadFile.name.toLowerCase().endsWith('.txt')) {
+        const slice = uploadFile.slice(0, 4000)
+        contentSnippet = await new Promise<string>((res, rej) => {
+          const reader = new FileReader()
+          reader.onload = () => res((reader.result as string).slice(0, 2000))
+          reader.onerror = rej
+          reader.readAsText(slice)
+        })
+      }
+      const token = await getToken()
+      const resp = await fetch('/api/library-autofill', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: uploadFile.name, contentSnippet }),
+      })
+      const d = await resp.json()
+      if (!resp.ok) { setUploadMsg(`⚠ Auto-fill failed: ${d.error}`); return }
+      if (d.title) setUploadTitle(d.title)
+      if (d.author) setUploadAuthor(d.author)
+      if (d.notes) setUploadNotes(d.notes)
+      const filled = [d.title && 'title', d.author && 'author', d.notes && 'notes'].filter(Boolean).join(', ')
+      setUploadMsg(`✓ Filled: ${filled || 'title only'}`)
+    } catch (e: any) {
+      setUploadMsg(`⚠ Auto-fill error: ${e.message}`)
+    } finally {
+      setAutoFilling(false)
+    }
   }
 
   async function uploadBook() {
@@ -3225,12 +3262,16 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
               <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>NOTES (optional)</label>
               <input value={uploadNotes} onChange={e => setUploadNotes(e.target.value)} style={inp} placeholder="Personal notes about this book..." />
             </div>
-            <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
-              <button onClick={uploadBook} disabled={!uploadTitle.trim()}
-                style={{ padding: '10px 24px', background: uploadTitle.trim() ? LG : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 6, color: uploadTitle.trim() ? '#0D0B14' : LMUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: uploadTitle.trim() ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
-                Upload & Extract
+            <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
+              <button onClick={uploadBook} disabled={!uploadTitle.trim() || uploading}
+                style={{ padding: '10px 24px', background: uploadTitle.trim() ? LG : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 6, color: uploadTitle.trim() ? '#0D0B14' : LMUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: uploadTitle.trim() && !uploading ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: uploading ? 0.6 : 1 }}>
+                {uploading ? 'Uploading...' : 'Upload & Extract'}
               </button>
-              <button onClick={() => { setUploadFile(null); setUploadMsg(''); setUploadPhase('idle') }}
+              <button onClick={handleAutoFill} disabled={autoFilling || uploading}
+                style={{ padding: '10px 18px', background: 'transparent', border: `1px solid ${LG}`, borderRadius: 6, color: LG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: autoFilling || uploading ? 'default' : 'pointer', opacity: autoFilling ? 0.6 : 1 }}>
+                {autoFilling ? '✦ Filling...' : '✦ Auto-fill with AI'}
+              </button>
+              <button onClick={() => { setUploadFile(null); setUploadMsg(''); setUploadPhase('idle'); setAutoFilling(false) }}
                 style={{ padding: '10px 16px', background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 6, color: LMUT, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>
                 Cancel
               </button>
