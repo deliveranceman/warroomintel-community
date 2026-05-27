@@ -2770,7 +2770,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
   const atLeast = (required: string) => tierLevel(userTier) >= tierLevel(required)
   const TierLock = ({ tierName }: { tierName: string }) => (
     <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
-      🔒 {tierName} tier — <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to unlock</a>
+      🔒 {tierName} tier. <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to access.</a>
     </div>
   )
 
@@ -3396,7 +3396,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>What Is This?</div>
               <div style={{ fontFamily: crimson, fontSize: 14, color: dbText, lineHeight: 1.7 }}>
-                The Intel Archive is a comprehensive spiritual warfare database containing intelligence on demonic entities, principalities, and spiritual forces. Each entry is a complete dossier drawing from Scripture, biblical archaeology, etymology, and decades of deliverance ministry research. This is not a casual reference — it is a minister's field manual.
+                The Intel Archive is a spiritual warfare database containing intelligence on demonic entities, principalities, and spiritual forces. Each entry is a complete dossier drawing from Scripture, biblical archaeology, etymology, and decades of deliverance ministry research. This is not a casual reference. It is a minister's field manual.
               </div>
             </div>
 
@@ -5452,7 +5452,7 @@ function CommunityPage() {
 
   const PINNED: StreamMsg = {
     id: 'pinned',
-    text: 'Welcome to War Room Intel. Whether you are fighting for your own freedom or walking others into theirs — you are in the right place. Start by introducing yourself below.',
+    text: 'Welcome to War Room Intel. If you are fighting for your own freedom or walking others into theirs, you are in the right place. Start by introducing yourself below.',
     user: { id: 'host', name: 'Pastor Justin Payne' },
     created_at: new Date().toISOString(),
   }

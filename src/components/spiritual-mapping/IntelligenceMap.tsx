@@ -58,7 +58,7 @@ const COPPER_BASIN_SPIRITS: Spirit[] = [
   { spirit_name: 'Spirit of Division', tier_level: 2, confidence: 'CONFIRMED', legal_rights: 'TN/GA state line through region heart', regional_notes: 'Geographic and political division rooted in history' },
   { spirit_name: 'Hopelessness', tier_level: 2, confidence: 'CONFIRMED', legal_rights: 'economic collapse and population decline', regional_notes: 'Generational poverty and youth exodus' },
   { spirit_name: 'Drug Economy', tier_level: 2, confidence: 'CONFIRMED', legal_rights: 'vacuum left by industrial decline', regional_notes: 'Drug trade fills economic void' },
-  { spirit_name: 'Marine Kingdom', tier_level: 2, confidence: 'INVESTIGATING', legal_rights: 'Ocoee River and multiple water bodies', regional_notes: 'Under investigation — strong water influence' },
+  { spirit_name: 'Marine Kingdom', tier_level: 2, confidence: 'INVESTIGATING', legal_rights: 'Ocoee River and multiple water bodies', regional_notes: 'Under investigation, strong water influence' },
   { spirit_name: 'Familiar Spirits', tier_level: 1, confidence: 'CONFIRMED', legal_rights: 'ancestral Cherokee shamanism', regional_notes: 'Generational familiar spirits in bloodlines' },
 ]
 
@@ -239,7 +239,7 @@ export function IntelligenceMap({ userTier }: Props) {
             <div>
               <div style={{ fontFamily: cinzel, fontSize: 14, color: G, fontWeight: 600 }}>{selectedRegion.name}</div>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, marginTop: 3 }}>
-                {selectedRegion.tier?.toUpperCase()} — {selectedRegion.radius_miles}mi radius
+                {selectedRegion.tier?.toUpperCase()} · {selectedRegion.radius_miles}mi radius
               </div>
             </div>
             <button onClick={() => setSelectedRegion(null)} style={{ background: 'none', border: 'none', color: MUT, cursor: 'pointer', fontSize: 18 }}>×</button>
@@ -276,7 +276,7 @@ export function IntelligenceMap({ userTier }: Props) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                         <div style={{ width: 10, height: 10, borderRadius: '50%', background: TIER_COLORS[tier], flexShrink: 0 }} />
                         <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: TIER_COLORS[tier] }}>
-                          TIER {tier} {tier === 4 ? '— RULING PRINCIPALITIES' : tier === 3 ? '— STRONG MEN' : tier === 2 ? '— POWERS' : '— FAMILIAR SPIRITS'}
+                          TIER {tier} {tier === 4 ? ': RULING PRINCIPALITIES' : tier === 3 ? ': STRONG MEN' : tier === 2 ? ': POWERS' : ': FAMILIAR SPIRITS'}
                         </div>
                       </div>
                       {tierSpirits.map((s, i) => (

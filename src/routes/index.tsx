@@ -1038,7 +1038,7 @@ function AboutSection() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {[
             { n: 'Growing', l: 'Documented Spirits', sub: 'New entries added regularly' },
-            { n: '7', l: 'Assessment Categories', sub: 'Comprehensive intake' },
+            { n: '7', l: 'Assessment Categories', sub: 'Full intake process' },
             { n: 'Free', l: 'Ministry Assessment', sub: 'No account needed' },
             { n: 'Personal', l: 'Ministry Response', sub: 'From our team' },
           ].map(({ n, l, sub }) => (

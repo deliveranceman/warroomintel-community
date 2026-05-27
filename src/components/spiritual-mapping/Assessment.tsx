@@ -1,3 +1,4 @@
+// STYLE RULE: No em dashes (—) in any UI text. Ever. Rewrite the phrase naturally.
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 const G = '#C9A84C'
@@ -457,17 +458,17 @@ export function Assessment({ userTier, userId, userName }: Props) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
         {currentSection === 0 && (
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 16 }}>S1 — Regional Identity</div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 16 }}>S1: Regional Identity</div>
             <Field label="DESCRIPTION / OVERVIEW" value={s1_description} onChange={setS1Desc} rows={4} />
             <Field label="POPULATION (APPROXIMATE)" value={s1_population} onChange={setS1Pop} rows={1} />
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>CHURCH UNITY ASSESSMENT</label>
               <select style={{ ...inputStyle, cursor: 'pointer' }} value={s1_church_unity} onChange={e => setS1Unity(e.target.value)}>
                 <option value="">Select...</option>
-                <option value="unified">Unified — active cross-denominational cooperation</option>
-                <option value="moderate">Moderate — some cooperation, some division</option>
-                <option value="divided">Divided — significant denominational conflict</option>
-                <option value="fragmented">Fragmented — minimal church presence or cooperation</option>
+                <option value="unified">Unified: active cross-denominational cooperation</option>
+                <option value="moderate">Moderate: some cooperation, some division</option>
+                <option value="divided">Divided: significant denominational conflict</option>
+                <option value="fragmented">Fragmented: minimal church presence or cooperation</option>
               </select>
             </div>
           </div>
@@ -475,7 +476,7 @@ export function Assessment({ userTier, userId, userName }: Props) {
 
         {currentSection === 1 && (
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 16 }}>S2 — Historical Record</div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 16 }}>S2: Historical Record</div>
             <AIResearchButton label="🤖 AI Research: Historical Record" loading={!!researching['history']} onClick={() => doResearch('history')} />
             <AIResearchButton label="🤖 AI Research: Ancestry & Indigenous" loading={!!researching['ancestry']} onClick={() => doResearch('ancestry')} />
             <ResearchResult text={research['history'] || ''} />
@@ -567,14 +568,14 @@ export function Assessment({ userTier, userId, userName }: Props) {
             <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 4 }}>S6 — Legal Ground</div>
             <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${BDR}`, borderRadius: 6, padding: '10px 14px', marginBottom: 16 }}>
               <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>
-                "Do not pollute the land where you are. Bloodshed pollutes the land, and atonement cannot be made for the land on which blood has been shed, except by the blood of the one who shed it." — Numbers 35:33
+                "Do not pollute the land where you are. Bloodshed pollutes the land, and atonement cannot be made for the land on which blood has been shed, except by the blood of the one who shed it." (Numbers 35:33)
               </div>
             </div>
             {[
-              { confirmed: s6_bloodshed_confirmed, setConfirmed: setS6Blood, details: s6_bloodshed_details, setDetails: setS6BloodD, label: 'BLOODSHED — murder, massacre, abortion, ritual sacrifice' },
-              { confirmed: s6_idolatry_confirmed, setConfirmed: setS6Idol, details: s6_idolatry_details, setDetails: setS6IdolD, label: 'IDOLATRY — land dedications, false worship, occult covenants' },
-              { confirmed: s6_broken_covenants_confirmed, setConfirmed: setS6Cov, details: s6_broken_covenants_details, setDetails: setS6CovD, label: 'BROKEN COVENANTS — treaties, agreements, promises violated' },
-              { confirmed: s6_sexual_perversion_confirmed, setConfirmed: setS6Sex, details: s6_sexual_perversion_details, setDetails: setS6SexD, label: 'SEXUAL PERVERSION — patterns of sexual sin that defiles land' },
+              { confirmed: s6_bloodshed_confirmed, setConfirmed: setS6Blood, details: s6_bloodshed_details, setDetails: setS6BloodD, label: 'BLOODSHED: murder, massacre, abortion, ritual sacrifice' },
+              { confirmed: s6_idolatry_confirmed, setConfirmed: setS6Idol, details: s6_idolatry_details, setDetails: setS6IdolD, label: 'IDOLATRY: land dedications, false worship, occult covenants' },
+              { confirmed: s6_broken_covenants_confirmed, setConfirmed: setS6Cov, details: s6_broken_covenants_details, setDetails: setS6CovD, label: 'BROKEN COVENANTS: treaties, agreements, promises violated' },
+              { confirmed: s6_sexual_perversion_confirmed, setConfirmed: setS6Sex, details: s6_sexual_perversion_details, setDetails: setS6SexD, label: 'SEXUAL PERVERSION: patterns of sexual sin that defiles land' },
             ].map((item, i) => (
               <div key={i} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px', marginBottom: 12 }}>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: item.confirmed ? 12 : 0 }}>
@@ -610,10 +611,10 @@ export function Assessment({ userTier, userId, userName }: Props) {
                   <div>
                     <label style={labelStyle}>TIER LEVEL (1-4)</label>
                     <select style={{ ...inputStyle, cursor: 'pointer' }} value={p.tier_level} onChange={e => setS7(s => s.map((x, j) => j === i ? { ...x, tier_level: parseInt(e.target.value) } : x))}>
-                      <option value={4}>4 — Ruling Principality</option>
-                      <option value={3}>3 — Strong Man</option>
-                      <option value={2}>2 — Power</option>
-                      <option value={1}>1 — Familiar Spirit</option>
+                      <option value={4}>4: Ruling Principality</option>
+                      <option value={3}>3: Strong Man</option>
+                      <option value={2}>2: Power</option>
+                      <option value={1}>1: Familiar Spirit</option>
                     </select>
                   </div>
                   <div>

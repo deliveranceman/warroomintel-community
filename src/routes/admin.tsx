@@ -1,3 +1,4 @@
+// STYLE RULE: No em dashes (—) in any UI text. Ever. Rewrite the phrase naturally.
 import { useState, useEffect, useRef, useMemo, Fragment, type CSSProperties } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
@@ -346,7 +347,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         {bulkPreviews.length > 0 && (
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14 }}>
-              Review & Confirm — {bulkPreviews.filter(p => p.approved).length} of {bulkPreviews.length} selected
+              Review & Confirm: {bulkPreviews.filter(p => p.approved).length} of {bulkPreviews.length} selected
             </div>
             {bulkPreviews.map((preview, idx) => (
               <div key={idx} style={{
@@ -949,7 +950,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Kingdom</label>
           <select value={f('Kingdom')} onChange={e => setField('Kingdom', e.target.value)} style={{ ...i }}>
-            <option value="">— Select —</option>
+            <option value=\"\">Select</option>
             {['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft', 'Occult'].map(k => <option key={k}>{k}</option>)}
           </select>
         </div>
@@ -957,7 +958,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Hierarchy Category</label>
           <select value={f('Hierarchy Category')} onChange={e => setField('Hierarchy Category', e.target.value)} style={{ ...i }}>
-            <option value="">— Select —</option>
+            <option value=\"\">Select</option>
             {HIER_CATS.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
@@ -970,7 +971,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Primary Battlefield</label>
           <select value={f('Primary Battlefield')} onChange={e => setField('Primary Battlefield', e.target.value)} style={{ ...i }}>
-            <option value="">— Select —</option>
+            <option value=\"\">Select</option>
             {BATTLEFIELDS.map(b => <option key={b}>{b}</option>)}
           </select>
         </div>
@@ -1025,14 +1026,14 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div>
           <label style={l}>Biblical Rank (Eph. 6:12)</label>
           <select value={f('Biblical Rank')} onChange={e => setField('Biblical Rank', e.target.value)} style={{ ...i }}>
-            <option value="">— Select —</option>
+            <option value=\"\">Select</option>
             {['Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(r => <option key={r}>{r}</option>)}
           </select>
         </div>
         <div>
           <label style={l}>Case Type</label>
           <select value={f('Case Type')} onChange={e => setField('Case Type', e.target.value)} style={{ ...i }}>
-            <option value="">— Select —</option>
+            <option value=\"\">Select</option>
             {['Personal Deliverance', 'Generational/Bloodline', 'Territorial/Regional', 'Institutional', 'Atmospheric/Intercessory', 'Multiple'].map(r => <option key={r}>{r}</option>)}
           </select>
         </div>
@@ -1294,7 +1295,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
   function applyAiFields(fields: Record<string, any>) {
     if (Object.keys(fields).length === 0) {
-      setAiError('AI returned no fields — the model may have returned non-JSON output. Try again.')
+      setAiError('AI returned no fields. The model may have returned non-JSON output. Try again.')
       setAiPhase('error')
       return
     }
@@ -1358,7 +1359,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       if (Object.keys(allFields).length > 0) {
         applyAiFields(allFields)
       } else {
-        setAiError('AI returned no fields — try again')
+        setAiError('AI returned no fields. Try again.')
         setAiPhase('error')
       }
     } catch(e: any) {
@@ -1624,7 +1625,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 <Fragment key={d.airtableId || d.id}>
                   <tr style={{ background: editingId === d.airtableId ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
                     <td style={{ ...tdS, fontFamily: cinzel, fontSize: 11, maxWidth: 160, wordBreak: 'break-word' as const }}>{d.name}</td>
-                    <td style={{ ...tdS, color: DIM, maxWidth: 110, fontSize: 12 }}>{d.biblicalRank || '—'}</td>
+                    <td style={{ ...tdS, color: DIM, maxWidth: 110, fontSize: 12 }}>{d.biblicalRank || ''}</td>
                     <td style={{ ...tdS }}>
                       {d.hierarchyCategory ? (
                         <span style={{
@@ -1634,7 +1635,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           borderRadius: 999, padding: '2px 8px', fontSize: 9,
                           fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const,
                         }}>{d.hierarchyCategory}</span>
-                      ) : <span style={{ color: DIM }}>—</span>}
+                      ) : null}
                     </td>
                     <td style={{ ...tdS, color: DIM, maxWidth: 150, fontSize: 12 }}>
                       {d.deliveranceSequence
@@ -1808,7 +1809,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 <div style={{ fontFamily: cinzel, fontSize: 28, color: G, marginBottom: 16 }}>✦</div>
                 <div style={{ fontFamily: cinzel, fontSize: 13, color: TXT, letterSpacing: '0.06em', marginBottom: 10 }}>{aiTargetDemon.name}</div>
                 <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 28, lineHeight: 1.6 }}>
-                  AI will research this entity across Scripture, archaeology, Dead Sea Scrolls, patristics, and deliverance ministry sources — filling only empty fields.
+                  AI will research this entity across Scripture, archaeology, Dead Sea Scrolls, patristics, and deliverance ministry sources, filling only empty fields.
                 </div>
                 <button onClick={startAiResearch}
                   style={{ padding: '12px 28px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
@@ -1825,7 +1826,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   Consulting Scripture, Dead Sea Scrolls, archaeology,<br />and deliverance ministry sources
                 </div>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>
-                  Researching in 3 passes — this takes 30–45 seconds
+                  Researching in 3 passes. This takes 30-45 seconds.
                 </div>
               </div>
             )}
@@ -2458,7 +2459,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
 
               {episodes.length === 0 ? (
                 <div style={{ background: SURF3, border: `1px solid ${BDR2}`, borderRadius: 8, padding: '32px 20px', textAlign: 'center' as const }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT }}>No episodes yet — add the first one</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT }}>No episodes yet. Add the first one.</div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2663,7 +2664,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                     <input value={evtZoom} onChange={e => setEvtZoom(e.target.value)} style={{ ...inp2 }} placeholder="https://zoom.us/j/..." />
                   </div>
                   <div>
-                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>ZOOM LINK — MINIMUM TIER</label>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>ZOOM LINK / MINIMUM TIER</label>
                     <select value={evtZoomTier} onChange={e => setEvtZoomTier(e.target.value)} style={{ ...inp2 }}>
                       {['free', 'soldier', 'commander', 'general', 'minister'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                     </select>
@@ -2747,7 +2748,7 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Moderation — Community Feedback</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Moderation: Community Feedback</div>
           <div style={{ fontFamily: crimson, fontSize: 14, color: DIM }}>{feedback.length} report{feedback.length !== 1 ? 's' : ''} submitted by members</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -2803,7 +2804,7 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
       {/* ── TESTIMONY QUEUE ── */}
       <div style={{ marginTop: 32, borderTop: `1px solid ${BDR}`, paddingTop: 24 }}>
         <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14 }}>
-          TESTIMONY QUEUE — {testimonies.filter(t => t.status === 'pending').length} pending
+          TESTIMONY QUEUE: {testimonies.filter(t => t.status === 'pending').length} pending
         </div>
         {testLoading ? (
           <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading...</div>
@@ -2914,7 +2915,7 @@ function ForumModerationPanel({ getToken }: { getToken: any }) {
 
   return (
     <div style={{ marginTop: 32 }}>
-      <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ Forum — The War Room Board</div>
+      <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ Forum: The War Room Board</div>
 
       {/* Stats */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
@@ -3307,7 +3308,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   }
 
   function fmtBytes(b: number) {
-    if (!b) return '—'
+    if (!b) return ''
     if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`
     return `${(b / (1024 * 1024)).toFixed(1)} MB`
   }
@@ -3469,7 +3470,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 5 }}>Ministry Contexts</div>
             <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.6, maxWidth: 520 }}>
-              Contexts are injected into AI calls based on their scope. Write in your own voice — your theology, approach, and doctrinal positions.
+              Contexts are injected into AI calls based on their scope. Write in your own voice: your theology, approach, and doctrinal positions.
             </div>
           </div>
           <button onClick={() => { setShowNewCtx(s => !s); setNewCtxLabel(''); setNewCtxText(''); setNewCtxScope('global'); setNewCtxMsg('') }}
@@ -3491,7 +3492,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                 <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>SCOPE</label>
                 <select value={newCtxScope} onChange={e => setNewCtxScope(e.target.value)} style={{ ...inp }}>
                   {Object.entries(SCOPE_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label} — {v.desc}</option>
+                    <option key={k} value={k}>{v.label}: {v.desc}</option>
                   ))}
                 </select>
               </div>
@@ -3571,7 +3572,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           <label style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>SCOPE</label>
                           <select value={editCtxScope} onChange={e => setEditCtxScope(e.target.value)} style={{ ...inp }}>
                             {Object.entries(SCOPE_LABELS).map(([k, v]) => (
-                              <option key={k} value={k}>{v.label} — {v.desc}</option>
+                              <option key={k} value={k}>{v.label}: {v.desc}</option>
                             ))}
                           </select>
                         </div>
@@ -3633,7 +3634,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
                         {libSummary.books.filter((b: any) => b.active !== false).map((b: any) => (
                           <div key={b.id} style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>
-                            <span style={{ color: LG }}>✦</span> {b.title}{b.author ? ` — ${b.author}` : ''}
+                            <span style={{ color: LG }}>✦</span> {b.title}{b.author ? ` by ${b.author}` : ''}
                             {b.ai_generated && <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5C7CBF', marginLeft: 6, letterSpacing: '0.08em' }}>AI</span>}
                           </div>
                         ))}
@@ -3659,7 +3660,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           <input ref={fileInputRef} type="file" multiple accept=".pdf,.txt" style={{ display: 'none' }}
             onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }} />
           <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 4 }}>
-            Drop PDF or TXT files — up to 10 at once
+            Drop PDF or TXT files, up to 10 at once
           </div>
           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
         </div>
@@ -3766,11 +3767,11 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             <div style={{ marginTop: 18, padding: '14px 18px', background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, textAlign: 'left' as const }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 8 }}>SUGGESTED UPLOADS</div>
               <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.9 }}>
-                Pigs in the Parlor — Frank Hammond<br />
-                Blessing or Curse — Derek Prince<br />
-                Battling the Hosts of Hell — Win Worley<br />
-                He Came to Set the Captives Free — Rebecca Brown<br />
-                Unbroken Curses — Rebecca Greenwood
+                Pigs in the Parlor by Frank Hammond<br />
+                Blessing or Curse by Derek Prince<br />
+                Battling the Hosts of Hell by Win Worley<br />
+                He Came to Set the Captives Free by Rebecca Brown<br />
+                Unbroken Curses by Rebecca Greenwood
               </div>
             </div>
           </div>
@@ -3783,7 +3784,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {retagProgress && (
                   <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
-                    {retagRunning ? `Re-tagging ${retagProgress.done}/${retagProgress.total}…` : `✓ Done — ${retagProgress.updated} updated`}
+                    {retagRunning ? `Re-tagging ${retagProgress.done}/${retagProgress.total}…` : `✓ Done: ${retagProgress.updated} updated`}
                   </span>
                 )}
                 <button
@@ -3976,7 +3977,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             <div style={{ marginTop: 20, padding: '14px 18px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.12)`, borderRadius: 8 }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 6 }}>SUGGESTED UPLOADS</div>
               <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.9 }}>
-                Pigs in the Parlor — Frank Hammond · Blessing or Curse — Derek Prince · Battling the Hosts of Hell — Win Worley · He Came to Set the Captives Free — Rebecca Brown · Unbroken Curses — Rebecca Greenwood
+                Pigs in the Parlor by Frank Hammond · Blessing or Curse by Derek Prince · Battling the Hosts of Hell by Win Worley · He Came to Set the Captives Free by Rebecca Brown · Unbroken Curses by Rebecca Greenwood
               </div>
             </div>
           </div>
@@ -4113,7 +4114,7 @@ function DashboardView({ getToken, isDark, setTab }: {
     <div style={{ color: TXT2, fontFamily: crimson }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 22, color: G, marginBottom: 4, letterSpacing: '0.06em' }}>⚔ War Room Intel — Command Center</div>
+        <div style={{ fontFamily: cinzel, fontSize: 22, color: G, marginBottom: 4, letterSpacing: '0.06em' }}>⚔ War Room Intel: Command Center</div>
         <div style={{ fontFamily: crimson, fontSize: 14, color: MUT }}>
           {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
@@ -5003,7 +5004,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         )}
         {gapResults.length === 0 && gapMeta && (
           <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic' }}>
-            No new spirits found — your database may already cover the content in these books.
+            No new spirits found. Your database may already cover the content in these books.
           </div>
         )}
       </div>
@@ -5121,7 +5122,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 
   return (
     <div style={{ color: txt2, fontFamily: "'Crimson Pro', serif" }}>
-      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: adGold2, marginBottom: 4, letterSpacing: '0.08em' }}>📍 Spiritual Mapping — Submission Review</div>
+      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: adGold2, marginBottom: 4, letterSpacing: '0.08em' }}>📍 Spiritual Mapping: Submission Review</div>
       <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic', marginBottom: 24 }}>Review and approve region submissions for the Global Intelligence Map</div>
 
       {loading && <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.2em', color: mut2 }}>LOADING...</div>}
@@ -5162,7 +5163,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
               disabled={!!processing[sub.id]}
               style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: '#0D0B14', background: '#80e090', border: 'none', borderRadius: 4, padding: '9px 18px', cursor: 'pointer', opacity: processing[sub.id] ? 0.6 : 1 }}
             >
-              {processing[sub.id] ? '...' : '✓ APPROVE — Add to Global Map'}
+              {processing[sub.id] ? '...' : '✓ APPROVE: Add to Global Map'}
             </button>
             <button
               onClick={() => rejectSubmission(sub.id)}
@@ -5608,7 +5609,7 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
           {/* Panel header */}
           <div style={{ background: isDark ? 'rgba(201,168,76,0.1)' : 'rgba(160,120,48,0.08)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const, borderBottom: `1px solid rgba(201,168,76,0.2)` }}>
             <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G2, letterSpacing: '0.08em', fontWeight: 700 }}>
-              ✦ AI SUGGESTIONS — {suggestions.length} changes ({suggestions.filter(s => s.confidence === 'high').length} high confidence)
+              ✦ AI SUGGESTIONS: {suggestions.length} changes ({suggestions.filter(s => s.confidence === 'high').length} high confidence)
             </div>
             {/* Suggestion filter tabs */}
             <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
@@ -5680,11 +5681,11 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
                   <div style={{ padding: '0 8px' }}>
                     {fieldDiff(sugg.current.kingdom, sugg.suggested.kingdom) ? (
                       <>
-                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current.kingdom || '—'}</div>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current\.kingdom || ''}</div>
                         <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: G2, fontWeight: 600, lineHeight: 1.3 }}>{sugg.suggested.kingdom}</div>
                       </>
                     ) : (
-                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current.kingdom || '—'}</div>
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current\.kingdom || ''}</div>
                     )}
                   </div>
 
@@ -5692,11 +5693,11 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
                   <div style={{ padding: '0 8px' }}>
                     {fieldDiff(sugg.current.subKingdom, sugg.suggested.subKingdom) ? (
                       <>
-                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current.subKingdom || '—'}</div>
+                        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2, textDecoration: 'line-through', lineHeight: 1.3 }}>{sugg.current.subKingdom || ''}</div>
                         <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: G2, fontWeight: 600, lineHeight: 1.3 }}>{sugg.suggested.subKingdom}</div>
                       </>
                     ) : (
-                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current.subKingdom || '—'}</div>
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: dim2 }}>{sugg.current.subKingdom || ''}</div>
                     )}
                   </div>
 
@@ -5793,7 +5794,7 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
                   <td style={{ padding: '4px 8px', minWidth: 165 }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <select value={spirit.kingdom || ''} onChange={e => handleChange(spirit.airtableId, 'kingdom', e.target.value)} style={selStyle}>
-                        {KINGDOM_OPTIONS.map(o => <option key={o} value={o}>{o || '— select —'}</option>)}
+                        {KINGDOM_OPTIONS.map(o => <option key={o} value={o}>{o || 'Select'}</option>)}
                       </select>
                       {flash(kKey)}
                     </div>
@@ -5801,7 +5802,7 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
                   <td style={{ padding: '4px 8px', minWidth: 200 }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <select value={spirit.subKingdom || ''} onChange={e => handleChange(spirit.airtableId, 'subKingdom', e.target.value)} style={selStyle}>
-                        {SUB_KINGDOM_OPTIONS.map(o => <option key={o} value={o}>{o || '— select —'}</option>)}
+                        {SUB_KINGDOM_OPTIONS.map(o => <option key={o} value={o}>{o || 'Select'}</option>)}
                       </select>
                       {flash(skKey)}
                     </div>
@@ -5809,7 +5810,7 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
                   <td style={{ padding: '4px 8px', minWidth: 150 }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <select value={spirit.biblicalRank || ''} onChange={e => handleChange(spirit.airtableId, 'biblicalRank', e.target.value)} style={selStyle}>
-                        {BIBLICAL_RANK_OPTIONS.map(o => <option key={o} value={o}>{o || '— select —'}</option>)}
+                        {BIBLICAL_RANK_OPTIONS.map(o => <option key={o} value={o}>{o || 'Select'}</option>)}
                       </select>
                       {flash(rKey)}
                     </div>
@@ -5985,7 +5986,7 @@ function TrackerView({ getToken, isDark }: { getToken: any; isDark: boolean }) {
         <div style={{ padding: '40px 0', color: dim, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', textAlign: 'center' as const }}>Loading…</div>
       ) : filtered.length === 0 ? (
         <div style={{ padding: '40px 0', color: dim, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', textAlign: 'center' as const }}>
-          {items.length === 0 ? 'No items yet — click "✦ Seed Tracker" to populate' : 'No items match this filter'}
+          {items.length === 0 ? 'No items yet. Click "✦ Seed Tracker" to populate.' : 'No items match this filter'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
