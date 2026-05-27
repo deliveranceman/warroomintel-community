@@ -2830,9 +2830,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [books, setBooks]           = useState<any[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
 
-  // Inline edit state — keyed by book id (covers both manual edit and AI-rename flows)
-  type EditState = { loading: boolean; editing: boolean; title: string; author: string; notes: string; topic: string; spirit_tags: string[] }
-  const [editStates, setEditStates] = useState<Record<string, EditState>>({})
+  // Inline edit state — one card open at a time
+  const [editingId,   setEditingId]   = useState<string | null>(null)
+  const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[] }>({ title: '', author: '', notes: '', topic: 'ministry-library', spirit_tags: [] })
+  const [editLoading, setEditLoading] = useState(false)
 
   // Library summary state
   const [libSummary, setLibSummary]     = useState<{ summary: string; books: any[] } | null>(null)
@@ -3137,122 +3138,77 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     return `${(b / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  /** Open the edit panel with current book values — no AI call */
   function openEdit(book: any) {
-    setEditStates(prev => ({
-      ...prev,
-      [book.id]: {
-        loading: false,
-        editing: true,
-        title: book.title || '',
-        author: book.author || '',
-        notes: book.notes || '',
-        topic: book.topic || 'ministry-library',
-        spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
-      },
-    }))
+    setEditingId(book.id)
+    setEditForm({
+      title:       book.title  || '',
+      author:      book.author || '',
+      notes:       book.notes  || '',
+      topic:       book.topic  || 'ministry-library',
+      spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
+    })
+    setEditLoading(false)
   }
 
-  /** Open the edit panel pre-filled with AI suggestions */
-  async function handleAiRename(book: any) {
-    setEditStates(prev => ({
-      ...prev,
-      [book.id]: {
-        loading: true, editing: false,
-        title: book.title || '', author: book.author || '', notes: book.notes || '',
-        topic: book.topic || 'ministry-library',
-        spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
-      },
-    }))
-    try {
-      const token = await getToken()
-      const resp = await fetch('/api/library-autofill', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
-      })
-      const d = await resp.json()
-      if (!resp.ok) {
-        setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], loading: false, editing: true } }))
-        return
-      }
-      setEditStates(prev => ({
-        ...prev,
-        [book.id]: {
-          loading: false, editing: true,
-          title: d.title || book.title || '',
-          author: d.author || book.author || '',
-          notes: d.notes || book.notes || '',
-          topic: d.topic || book.topic || 'ministry-library',
-          spirit_tags: Array.isArray(d.spirit_tags) && d.spirit_tags.length ? d.spirit_tags : (Array.isArray(book.spirit_tags) ? book.spirit_tags : []),
-        },
-      }))
-    } catch {
-      setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], loading: false, editing: true } }))
-    }
+  function cancelEdit() {
+    setEditingId(null)
+    setEditLoading(false)
   }
 
-  /** Inside an already-open edit panel, re-run AI fill without closing the panel */
-  async function aiRenameInPanel(id: string) {
-    const es = editStates[id]
-    const book = books.find(b => b.id === id)
-    if (!es || !book) return
-    setEditStates(prev => ({ ...prev, [id]: { ...prev[id], loading: true } }))
-    try {
-      const token = await getToken()
-      const resp = await fetch('/api/library-autofill', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
-      })
-      const d = await resp.json()
-      if (resp.ok) {
-        setEditStates(prev => ({
-          ...prev,
-          [id]: {
-            ...prev[id],
-            loading: false,
-            title: d.title || prev[id].title,
-            author: d.author || prev[id].author,
-            notes: d.notes || prev[id].notes,
-            topic: d.topic || prev[id].topic,
-            spirit_tags: Array.isArray(d.spirit_tags) && d.spirit_tags.length ? d.spirit_tags : prev[id].spirit_tags,
-          },
-        }))
-      } else {
-        setEditStates(prev => ({ ...prev, [id]: { ...prev[id], loading: false } }))
-      }
-    } catch {
-      setEditStates(prev => ({ ...prev, [id]: { ...prev[id], loading: false } }))
-    }
-  }
-
-  function cancelEdit(id: string) {
-    setEditStates(prev => { const n = { ...prev }; delete n[id]; return n })
-  }
-
-  async function saveEdit(id: string) {
-    const es = editStates[id]
-    if (!es) return
+  async function saveEdit() {
+    if (!editingId) return
     const token = await getToken()
     const res = await fetch('/api/admin-library', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        id,
-        title: es.title.trim(),
-        author: es.author.trim(),
-        notes: es.notes.trim(),
-        topic: es.topic,
-        spirit_tags: es.spirit_tags,
+        id:          editingId,
+        title:       editForm.title.trim(),
+        author:      editForm.author.trim(),
+        notes:       editForm.notes.trim(),
+        topic:       editForm.topic,
+        spirit_tags: editForm.spirit_tags,
       }),
     })
     if (res.ok) {
       const d = await res.json()
-      if (d.book) setBooks(prev => prev.map(b => b.id === id ? { ...b, ...d.book } : b))
-      else setBooks(prev => prev.map(b => b.id === id ? { ...b, title: es.title, author: es.author, notes: es.notes, topic: es.topic, spirit_tags: es.spirit_tags } : b))
+      if (d.book) setBooks(prev => prev.map(b => b.id === editingId ? { ...b, ...d.book } : b))
+      else setBooks(prev => prev.map(b => b.id === editingId ? { ...b, ...editForm } : b))
     }
-    cancelEdit(id)
+    cancelEdit()
+  }
+
+  /** Re-run AI autofill inside the open edit panel */
+  async function aiRenameInPanel() {
+    const book = books.find(b => b.id === editingId)
+    if (!book) return
+    setEditLoading(true)
+    try {
+      const token = await getToken()
+      const resp  = await fetch('/api/library-autofill', {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
+      })
+      const d = await resp.json()
+      if (resp.ok) {
+        setEditForm(prev => ({
+          ...prev,
+          title:       d.title  || prev.title,
+          author:      d.author || prev.author,
+          notes:       d.notes  || prev.notes,
+          topic:       d.topic  || prev.topic,
+          spirit_tags: Array.isArray(d.spirit_tags) && d.spirit_tags.length ? d.spirit_tags : prev.spirit_tags,
+        }))
+      }
+    } catch { /* best-effort */ }
+    setEditLoading(false)
+  }
+
+  /** Unused but kept to avoid TS warning — remove if desired */
+  async function handleAiRename(book: any) {
+    openEdit(book)
+    await aiRenameInPanel()
   }
 
   async function cleanTitle(book: any) {
@@ -3603,25 +3559,34 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {books.map(book => {
-                const es = editStates[book.id]
+                const isEditing        = editingId === book.id
                 const hasNumericPrefix = /^\d+[-\s]/.test(book.title || '')
                 return (
                 <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
+                  {/* ── Card header row ── */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    {/* Left: title / author / meta / tags */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
-                      {book.author && book.author !== 'Unknown' && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>}
+                      {book.author && book.author !== 'Unknown' && (
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>
+                      )}
                       <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em', marginBottom: book.notes ? 6 : 0 }}>
                         {fmtBytes(book.file_size)}
                         {book.created_at ? ` · ${new Date(book.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                       </div>
-                      {book.notes && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginBottom: 4 }}>{book.notes}</div>}
-                      {Array.isArray(book.spirit_tags) && book.spirit_tags.length > 0 && (
+                      {book.notes && (
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginBottom: 4 }}>{book.notes}</div>
+                      )}
+                      {/* Read-only spirit tags pills */}
+                      {Array.isArray(book.spirit_tags) && book.spirit_tags.length > 0 && !isEditing && (
                         <SpiritTagEditor tags={book.spirit_tags} onChange={() => {}} readOnly />
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
-                      {/* Active toggle */}
+
+                    {/* Right: action buttons */}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
+                      {/* VIS toggle */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>VIS</span>
                         <button
@@ -3631,7 +3596,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           <div style={{ position: 'absolute' as const, top: 2, left: book.active !== false ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                         </button>
                       </div>
-                      {/* AI-generated toggle */}
+                      {/* AI toggle */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>AI</span>
                         <button
@@ -3642,102 +3607,126 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           <div style={{ position: 'absolute' as const, top: 2, left: book.ai_generated ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                         </button>
                       </div>
-                      {/* Clean Title — only when numeric prefix detected */}
-                      {hasNumericPrefix && !es?.editing && (
+                      {/* Clean numeric prefix — only when applicable */}
+                      {hasNumericPrefix && !isEditing && (
                         <button
                           onClick={() => cleanTitle(book)}
                           style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
-                          title="Strip numeric prefix from title"
+                          title="Strip leading numeric prefix from title"
                         >✂ Clean</button>
                       )}
-                      {/* Edit button */}
+                      {/* ✎ EDIT BUTTON */}
                       <button
-                        onClick={() => es?.editing ? cancelEdit(book.id) : openEdit(book)}
-                        style={{ background: es?.editing ? 'rgba(201,168,76,0.18)' : 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
-                        title="Edit metadata"
+                        onClick={() => isEditing ? cancelEdit() : openEdit(book)}
+                        style={{
+                          background:    isEditing ? 'rgba(201,168,76,0.22)' : 'rgba(201,168,76,0.10)',
+                          border:        '1px solid rgba(201,168,76,0.6)',
+                          borderRadius:  5,
+                          color:         LG,
+                          fontFamily:    cinzel,
+                          fontSize:      9,
+                          padding:       '4px 10px',
+                          cursor:        'pointer',
+                          letterSpacing: '0.06em',
+                          fontWeight:    600,
+                        }}
+                        title={isEditing ? 'Close editor' : 'Edit title, author, notes, spirit tags'}
                       >
-                        {es?.editing ? '✕ Close' : '✏ Edit'}
+                        {isEditing ? '✕ Close' : '✎ Edit'}
                       </button>
-                      <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
-                        style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                      {/* DELETE BUTTON */}
+                      <button
+                        onClick={() => deleteBook(book.id, book.file_path, book.title)}
+                        style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}
+                      >
                         Delete
                       </button>
                     </div>
                   </div>
-                  {/* ── Inline Edit Panel ── */}
-                  {es?.editing && (
-                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid rgba(201,168,76,0.18)` }}>
-                      {/* Panel header with AI Rename button */}
+
+                  {/* ── Inline Edit Panel (shown when isEditing) ── */}
+                  {isEditing && (
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid rgba(201,168,76,0.2)` }}>
+                      {/* Panel header */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>Edit Metadata</span>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>Edit Metadata</span>
                         <button
-                          onClick={() => aiRenameInPanel(book.id)}
-                          disabled={es.loading}
-                          style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: es.loading ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: es.loading ? 0.6 : 1 }}
+                          onClick={aiRenameInPanel}
+                          disabled={editLoading}
+                          style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: editLoading ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: editLoading ? 0.6 : 1 }}
                         >
-                          {es.loading ? '✦ Analyzing...' : '✦ AI Rename'}
+                          {editLoading ? '✦ Analyzing…' : '✦ AI Rename'}
                         </button>
                       </div>
+
+                      {/* Title + Author */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                         <div>
                           <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TITLE</label>
                           <input
-                            value={es.title}
-                            onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], title: e.target.value } }))}
+                            value={editForm.title}
+                            onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
                             style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
                           />
                         </div>
                         <div>
                           <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>AUTHOR</label>
                           <input
-                            value={es.author}
-                            onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], author: e.target.value } }))}
+                            value={editForm.author}
+                            onChange={e => setEditForm(p => ({ ...p, author: e.target.value }))}
                             style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
                           />
                         </div>
                       </div>
+
+                      {/* Notes */}
                       <div style={{ marginBottom: 8 }}>
                         <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>NOTES</label>
                         <textarea
-                          value={es.notes}
-                          onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], notes: e.target.value } }))}
+                          value={editForm.notes}
+                          onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
                           rows={2}
                           style={{ ...inp, fontSize: 12, padding: '6px 10px', resize: 'vertical' as const }}
                         />
                       </div>
+
+                      {/* Topic */}
                       <div style={{ marginBottom: 8 }}>
                         <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TOPIC</label>
                         <select
-                          value={es.topic}
-                          onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], topic: e.target.value } }))}
+                          value={editForm.topic}
+                          onChange={e => setEditForm(p => ({ ...p, topic: e.target.value }))}
                           style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
                         >
-                          <option value="ministry-library">ministry-library</option>
-                          <option value="deliverance">deliverance</option>
-                          <option value="spiritual-warfare">spiritual-warfare</option>
-                          <option value="inner-healing">inner-healing</option>
-                          <option value="theology">theology</option>
-                          <option value="prayer">prayer</option>
-                          <option value="prophecy">prophecy</option>
-                          <option value="healing">healing</option>
+                          {['ministry-library','deliverance','spiritual-warfare','inner-healing','theology','prayer','prophecy','healing'].map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
                         </select>
                       </div>
-                      <div style={{ marginBottom: 12 }}>
+
+                      {/* Spirit Tags */}
+                      <div style={{ marginBottom: 14 }}>
                         <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>SPIRIT TAGS</label>
                         <SpiritTagEditor
-                          tags={es.spirit_tags}
-                          onChange={tags => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], spirit_tags: tags } }))}
+                          tags={editForm.spirit_tags}
+                          onChange={tags => setEditForm(p => ({ ...p, spirit_tags: tags }))}
                         />
                       </div>
+
+                      {/* Save / Cancel */}
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={() => saveEdit(book.id)}
-                          style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 16px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}
-                        >✦ Save</button>
+                          onClick={saveEdit}
+                          style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 18px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}
+                        >
+                          ✦ Save
+                        </button>
                         <button
-                          onClick={() => cancelEdit(book.id)}
+                          onClick={cancelEdit}
                           style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}
-                        >Cancel</button>
+                        >
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   )}
