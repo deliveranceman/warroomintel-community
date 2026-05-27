@@ -47,11 +47,14 @@ export default async function handler(req: Request) {
     userTier = 'free'
   }
 
-  const userTierLevel = TIER_ORDER[userTier] ?? 0
+  const userTierLevel = TIER_ORDER[userTier.toLowerCase()] ?? TIER_ORDER[userTier] ?? 0
+  // Include BOTH lowercase and title-case variants — the DB has mixed casing
+  // (most rows: 'free','soldier','commander'; a few: 'Soldier','Commander')
+  // Deduplication was removed because it stripped the lowercase variants that
+  // most rows actually use, causing only ~2 title-case rows to match.
   const allowedTiers = Object.entries(TIER_ORDER)
     .filter(([, lvl]) => lvl <= userTierLevel)
     .map(([t]) => t)
-    .filter((t, i, arr) => arr.findIndex(x => x.toLowerCase() === t.toLowerCase()) === i)
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -93,7 +96,7 @@ export default async function handler(req: Request) {
     query = query.or(`title.ilike.%${searchParam}%,description.ilike.%${searchParam}%`)
   }
 
-  query = query.order('tier').order('title')
+  query = query.order('created_at', { ascending: false })
 
   const { data, error } = await query
 

@@ -93,9 +93,20 @@ const COMMUNITY_URL = '/community'
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function getTierLevel(tier: string) { return TIER_ORDER[tier] ?? 0 }
 
+/** Normalise a raw DB tier value to title case (e.g. 'soldier' → 'Soldier') */
+function normalizeTier(t: string): 'Free' | 'Soldier' | 'Commander' | 'General' {
+  const map: Record<string, 'Free' | 'Soldier' | 'Commander' | 'General'> = {
+    free: 'Free', Free: 'Free',
+    soldier: 'Soldier', Soldier: 'Soldier',
+    commander: 'Commander', Commander: 'Commander',
+    general: 'General', General: 'General',
+  }
+  return map[t] ?? 'Free'
+}
+
 function groupByTier(resources: Resource[]) {
   const groups: Record<string, Resource[]> = { Free: [], Soldier: [], Commander: [], General: [] }
-  resources.forEach(r => { if (groups[r.tier]) groups[r.tier].push(r) })
+  resources.forEach(r => { groups[normalizeTier(r.tier)]?.push(r) })
   return groups
 }
 
@@ -303,7 +314,14 @@ function ArsenalPage() {
     }).then(r => r?.json()).then(data => {
       if (cancelled) return
       if (data?.error) throw new Error(data.error)
-      setResources(data?.resources || [])
+      // Normalise tier to title case — DB stores most rows in lowercase
+      // ('soldier', 'commander', etc.) but the UI expects 'Soldier', 'Commander'
+      const raw: any[] = data?.resources || []
+      const normalised = raw.map(r => ({
+        ...r,
+        tier: normalizeTier(r.tier ?? 'free'),
+      })) as Resource[]
+      setResources(normalised)
     }).catch(err => { if (!cancelled) setError(err.message) })
     .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -393,13 +411,22 @@ function ArsenalPage() {
     </div>
   )
 
-  // Filter resources
+  // Recently Added — first 5 (backend orders by created_at DESC)
+  // Only shown when no filters are active; excluded from the main tier sections
+  const showRecent = !search && activeCategory === 'All' && activeTab === 'All'
+  const recentlyAdded = showRecent ? resources.slice(0, 5) : []
+  const recentIds = new Set(recentlyAdded.map(r => r.id))
+
+  // Filter resources (excluding recently-added when that strip is visible)
   const filtered = resources.filter(r => {
+    if (showRecent && recentIds.has(r.id)) return false
     if (activeTab !== 'All' && r.tier !== activeTab) return false
     if (activeCategory !== 'All' && r.category !== activeCategory) return false
     if (search) {
       const q = search.toLowerCase()
-      return r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q) || r.category.toLowerCase().includes(q)
+      return r.title.toLowerCase().includes(q)
+        || (r.description ?? '').toLowerCase().includes(q)
+        || (r.category ?? '').toLowerCase().includes(q)
     }
     return true
   })
@@ -567,9 +594,35 @@ function ArsenalPage() {
         )}
 
         {/* Empty */}
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && filtered.length === 0 && recentlyAdded.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px', color: muted, fontFamily: crimson, fontStyle: 'italic' }}>
             No resources found. Try adjusting your search or filters.
+          </div>
+        )}
+
+        {/* Recently Added — top 5 newest, visible only when no filters active */}
+        {!loading && !error && recentlyAdded.length > 0 && (
+          <div style={{ marginBottom: '36px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ width: 30, height: 30, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                ✦
+              </div>
+              <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.18em', color: gold, textTransform: 'uppercase' as const }}>
+                Recently Added
+              </div>
+              <div style={{ flex: 1, height: '1px', background: border }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+              {recentlyAdded.map(resource => (
+                <FileCard
+                  key={`recent-${resource.id}`}
+                  resource={resource}
+                  memberTier={memberTier}
+                  onDownload={handleDownload}
+                  downloading={downloading}
+                />
+              ))}
+            </div>
           </div>
         )}
 
