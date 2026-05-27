@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
-import pdfParse from 'pdf-parse'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const pdfParse = require('pdf-parse')
 
 const BUCKET = 'ministry-library'
 const MAX_CHARS = 120_000

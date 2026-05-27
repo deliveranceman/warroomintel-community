@@ -6,7 +6,9 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import pdfParse from 'pdf-parse'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const pdfParse = require('pdf-parse')
 
 const BUCKET = 'ministry-library'
 const MAX_CHARS = 120_000
@@ -112,7 +114,7 @@ export default async function handler(req: Request) {
 
       const { error: updateErr } = await client
         .from('resources')
-        .update({ extracted_text: extractedText })
+        .update({ extracted_text: extractedText, ai_generated: true })
         .eq('id', row.id)
 
       if (updateErr) {

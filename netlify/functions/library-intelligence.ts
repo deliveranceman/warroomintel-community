@@ -54,16 +54,16 @@ async function fetchAllSpiritNames(): Promise<string[]> {
 }
 
 async function fetchLibraryBooks() {
-  console.log('[LIBRARY-SEARCH] Supabase query params', { topic: 'ministry-library', active: true, filter: 'extracted_text IS NOT NULL AND extracted_text != empty' })
+  console.log('[LIB-INTEL] Querying Supabase...')
   const { data, error } = await sb()
     .from('resources')
     .select('title, author, extracted_text')
     .eq('topic', 'ministry-library')
-    .eq('active', true)
+    .neq('active', false)
     .not('extracted_text', 'is', null)
     .neq('extracted_text', '')
     .limit(MAX_BOOKS)
-  console.log('[LIBRARY-SEARCH] Supabase result', { count: data?.length ?? 0, error: error?.message ?? null })
+  console.log('[LIB-INTEL] Result:', { count: data?.length ?? 0, error: error?.message ?? null })
   return data || []
 }
 

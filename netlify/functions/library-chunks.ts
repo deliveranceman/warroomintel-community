@@ -89,7 +89,11 @@ export default async function handler(req: Request) {
 
   // Fetch enabled books and active context in parallel
   const [booksResult, contextResult] = await Promise.all([
-    sb.from('ministry_library').select('id,title,author,extracted_text').eq('is_enabled', true),
+    sb.from('resources').select('id,title,author,extracted_text')
+      .eq('topic', 'ministry-library')
+      .neq('active', false)
+      .not('extracted_text', 'is', null)
+      .limit(50),
     sb.from('ministry_context').select('context_text').eq('is_active', true).order('updated_at', { ascending: false }).limit(1).single(),
   ])
 
