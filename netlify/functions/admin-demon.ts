@@ -87,6 +87,7 @@ export default async function handler(req: Request) {
       prayerPoints: data.fields['Prayer Points'] || '',
       isGenerational: data.fields['Is Generational'] === true || data.fields['Is Generational'] === 'true',
       isTerritorial: data.fields['Is Territorial'] === true || data.fields['Is Territorial'] === 'true',
+      subKingdom: data.fields['Sub-Kingdom'] || '',
     }
     return new Response(JSON.stringify({ record: mapped }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
@@ -139,6 +140,7 @@ export default async function handler(req: Request) {
       caseType: 'Case Type',
       isGenerational: 'Is Generational',
       isTerritorial: 'Is Territorial',
+      subKingdom: 'Sub-Kingdom',
       clusterSpirits: 'Cluster Spirits',
       legalRightsFramework: 'Legal Rights Framework',
       institutionalExpression: 'Institutional Expression',
@@ -169,11 +171,44 @@ export default async function handler(req: Request) {
 
         // Biblical Rank is a Single Select — only send exact Eph. 6:12 values
         if (camel === 'biblicalRank') {
-          const validRanks = ['Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity']
+          const validRanks = [
+            // New taxonomy
+            'Principality', 'World Ruler', 'Power', 'Wicked Spirit',
+            'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity',
+            // Legacy
+            'Ruler of Darkness', 'Spiritual Wickedness in High Places',
+          ]
           if (!value || !validRanks.includes(value)) {
             delete airtableFields[camel]
             continue
           }
+        }
+
+        // Sub-Kingdom is a Single Select — normalize slashes and validate
+        if (camel === 'subKingdom') {
+          const VALID_SUB_KINGDOMS = [
+            'Norse/Germanic', 'Celtic', 'Greek/Roman', 'Egyptian',
+            'Babylonian/Sumerian', 'Canaanite/Phoenician', 'Hindu/Eastern',
+            'Native American', 'African Traditional', 'Freemasonry/Secret Societies',
+            'Satanism/Luciferianism', 'New Age/Occult', 'Marine/Aquatic',
+            'Celestial/Astral', 'Infernal/Hell', 'Generational', 'Religious Spirit', 'None',
+          ]
+          if (!value) {
+            delete airtableFields[camel]
+            continue
+          }
+          // Normalize spaces around slashes: "Norse / Germanic" → "Norse/Germanic"
+          const normalized = String(value).replace(/\s*\/\s*/g, '/')
+          const exact = VALID_SUB_KINGDOMS.find(v => v.toLowerCase() === normalized.toLowerCase())
+          if (!exact) {
+            console.log('[PATCH] Sub-Kingdom value not recognized, skipping:', value)
+            delete airtableFields[camel]
+            continue
+          }
+          // Use the exact Airtable option string
+          airtableFields[airtable] = exact
+          delete airtableFields[camel]
+          continue
         }
 
         airtableFields[airtable] = value

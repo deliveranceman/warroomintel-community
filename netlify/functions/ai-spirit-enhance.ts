@@ -257,6 +257,11 @@ const KEY_ALIASES: Record<string, string> = {
   aka: 'aka',
   description: 'description',
   kingdom: 'kingdom',
+  subKingdom: 'subKingdom',
+  sub_kingdom: 'subKingdom',
+  'sub-kingdom': 'subKingdom',
+  secondaryKingdom: 'subKingdom',
+  culturalOrigin: 'subKingdom',
   strongman: 'strongman',
   rank: 'rank',
   assignment: 'assignment',
@@ -334,10 +339,11 @@ function parseJsonFields(raw: string): Record<string, any> {
 function buildUserPrompt(name: string, existing: Record<string, any>, fields: string[]): string {
   const fieldDescriptions: Record<string, string> = {
     phonetic: 'Correct phonetic pronunciation using syllable capitalization.',
-    biblicalRank: 'STRICT: Return ONLY one of these exact values — no other text, no descriptions, no punctuation: "Principality" | "Power" | "Ruler of Darkness" | "Spiritual Wickedness in High Places" | "Fallen Angel" | "Demon" | "Familiar Spirit" | "Spirit of Infirmity". Example correct: "Principality". Example WRONG: "Principality - supreme territorial...".',
+    biblicalRank: 'Return ONLY one of these exact strings (see CLASSIFICATION RULES above for when to use each): "Principality" | "World Ruler" | "Power" | "Wicked Spirit" | "Fallen Angel" | "Demon" | "Familiar Spirit" | "Spirit of Infirmity". No other text, no punctuation. CRITICAL: Most spirits that indwell individuals = "Demon". Spirits that received mass worship across civilizations = "World Ruler". Do NOT default to Principality.',
+    subKingdom: 'Secondary cultural/religious origin system. Return ONLY one of these exact strings: "Norse/Germanic" | "Celtic" | "Greek/Roman" | "Egyptian" | "Babylonian/Sumerian" | "Canaanite/Phoenician" | "Hindu/Eastern" | "Native American" | "African Traditional" | "Freemasonry/Secret Societies" | "Satanism/Luciferianism" | "New Age/Occult" | "Marine/Aquatic" | "Celestial/Astral" | "Infernal/Hell" | "Generational" | "Religious Spirit" | "None". Pick the most specific match.',
     caseType: 'Personal Deliverance, Generational/Bloodline, Territorial/Regional, Institutional, Atmospheric/Intercessory, or Multiple.',
-    isGenerational: 'true or false — is this spirit typically generational/bloodline?',
-    isTerritorial: 'true or false — is this spirit typically territorial/regional?',
+    isGenerational: 'true if primary transmission is through bloodline covenant; false otherwise.',
+    isTerritorial: 'true if this spirit primarily operates over regions/lands/peoples atmospherically rather than indwelling individuals directly; false if it primarily indwells.',
     clusterSpirits: 'Boss spirit AND full subordinate cluster. How the boss maintains authority.',
     companionSpirits: 'Companion or subordinate spirits that typically accompany this entity.',
     strongman: 'Primary strongman this entity operates under, if any. Single name only.',
@@ -380,9 +386,37 @@ function buildUserPrompt(name: string, existing: Record<string, any>, fields: st
     ? `Existing data for these fields (improve upon or confirm as accurate — do not simply repeat):\n${JSON.stringify(relevantExisting, null, 2)}\n\n`
     : ''
 
+  const needsClassification = fields.some(f => ['biblicalRank', 'subKingdom', 'kingdom', 'isTerritorial', 'isGenerational', 'caseType'].includes(f))
+  const classificationBlock = needsClassification ? `
+CLASSIFICATION RULES — apply these exactly before filling classification fields:
+
+BIBLICAL RANK (Ephesians 6:12 framework):
+- "Principality" (archai): ONLY spirits with direct governmental authority over nation-states or government structures. DO NOT default here. Very few spirits qualify.
+- "World Ruler" (kosmokrator): High-ranking spirits that received mass worship across civilizations and gained atmospheric/territorial authority through that covenant. Examples: Baal, Leviathan, Thor, Odin, Molech, Ra, Zeus, Artemis. These operate OVER peoples and regions, not inside individuals.
+- "Power" (exousia): Spirits with broad authority over an entire domain or sphere — death as a system, lust as a governing force, witchcraft as a kingdom structure. Examples: spirit of death (systemic), Jezebel as a controlling system over churches/regions.
+- "Wicked Spirit" (poneria): Spirits operating through deception, chaos, and corruption from within. Examples: Loki, lying spirits, spirits of confusion, deceiving spirits (1 Tim 4:1), Apollyon as destroyer.
+- "Demon": Spirits that characteristically INDWELL and harass individuals. The most common category for any spirit that manifests in personal deliverance sessions. Examples: Fear, Anger, Rejection, Pride, Shame, Lust (personal), Infirmity (personal).
+- "Familiar Spirit": Spirits with generational bloodline assignment to a specific family. Mimic, counterfeit, and monitor. Examples: familiar spirits from Masonic oaths, witchcraft covenants, ancestral worship systems.
+- "Spirit of Infirmity": Spirits that manifest primarily through physical disease, chronic illness, or body-level affliction. Examples: cancer spirit, arthritis spirit, deaf/mute spirit (Mark 9).
+- "Fallen Angel": Pre-flood Watchers or named fallen angels with specific cosmic rebellion roles. Examples: Azazel, Semyaza, named Watchers from 1 Enoch, angels bound at the Euphrates (Rev 9:14).
+
+KEY DECISION RULE: Ask first — does this spirit characteristically INDWELL individuals or operate OVER them atmospherically? Indwelling → "Demon". Atmospheric/territorial through worship covenant → "World Ruler". Governing a domain or system → "Power". Deception/chaos agent → "Wicked Spirit".
+
+KINGDOM: Hell/Darkness | Air | Water/Marine | Earth | Witchcraft | Occult | Religion | Infirmity | Mind/Intellect | Sexual Perversion | Death/Destruction | Fear/Torment
+
+SUB-KINGDOM: If the spirit originates in a specific cultural/religious system, name it using the exact strings from the field definition. Default "None" only if no cultural origin applies.
+
+INDWELLING vs TERRITORIAL:
+- isTerritorial: true ONLY if the spirit primarily operates over geographic regions, peoples, or lands atmospherically — not through indwelling individuals
+- isGenerational: true if primary transmission mechanism is bloodline covenant, ancestral sin, or inherited curse
+
+---
+
+` : ''
+
   return `Research the spirit/demon/entity: "${name}"
 
-${existingNote}Research and return expert-level content for ALL of the following fields. Return ONLY valid JSON — no preamble, no markdown, no explanation outside the JSON:
+${existingNote}${classificationBlock}Research and return expert-level content for ALL of the following fields. Return ONLY valid JSON — no preamble, no markdown, no explanation outside the JSON:
 
 {
 ${fieldSchema}
@@ -538,11 +572,13 @@ export default async function handler(req: Request) {
     console.log('[enhance] After remap keys:', Object.keys(remappedFields))
     console.log('[enhance] fieldCount:', Object.keys(remappedFields).length)
 
-    // Sanitize biblicalRank — must be one of the 8 exact Eph. 6:12 values
+    // Sanitize biblicalRank — must be one of the exact Eph. 6:12 values (new taxonomy)
     const VALID_BIBLICAL_RANKS = [
-      'Principality', 'Power', 'Ruler of Darkness',
-      'Spiritual Wickedness in High Places', 'Fallen Angel',
-      'Demon', 'Familiar Spirit', 'Spirit of Infirmity',
+      // New taxonomy (preferred)
+      'Principality', 'World Ruler', 'Power', 'Wicked Spirit',
+      'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity',
+      // Legacy values from old taxonomy — kept for backward compatibility with existing Airtable data
+      'Ruler of Darkness', 'Spiritual Wickedness in High Places',
     ]
     if (remappedFields.biblicalRank) {
       const raw = String(remappedFields.biblicalRank)
@@ -552,6 +588,25 @@ export default async function handler(req: Request) {
       } else {
         const partial = VALID_BIBLICAL_RANKS.find(r => raw.toLowerCase().includes(r.toLowerCase()))
         remappedFields.biblicalRank = partial || ''
+      }
+    }
+
+    // Sanitize subKingdom — must be one of the exact Single Select options
+    const VALID_SUB_KINGDOMS = [
+      'Norse/Germanic', 'Celtic', 'Greek/Roman', 'Egyptian',
+      'Babylonian/Sumerian', 'Canaanite/Phoenician', 'Hindu/Eastern',
+      'Native American', 'African Traditional', 'Freemasonry/Secret Societies',
+      'Satanism/Luciferianism', 'New Age/Occult', 'Marine/Aquatic',
+      'Celestial/Astral', 'Infernal/Hell', 'Generational', 'Religious Spirit', 'None',
+    ]
+    if (remappedFields.subKingdom) {
+      const rawSK = String(remappedFields.subKingdom).replace(/\s*\/\s*/g, '/')
+      const exactSK = VALID_SUB_KINGDOMS.find(v => v.toLowerCase() === rawSK.toLowerCase())
+      if (exactSK) {
+        remappedFields.subKingdom = exactSK
+      } else {
+        const partialSK = VALID_SUB_KINGDOMS.find(v => rawSK.toLowerCase().includes(v.toLowerCase().split('/')[0]))
+        remappedFields.subKingdom = partialSK || ''
       }
     }
 

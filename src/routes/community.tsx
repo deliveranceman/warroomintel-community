@@ -3152,6 +3152,24 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   {entry.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 14 }}>aka {entry.aka}</div>}
                   <FieldBlock label="Description" value={entry.description} />
                   <FieldBlock label="Kingdom" value={entry.kingdom} />
+                  {entry.subKingdom && entry.subKingdom !== 'None' && (
+                    <div style={{ marginBottom: 14, marginTop: -8 }}>
+                      <span style={{
+                        display: 'inline-block',
+                        fontFamily: cinzel,
+                        fontSize: 8,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase' as const,
+                        background: 'rgba(201,168,76,0.08)',
+                        color: dbIsDark ? 'rgba(201,168,76,0.65)' : '#7a5c10',
+                        border: '1px solid rgba(201,168,76,0.22)',
+                        borderRadius: 3,
+                        padding: '3px 9px',
+                      }}>
+                        ◈ {entry.subKingdom}
+                      </span>
+                    </div>
+                  )}
                   {entry.isTerritorial && entry.region && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>🗺 Territorial Region</div>
@@ -3310,6 +3328,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                   <FieldBlock label="Personality Presentation" value={entry.personalityPresentation} />
                   <FieldBlock label="Case Type" value={entry.caseType} />
                   <FieldBlock label="Biblical Rank" value={entry.biblicalRank} />
+                  <FieldBlock label="Sub-Kingdom" value={entry.subKingdom && entry.subKingdom !== 'None' ? entry.subKingdom : undefined} />
                   {entry.relatedSpirits && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Related Spirits</div>

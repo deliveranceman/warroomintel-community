@@ -87,6 +87,7 @@ export const Route = createFileRoute('/api/demons')({
               caseType: r.fields['Case Type'] || '',
               isGenerational: r.fields['Is Generational'] === true || r.fields['Is Generational'] === 'true',
               isTerritorial: r.fields['Is Territorial'] === true || r.fields['Is Territorial'] === 'true',
+              subKingdom: r.fields['Sub-Kingdom'] || '',
               clusterSpirits: r.fields['Cluster Spirits'] || '',
               legalRightsFramework: r.fields['Legal Rights Framework'] || '',
               institutionalExpression: r.fields['Institutional Expression'] || '',

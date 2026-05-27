@@ -85,6 +85,7 @@ export const Route = createFileRoute('/api/demons')({
               prayerPoints: r.fields['Prayer Points'] || '',
               isGenerational: r.fields['Is Generational'] === true || r.fields['Is Generational'] === 'true',
               isTerritorial: r.fields['Is Territorial'] === true || r.fields['Is Territorial'] === 'true',
+              subKingdom: r.fields['Sub-Kingdom'] || '',
             }))
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')
