@@ -4856,25 +4856,14 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
     'Familiar Spirit': '#059669', 'Spirit of Infirmity': '#0ea5e9',
   }
 
-  // Parse clusterSpirits field (comma-separated names) into bidirectional connections
-  function getConnected(spirit: any): any[] {
-    const clusterNames = spirit.clusterSpirits
-      ? String(spirit.clusterSpirits).split(',').map((n: string) => n.trim().toLowerCase()).filter(Boolean)
-      : []
-    const thisName = spirit.name?.toLowerCase()
-    const seen = new Set<number>()
-    const result: any[] = []
-    for (const d of demons) {
-      if (d.id === spirit.id) continue
-      if (seen.has(d.id)) continue
-      const forward = clusterNames.includes(d.name?.toLowerCase())
-      const reverse = thisName && d.clusterSpirits
-        ? String(d.clusterSpirits).split(',').map((n: string) => n.trim().toLowerCase()).includes(thisName)
-        : false
-      if (forward || reverse) { seen.add(d.id); result.push(d) }
-    }
-    return result
-  }
+  // Parse Companion Spirits (clean comma-separated field) into names + optional demon references
+  const companionNames: string[] = selected
+    ? String(selected.companionSpirits || '').split(',').map((n: string) => n.trim()).filter(Boolean)
+    : []
+  const connectedDemons: Array<{ name: string; demon: any }> = companionNames.map((name: string) => ({
+    name,
+    demon: demons.find((d: any) => d.name?.toLowerCase() === name.toLowerCase()) ?? null,
+  }))
 
   // Fetch related library resources when a spirit is selected
   useEffect(() => {
@@ -4909,7 +4898,6 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
     const next = new Set(prev); next.has(k) ? next.delete(k) : next.add(k); return next
   })
 
-  const connected = selected ? getConnected(selected) : []
   const hierColor = selected ? (HIER_COLORS[selected.biblicalRank] || HIER_COLORS[selected.hierarchyCategory] || '#9a8c74') : '#9a8c74'
 
   // ── LEFT PANEL ──────────────────────────────────────────────
@@ -4950,102 +4938,120 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
 
   // ── CENTER: DOSSIER ──────────────────────────────────────────
   const DossierView = selected && (
-    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 28px', minWidth: 0 }}>
-      {/* Header */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `4px solid ${hierColor}`, borderRadius: 10, padding: '18px 20px', marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 16 : 20, color: TXT, letterSpacing: '0.06em', marginBottom: 3 }}>{selected.name}</div>
-            {selected.phonetic && <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 4, fontStyle: 'italic' }}>{selected.phonetic}</div>}
-            {selected.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginBottom: 8 }}>Also known as: {selected.aka}</div>}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-              {selected.biblicalRank && (
-                <span style={{ fontSize: 8, color: hierColor, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid ${hierColor}`, borderRadius: 10, padding: '2px 8px' }}>
-                  {selected.biblicalRank}
-                </span>
-              )}
-              {selected.kingdom && (
-                <span style={{ fontSize: 8, color: GC, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '2px 8px' }}>
-                  {selected.kingdom}
-                </span>
-              )}
-              {selected.subKingdom && (
-                <span style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '2px 8px' }}>
-                  {selected.subKingdom}
-                </span>
-              )}
-            </div>
-          </div>
-          {isMobile && (
-            <button onClick={() => setSelected(null)} style={{ background: 'none', border: `1px solid ${BDR}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer' }}>
-              ← Back
-            </button>
-          )}
-        </div>
-        {selected.parentStrongman && (
-          <div style={{ marginTop: 12, fontSize: 12, color: MUT, fontFamily: crimson }}>
-            <span style={{ color: GC }}>Parent Strongman:</span> {selected.parentStrongman}
-          </div>
-        )}
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '32px 36px', minWidth: 0 }}>
+      {/* Back button (mobile) */}
+      {isMobile && (
+        <button onClick={() => setSelected(null)} style={{ background: 'none', border: `1px solid ${BDR}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', marginBottom: 16 }}>
+          ← Back
+        </button>
+      )}
+
+      {/* Name heading */}
+      <div style={{ fontFamily: cinzel, fontSize: isMobile ? 22 : 28, color: GC, letterSpacing: '0.06em', lineHeight: 1.1, marginBottom: 4 }}>
+        {selected.name}
       </div>
 
-      {/* Description */}
-      {selected.description && (
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Description</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.description}</div>
+      {/* Phonetic + aliases */}
+      {selected.phonetic && (
+        <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, fontStyle: 'italic', marginBottom: 4 }}>{selected.phonetic}</div>
+      )}
+      {selected.aka && (
+        <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, fontStyle: 'italic', marginBottom: 10 }}>{selected.aka}</div>
+      )}
+
+      {/* Badge chips inline */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: selected.parentStrongman ? 10 : 18 }}>
+        {selected.biblicalRank && (
+          <span style={{ fontSize: 8, color: hierColor, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid ${hierColor}`, borderRadius: 10, padding: '2px 8px' }}>
+            {selected.biblicalRank}
+          </span>
+        )}
+        {selected.kingdom && (
+          <span style={{ fontSize: 8, color: GC, fontFamily: cinzel, letterSpacing: '0.08em', textTransform: 'uppercase' as const, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '2px 8px' }}>
+            {selected.kingdom}
+          </span>
+        )}
+        {selected.subKingdom && (
+          <span style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '2px 8px' }}>
+            {selected.subKingdom}
+          </span>
+        )}
+      </div>
+      {selected.parentStrongman && (
+        <div style={{ fontSize: 12, color: MUT, fontFamily: crimson, marginBottom: 18 }}>
+          <span style={{ color: GC }}>Parent Strongman:</span> {selected.parentStrongman}
         </div>
+      )}
+
+      {/* Gold divider */}
+      <div style={{ borderTop: `1px solid rgba(201,168,76,0.2)`, marginBottom: 20 }} />
+
+      {/* Description — flowing body text */}
+      {selected.description && (
+        <div style={{ fontFamily: crimson, fontSize: 15, color: TXT, lineHeight: 1.85, marginBottom: 22 }}>
+          {selected.description}
+        </div>
+      )}
+
+      {/* Companion Spirits */}
+      {companionNames.length > 0 && (
+        <>
+          <div style={{ borderTop: `1px solid rgba(201,168,76,0.2)`, marginBottom: 16 }} />
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Companion Spirits</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+              {connectedDemons.map(({ name, demon }) => (
+                <button
+                  key={name}
+                  onClick={() => { if (demon) setSelected(demon) }}
+                  style={{
+                    background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(160,120,48,0.06)',
+                    border: `1px solid ${demon ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.18)'}`,
+                    borderRadius: 20, padding: '4px 12px',
+                    cursor: demon ? 'pointer' : 'default',
+                    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em',
+                    color: demon ? GC : MUT,
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { if (demon) { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.16)'; (e.currentTarget as HTMLElement).style.borderColor = GC } }}
+                  onMouseLeave={e => { if (demon) { (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(201,168,76,0.06)' : 'rgba(160,120,48,0.06)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.5)' } }}
+                >
+                  {demon ? '⚔ ' : ''}{name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Deliverance Sequence */}
       {selected.deliveranceSequence && (
-        <div style={{ marginBottom: 18, padding: '12px 16px', background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 8 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Deliverance Sequence</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.7 }}>{selected.deliveranceSequence}</div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Deliverance Sequence</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.deliveranceSequence}</div>
         </div>
       )}
 
       {/* Session Indicators */}
       {selected.sessionIndicators && (
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Session Indicators</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.7 }}>{selected.sessionIndicators}</div>
-        </div>
-      )}
-
-      {/* Connected Spirits (from Cluster Spirits field, bidirectional) */}
-      {connected.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Connected Spirits</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-            {connected.map((c: any) => {
-              const cColor = HIER_COLORS[c.biblicalRank] || HIER_COLORS[c.hierarchyCategory] || '#9a8c74'
-              return (
-                <button key={c.id} onClick={() => setSelected(c)}
-                  style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${cColor}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', textAlign: 'left' as const, minWidth: 120 }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = cColor; (e.currentTarget as HTMLElement).style.background = `${cColor}12` }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = BDR; (e.currentTarget as HTMLElement).style.background = SURF }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 2 }}>{c.name}</div>
-                  <div style={{ fontSize: 8, color: cColor, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{c.biblicalRank || c.hierarchyCategory || ''}</div>
-                </button>
-              )
-            })}
-          </div>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Session Indicators</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.75 }}>{selected.sessionIndicators}</div>
         </div>
       )}
 
       {/* Related Library Resources */}
       {(resources.length > 0 || resLoading) && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Related Resources</div>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Related Resources</div>
           {resLoading ? (
             <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, fontStyle: 'italic' }}>Loading...</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
               {resources.map((r: any) => (
-                <div key={r.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 2 }}>{r.title}</div>
-                  {r.topic && <div style={{ fontSize: 8, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{r.topic}</div>}
+                <div key={r.id} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, letterSpacing: '0.04em', marginBottom: 1 }}>{r.title}</div>
+                  {r.topic && <div style={{ fontSize: 9, color: MUT, fontFamily: crimson }}>{r.topic}</div>}
                 </div>
               ))}
             </div>
@@ -5053,8 +5059,8 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
         </div>
       )}
 
-      {/* Gateway Investigator button */}
-      <div style={{ paddingTop: 4 }}>
+      {/* Gateway button */}
+      <div style={{ paddingTop: 8 }}>
         <button onClick={() => onNavigateTo && onNavigateTo('gateway')}
           style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
           🚪 Run Gateway Report for {selected.name}
@@ -5110,49 +5116,25 @@ function SpiritNetworkView({ theme, isMobile, setSidebarOpen, demons, onNavigate
 
   // ── RIGHT PANEL (spirit selected, not mobile) ────────────────
   const RightPanel = selected && !isMobile && (
-    <div style={{ width: 200, flexShrink: 0, borderLeft: `1px solid ${BDR}`, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', padding: '16px 14px', overflowY: 'auto' }}>
-      <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 14 }}>Intel Summary</div>
-
-      {/* Stats */}
-      {[
-        { label: 'Kingdom', value: selected.kingdom },
-        { label: 'Sub-Kingdom', value: selected.subKingdom },
-        { label: 'Biblical Rank', value: selected.biblicalRank },
-        { label: 'Case Type', value: selected.caseType },
-        { label: 'Parent Strongman', value: selected.parentStrongman },
-        { label: 'Generational', value: selected.isGenerational ? 'Yes' : null },
-        { label: 'Territorial', value: selected.isTerritorial ? 'Yes' : null },
-      ].filter(s => s.value).map(({ label, value }) => (
-        <div key={label} style={{ marginBottom: 12 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 2 }}>{label}</div>
-          <div style={{ fontFamily: crimson, fontSize: 12, color: TXT }}>{value}</div>
-        </div>
-      ))}
-
-      {/* Connections breakdown */}
-      {connected.length > 0 && (
-        <div style={{ marginTop: 8, paddingTop: 12, borderTop: `1px solid ${BDR}` }}>
-          <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Connections ({connected.length})</div>
-          {Object.entries(
-            connected.reduce((acc: any, c: any) => {
-              const k = c.kingdom || 'Unknown'; acc[k] = (acc[k] || 0) + 1; return acc
-            }, {})
-          ).map(([k, count]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 8, color: MUT, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{k}</span>
-              <span style={{ fontFamily: crimson, fontSize: 11, color: TXT }}>{String(count)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Primary Battlefield */}
-      {selected.primaryBattlefield && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BDR}` }}>
-          <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 4 }}>Battlefield</div>
-          <div style={{ fontFamily: crimson, fontSize: 12, color: TXT }}>{selected.primaryBattlefield}</div>
-        </div>
-      )}
+    <div style={{ width: 200, flexShrink: 0, borderLeft: `1px solid ${BDR}`, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', padding: '20px 16px', overflowY: 'auto' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 16 }}>Intel Summary</div>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 13 }}>
+        {[
+          { label: 'Kingdom',         value: selected.kingdom },
+          { label: 'Sub-Kingdom',     value: selected.subKingdom },
+          { label: 'Biblical Rank',   value: selected.biblicalRank },
+          { label: 'Case Type',       value: selected.caseType },
+          { label: 'Parent Strongman',value: selected.parentStrongman },
+          { label: 'Battlefield',     value: selected.primaryBattlefield },
+          { label: 'Generational',    value: selected.isGenerational ? 'Yes' : null },
+          { label: 'Territorial',     value: selected.isTerritorial ? 'Yes' : null },
+        ].filter(s => s.value).map(({ label, value }) => (
+          <div key={label} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 7, color: MUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 2 }}>{label}</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: TXT, lineHeight: 1.4 }}>{value}</div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 
