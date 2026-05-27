@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
+import { SpiritTagEditor } from '@/components/SpiritTagEditor'
 
 export const Route = createFileRoute('/admin')({
   component: AdminPage,
@@ -2829,9 +2830,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [books, setBooks]           = useState<any[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
 
-  // AI Rename inline state — keyed by book id
-  type RenameState = { loading: boolean; editing: boolean; title: string; author: string; notes: string }
-  const [renameStates, setRenameStates] = useState<Record<string, RenameState>>({})
+  // Inline edit state — keyed by book id (covers both manual edit and AI-rename flows)
+  type EditState = { loading: boolean; editing: boolean; title: string; author: string; notes: string; topic: string; spirit_tags: string[] }
+  const [editStates, setEditStates] = useState<Record<string, EditState>>({})
 
   // Library summary state
   const [libSummary, setLibSummary]     = useState<{ summary: string; books: any[] } | null>(null)
@@ -2841,6 +2842,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   // Staged files state
   type StagedFile = {
     id: string; file: File; title: string; author: string; notes: string
+    spirit_tags: string[]
     status: 'pending' | 'analyzing' | 'uploading' | 'done' | 'error'
     errorMsg?: string; aiGenerated: boolean
   }
@@ -2960,7 +2962,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           // Strip extension → strip ALL leading numeric doc-ID blocks → normalise separators
           // e.g. "355225898-32149476-Principles-Of-Mass-Deliverance.txt" → "Principles Of Mass Deliverance"
           title: f.name.replace(/\.[^/.]+$/, '').replace(/^(\d+[-_\s]*)+/, '').replace(/[-_]/g, ' ').trim(),
-          author: '', notes: '',
+          author: '', notes: '', spirit_tags: [],
           status: 'pending' as const,
           aiGenerated: false,
         }))
@@ -2968,7 +2970,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     })
   }
 
-  function updateStaged(id: string, patch: Partial<{ title: string; author: string; notes: string; status: StagedFile['status']; errorMsg: string; aiGenerated: boolean }>) {
+  function updateStaged(id: string, patch: Partial<{ title: string; author: string; notes: string; spirit_tags: string[]; status: StagedFile['status']; errorMsg: string; aiGenerated: boolean }>) {
     setStagedFiles(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f))
   }
 
@@ -3010,8 +3012,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             : f))
           return
         }
-        // Expect { title, author, notes } — populate only fields that came back non-empty
-        console.log('[handleAutoFill] success for', sf.id, '| title:', d.title, 'author:', d.author)
+        // Expect { title, author, notes, topic, spirit_tags } — populate only non-empty fields
+        console.log('[handleAutoFill] success for', sf.id, '| title:', d.title, 'author:', d.author, 'spirit_tags:', d.spirit_tags)
         setStagedFiles(prev => prev.map(f => {
           if (f.id !== sf.id) return f
           return {
@@ -3019,6 +3021,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             title: d.title?.trim() || f.title,
             author: d.author?.trim() || f.author,
             notes: d.notes?.trim() || f.notes,
+            spirit_tags: Array.isArray(d.spirit_tags) ? d.spirit_tags : f.spirit_tags,
             aiGenerated: true,
             status: 'pending' as const,
             errorMsg: undefined,
@@ -3077,6 +3080,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             title: sf.title.trim() || sf.file.name,
             author: sf.author.trim() || null,
             notes: sf.notes.trim() || null,
+            spirit_tags: sf.spirit_tags ?? [],
             filename: sf.file.name,
             file_size: sf.file.size,
             file_path: filePath,
@@ -3133,8 +3137,33 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     return `${(b / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  /** Open the edit panel with current book values — no AI call */
+  function openEdit(book: any) {
+    setEditStates(prev => ({
+      ...prev,
+      [book.id]: {
+        loading: false,
+        editing: true,
+        title: book.title || '',
+        author: book.author || '',
+        notes: book.notes || '',
+        topic: book.topic || 'ministry-library',
+        spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
+      },
+    }))
+  }
+
+  /** Open the edit panel pre-filled with AI suggestions */
   async function handleAiRename(book: any) {
-    setRenameStates(prev => ({ ...prev, [book.id]: { loading: true, editing: false, title: book.title || '', author: book.author || '', notes: book.notes || '' } }))
+    setEditStates(prev => ({
+      ...prev,
+      [book.id]: {
+        loading: true, editing: false,
+        title: book.title || '', author: book.author || '', notes: book.notes || '',
+        topic: book.topic || 'ministry-library',
+        spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
+      },
+    }))
     try {
       const token = await getToken()
       const resp = await fetch('/api/library-autofill', {
@@ -3144,37 +3173,86 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       })
       const d = await resp.json()
       if (!resp.ok) {
-        setRenameStates(prev => ({ ...prev, [book.id]: { loading: false, editing: false, title: book.title || '', author: book.author || '', notes: book.notes || '' } }))
+        setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], loading: false, editing: true } }))
         return
       }
-      setRenameStates(prev => ({
+      setEditStates(prev => ({
         ...prev,
-        [book.id]: { loading: false, editing: true, title: d.title || book.title || '', author: d.author || book.author || '', notes: d.notes || book.notes || '' },
+        [book.id]: {
+          loading: false, editing: true,
+          title: d.title || book.title || '',
+          author: d.author || book.author || '',
+          notes: d.notes || book.notes || '',
+          topic: d.topic || book.topic || 'ministry-library',
+          spirit_tags: Array.isArray(d.spirit_tags) && d.spirit_tags.length ? d.spirit_tags : (Array.isArray(book.spirit_tags) ? book.spirit_tags : []),
+        },
       }))
     } catch {
-      setRenameStates(prev => ({ ...prev, [book.id]: { loading: false, editing: false, title: book.title || '', author: book.author || '', notes: book.notes || '' } }))
+      setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], loading: false, editing: true } }))
     }
   }
 
-  function cancelRename(id: string) {
-    setRenameStates(prev => { const n = { ...prev }; delete n[id]; return n })
+  /** Inside an already-open edit panel, re-run AI fill without closing the panel */
+  async function aiRenameInPanel(id: string) {
+    const es = editStates[id]
+    const book = books.find(b => b.id === id)
+    if (!es || !book) return
+    setEditStates(prev => ({ ...prev, [id]: { ...prev[id], loading: true } }))
+    try {
+      const token = await getToken()
+      const resp = await fetch('/api/library-autofill', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
+      })
+      const d = await resp.json()
+      if (resp.ok) {
+        setEditStates(prev => ({
+          ...prev,
+          [id]: {
+            ...prev[id],
+            loading: false,
+            title: d.title || prev[id].title,
+            author: d.author || prev[id].author,
+            notes: d.notes || prev[id].notes,
+            topic: d.topic || prev[id].topic,
+            spirit_tags: Array.isArray(d.spirit_tags) && d.spirit_tags.length ? d.spirit_tags : prev[id].spirit_tags,
+          },
+        }))
+      } else {
+        setEditStates(prev => ({ ...prev, [id]: { ...prev[id], loading: false } }))
+      }
+    } catch {
+      setEditStates(prev => ({ ...prev, [id]: { ...prev[id], loading: false } }))
+    }
   }
 
-  async function saveRename(id: string) {
-    const rs = renameStates[id]
-    if (!rs) return
+  function cancelEdit(id: string) {
+    setEditStates(prev => { const n = { ...prev }; delete n[id]; return n })
+  }
+
+  async function saveEdit(id: string) {
+    const es = editStates[id]
+    if (!es) return
     const token = await getToken()
     const res = await fetch('/api/admin-library', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id, title: rs.title.trim(), author: rs.author.trim(), notes: rs.notes.trim() }),
+      body: JSON.stringify({
+        id,
+        title: es.title.trim(),
+        author: es.author.trim(),
+        notes: es.notes.trim(),
+        topic: es.topic,
+        spirit_tags: es.spirit_tags,
+      }),
     })
     if (res.ok) {
       const d = await res.json()
       if (d.book) setBooks(prev => prev.map(b => b.id === id ? { ...b, ...d.book } : b))
-      else setBooks(prev => prev.map(b => b.id === id ? { ...b, title: rs.title, author: rs.author, notes: rs.notes } : b))
+      else setBooks(prev => prev.map(b => b.id === id ? { ...b, title: es.title, author: es.author, notes: es.notes, topic: es.topic, spirit_tags: es.spirit_tags } : b))
     }
-    cancelRename(id)
+    cancelEdit(id)
   }
 
   async function cleanTitle(book: any) {
@@ -3483,6 +3561,14 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                       <textarea value={sf.notes} onChange={e => updateStaged(sf.id, { notes: e.target.value })} disabled={busy}
                         rows={2} style={{ ...inp, fontSize: 12, padding: '6px 10px', resize: 'vertical' as const }} placeholder="Ministry relevance..." />
                     </div>
+                    <div style={{ marginTop: 8 }}>
+                      <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>SPIRIT TAGS</label>
+                      <SpiritTagEditor
+                        tags={sf.spirit_tags ?? []}
+                        onChange={tags => updateStaged(sf.id, { spirit_tags: tags })}
+                        disabled={busy}
+                      />
+                    </div>
                   </div>
                 )
               })}
@@ -3517,7 +3603,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {books.map(book => {
-                const rs = renameStates[book.id]
+                const es = editStates[book.id]
                 const hasNumericPrefix = /^\d+[-\s]/.test(book.title || '')
                 return (
                 <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
@@ -3529,7 +3615,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                         {fmtBytes(book.file_size)}
                         {book.created_at ? ` · ${new Date(book.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                       </div>
-                      {book.notes && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>{book.notes}</div>}
+                      {book.notes && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginBottom: 4 }}>{book.notes}</div>}
+                      {Array.isArray(book.spirit_tags) && book.spirit_tags.length > 0 && (
+                        <SpiritTagEditor tags={book.spirit_tags} onChange={() => {}} readOnly />
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
                       {/* Active toggle */}
@@ -3553,69 +3642,100 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           <div style={{ position: 'absolute' as const, top: 2, left: book.ai_generated ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                         </button>
                       </div>
-                      {/* AI Rename button */}
-                      <button
-                        onClick={() => handleAiRename(book)}
-                        disabled={rs?.loading}
-                        style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: rs?.loading ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: rs?.loading ? 0.6 : 1 }}
-                        title="AI Rename — auto-fill title, author, and notes"
-                      >
-                        {rs?.loading ? '...' : '✦ AI Rename'}
-                      </button>
-                      {/* Clean Title button — only when numeric prefix detected */}
-                      {hasNumericPrefix && (
+                      {/* Clean Title — only when numeric prefix detected */}
+                      {hasNumericPrefix && !es?.editing && (
                         <button
                           onClick={() => cleanTitle(book)}
                           style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
                           title="Strip numeric prefix from title"
-                        >
-                          ✂ Clean Title
-                        </button>
+                        >✂ Clean</button>
                       )}
+                      {/* Edit button */}
+                      <button
+                        onClick={() => es?.editing ? cancelEdit(book.id) : openEdit(book)}
+                        style={{ background: es?.editing ? 'rgba(201,168,76,0.1)' : 'transparent', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
+                        title="Edit metadata"
+                      >
+                        {es?.editing ? '✕ Close' : '✎ Edit'}
+                      </button>
                       <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
                         style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
                         Delete
                       </button>
                     </div>
                   </div>
-                  {/* AI Rename inline edit form */}
-                  {rs?.editing && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid rgba(201,168,76,0.18)` }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, color: '#8BA3D4', letterSpacing: '0.1em', marginBottom: 10 }}>✦ AI SUGGESTED — REVIEW & SAVE</div>
+                  {/* ── Inline Edit Panel ── */}
+                  {es?.editing && (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid rgba(201,168,76,0.18)` }}>
+                      {/* Panel header with AI Rename button */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>Edit Metadata</span>
+                        <button
+                          onClick={() => aiRenameInPanel(book.id)}
+                          disabled={es.loading}
+                          style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: es.loading ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: es.loading ? 0.6 : 1 }}
+                        >
+                          {es.loading ? '✦ Analyzing...' : '✦ AI Rename'}
+                        </button>
+                      </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                         <div>
                           <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TITLE</label>
                           <input
-                            value={rs.title}
-                            onChange={e => setRenameStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], title: e.target.value } }))}
+                            value={es.title}
+                            onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], title: e.target.value } }))}
                             style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
                           />
                         </div>
                         <div>
                           <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>AUTHOR</label>
                           <input
-                            value={rs.author}
-                            onChange={e => setRenameStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], author: e.target.value } }))}
+                            value={es.author}
+                            onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], author: e.target.value } }))}
                             style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
                           />
                         </div>
                       </div>
-                      <div style={{ marginBottom: 10 }}>
+                      <div style={{ marginBottom: 8 }}>
                         <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>NOTES</label>
                         <textarea
-                          value={rs.notes}
-                          onChange={e => setRenameStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], notes: e.target.value } }))}
+                          value={es.notes}
+                          onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], notes: e.target.value } }))}
                           rows={2}
                           style={{ ...inp, fontSize: 12, padding: '6px 10px', resize: 'vertical' as const }}
                         />
                       </div>
+                      <div style={{ marginBottom: 8 }}>
+                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TOPIC</label>
+                        <select
+                          value={es.topic}
+                          onChange={e => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], topic: e.target.value } }))}
+                          style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
+                        >
+                          <option value="ministry-library">ministry-library</option>
+                          <option value="deliverance">deliverance</option>
+                          <option value="spiritual-warfare">spiritual-warfare</option>
+                          <option value="inner-healing">inner-healing</option>
+                          <option value="theology">theology</option>
+                          <option value="prayer">prayer</option>
+                          <option value="prophecy">prophecy</option>
+                          <option value="healing">healing</option>
+                        </select>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>SPIRIT TAGS</label>
+                        <SpiritTagEditor
+                          tags={es.spirit_tags}
+                          onChange={tags => setEditStates(prev => ({ ...prev, [book.id]: { ...prev[book.id], spirit_tags: tags } }))}
+                        />
+                      </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={() => saveRename(book.id)}
-                          style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}
-                        >Save</button>
+                          onClick={() => saveEdit(book.id)}
+                          style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 16px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}
+                        >✦ Save</button>
                         <button
-                          onClick={() => cancelRename(book.id)}
+                          onClick={() => cancelEdit(book.id)}
                           style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}
                         >Cancel</button>
                       </div>

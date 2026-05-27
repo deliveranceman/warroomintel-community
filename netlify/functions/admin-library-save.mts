@@ -79,7 +79,7 @@ export default async function handler(req: Request) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { title, author, notes, filename, file_size, file_path, ai_generated } = body
+  const { title, author, notes, spirit_tags, filename, file_size, file_path, ai_generated } = body
 
   if (!title?.trim() || !file_path) {
     return Response.json({ error: 'title and file_path are required' }, { status: 400 })
@@ -104,6 +104,7 @@ export default async function handler(req: Request) {
       user_id: userId,
       ai_generated: Boolean(ai_generated),
       active: true,
+      spirit_tags: Array.isArray(spirit_tags) ? spirit_tags : [],
     })
     .select()
     .single()

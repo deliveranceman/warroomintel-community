@@ -68,7 +68,7 @@ export default async function handler(req: Request) {
   if (req.method === 'GET') {
     const { data, error } = await sb
       .from('resources')
-      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes')
+      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags')
       .eq('topic', 'ministry-library')
       .order('created_at', { ascending: false })
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
@@ -164,7 +164,7 @@ export default async function handler(req: Request) {
     const body = await req.json()
     const { id, cleanTitle, ...fields } = body
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
-    const allowed = ['title', 'author', 'notes', 'active', 'ai_generated']
+    const allowed = ['title', 'author', 'notes', 'active', 'ai_generated', 'topic', 'spirit_tags']
     const update: Record<string, any> = {}
     for (const k of allowed) { if (k in fields) update[k] = fields[k] }
     // Strip numeric prefix from title when cleanTitle flag is set
@@ -185,7 +185,7 @@ export default async function handler(req: Request) {
       .update(update)
       .eq('id', id)
       .eq('topic', 'ministry-library')
-      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes')
+      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags')
       .single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     return new Response(JSON.stringify({ success: true, book: data }), { status: 200, headers })
