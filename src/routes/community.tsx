@@ -3084,7 +3084,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
 
               {/* Name + badges header */}
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 22, color, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>{name}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 22, color: dbIsDark ? color : '#1a1410', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>{name}</div>
                 {entry.phonetic && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</span>
@@ -3096,8 +3096,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier }: {
                 )}
                 {/* Classification badges */}
                 <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                  {cls && <span style={{ fontFamily: cinzel, fontSize: 8, background: color + '22', color, padding: '3px 10px', borderRadius: 4 }}>{cls.toUpperCase()}</span>}
-                  {entry.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(201,168,76,0.12)', color: G, border: '1px solid rgba(201,168,76,0.3)', padding: '3px 10px', borderRadius: 4 }}>⚔ {entry.biblicalRank}</span>}
+                  {entry.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(201,168,76,0.15)', color: dbIsDark ? G : '#7a5c10', border: `1px solid rgba(201,168,76,0.35)`, padding: '3px 10px', borderRadius: 4 }}>⚔ {entry.biblicalRank}</span>}
                   {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
                   {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
                   {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', padding: '3px 10px', borderRadius: 4 }}>🗺 Territorial</span>}
@@ -5355,11 +5354,12 @@ function CommunityPage() {
         {/* ── QUICK ACCESS ICON STRIP ── */}
         <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
           {[
-            { icon: '💬', label: 'War Room Chat',  section: 'war-room-chat'  },
-            { icon: '🙏', label: 'Prayer Wall',    section: 'prayer-wall'    },
-            { icon: '✝',  label: 'Testimony Wall', section: 'testimony-wall' },
-            { icon: '👥', label: 'Members',        section: 'members'        },
-            { icon: '❓', label: 'Feedback',       section: 'feedback'       },
+            { icon: '💬', label: 'War Room Chat',     section: 'war-room-chat'  },
+            { icon: '✉',  label: 'Direct Messages',   section: 'dms'            },
+            { icon: '🙏', label: 'Prayer Wall',       section: 'prayer-wall'    },
+            { icon: '✝',  label: 'Testimony Wall',    section: 'testimony-wall' },
+            { icon: '👥', label: 'Members',           section: 'members'        },
+            { icon: '❓', label: 'Feedback',          section: 'feedback'       },
           ].map(({ icon, label, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
@@ -5369,8 +5369,11 @@ function CommunityPage() {
                 style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, cursor: 'pointer', fontSize: section === 'testimony-wall' ? 15 : 16, color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
               >
                 {icon}
-                {section === 'war-room-chat' && unreadDMs > 0 && (
+                {section === 'dms' && unreadDMs > 0 && (
                   <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
+                )}
+                {section === 'war-room-chat' && unreadWarRoom > 0 && (
+                  <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadWarRoom > 9 ? '9+' : unreadWarRoom}</span>
                 )}
               </button>
               {isMobile && (
@@ -5379,7 +5382,7 @@ function CommunityPage() {
                 </div>
               )}
               {!isMobile && tooltipVisible === section && (
-                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 4 ? 'auto' : '50%', right: idx === 4 ? 0 : 'auto', transform: idx > 0 && idx < 4 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
+                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 5 ? 'auto' : '50%', right: idx === 5 ? 0 : 'auto', transform: idx > 0 && idx < 5 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
               )}
             </div>
           ))}

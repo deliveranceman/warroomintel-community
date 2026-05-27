@@ -57,7 +57,7 @@ async function getPreamble(
     // Fetch contexts and books in parallel
     const [contextResult, booksResult] = await Promise.all([
       client.from('ministry_context').select('label, context_text, scope').eq('is_active', true).order('scope'),
-      client.from('ministry_library').select('title, author, extracted_text').eq('is_enabled', true),
+      client.from('ministry_library').select('title, author, extracted_text').eq('is_enabled', true).eq('ai_enabled', true),
     ])
 
     const MAX_CHARS = 8000
@@ -107,12 +107,21 @@ async function getPreamble(
       if (scored.length > 0) {
         scored.sort((a, b) => b.score - a.score)
         let bookSection = `PERSONAL MINISTRY LIBRARY:\n`
-        for (const c of scored.slice(0, 3)) {
+        let usedBooks = 0
+        let usedChars = 0
+        for (const c of scored.slice(0, 5)) {
           const entry = `[${c.title}${c.author ? ` by ${c.author}` : ''}]:\n${c.text}\n\n`
           if ((preamble + bookSection + entry).length > MAX_CHARS) break
           bookSection += entry
+          usedBooks++
+          usedChars += c.text.length
         }
-        if (bookSection.length > 30) preamble += bookSection
+        if (bookSection.length > 30) {
+          preamble += bookSection
+          console.log(`[ai-spirit-enhance] Ministry library context loaded: ${usedBooks} books, ${usedChars} characters`)
+        }
+      } else {
+        console.log(`[ai-spirit-enhance] Ministry library: ${books.length} books available, none matched spirit keywords`)
       }
     }
 

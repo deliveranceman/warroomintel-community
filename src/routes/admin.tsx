@@ -2999,6 +2999,16 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     if (res.ok) setBooks(prev => prev.map(b => b.id === id ? { ...b, is_enabled } : b))
   }
 
+  async function toggleAiEnabled(id: string, ai_enabled: boolean) {
+    const token = await getToken()
+    const res = await fetch('/api/admin-library', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, ai_enabled }),
+    })
+    if (res.ok) setBooks(prev => prev.map(b => b.id === id ? { ...b, ai_enabled } : b))
+  }
+
   async function deleteBook(id: string, file_path: string, title: string) {
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
     const token = await getToken()
@@ -3186,8 +3196,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             </div>
           ) : (
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, letterSpacing: '0.06em', marginBottom: 4 }}>Drop PDF here or click to select</div>
-              <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>PDF only · Max 50MB</div>
+              <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, letterSpacing: '0.06em', marginBottom: 4 }}>Drop PDF or TXT here or click to select</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>PDF or TXT · Max 50MB</div>
             </div>
           )}
         </div>
@@ -3248,7 +3258,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         ) : (
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 10, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
-              {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.is_enabled).length} active in AI context
+              {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.ai_enabled !== false).length} enabled for AI context
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {books.map(book => (
@@ -3265,14 +3275,25 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                       {book.notes && <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>{book.notes}</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-                      {/* Toggle */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em' }}>AI</span>
+                      {/* Visible toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>VIS</span>
                         <button
                           onClick={() => toggleBook(book.id, !book.is_enabled)}
-                          style={{ width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', background: book.is_enabled ? LG : 'rgba(255,255,255,0.15)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
+                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.is_enabled ? LG : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
                         >
-                          <div style={{ position: 'absolute' as const, top: 3, left: book.is_enabled ? 20 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                          <div style={{ position: 'absolute' as const, top: 2, left: book.is_enabled ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                        </button>
+                      </div>
+                      {/* AI context toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>AI</span>
+                        <button
+                          onClick={() => toggleAiEnabled(book.id, !(book.ai_enabled !== false))}
+                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.ai_enabled !== false ? '#5C7CBF' : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
+                          title={book.ai_enabled !== false ? 'AI context: ON' : 'AI context: OFF'}
+                        >
+                          <div style={{ position: 'absolute' as const, top: 2, left: book.ai_enabled !== false ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                         </button>
                       </div>
                       <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
@@ -4166,6 +4187,218 @@ function DocumentsView({ getToken, isDark, demons }: {
   )
 }
 
+function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const G2 = isDark ? G : '#A07C2C'
+  const bg2 = isDark ? BG : '#F5F0E8'
+  const surf2 = isDark ? SURF : '#EDE6D3'
+  const bdr2 = isDark ? BDR : 'rgba(139,105,20,0.25)'
+  const txt2 = isDark ? TXT : '#1C1407'
+  const dim2 = isDark ? DIM : '#6B5520'
+  const mut2 = isDark ? MUT : '#9a8c74'
+
+  // Gap analysis state
+  const [gapLoading, setGapLoading] = useState(false)
+  const [gapResults, setGapResults] = useState<any[]>([])
+  const [gapMeta, setGapMeta] = useState<{ bookTitles: string[]; spiritCount: number } | null>(null)
+  const [gapError, setGapError] = useState('')
+  const [addingSpirit, setAddingSpirit] = useState<any | null>(null)
+  const [addSuccess, setAddSuccess] = useState<string | null>(null)
+
+  // Content query state
+  const [cqQuery, setCqQuery] = useState('')
+  const [cqLoading, setCqLoading] = useState(false)
+  const [cqResponse, setCqResponse] = useState('')
+  const [cqTitles, setCqTitles] = useState<string[]>([])
+  const [cqError, setCqError] = useState('')
+
+  async function runGapAnalysis() {
+    setGapLoading(true)
+    setGapResults([])
+    setGapError('')
+    setGapMeta(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/library-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ tool: 'gap-analysis' }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setGapError(data.error || 'Analysis failed'); return }
+      setGapResults(data.results || [])
+      setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: data.spiritCount || 0 })
+    } catch (e: any) { setGapError(e.message) }
+    setGapLoading(false)
+  }
+
+  async function runContentQuery() {
+    if (!cqQuery.trim()) return
+    setCqLoading(true)
+    setCqResponse('')
+    setCqError('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/library-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ tool: 'content-query', query: cqQuery }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setCqError(data.error || 'Query failed'); return }
+      setCqResponse(data.response || '')
+      setCqTitles(data.bookTitles || [])
+    } catch (e: any) { setCqError(e.message) }
+    setCqLoading(false)
+  }
+
+  async function addToDatabase(spirit: any) {
+    setAddingSpirit(spirit)
+  }
+
+  async function confirmAdd(spirit: any) {
+    try {
+      const token = await getToken()
+      const fields: Record<string, string> = {
+        '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE': spirit.spirit_name,
+        'Description': spirit.brief_description,
+      }
+      const res = await fetch('https://api.airtable.com/v0/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` },
+        body: JSON.stringify({ fields }),
+      })
+      if (res.ok) {
+        setAddSuccess(spirit.spirit_name)
+        setAddingSpirit(null)
+        setTimeout(() => setAddSuccess(null), 3000)
+      }
+    } catch {}
+  }
+
+  function renderMarkdown(text: string) {
+    return text.split('\n').map((line, i) => {
+      if (line.startsWith('## ')) return <div key={i} style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G2, marginTop: 16, marginBottom: 6, letterSpacing: '0.06em' }}>{line.slice(3)}</div>
+      if (line.startsWith('**') && line.endsWith('**')) return <div key={i} style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: txt2, marginTop: 10, marginBottom: 4 }}>{line.replace(/\*\*/g, '')}</div>
+      if (line.startsWith('- ')) return <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}><span style={{ color: G2, flexShrink: 0 }}>•</span><span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt2, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} /></div>
+      if (!line.trim()) return <div key={i} style={{ height: 8 }} />
+      return <div key={i} style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, lineHeight: 1.65, marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, `<strong style="color:${txt2}">$1</strong>`) }} />
+    })
+  }
+
+  return (
+    <div style={{ color: txt2, fontFamily: "'Crimson Pro', serif" }}>
+      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: G2, marginBottom: 4, letterSpacing: '0.08em' }}>🔬 Library Intelligence</div>
+      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic', marginBottom: 28 }}>
+        AI-powered analysis of your ministry library against the spirit database
+      </div>
+
+      {/* ── Tool 1: Spirit Gap Analysis ── */}
+      <div style={{ background: surf2, border: `1px solid ${bdr2}`, borderRadius: 10, padding: '24px', marginBottom: 24 }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: txt2, marginBottom: 8, letterSpacing: '0.06em' }}>⚔ Spirit Gap Analysis</div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, lineHeight: 1.6, marginBottom: 16 }}>
+          Scans your ministry library documents and identifies spirits mentioned in your books that are not yet in the War Room Intel database.
+        </div>
+        <button onClick={runGapAnalysis} disabled={gapLoading} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '10px 24px', cursor: gapLoading ? 'wait' : 'pointer', opacity: gapLoading ? 0.7 : 1, marginBottom: 16 }}>
+          {gapLoading ? '🔍 Analyzing library against database...' : '⚔ Find Spirits Not In My Database'}
+        </button>
+        {gapError && <div style={{ color: '#e09090', fontFamily: "'Crimson Pro', serif", fontSize: 13, marginBottom: 12 }}>⚠ {gapError}</div>}
+        {addSuccess && <div style={{ color: '#80e090', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.08em', marginBottom: 12 }}>✓ {addSuccess} added to database</div>}
+        {gapMeta && (
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: mut2, marginBottom: 12 }}>
+            Analyzed {gapMeta.bookTitles.length} book{gapMeta.bookTitles.length !== 1 ? 's' : ''} against {gapMeta.spiritCount} database entries
+            {gapMeta.bookTitles.length > 0 && `: ${gapMeta.bookTitles.join(' · ')}`}
+          </div>
+        )}
+        {gapResults.length > 0 && (
+          <div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: G2, letterSpacing: '0.1em', marginBottom: 12 }}>
+              {gapResults.length} potential additions found
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {gapResults.map((r, i) => (
+                <div key={i} style={{ background: isDark ? BG : '#F5F0E8', border: `1px solid ${bdr2}`, borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: txt2, marginBottom: 4 }}>{r.spirit_name}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 6 }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: G2, border: `1px solid ${G2}44`, padding: '2px 8px', borderRadius: 3 }}>{r.suggested_rank}</span>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: mut2, border: `1px solid ${bdr2}`, padding: '2px 8px', borderRadius: 3 }}>{r.suggested_kingdom}</span>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.06em', color: mut2 }}>📖 {r.source_document}</span>
+                    </div>
+                    <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, lineHeight: 1.5 }}>{r.brief_description}</div>
+                  </div>
+                  <button onClick={() => addToDatabase(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
+                    + Add to DB
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {gapResults.length === 0 && gapMeta && (
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, fontStyle: 'italic' }}>
+            No new spirits found — your database may already cover the content in these books.
+          </div>
+        )}
+      </div>
+
+      {/* Add to DB confirmation modal */}
+      {addingSpirit && (
+        <div onClick={() => setAddingSpirit(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: surf2, border: `1px solid ${G2}55`, borderRadius: 10, padding: 28, maxWidth: 440, width: '100%' }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G2, marginBottom: 12 }}>Add to Database</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: txt2, marginBottom: 8 }}>{addingSpirit.spirit_name}</div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, marginBottom: 16, lineHeight: 1.6 }}>{addingSpirit.brief_description}</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => confirmAdd(addingSpirit)} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: '#80e090', border: 'none', borderRadius: 4, padding: '10px 20px', cursor: 'pointer' }}>
+                ✓ Confirm Add
+              </button>
+              <button onClick={() => setAddingSpirit(null)} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: dim2, background: 'transparent', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '10px 20px', cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Divider */}
+      <div style={{ height: 1, background: bdr2, margin: '8px 0 24px' }} />
+
+      {/* ── Tool 2: Content Intelligence Query ── */}
+      <div style={{ background: surf2, border: `1px solid ${bdr2}`, borderRadius: 10, padding: '24px' }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: txt2, marginBottom: 8, letterSpacing: '0.06em' }}>💡 Content Intelligence Query</div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, lineHeight: 1.6, marginBottom: 16 }}>
+          Ask questions about what content exists in your library and how it could be used to build out the platform.
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+          <input
+            value={cqQuery}
+            onChange={e => setCqQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runContentQuery()}
+            placeholder="e.g. What teaching topics are covered? What assessment tools exist? What prayer strategies haven't I added yet?"
+            style={{ flex: 1, background: isDark ? BG : '#F5F0E8', border: `1px solid ${bdr2}`, borderRadius: 6, padding: '10px 14px', color: txt2, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none' }}
+          />
+          <button onClick={runContentQuery} disabled={cqLoading || !cqQuery.trim()} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '10px 20px', cursor: cqLoading ? 'wait' : 'pointer', opacity: cqLoading || !cqQuery.trim() ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
+            {cqLoading ? 'Thinking...' : '💡 Ask'}
+          </button>
+        </div>
+        {cqError && <div style={{ color: '#e09090', fontFamily: "'Crimson Pro', serif", fontSize: 13, marginBottom: 12 }}>⚠ {cqError}</div>}
+        {cqResponse && (
+          <div>
+            <div style={{ background: isDark ? BG : '#F5F0E8', border: `1px solid ${bdr2}`, borderRadius: 8, padding: '20px', marginBottom: 12 }}>
+              {renderMarkdown(cqResponse)}
+            </div>
+            {cqTitles.length > 0 && (
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut2, letterSpacing: '0.08em' }}>
+                Documents analyzed: {cqTitles.join(' · ')}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
   const [submissions, setSubmissions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -4281,7 +4514,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -4341,6 +4574,7 @@ function AdminPage() {
     { key: 'documents',       label: '📄 Documents'      },
     { key: 'library',         label: 'Ministry Library'  },
     { key: 'spiritual-mapping', label: '📍 Spiritual Mapping' },
+    { key: 'lib-intel', label: '🔬 Library Intelligence' },
   ] as const
 
   return (
@@ -4403,6 +4637,7 @@ function AdminPage() {
         {tab === 'documents'      && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
         {tab === 'library'        && <LibraryManager getToken={getToken} isDark={isDark} />}
         {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
+        {tab === 'lib-intel'        && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
       </div>
     </div>
   )

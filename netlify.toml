@@ -20,3 +20,21 @@
 
 [functions."generate-summary"]
   timeout = 26
+
+[functions."generate-document"]
+  timeout = 30
+
+[functions."sm-generate-dossier"]
+  timeout = 30
+
+[functions."sm-research"]
+  timeout = 30
+
+[functions."ai-spirit-enhance"]
+  timeout = 30
+
+[functions."library-intelligence"]
+  timeout = 30
+
+[functions."admin-library"]
+  timeout = 30

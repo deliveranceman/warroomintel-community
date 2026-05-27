@@ -1,17 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
-
-// pdf-parse v2 ESM-safe import
-let pdfParse: ((buf: Buffer, opts?: any) => Promise<{ text: string; numpages: number }>) | null = null
-async function getPdfParse() {
-  if (pdfParse) return pdfParse
-  try {
-    const mod = await import('pdf-parse')
-    pdfParse = (mod.default as any) || (mod as any)
-    return pdfParse!
-  } catch {
-    return null
-  }
-}
+import { writeFile, unlink } from 'fs/promises'
+import { join } from 'path'
+import { randomUUID } from 'crypto'
+import { PDFParse } from 'pdf-parse'
 
 const BUCKET = 'ministry-library'
 const headers = {
@@ -40,6 +31,23 @@ async function resolveMinister(token: string): Promise<boolean> {
   } catch { return false }
 }
 
+async function extractPdfText(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
+  const tmpPath = join('/tmp', `wri-pdf-${randomUUID()}.pdf`)
+  try {
+    await writeFile(tmpPath, buffer)
+    const parser = new PDFParse({ url: tmpPath })
+    const result = await parser.getText()
+    const text = result.text || ''
+    console.log(`[admin-library] PDF text extracted: ${text.length} chars, ${result.numpages || 0} pages`)
+    return { text, pageCount: result.numpages || 0 }
+  } catch (e: any) {
+    console.error('[admin-library] PDF parse error:', e?.message || e)
+    return { text: '', pageCount: 0 }
+  } finally {
+    await unlink(tmpPath).catch(() => {})
+  }
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
@@ -52,7 +60,10 @@ export default async function handler(req: Request) {
 
   // ── GET — list all books ────────────────────────────────────────────────────
   if (req.method === 'GET') {
-    const { data, error } = await sb.from('ministry_library').select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,upload_date,notes').order('upload_date', { ascending: false })
+    const { data, error } = await sb
+      .from('ministry_library')
+      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes')
+      .order('upload_date', { ascending: false })
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     return new Response(JSON.stringify({ books: data || [] }), { status: 200, headers })
   }
@@ -67,24 +78,18 @@ export default async function handler(req: Request) {
 
     const buffer = Buffer.from(fileBase64, 'base64')
     const isTxt = fileName.toLowerCase().endsWith('.txt')
+    console.log(`[admin-library] Uploading: ${fileName} (${buffer.length} bytes, isTxt=${isTxt})`)
 
-    // Extract text — PDF parse or raw UTF-8 for .txt
+    // Extract text — UTF-8 for .txt, pdf-parse v2 temp file for .pdf
     let extractedText = ''
     let pageCount = 0
     if (isTxt) {
       extractedText = buffer.toString('utf-8')
-      pageCount = 0
+      console.log(`[admin-library] TXT decoded: ${extractedText.length} chars`)
     } else {
-      try {
-        const parse = await getPdfParse()
-        if (parse) {
-          const result = await parse(buffer)
-          extractedText = result.text || ''
-          pageCount = result.numpages || 0
-        }
-      } catch (e) {
-        console.error('PDF parse error:', e)
-      }
+      const result = await extractPdfText(buffer)
+      extractedText = result.text
+      pageCount = result.pageCount
     }
 
     // Upload to Supabase storage
@@ -103,14 +108,20 @@ export default async function handler(req: Request) {
       extracted_text: extractedText || null,
       notes: notes?.trim() || null,
       is_enabled: true,
-    }).select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,upload_date,notes').single()
+      ai_enabled: true,
+    }).select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes').single()
 
     if (insertErr) {
       await sb.storage.from(BUCKET).remove([safeName])
       return new Response(JSON.stringify({ error: `DB insert failed: ${insertErr.message}` }), { status: 500, headers })
     }
 
-    return new Response(JSON.stringify({ success: true, book: row, pagesExtracted: pageCount, textLength: extractedText.length }), { status: 200, headers })
+    return new Response(JSON.stringify({
+      success: true,
+      book: row,
+      pagesExtracted: pageCount,
+      textLength: extractedText.length,
+    }), { status: 200, headers })
   }
 
   // ── PATCH — update book metadata ────────────────────────────────────────────
@@ -118,10 +129,11 @@ export default async function handler(req: Request) {
     const body = await req.json()
     const { id, ...fields } = body
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
-    const allowed = ['title', 'author', 'notes', 'is_enabled']
+    const allowed = ['title', 'author', 'notes', 'is_enabled', 'ai_enabled']
     const update: Record<string, any> = {}
     for (const k of allowed) { if (k in fields) update[k] = fields[k] }
-    const { data, error } = await sb.from('ministry_library').update(update).eq('id', id).select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,upload_date,notes').single()
+    const { data, error } = await sb.from('ministry_library').update(update).eq('id', id)
+      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes').single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     return new Response(JSON.stringify({ success: true, book: data }), { status: 200, headers })
   }

@@ -10,8 +10,12 @@ export const Route = createFileRoute('/api/demons')({
         const BASE_ID = 'appVXEj2DLPBTJTtD'
         const TABLE_ID = 'tblcP4lgVykzOhLi4'
 
+        console.log('[api.demons] AIRTABLE_TOKEN present:', !!token)
+
         if (!token) {
-          return Response.json({ error: 'Missing AIRTABLE_TOKEN' }, { status: 500 })
+          console.error('[api.demons] AIRTABLE_TOKEN env var is not set')
+          // Return empty array so the page loads rather than breaking
+          return Response.json({ demons: [], total: 0, error: 'AIRTABLE_TOKEN not configured' })
         }
 
         try {
