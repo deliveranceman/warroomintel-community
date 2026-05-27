@@ -793,7 +793,6 @@ function PricingSection() {
       price: '$39',
       period: '/month',
       badge: 'Most Popular',
-      comingSoon: true,
       features: [
         'Everything in Soldier',
         'All database fields unlocked',
@@ -960,6 +959,13 @@ function PricingSection() {
           Questions about membership? Email{' '}
           <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none' }}>exorcist@warroomintel.com</a>
         </p>
+
+        {/* Charter founding member callout */}
+        <div style={{ marginTop: '32px', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: '6px', padding: '14px 20px', textAlign: 'center', background: 'rgba(201,168,76,0.04)' }}>
+          <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.18em', color: gold, margin: 0 }}>
+            ⚔ Founding Member Rates Available — Charter Soldier $9/mo · Charter Commander $20/mo · First 100 Only
+          </p>
+        </div>
       </div>
     </section>
   )
@@ -1153,12 +1159,17 @@ function Footer() {
         </div>
       </div>
       <div style={{ borderTop: `1px solid ${border}`, paddingTop: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '12px' }}>
-        <p style={{ fontSize: '12px', color: muted, fontFamily: crimson, fontStyle: 'italic' }}>
-          © {new Date().getFullYear()} War Room Intel · Staffordtown Church · All rights reserved
+        <p style={{ fontSize: '12px', color: muted, fontFamily: cinzel, margin: 0 }}>
+          © {new Date().getFullYear()} War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN
         </p>
-        <p style={{ fontSize: '12px', color: muted, fontFamily: crimson, fontStyle: 'italic', maxWidth: '400px', textAlign: 'right' as const }}>
-          War Room Intel is a spiritual ministry resource only and does not provide medical, psychological, or psychiatric services.
-        </p>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <a href="/terms" style={{ fontSize: '12px', color: gold, textDecoration: 'none', fontFamily: crimson, transition: 'opacity 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>Terms of Service</a>
+          <a href="/privacy" style={{ fontSize: '12px', color: gold, textDecoration: 'none', fontFamily: crimson, transition: 'opacity 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>Privacy Policy</a>
+        </div>
       </div>
     </footer>
   )

@@ -3635,9 +3635,9 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       </div>
 
       {/* Tier filter */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, marginBottom: 10, paddingBottom: 2 }}>
         {TIERS.map(t => (
-          <button key={t} onClick={() => setTierFilter(t)} style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${tierFilter === t ? G : border}`, background: tierFilter === t ? G : 'transparent', color: tierFilter === t ? '#0D0B14' : muted }}>
+          <button key={t} onClick={() => setTierFilter(t)} style={{ flexShrink: 0, padding: '4px 12px', borderRadius: 999, fontSize: 11, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, border: `1px solid ${tierFilter === t ? G : border}`, background: tierFilter === t ? G : 'transparent', color: tierFilter === t ? '#0D0B14' : muted }}>
             {t}
           </button>
         ))}
@@ -4697,7 +4697,7 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
       </div>
 
       {/* Region pill tabs */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: isMobile ? '0 16px 12px' : '0 32px 16px', scrollbarWidth: 'none' as any }}>
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, padding: isMobile ? '0 16px 12px' : '0 32px 16px' }}>
         {BODY_REGIONS.map(r => (
           <button key={r.id} onClick={() => setSelectedRegion(selectedRegion === r.id ? null : r.id)}
             style={{ flexShrink: 0, padding: '4px 12px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const,
@@ -5184,6 +5184,12 @@ function timeAgo(dateStr: string | null | undefined): string {
   if (days < 30) return `${days}d ago`
   return `${Math.floor(days / 30)}mo ago`
 }
+
+// ── UPCOMING CALLS — update manually here ──
+const UPCOMING_CALLS = [
+  { title: 'Group Warfare Prayer', date: 'Sat Jun 7 · 7pm CT', badge: 'Soldier' },
+  { title: "General's Table",      date: 'Wed Jun 4 · 8pm CT', badge: 'General' },
+]
 
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
@@ -5786,7 +5792,7 @@ function CommunityPage() {
           This section opens as a full page
         </div>
         <button
-          onClick={() => window.open(href, '_blank')}
+          onClick={() => { window.location.href = href }}
           style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#0e0c09', background: G, border: 'none', borderRadius: 4, padding: '11px 28px', cursor: 'pointer' }}
         >
           Open Full Page →
@@ -6301,10 +6307,7 @@ function CommunityPage() {
                 <span style={{ color: G }}>📅</span>
                 <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>UPCOMING CALLS</span>
               </div>
-              {[
-                { title: 'Group Warfare Prayer', date: 'Sat Jun 7 · 7pm CT', badge: 'Soldier' },
-                { title: "General's Table",      date: 'Wed Jun 4 · 8pm CT', badge: 'General' },
-              ].map(ev => (
+              {UPCOMING_CALLS.map(ev => (
                 <div key={ev.title} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${V.bdr}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
                     <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{ev.title}</span>
@@ -6322,7 +6325,7 @@ function CommunityPage() {
                   <span style={{ color: '#4ade80', fontSize: 8 }}>●</span>{' '}WARRIORS
                 </span>
                 <span style={{ fontSize: 9, color: V.mut, fontFamily: cinzel }}>
-                  ({Object.values(memberPresence).filter(p => p.online).length} online)
+                  ({Object.values(memberPresence).filter(p => p.online).length + 1} online)
                 </span>
               </div>
               {/* Current user always shown first */}

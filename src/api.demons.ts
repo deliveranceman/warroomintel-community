@@ -61,6 +61,7 @@ export const Route = createFileRoute('/api/demons')({
               counterScriptures: r.fields['Counter Scriptures'] || '',
               scripture: r.fields['Scripture Reference'] || '',
               sourceOrgin: r.fields['Source / Orgin'] || '',
+              type: r.fields['Rank'] || '',
               kingdom: r.fields['Kingdom'] || '',
               strongman: r.fields['Strongman'] || '',
               assignment: r.fields['Assignment'] || '',
