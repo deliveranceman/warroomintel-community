@@ -41,13 +41,14 @@ const BODY_REGIONS_SCC = [
 const LOG_ICONS: Record<string, string> = {
   note: '·', manifestation: '●', breakthrough: '◉', resistance: '✗',
   deception: '⚠', spirit_named: '➤', renunciation: '✓', pause: '⏸',
-  photo: '📷', audio: '🎤', seer_note: '🌊',
+  photo: '📷', audio: '🎤', seer_note: '🌊', recorder_note: '📝',
 }
 
 const LOG_COLORS: Record<string, string> = {
   note: TXT, manifestation: G, breakthrough: '#4ade80', resistance: '#f87171',
   deception: '#fb923c', spirit_named: '#c084fc', renunciation: '#86efac',
   pause: DIM, photo: '#60a5fa', audio: '#a78bfa', seer_note: '#34d399',
+  recorder_note: '#93c5fd',
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -193,7 +194,7 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
     },
     aiSuggestions: [],
     lastSaved: null,
-    mode: 'live',
+    mode: (caseFile?.defaultMode as any) || 'live',
     activeRole: 'leader',
   }))
 
@@ -220,7 +221,15 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
   const [addTeamOpen, setAddTeamOpen] = useState(false)
   const [renuncFilter, setRenuncFilter] = useState('')
   const [guidedStep, setGuidedStep] = useState(0)
+  const [guidedTeamNames, setGuidedTeamNames] = useState<Record<string, string>>({})
+  const [guidedAnxiety, setGuidedAnxiety] = useState(5)
+  const [guidedWorksheets, setGuidedWorksheets] = useState<string[]>([])
+  const [guidedSpiritSearch, setGuidedSpiritSearch] = useState('')
+  const [guidedSpiritList, setGuidedSpiritList] = useState<string[]>([])
+  const [guidedRenuncList, setGuidedRenuncList] = useState<string[]>([])
   const [seenSeer, setSeenSeer] = useState(false)
+  const [rollingNoteInput, setRollingNoteInput] = useState('')
+  const [spiritNoteInputs, setSpiritNoteInputs] = useState<Record<string, string>>({})
 
   const photoRef = useRef<HTMLInputElement>(null)
   const fileRef  = useRef<HTMLInputElement>(null)
@@ -230,6 +239,7 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
   const [recSeconds, setRecSeconds] = useState(0)
   const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const logEndRef = useRef<HTMLDivElement>(null)
+  const rollingEndRef = useRef<HTMLDivElement>(null)
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── TIMER ──────────────────────────────────────────────────────────────────
@@ -282,6 +292,10 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
   // ── SCROLL LOG TO BOTTOM ──────────────────────────────────────────────────
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [session.logEntries.length])
+
+  useEffect(() => {
+    rollingEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [session.logEntries.length])
 
   // ── SAVE ──────────────────────────────────────────────────────────────────
@@ -737,50 +751,218 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
   )
 
   // ── GUIDED MODE ───────────────────────────────────────────────────────────
-  const GUIDED_STEPS = [
-    { q: 'Has the team completed unity prayer?', action: 'unity_prayer' },
-    { q: 'Has the team received communion together?', action: 'communion' },
-    { q: 'Have you reviewed the session prep report?', action: 'review_plans' },
-    { q: 'Have all roles been assigned and confirmed?', action: 'assign_roles' },
-    { q: 'Have you bound Leviathan and Mind Control specifically?', action: 'bind_leviathan' },
-    { q: 'Have you forbidden spirit transfers to team members?', action: 'forbid_transfer' },
-    { q: 'Have you prayed angels at every entry/exit point?', action: 'angels_stationed' },
-  ]
+  function launchFromGuided() {
+    const team = Object.entries(guidedTeamNames)
+      .filter(([, n]) => (n as string)?.trim())
+      .map(([role, name]) => ({ name: (name as string).trim(), role }))
+    const existingNames = new Set(session.spiritSequence.map(s => s.name.toLowerCase()))
+    const newSpirits: SequenceSpirit[] = guidedSpiritList
+      .filter(n => !existingNames.has(n.toLowerCase()))
+      .map(name => {
+        const demon = demons.find((d: any) => d.name?.toLowerCase() === name.toLowerCase())
+        return { id: mkId(), name: demon?.name || name, rank: demon?.biblicalRank || 'Common Spirit', label: '', status: 'pending' as const, reasoning: '', entryPoints: demon?.entryPoints || '', companions: [], scriptures: [], breakthroughLevel: 'none' as const }
+      })
+    const updatedWorksheets = { ...session.worksheets }
+    guidedWorksheets.forEach(k => { updatedWorksheets[k] = true })
+    setSession(s => ({
+      ...s,
+      mode: 'live',
+      team: [...s.team, ...team],
+      spiritSequence: [...s.spiritSequence, ...newSpirits],
+      worksheets: updatedWorksheets,
+      preSession: { ...s.preSession, ...Object.fromEntries(PRE_SESSION_CHECKLIST.team_prep.map(i => [i.id, true])) },
+    }))
+    addLog('note', `Subject anxiety level at session start: ${guidedAnxiety}/10`)
+  }
 
   if (session.mode === 'guided') {
-    const step = GUIDED_STEPS[guidedStep]
+    const TOTAL = 7
+    const guidedFilteredDemons = guidedSpiritSearch.length > 1
+      ? demons.filter((d: any) => d.name?.toLowerCase().includes(guidedSpiritSearch.toLowerCase())).slice(0, 8)
+      : []
+    const topBar = (
+      <div style={{ height: 44, background: '#060408', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.15em' }}>⚔ GUIDED SESSION SETUP</div>
+        <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700 }}>{formatElapsed(elapsed)}</div>
+        <button onClick={() => setSession(s => ({ ...s, mode: 'live' }))} style={{ fontFamily: cinzel, fontSize: 9, color: DIM, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>SKIP TO LIVE</button>
+      </div>
+    )
+    const progress = (
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 28 }}>
+        {Array.from({ length: TOTAL }).map((_, i) => (
+          <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: i < guidedStep ? '#4ade80' : i === guidedStep ? G : 'rgba(201,168,76,0.2)', transition: 'background 0.3s' }} />
+        ))}
+      </div>
+    )
+    const nav = (onBack: (() => void) | null, onNext: () => void, nextLabel = 'NEXT →') => (
+      <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+        {onBack && <button onClick={onBack} style={{ padding: '12px 22px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>← BACK</button>}
+        <button onClick={onNext} style={{ flex: 1, padding: '14px', background: G, border: 'none', borderRadius: 6, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: '#060408', cursor: 'pointer', fontWeight: 700 }}>{nextLabel}</button>
+      </div>
+    )
+    const stepHeader = (n: number, label: string) => (
+      <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.15em', marginBottom: 6 }}>STEP {n} OF {TOTAL} — {label}</div>
+    )
     return (
       <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#09070e', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ height: 44, background: '#060408', borderBottom: `1px solid #1e1a0e`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.15em' }}>⚔ GUIDED SESSION SETUP</div>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{formatElapsed(elapsed)}</div>
-          <button onClick={() => setSession(s => ({ ...s, mode: 'live' }))} style={{ fontFamily: cinzel, fontSize: 9, color: DIM, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>SKIP TO LIVE</button>
-        </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 32 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.15em' }}>STEP {guidedStep + 1} OF {GUIDED_STEPS.length}</div>
-          <div style={{ fontFamily: crimson, fontSize: 26, color: TXT, textAlign: 'center', maxWidth: 500, lineHeight: 1.5 }}>{step?.q}</div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <button
-              onClick={() => {
-                setSession(s => ({ ...s, preSession: { ...s.preSession, [step.action]: true } }))
-                if (guidedStep + 1 >= GUIDED_STEPS.length) {
-                  setSession(s => ({ ...s, mode: 'live', currentPhase: 'welcome' }))
-                } else {
-                  setGuidedStep(g => g + 1)
-                }
-              }}
-              style={{ padding: '14px 32px', background: G, border: 'none', borderRadius: 6, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: '#060408', cursor: 'pointer', fontWeight: 700 }}
-            >YES</button>
-            <button
-              onClick={() => {
-                if (guidedStep + 1 >= GUIDED_STEPS.length) {
-                  setSession(s => ({ ...s, mode: 'live' }))
-                } else {
-                  setGuidedStep(g => g + 1)
-                }
-              }}
-              style={{ padding: '14px 32px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: DIM, cursor: 'pointer' }}
-            >NO - SKIP</button>
+        <style>{`.scc-scroll::-webkit-scrollbar{width:4px}.scc-scroll::-webkit-scrollbar-track{background:transparent}.scc-scroll::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.2);border-radius:2px}`}</style>
+        {topBar}
+        <div className="scc-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', justifyContent: 'center', padding: '32px 24px' }}>
+          <div style={{ width: '100%', maxWidth: 520 }}>
+            {progress}
+
+            {/* STEP 1 — TEAM READY */}
+            {guidedStep === 0 && (
+              <>
+                {stepHeader(1, 'TEAM READY')}
+                <div style={{ fontFamily: crimson, fontSize: 26, color: TXT, marginBottom: 20, lineHeight: 1.4 }}>Is your full team present and prepared?</div>
+                <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px 18px', marginBottom: 20 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: G, letterSpacing: '0.12em', marginBottom: 10 }}>PRE-SESSION REMINDERS</div>
+                  {PRE_SESSION_CHECKLIST.team_prep.map(item => (
+                    <div key={item.id} style={{ display: 'flex', gap: 8, marginBottom: 6, fontFamily: crimson, fontSize: 14, color: TXT }}>
+                      <span style={{ color: G, flexShrink: 0 }}>·</span>{item.text}
+                    </div>
+                  ))}
+                </div>
+                {nav(null, () => setGuidedStep(1), 'YES — TEAM IS READY')}
+              </>
+            )}
+
+            {/* STEP 2 — ASSIGN ROLES */}
+            {guidedStep === 1 && (
+              <>
+                {stepHeader(2, 'ASSIGN ROLES')}
+                <div style={{ fontFamily: crimson, fontSize: 22, color: TXT, marginBottom: 20, lineHeight: 1.4 }}>Enter team member names for each role.</div>
+                {TEAM_ROLES.map(role => (
+                  <div key={role} style={{ marginBottom: 10 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: G, letterSpacing: '0.12em', marginBottom: 4 }}>{role.toUpperCase()}</label>
+                    <input value={guidedTeamNames[role] || ''} onChange={e => setGuidedTeamNames(prev => ({ ...prev, [role]: e.target.value }))}
+                      placeholder={`${role} name (optional)`}
+                      style={{ width: '100%', boxSizing: 'border-box', background: SURF2, border: `1px solid ${BDR}`, borderRadius: 5, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
+                  </div>
+                ))}
+                {nav(() => setGuidedStep(0), () => setGuidedStep(2))}
+              </>
+            )}
+
+            {/* STEP 3 — WORKSHEETS */}
+            {guidedStep === 2 && (
+              <>
+                {stepHeader(3, 'WORKSHEETS COMPLETED')}
+                <div style={{ fontFamily: crimson, fontSize: 22, color: TXT, marginBottom: 20, lineHeight: 1.4 }}>Which worksheets has the subject completed?</div>
+                {Object.entries({ forgiveness: 'Forgiveness', soul_ties: 'Soul Ties', stronghold_buster: 'Stronghold Buster', iniquity: 'Iniquity in Bloodline', aftercare: 'Aftercare Declarations' }).map(([k, label]) => (
+                  <div key={k} onClick={() => setGuidedWorksheets(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: guidedWorksheets.includes(k) ? 'rgba(201,168,76,0.06)' : 'transparent', border: `1px solid ${guidedWorksheets.includes(k) ? BDR : 'transparent'}`, borderRadius: 6, marginBottom: 6, cursor: 'pointer' }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 4, border: `1px solid ${guidedWorksheets.includes(k) ? '#4ade80' : BDR}`, background: guidedWorksheets.includes(k) ? '#4ade8022' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {guidedWorksheets.includes(k) && <span style={{ color: '#4ade80', fontSize: 11 }}>✓</span>}
+                    </div>
+                    <span style={{ fontFamily: crimson, fontSize: 16, color: TXT }}>{label}</span>
+                  </div>
+                ))}
+                {nav(() => setGuidedStep(1), () => setGuidedStep(3))}
+              </>
+            )}
+
+            {/* STEP 4 — SUBJECT CHECK-IN */}
+            {guidedStep === 3 && (
+              <>
+                {stepHeader(4, 'SUBJECT CHECK-IN')}
+                <div style={{ fontFamily: crimson, fontSize: 22, color: TXT, marginBottom: 24, lineHeight: 1.4 }}>What is the subject's anxiety level today?</div>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 52, color: guidedAnxiety >= 8 ? '#f87171' : guidedAnxiety >= 5 ? '#fb923c' : '#4ade80', fontWeight: 700 }}>{guidedAnxiety}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.12em' }}>OUT OF 10</div>
+                </div>
+                <input type="range" min={1} max={10} value={guidedAnxiety} onChange={e => setGuidedAnxiety(Number(e.target.value))}
+                  style={{ width: '100%', marginBottom: 16, accentColor: G }} />
+                <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '10px 14px', fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.5 }}>
+                  {guidedAnxiety <= 3 ? 'Subject is calm. Good time to proceed with renunciations.' : guidedAnxiety <= 6 ? 'Moderate anxiety. Begin with welcome prayer and settling exercises.' : 'High anxiety. Prioritize the welcome and settling phase. Consider delaying deep deliverance work.'}
+                </div>
+                {nav(() => setGuidedStep(2), () => setGuidedStep(4))}
+              </>
+            )}
+
+            {/* STEP 5 — ADD SPIRITS */}
+            {guidedStep === 4 && (
+              <>
+                {stepHeader(5, 'ADD SPIRITS')}
+                <div style={{ fontFamily: crimson, fontSize: 22, color: TXT, marginBottom: 16, lineHeight: 1.4 }}>Which spirits will you address in this session?</div>
+                <div style={{ position: 'relative', marginBottom: 8 }}>
+                  <input value={guidedSpiritSearch} onChange={e => setGuidedSpiritSearch(e.target.value)}
+                    placeholder="Search spirit database..."
+                    style={{ width: '100%', boxSizing: 'border-box', background: SURF2, border: `1px solid ${BDR}`, borderRadius: 5, padding: '10px 14px', color: TXT, fontFamily: crimson, fontSize: 15, outline: 'none' }} />
+                  {guidedFilteredDemons.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#13111e', border: `1px solid ${BDR}`, borderRadius: 5, zIndex: 100, overflow: 'hidden' }}>
+                      {guidedFilteredDemons.map((d: any) => (
+                        <div key={d.name} onClick={() => { if (!guidedSpiritList.includes(d.name)) setGuidedSpiritList(prev => [...prev, d.name]); setGuidedSpiritSearch('') }}
+                          style={{ padding: '8px 14px', fontFamily: cinzel, fontSize: 11, color: TXT, cursor: 'pointer', borderBottom: `1px solid ${BDR}` }}>
+                          {d.name}
+                        </div>
+                      ))}
+                      {!guidedFilteredDemons.some((d: any) => d.name.toLowerCase() === guidedSpiritSearch.toLowerCase()) && (
+                        <div onClick={() => { setGuidedSpiritList(prev => [...prev, guidedSpiritSearch]); setGuidedSpiritSearch('') }}
+                          style={{ padding: '8px 14px', fontFamily: cinzel, fontSize: 11, color: G, cursor: 'pointer' }}>
+                          + Add "{guidedSpiritSearch}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, minHeight: 40, padding: '6px 0', marginBottom: 8 }}>
+                  {guidedSpiritList.map(name => (
+                    <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: `${G}22`, border: `1px solid ${BDR}`, borderRadius: 20, fontFamily: cinzel, fontSize: 10, color: G }}>
+                      {name}
+                      <button onClick={() => setGuidedSpiritList(prev => prev.filter(n => n !== name))} style={{ background: 'transparent', border: 'none', color: DIM, cursor: 'pointer', padding: '0 2px', fontSize: 12 }}>×</button>
+                    </div>
+                  ))}
+                  {guidedSpiritList.length === 0 && <span style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>No spirits added yet — you can add more during the session</span>}
+                </div>
+                {nav(() => setGuidedStep(3), () => setGuidedStep(5))}
+              </>
+            )}
+
+            {/* STEP 6 — RENUNCIATIONS */}
+            {guidedStep === 5 && (
+              <>
+                {stepHeader(6, 'RENUNCIATIONS')}
+                <div style={{ fontFamily: crimson, fontSize: 22, color: TXT, marginBottom: 16, lineHeight: 1.4 }}>Select renunciation prayers for this session.</div>
+                <div className="scc-scroll" style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 8, border: `1px solid ${BDR}`, borderRadius: 8, padding: '8px' }}>
+                  {RENUNCIATION_CATEGORIES.map(cat => (
+                    <div key={cat} onClick={() => setGuidedRenuncList(prev => prev.includes(cat) ? prev.filter(x => x !== cat) : [...prev, cat])}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 5, cursor: 'pointer', marginBottom: 3, background: guidedRenuncList.includes(cat) ? 'rgba(134,239,172,0.06)' : 'transparent' }}>
+                      <div style={{ width: 14, height: 14, borderRadius: 3, border: `1px solid ${guidedRenuncList.includes(cat) ? '#86efac' : BDR}`, background: guidedRenuncList.includes(cat) ? '#86efac22' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {guidedRenuncList.includes(cat) && <span style={{ color: '#86efac', fontSize: 9 }}>✓</span>}
+                      </div>
+                      <span style={{ fontFamily: crimson, fontSize: 14, color: TXT }}>{cat}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.08em' }}>{guidedRenuncList.length} SELECTED</div>
+                {nav(() => setGuidedStep(4), () => setGuidedStep(6), 'REVIEW →')}
+              </>
+            )}
+
+            {/* STEP 7 — SUMMARY + LAUNCH */}
+            {guidedStep === 6 && (
+              <>
+                {stepHeader(7, 'REVIEW AND LAUNCH')}
+                <div style={{ fontFamily: crimson, fontSize: 22, color: TXT, marginBottom: 20, lineHeight: 1.4 }}>Review your setup and launch the session.</div>
+                <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px 18px', marginBottom: 16 }}>
+                  {([
+                    ['Team members', Object.entries(guidedTeamNames).filter(([,v]) => (v as string)?.trim()).length > 0 ? Object.entries(guidedTeamNames).filter(([,v]) => (v as string)?.trim()).map(([r,n]) => `${n} (${r})`).join(', ') : 'Not assigned'],
+                    ['Worksheets completed', String(guidedWorksheets.length)],
+                    ['Subject anxiety', `${guidedAnxiety}/10`],
+                    ['Spirits to address', guidedSpiritList.length > 0 ? guidedSpiritList.join(', ') : 'None yet'],
+                    ['Renunciations selected', String(guidedRenuncList.length)],
+                  ] as [string,string][]).map(([label, value]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.08em', flexShrink: 0 }}>{label}</span>
+                      <span style={{ fontFamily: crimson, fontSize: 13, color: TXT, textAlign: 'right' as const }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+                {nav(() => setGuidedStep(5), launchFromGuided, '⚔ LAUNCH SESSION')}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -843,7 +1025,7 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
         </div>
 
         {/* Center — Timer */}
-        <div style={{ fontFamily: cinzel, fontSize: 20, color: G, letterSpacing: '0.12em', fontWeight: 700, flexShrink: 0 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 28, color: G, letterSpacing: '0.12em', fontWeight: 700, flexShrink: 0 }}>
           {formatElapsed(elapsed)}
         </div>
 
@@ -1184,6 +1366,18 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                       </button>
                     ))}
                   </div>
+                  {/* Per-spirit quick note */}
+                  <form onSubmit={e => {
+                    e.preventDefault()
+                    const note = spiritNoteInputs[spirit.id]?.trim()
+                    if (!note) return
+                    addLog('recorder_note', note, { spiritContext: spirit.name })
+                    setSpiritNoteInputs(prev => ({ ...prev, [spirit.id]: '' }))
+                  }}>
+                    <input value={spiritNoteInputs[spirit.id] || ''} onChange={e => setSpiritNoteInputs(prev => ({ ...prev, [spirit.id]: e.target.value }))}
+                      placeholder={`Note for ${spirit.name} → Enter`}
+                      style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.3)', border: `1px solid rgba(201,168,76,0.1)`, borderRadius: 4, padding: '5px 8px', color: TXT, fontFamily: crimson, fontSize: 12, outline: 'none' }} />
+                  </form>
                 </div>
               ))}
 
@@ -1200,12 +1394,28 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                 </div>
               </div>
 
-              {/* Quick capture */}
-              <form onSubmit={submitLog} style={{ marginTop: 16 }}>
-                <input value={logInput} onChange={e => setLogInput(e.target.value)}
-                  placeholder="Quick note → Enter to log against active spirit"
-                  style={{ width: '100%', boxSizing: 'border-box', background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '10px 14px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
-              </form>
+              {/* Rolling Notes */}
+              <div style={{ marginTop: 20 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', marginBottom: 8 }}>ROLLING NOTES</div>
+                <div className="scc-scroll" style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 8, background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '8px 10px', border: `1px solid rgba(201,168,76,0.08)` }}>
+                  {session.logEntries.filter(e => e.type === 'recorder_note').length === 0 && (
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No notes yet. Use inputs above or the field below.</div>
+                  )}
+                  {session.logEntries.filter(e => e.type === 'recorder_note').map(e => (
+                    <div key={e.id} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM, whiteSpace: 'nowrap', flexShrink: 0 }}>{fmtTime(e.timestamp)}</span>
+                      {e.spiritContext && <span style={{ fontFamily: cinzel, fontSize: 8, color: G, flexShrink: 0, marginTop: 1 }}>[{e.spiritContext}]</span>}
+                      <span style={{ fontFamily: crimson, fontSize: 13, color: '#93c5fd', flex: 1, lineHeight: 1.4 }}>{e.content}</span>
+                    </div>
+                  ))}
+                  <div ref={rollingEndRef} />
+                </div>
+                <form onSubmit={e => { e.preventDefault(); if (!rollingNoteInput.trim()) return; addLog('recorder_note', rollingNoteInput.trim()); setRollingNoteInput('') }}>
+                  <input value={rollingNoteInput} onChange={e => setRollingNoteInput(e.target.value)}
+                    placeholder="Add to rolling notes → Enter"
+                    style={{ width: '100%', boxSizing: 'border-box', background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none' }} />
+                </form>
+              </div>
             </div>
           )}
 

@@ -5623,8 +5623,9 @@ function OnboardingOverlay({ storageKey, icon, title, points }: {
 }
 
 // ── SESSION CENTER VIEW ────────────────────────────────────
-function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, demons, onLaunch }: any) {
+function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, demons, onLaunch, userTier }: any) {
   const isDark = theme !== 'light'
+  const isCommanderOnly = (userTier || '').toLowerCase() === 'commander'
   const bg     = isDark ? '#0D0B14' : '#FAF8F5'
   const surf   = isDark ? '#13111e' : '#FFFFFF'
   const bdr    = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
@@ -5671,7 +5672,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
     const data = await res.json()
     if (data.session) {
       localStorage.removeItem('wri_session_spirits')
-      onLaunch(data.session.id, { subjectAlias: alias.trim(), sessionNumber: sessionNum })
+      onLaunch(data.session.id, { subjectAlias: alias.trim(), sessionNumber: sessionNum, defaultMode: isCommanderOnly ? 'offline' : undefined })
     }
   }
 
@@ -5689,7 +5690,15 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
       <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.2em', marginBottom: 4 }}>FIELD OPERATIONS</div>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, color: txt, marginBottom: 4 }}>Session Center</div>
-        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: 24 }}>Launch, manage, and resume deliverance sessions.</div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: isCommanderOnly ? 12 : 24 }}>Launch, manage, and resume deliverance sessions.</div>
+
+        {/* Commander tier — offline only */}
+        {isCommanderOnly && (
+          <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.35)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#a78bfa', letterSpacing: '0.12em', marginBottom: 4 }}>COMMANDER TIER — OFFLINE SESSION MODE</div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim, lineHeight: 1.5 }}>Your tier includes offline session capture. Sessions will launch in Quick Capture mode. <a href="/membership" style={{ color: gold }}>Upgrade to General</a> to unlock live and guided modes.</div>
+          </div>
+        )}
 
         {step === 'list' ? (
           <>
@@ -6918,6 +6927,7 @@ function CommunityPage() {
             userId={user?.id || ''}
             getToken={getToken}
             demons={demons}
+            userTier={tier}
             onLaunch={(sessionId?: string, caseFile?: any) => {
               setActiveSessionId(sessionId)
               setActiveSessionCF(caseFile)
