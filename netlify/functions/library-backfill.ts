@@ -42,7 +42,13 @@ async function resolveMinister(token: string): Promise<{ ok: boolean; userId: st
 }
 
 function extractTextFromBuffer(buf: ArrayBuffer): string {
-  return new TextDecoder('utf-8').decode(buf).replace(/\0/g, ' ').slice(0, MAX_CHARS)
+  const raw = new TextDecoder('utf-8').decode(buf)
+  return raw
+    .replace(/\0/g, ' ')
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_CHARS)
 }
 
 function titleFromPath(filePath: string): string {
@@ -152,6 +158,7 @@ export default async function handler(req: Request) {
         processed++
       }
     } catch (e: any) {
+      console.error('[BACKFILL] Failed on:', row.title, { error: e.message, stack: e.stack?.slice(0, 200) })
       log.push(`error (exception): ${row.title} — ${e?.message}`)
       errors++
     }
@@ -196,6 +203,7 @@ export default async function handler(req: Request) {
         processed++
       }
     } catch (e: any) {
+      console.error('[BACKFILL] Failed on:', filePath, { error: e.message, stack: e.stack?.slice(0, 200) })
       log.push(`error (exception): ${filePath} — ${e?.message}`)
       errors++
     }
