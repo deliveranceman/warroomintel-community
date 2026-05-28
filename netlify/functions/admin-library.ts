@@ -68,11 +68,30 @@ export default async function handler(req: Request) {
   if (req.method === 'GET') {
     const { data, error } = await sb
       .from('resources')
-      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags')
+      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags,extracted_text')
       .eq('topic', 'ministry-library')
       .order('created_at', { ascending: false })
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
-    return new Response(JSON.stringify({ books: data || [] }), { status: 200, headers })
+
+    const books = (data || []).map(b => ({
+      ...b,
+      // Strip extracted_text from response — only send indexed flag
+      extracted_text: undefined,
+      is_indexed: !!(b.extracted_text && b.extracted_text.length > 100),
+      file_url: '',
+    }))
+
+    // Generate signed URLs for PDF files (best-effort, non-fatal)
+    await Promise.all(books.map(async b => {
+      if (b.filename?.toLowerCase().endsWith('.pdf') && b.file_path) {
+        try {
+          const { data: signed } = await sb.storage.from(BUCKET).createSignedUrl(b.file_path, 3600)
+          b.file_url = signed?.signedUrl || ''
+        } catch { /* ignore */ }
+      }
+    }))
+
+    return new Response(JSON.stringify({ books }), { status: 200, headers })
   }
 
   // ── POST — upload new book ──────────────────────────────────────────────────

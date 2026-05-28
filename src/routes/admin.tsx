@@ -3268,9 +3268,11 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     errorMsg?: string; aiGenerated: boolean
   }
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
-  const [dragOver, setDragOver]       = useState(false)
+  const [dragOverAi, setDragOverAi]   = useState(false)
+  const [dragOverPdf, setDragOverPdf] = useState(false)
   const [uploadingAll, setUploadingAll] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef    = useRef<HTMLInputElement>(null)
+  const pdfInputRef     = useRef<HTMLInputElement>(null)
 
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
@@ -3291,10 +3293,13 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setBooksLoading(false)
   }
 
-  function addFiles(files: FileList | File[]) {
+  function addFiles(files: FileList | File[], pdfOnly = false) {
     const valid = Array.from(files).filter(f => {
-      const ok = (f.name.endsWith('.pdf') || f.name.endsWith('.txt')) && f.size <= 50 * 1024 * 1024
-      return ok
+      const name = f.name.toLowerCase()
+      const okType = pdfOnly
+        ? name.endsWith('.pdf')
+        : (name.endsWith('.txt') || name.endsWith('.docx'))
+      return okType && f.size <= 50 * 1024 * 1024
     })
     setStagedFiles(prev => {
       const existing = new Set(prev.map(s => s.file.name + s.file.size))
@@ -3647,73 +3652,44 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const anyUploading = stagedFiles.some(f => f.status === 'uploading')
   const anyAnalyzing = stagedFiles.some(f => f.status === 'analyzing')
 
+  const aiBooks  = books.filter(b => !b.filename?.toLowerCase().endsWith('.pdf'))
+  const pdfBooks = books.filter(b =>  b.filename?.toLowerCase().endsWith('.pdf'))
+
   return (
     <div style={{ color: LTXT, fontFamily: crimson }}>
 
-      {/* ── PERSONAL LIBRARY ── */}
-      <div>
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 5 }}>Personal Ministry Library</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.6 }}>
-            Upload PDF or TXT books. AI will reference relevant passages when enhancing spirits.
-          </div>
-        </div>
-
-        {/* ── HOW AI USES YOUR LIBRARY — collapsible ── */}
-        <div style={{ marginBottom: 18, background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.18)`, borderRadius: 8 }}>
-          <button
-            onClick={() => {
-              const opening = !libSummaryOpen
-              setLibSummaryOpen(opening)
-              if (opening && !libSummary) loadLibrarySummary()
-            }}
-            style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '10px 14px', color: LMUT, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', textAlign: 'left' as const }}
-          >
-            <span style={{ fontSize: 13 }}>ℹ</span>
-            <span>HOW AI USES YOUR LIBRARY</span>
-            <span style={{ marginLeft: 'auto', fontSize: 14, transition: 'transform 0.2s', display: 'inline-block', transform: libSummaryOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
-          </button>
-          {libSummaryOpen && (
-            <div style={{ padding: '0 14px 14px 14px' }}>
-              {libSummaryLoading ? (
-                <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>Loading...</div>
-              ) : libSummary ? (
-                <>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: LTXT, lineHeight: 1.7, marginBottom: 10 }}>{libSummary.summary}</div>
-                  {libSummary.books.filter((b: any) => b.active !== false).length > 0 && (
-                    <div>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 6 }}>ACTIVE IN AI CONTEXT</div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-                        {libSummary.books.filter((b: any) => b.active !== false).map((b: any) => (
-                          <div key={b.id} style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>
-                            <span style={{ color: LG }}>✦</span> {b.title}{b.author ? ` by ${b.author}` : ''}
-                            {b.ai_generated && <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5C7CBF', marginLeft: 6, letterSpacing: '0.08em' }}>AI</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic' }}>Could not load summary.</div>
-              )}
+      {/* ══ AI KNOWLEDGE BASE ══════════════════════════════════════════════════ */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 4 }}>🧠 AI Knowledge Base</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.5 }}>
+              TXT and DOCX files the AI reads, searches, and references when enhancing spirits and answering questions.
             </div>
-          )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            {retagProgress && (
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
+                {retagRunning ? `Re-tagging ${retagProgress.done}/${retagProgress.total}…` : `✓ ${retagProgress.updated} updated`}
+              </span>
+            )}
+            <button onClick={retagAllBooks} disabled={retagRunning}
+              style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: retagRunning ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: retagRunning ? 0.6 : 1, whiteSpace: 'nowrap' as const }}
+            >{retagRunning ? '✦ Re-tagging…' : '✦ Re-run AI Tags'}</button>
+          </div>
         </div>
 
-        {/* ── DROPZONE — always visible ── */}
+        {/* ── AI dropzone ── */}
         <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files) }}
+          onDragOver={e => { e.preventDefault(); setDragOverAi(true) }}
+          onDragLeave={() => setDragOverAi(false)}
+          onDrop={e => { e.preventDefault(); setDragOverAi(false); addFiles(e.dataTransfer.files, false) }}
           onClick={() => fileInputRef.current?.click()}
-          style={{ border: `2px dashed ${dragOver ? LG : 'rgba(201,168,76,0.44)'}`, borderRadius: 10, padding: '20px', marginBottom: 16, cursor: 'pointer', background: dragOver ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
+          style={{ border: `2px dashed ${dragOverAi ? LG : 'rgba(201,168,76,0.35)'}`, borderRadius: 8, padding: '18px', marginBottom: 16, marginTop: 14, cursor: 'pointer', background: dragOverAi ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
         >
-          <input ref={fileInputRef} type="file" multiple accept=".pdf,.txt" style={{ display: 'none' }}
-            onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }} />
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 4 }}>
-            Drop PDF or TXT files, up to 10 at once
-          </div>
+          <input ref={fileInputRef} type="file" multiple accept=".txt,.docx" style={{ display: 'none' }}
+            onChange={e => { if (e.target.files) addFiles(e.target.files, false); e.target.value = '' }} />
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 3 }}>Drop TXT or DOCX files — AI will extract and index content</div>
           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
         </div>
 
@@ -3807,236 +3783,134 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         )}
 
-        {/* Book list */}
+        {/* ── AI book list ── */}
         {booksLoading ? (
           <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, fontStyle: 'italic', padding: '20px 0' }}>Loading library...</div>
-        ) : books.length === 0 ? (
-          <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const }}>
-            <div style={{ fontFamily: cinzel, fontSize: 14, color: LMUT, marginBottom: 10 }}>No books uploaded yet</div>
-            <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.7 }}>
-              Add your personal ministry library to give the AI your theological framework.
-            </div>
-            <div style={{ marginTop: 18, padding: '14px 18px', background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, textAlign: 'left' as const }}>
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.1em', marginBottom: 8 }}>SUGGESTED UPLOADS</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.9 }}>
-                Pigs in the Parlor by Frank Hammond<br />
-                Blessing or Curse by Derek Prince<br />
-                Battling the Hosts of Hell by Win Worley<br />
-                He Came to Set the Captives Free by Rebecca Brown<br />
-                Unbroken Curses by Rebecca Greenwood
-              </div>
-            </div>
+        ) : aiBooks.length === 0 ? (
+          <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 8, padding: '24px', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: LMUT, marginBottom: 8 }}>No AI knowledge books yet</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT }}>Upload TXT or DOCX files above to give the AI your theological framework.</div>
           </div>
         ) : (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 10, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>
-                {books.length} book{books.length !== 1 ? 's' : ''} · {books.filter(b => b.ai_generated).length} AI-generated
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {retagProgress && (
-                  <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
-                    {retagRunning ? `Re-tagging ${retagProgress.done}/${retagProgress.total}…` : `✓ Done: ${retagProgress.updated} updated`}
-                  </span>
-                )}
-                <button
-                  onClick={retagAllBooks}
-                  disabled={retagRunning}
-                  title="Re-run AI spirit tag analysis on books with empty or generic spirit tags"
-                  style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: retagRunning ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: retagRunning ? 0.6 : 1, whiteSpace: 'nowrap' as const }}
-                >
-                  {retagRunning ? '✦ Re-tagging…' : '✦ Re-run AI Tags'}
-                </button>
-              </div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', marginBottom: 10 }}>
+              {aiBooks.length} book{aiBooks.length !== 1 ? 's' : ''} · {aiBooks.filter(b => b.is_indexed).length} indexed
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-              {books.map(book => {
+              {aiBooks.map(book => {
                 const isEditing        = editingId === book.id
                 const hasNumericPrefix = /^\d+[-\s]/.test(book.title || '')
                 return (
-                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
-                  {/* ── Card header row ── */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    {/* Left: title / author / meta / tags */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
-                      {book.author && book.author !== 'Unknown' && (
-                        <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>
-                      )}
-                      <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em', marginBottom: book.notes ? 6 : 0 }}>
-                        {fmtBytes(book.file_size)}
-                        {book.created_at ? ` · ${new Date(book.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                  <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      {/* Left: indexed status + title / author / meta / tags */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: book.is_indexed ? '#4ade80' : '#f59e0b', flexShrink: 0 }} title={book.is_indexed ? 'Indexed' : 'Pending extraction'} />
+                          <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, letterSpacing: '0.04em' }}>{book.title}</div>
+                        </div>
+                        {book.author && book.author !== 'Unknown' && (
+                          <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>
+                        )}
+                        <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em', marginBottom: book.notes ? 6 : 0 }}>
+                          {book.is_indexed ? '● INDEXED' : '○ PENDING'} · {fmtBytes(book.file_size)}
+                          {book.created_at ? ` · ${new Date(book.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                        </div>
+                        {book.notes && (
+                          <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginBottom: 4 }}>{book.notes}</div>
+                        )}
+                        {Array.isArray(book.spirit_tags) && book.spirit_tags.length > 0 && !isEditing && (
+                          <SpiritTagEditor tags={book.spirit_tags} onChange={() => {}} readOnly />
+                        )}
                       </div>
-                      {book.notes && (
-                        <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginBottom: 4 }}>{book.notes}</div>
-                      )}
-                      {/* Read-only spirit tags pills */}
-                      {Array.isArray(book.spirit_tags) && book.spirit_tags.length > 0 && !isEditing && (
-                        <SpiritTagEditor tags={book.spirit_tags} onChange={() => {}} readOnly />
-                      )}
+
+                      {/* Right: action buttons */}
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>VIS</span>
+                          <button onClick={() => toggleBook(book.id, !(book.active !== false))}
+                            style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.active !== false ? LG : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}>
+                            <div style={{ position: 'absolute' as const, top: 2, left: book.active !== false ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>AI</span>
+                          <button onClick={() => toggleAiEnabled(book.id, !book.ai_generated)}
+                            style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.ai_generated ? '#5C7CBF' : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
+                            title={book.ai_generated ? 'AI-generated: ON' : 'AI-generated: OFF'}>
+                            <div style={{ position: 'absolute' as const, top: 2, left: book.ai_generated ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                          </button>
+                        </div>
+                        {hasNumericPrefix && !isEditing && (
+                          <button onClick={() => cleanTitle(book)}
+                            style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
+                            title="Strip leading numeric prefix from title">✂ Clean</button>
+                        )}
+                        {!isEditing && (
+                          <button onClick={() => reanalyzeBook(book.id)} disabled={reanalyzeId === book.id}
+                            style={{ background: 'transparent', border: '1px solid rgba(92,124,191,0.5)', borderRadius: 5, color: reanalyzeId === book.id ? '#4a6a9a' : '#5C7CBF', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: reanalyzeId === book.id ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}
+                            title="Re-analyze: extract text + AI spirit tags">
+                            {reanalyzeId === book.id ? '⏳ Analyzing…' : '⚡ Re-analyze'}
+                          </button>
+                        )}
+                        {reanalyzeErr && reanalyzeId === null && (
+                          <span style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171' }}>{reanalyzeErr}</span>
+                        )}
+                        <button onClick={() => isEditing ? cancelEdit() : openEdit(book)}
+                          style={{ background: isEditing ? 'rgba(201,168,76,0.22)' : 'rgba(201,168,76,0.10)', border: '1px solid rgba(201,168,76,0.6)', borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 600 }}
+                          title={isEditing ? 'Close editor' : 'Edit title, author, notes, spirit tags'}>
+                          {isEditing ? '✕ Close' : '✎ Edit'}
+                        </button>
+                        <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
+                          style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                          Delete
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Right: action buttons */}
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
-                      {/* VIS toggle */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>VIS</span>
-                        <button
-                          onClick={() => toggleBook(book.id, !(book.active !== false))}
-                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.active !== false ? LG : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
-                        >
-                          <div style={{ position: 'absolute' as const, top: 2, left: book.active !== false ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-                        </button>
+                    {/* Inline Edit Panel */}
+                    {isEditing && (
+                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid rgba(201,168,76,0.2)` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>Edit Metadata</span>
+                          <button onClick={aiRenameInPanel} disabled={editLoading}
+                            style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: editLoading ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: editLoading ? 0.6 : 1 }}>
+                            {editLoading ? '✦ Analyzing…' : '✦ AI Rename'}
+                          </button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                          <div>
+                            <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TITLE</label>
+                            <input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} style={{ ...inp, fontSize: 12, padding: '6px 10px' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>AUTHOR</label>
+                            <input value={editForm.author} onChange={e => setEditForm(p => ({ ...p, author: e.target.value }))} style={{ ...inp, fontSize: 12, padding: '6px 10px' }} />
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>NOTES</label>
+                          <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inp, fontSize: 12, padding: '6px 10px', resize: 'vertical' as const }} />
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TOPIC</label>
+                          <select value={editForm.topic} onChange={e => setEditForm(p => ({ ...p, topic: e.target.value }))} style={{ ...inp, fontSize: 12, padding: '6px 10px' }}>
+                            {['ministry-library','deliverance','spiritual-warfare','inner-healing','theology','prayer','prophecy','healing'].map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>SPIRIT TAGS</label>
+                          <SpiritTagEditor tags={editForm.spirit_tags} onChange={tags => setEditForm(p => ({ ...p, spirit_tags: tags }))} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={saveEdit} style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 18px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}>✦ Save</button>
+                          <button onClick={cancelEdit} style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}>Cancel</button>
+                        </div>
                       </div>
-                      {/* AI toggle */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontFamily: cinzel, fontSize: 7, color: LMUT, letterSpacing: '0.08em' }}>AI</span>
-                        <button
-                          onClick={() => toggleAiEnabled(book.id, !book.ai_generated)}
-                          style={{ width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', background: book.ai_generated ? '#5C7CBF' : 'rgba(255,255,255,0.12)', position: 'relative' as const, transition: 'background 0.2s', padding: 0 }}
-                          title={book.ai_generated ? 'AI-generated: ON' : 'AI-generated: OFF'}
-                        >
-                          <div style={{ position: 'absolute' as const, top: 2, left: book.ai_generated ? 17 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-                        </button>
-                      </div>
-                      {/* Clean numeric prefix — only when applicable */}
-                      {hasNumericPrefix && !isEditing && (
-                        <button
-                          onClick={() => cleanTitle(book)}
-                          style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
-                          title="Strip leading numeric prefix from title"
-                        >✂ Clean</button>
-                      )}
-                      {/* ⚡ RE-ANALYZE BUTTON */}
-                      {!isEditing && (
-                        <button
-                          onClick={() => reanalyzeBook(book.id)}
-                          disabled={reanalyzeId === book.id}
-                          style={{ background: 'transparent', border: '1px solid rgba(92,124,191,0.5)', borderRadius: 5, color: reanalyzeId === book.id ? '#4a6a9a' : '#5C7CBF', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: reanalyzeId === book.id ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}
-                          title="Re-analyze: extract text + AI spirit tags"
-                        >
-                          {reanalyzeId === book.id ? '⏳ Analyzing…' : '⚡ Re-analyze'}
-                        </button>
-                      )}
-                      {reanalyzeErr && reanalyzeId === null && (
-                        <span style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171' }}>{reanalyzeErr}</span>
-                      )}
-                      {/* ✎ EDIT BUTTON */}
-                      <button
-                        onClick={() => isEditing ? cancelEdit() : openEdit(book)}
-                        style={{
-                          background:    isEditing ? 'rgba(201,168,76,0.22)' : 'rgba(201,168,76,0.10)',
-                          border:        '1px solid rgba(201,168,76,0.6)',
-                          borderRadius:  5,
-                          color:         LG,
-                          fontFamily:    cinzel,
-                          fontSize:      9,
-                          padding:       '4px 10px',
-                          cursor:        'pointer',
-                          letterSpacing: '0.06em',
-                          fontWeight:    600,
-                        }}
-                        title={isEditing ? 'Close editor' : 'Edit title, author, notes, spirit tags'}
-                      >
-                        {isEditing ? '✕ Close' : '✎ Edit'}
-                      </button>
-                      {/* DELETE BUTTON */}
-                      <button
-                        onClick={() => deleteBook(book.id, book.file_path, book.title)}
-                        style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    )}
                   </div>
-
-                  {/* ── Inline Edit Panel (shown when isEditing) ── */}
-                  {isEditing && (
-                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid rgba(201,168,76,0.2)` }}>
-                      {/* Panel header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>Edit Metadata</span>
-                        <button
-                          onClick={aiRenameInPanel}
-                          disabled={editLoading}
-                          style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: editLoading ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: editLoading ? 0.6 : 1 }}
-                        >
-                          {editLoading ? '✦ Analyzing…' : '✦ AI Rename'}
-                        </button>
-                      </div>
-
-                      {/* Title + Author */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                        <div>
-                          <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TITLE</label>
-                          <input
-                            value={editForm.title}
-                            onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                            style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>AUTHOR</label>
-                          <input
-                            value={editForm.author}
-                            onChange={e => setEditForm(p => ({ ...p, author: e.target.value }))}
-                            style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Notes */}
-                      <div style={{ marginBottom: 8 }}>
-                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>NOTES</label>
-                        <textarea
-                          value={editForm.notes}
-                          onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
-                          rows={2}
-                          style={{ ...inp, fontSize: 12, padding: '6px 10px', resize: 'vertical' as const }}
-                        />
-                      </div>
-
-                      {/* Topic */}
-                      <div style={{ marginBottom: 8 }}>
-                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TOPIC</label>
-                        <select
-                          value={editForm.topic}
-                          onChange={e => setEditForm(p => ({ ...p, topic: e.target.value }))}
-                          style={{ ...inp, fontSize: 12, padding: '6px 10px' }}
-                        >
-                          {['ministry-library','deliverance','spiritual-warfare','inner-healing','theology','prayer','prophecy','healing'].map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Spirit Tags */}
-                      <div style={{ marginBottom: 14 }}>
-                        <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>SPIRIT TAGS</label>
-                        <SpiritTagEditor
-                          tags={editForm.spirit_tags}
-                          onChange={tags => setEditForm(p => ({ ...p, spirit_tags: tags }))}
-                        />
-                      </div>
-
-                      {/* Save / Cancel */}
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          onClick={saveEdit}
-                          style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 18px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}
-                        >
-                          ✦ Save
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
                 )
               })}
             </div>
@@ -4045,6 +3919,79 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
               <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.9 }}>
                 Pigs in the Parlor by Frank Hammond · Blessing or Curse by Derek Prince · Battling the Hosts of Hell by Win Worley · He Came to Set the Captives Free by Rebecca Brown · Unbroken Curses by Rebecca Greenwood
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ══ READING LIBRARY ══════════════════════════════════════════════════════ */}
+      <div style={{ marginTop: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,0.18)' }} />
+          <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>📚 Reading Library</div>
+          <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,0.18)' }} />
+        </div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.5, marginBottom: 14 }}>
+          PDF books for minister reference. Not AI-indexed — ministers can open and read these documents directly.
+        </div>
+
+        {/* PDF dropzone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOverPdf(true) }}
+          onDragLeave={() => setDragOverPdf(false)}
+          onDrop={e => { e.preventDefault(); setDragOverPdf(false); addFiles(e.dataTransfer.files, true) }}
+          onClick={() => pdfInputRef.current?.click()}
+          style={{ border: `2px dashed ${dragOverPdf ? LG : 'rgba(201,168,76,0.35)'}`, borderRadius: 8, padding: '18px', marginBottom: 16, cursor: 'pointer', background: dragOverPdf ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
+        >
+          <input ref={pdfInputRef} type="file" multiple accept=".pdf" style={{ display: 'none' }}
+            onChange={e => { if (e.target.files) addFiles(e.target.files, true); e.target.value = '' }} />
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 3 }}>Drop PDF files — minister reading library</div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
+        </div>
+
+        {/* PDF book list */}
+        {booksLoading ? (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, fontStyle: 'italic', padding: '20px 0' }}>Loading library...</div>
+        ) : pdfBooks.length === 0 ? (
+          <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 8, padding: '24px', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: LMUT, marginBottom: 8 }}>No PDF books yet</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT }}>Upload PDF files above to build your minister reading library.</div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', marginBottom: 10 }}>
+              {pdfBooks.length} PDF{pdfBooks.length !== 1 ? 's' : ''}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+              {pdfBooks.map(book => (
+                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
+                    {book.author && book.author !== 'Unknown' && (
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginBottom: 4 }}>{book.author}</div>
+                    )}
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
+                      PDF · {fmtBytes(book.file_size)}
+                      {book.created_at ? ` · ${new Date(book.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                    </div>
+                    {book.notes && (
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginTop: 4 }}>{book.notes}</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                    {book.file_url && (
+                      <a href={book.file_url} target="_blank" rel="noopener noreferrer"
+                        style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: 'pointer', letterSpacing: '0.06em', textDecoration: 'none' }}>
+                        ↗ VIEW PDF
+                      </a>
+                    )}
+                    <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
+                      style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
