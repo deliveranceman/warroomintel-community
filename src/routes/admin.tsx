@@ -3248,8 +3248,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [editingId,   setEditingId]   = useState<string | null>(null)
   const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[] }>({ title: '', author: '', notes: '', topic: 'ministry-library', spirit_tags: [] })
   const [editLoading, setEditLoading] = useState(false)
-  const [reanalyzeId, setReanalyzeId] = useState<string | null>(null)
-  const [reanalyzeErr, setReanalyzeErr] = useState<string | null>(null)
+  const [reanalyzeId,     setReanalyzeId]     = useState<string | null>(null)
+  const [reanalyzeErrors, setReanalyzeErrors] = useState<Record<string, string>>({})
 
   // Re-tag state
   const [retagRunning, setRetagRunning] = useState(false)
@@ -3504,20 +3504,30 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setEditLoading(false)
   }
 
+  function setReanalyzeError(bookId: string, msg: string) {
+    setReanalyzeErrors(prev => ({ ...prev, [bookId]: msg }))
+  }
+
   async function reanalyzeBook(bookId: string) {
     setReanalyzeId(bookId)
-    setReanalyzeErr(null)
+    setReanalyzeErrors(prev => { const n = { ...prev }; delete n[bookId]; return n })
     try {
       const token = await getToken()
-      const res = await fetch('/api/library-reanalyze', {
+      const res   = await fetch('/api/library-reanalyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ resourceId: bookId }),
       })
-      const data = await res.json()
-      if (!res.ok) { setReanalyzeErr(data.error || 'Reanalysis failed'); return }
-      if (data.resource) setBooks(prev => prev.map(b => b.id === bookId ? { ...b, ...data.resource } : b))
-    } catch (e: any) { setReanalyzeErr(e.message) }
+      const text = await res.text()
+      let data: any = {}
+      try { data = JSON.parse(text) } catch { data = { error: text.slice(0, 200) } }
+      console.log('[REANALYZE] response:', res.status, data)
+      if (!res.ok) { setReanalyzeError(bookId, data.error || `HTTP ${res.status}`); return }
+      if (data.resource) setBooks(prev => prev.map(b => b.id === bookId ? { ...b, ...data.resource, is_indexed: true } : b))
+    } catch (e: any) {
+      console.error('[REANALYZE] network error:', e)
+      setReanalyzeError(bookId, e.message || 'Network error')
+    }
     finally { setReanalyzeId(null) }
   }
 
@@ -3853,8 +3863,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                             {reanalyzeId === book.id ? '⏳ Analyzing…' : '⚡ Re-analyze'}
                           </button>
                         )}
-                        {reanalyzeErr && reanalyzeId === null && (
-                          <span style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171' }}>{reanalyzeErr}</span>
+                        {reanalyzeErrors[book.id] && reanalyzeId !== book.id && (
+                          <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#f87171', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }} title={reanalyzeErrors[book.id]}>
+                            {reanalyzeErrors[book.id]}
+                          </span>
                         )}
                         <button onClick={() => isEditing ? cancelEdit() : openEdit(book)}
                           style={{ background: isEditing ? 'rgba(201,168,76,0.22)' : 'rgba(201,168,76,0.10)', border: '1px solid rgba(201,168,76,0.6)', borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 600 }}

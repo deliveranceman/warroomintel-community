@@ -68,8 +68,8 @@
   timeout = 60
 
 [functions."library-reanalyze"]
-  timeout = 30
-  external_node_modules = ["pdf-parse"]
+  timeout = 45
+  external_node_modules = ["pdf-parse", "mammoth"]
 
 [functions."ai-assistant"]
   timeout = 26
