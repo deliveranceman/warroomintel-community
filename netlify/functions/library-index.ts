@@ -9,9 +9,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
-const pdfParse = require('pdf-parse')
 
 const BUCKET  = 'ministry-library'
 const MAX_CHARS = 120_000          // ~30k tokens — enough context without blowing the prompt
@@ -28,28 +25,10 @@ function sb() {
   )
 }
 
-async function extractText(buffer: Buffer, fileType: string): Promise<string | null> {
-  if (fileType === 'txt') {
-    // Plain text — just decode, strip null bytes
-    return buffer.toString('utf-8').replace(/\0/g, ' ').slice(0, MAX_CHARS)
-  }
-
-  if (fileType === 'pdf') {
-    try {
-      const result = await pdfParse(buffer)
-      const raw = result.text || ''
-      return raw
-        .replace(/[ \t]+/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-        .slice(0, MAX_CHARS) || null
-    } catch (e: any) {
-      console.error('[library-index] pdf-parse error:', e?.message)
-      return null
-    }
-  }
-
-  return null
+async function extractText(buffer: Buffer): Promise<string | null> {
+  // All ministry-library files are .txt — read directly as UTF-8 text
+  const text = new TextDecoder('utf-8').decode(buffer).replace(/\0/g, ' ').slice(0, MAX_CHARS)
+  return text || null
 }
 
 export default async function handler(req: Request) {
@@ -93,7 +72,7 @@ export default async function handler(req: Request) {
   const buffer = Buffer.from(await fileBlob.arrayBuffer())
   console.log(`[library-index] downloaded ${buffer.length} bytes`)
 
-  const extractedText = await extractText(buffer, fileType)
+  const extractedText = await extractText(buffer)
 
   if (!extractedText) {
     console.log('[library-index] no text extracted — leaving extracted_text null')

@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
-const pdfParse = require('pdf-parse')
 
 const BUCKET = 'ministry-library'
 const MAX_CHARS = 120_000
@@ -41,26 +40,26 @@ async function isMinister(userId: string): Promise<boolean> {
   } catch { return false }
 }
 
-async function extractText(buffer: Buffer, fileType: string): Promise<string | null> {
-  if (fileType === 'txt') {
-    const text = buffer.toString('utf-8').replace(/\0/g, ' ').slice(0, MAX_CHARS)
-    return text || null
+async function extractText(buffer: Buffer, filename: string): Promise<string> {
+  const ext = filename.toLowerCase().split('.').pop()
+  if (ext === 'txt') {
+    return new TextDecoder('utf-8').decode(buffer).replace(/\0/g, ' ').slice(0, MAX_CHARS)
   }
-  if (fileType === 'pdf') {
+  if (ext === 'docx') {
     try {
-      const result = await pdfParse(buffer)
-      const raw = result.text || ''
-      return raw
-        .replace(/[ \t]+/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-        .slice(0, MAX_CHARS) || null
+      const mammoth = require('mammoth')
+      const result = await mammoth.extractRawText({ buffer })
+      return (result.value || '').slice(0, MAX_CHARS)
     } catch (e: any) {
-      console.error('[LIBRARY-UPLOAD] pdf-parse error:', e?.message)
-      return null
+      console.error('[LIBRARY-UPLOAD] mammoth docx error:', e?.message)
+      return ''
     }
   }
-  return null
+  if (ext === 'pdf') {
+    console.log('[LIBRARY-UPLOAD] PDF uploaded — text extraction not available, will need manual re-index')
+    return ''
+  }
+  return ''
 }
 
 export default async function handler(req: Request) {
@@ -136,13 +135,13 @@ export default async function handler(req: Request) {
       const fileBuffer = Buffer.from(await fileBlob.arrayBuffer())
       console.log('[LIBRARY-UPLOAD] File downloaded from storage', { bytes: fileBuffer.length })
 
-      const extractedText = await extractText(fileBuffer, fileType)
+      const extractedText = await extractText(fileBuffer, resolvedFilename)
       console.log('[LIBRARY-UPLOAD] Text extraction result', {
-        textLength: extractedText?.length ?? 0,
-        preview: extractedText?.slice(0, 200) ?? '(none)',
+        textLength: extractedText.length,
+        preview: extractedText.slice(0, 300),
       })
 
-      if (extractedText) {
+      if (extractedText && extractedText.length >= 50) {
         const { error: updateErr } = await sb
           .from('resources')
           .update({ extracted_text: extractedText })
@@ -153,6 +152,7 @@ export default async function handler(req: Request) {
           console.log('[LIBRARY-UPLOAD] extracted_text stored', { chars: extractedText.length, resourceId: row.id })
           // AI spirit tag extraction — best effort, non-fatal
           try {
+            console.log('[LIBRARY-UPLOAD] Calling Claude for tags...')
             const excerpt = extractedText.slice(0, 8000)
             const aiPrompt = `You are analyzing a deliverance ministry document.
 
@@ -171,7 +171,7 @@ Your task:
 5. Identify the document's PRIMARY ministry function
 6. Identify the PRIMARY topic category
 
-Return ONLY this JSON (no markdown, no code fences):
+Return ONLY a raw JSON object. No markdown. No code fences. No explanation before or after. Start with { and end with }.
 {
   "title": "clean professional document title",
   "description": "2-3 sentence summary written for a deliverance minister explaining what this document is and how to use it in ministry",
@@ -193,34 +193,45 @@ topic must be from: Soul Ties, Generational Curses, Forgiveness, Ungodly Vows, F
               body: JSON.stringify({
                 model: 'claude-haiku-4-5-20251001',
                 max_tokens: 1000,
-                system: 'You are a deliverance ministry document analyst. Return ONLY valid JSON. No markdown, no code fences.',
+                system: 'You are a deliverance ministry document analyst. Return ONLY valid JSON. No markdown, no code fences, no explanation. Start with { and end with }.',
                 messages: [{ role: 'user', content: aiPrompt }],
               }),
               signal: AbortSignal.timeout(15000),
             })
             if (aiRes.ok) {
               const aiData = await aiRes.json()
-              const raw = (aiData.content?.[0]?.text || '').trim()
-                .replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim()
+              const rawText = (aiData.content?.[0]?.text || '').trim()
+              console.log('[LIBRARY-UPLOAD] Claude raw response:', rawText.slice(0, 500))
+
+              let cleaned = rawText
+                .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
+              const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+              if (jsonMatch) cleaned = jsonMatch[0]
+
+              let parsed: any = { spirit_tags: [], function_tags: [] }
               try {
-                const parsed = JSON.parse(raw)
-                const aiUpdate: Record<string, any> = {}
-                if (Array.isArray(parsed.spirit_tags) && parsed.spirit_tags.length > 0) aiUpdate.spirit_tags = parsed.spirit_tags
-                if (parsed.description) aiUpdate.description = parsed.description
-                if (Array.isArray(parsed.function_tags) && parsed.function_tags.length > 0) aiUpdate.function_tags = parsed.function_tags
-                if (parsed.topic) aiUpdate.topic = parsed.topic
-                if (Object.keys(aiUpdate).length > 0) {
-                  await sb.from('resources').update(aiUpdate).eq('id', row.id)
-                  console.log('[LIBRARY-UPLOAD] AI tagging stored', { spirits: aiUpdate.spirit_tags?.length ?? 0, topic: aiUpdate.topic })
-                }
-              } catch { console.error('[LIBRARY-UPLOAD] AI tagging JSON parse failed') }
+                parsed = JSON.parse(cleaned)
+              } catch {
+                console.error('[LIBRARY-UPLOAD] JSON parse failed:', cleaned.slice(0, 300))
+              }
+
+              console.log('[LIBRARY-UPLOAD] Parsed spirit_tags:', parsed.spirit_tags)
+
+              const aiUpdate: Record<string, any> = {
+                spirit_tags: Array.isArray(parsed.spirit_tags) ? parsed.spirit_tags : [],
+                function_tags: Array.isArray(parsed.function_tags) ? parsed.function_tags : [],
+              }
+              if (parsed.description) aiUpdate.description = parsed.description
+              if (parsed.topic) aiUpdate.topic = parsed.topic
+              await sb.from('resources').update(aiUpdate).eq('id', row.id)
+              console.log('[LIBRARY-UPLOAD] AI tagging stored', { spirits: aiUpdate.spirit_tags.length, topic: aiUpdate.topic })
             }
           } catch (e: any) {
             console.error('[LIBRARY-UPLOAD] AI tagging failed:', e?.message)
           }
         }
       } else {
-        console.log('[LIBRARY-UPLOAD] No text extracted — extracted_text remains null')
+        console.log('[LIBRARY-UPLOAD] Insufficient text extracted — skipping AI tagging')
       }
     }
   } catch (e: any) {

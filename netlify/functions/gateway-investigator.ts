@@ -132,7 +132,9 @@ Rules:
 - Session questions must reference specific things the person may have been exposed to
 - If you genuinely cannot find items for a category return an empty array
 - Include at least 5 session questions
-- For identified spirits, list specifically named demonic entities (not general concepts)`
+- For identified spirits, list specifically named demonic entities (not general concepts)
+
+Return ONLY a raw JSON object. No markdown. No code fences. No explanation before or after. Start your response with { and end with }.`
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -152,13 +154,16 @@ Rules:
 
   if (!res.ok) throw new Error(`Claude error ${res.status}`)
   const data = await res.json()
-  const raw = (data.content?.[0]?.text || '').trim()
-    .replace(/^```[\w]*\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+  const rawText = (data.content?.[0]?.text || '').trim()
 
-  try { return JSON.parse(raw) } catch {
-    const m = raw.match(/\{[\s\S]*\}/)
-    if (m) { try { return JSON.parse(m[0]) } catch {} }
-    throw new Error('Failed to parse AI response')
+  let cleaned = rawText
+    .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+  if (jsonMatch) cleaned = jsonMatch[0]
+
+  try { return JSON.parse(cleaned) } catch (e: any) {
+    console.error('[gateway-investigator] Parse failed. Raw:', rawText.slice(0, 500))
+    throw new Error('AI response could not be parsed. Please try again.')
   }
 }
 

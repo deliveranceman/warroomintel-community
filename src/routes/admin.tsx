@@ -4988,8 +4988,10 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       })
-      const data = await res.json()
-      if (!res.ok) { setReindexResult(`Error: ${data.error}`); return }
+      const text = await res.text()
+      let data: any = {}
+      try { data = text ? JSON.parse(text) : {} } catch { data = { error: text } }
+      if (!res.ok) { setReindexResult(`Error: ${data.error || data.errorMessage || `Request failed ${res.status}`}`); return }
       setReindexResult(`Reindex complete: ${data.succeeded}/${data.processed} books extracted. Reload to test.`)
     } catch (e: any) { setReindexResult(`Error: ${e.message}`) }
     setReindexing(false)

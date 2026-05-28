@@ -65,7 +65,8 @@ function OrgChartSVG({ selected, allDemons, onSelectParent, onSelectCompanion }:
     ? allDemons.find(d => d.name.toLowerCase() === (selected.parentStrongman || '').toLowerCase()) ?? null
     : null
 
-  const hasParent = !!selected.parentStrongman
+  const parentLabel = (selected.parentStrongman || '').trim()
+  const hasParent = !!parentLabel && parentLabel.toLowerCase() !== selected.name.toLowerCase()
   const compCount  = Math.min(companions.length, 6)
 
   const totalWidth   = Math.max(420, compCount * (NODE_W + 20) + 40)
@@ -102,9 +103,7 @@ function OrgChartSVG({ selected, allDemons, onSelectParent, onSelectCompanion }:
               <text x={cx} y={parentY + NODE_H / 2 + 4} textAnchor="middle"
                 fontFamily="Cinzel, serif" fontSize={9}
                 fill={parentDemon ? GC : DIM} letterSpacing="0.04em">
-                {(selected.parentStrongman || '').length > 18
-                  ? (selected.parentStrongman || '').slice(0, 17) + '…'
-                  : selected.parentStrongman || ''}
+                {parentLabel.length > 18 ? parentLabel.slice(0, 17) + '…' : parentLabel}
               </text>
               {parentDemon && (
                 <text x={parentX + NODE_W - 10} y={parentY + 13} fontSize={8} fill={GC}>▲</text>
