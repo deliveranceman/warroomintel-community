@@ -32,26 +32,6 @@ async function resolveMinister(token: string): Promise<boolean> {
   } catch { return false }
 }
 
-async function fetchAllSpiritNames(): Promise<string[]> {
-  const names: string[] = []
-  let offset: string | undefined
-  do {
-    const url = new URL(`https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}`)
-    url.searchParams.set('pageSize', '100')
-    url.searchParams.set('fields[]', PRIMARY_FIELD)
-    if (offset) url.searchParams.set('offset', offset)
-    const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
-    if (!res.ok) break
-    const data = await res.json()
-    for (const r of data.records || []) {
-      const name = r.fields?.[PRIMARY_FIELD]
-      if (name && name !== 'Primary Name') names.push(name)
-    }
-    offset = data.offset
-  } while (offset)
-  return names
-}
-
 async function fetchLibraryBooks() {
   console.log('[LIB-INTEL] Querying Supabase for library books...')
   const { data, error } = await sb()
@@ -100,21 +80,57 @@ export default async function handler(req: Request) {
 
   // ── TOOL 1: Spirit Gap Analysis ──────────────────────────────────────────────
   if (tool === 'gap-analysis') {
-    const t0 = Date.now()
-    const spiritNames = await fetchAllSpiritNames()
-    console.log(`[GAP-ANALYSIS] Loaded ${spiritNames.length} spirit names in ${Date.now() - t0}ms`)
+    try {
+      const t0 = Date.now()
+      console.log('[GAP] Starting gap analysis')
 
-    // Analyze each book with Claude Sonnet for comprehensive spirit extraction
-    const allGaps = new Map<string, { name: string; description: string; source: string; context: string; suggested_kingdom: string }>()
+      // Fresh books query with explicit error surfacing
+      console.log('[GAP] Books query starting...')
+      const { data: gapBooks, error: booksError } = await sb()
+        .from('resources')
+        .select('id, title, extracted_text')
+        .eq('topic', 'ministry-library')
+        .not('extracted_text', 'is', null)
+      console.log('[GAP] Books found:', gapBooks?.length ?? 0, 'error:', booksError?.message ?? null)
+      if (booksError) throw new Error(`Books query failed: ${booksError.message}`)
+      if (!gapBooks?.length) throw new Error('No indexed books found. Re-analyze at least one book first.')
 
-    for (const book of books) {
-      if (!book.extracted_text) continue
-      console.log(`[GAP-ANALYSIS] Analyzing: ${book.title} (${book.extracted_text.length} chars)`)
+      // Load existing demon names from Airtable
+      console.log('[GAP] Airtable fetch starting...')
+      let existingNames: string[] = []
+      try {
+        const airtableRes = await fetch(
+          `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}?fields[]=${encodeURIComponent(PRIMARY_FIELD)}&pageSize=200`,
+          { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }, signal: AbortSignal.timeout(10000) }
+        )
+        if (airtableRes.ok) {
+          const airtableData = await airtableRes.json()
+          existingNames = (airtableData.records || [])
+            .map((r: any) => {
+              const f = r.fields || {}
+              return f[PRIMARY_FIELD] || f['Name'] || ''
+            })
+            .filter(Boolean)
+          console.log('[GAP] Demon names loaded:', existingNames.length)
+        } else {
+          console.error('[GAP] Airtable error:', airtableRes.status)
+        }
+      } catch (e) {
+        console.error('[GAP] Airtable fetch failed:', e)
+        // Continue with empty list — better to find duplicates than crash
+      }
 
-      const prompt = `You are a demon database specialist for a deliverance ministry platform. We have ${spiritNames.length} spirits in our database.
+      // Analyze each book with Claude Sonnet
+      const allGaps = new Map<string, { name: string; description: string; source: string; context: string; suggested_kingdom: string }>()
+
+      for (const book of gapBooks) {
+        if (!book.extracted_text) continue
+        console.log('[GAP] Processing book:', book.title, 'text length:', book.extracted_text?.length)
+
+        const prompt = `You are a demon database specialist for a deliverance ministry platform. We have ${existingNames.length} spirits in our database.
 
 EXISTING DATABASE (do not include these):
-${spiritNames.slice(0, 300).join(', ')}
+${existingNames.slice(0, 300).join(', ')}
 
 BOOK: "${book.title}"
 
@@ -145,61 +161,67 @@ Return ONLY this JSON (no markdown):
   ]
 }`
 
-      try {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }),
-          signal: AbortSignal.timeout(50000),
-        })
+        try {
+          const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }),
+            signal: AbortSignal.timeout(50000),
+          })
 
-        if (!res.ok) {
-          console.error(`[GAP-ANALYSIS] Claude error for ${book.title}:`, res.status)
-          continue
-        }
+          if (!res.ok) {
+            const errText = await res.text()
+            console.error(`[GAP] Claude error for ${book.title}:`, res.status, errText.slice(0, 200))
+            continue
+          }
 
-        const data = await res.json()
-        const raw  = (data.content?.[0]?.text || '').trim()
-          .replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim()
+          const data = await res.json()
+          const raw  = (data.content?.[0]?.text || '').trim()
+            .replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim()
 
-        let parsed: any = null
-        try { parsed = JSON.parse(raw) } catch {
-          const m = raw.match(/\{[\s\S]*\}/)
-          if (m) { try { parsed = JSON.parse(m[0]) } catch {} }
-        }
+          let parsed: any = null
+          try { parsed = JSON.parse(raw) } catch {
+            const m = raw.match(/\{[\s\S]*\}/)
+            if (m) { try { parsed = JSON.parse(m[0]) } catch {} }
+          }
 
-        if (parsed?.newSpirits && Array.isArray(parsed.newSpirits)) {
-          for (const spirit of parsed.newSpirits) {
-            if (!spirit.name) continue
-            const key = spirit.name.toLowerCase().trim()
-            if (!allGaps.has(key)) {
-              allGaps.set(key, {
-                name:              spirit.name,
-                description:       spirit.description || '',
-                source:            spirit.source || book.title,
-                context:           spirit.context || 'Found in library document',
-                suggested_kingdom: spirit.suggested_kingdom || 'Unknown',
-              })
+          const spirits = parsed?.newSpirits
+          console.log('[GAP] Claude found spirits:', spirits?.length ?? 0, 'for', book.title)
+
+          if (Array.isArray(spirits)) {
+            for (const spirit of spirits) {
+              if (!spirit.name) continue
+              const key = spirit.name.toLowerCase().trim()
+              if (!allGaps.has(key)) {
+                allGaps.set(key, {
+                  name:              spirit.name,
+                  description:       spirit.description || '',
+                  source:            spirit.source || book.title,
+                  context:           spirit.context || 'Found in library document',
+                  suggested_kingdom: spirit.suggested_kingdom || 'Unknown',
+                })
+              }
             }
           }
+        } catch (e) {
+          console.error(`[GAP] Failed to analyze ${book.title}:`, e)
         }
-
-        console.log(`[GAP-ANALYSIS] ${book.title}: ${parsed?.newSpirits?.length ?? 0} new spirits`)
-      } catch (e) {
-        console.error(`[GAP-ANALYSIS] Failed to analyze ${book.title}:`, e)
       }
+
+      const gaps = Array.from(allGaps.values())
+      console.log(`[GAP] Total: ${gaps.length} unique new spirits in ${Date.now() - t0}ms`)
+
+      return new Response(JSON.stringify({
+        gaps,
+        summary: `Analyzed ${gapBooks.length} books. Found ${gaps.length} spirits not in database.`,
+        bookTitles,
+        bookCount:   gapBooks.length,
+        spiritCount: existingNames.length,
+      }), { status: 200, headers })
+    } catch (e: any) {
+      console.error('[GAP] FATAL:', e.message)
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })
     }
-
-    const gaps = Array.from(allGaps.values())
-    console.log(`[GAP-ANALYSIS] Total: ${gaps.length} unique new spirits in ${Date.now() - t0}ms`)
-
-    return new Response(JSON.stringify({
-      gaps,
-      summary: `Analyzed ${books.length} books. Found ${gaps.length} spirits not in database.`,
-      bookTitles,
-      bookCount:   books.length,
-      spiritCount: spiritNames.length,
-    }), { status: 200, headers })
   }
 
   // ── TOOL 2: Content Intelligence Query ───────────────────────────────────────
