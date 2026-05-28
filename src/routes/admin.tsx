@@ -1165,7 +1165,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   // AI Backfill state
   const [backfillRunning, setBackfillRunning]   = useState(false)
   const [backfillProgress, setBackfillProgress] = useState('')
-  const [backfillResults, setBackfillResults]   = useState<{ totalUpdated: number; totalFailed: number; complete: boolean } | null>(null)
+  const [backfillResults, setBackfillResults]   = useState<{ totalUpdated: number; totalSkipped: number; totalFailed: number; complete: boolean } | null>(null)
 
   function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
     setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), status, editing: false } }))
@@ -1194,28 +1194,30 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   async function handleAIBackfill() {
     setBackfillRunning(true)
     setBackfillResults(null)
-    let startFrom = 0
+    let startFrom    = 0
     let totalUpdated = 0
-    let totalFailed = 0
+    let totalSkipped = 0
+    let totalFailed  = 0
     try {
       const token = await getToken()
       while (true) {
         setBackfillProgress(`Processing spirits ${startFrom + 1}–${startFrom + 20}...`)
         const res = await fetch('/api/ai-backfill', {
-          method: 'POST',
+          method:  'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ startFrom }),
         })
         if (!res.ok) { setBackfillProgress(`Error: ${res.status}`); break }
         const data = await res.json()
         totalUpdated += data.updated || 0
+        totalSkipped += data.skipped || 0
         totalFailed  += data.failed  || 0
-        setBackfillProgress(`${data.message} (${totalUpdated} updated so far)`)
+        setBackfillProgress(`${data.message}`)
         if (!data.hasMore) break
         startFrom = data.nextStartFrom
         await new Promise(r => setTimeout(r, 500))
       }
-      setBackfillResults({ totalUpdated, totalFailed, complete: true })
+      setBackfillResults({ totalUpdated, totalSkipped, totalFailed, complete: true })
       setBackfillProgress('')
     } catch (e: any) {
       setBackfillProgress('Error: ' + e.message)
@@ -1603,8 +1605,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           </button>
           <button onClick={handleAIBackfill} disabled={backfillRunning}
             style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: backfillRunning ? 'wait' : 'pointer', opacity: backfillRunning ? 0.7 : 1 }}>
-            ⚡ {backfillRunning ? 'RUNNING BACKFILL...' : 'AI BACKFILL EMPTY FIELDS'}
+            🧠 {backfillRunning ? 'RUNNING...' : 'SMART ENRICH ALL SPIRITS'}
           </button>
+          {!backfillRunning && (
+            <span style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>
+              Fills empty fields and improves low-quality entries (&lt;75% confidence). Processes 20 at a time.
+            </span>
+          )}
         </div>
         <div style={{ textAlign: 'right' as const }}>
           <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
@@ -1618,11 +1625,20 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       )}
       {backfillResults?.complete && (
         <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, marginBottom: 8, letterSpacing: '0.06em' }}>BACKFILL COMPLETE</div>
-          <div style={{ fontFamily: crimson, fontSize: 15, color: DIM }}>
-            {backfillResults.totalUpdated} spirits updated · {backfillResults.totalFailed} failed
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, marginBottom: 12, letterSpacing: '0.06em' }}>ENRICHMENT COMPLETE</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            {[
+              { label: 'UPDATED',              value: backfillResults.totalUpdated, color: '#4a7a4a' },
+              { label: 'SKIPPED (HIGH QUALITY)', value: backfillResults.totalSkipped, color: '#6b5e45' },
+              { label: 'FAILED',               value: backfillResults.totalFailed, color: '#8B3232' },
+            ].map(stat => (
+              <div key={stat.label} style={{ textAlign: 'center' as const, padding: 10, background: '#0a0807', borderRadius: 4, border: '1px solid #1e1a0e' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 20, color: stat.color }}>{stat.value}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.1em', marginTop: 4 }}>{stat.label}</div>
+              </div>
+            ))}
           </div>
-          <button onClick={() => setBackfillResults(null)} style={{ marginTop: 10, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: DIM, background: 'transparent', border: 'none', cursor: 'pointer' }}>Dismiss</button>
+          <button onClick={() => setBackfillResults(null)} style={{ marginTop: 12, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: DIM, background: 'transparent', border: 'none', cursor: 'pointer' }}>Dismiss</button>
         </div>
       )}
 

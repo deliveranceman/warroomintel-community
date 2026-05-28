@@ -446,8 +446,8 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
   const [resources,       setResources]       = useState<any[]>([])
   const [loadingResources,setLoadingResources]= useState(false)
   const [navStack,        setNavStack]        = useState<Demon[]>([])
-  const [libraryPassages, setLibraryPassages] = useState<{ source: string; passages: string[] }[]>([])
-  const [loadingLibrary,  setLoadingLibrary]  = useState(false)
+  const [libraryHits,    setLibraryHits]    = useState<any[]>([])
+  const [loadingLibrary, setLoadingLibrary] = useState(false)
 
   const searchResults = searchQuery.length > 1
     ? demons.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
@@ -462,47 +462,20 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
       .catch(() => { setResources([]); setLoadingResources(false) })
   }, [])
 
-  const fetchLibraryPassages = useCallback((demon: Demon) => {
-    setLibraryPassages([])
+  const fetchLibraryIntel = useCallback((demon: Demon) => {
+    setLibraryHits([])
     setLoadingLibrary(true)
-    const spiritLc = demon.name.toLowerCase()
-    const doFetch = async () => {
-      const token = getToken ? await getToken() : null
-      return fetch('/api/library-chunks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ spiritName: demon.name, spiritDescription: demon.description || '' }),
-      })
-    }
-    doFetch()
+    fetch('/api/library-search', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        query: `${demon.name} spirit demon manifestations entry points deliverance`,
+        limit: 6,
+      }),
+    })
       .then(r => r.json())
-      .then(d => {
-        const chunks: { bookTitle: string; author: string; text: string }[] = d.chunks || []
-        // Find sentence-level matches within each chunk
-        const bySource = new Map<string, string[]>()
-        for (const chunk of chunks) {
-          const sentences = chunk.text.split(/(?<=[.!?])\s+/)
-          const matches = sentences
-            .filter(s => s.toLowerCase().includes(spiritLc))
-            .slice(0, 2)
-            .map(s => s.trim())
-            .filter(s => s.length > 30)
-          if (matches.length > 0) {
-            const key = chunk.bookTitle
-            bySource.set(key, [...(bySource.get(key) || []), ...matches])
-          }
-        }
-        // Fall back to chunk excerpts when no sentence-level matches
-        if (bySource.size === 0) {
-          for (const chunk of chunks.slice(0, 3)) {
-            bySource.set(chunk.bookTitle, [chunk.text.slice(0, 200)])
-          }
-        }
-        const passages = [...bySource.entries()].map(([source, p]) => ({ source, passages: p.slice(0, 2) }))
-        setLibraryPassages(passages)
-        setLoadingLibrary(false)
-      })
-      .catch(() => { setLibraryPassages([]); setLoadingLibrary(false) })
+      .then(d => { setLibraryHits(d.chunks || []); setLoadingLibrary(false) })
+      .catch(() => { setLibraryHits([]); setLoadingLibrary(false) })
   }, [])
 
   // Navigate to a spirit — pushes current to history stack
@@ -513,8 +486,8 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
     })
     setDossierExpanded(false)
     fetchResources(demon)
-    fetchLibraryPassages(demon)
-  }, [fetchResources, fetchLibraryPassages])
+    fetchLibraryIntel(demon)
+  }, [fetchResources, fetchLibraryIntel])
 
   // Navigate to parent — pops history if parent is in stack, else resets
   const selectParent = useCallback((demon: Demon) => {
@@ -525,15 +498,16 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
     setSelectedSpirit(demon)
     setDossierExpanded(false)
     fetchResources(demon)
-    fetchLibraryPassages(demon)
-  }, [fetchResources, fetchLibraryPassages])
+    fetchLibraryIntel(demon)
+  }, [fetchResources, fetchLibraryIntel])
 
   // Navigate to a breadcrumb item at a given stack index
   const navigateToHistory = useCallback((index: number, demon: Demon) => {
     setNavStack(prev => prev.slice(0, index))
     setSelectedSpirit(demon)
     fetchResources(demon)
-  }, [fetchResources])
+    fetchLibraryIntel(demon)
+  }, [fetchResources, fetchLibraryIntel])
 
   // Search select — clears history
   const searchSelect = useCallback((demon: Demon) => {
@@ -542,7 +516,8 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
     setSearchQuery('')
     setDossierExpanded(false)
     fetchResources(demon)
-  }, [fetchResources])
+    fetchLibraryIntel(demon)
+  }, [fetchResources, fetchLibraryIntel])
 
   const groupedByKingdom = demons.reduce((acc: Record<string, Demon[]>, d) => {
     const k = d.kingdom || 'Other'; if (!acc[k]) acc[k] = []; acc[k].push(d); return acc
@@ -806,22 +781,25 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
                         <div key={i} style={{ height: 10, background: BDR, borderRadius: 4, width: `${w}%`, marginBottom: 4 }} />
                       ))}
                     </div>
-                  ) : libraryPassages.length === 0 ? (
+                  ) : libraryHits.length === 0 ? (
                     <div style={{ fontFamily: inter, fontSize: 12, color: DIM, fontStyle: 'italic', lineHeight: 1.6 }}>
                       No passages found in your ministry library for this spirit.
                       <br /><br />
                       <span style={{ fontSize: 11 }}>Upload and index books in the Admin → Ministry Library tab to enable this feature.</span>
                     </div>
-                  ) : libraryPassages.map((hit, i) => (
+                  ) : libraryHits.map((hit: any, i: number) => (
                     <div key={i} style={{ marginBottom: 20 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.1em', marginBottom: 8 }}>
-                        {hit.source}
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em', marginBottom: 6 }}>
+                        📚 {hit.book_title || hit.source}
+                        {hit.similarity && (
+                          <span style={{ color: '#4a3f2f', marginLeft: 8 }}>
+                            {Math.round((hit.similarity || 0) * 100)}% match
+                          </span>
+                        )}
                       </div>
-                      {hit.passages.map((p, j) => (
-                        <div key={j} style={{ fontFamily: inter, fontSize: 13, color: '#8a7a60', lineHeight: 1.7, borderLeft: '2px solid #2a2218', paddingLeft: 12, marginBottom: 8, fontStyle: 'italic' }}>
-                          "…{p}…"
-                        </div>
-                      ))}
+                      <div style={{ fontFamily: inter, fontSize: 14, color: '#8a7a60', lineHeight: 1.7, borderLeft: '2px solid #2a2218', paddingLeft: 12, fontStyle: 'italic' }}>
+                        "...{(hit.chunk_text || hit.passage || '').slice(0, 300)}..."
+                      </div>
                     </div>
                   ))}
                 </>

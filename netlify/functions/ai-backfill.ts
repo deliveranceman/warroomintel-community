@@ -9,7 +9,6 @@ const CORS = {
   'Content-Type': 'application/json',
 }
 
-// Valid single-select values used by Airtable
 const VALID_KINGDOMS = [
   'Hell / Darkness', 'Air', 'Water / Marine', 'Earth', 'Witchcraft', 'Occult',
   'Religion / False Religion', 'False Religion / Paganism', 'Infirmity / Sickness',
@@ -20,6 +19,31 @@ const VALID_RANKS = [
   'Principality', 'World Ruler', 'Power', 'Wicked Spirit',
   'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity',
 ]
+
+const CONFIDENCE_THRESHOLD = 75
+
+function scoreFieldQuality(fieldValue: string | undefined): number {
+  if (!fieldValue || fieldValue.trim().length === 0) return 0
+  const v = fieldValue.trim()
+
+  if (v.length < 10) return 10
+  if (v.length < 30) return 25
+
+  const lowQualityPatterns = [
+    /^see\s+/i,
+    /^unknown$/i,
+    /^n\/a$/i,
+    /^tbd$/i,
+    /^various$/i,
+    /^\w{1,3}$/,
+    /^[A-Z\s]+$/,
+  ]
+  if (lowQualityPatterns.some(p => p.test(v))) return 15
+
+  if (v.length > 100) return 85
+  if (v.length > 50)  return 65
+  return 50
+}
 
 function resolveUserId(token: string): string {
   try {
@@ -43,7 +67,7 @@ export default async function handler(req: Request) {
   const startFrom: number = body.startFrom ?? 0
   const batchSize = 20
 
-  // ── Step 1: Fetch all Airtable records (paginated) ─────────────────────────
+  // Fetch all Airtable records
   const allRecords: any[] = []
   let offset: string | undefined
 
@@ -63,20 +87,32 @@ export default async function handler(req: Request) {
     console.log('[AI-BACKFILL] Sample field names:', Object.keys(allRecords[0].fields || {}))
   }
 
-  // ── Step 2: Filter records with empty description or kingdom ───────────────
-  const emptyRecords = allRecords.filter(r => {
+  // Define enrichable fields
+  const enrichableFields = [
+    { at: 'Description',      key: 'description' },
+    { at: 'Kingdom',          key: 'kingdom' },
+    { at: 'Biblical Rank',    key: 'rank' },
+    { at: 'Also Known As',    key: 'also_known_as' },
+    { at: 'Entry Points',     key: 'entry_points' },
+    { at: 'Manifestiation',   key: 'manifestations' }, // Airtable typo
+    { at: 'Counter Scriptures', key: 'scriptures' },
+  ]
+
+  // Filter: records where any field scores below threshold
+  const needsEnrich = allRecords.filter(r => {
     const f    = r.fields || {}
     const name = f[NAME_FIELD] || f['Name'] || ''
     if (!name) return false
-    return !f['Description'] || !f['Kingdom']
+    return enrichableFields.some(field => scoreFieldQuality(f[field.at]) < CONFIDENCE_THRESHOLD)
   })
 
-  console.log('[AI-BACKFILL] Records needing fill:', emptyRecords.length)
+  console.log('[AI-BACKFILL] Records needing enrichment:', needsEnrich.length)
 
-  // ── Step 3: Process the current batch ─────────────────────────────────────
-  const batch     = emptyRecords.slice(startFrom, startFrom + batchSize)
-  const updated:  string[] = []
-  const failed:   string[] = []
+  // Process current batch
+  const batch    = needsEnrich.slice(startFrom, startFrom + batchSize)
+  const updated: string[] = []
+  const skipped: string[] = []
+  const failed:  string[] = []
 
   for (const record of batch) {
     const f    = record.fields || {}
@@ -84,30 +120,56 @@ export default async function handler(req: Request) {
 
     console.log('[AI-BACKFILL] Processing:', name)
 
+    // Score all fields, collect those needing improvement
+    const fieldsToImprove: Array<{ at: string; key: string; current: string; currentScore: number }> = []
+    for (const field of enrichableFields) {
+      const currentScore = scoreFieldQuality(f[field.at])
+      if (currentScore < CONFIDENCE_THRESHOLD) {
+        fieldsToImprove.push({ ...field, current: f[field.at] || '', currentScore })
+      }
+    }
+
+    if (fieldsToImprove.length === 0) {
+      console.log('[AI-BACKFILL] All fields high quality for:', name)
+      skipped.push(name)
+      continue
+    }
+
     try {
+      const prompt = `You are filling a deliverance ministry spirit database entry.
+
+Spirit: "${name}"
+${f['Kingdom'] ? `Current Kingdom: ${f['Kingdom']}` : ''}
+
+Fields needing improvement (current quality < 75%):
+${fieldsToImprove.map(field =>
+  `- ${field.key}: ${field.current ? `"${field.current}" (quality score: ${field.currentScore}%)` : 'EMPTY'}`
+).join('\n')}
+
+Provide the BEST POSSIBLE values for each field listed above.
+Only return fields that need filling. Be specific and detailed.
+
+Kingdom MUST be one of exactly: Hell / Darkness, Air, Water / Marine, Earth, Witchcraft, Occult, Religion / False Religion, False Religion / Paganism, Infirmity / Sickness, Mind / Intellect, Sexual Perversion, Death / Destruction, Fear / Torment, Pride / Self, Deception / Lies, Anger / Violence, Mammon / Greed
+Rank MUST be one of exactly: Principality, World Ruler, Power, Wicked Spirit, Fallen Angel, Demon, Familiar Spirit, Spirit of Infirmity
+
+Return ONLY JSON (no markdown, start with {):
+{
+  "description": "...",
+  "kingdom": "...",
+  "rank": "...",
+  "also_known_as": "...",
+  "entry_points": "...",
+  "manifestations": "...",
+  "scriptures": "..."
+}`
+
       const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
           model:      'claude-haiku-4-5-20251001',
           max_tokens: 600,
-          messages: [{
-            role: 'user',
-            content: `You are a demonic intelligence specialist for a deliverance ministry database.
-
-Provide accurate information about the demonic entity: "${name}"
-
-Return ONLY this JSON (no markdown, start with {):
-{
-  "description": "2-3 sentence description of this spirit's nature, origin, and primary function",
-  "kingdom": "MUST be one of exactly: Hell / Darkness, Air, Water / Marine, Earth, Witchcraft, Occult, Religion / False Religion, False Religion / Paganism, Infirmity / Sickness, Mind / Intellect, Sexual Perversion, Death / Destruction, Fear / Torment, Pride / Self, Deception / Lies, Anger / Violence, Mammon / Greed",
-  "rank": "MUST be one of exactly: Principality, World Ruler, Power, Wicked Spirit, Fallen Angel, Demon, Familiar Spirit, Spirit of Infirmity",
-  "entry_points": "2-3 common entry points, semicolon-separated",
-  "manifestations": "2-3 common manifestations, semicolon-separated",
-  "scriptures": "1-2 most relevant scripture references",
-  "also_known_as": "other names for this spirit, comma-separated, or empty string"
-}`,
-          }],
+          messages:   [{ role: 'user', content: prompt }],
         }),
         signal: AbortSignal.timeout(15000),
       })
@@ -124,33 +186,27 @@ Return ONLY this JSON (no markdown, start with {):
         continue
       }
 
-      // Build update — only fill EMPTY fields, never overwrite
+      // Build update — only overwrite fields that are low quality
       const updateFields: Record<string, any> = {}
 
-      if (!f['Description'] && parsed.description) {
-        updateFields['Description'] = parsed.description
-      }
-      if (!f['Kingdom'] && parsed.kingdom && VALID_KINGDOMS.includes(parsed.kingdom)) {
-        updateFields['Kingdom'] = parsed.kingdom
-      }
-      if (!f['Biblical Rank'] && parsed.rank && VALID_RANKS.includes(parsed.rank)) {
-        updateFields['Biblical Rank'] = parsed.rank
-      }
-      if (!f['Also Known As'] && parsed.also_known_as) {
-        updateFields['Also Known As'] = parsed.also_known_as
-      }
-      if (!f['Entry Points'] && parsed.entry_points) {
-        updateFields['Entry Points'] = parsed.entry_points
-      }
-      if (!f['Manifestiation'] && parsed.manifestations) {
-        updateFields['Manifestiation'] = parsed.manifestations  // Airtable field has this typo
-      }
-      if (!f['Counter Scriptures'] && parsed.scriptures) {
-        updateFields['Counter Scriptures'] = parsed.scriptures
+      for (const field of fieldsToImprove) {
+        const aiValue = parsed[field.key]
+        if (!aiValue || !aiValue.trim()) continue
+
+        // Validate single-select fields
+        if (field.at === 'Kingdom') {
+          if (!VALID_KINGDOMS.includes(aiValue)) continue
+        }
+        if (field.at === 'Biblical Rank') {
+          if (!VALID_RANKS.includes(aiValue)) continue
+        }
+
+        updateFields[field.at] = aiValue
       }
 
       if (Object.keys(updateFields).length === 0) {
         console.log('[AI-BACKFILL] Nothing to update for:', name)
+        skipped.push(name)
         continue
       }
 
@@ -172,7 +228,7 @@ Return ONLY this JSON (no markdown, start with {):
         failed.push(name)
       }
 
-      await new Promise(r => setTimeout(r, 250))  // stay under Airtable rate limit
+      await new Promise(r => setTimeout(r, 250))
 
     } catch (e: any) {
       console.error('[AI-BACKFILL] Error on:', name, e.message)
@@ -180,20 +236,22 @@ Return ONLY this JSON (no markdown, start with {):
     }
   }
 
-  const remaining = emptyRecords.length - startFrom - batch.length
-  const message   = `Updated ${updated.length} of ${batch.length} spirits. ${remaining > 0 ? `${remaining} remaining.` : 'All done!'}`
+  const remaining = needsEnrich.length - startFrom - batch.length
+  const message   = `Updated ${updated.length}, skipped ${skipped.length} (high quality), failed ${failed.length}. ${remaining > 0 ? `${remaining} remaining.` : 'All done!'}`
   console.log('[AI-BACKFILL]', message)
 
   return new Response(JSON.stringify({
-    success:          true,
-    processed:        batch.length,
-    updated:          updated.length,
-    failed:           failed.length,
-    updatedNames:     updated,
-    failedNames:      failed,
-    totalNeedingFill: emptyRecords.length,
-    nextStartFrom:    startFrom + batchSize,
-    hasMore:          remaining > 0,
+    success:           true,
+    processed:         batch.length,
+    updated:           updated.length,
+    skipped:           skipped.length,
+    failed:            failed.length,
+    updatedNames:      updated,
+    skippedNames:      skipped,
+    failedNames:       failed,
+    totalNeedingFill:  needsEnrich.length,
+    nextStartFrom:     startFrom + batchSize,
+    hasMore:           remaining > 0,
     message,
   }), { status: 200, headers: CORS })
 }
