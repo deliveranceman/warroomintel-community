@@ -57,13 +57,11 @@ async function fetchLibraryBooks() {
   console.log('[LIB-INTEL] Querying Supabase...')
   const { data, error } = await sb()
     .from('resources')
-    .select('title, author, extracted_text')
+    .select('id, title, author, extracted_text')
     .eq('topic', 'ministry-library')
-    .neq('active', false)
     .not('extracted_text', 'is', null)
-    .neq('extracted_text', '')
     .limit(MAX_BOOKS)
-  console.log('[LIB-INTEL] Result:', { count: data?.length ?? 0, error: error?.message ?? null })
+  console.log('[GAP-ANALYSIS] Books found:', data?.length ?? 0, error?.message ?? null)
   return data || []
 }
 
@@ -123,34 +121,56 @@ export default async function handler(req: Request) {
   // ── TOOL 1: Spirit Gap Analysis ──────────────────────────────────────────────
   if (tool === 'gap-analysis') {
     const spiritNames = await fetchAllSpiritNames()
-    const nameList = spiritNames.join(', ')
 
-    const system = `You are a deliverance ministry database analyst for War Room Intel. You have been given two things: (1) the complete list of spirits already in the database, and (2) text from ministry library documents. Your job is to identify spirits, demonic entities, principalities, powers, or spiritual forces mentioned in the library documents that are NOT already in the database. Be specific — include exact names, alternate names, and the context in which they appear.
+    const combinedText = books.map((b: any) =>
+      `=== ${b.title} ===\n${(b.extracted_text || '').slice(0, 2000)}`
+    ).join('\n\n')
 
-Format your response as a JSON array with no other text:
-[
-  {
-    "spirit_name": "exact name",
-    "source_document": "book title",
-    "brief_description": "1-2 sentence description",
-    "suggested_rank": "one of: Principality / Power / Ruler of Darkness / Spiritual Wickedness in High Places / Fallen Angel / Demon / Familiar Spirit / Spirit of Infirmity",
-    "suggested_kingdom": "one of: Hell / Darkness / Air / Water / Earth / Witchcraft / Occult"
-  }
-]`
+    const prompt = `You are analyzing ministry library documents to find spiritual entities mentioned that are NOT yet in our demon database.
 
-    const userMsg = `Here are the spirits already in my database:\n${nameList}\n\nHere are my ministry library documents:\n${libraryText}\n\nIdentify every spirit mentioned in the library documents that is NOT already in my database. Return JSON only.`
+DEMON DATABASE (spirits we already have — ${spiritNames.length} entries):
+${spiritNames.slice(0, 300).join(', ')}
 
-    const rawResponse = await claudeCall(system, userMsg)
+LIBRARY DOCUMENTS TEXT:
+${combinedText.slice(0, 6000)}
 
-    let results: any[] = []
-    try {
-      const jsonMatch = rawResponse.match(/\[[\s\S]*\]/)
-      if (jsonMatch) results = JSON.parse(jsonMatch[0])
-    } catch {
-      results = []
+Task: Identify spiritual entities, demons, or spirits mentioned in the library text that do NOT appear in our demon database list above. Only include spirits that are explicitly named or clearly referenced in the text.
+
+Return ONLY a raw JSON object. No markdown. No code fences. Start with { and end with }.
+{
+  "gaps": [
+    {
+      "name": "Spirit Name",
+      "context": "Brief quote or context showing where it appeared in the text",
+      "source": "Book title it came from",
+      "suggested_kingdom": "Witchcraft|Occult|False Religion|Air|Water|Earth|Darkness|Hell"
+    }
+  ],
+  "summary": "One sentence summary of findings"
+}`
+
+    const rawResponse = await claudeCall(
+      'You are a deliverance ministry database analyst. Return ONLY valid JSON. No markdown, no code fences. Start with { and end with }.',
+      prompt
+    )
+
+    let cleaned = rawResponse
+      .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+    if (jsonMatch) cleaned = jsonMatch[0]
+
+    let parsed: any = { gaps: [], summary: '' }
+    try { parsed = JSON.parse(cleaned) } catch {
+      console.error('[GAP-ANALYSIS] JSON parse failed:', cleaned.slice(0, 300))
     }
 
-    return new Response(JSON.stringify({ results, bookTitles, spiritCount: spiritNames.length }), { status: 200, headers })
+    return new Response(JSON.stringify({
+      gaps: Array.isArray(parsed.gaps) ? parsed.gaps : [],
+      summary: parsed.summary || '',
+      bookTitles,
+      bookCount: books.length,
+      spiritCount: spiritNames.length,
+    }), { status: 200, headers })
   }
 
   // ── TOOL 2: Content Intelligence Query ───────────────────────────────────────

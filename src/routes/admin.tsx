@@ -4923,7 +4923,8 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   // Gap analysis state
   const [gapLoading, setGapLoading] = useState(false)
   const [gapResults, setGapResults] = useState<any[]>([])
-  const [gapMeta, setGapMeta] = useState<{ bookTitles: string[]; spiritCount: number } | null>(null)
+  const [gapSummary, setGapSummary] = useState('')
+  const [gapMeta, setGapMeta] = useState<{ bookTitles: string[]; spiritCount: number; bookCount: number } | null>(null)
   const [gapError, setGapError] = useState('')
   const [addingSpirit, setAddingSpirit] = useState<any | null>(null)
   const [addSuccess, setAddSuccess] = useState<string | null>(null)
@@ -4942,6 +4943,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   async function runGapAnalysis() {
     setGapLoading(true)
     setGapResults([])
+    setGapSummary('')
     setGapError('')
     setGapMeta(null)
     try {
@@ -4953,8 +4955,9 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       })
       const data = await res.json()
       if (!res.ok) { setGapError(data.error || 'Analysis failed'); return }
-      setGapResults(data.results || [])
-      setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: data.spiritCount || 0 })
+      setGapResults(data.gaps || [])
+      setGapSummary(data.summary || '')
+      setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: data.spiritCount || 0, bookCount: data.bookCount || 0 })
     } catch (e: any) { setGapError(e.message) }
     setGapLoading(false)
   }
@@ -5004,9 +5007,11 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   async function confirmAdd(spirit: any) {
     try {
       const token = await getToken()
+      const spiritName = spirit.name || spirit.spirit_name || ''
+      const description = spirit.context || spirit.brief_description || ''
       const fields: Record<string, string> = {
-        '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE': spirit.spirit_name,
-        'Description': spirit.brief_description,
+        '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE': spiritName,
+        'Description': description,
       }
       const res = await fetch('/api/admin-demon', {
         method: 'POST',
@@ -5014,7 +5019,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         body: JSON.stringify({ fields }),
       })
       if (res.ok) {
-        setAddSuccess(spirit.spirit_name)
+        setAddSuccess(spiritName)
         setAddingSpirit(null)
         setTimeout(() => setAddSuccess(null), 3000)
       }
@@ -5057,30 +5062,41 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         {addSuccess && <div style={{ color: '#80e090', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.08em', marginBottom: 12 }}>✓ {addSuccess} added to database</div>}
         {gapMeta && (
           <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: mut2, marginBottom: 12 }}>
-            Analyzed {gapMeta.bookTitles.length} book{gapMeta.bookTitles.length !== 1 ? 's' : ''} against {gapMeta.spiritCount} database entries
+            Analyzed {gapMeta.bookCount} book{gapMeta.bookCount !== 1 ? 's' : ''} against {gapMeta.spiritCount} database entries
             {gapMeta.bookTitles.length > 0 && `: ${gapMeta.bookTitles.join(' · ')}`}
           </div>
         )}
         {gapResults.length > 0 && (
           <div>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: G2, letterSpacing: '0.1em', marginBottom: 12 }}>
-              {gapResults.length} potential additions found
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G2, letterSpacing: '0.1em', marginBottom: 12 }}>
+              {gapResults.length} SPIRITS FOUND NOT IN DATABASE
             </div>
-            <div style={{ display: 'grid', gap: 10 }}>
+            {gapSummary && (
+              <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, marginBottom: 16, fontStyle: 'italic' }}>
+                {gapSummary}
+              </div>
+            )}
+            <div style={{ display: 'grid', gap: 8 }}>
               {gapResults.map((r, i) => (
-                <div key={i} style={{ background: isDark ? BG : '#F5F0E8', border: `1px solid ${bdr2}`, borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: txt2, marginBottom: 4 }}>{r.spirit_name}</div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 6 }}>
-                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: G2, border: `1px solid ${G2}44`, padding: '2px 8px', borderRadius: 3 }}>{r.suggested_rank}</span>
-                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: mut2, border: `1px solid ${bdr2}`, padding: '2px 8px', borderRadius: 3 }}>{r.suggested_kingdom}</span>
-                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.06em', color: mut2 }}>📖 {r.source_document}</span>
-                    </div>
-                    <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, lineHeight: 1.5 }}>{r.brief_description}</div>
+                <div key={i} style={{ padding: '12px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${bdr2}`, borderLeft: `3px solid ${G2}`, borderRadius: 4 }}>
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G2, marginBottom: 4 }}>
+                    {r.name || r.spirit_name}
                   </div>
-                  <button onClick={() => addToDatabase(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
-                    + Add to DB
-                  </button>
+                  {(r.context || r.brief_description) && (
+                    <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, marginBottom: 4, fontStyle: 'italic' }}>
+                      "{r.context || r.brief_description}"
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: 8 }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: mut2, letterSpacing: '0.08em', display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+                      {(r.source || r.source_document) && <span>SOURCE: {r.source || r.source_document}</span>}
+                      {r.suggested_kingdom && <span>KINGDOM: {r.suggested_kingdom}</span>}
+                      {r.suggested_rank && <span>RANK: {r.suggested_rank}</span>}
+                    </div>
+                    <button onClick={() => addToDatabase(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
+                      + Add to DB
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
