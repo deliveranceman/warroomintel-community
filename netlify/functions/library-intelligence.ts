@@ -40,6 +40,17 @@ function cleanExtractedText(raw: unknown): string {
     .trim()
 }
 
+// Extract only spirit-relevant lines from raw text (before whitespace normalization destroys line structure)
+function extractSpiritLines(rawText: unknown): string {
+  if (typeof rawText !== 'string') return ''
+  const sanitized = rawText.replace(/\0/g, ' ').replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+  const lines      = sanitized.split(/\r?\n/)
+  const keywords   = ['spirit', 'demon', 'cast out', 'rebuke', 'bind', 'loose', 'renounce', 'come out']
+  const relevant   = lines.filter(l => keywords.some(k => l.toLowerCase().includes(k)))
+  const capsLines  = lines.filter(l => /^[A-Z]{3,}/.test(l.trim()))
+  return [...new Set([...relevant, ...capsLines])].join('\n').slice(0, 8000)
+}
+
 async function claudeCall(system: string, user: string): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -131,23 +142,24 @@ export default async function handler(req: Request) {
         // Continue with empty list — better to find duplicates than crash
       }
 
-      // Analyze each book with Claude Sonnet — track processed/failed separately
+      // Process books in parallel batches of 3 (Haiku for speed)
+      const BATCH_SIZE     = 3
       const processedBooks: string[] = []
       const failedBooks:    string[] = []
       const allNewSpirits:  any[]    = []
 
-      for (const book of gapBooks) {
+      const processBook = async (book: any): Promise<{ spirits: any[]; title: string; success: boolean }> => {
         try {
-          console.log('[GAP] Processing book:', book.title,
-            'text length:', book.extracted_text?.length,
-            'text type:', typeof book.extracted_text)
-
-          const cleanText = cleanExtractedText(book.extracted_text)
+          console.log('[GAP] Processing:', book.title, 'text type:', typeof book.extracted_text)
+          const cleanText  = cleanExtractedText(book.extracted_text)
           if (!cleanText || cleanText.length < 50) {
-            console.warn('[GAP] Book has insufficient text:', book.title)
+            console.warn('[GAP] Insufficient text:', book.title)
             failedBooks.push(`${book.title}: insufficient text`)
-            continue
+            return { spirits: [], title: book.title, success: false }
           }
+          // Use spirit-dense lines (preserves dict entries); fall back to compact clean text
+          const spiritText = extractSpiritLines(book.extracted_text) || cleanText.slice(0, 8000)
+          console.log('[GAP]', book.title, '— sending', spiritText.length, 'chars to Claude')
 
           const prompt = `You are a demon database specialist for a deliverance ministry platform. We have ${existingNames.length} spirits in our database.
 
@@ -156,8 +168,8 @@ ${existingNames.slice(0, 300).join(', ')}
 
 BOOK: "${book.title}"
 
-FULL TEXT:
-${cleanText.slice(0, 60000)}
+RELEVANT PASSAGES:
+${spiritText}
 
 Task: Find every demon name, spirit name, or spiritual entity in this text that is NOT already in our database above.
 
@@ -167,8 +179,6 @@ Pay special attention to:
 - Spirits mentioned in renunciation lists
 - Named principalities, powers, and entities
 - Foreign/ancient names (Babylonian, Egyptian, Canaanite, etc.)
-
-For each new spirit found, provide the exact name, a brief description from context, and a kingdom category.
 
 Return ONLY this JSON (no markdown):
 {
@@ -186,41 +196,51 @@ Return ONLY this JSON (no markdown):
           const res = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-            body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }),
-            signal: AbortSignal.timeout(50000),
+            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
+            signal: AbortSignal.timeout(30000),
           })
 
           if (!res.ok) {
             const errText = await res.text()
             console.error('[GAP] Claude error for', book.title, ':', res.status, errText.slice(0, 200))
             failedBooks.push(`${book.title}: Claude API ${res.status}`)
-            continue
+            return { spirits: [], title: book.title, success: false }
           }
 
           const data    = await res.json()
           const rawText = (data.content?.[0]?.text || '').trim()
           console.log('[GAP] Claude response for', book.title, 'length:', rawText.length, 'preview:', rawText.slice(0, 100))
 
-          const cleaned2   = rawText.replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
-          const jsonMatch  = cleaned2.match(/\{[\s\S]*\}/)
-          let result: any  = { newSpirits: [] }
+          const stripped  = rawText.replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
+          const jsonMatch = stripped.match(/\{[\s\S]*\}/)
+          let result: any = { newSpirits: [] }
           try {
-            result = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned2)
+            result = JSON.parse(jsonMatch ? jsonMatch[0] : stripped)
           } catch {
             console.error('[GAP] JSON parse failed for', book.title, 'raw:', rawText.slice(0, 200))
             failedBooks.push(`${book.title}: JSON parse failed`)
-            continue
+            return { spirits: [], title: book.title, success: false }
           }
 
           const bookSpirits = result.newSpirits || []
-          console.log('[GAP] Found', bookSpirits.length, 'new spirits in', book.title)
-          allNewSpirits.push(...bookSpirits)
-          processedBooks.push(book.title)
+          console.log('[GAP] Found', bookSpirits.length, 'spirits in', book.title)
+          return { spirits: bookSpirits, title: book.title, success: true }
 
         } catch (bookErr: any) {
           console.error('[GAP] Book processing failed:', book.title, bookErr.message)
           failedBooks.push(`${book.title}: ${bookErr.message}`)
+          return { spirits: [], title: book.title, success: false }
         }
+      }
+
+      for (let i = 0; i < gapBooks.length; i += BATCH_SIZE) {
+        const batch   = gapBooks.slice(i, i + BATCH_SIZE)
+        const results = await Promise.all(batch.map(processBook))
+        for (const { spirits, title, success } of results) {
+          if (success) processedBooks.push(title)
+          allNewSpirits.push(...spirits)
+        }
+        console.log(`[GAP] Batch ${Math.floor(i / BATCH_SIZE) + 1} done, total spirits so far: ${allNewSpirits.length}`)
       }
 
       // Deduplicate by name (case-insensitive)

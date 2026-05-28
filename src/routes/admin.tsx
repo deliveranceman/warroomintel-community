@@ -4891,6 +4891,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
 
   // Gap analysis state
   const [gapLoading, setGapLoading] = useState(false)
+  const [gapStatus,  setGapStatus]  = useState('')
   const [gapResults, setGapResults] = useState<any[]>([])
   const [gapSummary, setGapSummary] = useState('')
   const [gapMeta, setGapMeta] = useState<{ bookTitles: string[]; spiritCount: number; bookCount: number } | null>(null)
@@ -4911,6 +4912,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
 
   async function runGapAnalysis() {
     setGapLoading(true)
+    setGapStatus('Analyzing your library... this may take 30–60 seconds')
     setGapResults([])
     setGapSummary('')
     setGapError('')
@@ -4931,6 +4933,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       setGapSummary(data.summary || '')
       setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: data.spiritCount || 0, bookCount: data.bookCount || 0 })
     } catch (e: any) { setGapError(e.message) }
+    setGapStatus('')
     setGapLoading(false)
   }
 
@@ -5029,9 +5032,14 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, lineHeight: 1.6, marginBottom: 16 }}>
           Scans your ministry library documents and identifies spirits mentioned in your books that are not yet in the War Room Intel database.
         </div>
-        <button onClick={runGapAnalysis} disabled={gapLoading} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '10px 24px', cursor: gapLoading ? 'wait' : 'pointer', opacity: gapLoading ? 0.7 : 1, marginBottom: 16 }}>
+        <button onClick={runGapAnalysis} disabled={gapLoading} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '10px 24px', cursor: gapLoading ? 'wait' : 'pointer', opacity: gapLoading ? 0.7 : 1, marginBottom: 8 }}>
           {gapLoading ? '🔍 Analyzing library against database...' : '⚔ Find Spirits Not In My Database'}
         </button>
+        {gapLoading && gapStatus && (
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: '#6b5e45', letterSpacing: '0.1em', marginBottom: 12 }}>
+            {gapStatus}
+          </div>
+        )}
         {gapError && <div style={{ color: '#e09090', fontFamily: "'Crimson Pro', serif", fontSize: 13, marginBottom: 12 }}>⚠ {gapError}</div>}
         {addSuccess && <div style={{ color: '#80e090', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.08em', marginBottom: 12 }}>✓ {addSuccess} added to database</div>}
         {gapMeta && (
