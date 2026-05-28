@@ -51,6 +51,46 @@ function extractTextFromBuffer(buf: ArrayBuffer): string {
     .slice(0, MAX_CHARS)
 }
 
+function regexExtractCandidates(text: string): string[] {
+  const found = new Set<string>()
+  const patterns: RegExp[] = [
+    /\bspirits?\s+of\s+([A-Za-z][A-Za-z' \-]{2,40})/gi,
+    /\bdemons?\s+of\s+([A-Za-z][A-Za-z' \-]{2,40})/gi,
+    /(?:cast out|bind|rebuke|command)\s+(?:the\s+)?([A-Z][a-zA-Z]{2,30})/g,
+    /^([A-Z]{3,}(?:[- ][A-Z]{3,})*)\s*[:\-—]/gm,
+  ]
+  for (const p of patterns) {
+    let m
+    while ((m = p.exec(text)) !== null) {
+      for (const part of m[1].split(/[,;]/)) {
+        const clean = part.trim().replace(/[.!?]+$/, '').replace(/\b\w/g, c => c.toUpperCase())
+        if (clean.length > 2 && clean.length < 40 && /^[A-Z]/.test(clean)) found.add(clean)
+      }
+    }
+  }
+  return Array.from(found).slice(0, 50)
+}
+
+async function populateSpiritCache(
+  client: ReturnType<typeof sb>,
+  bookId: string,
+  bookTitle: string,
+  tags: string[],
+): Promise<void> {
+  if (!tags.length) return
+  await client.from('library_spirit_cache').delete().eq('book_id', bookId)
+  const rows = tags.map(name => ({
+    book_id:         bookId,
+    spirit_name:     name,
+    normalized_name: name.toLowerCase().trim(),
+    confidence:      4,
+    source:          bookTitle,
+  }))
+  const { error } = await client.from('library_spirit_cache').insert(rows)
+  if (error) console.error('[BACKFILL] Cache insert error:', error.message)
+  else console.log(`[BACKFILL] Cached ${rows.length} spirits for: ${bookTitle}`)
+}
+
 function titleFromPath(filePath: string): string {
   const name = filePath.split('/').pop() || filePath
   return name
@@ -156,6 +196,8 @@ export default async function handler(req: Request) {
       } else {
         log.push(`ok (${text.length} chars): ${row.title}`)
         processed++
+        const tags = regexExtractCandidates(text)
+        await populateSpiritCache(client, row.id, row.title, tags)
       }
     } catch (e: any) {
       console.error('[BACKFILL] Failed on:', row.title, { error: e.message, stack: e.stack?.slice(0, 200) })
@@ -184,7 +226,7 @@ export default async function handler(req: Request) {
         continue
       }
       const title = titleFromPath(filePath)
-      const { error: insertErr } = await client.from('resources').insert({
+      const { data: newRow, error: insertErr } = await client.from('resources').insert({
         title,
         file_path: filePath,
         file_type: filePath.toLowerCase().endsWith('.pdf') ? 'pdf' : 'txt',
@@ -194,13 +236,17 @@ export default async function handler(req: Request) {
         ai_generated: true,
         spirit_tags: [],
         user_id: userId || null,
-      })
+      }).select('id').single()
       if (insertErr) {
         log.push(`error (insert): ${filePath} — ${insertErr.message}`)
         errors++
       } else {
         log.push(`ok (new row, ${text.length} chars): ${title}`)
         processed++
+        if (newRow?.id) {
+          const tags = regexExtractCandidates(text)
+          await populateSpiritCache(client, newRow.id, title, tags)
+        }
       }
     } catch (e: any) {
       console.error('[BACKFILL] Failed on:', filePath, { error: e.message, stack: e.stack?.slice(0, 200) })

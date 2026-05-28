@@ -266,6 +266,22 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: updateErr.message }), { status: 500, headers: CORS })
     }
 
+    // Step 7: Populate library_spirit_cache with the spirit tags from this analysis
+    if (Array.isArray(update.spirit_tags) && update.spirit_tags.length > 0) {
+      const client2 = sb()
+      await client2.from('library_spirit_cache').delete().eq('book_id', resourceId)
+      const cacheRows = update.spirit_tags.map((name: string) => ({
+        book_id:         resourceId,
+        spirit_name:     name,
+        normalized_name: name.toLowerCase().trim(),
+        confidence:      8,
+        source:          update.title || resource.title,
+      }))
+      const { error: cacheErr } = await client2.from('library_spirit_cache').insert(cacheRows)
+      if (cacheErr) console.error('[REANALYZE] Cache insert error:', cacheErr.message)
+      else console.log(`[REANALYZE] Cached ${cacheRows.length} spirits for: ${update.title || resource.title}`)
+    }
+
     console.log(`[REANALYZE] Done: ${update.title || resource.title} — ${update.spirit_tags?.length ?? 0} spirit tags`)
     return new Response(JSON.stringify({ success: true, resource: updated }), { status: 200, headers: CORS })
 
