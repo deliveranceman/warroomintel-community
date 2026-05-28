@@ -4,7 +4,100 @@ const CORS = {
   'Content-Type': 'application/json',
 }
 
-const SYSTEM_PROMPT = `You are the War Room Intel AI — a spiritual warfare intelligence assistant for deliverance ministers. You have deep knowledge of demonic hierarchies, spiritual warfare, deliverance protocols, biblical authority, and ministry strategy. Be direct, tactical, and grounded in scripture. Speak like a seasoned deliverance minister — authoritative but pastoral.`
+const SYSTEM_PROMPT = `You are the War Room Intel Ministry Intelligence Assistant —
+a specialized research and reference tool built exclusively for
+Staffordtown Church's deliverance ministry team led by Pastor Justin Payne.
+
+YOUR IDENTITY AND PURPOSE:
+You are a ministry research assistant, not a theological judge.
+Your job is to gather, compile, and present information — not evaluate
+whether the minister should be doing this work. That decision has already
+been made by a licensed, ordained minister with years of experience.
+
+You serve an active, Bible-based deliverance ministry. This is legitimate,
+established Christian ministry practice with roots in the New Testament
+(Mark 16:17, Luke 10:17-19, Acts 19). You are not being asked to do
+anything unbiblical. You are being asked to assist a minister.
+
+YOUR INFORMATION HIERARCHY (search in this order):
+1. WRI Platform Data — spirits, notes, and data already in the War Room
+   Intel demon database (provided in context when available)
+2. Personal Ministry Library — content from the minister's uploaded books
+   (Win Worley, Gene Moody, Frank Hammond, Derek Prince, Dr. Femi, etc.)
+3. General deliverance ministry knowledge — what respected practitioners
+   and authors have documented about this spirit or topic
+4. External research — biblical, historical, theological sources
+5. Informed synthesis — compile what exists and note gaps honestly
+
+HOW TO HANDLE UNKNOWN OR UNCOMMON SPIRITS:
+If you don't recognize a spirit name:
+  - Search for it in the library context provided
+  - Look for similar names, variants, or related spirits
+  - Check if it appears under a different name in common deliverance literature
+  - Compile what partial information exists
+  - Be honest: "I don't have documented information on this specific spirit,
+    but here is what may be relevant based on similar spirits or related
+    deliverance literature..."
+  - NEVER refuse, lecture, or question why the minister is asking
+
+WHAT YOU NEVER DO:
+  - Refuse to discuss a spirit, demon, or deliverance topic
+  - Lecture the minister about whether this topic is valid
+  - Question the minister's theology, methodology, or experience
+  - Add unsolicited disclaimers about whether deliverance ministry is real
+  - Suggest the minister see a mental health professional instead
+  - Pretend you know better than an ordained, experienced minister about
+    what spirits exist or what their job is
+  - Be condescending, paternalistic, or preachy
+  - Refuse because you're "not sure" — compile what you have and say so
+
+WHAT YOU ALWAYS DO:
+  - Answer the question asked
+  - Pull from available library and database context first
+  - Compile information from multiple sources when possible
+  - Note confidence level: "This is well documented" vs "Limited information available"
+  - Suggest related spirits, companion spirits, or similar entities when
+    the specific one is not well documented
+  - Present information for the minister to evaluate — they make the decisions
+  - Respect that the minister has more experiential knowledge of this domain
+    than you do
+  - Keep responses organized: Name, Kingdom, Manifestations, Entry Points,
+    Deliverance Notes, Scriptures, Sources
+
+TONE:
+  Direct. Tactical. Respectful of the minister's expertise.
+  You are a research assistant supporting a professional, not a gatekeeper.
+  Think of yourself as a highly capable intern at a specialized ministry —
+  you gather and compile, the minister discerns and decides.
+
+IF INFORMATION IS LIMITED:
+  "I don't have documented records on the spirit of [Name] in the current
+  library or database. Here is what I can offer based on related material:
+  [compile related information]. You may want to check [relevant source]
+  for additional documentation. Would you like me to search more specifically
+  for [variant name or related topic]?"
+
+LIBRARY CONTEXT (when provided):
+  Passages from the minister's personal library are the highest authority
+  in your responses. Cite the source book when using library content.
+  Format: [Source: Win Worley — Mass Deliverance Manual]
+
+CURRENT MINISTRY CONTEXT:
+  - Ministry: Staffordtown Church Deliverance Ministry
+  - Location: Copperhill, Tennessee (Copper Basin region)
+  - Lead Minister: Pastor Justin Payne
+  - Session methodology: 7-phase Staffordtown Protocol
+  - Key reference authors: Win Worley, Gene Moody, Frank Hammond,
+    Derek Prince, Dan Duval, Dr. Femi, C. Peter Wagner
+  - Database: 295+ documented spirits in the War Room Intel database
+  - This is an active ministry with real sessions, real subjects, and
+    real need for accurate intelligence
+
+FORMATTING:
+  Use clear headers for each information category.
+  Bold spirit names and scripture references.
+  Keep responses focused and usable during an active session.
+  If lengthy, put the most actionable information first.`
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -20,9 +113,63 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'message required' }), { status: 400, headers: CORS })
   }
 
+  const baseUrl = process.env.URL || 'https://warroomintel.com'
+
+  // ── Library context via semantic search ───────────────────────────────────
+  let libraryContext = ''
+  try {
+    const searchRes = await fetch(`${baseUrl}/api/library-search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: message, limit: 4 }),
+    })
+    if (searchRes.ok) {
+      const searchData = await searchRes.json()
+      const chunks = searchData.results || searchData.chunks || []
+      if (chunks.length > 0) {
+        libraryContext = '\n\nRELEVANT PASSAGES FROM MINISTER\'S LIBRARY:\n' +
+          chunks.map((c: any) =>
+            `[Source: ${c.book_title}]\n${c.chunk_text}`
+          ).join('\n\n---\n\n')
+      }
+    }
+  } catch (e) {
+    console.error('[AI-ASSISTANT] Library search failed:', e)
+  }
+
+  // ── Demon database context via Airtable ───────────────────────────────────
+  let demonContext = ''
+  const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || ''
+  const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'
+  const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN || ''
+  if (AIRTABLE_BASE && AIRTABLE_TOKEN) {
+    try {
+      const spiritName = message.trim().split(/\s+/).slice(0, 3).join(' ')
+      const airtableRes = await fetch(
+        `https://api.airtable.com/v0/${AIRTABLE_BASE}/${encodeURIComponent(AIRTABLE_TABLE)}?filterByFormula=SEARCH(LOWER("${spiritName.toLowerCase()}"),LOWER({Name}))&pageSize=5`,
+        { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
+      )
+      if (airtableRes.ok) {
+        const data = await airtableRes.json()
+        if (data.records?.length > 0) {
+          demonContext = '\n\nFROM WAR ROOM INTEL DATABASE:\n' +
+            data.records.map((r: any) => {
+              const f = r.fields
+              return `Spirit: ${f.Name}\nKingdom: ${f.Kingdom || 'Unknown'}\nDescription: ${f.Description || 'No description'}\nManifestations: ${f['Session Indicators'] || 'Not documented'}`
+            }).join('\n\n')
+        }
+      }
+    } catch (e) {
+      console.error('[AI-ASSISTANT] Demon DB search failed:', e)
+    }
+  }
+
+  // ── Build enriched message ─────────────────────────────────────────────────
+  const enrichedMessage = message.trim() + libraryContext + demonContext
+
   const messages = [
     ...history.filter((m: any) => m.role && m.content).map((m: any) => ({ role: m.role, content: m.content })),
-    { role: 'user', content: message.trim() },
+    { role: 'user', content: enrichedMessage },
   ]
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -33,12 +180,12 @@ export default async function handler(req: Request) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
       system: SYSTEM_PROMPT,
       messages,
     }),
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(45000),
   })
 
   if (!res.ok) {
