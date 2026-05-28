@@ -241,15 +241,15 @@ export default async function handler(req: Request) {
     }
 
     // Step 6: Build update — NEVER overwrite topic (that would remove book from library list)
+    // Confirmed columns: title, description, spirit_tags (TEXT[]), function_tags (TEXT[]),
+    //                    extraction_method, source_char_count, indexed_at, extracted_text
     const update: Record<string, any> = {
       extraction_method: 'reanalyze-claude',
     }
-    if (parsed.title)                        update.title         = parsed.title
-    if (parsed.description)                  update.description   = parsed.description
-    if (Array.isArray(parsed.spirit_tags))   update.spirit_tags   = parsed.spirit_tags
-    if (Array.isArray(parsed.function_tags)) update.function_tags = parsed.function_tags
-    // NOTE: intentionally NOT updating 'topic' — it must stay 'ministry-library'
-    // to keep the book visible in the library manager
+    if (parsed.title)                        update.title          = parsed.title
+    if (parsed.description)                  update.description    = parsed.description
+    if (Array.isArray(parsed.spirit_tags))   update.spirit_tags    = parsed.spirit_tags
+    if (Array.isArray(parsed.function_tags)) update.function_tags  = parsed.function_tags
 
     console.log('[REANALYZE] Updating DB:', Object.keys(update), '| spirit_tags count:', update.spirit_tags?.length)
 
