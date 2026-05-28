@@ -5825,6 +5825,9 @@ function CommunityPage() {
   const [intelArchiveOpen, setIntelArchiveOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
   })
+  const [fieldOpsOpen, setFieldOpsOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_field_ops_open') !== 'false' } catch { return true }
+  })
   const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
 
   const [streamToken, setStreamToken] = useState<string>('')
@@ -6626,6 +6629,31 @@ function CommunityPage() {
           ))}
         </div>}
 
+        {/* ── FIELD OPS (Commander+) ── */}
+        {(['commander', 'general'].includes(((user?.publicMetadata?.tier as string) || '').toLowerCase()) || (user?.publicMetadata?.role as string) === 'minister') && (
+          <>
+            {collapsibleSection('Field Ops', fieldOpsOpen, () => {
+              const next = !fieldOpsOpen
+              setFieldOpsOpen(next)
+              try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
+            })}
+            <div style={{ overflow: 'hidden', maxHeight: fieldOpsOpen ? 200 : 0, transition: 'max-height 0.2s ease' }}>
+              <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
+                <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📁</span>
+                <span>Case Files</span>
+              </a>
+              <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
+                <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📝</span>
+                <span>Session Notes</span>
+              </a>
+            </div>
+          </>
+        )}
+
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
         {navItem('Weekly Intel', 'intel', '📡')}
@@ -6688,6 +6716,12 @@ function CommunityPage() {
                 <span style={{ fontSize: 11 }}>🧱</span>
                 <span>Gateway Investigator</span>
               </button>
+              <a href="/community/dream-interpreter" style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid rgba(201,168,76,0.1)', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', boxSizing: 'border-box' as const }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#6b5e45' : '#5C5248'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}>
+                <span style={{ fontSize: 11 }}>🌙</span>
+                <span>Dream Interpreter</span>
+              </a>
             </div>
           </div>
 

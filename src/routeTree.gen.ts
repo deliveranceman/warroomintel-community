@@ -29,7 +29,9 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
+import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field-ops'
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
+import { Route as CommunityDreamInterpreterRouteImport } from './routes/community_.dream-interpreter'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiUpdateProfileRouteImport } from './routes/api.update-profile'
@@ -155,11 +157,22 @@ const CommunityForumRoute = CommunityForumRouteImport.update({
   path: '/community/forum',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityFieldOpsRoute = CommunityFieldOpsRouteImport.update({
+  id: '/community_/field-ops',
+  path: '/community/field-ops',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityFieldManualRoute = CommunityFieldManualRouteImport.update({
   id: '/community_/field-manual',
   path: '/community/field-manual',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityDreamInterpreterRoute =
+  CommunityDreamInterpreterRouteImport.update({
+    id: '/community_/dream-interpreter',
+    path: '/community/dream-interpreter',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
   id: '/api/warroom-chat',
   path: '/api/warroom-chat',
@@ -316,7 +329,9 @@ export interface FileRoutesByFullPath {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
+  '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
+  '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -361,7 +376,9 @@ export interface FileRoutesByTo {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
+  '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
+  '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -408,7 +425,9 @@ export interface FileRoutesById {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
+  '/community_/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
+  '/community_/field-ops': typeof CommunityFieldOpsRoute
   '/community_/forum': typeof CommunityForumRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -456,7 +475,9 @@ export interface FileRouteTypes {
     | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
+    | '/community/dream-interpreter'
     | '/community/field-manual'
+    | '/community/field-ops'
     | '/community/forum'
     | '/community/spiritual-mapping'
     | '/products/$productId'
@@ -501,7 +522,9 @@ export interface FileRouteTypes {
     | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
+    | '/community/dream-interpreter'
     | '/community/field-manual'
+    | '/community/field-ops'
     | '/community/forum'
     | '/community/spiritual-mapping'
     | '/products/$productId'
@@ -547,7 +570,9 @@ export interface FileRouteTypes {
     | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
+    | '/community_/dream-interpreter'
     | '/community_/field-manual'
+    | '/community_/field-ops'
     | '/community_/forum'
     | '/community_/spiritual-mapping'
     | '/products/$productId'
@@ -593,7 +618,9 @@ export interface RootRouteChildren {
   ApiUpdateProfileRoute: typeof ApiUpdateProfileRoute
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
+  CommunityDreamInterpreterRoute: typeof CommunityDreamInterpreterRoute
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
+  CommunityFieldOpsRoute: typeof CommunityFieldOpsRoute
   CommunityForumRoute: typeof CommunityForumRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
@@ -741,11 +768,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityForumRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community_/field-ops': {
+      id: '/community_/field-ops'
+      path: '/community/field-ops'
+      fullPath: '/community/field-ops'
+      preLoaderRoute: typeof CommunityFieldOpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/community_/field-manual': {
       id: '/community_/field-manual'
       path: '/community/field-manual'
       fullPath: '/community/field-manual'
       preLoaderRoute: typeof CommunityFieldManualRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/dream-interpreter': {
+      id: '/community_/dream-interpreter'
+      path: '/community/dream-interpreter'
+      fullPath: '/community/dream-interpreter'
+      preLoaderRoute: typeof CommunityDreamInterpreterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/warroom-chat': {
@@ -963,7 +1004,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUpdateProfileRoute: ApiUpdateProfileRoute,
   ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
+  CommunityDreamInterpreterRoute: CommunityDreamInterpreterRoute,
   CommunityFieldManualRoute: CommunityFieldManualRoute,
+  CommunityFieldOpsRoute: CommunityFieldOpsRoute,
   CommunityForumRoute: CommunityForumRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,

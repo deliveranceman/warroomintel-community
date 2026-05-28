@@ -77,6 +77,12 @@
 [functions."ai-backfill"]
   timeout = 60
 
+[functions."field-ops"]
+  timeout = 26
+
+[functions."dream-interpreter"]
+  timeout = 26
+
 [functions."library-search"]
   timeout = 15
 
