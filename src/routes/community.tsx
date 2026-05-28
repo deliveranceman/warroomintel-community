@@ -5510,6 +5510,79 @@ function CommunityPage() {
     }
   }
 
+  function renderMarkdown(text: string): string {
+    return text
+      .replace(/^### (.+)$/gm, '<div style="font-family:\'Cinzel\',serif;font-size:11px;color:#C9A84C;letter-spacing:0.1em;margin:16px 0 6px">$1</div>')
+      .replace(/^## (.+)$/gm, '<div style="font-family:\'Cinzel\',serif;font-size:12px;color:#C9A84C;letter-spacing:0.1em;margin:16px 0 8px">$1</div>')
+      .replace(/^# (.+)$/gm, '<div style="font-family:\'Cinzel\',serif;font-size:14px;color:#C9A84C;letter-spacing:0.12em;margin:16px 0 10px">$1</div>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#c8b99a">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em style="color:#8a7a60">$1</em>')
+      .replace(/^- (.+)$/gm, '<div style="padding-left:12px;margin:4px 0;color:#a89878">⚔ $1</div>')
+      .replace(/\n\n/g, '<div style="margin:8px 0"></div>')
+      .replace(/\n/g, '<br/>')
+  }
+
+  function exportToPDF(content: string) {
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    const bodyHtml = content
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br/>')
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>War Room Intel — Intelligence Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  body { margin: 0; background: #fff; color: #1a1408; font-family: 'Crimson Text', Georgia, serif; font-size: 15px; line-height: 1.7; }
+  .page { max-width: 720px; margin: 0 auto; padding: 48px 48px 64px; }
+  .header { border-bottom: 2px solid #C9A84C; padding-bottom: 20px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; }
+  .brand span { color: #C9A84C; }
+  .classification { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.25em; color: #C9A84C; text-transform: uppercase; border: 1px solid #C9A84C; padding: 3px 8px; }
+  .date { font-family: 'Cinzel', serif; font-size: 10px; color: #8a7a60; letter-spacing: 0.1em; margin-top: 6px; }
+  .divider { border: none; border-top: 1px solid #d4b896; margin: 24px 0; }
+  h1 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; margin: 24px 0 12px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: #3a2a10; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: #5a4a30; letter-spacing: 0.06em; margin: 16px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 0; list-style: none; margin: 8px 0 12px; }
+  li::before { content: '⚔ '; color: #C9A84C; }
+  li { margin: 4px 0; padding-left: 16px; text-indent: -16px; }
+  strong { color: #1a1408; font-weight: 600; }
+  em { color: #5a4a30; }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d4b896; display: flex; justify-content: space-between; font-family: 'Cinzel', serif; font-size: 9px; color: #8a7a60; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand">WAR ROOM <span>INTEL</span></div>
+      <div class="date">${date}</div>
+    </div>
+    <div class="classification">INTELLIGENCE REPORT</div>
+  </div>
+  <div>${bodyHtml}</div>
+  <div class="footer">
+    <span>War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN</span>
+    <span>warroomintel.com</span>
+  </div>
+</div>
+<script>window.onload = () => window.print()</script>
+</body>
+</html>`
+    const win = window.open('', '_blank')
+    if (win) { win.document.write(html); win.document.close() }
+  }
+
   const [hoveredPrayer, setHoveredPrayer] = useState<any>(null)
   const [hoverY, setHoverY]               = useState(0)
   const [members, setMembers]             = useState<any[]>([])
@@ -6810,21 +6883,29 @@ function CommunityPage() {
               </div>
             )}
             {chatMessages.map((msg, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div key={i} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
                   maxWidth: '85%',
                   padding: '8px 12px',
                   borderRadius: msg.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
                   background: msg.role === 'user' ? 'rgba(201,168,76,0.1)' : '#1a1408',
                   border: msg.role === 'user' ? '1px solid rgba(201,168,76,0.3)' : '1px solid #2a2010',
-                  fontFamily: crimson,
-                  fontSize: 14,
-                  color: msg.role === 'user' ? '#e8d9b0' : '#c8b896',
                   lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap' as const,
                 }}>
-                  {msg.content}
+                  {msg.role === 'user' ? (
+                    <span style={{ fontFamily: crimson, fontSize: 14, color: '#e8d9b0', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span>
+                  ) : (
+                    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: '#a89878', lineHeight: 1.7 }} />
+                  )}
                 </div>
+                {msg.role === 'assistant' && (
+                  <button
+                    onClick={() => exportToPDF(msg.content)}
+                    style={{ marginTop: 4, background: 'none', border: 'none', color: '#6b5e45', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}
+                  >
+                    ↓ EXPORT
+                  </button>
+                )}
               </div>
             ))}
             {chatLoading && (
