@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouterState } from '@tanstack/react-router'
-import { useUser } from '@clerk/tanstack-start'
+import { useAuth, useUser } from '@clerk/tanstack-start'
 import { SignInButton, SignUpButton, UserButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 import { SecureRibbon } from '@/components/primitives'
 
@@ -45,11 +45,13 @@ export function Header() {
   const dropdownRef = useRef<HTMLLIElement>(null)
   const isMobile = useIsMobile()
 
-  // Tier for SecureRibbon — same pattern as community.tsx
+  // Exact pattern from community.tsx lines 5805-5806 + 5973
+  const { isLoaded } = useAuth()
   const { user } = useUser()
-  const tierStr = ((user?.publicMetadata?.tier as string) || 'free').toLowerCase()
-  const roleStr = ((user?.publicMetadata?.role as string) || '').toLowerCase()
-  const tierNum = roleStr === 'minister' ? 4 : (TIER_NUM[tierStr] ?? 1)
+  const tier    = (user?.publicMetadata?.tier as string) || 'Watchman'
+  const tierNum = (user?.publicMetadata?.role as string) === 'minister'
+    ? 4
+    : (TIER_NUM[tier.toLowerCase()] ?? 1)
 
   // Active path
   const routerState = useRouterState()
@@ -474,7 +476,7 @@ export function Header() {
         </nav>
 
         {/* ── Layer 2: SecureRibbon (22px, SignedIn, desktop only) ── */}
-        {mounted && (
+        {mounted && isLoaded && (
           <SignedIn>
             <div className="wr-ribbon">
               <SecureRibbon tier={tierNum} activeOps={0} />
