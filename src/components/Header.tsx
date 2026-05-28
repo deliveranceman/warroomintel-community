@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouterState } from '@tanstack/react-router'
-import { useAuth } from '@clerk/tanstack-start'
+import { useUser } from '@clerk/tanstack-start'
 import { SignInButton, SignUpButton, UserButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 import { SecureRibbon } from '@/components/primitives'
 
@@ -45,22 +45,11 @@ export function Header() {
   const dropdownRef = useRef<HTMLLIElement>(null)
   const isMobile = useIsMobile()
 
-  // Tier for SecureRibbon
-  const { getToken } = useAuth()
-  const [tierNum, setTierNum] = useState(1)
-  useEffect(() => {
-    if (!mounted) return
-    getToken().then(token => {
-      if (!token) return
-      try {
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-        const meta = payload.public_metadata || {}
-        const tier = (meta.tier || 'free').toLowerCase()
-        const role = (meta.role || '').toLowerCase()
-        setTierNum(role === 'minister' ? 4 : (TIER_NUM[tier] ?? 1))
-      } catch {}
-    }).catch(() => {})
-  }, [mounted, getToken])
+  // Tier for SecureRibbon — same pattern as community.tsx
+  const { user } = useUser()
+  const tierStr = ((user?.publicMetadata?.tier as string) || 'free').toLowerCase()
+  const roleStr = ((user?.publicMetadata?.role as string) || '').toLowerCase()
+  const tierNum = roleStr === 'minister' ? 4 : (TIER_NUM[tierStr] ?? 1)
 
   // Active path
   const routerState = useRouterState()
