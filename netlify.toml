@@ -69,7 +69,7 @@
 
 [functions."library-reanalyze"]
   timeout = 45
-  external_node_modules = ["pdf-parse", "mammoth"]
+  external_node_modules = ["mammoth"]
 
 [functions."ai-assistant"]
   timeout = 26

@@ -5360,7 +5360,7 @@ function OnboardingOverlay({ storageKey, icon, title, points }: {
 
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
-  const { isLoaded, isSignedIn, signOut } = useAuth()
+  const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {

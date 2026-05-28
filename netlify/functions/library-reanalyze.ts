@@ -1,9 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
-const pdfParse = require('pdf-parse')
-let mammoth: any
-try { mammoth = require('mammoth') } catch { mammoth = null }
 
 const BUCKET   = 'ministry-library'
 const MAX_CHARS = 120_000
@@ -36,32 +31,17 @@ async function isMinister(token: string): Promise<boolean> {
   } catch { return false }
 }
 
-async function extractText(buffer: Buffer, fileType: string, filename: string): Promise<string | null> {
-  console.log(`[REANALYZE] Extracting text: fileType=${fileType} filename=${filename} bufSize=${buffer.length}`)
-  if (fileType === 'txt' || filename.toLowerCase().endsWith('.txt')) {
-    const text = buffer.toString('utf-8').replace(/\0/g, ' ').slice(0, MAX_CHARS)
-    console.log(`[REANALYZE] TXT extracted: ${text.length} chars`)
-    return text || null
-  }
-  if (fileType === 'pdf' || filename.toLowerCase().endsWith('.pdf')) {
+async function extractText(arrayBuffer: ArrayBuffer, filename: string): Promise<string | null> {
+  const ext = filename.toLowerCase().split('.').pop()
+  console.log(`[REANALYZE] Extracting text: ext=${ext} filename=${filename} bufSize=${arrayBuffer.byteLength}`)
+
+  if (ext === 'docx') {
     try {
-      const result = await pdfParse(buffer)
-      const text   = (result.text || '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_CHARS)
-      console.log(`[REANALYZE] PDF extracted: ${text.length} chars`)
-      return text || null
-    } catch (e: any) {
-      console.error('[REANALYZE] pdf-parse error:', e?.message)
-      return null
-    }
-  }
-  if (fileType === 'docx' || filename.toLowerCase().endsWith('.docx')) {
-    if (!mammoth) {
-      console.error('[REANALYZE] mammoth not available — DOCX extraction skipped')
-      return null
-    }
-    try {
-      const result = await mammoth.extractRawText({ buffer })
-      const text   = (result.value || '').slice(0, MAX_CHARS)
+      const { createRequire } = await import('module')
+      const req     = createRequire(import.meta.url)
+      const mammoth = req('mammoth')
+      const result  = await mammoth.extractRawText({ buffer: Buffer.from(arrayBuffer) })
+      const text    = (result.value || '').slice(0, MAX_CHARS)
       console.log(`[REANALYZE] DOCX extracted: ${text.length} chars`)
       return text || null
     } catch (e: any) {
@@ -69,8 +49,11 @@ async function extractText(buffer: Buffer, fileType: string, filename: string): 
       return null
     }
   }
-  console.warn(`[REANALYZE] Unknown file type: ${fileType} / ${filename}`)
-  return null
+
+  // Default: treat as UTF-8 text (covers .txt and any plain text format)
+  const text = new TextDecoder('utf-8').decode(arrayBuffer).replace(/\0/g, ' ').slice(0, MAX_CHARS)
+  console.log(`[REANALYZE] TXT/text extracted: ${text.length} chars`)
+  return text || null
 }
 
 // Simple regex extraction fallback (no external deps)
@@ -153,11 +136,6 @@ export default async function handler(req: Request) {
 
     const filePath = resource.file_path
     const filename = resource.filename || filePath || ''
-    const fileType = resource.file_type
-      || (filename.toLowerCase().endsWith('.pdf')  ? 'pdf'
-        : filename.toLowerCase().endsWith('.docx') ? 'docx'
-        : filename.toLowerCase().endsWith('.txt')  ? 'txt'
-        : 'txt')
 
     // Step 1: Download file — try primary path, then alternate path formats
     console.log('[REANALYZE] Downloading from path:', filePath)
@@ -192,11 +170,11 @@ export default async function handler(req: Request) {
     console.log('[REANALYZE] File downloaded, size:', blob?.size)
 
     // Step 2: Extract text
-    const buffer       = Buffer.from(await blob!.arrayBuffer())
-    const extractedText = await extractText(buffer, fileType, filename)
+    const arrayBuffer  = await blob!.arrayBuffer()
+    const extractedText = await extractText(arrayBuffer, filename)
 
     if (!extractedText) {
-      const msg = `Could not extract text from file (type: ${fileType}, filename: ${filename}${mammoth ? '' : ', mammoth not available'})`
+      const msg = `Could not extract text from file (filename: ${filename})`
       console.error('[REANALYZE]', msg)
       return new Response(JSON.stringify({ error: msg }), { status: 422, headers: CORS })
     }
