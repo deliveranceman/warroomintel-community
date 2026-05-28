@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 
 export const Route = createFileRoute('/community')({
@@ -4612,299 +4612,361 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
 }
 
 // ── BODY MAP VIEW ──────────────────────────────────────────
-function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }: any) {
-  const isDark = theme !== 'light'
-  const bg   = isDark ? '#0D0B14' : '#f5f0e8'
-  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#f0ebe3'
-  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
-  const txt  = isDark ? '#f0e8d8' : '#1a1410'
-  const mut  = isDark ? '#9a8c74' : '#5c4a3a'
-  const GC   = isDark ? '#C9A84C' : '#a07830'
 
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
-  const [hoveredRegion, setHoveredRegion]   = useState<string | null>(null)
-  const [regionPrayer, setRegionPrayer]     = useState<string | null>(null)
-  const [prayerLoading, setPrayerLoading]   = useState(false)
-  const { getToken } = useAuth()
+const BODY_REGIONS = [
+  { id: 'head_mind',    label: 'Head & Mind',    icon: '🧠',
+    keywords: ['head','mind','thoughts','confusion','memory','mental','migraine','dreams','nightmare','brain','cognitive','psychic','telepathy','clairvoyance','voices','hallucination'] },
+  { id: 'eyes_vision',  label: 'Eyes & Vision',  icon: '👁️',
+    keywords: ['eyes','vision','sight','blindness','discernment','images','seeing','third eye','divination','visions','occult sight'] },
+  { id: 'throat_voice', label: 'Throat & Voice', icon: '🗣️',
+    keywords: ['throat','voice','choking','coughing','gagging','speech','tongue','words','curse','speaking','mute','silence'] },
+  { id: 'heart_chest',  label: 'Heart & Chest',  icon: '❤️',
+    keywords: ['heart','chest','grief','fear','anxiety','rejection','sorrow','heaviness','burden','love','hate','bitterness','unforgiveness','despair','hopeless','depression'] },
+  { id: 'stomach_gut',  label: 'Stomach & Gut',  icon: '🫁',
+    keywords: ['stomach','gut','belly','nausea','vomiting','appetite','hunger','eating','gluttony','food','digestive','bowel','anger','nervous'] },
+  { id: 'reproductive', label: 'Reproductive',   icon: '⚕️',
+    keywords: ['sexual','lust','perversion','reproductive','womb','fertility','barrenness','incubus','succubus','fornication','adultery','pornography','soul tie','intimacy'] },
+  { id: 'hands_arms',   label: 'Hands & Arms',   icon: '🙌',
+    keywords: ['hands','arms','violence','control','work','touch','witchcraft','self-harm','cutting','hitting','compulsion'] },
+  { id: 'legs_feet',    label: 'Legs & Feet',    icon: '🦶',
+    keywords: ['legs','feet','walking','running','restless','path','direction','grounded','earthbound','territorial','wandering'] },
+  { id: 'back_spine',   label: 'Back & Spine',   icon: '🦴',
+    keywords: ['back','spine','backbone','burden','weight','oppression','leviathan','python','twisting','pressure','crushed'] },
+  { id: 'skin_body',    label: 'Skin & Body',    icon: '🫀',
+    keywords: ['skin','rash','burning','cold','heat','shaking','trembling','infirmity','sickness','disease','pain','affliction'] },
+]
 
-  useEffect(() => { setRegionPrayer(null) }, [selectedRegion])
+const BM_SVG: Record<string, {x:number;y:number;w:number;h:number;e?:boolean}> = {
+  head_mind:    {x:41,y:1, w:18,h:16,e:true},
+  eyes_vision:  {x:41,y:11,w:18,h:6},
+  throat_voice: {x:44,y:17,w:12,h:6},
+  heart_chest:  {x:35,y:22,w:30,h:18},
+  stomach_gut:  {x:35,y:40,w:30,h:12},
+  reproductive: {x:33,y:52,w:34,h:12},
+  hands_arms:   {x:20,y:22,w:13,h:26},
+  legs_feet:    {x:33,y:64,w:34,h:28},
+  back_spine:   {x:47,y:22,w:6, h:30},
+  skin_body:    {x:35,y:22,w:30,h:42},
+}
 
-  // Image is 1024×1536. Hotspot cx/cy/rx/ry are % of 100×150 viewBox (keeps 2:3 ratio)
-  const BODY_REGIONS = [
-    { id: 'head-mind',    label: 'Head & Mind',      icon: '🧠', description: 'Mental strongholds, mind control, confusion spirits',
-      cx: 50, cy: 7,   rx: 9,  ry: 6.5,
-      keywords: ['mind', 'mind control', 'confusion', 'mental', 'thought', 'psychic', 'intelligence', 'head'] },
-    { id: 'eyes',         label: 'Eyes & Vision',    icon: '👁', description: 'Spiritual blindness, seducing sight, occult vision',
-      cx: 50, cy: 12,  rx: 7,  ry: 2.5,
-      keywords: ['blindness', 'eye', 'vision', 'sight', 'third eye'] },
-    { id: 'throat',       label: 'Throat & Voice',   icon: '🗣', description: 'Lying spirits, mute spirits, throat manifestations',
-      cx: 50, cy: 17,  rx: 6,  ry: 3,
-      keywords: ['throat', 'voice', 'speech', 'tongue', 'lying', 'silence', 'mute'] },
-    { id: 'heart-chest',  label: 'Heart & Chest',    icon: '❤', description: 'Rejection, grief, fear, emotional wounding',
-      cx: 50, cy: 27,  rx: 10, ry: 7,
-      keywords: ['heart', 'chest', 'rejection', 'grief', 'sorrow', 'fear', 'love'] },
-    { id: 'shoulders',    label: 'Shoulders',         icon: '⚖', description: 'Burden-bearing, heavy yoke, false responsibility',
-      cx: 50, cy: 21,  rx: 18, ry: 3.5,
-      keywords: ['shoulders', 'burden', 'yoke', 'weight', 'responsibility'] },
-    { id: 'stomach',      label: 'Stomach & Gut',    icon: '🫁', description: 'Fear, anxiety, gut manifestations, gluttony',
-      cx: 50, cy: 37,  rx: 9,  ry: 6,
-      keywords: ['stomach', 'gut', 'anxiety', 'gluttony', 'appetite', 'hunger', 'nausea'] },
-    { id: 'hands-arms',   label: 'Hands & Arms',     icon: '🙌', description: 'Self-harm, works of the flesh, witchcraft acts',
-      cx: 50, cy: 43,  rx: 28, ry: 3.5,
-      keywords: ['hands', 'arms', 'violence', 'stealing', 'witchcraft', 'self-harm', 'self-mutilation'] },
-    { id: 'reproductive', label: 'Reproductive',     icon: '🔱', description: 'Sexual spirits, shame, soul ties, fertility spirits',
-      cx: 50, cy: 50,  rx: 9,  ry: 5,
-      keywords: ['sexual', 'lust', 'perversion', 'fornication', 'adultery', 'pornography', 'soul tie', 'reproductive', 'fertility', 'shame'] },
-    { id: 'spine-back',   label: 'Spine & Back',     icon: '🦴', description: 'Leviathan, pride, infirmity, spinal manifestations',
-      cx: 50, cy: 32,  rx: 4,  ry: 14,
-      keywords: ['spine', 'back', 'leviathan', 'pride', 'stiff', 'rebellion', 'serpent', 'infirmity'] },
-    { id: 'legs-feet',    label: 'Legs & Feet',      icon: '👣', description: 'Wandering, restlessness, path, grounding spirits',
-      cx: 50, cy: 75,  rx: 14, ry: 18,
-      keywords: ['legs', 'feet', 'running', 'escape', 'restlessness', 'instability', 'wandering', 'walk', 'path'] },
-  ]
+type BRegion = typeof BODY_REGIONS[0]
 
-  function getRegionMatches(id: string) {
-    const region = BODY_REGIONS.find(r => r.id === id)
-    if (!region || !demons.length) return []
-    const kws = region.keywords.map((k: string) => k.toLowerCase())
-    return demons
-      .map((d: any) => {
-        let score = 0
-        const bf  = (d.primaryBattlefield || '').toLowerCase()
-        const si  = (d.sessionIndicators  || '').toLowerCase()
-        const sym = (d.symptoms           || '').toLowerCase()
-        const man = (d.manifestation      || '').toLowerCase()
-        const sup = [d.description, d.entryPoints, d.legalRights, d.name].filter(Boolean).join(' ').toLowerCase()
-        if (kws.some((k: string) => bf.includes(k)))  score += 5
-        if (kws.some((k: string) => si.includes(k)))  score += 4
-        if (kws.some((k: string) => sym.includes(k))) score += 3
-        if (kws.some((k: string) => man.includes(k))) score += 2
-        if (kws.some((k: string) => sup.includes(k))) score += 1
-        return { ...d, _score: score }
-      })
-      .filter((d: any) => d._score > 0)
-      .sort((a: any, b: any) => b._score - a._score)
-      .slice(0, 12)
-  }
+function bmMatch(region: BRegion | null, demons: any[]) {
+  if (!region || !demons?.length) return []
+  return demons.map(demon => {
+    let score = 0
+    const matched: string[] = []
+    region.keywords.forEach(kw => {
+      const k = kw.toLowerCase()
+      const chk = (v: any, w: number) => {
+        if (!v) return
+        if (String(v).toLowerCase().includes(k)) { score += w; if (!matched.includes(kw)) matched.push(kw) }
+      }
+      chk(demon.battlefield || demon.primaryBattlefield, 5)
+      chk(demon.sessionIndicators, 4)
+      chk(demon.symptoms, 3)
+      chk(demon.manifestation || demon.manifestations, 2)
+      chk(demon.description, 1)
+      chk(demon.legalRights || demon.legalGrounds, 1)
+      chk(demon.entryPoints, 1)
+      chk(demon.name, 1)
+    })
+    const confidence: 'Strong Match' | 'Moderate Match' | 'Light Match' =
+      score >= 8 ? 'Strong Match' : score >= 4 ? 'Moderate Match' : 'Light Match'
+    return { ...demon, searchScore: score, matchedKeywords: matched, confidence }
+  })
+  .filter(d => d.searchScore > 0)
+  .sort((a, b) => b.searchScore - a.searchScore)
+  .slice(0, 10)
+}
 
-  function countRegions(d: any): number {
-    return BODY_REGIONS.filter(r => {
-      const kws = r.keywords.map(k => k.toLowerCase())
-      const text = [d.primaryBattlefield, d.sessionIndicators, d.symptoms, d.manifestation, d.description, d.name]
-        .filter(Boolean).join(' ').toLowerCase()
-      return kws.some(k => text.includes(k))
-    }).length
-  }
+function BodyMapView({ isMobile, setSidebarOpen, demons, setActiveSection }: any) {
+  const GC = '#C9A84C'
 
-  async function generateRegionPrayer(region: any, spirits: any[]) {
-    if (prayerLoading) return
-    setPrayerLoading(true)
-    setRegionPrayer(null)
-    try {
-      const token = await getToken()
-      const spiritList = spirits.slice(0, 5).map((s: any) => s.name).join(', ')
-      const res = await fetch('/api/ai-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          message: `Write a short, powerful deliverance prayer (3-4 sentences) targeting spirits that manifest in the ${region.label} area. The spirits mapped here include: ${spiritList}. Keep it direct, authoritative, and scriptural.`,
-          context: 'deliverance prayer',
-        }),
-      })
-      const d = await res.json()
-      setRegionPrayer(d.response || d.message || d.content || '')
-    } catch { setRegionPrayer('Unable to generate prayer. Please try again.') }
-    setPrayerLoading(false)
-  }
+  const [selectedRegion, setSelectedRegion] = useState<BRegion | null>(null)
+  const [hoveredRegion,  setHoveredRegion]  = useState<string | null>(null)
+  const [showPrayer,     setShowPrayer]     = useState(false)
+  const [regionPrayer,   setRegionPrayer]   = useState('')
+  const [prayerLoading,  setPrayerLoading]  = useState(false)
+  const [addedToSession, setAddedToSession] = useState<string[]>([])
 
-  const activeId      = selectedRegion
-  const activeRegion  = BODY_REGIONS.find(r => r.id === activeId)
-  const regionSpirits = activeId ? getRegionMatches(activeId) : []
+  const regionResults = useMemo(() => bmMatch(selectedRegion, demons), [selectedRegion, demons])
+  const crossRegionMap = useMemo(() => {
+    const map = new Map<string, string[]>()
+    BODY_REGIONS.forEach(r => bmMatch(r, demons).forEach((s: any) => {
+      if (!map.has(s.name)) map.set(s.name, [])
+      map.get(s.name)!.push(r.label)
+    }))
+    return map
+  }, [demons])
+
+  useEffect(() => { setShowPrayer(false); setRegionPrayer('') }, [selectedRegion])
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg }}>
-      {/* Header */}
-      <div style={{ padding: isMobile ? '16px 16px 0' : '24px 32px 0', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
-        <div>
-          <h2 style={{ fontFamily: cinzel, color: GC, fontSize: isMobile ? 16 : 20, margin: 0, letterSpacing: '0.08em' }}>🧬 Spirit Body Map</h2>
-          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Click a region to see spirits that manifest there</p>
-        </div>
-      </div>
-
-      {/* Region pill tabs */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, padding: isMobile ? '0 16px 12px' : '0 32px 16px' }}>
-        {BODY_REGIONS.map(r => (
-          <button key={r.id} onClick={() => setSelectedRegion(selectedRegion === r.id ? null : r.id)}
-            style={{ flexShrink: 0, padding: '4px 12px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const,
-              border: `1px solid ${selectedRegion === r.id ? GC : bdr}`,
-              background: selectedRegion === r.id ? 'rgba(201,168,76,0.15)' : 'transparent',
-              color: selectedRegion === r.id ? GC : mut }}>
-            {r.icon} {r.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Two-panel layout */}
-      <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const, padding: isMobile ? '0 16px 24px' : '0 32px 32px' }}>
-
-        {/* Body image with SVG hotspot overlay */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', width: isMobile ? '100%' : 'auto', marginBottom: isMobile ? 20 : 0 }}>
-          <div style={{ position: 'relative', display: 'inline-block', width: isMobile ? 220 : 280 }}>
-            <img
-              src="/body-map.png"
-              alt="Body Map"
-              style={{
-                display: 'block', width: '100%',
-                filter: 'brightness(0.08) sepia(1) saturate(6) hue-rotate(10deg)',
-                mixBlendMode: 'screen',
-                borderRadius: 8,
-              }}
-            />
-            {/* SVG hotspot overlay — viewBox matches 2:3 image ratio */}
-            <svg
-              viewBox="0 0 100 150"
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
-            >
-              <defs>
-                <style>{`
-                  @keyframes bm-pulse {
-                    0%,100% { opacity: 0.18 }
-                    50%      { opacity: 0.38 }
-                  }
-                `}</style>
-              </defs>
-              {BODY_REGIONS.map(region => {
-                const isActive  = selectedRegion === region.id
-                const isHovered = hoveredRegion === region.id
-                const hasSpirits = getRegionMatches(region.id).length > 0
-                return (
-                  <ellipse
-                    key={region.id}
-                    cx={region.cx} cy={region.cy} rx={region.rx} ry={region.ry}
-                    fill={isActive ? 'rgba(201,168,76,0.45)' : isHovered ? 'rgba(201,168,76,0.3)' : 'rgba(201,168,76,0.12)'}
-                    stroke={isActive ? '#C9A84C' : isHovered ? '#C9A84C' : 'rgba(201,168,76,0.5)'}
-                    strokeWidth={isActive ? 0.6 : 0.3}
-                    style={{
-                      cursor: 'pointer',
-                      transition: 'fill 0.2s, stroke 0.2s',
-                      animation: hasSpirits && !isActive ? 'bm-pulse 2.5s ease-in-out infinite' : 'none',
-                    }}
-                    onClick={() => setSelectedRegion(selectedRegion === region.id ? null : region.id)}
-                    onMouseEnter={() => setHoveredRegion(region.id)}
-                    onMouseLeave={() => setHoveredRegion(null)}
-                  />
-                )
-              })}
-              {/* Labels on active/hovered */}
-              {BODY_REGIONS.map(region => {
-                if (selectedRegion !== region.id && hoveredRegion !== region.id) return null
-                return (
-                  <text key={`lbl-${region.id}`} x={region.cx} y={region.cy - region.ry - 1.5}
-                    textAnchor="middle" fontSize="3.5" fontFamily="Cinzel, serif" fill="#C9A84C"
-                    style={{ pointerEvents: 'none', userSelect: 'none' as const }}>
-                    {region.label}
-                  </text>
-                )
-              })}
-            </svg>
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row' as const,
+      height: '100%', overflow: 'hidden' }}>
+      {/* LEFT: Body panel */}
+      <div style={{ width: isMobile ? '100%' : '38%', flexShrink: 0,
+        borderRight: isMobile ? 'none' : '1px solid #1e1a0e',
+        display: 'flex', flexDirection: 'column' as const, background: '#09070F' }}>
+        <div style={{ padding: '20px 20px 12px', borderBottom: '1px solid #1e1a0e',
+          display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(true)}
+              style={{ background: 'none', border: 'none', color: GC, fontSize: 22,
+                cursor: 'pointer', padding: '4px 8px', lineHeight: 1, flexShrink: 0 }}>☰</button>
+          )}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: GC, letterSpacing: '0.15em', marginBottom: 4 }}>SPIRIT BODY MAP</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: '#4a3f2f', fontStyle: 'italic' }}>Select where manifestations are occurring</div>
           </div>
         </div>
-
-        {/* Right panel */}
-        <div style={{ flex: 1, minWidth: 0, paddingLeft: isMobile ? 0 : 32 }}>
-          {!activeRegion ? (
-            <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '40px 28px', textAlign: 'center' as const }}>
-              <div style={{ fontSize: 40, marginBottom: 14 }}>🧬</div>
-              <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.06em', marginBottom: 8 }}>Select a Region</div>
-              <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.7, fontStyle: 'italic' }}>
-                Click any glowing area on the body map or select a region tab above to see associated spirits.
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 18, color: GC, letterSpacing: '0.06em' }}>
-                  {activeRegion.icon} {activeRegion.label}
-                </div>
-                <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 4 }}>{activeRegion.description}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' as const }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>
-                    {regionSpirits.length} SPIRIT{regionSpirits.length !== 1 ? 'S' : ''} MAPPED
-                  </div>
-                  <button
-                    onClick={() => generateRegionPrayer(activeRegion, regionSpirits)}
-                    disabled={prayerLoading || regionSpirits.length === 0}
-                    style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 20, color: GC, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: prayerLoading || regionSpirits.length === 0 ? 'default' : 'pointer', opacity: regionSpirits.length === 0 ? 0.4 : 1 }}>
-                    {prayerLoading ? '...' : '🙏 Region Prayer'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Region prayer block */}
-              {regionPrayer && (
-                <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '14px 18px', marginBottom: 14 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', marginBottom: 8 }}>DELIVERANCE PRAYER</div>
-                  <p style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.8, margin: '0 0 10px', fontStyle: 'italic' }}>{regionPrayer}</p>
-                  <button onClick={() => setRegionPrayer(null)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', padding: 0, letterSpacing: '0.06em' }}>✕ Close</button>
-                </div>
-              )}
-
-              {regionSpirits.length === 0 ? (
-                <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '24px 20px', fontFamily: crimson, color: mut, fontStyle: 'italic', fontSize: 14, lineHeight: 1.7 }}>
-                  No spirits mapped to this area yet.<br/>
-                  Use the AI Enhance tool on spirits to populate their <em>Primary Battlefield</em> field and they will appear here.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-                  {regionSpirits.map((spirit: any) => {
-                    const regionCount = countRegions(spirit)
-                    return (
-                      <div key={spirit.id}
-                        style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: spirit.symptoms ? 4 : 8 }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', flex: 1 }}>{spirit.name}</div>
-                          {regionCount > 1 && (
-                            <span style={{ fontSize: 8, color: mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
-                              {regionCount} regions
-                            </span>
-                          )}
-                        </div>
-                        {spirit.symptoms && (
-                          <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5, marginBottom: 8 }}>
-                            {String(spirit.symptoms).slice(0, 140)}{String(spirit.symptoms).length > 140 ? '…' : ''}
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            onClick={() => {
-                              try { localStorage.setItem('wri_prefill_spirit', JSON.stringify({ name: spirit.name, id: spirit.id })) } catch {}
-                              onSelectSpirit && onSelectSpirit(spirit)
-                            }}
-                            style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 12, color: GC, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
-                            Investigate
-                          </button>
-                          <button
-                            onClick={() => {
-                              try {
-                                const curr = JSON.parse(localStorage.getItem('wri_session_spirits') || '[]')
-                                if (!curr.some((s: any) => s.id === spirit.id)) {
-                                  localStorage.setItem('wri_session_spirits', JSON.stringify([...curr, { name: spirit.name, id: spirit.id }]))
-                                }
-                              } catch {}
-                            }}
-                            style={{ padding: '3px 10px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 12, color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
-                            + Case Files
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto' as const,
+          padding: '12px 16px', borderBottom: '1px solid #1e1a0e', scrollbarWidth: 'none' as const }}>
+          {BODY_REGIONS.map(region => (
+            <button key={region.id} onClick={() => setSelectedRegion(region)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20,
+                flexShrink: 0, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+                border: `1px solid ${selectedRegion?.id === region.id ? GC : '#2a2218'}`,
+                background: selectedRegion?.id === region.id ? 'rgba(201,168,76,0.1)' : 'transparent',
+                color: selectedRegion?.id === region.id ? GC : '#6b5e45',
+                fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em' }}>
+              <span>{region.icon}</span><span>{region.label}</span>
+            </button>
+          ))}
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', padding: 20, position: 'relative' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', maxWidth: 280, height: 'auto' }}>
+            <ellipse cx="50" cy="9"  rx="9"  ry="9"  fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            <rect x="46" y="17" width="8"  height="5"  fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            <rect x="35" y="22" width="30" height="30" rx="3" fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            <rect x="20" y="22" width="13" height="26" rx="4" fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            <rect x="67" y="22" width="13" height="26" rx="4" fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            <rect x="33" y="52" width="34" height="12" rx="3" fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            <rect x="33" y="64" width="14" height="28" rx="4" fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            <rect x="53" y="64" width="14" height="28" rx="4" fill="#0a0807" stroke="#2a2218" strokeWidth="0.5"/>
+            {BODY_REGIONS.map(region => {
+              const pos  = BM_SVG[region.id]
+              if (!pos) return null
+              const isSel = selectedRegion?.id === region.id
+              const isHov = hoveredRegion === region.id
+              const fill  = isSel ? 'rgba(201,168,76,0.25)' : isHov ? 'rgba(201,168,76,0.12)' : 'transparent'
+              const stroke = isSel ? GC : isHov ? 'rgba(201,168,76,0.5)' : 'transparent'
+              const evts  = {
+                fill, stroke, strokeWidth: '0.8',
+                style: { cursor: 'pointer' as const, transition: 'all 0.2s' },
+                onClick: () => setSelectedRegion(region),
+                onMouseEnter: () => setHoveredRegion(region.id),
+                onMouseLeave: () => setHoveredRegion(null),
+              }
+              return pos.e
+                ? <ellipse key={region.id} cx={pos.x+pos.w/2} cy={pos.y+pos.h/2} rx={pos.w/2} ry={pos.h/2} {...evts}/>
+                : <rect    key={region.id} x={pos.x} y={pos.y} width={pos.w} height={pos.h} rx="2" {...evts}/>
+            })}
+          </svg>
+          {hoveredRegion && (
+            <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+              fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
+              background: '#09070F', border: '1px solid #3a3020', borderRadius: 4,
+              padding: '4px 10px', pointerEvents: 'none' as const }}>
+              {BODY_REGIONS.find(r => r.id === hoveredRegion)?.icon}{' '}
+              {BODY_REGIONS.find(r => r.id === hoveredRegion)?.label}
             </div>
           )}
         </div>
+      </div>
+
+      {/* RIGHT: Results panel */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const,
+        overflowY: 'auto', background: '#0a0807' }}>
+        {!selectedRegion ? (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center',
+            justifyContent: 'center', flex: 1, padding: 40, textAlign: 'center' as const }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🗺️</div>
+            <div style={{ fontFamily: cinzel, fontSize: 16, color: GC, letterSpacing: '0.1em', marginBottom: 12 }}>SELECT A BODY REGION</div>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: '#6b5e45', lineHeight: 1.7, maxWidth: 360, marginBottom: 24 }}>
+              Choose where the issue manifests physically, emotionally, or spiritually. The map searches 285+ spirits by keyword weight, ranking by battlefield, symptoms, and manifestations.
+            </div>
+            {['1. Click a body region or select from the tabs above',
+              '2. Engine scans all spirits by keyword weight',
+              '3. Results ranked: battlefield +5, symptoms +3, manifestations +2',
+              '4. Click VIEW DOSSIER to open the full spirit profile',
+              '5. ADD TO SESSION stores the spirit in your case files'].map((step, i) => (
+              <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: '#4a3f2f',
+                marginBottom: 6, textAlign: 'left' as const, width: '100%', maxWidth: 360 }}>
+                {step}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: '20px 24px', flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+              marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #1e1a0e' }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: GC, letterSpacing: '0.08em', marginBottom: 4 }}>
+                  {selectedRegion.icon} {selectedRegion.label}
+                </div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.08em' }}>
+                  KEYWORDS: {selectedRegion.keywords.slice(0,6).join(', ')}{selectedRegion.keywords.length > 6 ? ` +${selectedRegion.keywords.length - 6} more` : ''}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 9,
+                  color: regionResults.length > 0 ? GC : '#4a3f2f', letterSpacing: '0.08em',
+                  background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020',
+                  padding: '4px 10px', borderRadius: 10 }}>
+                  {regionResults.length} MATCHES
+                </span>
+                <button onClick={() => setSelectedRegion(null)}
+                  style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 18 }}>×</button>
+              </div>
+            </div>
+
+            <button disabled={prayerLoading}
+              onClick={async () => {
+                setPrayerLoading(true); setShowPrayer(true); setRegionPrayer('')
+                const names = regionResults.slice(0,5).map((r: any) => r.name).join(', ')
+                try {
+                  const res = await fetch('/api/ai-assistant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      message: `Generate a comprehensive deliverance prayer for manifestations in the ${selectedRegion.label} region.\n\nSpirits most commonly associated: ${names}\n\nWrite a prayer that:\n1. Covers all spiritual entry points for this region\n2. Addresses each spirit by name with authority\n3. Commands them to leave and breaks their legal grounds\n4. Invites healing and Holy Spirit to fill this area\n5. Includes relevant scripture declarations\n\nWrite in first person, authoritative, 4-5 paragraphs.`,
+                      history: []
+                    })
+                  })
+                  const d = await res.json()
+                  setRegionPrayer(d.response || '')
+                } catch { setRegionPrayer('Unable to generate prayer at this time.') }
+                setPrayerLoading(false)
+              }}
+              style={{ width: '100%', padding: '10px', background: 'rgba(201,168,76,0.06)',
+                border: '1px solid #3a3020', borderRadius: 6, color: GC, fontFamily: cinzel,
+                fontSize: 10, letterSpacing: '0.1em', cursor: prayerLoading ? 'default' : 'pointer',
+                marginBottom: 20, opacity: prayerLoading ? 0.6 : 1 }}>
+              🙏 GENERATE {selectedRegion.label.toUpperCase()} DELIVERANCE PRAYER
+            </button>
+
+            {showPrayer && (
+              <div style={{ marginBottom: 20, padding: '16px 20px', background: '#09070F',
+                border: '1px solid #2a2218', borderTop: `2px solid ${GC}`, borderRadius: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em' }}>REGION PRAYER</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {regionPrayer && (
+                      <button onClick={() => navigator.clipboard.writeText(regionPrayer)}
+                        style={{ padding: '3px 8px', background: 'transparent', border: '1px solid #2a2218',
+                          borderRadius: 3, color: '#6b5e45', fontFamily: cinzel, fontSize: 8, cursor: 'pointer' }}>
+                        COPY
+                      </button>
+                    )}
+                    <button onClick={() => setShowPrayer(false)}
+                      style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 14 }}>×</button>
+                  </div>
+                </div>
+                {prayerLoading ? (
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6b5e45', letterSpacing: '0.1em' }}>GENERATING PRAYER...</div>
+                ) : (
+                  <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8b99a', lineHeight: 1.9 }}
+                    dangerouslySetInnerHTML={{ __html: regionPrayer
+                      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C9A84C">$1</strong>')
+                      .replace(/\n/g, '<br/>') }} />
+                )}
+              </div>
+            )}
+
+            {regionResults.length === 0 && (
+              <div style={{ textAlign: 'center' as const, padding: '40px 20px',
+                color: '#4a3f2f', fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
+                No spirits matched {selectedRegion.label} keywords.
+                Try an adjacent region or check the Intel Archive.
+              </div>
+            )}
+
+            {regionResults.map((spirit: any) => {
+              const crossRegions = (crossRegionMap.get(spirit.name) || []).filter((r: string) => r !== selectedRegion.label)
+              const cc = spirit.confidence === 'Strong Match' ? '#4a7a4a'
+                : spirit.confidence === 'Moderate Match' ? '#8B6914' : '#4a3f2f'
+              return (
+                <div key={spirit.id || spirit.name} style={{
+                  padding: '16px 20px', marginBottom: 10, background: '#09070F',
+                  border: `1px solid ${spirit.confidence === 'Strong Match' ? '#2a3a2a' : '#1e1a0e'}`,
+                  borderLeft: `3px solid ${cc}`, borderRadius: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 13, color: GC, letterSpacing: '0.06em' }}>{spirit.name}</div>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: cc, letterSpacing: '0.08em',
+                      padding: '2px 8px', border: `1px solid ${cc}`, borderRadius: 10, flexShrink: 0, marginLeft: 8 }}>
+                      {spirit.confidence.toUpperCase()}
+                    </span>
+                  </div>
+                  {spirit.description && (
+                    <div style={{ fontFamily: crimson, fontSize: 14, color: '#6b5e45', lineHeight: 1.6, marginBottom: 8 }}>
+                      {(spirit.description || '').slice(0, 140)}{(spirit.description || '').length > 140 ? '...' : ''}
+                    </div>
+                  )}
+                  {spirit.matchedKeywords?.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 8, alignItems: 'center' }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', letterSpacing: '0.06em' }}>MATCHED:</span>
+                      {spirit.matchedKeywords.map((kw: string) => (
+                        <span key={kw} style={{ fontFamily: cinzel, fontSize: 8, color: '#6b5e45',
+                          background: '#0f0c07', border: '1px solid #2a2218', borderRadius: 3, padding: '1px 6px' }}>{kw}</span>
+                      ))}
+                    </div>
+                  )}
+                  {crossRegions.length > 0 && (
+                    <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      ALSO IN: {crossRegions.slice(0,3).join(' · ')}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8, paddingTop: 10, borderTop: '1px solid #1e1a0e' }}>
+                    <button
+                      onClick={() => {
+                        try { localStorage.setItem('wri_prefill_spirit', spirit.name) } catch {}
+                        setActiveSection('spirit-network')
+                      }}
+                      style={{ padding: '5px 12px', background: 'transparent', border: '1px solid #2a2218',
+                        borderRadius: 3, color: '#6b5e45', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                      VIEW DOSSIER
+                    </button>
+                    <button
+                      onClick={() => {
+                        try {
+                          const ex = JSON.parse(localStorage.getItem('wri_session_spirits') || '[]')
+                          if (!ex.includes(spirit.name)) localStorage.setItem('wri_session_spirits', JSON.stringify([...ex, spirit.name]))
+                          setAddedToSession((prev: string[]) => [...prev, spirit.name])
+                        } catch {}
+                      }}
+                      style={{ padding: '5px 12px', borderRadius: 3, fontFamily: cinzel, fontSize: 8,
+                        letterSpacing: '0.08em', cursor: 'pointer',
+                        background: addedToSession.includes(spirit.name) ? 'rgba(74,122,74,0.1)' : 'transparent',
+                        border: `1px solid ${addedToSession.includes(spirit.name) ? '#4a7a4a' : '#2a2218'}`,
+                        color: addedToSession.includes(spirit.name) ? '#4a7a4a' : '#6b5e45' }}>
+                      {addedToSession.includes(spirit.name) ? '✓ ADDED TO SESSION' : '+ ADD TO SESSION'}
+                    </button>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(`Father God, in the Name of Jesus Christ, I take authority over the spirit of ${spirit.name}. I break every legal ground, entry point, and generational tie. I command ${spirit.name} to loose and leave now in Jesus' Name. Holy Spirit, come and fill every place this spirit occupied. Amen.`)}
+                      style={{ padding: '5px 12px', background: 'transparent', border: '1px solid #2a2218',
+                        borderRadius: 3, color: '#6b5e45', fontFamily: cinzel, fontSize: 8,
+                        letterSpacing: '0.08em', cursor: 'pointer', marginLeft: 'auto' }}>
+                      🙏 COPY PRAYER
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+
+            <div style={{ marginTop: 24, padding: '12px 16px', background: 'rgba(139,50,50,0.04)',
+              border: '1px solid #2a1a1a', borderRadius: 6 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a2a2a', letterSpacing: '0.1em', marginBottom: 4 }}>MINISTRY DISCLAIMER</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3030', lineHeight: 1.6, fontStyle: 'italic' }}>
+                This map is designed for pastoral ministry assessment, spiritual discernment, and prayer preparation only.
+                Physical pain, chronic symptoms, or mental health struggles should always be evaluated by a qualified
+                medical professional or licensed counselor. Spiritual and medical care are not mutually exclusive.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -6661,7 +6723,7 @@ function CommunityPage() {
         {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
-        {activeSection === 'body-map' && <BodyMapView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} onSelectSpirit={(spirit: any) => { setActiveSection('database') }} />}
+        {activeSection === 'body-map' && <BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} setActiveSection={setActiveSection} />}
         {activeSection === 'spirit-network' && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
@@ -6974,14 +7036,13 @@ function CommunityPage() {
         <div style={{
           position: 'fixed',
           bottom: isMobile ? 0 : 84,
-          right: isMobile ? undefined : 24,
+          right: isMobile ? 0 : 24,
           left: isMobile ? 0 : undefined,
           width: isMobile ? '100%' : 340,
           height: isMobile ? '70vh' : 460,
           background: '#0f0c07',
           border: '1px solid #3a3020',
           borderTop: '2px solid #C9A84C',
-          right: isMobile ? 0 : undefined,
           borderRadius: isMobile ? '12px 12px 0 0' : 8,
           display: 'flex',
           flexDirection: 'column' as const,

@@ -630,9 +630,8 @@ export function SpiritNetwork({ demons, isMobile, getToken: _getToken }: SpiritN
       const prefill = localStorage.getItem('wri_prefill_spirit')
       if (prefill) {
         localStorage.removeItem('wri_prefill_spirit')
-        const { name } = JSON.parse(prefill)
-        if (name && demons.length > 0) {
-          const match = demons.find((d: Demon) => d.name.toLowerCase() === name.toLowerCase())
+        if (demons.length > 0) {
+          const match = demons.find((d: Demon) => d.name.toLowerCase() === prefill.toLowerCase())
           if (match) {
             setSelectedSpirit(match)
             fetchResources(match)
