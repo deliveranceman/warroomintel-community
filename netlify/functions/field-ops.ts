@@ -69,7 +69,7 @@ export default async function handler(req: Request) {
       let body: any
       try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS }) }
 
-      const { subject_name, subject_alias, gender, age_range, status, primary_issue, tags, spirits_flagged, general_notes } = body
+      const { subject_name, subject_alias, gender, age_range, status, primary_issue, tags, spirits_flagged, notes } = body
       if (!subject_name?.trim()) return new Response(JSON.stringify({ error: 'subject_name required' }), { status: 400, headers: HEADERS })
 
       const row = {
@@ -82,7 +82,7 @@ export default async function handler(req: Request) {
         primary_issue:   primary_issue?.trim().slice(0, 2000) || null,
         tags:            Array.isArray(tags) ? tags.map((t: string) => String(t).trim()).filter(Boolean) : [],
         spirits_flagged: Array.isArray(spirits_flagged) ? spirits_flagged.map((s: string) => String(s).trim()).filter(Boolean) : [],
-        general_notes:   general_notes?.trim().slice(0, 10000) || null,
+        notes:   notes?.trim().slice(0, 10000) || null,
         session_count:   0,
       }
 
@@ -104,7 +104,7 @@ export default async function handler(req: Request) {
       }
 
       const updates: Record<string, any> = { updated_at: new Date().toISOString() }
-      for (const k of ['subject_name','subject_alias','gender','age_range','status','primary_issue','tags','spirits_flagged','general_notes','session_count','last_session_at']) {
+      for (const k of ['subject_name','subject_alias','gender','age_range','status','primary_issue','tags','spirits_flagged','notes','session_count','last_session_at']) {
         if (k in body) updates[k] = body[k]
       }
 

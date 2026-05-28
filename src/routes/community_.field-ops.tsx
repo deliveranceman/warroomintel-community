@@ -33,7 +33,7 @@ interface CaseFile {
   primary_issue: string | null
   tags: string[]
   spirits_flagged: string[]
-  general_notes: string | null
+  notes: string | null
   session_count: number
   last_session_at: string | null
   created_at: string
@@ -129,7 +129,7 @@ function FieldOpsPage() {
   // Case form
   const [caseForm, setCaseForm] = useState({
     subject_name: '', subject_alias: '', gender: '', age_range: '',
-    status: 'active', primary_issue: '', tags: '', spirits_flagged: '', general_notes: '',
+    status: 'active', primary_issue: '', tags: '', spirits_flagged: '', notes: '',
   })
 
   // Session form
@@ -229,7 +229,7 @@ function FieldOpsPage() {
         primary_issue:   caseForm.primary_issue.trim() || null,
         tags:            caseForm.tags.split(',').map(t => t.trim()).filter(Boolean),
         spirits_flagged: caseForm.spirits_flagged.split(',').map(t => t.trim()).filter(Boolean),
-        general_notes:   caseForm.general_notes.trim() || null,
+        notes:   caseForm.notes.trim() || null,
       }
       const res = await apiFetch('?resource=cases', { method: 'POST', body: JSON.stringify(body) })
       const d = await res.json()
@@ -394,7 +394,7 @@ function FieldOpsPage() {
             <h1 style={{ fontFamily: cinzel, fontSize: 26, color: G, fontWeight: 700, margin: 0 }}>Case Files</h1>
           </div>
           <button
-            onClick={() => { setCaseForm({ subject_name: '', subject_alias: '', gender: '', age_range: '', status: 'active', primary_issue: '', tags: '', spirits_flagged: '', general_notes: '' }); setFormError(null); setView('new-case') }}
+            onClick={() => { setCaseForm({ subject_name: '', subject_alias: '', gender: '', age_range: '', status: 'active', primary_issue: '', tags: '', spirits_flagged: '', notes: '' }); setFormError(null); setView('new-case') }}
             style={{ background: G, color: '#1a1305', border: 'none', borderRadius: 2, padding: '9px 18px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer' }}
           >
             + New Case
@@ -418,7 +418,7 @@ function FieldOpsPage() {
               Start tracking subjects by creating your first case file.
             </p>
             <button
-              onClick={() => { setCaseForm({ subject_name: '', subject_alias: '', gender: '', age_range: '', status: 'active', primary_issue: '', tags: '', spirits_flagged: '', general_notes: '' }); setFormError(null); setView('new-case') }}
+              onClick={() => { setCaseForm({ subject_name: '', subject_alias: '', gender: '', age_range: '', status: 'active', primary_issue: '', tags: '', spirits_flagged: '', notes: '' }); setFormError(null); setView('new-case') }}
               style={{ background: G, color: '#1a1305', border: 'none', borderRadius: 2, padding: '9px 20px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em' }}
             >
               + Open First Case
@@ -535,10 +535,10 @@ function FieldOpsPage() {
               </div>
             )}
 
-            {c.general_notes && (
+            {c.notes && (
               <div>
                 <div style={{ fontFamily: mono, fontSize: 9, color: MUT, letterSpacing: '0.14em', marginBottom: 6 }}>GENERAL NOTES</div>
-                <p style={{ fontFamily: crimson, fontSize: 14, color: DIM, margin: 0, lineHeight: 1.6 }}>{c.general_notes}</p>
+                <p style={{ fontFamily: crimson, fontSize: 14, color: DIM, margin: 0, lineHeight: 1.6 }}>{c.notes}</p>
               </div>
             )}
           </div>
@@ -665,7 +665,7 @@ function FieldOpsPage() {
           </FormField>
 
           <FormField label="General Notes">
-            <textarea value={caseForm.general_notes} onChange={e => setCaseForm(p => ({ ...p, general_notes: e.target.value }))} rows={4} placeholder="Background context, history, observations..." style={{ ...inp, resize: 'vertical' as const }} />
+            <textarea value={caseForm.notes} onChange={e => setCaseForm(p => ({ ...p, notes: e.target.value }))} rows={4} placeholder="Background context, history, observations..." style={{ ...inp, resize: 'vertical' as const }} />
           </FormField>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
