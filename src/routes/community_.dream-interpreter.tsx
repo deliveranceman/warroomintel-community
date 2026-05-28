@@ -35,6 +35,89 @@ const VERDICT_META: Record<string, { color: string; bg: string; label: string }>
   mixed:       { color: G,         bg: 'rgba(201,168,76,0.08)',  label: 'MIXED ANALYSIS' },
 }
 
+function exportToPrint(dreamText: string, report: DreamReport, v: { label: string }) {
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const sectionsHtml = report.sections.map(sec => `
+    <div class="wri-section">
+      <div class="wri-section-label">${sec.title.toUpperCase()}</div>
+      <ul>${sec.items.map(item => `<li>${item}</li>`).join('')}</ul>
+    </div>
+  `).join('')
+
+  const css = `
+@media print {
+  body * { visibility: hidden !important; }
+  #wri-print-root, #wri-print-root * { visibility: visible !important; }
+  #wri-print-root { position: absolute; left: 0; top: 0; width: 100%; }
+}
+#wri-print-root {
+  display: none;
+  font-family: Georgia, serif;
+  color: #111;
+  background: #fff;
+  padding: 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+@media print {
+  #wri-print-root { display: block !important; }
+}
+#wri-print-root .wri-header { border-bottom: 2px solid #111; padding-bottom: 16px; margin-bottom: 24px; }
+#wri-print-root .wri-header h1 { font-family: Georgia, serif; font-size: 16px; font-weight: bold; letter-spacing: 0.1em; margin: 0 0 4px; text-transform: uppercase; }
+#wri-print-root .wri-header .wri-date { font-size: 12px; color: #555; font-family: monospace; }
+#wri-print-root .wri-verdict { display: inline-block; border: 1px solid #999; padding: 3px 10px; font-family: monospace; font-size: 11px; font-weight: bold; letter-spacing: 0.1em; margin-bottom: 20px; }
+#wri-print-root .wri-dream-block { border-left: 3px solid #bbb; padding: 12px 16px; margin-bottom: 24px; background: #f9f9f9; }
+#wri-print-root .wri-dream-block .wri-section-label { font-family: monospace; font-size: 10px; font-weight: bold; letter-spacing: 0.14em; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+#wri-print-root .wri-dream-block p { font-size: 15px; line-height: 1.7; margin: 0; color: #111; }
+#wri-print-root .wri-summary-block { margin-bottom: 24px; }
+#wri-print-root .wri-summary-block .wri-section-label { font-family: monospace; font-size: 10px; font-weight: bold; letter-spacing: 0.14em; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+#wri-print-root .wri-summary-block p { font-size: 15px; line-height: 1.7; margin: 0; }
+#wri-print-root .wri-section { margin-bottom: 20px; page-break-inside: avoid; }
+#wri-print-root .wri-section-label { font-family: monospace; font-size: 10px; font-weight: bold; letter-spacing: 0.14em; text-transform: uppercase; color: #333; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+#wri-print-root .wri-section ul { margin: 0; padding-left: 20px; }
+#wri-print-root .wri-section ul li { font-size: 14px; line-height: 1.6; margin-bottom: 4px; }
+#wri-print-root .wri-footer { border-top: 1px solid #ccc; margin-top: 32px; padding-top: 12px; font-family: monospace; font-size: 10px; color: #888; text-align: center; letter-spacing: 0.08em; }
+  `
+
+  const styleEl = document.createElement('style')
+  styleEl.id = 'wri-print-styles'
+  styleEl.textContent = css
+  document.head.appendChild(styleEl)
+
+  let rootEl = document.getElementById('wri-print-root')
+  if (!rootEl) {
+    rootEl = document.createElement('div')
+    rootEl.id = 'wri-print-root'
+    document.body.appendChild(rootEl)
+  }
+
+  rootEl.innerHTML = `
+    <div class="wri-header">
+      <h1>War Room Intel — Dream Analysis Report</h1>
+      <div class="wri-date">${date}</div>
+    </div>
+    <div class="wri-verdict">${v.label}</div>
+    <div class="wri-dream-block">
+      <div class="wri-section-label">Dream Description</div>
+      <p>${dreamText.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>
+    </div>
+    <div class="wri-summary-block">
+      <div class="wri-section-label">Summary</div>
+      <p>${report.summary.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+    </div>
+    ${sectionsHtml}
+    <div class="wri-footer">War Room Intel · warroomintel.com · Intelligence for the Fight</div>
+  `
+
+  window.print()
+
+  window.addEventListener('afterprint', () => {
+    styleEl.remove()
+    rootEl?.remove()
+  }, { once: true })
+}
+
 function DreamInterpreterPage() {
   const { getToken }    = useAuth()
   const { user, isLoaded } = useUser()
@@ -44,6 +127,7 @@ function DreamInterpreterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [report, setReport]   = useState<DreamReport | null>(null)
+  const [submittedDream, setSubmittedDream] = useState('')
 
   const tier     = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const role     = (user?.publicMetadata?.role as string) || ''
@@ -64,6 +148,7 @@ function DreamInterpreterPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Interpretation failed'); return }
+      setSubmittedDream(dream.trim())
       setReport(data)
     } catch (e: any) {
       setError(e.message || 'Network error')
@@ -174,14 +259,22 @@ function DreamInterpreterPage() {
         {report && v && (
           <div>
             <button
-              onClick={() => { setReport(null); setDream(''); setContext('') }}
+              onClick={() => { setReport(null); setDream(''); setContext(''); setSubmittedDream('') }}
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em', marginBottom: 20, padding: 0 }}
             >
               ← NEW INTERPRETATION
             </button>
 
+            {/* dream description */}
+            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: 20, marginBottom: 12 }}>
+              <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.15em', marginBottom: 10 }}>DREAM DESCRIPTION</div>
+              <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: TXT, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' as const }}>
+                {submittedDream}
+              </p>
+            </div>
+
             {/* verdict + summary */}
-            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 24, marginBottom: 16 }}>
+            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 24, marginBottom: 12 }}>
               <div style={{ marginBottom: 16 }}>
                 <span style={{ background: v.bg, border: `1px solid ${v.color}55`, borderRadius: 2, padding: '4px 10px', fontFamily: mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: v.color }}>
                   {v.label}
@@ -206,9 +299,25 @@ function DreamInterpreterPage() {
               </div>
             ))}
 
+            {/* export + reset */}
             <button
-              onClick={() => setReport(null)}
-              style={{ marginTop: 8, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 2, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, color: DIM, letterSpacing: '0.1em', cursor: 'pointer' }}
+              onClick={() => exportToPrint(submittedDream, report, v)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                width: '100%', height: 40, marginTop: 16,
+                background: 'transparent', border: `1px solid rgba(201,168,76,0.45)`,
+                borderRadius: 2, cursor: 'pointer',
+                fontFamily: cinzel, fontSize: 12, fontWeight: 600,
+                letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+                color: G,
+              }}
+            >
+              Export Report (Print / PDF)
+            </button>
+
+            <button
+              onClick={() => { setReport(null); setSubmittedDream('') }}
+              style={{ marginTop: 10, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 2, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, color: DIM, letterSpacing: '0.1em', cursor: 'pointer', width: '100%' }}
             >
               Interpret Another Dream
             </button>
