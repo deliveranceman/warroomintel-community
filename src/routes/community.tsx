@@ -5639,6 +5639,8 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
   const [alias, setAlias]           = useState('')
   const [sessionNum, setSessionNum] = useState(1)
   const [spiritsFromLS, setSpiritsFromLS] = useState<string[]>([])
+  const [launching, setLaunching]   = useState(false)
+  const [launchError, setLaunchError] = useState('')
 
   useEffect(() => {
     try {
@@ -5658,21 +5660,31 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
   }, [step])
 
   async function startNewSession() {
-    if (!alias.trim()) return
-    const token = await getToken()
-    const spiritSeq = spiritsFromLS.map(name => {
-      const d = demons.find((x: any) => x.name?.toLowerCase() === name.toLowerCase())
-      return { id: Math.random().toString(36).slice(2), name: d?.name || name, rank: d?.biblicalRank || 'Common Spirit', label: '', status: 'pending', reasoning: '', entryPoints: d?.entryPoints || '', companions: [], scriptures: [], breakthroughLevel: 'none' }
-    })
-    const res = await fetch('/api/sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ subject_alias: alias.trim(), session_number: sessionNum, spirit_sequence: spiritSeq }),
-    })
-    const data = await res.json()
-    if (data.session) {
-      localStorage.removeItem('wri_session_spirits')
-      onLaunch(data.session.id, { subjectAlias: alias.trim(), sessionNumber: sessionNum, defaultMode: isCommanderOnly ? 'offline' : undefined })
+    if (!alias.trim() || launching) return
+    setLaunching(true)
+    setLaunchError('')
+    try {
+      const token = await getToken()
+      const spiritSeq = spiritsFromLS.map(name => {
+        const d = demons.find((x: any) => x.name?.toLowerCase() === name.toLowerCase())
+        return { id: Math.random().toString(36).slice(2), name: d?.name || name, rank: d?.biblicalRank || 'Common Spirit', label: '', status: 'pending', reasoning: '', entryPoints: d?.entryPoints || '', companions: [], scriptures: [], breakthroughLevel: 'none' }
+      })
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ subject_alias: alias.trim(), session_number: sessionNum, spirit_sequence: spiritSeq }),
+      })
+      const data = await res.json()
+      if (data.session) {
+        localStorage.removeItem('wri_session_spirits')
+        onLaunch(data.session.id, { subjectAlias: alias.trim(), sessionNumber: sessionNum, defaultMode: isCommanderOnly ? 'offline' : undefined })
+      } else {
+        setLaunchError(data.error || 'Failed to create session. Try again.')
+      }
+    } catch {
+      setLaunchError('Network error. Check your connection and try again.')
+    } finally {
+      setLaunching(false)
     }
   }
 
@@ -5770,9 +5782,14 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
                 </div>
               </div>
             )}
-            <button onClick={startNewSession} disabled={!alias.trim()}
-              style={{ width: '100%', padding: '14px', background: alias.trim() ? gold : 'transparent', border: `1px solid ${alias.trim() ? gold : bdr}`, borderRadius: 8, fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.1em', color: alias.trim() ? '#060408' : dim, cursor: alias.trim() ? 'pointer' : 'default', fontWeight: 700 }}>
-              ⚔ LAUNCH SESSION
+            {launchError && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 6, fontFamily: "'Crimson Pro', serif", fontSize: 13, color: '#f87171' }}>
+                {launchError}
+              </div>
+            )}
+            <button type="button" onClick={startNewSession} disabled={!alias.trim() || launching}
+              style={{ width: '100%', padding: '14px', background: alias.trim() && !launching ? gold : 'transparent', border: `1px solid ${alias.trim() && !launching ? gold : bdr}`, borderRadius: 8, fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.1em', color: alias.trim() && !launching ? '#060408' : dim, cursor: alias.trim() && !launching ? 'pointer' : 'default', fontWeight: 700 }}>
+              {launching ? 'CREATING SESSION...' : '⚔ LAUNCH SESSION'}
             </button>
           </div>
         )}
