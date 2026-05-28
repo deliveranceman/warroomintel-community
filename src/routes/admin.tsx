@@ -4956,7 +4956,9 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [addingSpirit, setAddingSpirit] = useState<any | null>(null)
   const [addSuccess, setAddSuccess] = useState<string | null>(null)
   const [selectedGaps, setSelectedGaps] = useState<number[]>([])
-  const [bulkAdding, setBulkAdding] = useState(false)
+  const [bulkAdding, setBulkAdding]     = useState(false)
+  const [bulkProgress, setBulkProgress] = useState('')
+  const [bulkComplete, setBulkComplete] = useState<{ succeeded: number; failed: number; total: number } | null>(null)
 
   // Content query state
   const [cqQuery, setCqQuery] = useState('')
@@ -5070,23 +5072,67 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
 
   async function handleBulkAddToDb() {
     setBulkAdding(true)
+    setBulkComplete(null)
     const toAdd = selectedGaps.map(i => gapResults[i])
-    for (const spirit of toAdd) {
-      const aiData = await fetchSpiritAIData(spirit.name)
-      await confirmAdd({
-        name: spirit.name,
-        suggested_kingdom: aiData.kingdom || spirit.suggested_kingdom || '',
-        context: aiData.description || spirit.description || '',
-        rank: aiData.rank || '',
-        entry_points: aiData.entry_points || '',
-        manifestations: aiData.manifestations || '',
-        scriptures: aiData.scriptures || '',
-        source: spirit.source || '',
-      })
+    let succeeded = 0
+    let failed    = 0
+
+    for (let idx = 0; idx < toAdd.length; idx++) {
+      const spirit = toAdd[idx]
+      setBulkProgress(`Adding ${idx + 1} of ${toAdd.length}: ${spirit.name}...`)
+
+      try {
+        const token = await getToken()
+        // Get AI data silently — no modal
+        let aiFields: Record<string, string> = {
+          kingdom: spirit.suggested_kingdom || '',
+          rank: '', description: spirit.description || '',
+          entry_points: '', manifestations: '', scriptures: '',
+        }
+        try {
+          const aiRes = await fetch('/api/ai-assistant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: `Provide data for demon/spirit: "${spirit.name}". Return ONLY JSON (no markdown): {"kingdom":"one of: Witchcraft/Occult/False Religion / Paganism/Death / Destruction/Marine Kingdom/Familiar Spirits/Addiction/Sexual Perversion/Infirmity/Religious Spirit/Pride/Rejection/Fear","rank":"one of: Principality/Power/World Ruler/Strongman/Common Spirit","description":"2 sentence description","entry_points":"semicolon separated list","manifestations":"semicolon separated list","scriptures":"1-2 references"}`,
+              history: [],
+            }),
+          })
+          const aiData = await aiRes.json()
+          const raw  = (aiData.response || '').replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
+          const match = raw.match(/\{[\s\S]*\}/)
+          if (match) {
+            try { aiFields = { ...aiFields, ...JSON.parse(match[0]) } } catch {}
+          }
+        } catch {}
+
+        const addRes = await fetch('/api/admin-demon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            name: spirit.name,
+            kingdom: aiFields.kingdom,
+            rank: aiFields.rank,
+            description: aiFields.description,
+            entry_points: aiFields.entry_points,
+            manifestations: aiFields.manifestations,
+            scriptures: aiFields.scriptures,
+            source: spirit.source || 'Library Gap Analysis',
+          }),
+        })
+        if (addRes.ok) { succeeded++ } else { failed++; console.error('[BULK-ADD] Failed for:', spirit.name) }
+      } catch (e) {
+        failed++
+        console.error('[BULK-ADD] Error on:', spirit.name, e)
+      }
+      await new Promise(r => setTimeout(r, 300))
     }
+
     setGapResults((prev: any[]) => prev.filter((_: any, i: number) => !selectedGaps.includes(i)))
     setSelectedGaps([])
     setBulkAdding(false)
+    setBulkProgress('')
+    setBulkComplete({ succeeded, failed, total: toAdd.length })
   }
 
   async function confirmAdd(spirit: any) {
@@ -5200,6 +5246,19 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
                 </>
               )}
             </div>
+            {bulkAdding && (
+              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderRadius: 6, fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.1em' }}>
+                ⚡ {bulkProgress}
+              </div>
+            )}
+            {bulkComplete && (
+              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(74,122,74,0.08)', border: '1px solid #4a7a4a', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: cinzel, fontSize: 10, color: '#4a7a4a', letterSpacing: '0.1em' }}>
+                  ✓ BATCH COMPLETE — {bulkComplete.succeeded} ADDED{bulkComplete.failed > 0 ? `, ${bulkComplete.failed} FAILED` : ''}
+                </span>
+                <button onClick={() => setBulkComplete(null)} style={{ background: 'transparent', border: 'none', color: '#4a7a4a', cursor: 'pointer', fontSize: 14 }}>×</button>
+              </div>
+            )}
             <div style={{ display: 'grid', gap: 8 }}>
               {gapResults.map((r, i) => (
                 <div key={i} style={{ padding: '12px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${bdr2}`, borderLeft: `3px solid ${G2}`, borderRadius: 4, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
