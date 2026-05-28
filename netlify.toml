@@ -82,3 +82,9 @@
 
 [functions."admin-chat"]
   timeout = 30
+
+[functions."library-enrich"]
+  timeout = 26
+
+[functions."library-enrich-apply"]
+  timeout = 15

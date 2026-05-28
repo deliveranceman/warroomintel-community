@@ -3307,6 +3307,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [editLoading, setEditLoading] = useState(false)
   const [reanalyzeId,     setReanalyzeId]     = useState<string | null>(null)
   const [reanalyzeErrors, setReanalyzeErrors] = useState<Record<string, string>>({})
+  const [enrichingId,     setEnrichingId]     = useState<string | null>(null)
+  const [enrichErrors,    setEnrichErrors]    = useState<Record<string, string>>({})
 
   // Re-tag state
   const [retagRunning, setRetagRunning] = useState(false)
@@ -3586,6 +3588,30 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       setReanalyzeError(bookId, e.message || 'Network error')
     }
     finally { setReanalyzeId(null) }
+  }
+
+  async function handleGenerateSuggestions(bookId: string) {
+    setEnrichingId(bookId)
+    setEnrichErrors(prev => { const n = { ...prev }; delete n[bookId]; return n })
+    try {
+      const token = await getToken()
+      const res   = await fetch('/api/library-enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ resourceId: bookId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setEnrichErrors(prev => ({ ...prev, [bookId]: data.error || `HTTP ${res.status}` }))
+      } else {
+        console.log('[ENRICH] Done:', data.message)
+        setEnrichErrors(prev => ({ ...prev, [bookId]: `✓ ${data.suggestions} suggestions — check Enrichment tab` }))
+      }
+    } catch (e: any) {
+      setEnrichErrors(prev => ({ ...prev, [bookId]: e.message || 'Network error' }))
+    } finally {
+      setEnrichingId(null)
+    }
   }
 
   async function saveEdit() {
@@ -3923,6 +3949,18 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                         {reanalyzeErrors[book.id] && reanalyzeId !== book.id && (
                           <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#f87171', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }} title={reanalyzeErrors[book.id]}>
                             {reanalyzeErrors[book.id]}
+                          </span>
+                        )}
+                        {!isEditing && book.is_indexed && (
+                          <button onClick={() => handleGenerateSuggestions(book.id)} disabled={enrichingId === book.id}
+                            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 5, color: enrichingId === book.id ? '#6b5e30' : '#C9A84C', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: enrichingId === book.id ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}
+                            title="Generate enrichment suggestions from this book">
+                            {enrichingId === book.id ? '⏳ Scanning…' : '🔗 GENERATE SUGGESTIONS'}
+                          </button>
+                        )}
+                        {enrichErrors[book.id] && enrichingId !== book.id && (
+                          <span style={{ fontFamily: 'monospace', fontSize: 10, color: enrichErrors[book.id].startsWith('✓') ? '#4a7a4a' : '#f87171', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }} title={enrichErrors[book.id]}>
+                            {enrichErrors[book.id]}
                           </span>
                         )}
                         <button onClick={() => isEditing ? cancelEdit() : openEdit(book)}
@@ -5550,7 +5588,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -5611,7 +5649,8 @@ function AdminPage() {
     { key: 'library',         label: 'Min. Library'     },
     { key: 'spiritual-mapping', label: '📍 Sp. Mapping' },
     { key: 'lib-intel',   label: '🔬 Lib. Intel'         },
-    { key: 'ai-command', label: '🤖 AI Command'         },
+    { key: 'ai-command',  label: '🤖 AI Command'         },
+    { key: 'enrichment', label: '🔗 Enrichment'         },
     { key: 'taxonomy',   label: '🔬 Taxonomy'           },
     { key: 'tracker',        label: '🗂 Tracker'       },
     { key: 'internal-books', label: '📚 Books'         },
@@ -5684,6 +5723,7 @@ function AdminPage() {
         {tab === 'tracker'          && <TrackerView getToken={getToken} isDark={isDark} />}
         {tab === 'internal-books'   && <InternalBooks getToken={getToken} isDark={isDark} />}
         {tab === 'admin-chat'       && <AdminChat getToken={getToken} isDark={isDark} />}
+        {tab === 'enrichment'       && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
       </div>
     </div>
   )
@@ -6733,6 +6773,186 @@ function TrackerView({ getToken, isDark }: { getToken: any; isDark: boolean }) {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── EnrichmentSuggestions ───────────────────────────────────────────────────
+
+function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [filter, setFilter]           = useState<'all' | 'enrich' | 'add' | 'high'>('all')
+  const [applying, setApplying]       = useState<Record<string, boolean>>({})
+
+  const cinzel  = "'Cinzel', serif"
+  const crimson = "'Crimson Pro', serif"
+
+  useEffect(() => {
+    loadSuggestions()
+  }, [])
+
+  async function loadSuggestions() {
+    setLoading(true)
+    const token = await getToken()
+    const res   = await fetch('/api/library-enrich-apply', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ action: 'list' }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setSuggestions(data.suggestions || [])
+    }
+    setLoading(false)
+  }
+
+  async function handleApply(id: string, action: 'approve' | 'reject') {
+    setApplying(prev => ({ ...prev, [id]: true }))
+    try {
+      const token = await getToken()
+      const res   = await fetch('/api/library-enrich-apply', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ suggestionId: id, action }),
+      })
+      if (res.ok) {
+        setSuggestions(prev => prev.filter(s => s.id !== id))
+      }
+    } finally {
+      setApplying(prev => { const n = { ...prev }; delete n[id]; return n })
+    }
+  }
+
+  async function handleBulkApproveHigh() {
+    const high = suggestions.filter(s => s.confidence >= 7)
+    for (const s of high) {
+      await handleApply(s.id, 'approve')
+    }
+  }
+
+  async function handleBulkRejectAll() {
+    for (const s of [...suggestions]) {
+      await handleApply(s.id, 'reject')
+    }
+  }
+
+  const filtered = suggestions.filter(s => {
+    if (filter === 'enrich') return s.action === 'enrich'
+    if (filter === 'add')    return s.action === 'add'
+    if (filter === 'high')   return s.confidence >= 7
+    return true
+  })
+
+  const bdr  = isDark ? '#1e1a2e' : '#d4c9b8'
+  const gold = isDark ? '#C9A84C' : '#a07830'
+  const dim  = isDark ? '#6b5e45' : '#7a6a50'
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 60, fontFamily: cinzel, fontSize: 11, color: dim, letterSpacing: '0.12em' }}>
+        LOADING SUGGESTIONS...
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 16, letterSpacing: '0.14em', color: gold, marginBottom: 6 }}>
+          🔗 ENRICHMENT SUGGESTIONS
+        </div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: dim }}>
+          Review AI-extracted data from your library before applying to database
+        </div>
+      </div>
+
+      {/* Bulk actions */}
+      {suggestions.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <button onClick={handleBulkApproveHigh}
+            style={{ padding: '7px 16px', background: 'rgba(58,106,58,0.15)', border: '1px solid #3a6a3a', borderRadius: 4, color: '#5a8a5a', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+            ✓ APPROVE ALL HIGH CONFIDENCE (≥7)
+          </button>
+          <button onClick={handleBulkRejectAll}
+            style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: '#6b4040', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+            ✗ REJECT ALL
+          </button>
+          <button onClick={loadSuggestions}
+            style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: dim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', marginLeft: 'auto' }}>
+            ↻ REFRESH
+          </button>
+        </div>
+      )}
+
+      {/* Filter pills */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {(['all', 'enrich', 'add', 'high'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            style={{ padding: '5px 14px', background: filter === f ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${filter === f ? gold : bdr}`, borderRadius: 20, color: filter === f ? gold : dim, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            {f === 'all' ? `ALL (${suggestions.length})` : f === 'enrich' ? `ENRICH EXISTING (${suggestions.filter(s => s.action === 'enrich').length})` : f === 'add' ? `ADD NEW (${suggestions.filter(s => s.action === 'add').length})` : `HIGH CONFIDENCE (${suggestions.filter(s => s.confidence >= 7).length})`}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign: 'center', padding: 60, fontFamily: cinzel, fontSize: 11, color: dim, letterSpacing: '0.1em' }}>
+          {suggestions.length === 0 ? 'No pending suggestions. Run "🔗 GENERATE SUGGESTIONS" from a book in Min. Library.' : 'No suggestions match this filter.'}
+        </div>
+      )}
+
+      {/* Cards */}
+      {filtered.map(s => (
+        <div key={s.id} style={{ padding: '16px 20px', marginBottom: 10, background: isDark ? '#0a0807' : '#faf6f0', border: `1px solid ${s.action === 'add' ? '#3a2020' : '#1e2a1e'}`, borderLeft: `3px solid ${s.action === 'add' ? '#8B3232' : '#3a6a3a'}`, borderRadius: 6 }}>
+          {/* Card header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <div>
+              <span style={{ fontFamily: cinzel, fontSize: 13, color: gold, letterSpacing: '0.06em' }}>
+                {s.spirit_name}
+              </span>
+              <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', marginLeft: 10, padding: '2px 8px', borderRadius: 10, background: s.action === 'add' ? 'rgba(139,50,50,0.15)' : 'rgba(58,106,58,0.15)', color: s.action === 'add' ? '#8B5050' : '#5a8a5a' }}>
+                {s.action === 'add' ? 'NEW SPIRIT' : 'ENRICH EXISTING'}
+              </span>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', marginLeft: 8 }}>
+                CONFIDENCE: {s.confidence}/10
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => handleApply(s.id, 'approve')} disabled={applying[s.id]}
+                style={{ padding: '6px 14px', background: 'rgba(58,106,58,0.15)', border: '1px solid #3a6a3a', borderRadius: 4, color: '#5a8a5a', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: applying[s.id] ? 'not-allowed' : 'pointer' }}>
+                {applying[s.id] ? '⏳' : '✓ APPROVE'}
+              </button>
+              <button onClick={() => handleApply(s.id, 'reject')} disabled={applying[s.id]}
+                style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #3a2020', borderRadius: 4, color: '#6b4040', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: applying[s.id] ? 'not-allowed' : 'pointer' }}>
+                ✗ REJECT
+              </button>
+            </div>
+          </div>
+
+          {/* Source book */}
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.08em', marginBottom: 8 }}>
+            📖 {s.book_title}
+          </div>
+
+          {/* Excerpt */}
+          {s.source_excerpt && (
+            <div style={{ fontFamily: crimson, fontSize: 13, color: '#4a3f2f', fontStyle: 'italic', borderLeft: '2px solid #2a2218', paddingLeft: 10, marginBottom: 10 }}>
+              "{s.source_excerpt.slice(0, 200)}{s.source_excerpt.length > 200 ? '...' : ''}"
+            </div>
+          )}
+
+          {/* Proposed fields */}
+          {Object.entries(s.proposed_fields || {}).map(([field, value]: [string, any]) => (
+            <div key={field} style={{ marginBottom: 6 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#6b5e45', letterSpacing: '0.08em' }}>{field}: </span>
+              <span style={{ fontFamily: crimson, fontSize: 13, color: '#8a7a60' }}>
+                {String(value).slice(0, 150)}{String(value).length > 150 ? '...' : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   )
 }
