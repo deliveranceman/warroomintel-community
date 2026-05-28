@@ -1,24 +1,23 @@
 @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap");
 @import "tailwindcss" source("../");
 
-/* ── Phase 1 design tokens ───────────────────────────────────────────────── */
+/* ── WRI Design System tokens (Phase 1) ────────────────────────── */
 :root {
-  /* Surfaces */
+  /* Surface scale */
   --bg-0: #08060e;
   --bg-1: #0d0b14;
   --bg-2: #14111d;
   --bg-3: #1c1828;
   --bg-4: #241f30;
 
-  /* Gold accent */
-  --gold: #c9a84c;
+  /* Gold accent system */
   --gold-hi: #e5c572;
   --gold-lo: #8a7434;
   --gold-glow: rgba(201,168,76,0.22);
   --gold-line: rgba(201,168,76,0.20);
   --gold-line-hi: rgba(201,168,76,0.45);
 
-  /* Text */
+  /* Text scale */
   --t-0: #f4ecdb;
   --t-1: #e8e3d9;
   --t-2: #b9b2a4;
@@ -26,20 +25,46 @@
   --t-4: #605a4f;
 
   /* Status */
-  --ok:   #5fae6f;
-  --warn: #e2a73c;
-  --crit: #c84a4a;
-  --info: #5b8bb5;
+  --ok:      #5fae6f;
+  --warn:    #e2a73c;
+  --crit:    #c84a4a;
+  --info:    #5b8bb5;
   --ok-bg:   rgba(95,174,111,0.14);
   --warn-bg: rgba(226,167,60,0.14);
   --crit-bg: rgba(200,74,74,0.14);
   --info-bg: rgba(91,139,181,0.14);
 
-  /* Type */
+  /* Type scale */
   --font-display: "Cinzel", "Trajan Pro", Georgia, serif;
   --font-body:    "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", "SF Mono", ui-monospace, monospace;
   --font-reading: Georgia, "Times New Roman", serif;
+}
+
+/* ── WRI bottom nav (mobile only) ──────────────────────────────── */
+.wri-bottom-nav {
+  display: none;
+}
+@media (max-width: 639px) {
+  .wri-bottom-nav {
+    display: flex;
+  }
+  .wri-bottom-nav-spacer {
+    padding-bottom: 80px;
+  }
+}
+
+/* ── WRI command palette backdrop ───────────────────────────────── */
+.wri-cmd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(8,6,14,0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: max(80px, 10vh);
 }
 
 /* ── Dark mode (default) — improved contrast ─────────────────────────────── */

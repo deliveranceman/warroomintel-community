@@ -1,7 +1,13 @@
+// WRI Design System — Phase 1 primitive components
+// These components are the visual vocabulary for the redesign.
+// They do NOT contain any business logic, data fetching, or auth.
+
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Search } from 'lucide-react'
 
 // ─── Bracket ────────────────────────────────────────────────────────────────
-interface BracketProps {
+// Tactical corner-bracket accent. Parent must be position:relative.
+export interface BracketProps {
   size?: number
   color?: string
   thickness?: number
@@ -15,7 +21,7 @@ export function Bracket({
   inset = 0,
   opacity = 1,
 }: BracketProps) {
-  const s: CSSProperties = { position: 'absolute', width: size, height: size, opacity }
+  const s: CSSProperties = { position: 'absolute', width: size, height: size, opacity, pointerEvents: 'none' }
   const L = `${thickness}px solid ${color}`
   return (
     <>
@@ -28,53 +34,58 @@ export function Bracket({
 }
 
 // ─── ClassBadge ─────────────────────────────────────────────────────────────
-type ClassLevel = 'I' | 'II' | 'III' | 'IV'
-interface ClassBadgeProps {
+// [● CLASS-I · LABEL] classification pill
+export type ClassLevel = 'I' | 'II' | 'III' | 'IV'
+export interface ClassBadgeProps {
   level?: ClassLevel
   label?: string
 }
 export function ClassBadge({ level = 'II', label = 'INTEL' }: ClassBadgeProps) {
   const colors: Record<ClassLevel, { bg: string; border: string; text: string }> = {
-    'I':  { bg: 'var(--crit-bg)',  border: 'rgba(200,74,74,0.5)',   text: '#e07070' },
-    'II': { bg: 'var(--warn-bg)', border: 'rgba(226,167,60,0.55)', text: '#e8b658' },
-    'III':{ bg: 'var(--info-bg)', border: 'rgba(91,139,181,0.5)',  text: '#7fa8c7' },
-    'IV': { bg: 'var(--ok-bg)',   border: 'rgba(95,174,111,0.4)',  text: '#6dbe7e' },
+    'I':   { bg: 'var(--crit-bg)',  border: 'rgba(200,74,74,0.5)',   text: '#e07070' },
+    'II':  { bg: 'var(--warn-bg)', border: 'rgba(226,167,60,0.55)', text: '#e8b658' },
+    'III': { bg: 'var(--info-bg)', border: 'rgba(91,139,181,0.5)',  text: '#7fa8c7' },
+    'IV':  { bg: 'var(--ok-bg)',   border: 'rgba(95,174,111,0.4)',  text: '#6dbe7e' },
   }
   const c = colors[level]
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
       fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: 1.2,
-      padding: '3px 7px 3px 6px', border: `1px solid ${c.border}`,
+      padding: '3px 7px 3px 6px',
+      border: `1px solid ${c.border}`,
       color: c.text, background: c.bg, borderRadius: 2,
     }}>
-      <span style={{ width: 4, height: 4, borderRadius: '50%', background: c.text }} />
+      <span style={{ width: 4, height: 4, borderRadius: '50%', background: c.text, flexShrink: 0 }} />
       CLASS-{level} · {label}
     </span>
   )
 }
 
 // ─── StatusDot ──────────────────────────────────────────────────────────────
-type StatusKind = 'ok' | 'warn' | 'crit' | 'info' | 'idle'
-interface StatusDotProps {
+export type StatusKind = 'ok' | 'warn' | 'crit' | 'info' | 'idle'
+export interface StatusDotProps {
   kind?: StatusKind
   label?: string
   size?: number
 }
 export function StatusDot({ kind = 'ok', label, size = 6 }: StatusDotProps) {
-  const map: Record<StatusKind, string> = {
+  const colorMap: Record<StatusKind, string> = {
     ok: 'var(--ok)', warn: 'var(--warn)', crit: 'var(--crit)',
     info: 'var(--info)', idle: 'var(--t-3)',
   }
-  const color = map[kind]
+  const color = colorMap[kind]
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
-      color: 'var(--t-2)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 0.4,
+      color: 'var(--t-2)', fontFamily: 'var(--font-mono)',
+      fontSize: 11, letterSpacing: 0.4,
     }}>
       <span style={{
-        width: size, height: size, borderRadius: '50%', background: color,
-        boxShadow: `0 0 ${size}px ${color}88`, flexShrink: 0,
+        width: size, height: size, borderRadius: '50%',
+        background: color,
+        boxShadow: `0 0 ${size}px ${color}88`,
+        flexShrink: 0,
       }} />
       {label}
     </span>
@@ -82,7 +93,7 @@ export function StatusDot({ kind = 'ok', label, size = 6 }: StatusDotProps) {
 }
 
 // ─── ThreatBar ──────────────────────────────────────────────────────────────
-interface ThreatBarProps { level?: number; max?: number }
+export interface ThreatBarProps { level?: number; max?: number }
 export function ThreatBar({ level = 3, max = 5 }: ThreatBarProps) {
   return (
     <div style={{ display: 'flex', gap: 2 }}>
@@ -98,7 +109,7 @@ export function ThreatBar({ level = 3, max = 5 }: ThreatBarProps) {
 }
 
 // ─── GoldButton ─────────────────────────────────────────────────────────────
-interface GoldButtonProps {
+export interface GoldButtonProps {
   children: ReactNode
   onClick?: () => void
   full?: boolean
@@ -112,44 +123,67 @@ interface GoldButtonProps {
 export function GoldButton({
   children, onClick, full, sm, ghost, style = {}, icon, disabled, type = 'button',
 }: GoldButtonProps) {
-  const base: CSSProperties = {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: sm ? 32 : 40, padding: sm ? '0 14px' : '0 18px',
-    fontFamily: 'var(--font-body)', fontSize: sm ? 12 : 13, fontWeight: 600,
-    letterSpacing: 0.6, textTransform: 'uppercase',
-    border: ghost ? '1px solid var(--gold-line-hi)' : '1px solid transparent',
-    background: ghost ? 'transparent' : 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)',
-    color: ghost ? 'var(--gold)' : '#1a1305',
-    width: full ? '100%' : 'auto',
-    boxShadow: ghost ? 'none' : '0 1px 0 rgba(255,255,255,0.18) inset, 0 -1px 0 rgba(0,0,0,0.25) inset',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.5 : 1,
-    borderRadius: 2,
-  }
   return (
-    <button type={type} style={{ ...base, ...style }} onClick={onClick} disabled={disabled}>
-      {icon}{children}
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        height: sm ? 32 : 40,
+        padding: sm ? '0 14px' : '0 18px',
+        fontFamily: 'var(--font-body)',
+        fontSize: sm ? 12 : 13,
+        fontWeight: 600,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+        border: ghost ? '1px solid var(--gold-line-hi)' : '1px solid transparent',
+        background: ghost
+          ? 'transparent'
+          : 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)',
+        color: ghost ? 'var(--gold)' : '#1a1305',
+        width: full ? '100%' : 'auto',
+        boxShadow: ghost
+          ? 'none'
+          : '0 1px 0 rgba(255,255,255,0.18) inset, 0 -1px 0 rgba(0,0,0,0.25) inset',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        borderRadius: 2,
+        ...style,
+      }}
+    >
+      {icon}
+      {children}
     </button>
   )
 }
 
 // ─── HUDChip ────────────────────────────────────────────────────────────────
-interface HUDChipProps { children: ReactNode; active?: boolean; style?: CSSProperties }
+export interface HUDChipProps {
+  children: ReactNode
+  active?: boolean
+  style?: CSSProperties
+}
 export function HUDChip({ children, active, style = {} }: HUDChipProps) {
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 9px',
-      fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 500, letterSpacing: 0.8,
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '4px 9px',
+      fontFamily: 'var(--font-mono)',
+      fontSize: 10, fontWeight: 500, letterSpacing: 0.8,
       color: active ? 'var(--gold)' : 'var(--t-2)',
       background: active ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.025)',
       border: `1px solid ${active ? 'var(--gold-line-hi)' : 'rgba(255,255,255,0.06)'}`,
-      borderRadius: 2, ...style,
-    }}>{children}</span>
+      borderRadius: 2,
+      ...style,
+    }}>
+      {children}
+    </span>
   )
 }
 
 // ─── SectionLabel ───────────────────────────────────────────────────────────
-interface SectionLabelProps {
+export interface SectionLabelProps {
   children: ReactNode
   action?: string
   onAction?: () => void
@@ -157,37 +191,54 @@ interface SectionLabelProps {
 }
 export function SectionLabel({ children, action, onAction, style = {} }: SectionLabelProps) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', ...style }}>
+    <div style={{
+      display: 'flex', alignItems: 'baseline',
+      justifyContent: 'space-between', ...style,
+    }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 2, height: 11, background: 'var(--gold)', flexShrink: 0 }} />
         <span style={{
           fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)',
           letterSpacing: 1.6, textTransform: 'uppercase', fontWeight: 600,
-        }}>{children}</span>
+        }}>
+          {children}
+        </span>
       </div>
       {action && (
-        <button onClick={onAction} style={{
-          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)', letterSpacing: 0.8,
-        }}>{action}</button>
+        <button
+          onClick={onAction}
+          style={{
+            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            fontFamily: 'var(--font-mono)', fontSize: 11,
+            color: 'var(--gold)', letterSpacing: 0.8,
+          }}
+        >
+          {action}
+        </button>
       )}
     </div>
   )
 }
 
 // ─── MonoTime ───────────────────────────────────────────────────────────────
-interface MonoTimeProps { children: ReactNode; color?: string; size?: number }
+export interface MonoTimeProps {
+  children: ReactNode
+  color?: string
+  size?: number
+}
 export function MonoTime({ children, color = 'var(--gold)', size = 13 }: MonoTimeProps) {
   return (
     <span style={{
       fontFamily: 'var(--font-mono)', fontSize: size, color,
       letterSpacing: 1, fontVariantNumeric: 'tabular-nums',
-    }}>{children}</span>
+    }}>
+      {children}
+    </span>
   )
 }
 
 // ─── Divider ────────────────────────────────────────────────────────────────
-interface DividerProps { gold?: boolean; style?: CSSProperties }
+export interface DividerProps { gold?: boolean; style?: CSSProperties }
 export function Divider({ gold, style = {} }: DividerProps) {
   return (
     <div style={{
@@ -199,7 +250,7 @@ export function Divider({ gold, style = {} }: DividerProps) {
 }
 
 // ─── TacticalCard ───────────────────────────────────────────────────────────
-interface TacticalCardProps {
+export interface TacticalCardProps {
   children: ReactNode
   brackets?: boolean
   glow?: boolean
@@ -232,7 +283,11 @@ export function TacticalCard({
 }
 
 // ─── SecureRibbon ───────────────────────────────────────────────────────────
-interface SecureRibbonProps { tier?: number; activeOps?: number }
+// 22px monospace strip. Shows a live elapsed session timer.
+export interface SecureRibbonProps {
+  tier?: number
+  activeOps?: number
+}
 export function SecureRibbon({ tier = 1, activeOps = 0 }: SecureRibbonProps) {
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef(Date.now())
@@ -242,25 +297,30 @@ export function SecureRibbon({ tier = 1, activeOps = 0 }: SecureRibbonProps) {
     return () => clearInterval(id)
   }, [])
 
-  const h = String(Math.floor(elapsed / 3600000)).padStart(2, '0')
-  const m = String(Math.floor((elapsed % 3600000) / 60000)).padStart(2, '0')
-  const s = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0')
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const h = pad(Math.floor(elapsed / 3_600_000))
+  const m = pad(Math.floor((elapsed % 3_600_000) / 60_000))
+  const s = pad(Math.floor((elapsed % 60_000) / 1_000))
   const date = new Date().toLocaleDateString('en-US', {
     month: 'short', day: '2-digit', year: 'numeric',
   }).toUpperCase()
 
   return (
     <div style={{
-      height: 22, background: 'var(--bg-0)',
+      height: 22,
+      background: 'var(--bg-0)',
       borderBottom: '1px solid var(--gold-line)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      paddingInline: 16, fontFamily: 'var(--font-mono)', fontSize: 10,
-      letterSpacing: 1.6, color: 'var(--t-3)', userSelect: 'none', flexShrink: 0,
+      paddingInline: 16,
+      fontFamily: 'var(--font-mono)', fontSize: 10,
+      letterSpacing: 1.6, color: 'var(--t-3)',
+      userSelect: 'none', flexShrink: 0,
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <span style={{
           width: 5, height: 5, borderRadius: '50%',
-          background: 'var(--ok)', boxShadow: '0 0 5px var(--ok)',
+          background: 'var(--ok)',
+          boxShadow: '0 0 5px var(--ok)',
         }} />
         SECURE · OPERATOR LV.{tier}
       </span>
@@ -268,18 +328,21 @@ export function SecureRibbon({ tier = 1, activeOps = 0 }: SecureRibbonProps) {
         SESSION {h}:{m}:{s}
         {activeOps > 0 && ` · ${activeOps} OPS ACTIVE`}
       </span>
-      <span>{date}</span>
+      <span style={{ color: 'var(--t-4)' }}>{date}</span>
     </div>
   )
 }
 
 // ─── BottomNav ──────────────────────────────────────────────────────────────
-interface BottomNavTab {
+// Mobile-only bottom navigation. Visibility is controlled by CSS class
+// .wri-bottom-nav (hidden above 639px via styles.css media query).
+// Long-press the FAB (500ms) fires onLongPress.
+export interface BottomNavTab {
   id: string
   label: string
   icon: ReactNode
 }
-interface BottomNavProps {
+export interface BottomNavProps {
   tabs: BottomNavTab[]
   activeId?: string
   onTab?: (id: string) => void
@@ -291,12 +354,16 @@ export function BottomNav({
   tabs, activeId, onTab, onFAB, onLongPress, fabIcon,
 }: BottomNavProps) {
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
 
   const handlePressStart = () => {
+    didLongPress.current = false
     pressTimer.current = setTimeout(() => {
+      didLongPress.current = true
       onLongPress?.()
     }, 500)
   }
+
   const handlePressEnd = () => {
     if (pressTimer.current) {
       clearTimeout(pressTimer.current)
@@ -304,66 +371,81 @@ export function BottomNav({
     }
   }
 
+  const handleFABClick = () => {
+    if (!didLongPress.current) onFAB?.()
+  }
+
   const left = tabs.slice(0, 2)
   const right = tabs.slice(2)
 
+  const tabStyle = (active: boolean): CSSProperties => ({
+    flex: 1, height: 56,
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', gap: 3,
+    background: 'none', border: 'none', cursor: 'pointer',
+    color: active ? 'var(--gold)' : 'var(--t-3)',
+    fontFamily: 'var(--font-mono)', fontSize: 9,
+    letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 600,
+    paddingBottom: 4, position: 'relative',
+  })
+
   return (
-    <nav style={{
-      position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
-      paddingBottom: 'env(safe-area-inset-bottom)',
-      background: 'var(--bg-1)',
-      borderTop: '1px solid var(--gold-line)',
-      display: 'flex', alignItems: 'flex-end',
-    }}>
+    <nav
+      className="wri-bottom-nav"
+      style={{
+        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        background: 'var(--bg-1)',
+        borderTop: '1px solid var(--gold-line)',
+        alignItems: 'flex-end',
+      }}
+    >
       {left.map(tab => (
-        <button key={tab.id} onClick={() => onTab?.(tab.id)} style={{
-          flex: 1, height: 56, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 3,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: tab.id === activeId ? 'var(--gold)' : 'var(--t-3)',
-          fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: 1.2,
-          textTransform: 'uppercase', fontWeight: 600,
-          paddingBottom: 4, position: 'relative',
-        }}>
+        <button key={tab.id} onClick={() => onTab?.(tab.id)} style={tabStyle(tab.id === activeId)}>
           {tab.icon}
           {tab.label}
           {tab.id === activeId && (
-            <div style={{ position: 'absolute', bottom: 4, width: 14, height: 2, background: 'var(--gold)' }} />
+            <div style={{
+              position: 'absolute', bottom: 4,
+              width: 14, height: 2, background: 'var(--gold)',
+            }} />
           )}
         </button>
       ))}
 
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', paddingBottom: 10 }}>
+      {/* Center FAB */}
+      <div style={{
+        flex: 1, display: 'flex', justifyContent: 'center',
+        alignItems: 'flex-end', paddingBottom: 10,
+      }}>
         <button
           onPointerDown={handlePressStart}
           onPointerUp={handlePressEnd}
           onPointerLeave={handlePressEnd}
-          onClick={onFAB}
+          onClick={handleFABClick}
           style={{
             width: 52, height: 52, borderRadius: '50%',
             background: 'radial-gradient(circle at 30% 30%, var(--gold-hi), var(--gold) 60%, var(--gold-lo) 100%)',
             border: 'none', cursor: 'pointer', marginBottom: 4,
             boxShadow: '0 8px 24px var(--gold-glow), 0 0 0 3px var(--bg-1), 0 0 0 4px var(--gold-line-hi)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-          {fabIcon ?? <span style={{ fontSize: 24, color: '#1a1305', lineHeight: 1, fontWeight: 700 }}>+</span>}
+          }}
+        >
+          {fabIcon ?? (
+            <span style={{ fontSize: 26, color: '#1a1305', lineHeight: 1, fontWeight: 700 }}>+</span>
+          )}
         </button>
       </div>
 
       {right.map(tab => (
-        <button key={tab.id} onClick={() => onTab?.(tab.id)} style={{
-          flex: 1, height: 56, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 3,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: tab.id === activeId ? 'var(--gold)' : 'var(--t-3)',
-          fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: 1.2,
-          textTransform: 'uppercase', fontWeight: 600,
-          paddingBottom: 4, position: 'relative',
-        }}>
+        <button key={tab.id} onClick={() => onTab?.(tab.id)} style={tabStyle(tab.id === activeId)}>
           {tab.icon}
           {tab.label}
           {tab.id === activeId && (
-            <div style={{ position: 'absolute', bottom: 4, width: 14, height: 2, background: 'var(--gold)' }} />
+            <div style={{
+              position: 'absolute', bottom: 4,
+              width: 14, height: 2, background: 'var(--gold)',
+            }} />
           )}
         </button>
       ))}
@@ -372,7 +454,9 @@ export function BottomNav({
 }
 
 // ─── CommandPalette ──────────────────────────────────────────────────────────
-interface CommandResult {
+// Global ⌘K search modal. Rendered at root level.
+// Parent controls `open` state. Cmd+K / Ctrl+K toggles; Escape always closes.
+export interface CommandResult {
   id: string
   group: string
   label: string
@@ -380,7 +464,7 @@ interface CommandResult {
   icon?: ReactNode
   onSelect?: () => void
 }
-interface CommandPaletteProps {
+export interface CommandPaletteProps {
   open: boolean
   onClose: () => void
   results?: CommandResult[]
@@ -388,26 +472,32 @@ interface CommandPaletteProps {
 }
 export function CommandPalette({ open, onClose, results = [], onQuery }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
+  const [activeIdx, setActiveIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
       setQuery('')
+      setActiveIdx(0)
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [open])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if (!open) return
+      if (e.key === 'Escape') { e.preventDefault(); onClose() }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, results.length - 1)) }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)) }
+      if (e.key === 'Enter' && results[activeIdx]) {
         e.preventDefault()
+        results[activeIdx].onSelect?.()
         onClose()
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, [open, onClose, results, activeIdx])
 
   if (!open) return null
 
@@ -417,37 +507,34 @@ export function CommandPalette({ open, onClose, results = [], onQuery }: Command
     return acc
   }, {})
 
+  let globalIdx = 0
+
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        background: 'rgba(8,6,14,0.85)', backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        paddingTop: 'max(80px, 10vh)',
-      }}
-    >
+    <div className="wri-cmd-backdrop" onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 640, margin: '0 16px',
-          background: 'var(--bg-2)', border: '1px solid var(--gold-line-hi)',
+          background: 'var(--bg-2)',
+          border: '1px solid var(--gold-line-hi)',
           boxShadow: '0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px var(--gold-glow)',
           position: 'relative',
         }}
       >
         <Bracket size={10} thickness={1} inset={-1} />
 
+        {/* Input row */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 16px', borderBottom: '1px solid var(--gold-line)',
+          padding: '12px 16px',
+          borderBottom: '1px solid var(--gold-line)',
         }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--t-3)' }}>⌘K</span>
+          <Search size={16} color="var(--t-3)" strokeWidth={1.5} />
           <input
             ref={inputRef}
             value={query}
-            onChange={e => { setQuery(e.target.value); onQuery?.(e.target.value) }}
-            placeholder="Search operations, intel, arsenal…"
+            onChange={e => { setQuery(e.target.value); onQuery?.(e.target.value); setActiveIdx(0) }}
+            placeholder="Search operations, intel, arsenal, community…"
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
               fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--t-0)',
@@ -456,62 +543,83 @@ export function CommandPalette({ open, onClose, results = [], onQuery }: Command
           <HUDChip>ESC</HUDChip>
         </div>
 
+        {/* Scope chips */}
         <div style={{
           display: 'flex', gap: 6, padding: '8px 16px',
           borderBottom: '1px solid rgba(255,255,255,0.04)',
+          flexWrap: 'wrap',
         }}>
-          {['All', 'Intel', 'Ops', 'Arsenal', 'Community'].map((s, i) => (
-            <HUDChip key={s} active={i === 0}>{s}</HUDChip>
+          {['All', 'Intel', 'Ops', 'Arsenal', 'Community'].map((scope, i) => (
+            <HUDChip key={scope} active={i === 0}>{scope}</HUDChip>
           ))}
         </div>
 
+        {/* Results */}
         <div style={{ maxHeight: 360, overflowY: 'auto', padding: '8px 0' }}>
-          {Object.entries(groups).map(([group, items]) => (
-            <div key={group}>
-              <div style={{
-                padding: '6px 16px 4px',
-                fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: 2,
-                color: 'var(--t-4)', textTransform: 'uppercase',
-              }}>{group}</div>
-              {items.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => { item.onSelect?.(); onClose() }}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 16px', background: 'none', border: 'none',
-                    cursor: 'pointer', textAlign: 'left',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.06)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                >
-                  {item.icon && (
-                    <span style={{ color: 'var(--gold)', flexShrink: 0 }}>{item.icon}</span>
-                  )}
-                  <span style={{ flex: 1 }}>
-                    <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--t-0)' }}>
-                      {item.label}
-                    </span>
-                    {item.sublabel && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t-3)', letterSpacing: 0.8 }}>
-                        {item.sublabel}
+          {Object.entries(groups).length > 0 ? (
+            Object.entries(groups).map(([group, items]) => (
+              <div key={group}>
+                <div style={{
+                  padding: '6px 16px 4px',
+                  fontFamily: 'var(--font-mono)', fontSize: 9,
+                  letterSpacing: 2, color: 'var(--t-4)', textTransform: 'uppercase',
+                }}>
+                  {group}
+                </div>
+                {items.map(item => {
+                  const idx = globalIdx++
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => { item.onSelect?.(); onClose() }}
+                      style={{
+                        width: '100%',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 16px',
+                        background: idx === activeIdx ? 'rgba(201,168,76,0.08)' : 'none',
+                        border: 'none',
+                        borderLeft: idx === activeIdx ? '2px solid var(--gold)' : '2px solid transparent',
+                        cursor: 'pointer', textAlign: 'left',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={() => setActiveIdx(idx)}
+                    >
+                      {item.icon && (
+                        <span style={{ color: 'var(--gold)', flexShrink: 0 }}>{item.icon}</span>
+                      )}
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{
+                          display: 'block',
+                          fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--t-0)',
+                        }}>
+                          {item.label}
+                        </span>
+                        {item.sublabel && (
+                          <span style={{
+                            fontFamily: 'var(--font-mono)', fontSize: 10,
+                            color: 'var(--t-3)', letterSpacing: 0.8,
+                          }}>
+                            {item.sublabel}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ))}
-          {results.length === 0 && (
+                    </button>
+                  )
+                })}
+              </div>
+            ))
+          ) : (
             <div style={{
               padding: '32px 16px', textAlign: 'center',
-              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-4)', letterSpacing: 1.2,
+              fontFamily: 'var(--font-mono)', fontSize: 11,
+              color: 'var(--t-4)', letterSpacing: 1.2,
             }}>
               NO RESULTS FOUND
             </div>
           )}
         </div>
 
+        {/* Footer hints */}
         <div style={{
           display: 'flex', gap: 16, padding: '8px 16px',
           borderTop: '1px solid rgba(255,255,255,0.04)',

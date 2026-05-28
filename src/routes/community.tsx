@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav } from '@/components/primitives'
+import { Home, FileText, Crosshair, User, Plus } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -5811,7 +5812,6 @@ function CommunityPage() {
   })
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
   const [isTablet, setIsTablet]       = useState(() => window.innerWidth >= 768 && window.innerWidth < 1100)
-  const [showBottomNav, setShowBottomNav] = useState(() => window.innerWidth < 640)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
@@ -5977,13 +5977,6 @@ function CommunityPage() {
       setIsMobile(w < 768)
       setIsTablet(w >= 768 && w < 1100)
     }
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
-
-  // Bottom nav visibility (< 640px)
-  useEffect(() => {
-    const check = () => setShowBottomNav(window.innerWidth < 640)
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -6848,7 +6841,7 @@ function CommunityPage() {
       </div>
 
       {/* ── CENTER ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
+      <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
         {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'war-room'      && <WarRoomView />}
@@ -7365,76 +7358,21 @@ function CommunityPage() {
         🧠
       </button>
 
-      {showBottomNav && (
-        <BottomNav
-          tabs={[
-            {
-              id: 'home',
-              label: 'Home',
-              icon: (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              ),
-            },
-            {
-              id: 'intel',
-              label: 'Intel',
-              icon: (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-              ),
-            },
-            {
-              id: 'ops',
-              label: 'Ops',
-              icon: (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="3" />
-                  <line x1="12" y1="2" x2="12" y2="6" />
-                  <line x1="12" y1="18" x2="12" y2="22" />
-                  <line x1="2" y1="12" x2="6" y2="12" />
-                  <line x1="18" y1="12" x2="22" y2="12" />
-                </svg>
-              ),
-            },
-            {
-              id: 'profile',
-              label: 'Profile',
-              icon: (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              ),
-            },
-          ]}
-          activeId={
-            activeSection === 'intel' ? 'home'
-            : activeSection === 'database' ? 'intel'
-            : activeSection === 'war-room-chat' ? 'ops'
-            : activeSection === 'members' ? 'profile'
-            : undefined
-          }
-          onTab={id => {
-            if (id === 'home') setActiveSection('intel')
-            else if (id === 'intel') setActiveSection('database')
-            else if (id === 'ops') setActiveSection('war-room-chat')
-            else if (id === 'profile') setActiveSection('members')
-          }}
-          onFAB={() => setActiveSection('session-center')}
-          onLongPress={() => {
-            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
-          }}
-        />
-      )}
+      <BottomNav
+        tabs={[
+          { id: 'home',    label: 'Home',    icon: <Home size={20} strokeWidth={1.6} /> },
+          { id: 'intel',   label: 'Intel',   icon: <FileText size={20} strokeWidth={1.6} /> },
+          { id: 'ops',     label: 'Ops',     icon: <Crosshair size={20} strokeWidth={1.6} /> },
+          { id: 'profile', label: 'Profile', icon: <User size={20} strokeWidth={1.6} /> },
+        ]}
+        activeId={activeSection}
+        onTab={(id) => setActiveSection(id)}
+        onFAB={() => setActiveSection('session')}
+        onLongPress={() => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
+        }}
+        fabIcon={<Plus size={24} color="#1a1305" strokeWidth={2.2} />}
+      />
     </div>
   )
 }

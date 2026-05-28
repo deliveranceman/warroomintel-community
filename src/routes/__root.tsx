@@ -1,8 +1,8 @@
-import { HeadContent, Scripts, createRootRoute, useRouterState, useNavigate } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
 import { ClerkProvider } from '@clerk/tanstack-start'
 import { Header } from '@/components/Header'
 import { AIAssistant } from '@/components/AIAssistant'
-import { CommandPalette } from '@/components/primitives'
+import { CommandPalette, type CommandResult } from '@/components/primitives'
 import { useState, useEffect } from 'react'
 import '../styles.css'
 
@@ -32,7 +32,7 @@ export const Route = createRootRoute({
     links: [
       { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
       { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
-      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap' },
+      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap' },
       { rel: 'manifest', href: '/manifest.json' },
     ],
   }),
@@ -61,10 +61,20 @@ function RootError({ error }: { error: unknown }) {
   )
 }
 
+const defaultResults: CommandResult[] = [
+  { id: 'nav-home',     group: 'Navigate',   label: 'Home',              sublabel: 'Operator dashboard',           onSelect: () => { window.location.href = '/' } },
+  { id: 'nav-community',group: 'Navigate',   label: 'Community',         sublabel: 'War Room community hub',       onSelect: () => { window.location.href = '/community' } },
+  { id: 'nav-arsenal',  group: 'Navigate',   label: 'Arsenal',           sublabel: 'PDF resource library',         onSelect: () => { window.location.href = '/arsenal' } },
+  { id: 'nav-intel',    group: 'Navigate',   label: 'Intel Archive',     sublabel: '263 spirits database',         onSelect: () => { window.location.href = '/community' } },
+  { id: 'nav-forum',    group: 'Community',  label: 'The Board',         sublabel: 'Community discussion',         onSelect: () => { window.location.href = '/community/forum' } },
+  { id: 'nav-manual',   group: 'Knowledge',  label: 'Field Manual',      sublabel: 'Training and doctrine',        onSelect: () => { window.location.href = '/community/field-manual' } },
+  { id: 'nav-mapping',  group: 'Knowledge',  label: 'Spiritual Mapping', sublabel: 'Copper Basin principality map',onSelect: () => { window.location.href = '/community/spiritual-mapping' } },
+  { id: 'nav-admin',    group: 'Admin',      label: 'Admin Panel',       sublabel: 'Management tools',             onSelect: () => { window.location.href = '/admin' } },
+]
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const bare = BARE_ROUTES.includes(pathname)
-  const navigate = useNavigate()
   const [cmdOpen, setCmdOpen] = useState(false)
 
   useEffect(() => {
@@ -77,14 +87,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
-
-  const cmdResults = [
-    { id: 'nav-community', group: 'Navigation', label: 'Community Hub', sublabel: '/community', onSelect: () => navigate({ to: '/community' }) },
-    { id: 'nav-arsenal', group: 'Navigation', label: 'Arsenal', sublabel: '/arsenal', onSelect: () => navigate({ to: '/arsenal' }) },
-    { id: 'nav-investigate', group: 'Navigation', label: 'Investigate', sublabel: '/investigate', onSelect: () => navigate({ to: '/investigate' }) },
-    { id: 'nav-assessment', group: 'Navigation', label: 'Assessment', sublabel: '/assessment', onSelect: () => navigate({ to: '/assessment' }) },
-    { id: 'nav-admin', group: 'Admin', label: 'Admin Panel', sublabel: '/admin', onSelect: () => navigate({ to: '/admin' }) },
-  ]
 
   return (
     <html lang="en">
@@ -107,7 +109,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <CommandPalette
             open={cmdOpen}
             onClose={() => setCmdOpen(false)}
-            results={cmdResults}
+            results={defaultResults}
           />
         </ClerkProvider>
         <Scripts />
