@@ -1198,6 +1198,45 @@ function WarRoomHome() {
       <Divider label="✦ Questions ✦" />
       <FAQSection />
       <Footer />
+      <footer style={{
+        borderTop: '1px solid #1e1a0e',
+        padding: '32px 40px',
+        background: '#0a0807',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap' as const,
+        gap: 16,
+      }}>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: '#3a3020', letterSpacing: '0.1em' }}>
+          © 2026 WAR ROOM INTEL · A MINISTRY OF STAFFORDTOWN CHURCH · COPPERHILL, TN
+        </div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          {[
+            { label: 'TERMS OF SERVICE', href: '/legal/terms' },
+            { label: 'PRIVACY POLICY',   href: '/legal/privacy' },
+            { label: 'CONTACT',          href: 'mailto:exorcist@warroomintel.com' },
+          ].map(({ label, href }) => (
+            <a key={label} href={href}
+              style={{ fontFamily: cinzel, fontSize: 10, color: '#4a3f2f', letterSpacing: '0.08em', textDecoration: 'none' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#4a3f2f')}>
+              {label}
+            </a>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          {[
+            { label: 'YOUTUBE',  href: 'https://youtube.com/@warroomintel' },
+            { label: 'FACEBOOK', href: 'https://facebook.com/warroomintel' },
+          ].map(({ label, href }) => (
+            <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: cinzel, fontSize: 10, color: '#3a3020', letterSpacing: '0.08em', textDecoration: 'none' }}>
+              {label}
+            </a>
+          ))}
+        </div>
+      </footer>
     </div>
   )
 }
