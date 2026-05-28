@@ -47,12 +47,14 @@ async function getPreamble(
   spiritDescription: string,
   isTerritorial: boolean,
   requestedFields: string[]
-): Promise<string> {
+): Promise<{ preamble: string; usedLibrary: boolean; librarySourceCount: number }> {
   try {
     const client = sb()
     const isSessionRequest = requestedFields.some(f =>
       ['sessionIndicators', 'resistanceSignature', 'prayerPoints', 'aftercareNotes', 'legalRights'].includes(f)
     )
+    let usedLibrary = false
+    let librarySourceCount = 0
 
     // Fetch contexts and books in parallel (books from both old ministry_library and new resources table)
     const [contextResult, booksResult, resourceBooksResult] = await Promise.all([
@@ -119,6 +121,8 @@ async function getPreamble(
         }
         if (bookSection.length > 30) {
           preamble += bookSection
+          usedLibrary = true
+          librarySourceCount += usedBooks
           console.log(`[ai-spirit-enhance] Ministry library context loaded: ${usedBooks} books, ${usedChars} characters`)
         }
       } else {
@@ -164,6 +168,8 @@ async function getPreamble(
         }
         if (usedR > 0) {
           preamble += rsSection
+          usedLibrary = true
+          librarySourceCount += usedR
           console.log(`[ai-spirit-enhance] Injected ${usedR} resource-library text chunks`)
         }
       }
@@ -182,8 +188,8 @@ async function getPreamble(
     }
     }
 
-    return preamble
-  } catch { return '' }
+    return { preamble, usedLibrary, librarySourceCount }
+  } catch { return { preamble: '', usedLibrary: false, librarySourceCount: 0 } }
 }
 
 const SYSTEM_PROMPT = `CRITICAL OUTPUT RULE: Your response must be RAW JSON only. No markdown. No code blocks. No backticks. No explanation. Start with { end with }. Any other format breaks the system.
@@ -507,7 +513,7 @@ export default async function handler(req: Request) {
 
   try {
     const isTerritorial = existing.isTerritorial === true || existing.isTerritorial === 'true'
-    const preamble = await getPreamble(name, existing.description || '', isTerritorial, requestedFields)
+    const { preamble, usedLibrary, librarySourceCount } = await getPreamble(name, existing.description || '', isTerritorial, requestedFields)
     const systemPrompt = preamble ? `${preamble}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
     const userPrompt = buildUserPrompt(name, existing, requestedFields)
 
@@ -644,7 +650,7 @@ export default async function handler(req: Request) {
     }
 
     return new Response(
-      JSON.stringify({ success: true, spirit: name, fields: remappedFields, fieldCount: Object.keys(remappedFields).length }),
+      JSON.stringify({ success: true, spirit: name, fields: remappedFields, fieldCount: Object.keys(remappedFields).length, usedLibrary, librarySourceCount }),
       { status: 200, headers }
     )
   } catch (e: any) {

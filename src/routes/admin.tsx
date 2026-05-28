@@ -1159,6 +1159,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [aiError, setAiError]             = useState('')
   const [aiSavedLog, setAiSavedLog]       = useState<string[]>([])
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }>>({})
+  const [aiUsedLibrary, setAiUsedLibrary]         = useState(false)
+  const [aiLibrarySourceCount, setAiLibrarySourceCount] = useState(0)
 
   function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
     setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), status, editing: false } }))
@@ -1314,6 +1316,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setAiResult({})
     setFieldDecisions({})
     setAiError('')
+    setAiUsedLibrary(false)
+    setAiLibrarySourceCount(0)
 
     const allFields: Record<string, any> = {}
     const baseJobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
@@ -1347,6 +1351,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           if (d.fields && Object.keys(d.fields).length > 0) {
             Object.assign(allFields, d.fields)
             console.log(`[enhance] Group ${i + 1} returned fields:`, Object.keys(d.fields))
+            if (d.usedLibrary) { setAiUsedLibrary(true); setAiLibrarySourceCount(c => Math.max(c, d.librarySourceCount || 0)) }
           } else {
             console.warn(`[enhance] Group ${i + 1} returned no fields:`, d.error || 'unknown')
           }
@@ -1958,6 +1963,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 <div style={{ textAlign: 'center' as const, padding: '28px 20px 20px', borderBottom: `1px solid ${BDR}`, marginBottom: 16 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 14, color: '#4ade80', letterSpacing: '0.08em', marginBottom: 6 }}>✓ Research Saved</div>
                   <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{aiSavedLog.length} field{aiSavedLog.length !== 1 ? 's' : ''} saved to Airtable</div>
+                  {aiUsedLibrary && (
+                    <div style={{ marginTop: 10, fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.1em' }}>
+                      ✦ ENHANCED WITH {aiLibrarySourceCount} PASSAGE{aiLibrarySourceCount !== 1 ? 'S' : ''} FROM YOUR MINISTRY LIBRARY
+                    </div>
+                  )}
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   {aiSavedLog.map(label => (

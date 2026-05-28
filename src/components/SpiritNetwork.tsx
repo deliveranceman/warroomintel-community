@@ -44,6 +44,7 @@ export interface SpiritNetworkProps {
   userTier?: string
   userId?: string
   onNavigateTo?: (section: string) => void
+  getToken?: () => Promise<string | null>
 }
 
 // ── SVG ORG CHART ─────────────────────────────────────────────────────────────
@@ -436,15 +437,17 @@ const KINGDOM_ORDER = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft'
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
-export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
+export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps) {
   const [selectedSpirit,  setSelectedSpirit]  = useState<Demon | null>(null)
   const [mode,            setMode]            = useState<'network' | 'dossier'>('network')
-  const [activeDrawer,    setActiveDrawer]    = useState<'scriptures' | 'gateway' | 'documents' | null>(null)
+  const [activeDrawer,    setActiveDrawer]    = useState<'scriptures' | 'gateway' | 'documents' | 'library' | null>(null)
   const [dossierExpanded, setDossierExpanded] = useState(false)
   const [searchQuery,     setSearchQuery]     = useState('')
   const [resources,       setResources]       = useState<any[]>([])
   const [loadingResources,setLoadingResources]= useState(false)
   const [navStack,        setNavStack]        = useState<Demon[]>([])
+  const [libraryPassages, setLibraryPassages] = useState<{ source: string; passages: string[] }[]>([])
+  const [loadingLibrary,  setLoadingLibrary]  = useState(false)
 
   const searchResults = searchQuery.length > 1
     ? demons.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
@@ -459,6 +462,49 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
       .catch(() => { setResources([]); setLoadingResources(false) })
   }, [])
 
+  const fetchLibraryPassages = useCallback((demon: Demon) => {
+    setLibraryPassages([])
+    setLoadingLibrary(true)
+    const spiritLc = demon.name.toLowerCase()
+    const doFetch = async () => {
+      const token = getToken ? await getToken() : null
+      return fetch('/api/library-chunks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ spiritName: demon.name, spiritDescription: demon.description || '' }),
+      })
+    }
+    doFetch()
+      .then(r => r.json())
+      .then(d => {
+        const chunks: { bookTitle: string; author: string; text: string }[] = d.chunks || []
+        // Find sentence-level matches within each chunk
+        const bySource = new Map<string, string[]>()
+        for (const chunk of chunks) {
+          const sentences = chunk.text.split(/(?<=[.!?])\s+/)
+          const matches = sentences
+            .filter(s => s.toLowerCase().includes(spiritLc))
+            .slice(0, 2)
+            .map(s => s.trim())
+            .filter(s => s.length > 30)
+          if (matches.length > 0) {
+            const key = chunk.bookTitle
+            bySource.set(key, [...(bySource.get(key) || []), ...matches])
+          }
+        }
+        // Fall back to chunk excerpts when no sentence-level matches
+        if (bySource.size === 0) {
+          for (const chunk of chunks.slice(0, 3)) {
+            bySource.set(chunk.bookTitle, [chunk.text.slice(0, 200)])
+          }
+        }
+        const passages = [...bySource.entries()].map(([source, p]) => ({ source, passages: p.slice(0, 2) }))
+        setLibraryPassages(passages)
+        setLoadingLibrary(false)
+      })
+      .catch(() => { setLibraryPassages([]); setLoadingLibrary(false) })
+  }, [])
+
   // Navigate to a spirit — pushes current to history stack
   const selectSpirit = useCallback((demon: Demon) => {
     setSelectedSpirit(prev => {
@@ -467,7 +513,8 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
     })
     setDossierExpanded(false)
     fetchResources(demon)
-  }, [fetchResources])
+    fetchLibraryPassages(demon)
+  }, [fetchResources, fetchLibraryPassages])
 
   // Navigate to parent — pops history if parent is in stack, else resets
   const selectParent = useCallback((demon: Demon) => {
@@ -478,7 +525,8 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
     setSelectedSpirit(demon)
     setDossierExpanded(false)
     fetchResources(demon)
-  }, [fetchResources])
+    fetchLibraryPassages(demon)
+  }, [fetchResources, fetchLibraryPassages])
 
   // Navigate to a breadcrumb item at a given stack index
   const navigateToHistory = useCallback((index: number, demon: Demon) => {
@@ -673,6 +721,7 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
                 { key: 'scriptures' as const, icon: '📖', label: 'SCRIPTURES', show: !!selectedSpirit.scripture },
                 { key: 'gateway'    as const, icon: '🧠', label: 'GATEWAY',    show: true },
                 { key: 'documents'  as const, icon: '📂', label: 'DOCUMENTS',  show: true },
+                { key: 'library'    as const, icon: '📚', label: 'LIBRARY',    show: true },
               ].filter(t => t.show).map(tab => (
                 <button key={tab.key}
                   onClick={e => { e.stopPropagation(); setActiveDrawer(activeDrawer === tab.key ? null : tab.key) }}
@@ -743,6 +792,36 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
                     <div key={r.id} style={{ borderLeft: '2px solid rgba(201,168,76,0.3)', paddingLeft: 10, marginBottom: 10 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 10, color: '#c8b99a', letterSpacing: '0.04em', marginBottom: 1 }}>{r.title}</div>
                       {r.topic && <div style={{ fontFamily: inter, fontSize: 10, color: DIM }}>{r.topic}</div>}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {activeDrawer === 'library' && (
+                <>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 12, paddingRight: 20 }}>📚 LIBRARY INTEL</div>
+                  {loadingLibrary ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                      {[90, 70, 80, 60].map((w, i) => (
+                        <div key={i} style={{ height: 10, background: BDR, borderRadius: 4, width: `${w}%`, marginBottom: 4 }} />
+                      ))}
+                    </div>
+                  ) : libraryPassages.length === 0 ? (
+                    <div style={{ fontFamily: inter, fontSize: 12, color: DIM, fontStyle: 'italic', lineHeight: 1.6 }}>
+                      No passages found in your ministry library for this spirit.
+                      <br /><br />
+                      <span style={{ fontSize: 11 }}>Upload and index books in the Admin → Ministry Library tab to enable this feature.</span>
+                    </div>
+                  ) : libraryPassages.map((hit, i) => (
+                    <div key={i} style={{ marginBottom: 20 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.1em', marginBottom: 8 }}>
+                        {hit.source}
+                      </div>
+                      {hit.passages.map((p, j) => (
+                        <div key={j} style={{ fontFamily: inter, fontSize: 13, color: '#8a7a60', lineHeight: 1.7, borderLeft: '2px solid #2a2218', paddingLeft: 12, marginBottom: 8, fontStyle: 'italic' }}>
+                          "…{p}…"
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </>
