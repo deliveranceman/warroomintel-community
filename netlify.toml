@@ -73,3 +73,6 @@
 
 [functions."ai-assistant"]
   timeout = 26
+
+[functions."ai-backfill"]
+  timeout = 60

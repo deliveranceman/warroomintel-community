@@ -1162,6 +1162,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [aiUsedLibrary, setAiUsedLibrary]         = useState(false)
   const [aiLibrarySourceCount, setAiLibrarySourceCount] = useState(0)
 
+  // AI Backfill state
+  const [backfillRunning, setBackfillRunning]   = useState(false)
+  const [backfillProgress, setBackfillProgress] = useState('')
+  const [backfillResults, setBackfillResults]   = useState<{ totalUpdated: number; totalFailed: number; complete: boolean } | null>(null)
+
   function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
     setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), status, editing: false } }))
   }
@@ -1185,6 +1190,40 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     } catch { setDemons([]) }
     finally { setDLoading(false) }
   }
+
+  async function handleAIBackfill() {
+    setBackfillRunning(true)
+    setBackfillResults(null)
+    let startFrom = 0
+    let totalUpdated = 0
+    let totalFailed = 0
+    try {
+      const token = await getToken()
+      while (true) {
+        setBackfillProgress(`Processing spirits ${startFrom + 1}–${startFrom + 20}...`)
+        const res = await fetch('/api/ai-backfill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ startFrom }),
+        })
+        if (!res.ok) { setBackfillProgress(`Error: ${res.status}`); break }
+        const data = await res.json()
+        totalUpdated += data.updated || 0
+        totalFailed  += data.failed  || 0
+        setBackfillProgress(`${data.message} (${totalUpdated} updated so far)`)
+        if (!data.hasMore) break
+        startFrom = data.nextStartFrom
+        await new Promise(r => setTimeout(r, 500))
+      }
+      setBackfillResults({ totalUpdated, totalFailed, complete: true })
+      setBackfillProgress('')
+    } catch (e: any) {
+      setBackfillProgress('Error: ' + e.message)
+    } finally {
+      setBackfillRunning(false)
+    }
+  }
+
   async function fetchPosts() {
     try {
       const res = await fetch('/api/intel-posts')
@@ -1555,19 +1594,37 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         ))}
       </div>
 
-      {/* Refresh + Airtable link */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
-        <button onClick={fetchDemons} disabled={dLoading}
-          style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '6px 14px', cursor: dLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: dLoading ? 0.5 : 1 }}>
-          ↺ Refresh
-        </button>
-      <div style={{ textAlign: 'right' as const }}>
-        <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
-          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: DIM, textDecoration: 'none', opacity: 0.65 }}>
-          View raw data in Airtable →
-        </a>
+      {/* Refresh + AI Backfill + Airtable link */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: backfillProgress || backfillResults ? 12 : 22, flexWrap: 'wrap' as const, gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+          <button onClick={fetchDemons} disabled={dLoading}
+            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '6px 14px', cursor: dLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: dLoading ? 0.5 : 1 }}>
+            ↺ Refresh
+          </button>
+          <button onClick={handleAIBackfill} disabled={backfillRunning}
+            style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: backfillRunning ? 'wait' : 'pointer', opacity: backfillRunning ? 0.7 : 1 }}>
+            ⚡ {backfillRunning ? 'RUNNING BACKFILL...' : 'AI BACKFILL EMPTY FIELDS'}
+          </button>
+        </div>
+        <div style={{ textAlign: 'right' as const }}>
+          <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: DIM, textDecoration: 'none', opacity: 0.65 }}>
+            View raw data in Airtable →
+          </a>
+        </div>
       </div>
-      </div>
+      {backfillProgress && (
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>{backfillProgress}</div>
+      )}
+      {backfillResults?.complete && (
+        <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, marginBottom: 8, letterSpacing: '0.06em' }}>BACKFILL COMPLETE</div>
+          <div style={{ fontFamily: crimson, fontSize: 15, color: DIM }}>
+            {backfillResults.totalUpdated} spirits updated · {backfillResults.totalFailed} failed
+          </div>
+          <button onClick={() => setBackfillResults(null)} style={{ marginTop: 10, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: DIM, background: 'transparent', border: 'none', cursor: 'pointer' }}>Dismiss</button>
+        </div>
+      )}
 
       {/* Table toolbar */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' as const }}>
