@@ -1093,9 +1093,9 @@ const FIELD_GROUPS = [
 // ─── INTEL ARCHIVE TAB ───────────────────────────────────────────────────────
 function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
   const adStatBg  = isDark ? SURF : '#fff'
-  const adHeaderBg = isDark ? SURF2 : '#e8e0d4'
-  const adStatNum = isDark ? G : '#a07830'
-  const adStatLbl = isDark ? DIM : '#7a6555'
+  const adHeaderBg = isDark ? SURF2 : '#FFFFFF'
+  const adStatNum = isDark ? G : '#8B6914'
+  const adStatLbl = isDark ? DIM : '#5C5248'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6,
@@ -1686,12 +1686,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: adHeaderBg }}>
-                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
-                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('biblicalRank')}>Biblical Rank{sortInd('biblicalRank')}</th>
-                <th style={{ ...thS, color: isDark ? DIM : '#5c4a3a' }} onClick={() => handleSort('hierarchyCategory')}>Category{sortInd('hierarchyCategory')}</th>
-                <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5c4a3a' }}>Del. Sequence</th>
-                <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5c4a3a' }}>Counter Scriptures</th>
-                <th style={{ ...thS, cursor: 'default', width: 70, color: isDark ? DIM : '#5c4a3a' }}>Actions</th>
+                <th style={{ ...thS, color: isDark ? DIM : '#5C5248' }} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
+                <th style={{ ...thS, color: isDark ? DIM : '#5C5248' }} onClick={() => handleSort('biblicalRank')}>Biblical Rank{sortInd('biblicalRank')}</th>
+                <th style={{ ...thS, color: isDark ? DIM : '#5C5248' }} onClick={() => handleSort('hierarchyCategory')}>Category{sortInd('hierarchyCategory')}</th>
+                <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5C5248' }}>Del. Sequence</th>
+                <th style={{ ...thS, cursor: 'default', color: isDark ? DIM : '#5C5248' }}>Counter Scriptures</th>
+                <th style={{ ...thS, cursor: 'default', width: 70, color: isDark ? DIM : '#5C5248' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2078,12 +2078,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
 // ─── TRAINING MANAGER ────────────────────────────────────────────────────────
 function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean }) {
-  const BG2  = isDark ? '#0D0B14' : '#f5f0e8'
-  const SURF3 = isDark ? '#1a1714' : '#f0ebe3'
-  const BDR2  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.25)'
-  const TXT2  = isDark ? '#f0e8d8' : '#1a1410'
-  const MUT   = isDark ? '#9a8c74' : '#5c4a3a'
-  const GG    = isDark ? '#C9A84C' : '#a07830'
+  const BG2  = isDark ? '#0D0B14' : '#FAF8F5'
+  const SURF3 = isDark ? '#1a1714' : '#FFFFFF'
+  const BDR2  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const TXT2  = isDark ? '#f0e8d8' : '#2D2924'
+  const MUT   = isDark ? '#9a8c74' : '#5C5248'
+  const GG    = isDark ? '#C9A84C' : '#8B6914'
   const inp2: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
@@ -3060,9 +3060,9 @@ function ForumModerationPanel({ getToken }: { getToken: any }) {
 
 function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const LSURF = isDark ? '#13111a' : '#fff'
-  const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
-  const LTXT  = isDark ? '#e8e0d0' : '#1a1410'
-  const LMUT  = isDark ? '#9a8c74' : '#5c4a3a'
+  const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
+  const LMUT  = isDark ? '#9a8c74' : '#5C5248'
   const LG    = '#C9A84C'
 
   const [contexts, setContexts]           = useState<any[]>([])
@@ -3306,11 +3306,11 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
 
 // ─── LIBRARY MANAGER ─────────────────────────────────────────────────────────
 function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
-  const LBG   = isDark ? '#0D0B14' : '#f5f0e8'
+  const LBG   = isDark ? '#0D0B14' : '#FAF8F5'
   const LSURF = isDark ? '#13111a' : '#fff'
-  const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
-  const LTXT  = isDark ? '#e8e0d0' : '#1a1410'
-  const LMUT  = isDark ? '#9a8c74' : '#5c4a3a'
+  const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
+  const LMUT  = isDark ? '#9a8c74' : '#5C5248'
   const LG    = '#C9A84C'
 
   // Books state
@@ -4171,9 +4171,9 @@ function DashboardView({ getToken, isDark, setTab }: {
   getToken: any; isDark: boolean; setTab: (t: string) => void
 }) {
   const BG2  = isDark ? '#13111a' : '#fff'
-  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
-  const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
-  const TXT2 = isDark ? '#e8e0d0' : '#1a1410'
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const MUT  = isDark ? '#9a8c74' : '#5C5248'
+  const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
 
   const [demons, setDemons]         = useState<any[]>([])
   const [aiStats, setAiStats]       = useState<any>(null)
@@ -4456,7 +4456,7 @@ function DashboardView({ getToken, isDark, setTab }: {
               onChange={e => setSotwForm(f => ({ ...f, spirit_name: e.target.value }))}
               placeholder="e.g. Spirit of Fear"
               list="sotw-demon-list"
-              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none' }}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none' }}
             />
             <datalist id="sotw-demon-list">
               {demons.slice(0, 100).map((d: any) => <option key={d.id} value={d.name} />)}
@@ -4469,7 +4469,7 @@ function DashboardView({ getToken, isDark, setTab }: {
               onChange={e => setSotwForm(f => ({ ...f, minister_note: e.target.value }))}
               placeholder="Why is this spirit on assignment this week? What should warriors know?"
               rows={3}
-              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none', resize: 'vertical' as const }}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none', resize: 'vertical' as const }}
             />
           </div>
           <div>
@@ -4479,7 +4479,7 @@ function DashboardView({ getToken, isDark, setTab }: {
               onChange={e => setSotwForm(f => ({ ...f, deliverance_tip: e.target.value }))}
               placeholder="A specific deliverance tip or prayer strategy for this week"
               rows={2}
-              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none', resize: 'vertical' as const }}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none', resize: 'vertical' as const }}
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -4513,11 +4513,11 @@ function DashboardView({ getToken, isDark, setTab }: {
 // ─── FIELD MINISTRY MANAGER ───────────────────────────────────────────────────
 function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const BG2 = isDark ? '#13111a' : '#fff'
-  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
-  const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
-  const TXT2 = isDark ? '#e8e0d0' : '#1a1410'
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const MUT  = isDark ? '#9a8c74' : '#5C5248'
+  const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
   const inp: React.CSSProperties = {
-    width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8',
+    width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
     border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2,
     fontSize: 13, fontFamily: crimson, outline: 'none',
   }
@@ -4698,7 +4698,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
         <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, overflow: 'hidden', marginBottom: showForm ? 32 : 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: isDark ? 'rgba(201,168,76,0.06)' : '#f0ebe3' }}>
+              <tr style={{ background: isDark ? 'rgba(201,168,76,0.06)' : '#FFFFFF' }}>
                 <th style={thS}>Title</th>
                 <th style={thS}>Category</th>
                 <th style={thS}>Tier</th>
@@ -4834,9 +4834,9 @@ function DocumentsView({ getToken, isDark, demons }: {
   getToken: any; isDark: boolean; demons: any[]
 }) {
   const BG2  = isDark ? '#13111a' : '#fff'
-  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(160,120,48,0.25)'
-  const MUT  = isDark ? '#9a8c74' : '#5c4a3a'
-  const TXT2 = isDark ? '#e8e0d0' : '#1a1410'
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const MUT  = isDark ? '#9a8c74' : '#5C5248'
+  const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
   const inp2: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
@@ -5074,9 +5074,9 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const G2 = isDark ? G : '#A07C2C'
   const surf2 = isDark ? SURF : '#EDE6D3'
   const bdr2 = isDark ? BDR : 'rgba(139,105,20,0.25)'
-  const txt2 = isDark ? TXT : '#1C1407'
+  const txt2 = isDark ? TXT : '#2D2924'
   const dim2 = isDark ? DIM : '#6B5520'
-  const mut2 = isDark ? '#9a8c74' : '#5c4a3a'
+  const mut2 = isDark ? '#9a8c74' : '#5C5248'
 
   // Gap analysis state
   const [gapLoading, setGapLoading] = useState(false)
@@ -5576,9 +5576,9 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
   const bg2 = isDark ? BG : '#F5F0E8'
   const surf2 = isDark ? SURF : '#EDE6D3'
   const bdr2 = isDark ? BDR : 'rgba(139,105,20,0.25)'
-  const txt2 = isDark ? TXT : '#1C1407'
+  const txt2 = isDark ? TXT : '#2D2924'
   const dim2 = isDark ? DIM : '#6B5520'
-  const mut2 = isDark ? '#9a8c74' : '#5c4a3a'
+  const mut2 = isDark ? '#9a8c74' : '#5C5248'
 
   useEffect(() => {
     loadSubmissions()
@@ -5699,11 +5699,11 @@ function AdminPage() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const headerBg  = isDark ? '#13111e' : '#e8e0d4'
-  const contentBg = isDark ? '#0D0B14' : '#f5f0e8'
-  const adBdr     = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(160,120,48,0.25)'
-  const adGold    = isDark ? '#C9A84C' : '#a07830'
-  const adDim     = isDark ? '#9a8c74' : '#5c4a3a'
+  const headerBg  = isDark ? '#13111e' : '#FFFFFF'
+  const contentBg = isDark ? '#0D0B14' : '#FAF8F5'
+  const adBdr     = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const adGold    = isDark ? '#C9A84C' : '#8B6914'
+  const adDim     = isDark ? '#9a8c74' : '#5C5248'
 
   if (!isLoaded) {
     return (
@@ -5829,7 +5829,7 @@ function InternalBooks({ getToken, isDark }: { getToken: any; isDark: boolean })
   const G2    = isDark ? G : '#A07C2C'
   const surf2 = isDark ? SURF2 : '#EDE6D3'
   const bdr2  = isDark ? BDR : 'rgba(139,105,20,0.25)'
-  const txt2  = isDark ? TXT : '#1C1407'
+  const txt2  = isDark ? TXT : '#2D2924'
   const dim2  = isDark ? DIM : '#6B5520'
 
   const [books, setBooks]               = useState<any[]>([])
@@ -6007,7 +6007,7 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const G2    = isDark ? G : '#A07C2C'
   const surf2 = isDark ? SURF2 : '#EDE6D3'
   const bdr2  = isDark ? BDR : 'rgba(139,105,20,0.25)'
-  const txt2  = isDark ? TXT : '#1C1407'
+  const txt2  = isDark ? TXT : '#2D2924'
   const dim2  = isDark ? DIM : '#6B5520'
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -6069,9 +6069,9 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const chatHeight = 'calc(100vh - 180px)'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: chatHeight, background: isDark ? '#0D0B14' : '#f5f0e8' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: chatHeight, background: isDark ? '#0D0B14' : '#FAF8F5' }}>
       {/* Header */}
-      <div style={{ padding: '14px 24px', borderBottom: `1px solid ${bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: isDark ? '#13111e' : '#e8e0d4' }}>
+      <div style={{ padding: '14px 24px', borderBottom: `1px solid ${bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: isDark ? '#13111e' : '#FFFFFF' }}>
         <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.1em' }}>⚔ ADMIN COMMAND AI</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {(['library', 'database', 'both'] as const).map(mode => (
@@ -6121,7 +6121,7 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
       </div>
 
       {/* Input */}
-      <div style={{ padding: '16px 24px', borderTop: `1px solid ${bdr2}`, flexShrink: 0, background: isDark ? '#13111e' : '#e8e0d4', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+      <div style={{ padding: '16px 24px', borderTop: `1px solid ${bdr2}`, flexShrink: 0, background: isDark ? '#13111e' : '#FFFFFF', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -6308,11 +6308,11 @@ function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }
   const classified = spirits.filter(s => s.kingdom && s.subKingdom && s.biblicalRank).length
   const pct        = total ? Math.round((classified / total) * 100) : 0
 
-  const G2   = isDark ? '#C9A84C' : '#a07830'
+  const G2   = isDark ? '#C9A84C' : '#8B6914'
   const surf = isDark ? '#1a1714' : '#ffffff'
   const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.2)'
-  const txt2 = isDark ? '#f0e8d8' : '#1a1410'
-  const dim2 = isDark ? '#9a8c74' : '#5c4a3a'
+  const txt2 = isDark ? '#f0e8d8' : '#2D2924'
+  const dim2 = isDark ? '#9a8c74' : '#5C5248'
 
   const selStyle: CSSProperties = {
     background: isDark ? '#1a1714' : '#fff',
@@ -6680,11 +6680,11 @@ const PRIORITY_COLOR: Record<string, string> = { high: '#e05555', medium: '#d490
 const CATEGORIES = ['page', 'feature', 'api', 'arsenal', 'demon']
 
 function TrackerView({ getToken, isDark }: { getToken: any; isDark: boolean }) {
-  const G2   = isDark ? '#C9A84C' : '#a07830'
+  const G2   = isDark ? '#C9A84C' : '#8B6914'
   const surf = isDark ? '#1a1714' : '#ffffff'
   const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.2)'
-  const txt  = isDark ? '#f0e8d8' : '#1a1410'
-  const dim  = isDark ? '#9a8c74' : '#5c4a3a'
+  const txt  = isDark ? '#f0e8d8' : '#2D2924'
+  const dim  = isDark ? '#9a8c74' : '#5C5248'
 
   const [items, setItems]           = useState<any[]>([])
   const [loading, setLoading]       = useState(true)
@@ -6939,7 +6939,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   })
 
   const bdr  = isDark ? '#1e1a2e' : '#d4c9b8'
-  const gold = isDark ? '#C9A84C' : '#a07830'
+  const gold = isDark ? '#C9A84C' : '#8B6914'
   const dim  = isDark ? '#6b5e45' : '#7a6a50'
 
   if (loading) {
