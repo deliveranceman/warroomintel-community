@@ -83,6 +83,15 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ testimony: data }), { status: 201, headers })
   }
 
+  // PUT reaction — any authenticated user can react once
+  if (req.method === 'PUT' && id) {
+    const { data: current } = await supabase.from('testimonies').select('reaction_count').eq('id', id).single()
+    const next = ((current?.reaction_count as number) || 0) + 1
+    const { error } = await supabase.from('testimonies').update({ reaction_count: next }).eq('id', id)
+    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
+    return new Response(JSON.stringify({ reaction_count: next }), { status: 200, headers })
+  }
+
   // PATCH approve/reject (minister only)
   if (req.method === 'PATCH' && id) {
     if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })

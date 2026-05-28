@@ -61,12 +61,20 @@ export default async function handler(req: Request) {
     ]
     if (category) orClauses.push(`spirit_tags.cs.{${category}}`)
 
+    const spiritLower = spirit.toLowerCase()
+    const extOrClauses = [
+      ...orClauses,
+      `description.ilike.%${spiritLower}%`,
+    ]
+
     const { data, error } = await sb
       .from('resources')
-      .select('id, title, topic, function_tags, tier, spirit_tags')
+      .select('id, title, topic, function_tags, tier, spirit_tags, description, file_url')
+      .neq('topic', 'ministry-library')
       .in('tier', tierNames)
-      .or(orClauses.join(','))
-      .limit(5)
+      .or(extOrClauses.join(','))
+      .order('created_at', { ascending: false })
+      .limit(10)
 
     console.log('[SPIRIT-RESOURCES] results:', data?.length ?? 0, '| error:', error?.message ?? null)
 

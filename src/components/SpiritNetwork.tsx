@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 const cinzel = "'Cinzel', serif"
 const inter  = 'Inter, system-ui, sans-serif'
@@ -45,6 +45,33 @@ export interface SpiritNetworkProps {
   userId?: string
   onNavigateTo?: (section: string) => void
   getToken?: () => Promise<string | null>
+}
+
+// ── PDF EXPORT ────────────────────────────────────────────────────────────────
+
+function exportToPDF(content: string, title: string) {
+  const html = `<!DOCTYPE html><html><head>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:'Crimson Pro',serif;padding:60px;max-width:800px;margin:0 auto;color:#1a1408}
+    h1{font-family:'Cinzel',serif;color:#C9A84C;font-size:20px;letter-spacing:0.1em;border-bottom:2px solid #C9A84C;padding-bottom:12px}
+    .header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
+    strong{color:#8B0000}p{line-height:1.9;margin-bottom:16px;font-size:16px}
+    .footer{margin-top:48px;padding-top:16px;border-top:1px solid #C9A84C;font-family:'Cinzel',serif;font-size:9px;color:#6b5e45;letter-spacing:0.1em}
+    @media print{body{padding:40px}}
+  </style></head><body>
+  <div class="header">
+    <img src="https://warroomintel.com/logo.png" style="width:50px;opacity:0.8"/>
+    <div><div style="font-family:Cinzel;font-size:16px;color:#C9A84C;letter-spacing:0.15em">WAR ROOM INTEL</div>
+    <div style="font-size:11px;color:#6b5e45;font-family:Cinzel;letter-spacing:0.1em">MINISTRY USE ONLY</div></div>
+  </div>
+  <h1>${title}</h1>
+  <div>${content.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br/>')}</div>
+  <div class="footer">War Room Intel &middot; warroomintel.com &middot; A Ministry of Staffordtown Church &middot; Copperhill, TN &middot; Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+  <script>window.onload=()=>window.print()</script>
+  </body></html>`
+  const w = window.open('', '_blank')
+  if (w) { w.document.write(html); w.document.close() }
 }
 
 // ── SVG ORG CHART ─────────────────────────────────────────────────────────────
@@ -166,7 +193,9 @@ function OrgChartSVG({ selected, allDemons, onSelectParent, onSelectCompanion }:
 
 // ── EMPTY CANVAS ───────────────────────────────────────────────────────────────
 
-function EmptyCanvas({ onSelectSpirit, demons }: { onSelectSpirit: (d: Demon) => void; demons: Demon[] }) {
+function EmptyCanvas({ onSelectSpirit, demons, recentSpirits = [] }: {
+  onSelectSpirit: (d: Demon) => void; demons: Demon[]; recentSpirits?: any[]
+}) {
   const quickStart = ['Leviathan', 'Baal', 'Jezebel']
     .map(name => demons.find(d => d.name === name))
     .filter((d): d is Demon => !!d)
@@ -192,6 +221,24 @@ function EmptyCanvas({ onSelectSpirit, demons }: { onSelectSpirit: (d: Demon) =>
           ))}
         </div>
       )}
+      {recentSpirits.length > 0 && (
+        <div style={{ marginTop: 24, maxWidth: 480, textAlign: 'center' as const }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.12em', marginBottom: 10 }}>
+            RECENTLY VIEWED
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, justifyContent: 'center' }}>
+            {recentSpirits.map(r => (
+              <button key={r.name}
+                onClick={() => { const d = demons.find(x => x.name === r.name); if (d) onSelectSpirit(d) }}
+                style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.04)', border: '1px solid #2a2218', borderRadius: 20, color: '#6b5e45', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = GC)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')}>
+                {r.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -201,6 +248,75 @@ function EmptyCanvas({ onSelectSpirit, demons }: { onSelectSpirit: (d: Demon) =>
 function DossierMode({ spirit, demons, resources, loadingResources, onSelectSpirit }: {
   spirit: Demon; demons: Demon[]; resources: any[]; loadingResources: boolean; onSelectSpirit: (d: Demon) => void
 }) {
+  const [prayer,          setPrayer]         = useState('')
+  const [prayerLoading,   setPrayerLoading]  = useState(false)
+  const [showPrayer,      setShowPrayer]     = useState(false)
+  const [scriptures,      setScriptures]     = useState<any[]>([])
+  const [scriptureLoading,setScriptureLoading] = useState(false)
+  const [showScriptures,  setShowScriptures] = useState(false)
+
+  useEffect(() => {
+    setShowPrayer(false); setPrayer('')
+    setShowScriptures(false); setScriptures([])
+  }, [spirit.id])
+
+  async function generatePrayer() {
+    setPrayerLoading(true); setShowPrayer(true)
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Generate a targeted deliverance prayer for the spirit of ${spirit.name}.
+
+Context:
+- Kingdom: ${spirit.kingdom}
+- Entry points: ${spirit.entryPoints || 'various'}
+- Manifestations: ${spirit.sessionIndicators || 'various'}
+- Deliverance sequence: ${spirit.deliveranceSequence || 'Repentance, Renunciation, Expulsion'}
+
+Write a powerful, scripturally-grounded deliverance prayer that:
+1. Breaks the legal grounds/entry points
+2. Renounces the specific works of this spirit
+3. Commands it to leave with authority
+4. Invites the Holy Spirit to fill the vacated place
+
+Write in first person as if the minister is leading the prayer.
+Use **bold** for scripture references where relevant.
+3-4 paragraphs, direct and authoritative tone.`,
+          history: [],
+        }),
+      })
+      const data = await res.json()
+      setPrayer(data.response || '')
+    } catch { setPrayer('Failed to generate prayer. Please try again.') }
+    finally { setPrayerLoading(false) }
+  }
+
+  async function findScriptures() {
+    setScriptureLoading(true); setShowScriptures(true)
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Find the 5 most relevant Bible scriptures for ministering deliverance from the spirit of ${spirit.name}.
+
+For each scripture provide:
+- The reference (book, chapter, verse)
+- The full verse text (KJV)
+- A brief explanation of why it is relevant for this spirit specifically
+
+Format as a numbered list. Be specific to ${spirit.name}, not generic deliverance verses.`,
+          history: [],
+        }),
+      })
+      const data = await res.json()
+      setScriptures([{ text: data.response || '' }])
+    } catch { setScriptures([{ text: 'Failed to load scriptures.' }]) }
+    finally { setScriptureLoading(false) }
+  }
+
   const companions = spirit.companionSpirits
     ? String(spirit.companionSpirits).split(',').map(s => s.trim()).filter(Boolean)
     : []
@@ -318,11 +434,61 @@ function DossierMode({ spirit, demons, resources, loadingResources, onSelectSpir
         )}
 
         <button
-          style={{ width: '100%', padding: 14, background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: 40 }}
+          style={{ width: '100%', padding: 14, background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: 16 }}
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           🚪 RUN GATEWAY ANALYSIS — {spirit.name.toUpperCase()}
         </button>
+
+        {/* Quick actions */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+          <button onClick={generatePrayer}
+            style={{ flex: 1, padding: '10px 16px', background: 'rgba(201,168,76,0.08)', border: '1px solid #C9A84C', borderRadius: 4, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+            🙏 GENERATE PRAYER
+          </button>
+          <button onClick={findScriptures}
+            style={{ flex: 1, padding: '10px 16px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#6b5e45', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+            📖 FIND SCRIPTURES
+          </button>
+        </div>
+
+        {showPrayer && (
+          <div style={{ marginBottom: 24, padding: '20px 24px', background: '#0a0807', border: '1px solid #2a2218', borderTop: '2px solid #C9A84C', borderRadius: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.12em' }}>DELIVERANCE PRAYER</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!prayerLoading && <button onClick={() => navigator.clipboard.writeText(prayer)}
+                  style={{ padding: '4px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 3, color: '#6b5e45', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.08em' }}>COPY</button>}
+                {!prayerLoading && <button onClick={() => exportToPDF(prayer, `${spirit.name} Deliverance Prayer`)}
+                  style={{ padding: '4px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 3, color: '#6b5e45', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.08em' }}>PDF</button>}
+                <button onClick={() => { setShowPrayer(false); setPrayer('') }}
+                  style={{ padding: '4px 8px', background: 'transparent', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 16 }}>×</button>
+              </div>
+            </div>
+            {prayerLoading ? (
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: '#6b5e45', letterSpacing: '0.1em' }}>GENERATING PRAYER...</div>
+            ) : (
+              <div style={{ fontFamily: inter, fontSize: 15, color: '#c8b99a', lineHeight: 1.9 }}
+                dangerouslySetInnerHTML={{ __html: prayer.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C9A84C">$1</strong>').replace(/\n/g, '<br/>') }} />
+            )}
+          </div>
+        )}
+
+        {showScriptures && (
+          <div style={{ marginBottom: 40, padding: '16px 20px', background: '#0a0807', border: '1px solid #2a2218', borderLeft: '2px solid #C9A84C', borderRadius: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em' }}>RELEVANT SCRIPTURES</div>
+              <button onClick={() => setShowScriptures(false)} style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 14 }}>×</button>
+            </div>
+            {scriptureLoading ? (
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6b5e45', letterSpacing: '0.1em' }}>SEARCHING SCRIPTURES...</div>
+            ) : (
+              <div style={{ fontFamily: inter, fontSize: 14, color: '#a89878', lineHeight: 1.8 }}
+                dangerouslySetInnerHTML={{ __html: (scriptures[0]?.text || '').replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C9A84C">$1</strong>').replace(/\n/g, '<br/>') }} />
+            )}
+          </div>
+        )}
+        {!showPrayer && !showScriptures && <div style={{ marginBottom: 40 }} />}
       </div>
     </div>
   )
@@ -437,17 +603,84 @@ const KINGDOM_ORDER = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft'
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
-export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps) {
-  const [selectedSpirit,  setSelectedSpirit]  = useState<Demon | null>(null)
-  const [mode,            setMode]            = useState<'network' | 'dossier'>('network')
-  const [activeDrawer,    setActiveDrawer]    = useState<'scriptures' | 'gateway' | 'documents' | 'library' | null>(null)
-  const [dossierExpanded, setDossierExpanded] = useState(false)
-  const [searchQuery,     setSearchQuery]     = useState('')
-  const [resources,       setResources]       = useState<any[]>([])
-  const [loadingResources,setLoadingResources]= useState(false)
-  const [navStack,        setNavStack]        = useState<Demon[]>([])
-  const [libraryHits,    setLibraryHits]    = useState<any[]>([])
-  const [loadingLibrary, setLoadingLibrary] = useState(false)
+export function SpiritNetwork({ demons, isMobile, getToken: _getToken }: SpiritNetworkProps) {
+  const [selectedSpirit,   setSelectedSpirit]   = useState<Demon | null>(null)
+  const [mode,             setMode]             = useState<'network' | 'dossier'>('network')
+  const [activeDrawer,     setActiveDrawer]     = useState<'scriptures' | 'gateway' | 'documents' | 'library' | null>(null)
+  const [dossierExpanded,  setDossierExpanded]  = useState(false)
+  const [searchQuery,      setSearchQuery]      = useState('')
+  const [resources,        setResources]        = useState<any[]>([])
+  const [loadingResources, setLoadingResources] = useState(false)
+  const [navStack,         setNavStack]         = useState<Demon[]>([])
+  const [libraryHits,      setLibraryHits]      = useState<any[]>([])
+  const [loadingLibrary,   setLoadingLibrary]   = useState(false)
+  const [recentSpirits,    setRecentSpirits]    = useState<any[]>([])
+  const [compareMode,      setCompareMode]      = useState(false)
+  const [compareQuery,     setCompareQuery]     = useState('')
+  const [comparison,       setComparison]       = useState<{ text: string; spirit1: string; spirit2: string } | null>(null)
+  const [comparingLoading, setComparingLoading] = useState(false)
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('wri_recent_spirits') || '[]')
+      setRecentSpirits(stored)
+    } catch {}
+    // Auto-select spirit prefilled from Body Map
+    try {
+      const prefill = localStorage.getItem('wri_prefill_spirit')
+      if (prefill) {
+        localStorage.removeItem('wri_prefill_spirit')
+        const { name } = JSON.parse(prefill)
+        if (name && demons.length > 0) {
+          const match = demons.find((d: Demon) => d.name.toLowerCase() === name.toLowerCase())
+          if (match) {
+            setSelectedSpirit(match)
+            fetchResources(match)
+            fetchLibraryIntel(match)
+            trackRecentSpirit(match)
+          }
+        }
+      }
+    } catch {}
+  }, [demons])
+
+  async function runComparison(spirit1: Demon, spirit2: Demon) {
+    setComparingLoading(true)
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Compare these two demonic spirits for a deliverance minister:
+
+SPIRIT 1: ${spirit1.name}
+Kingdom: ${spirit1.kingdom}
+Description: ${spirit1.description}
+Manifestations: ${spirit1.sessionIndicators}
+Entry Points: ${spirit1.entryPoints || 'not specified'}
+
+SPIRIT 2: ${spirit2.name}
+Kingdom: ${spirit2.kingdom}
+Description: ${spirit2.description}
+Manifestations: ${spirit2.sessionIndicators}
+Entry Points: ${spirit2.entryPoints || 'not specified'}
+
+Provide a practical comparison covering:
+1. **KEY DIFFERENCES** -- How to distinguish them in a session
+2. **SIMILARITIES** -- Where they overlap or work together
+3. **WHEN TO SUSPECT EACH** -- Different presenting patterns
+4. **DELIVERANCE APPROACH** -- Any differences in how to address each
+5. **OFTEN CONFUSED BECAUSE** -- Why ministers mix these up
+
+Be direct and practical. This is for active ministry use.`,
+          history: [],
+        }),
+      })
+      const data = await res.json()
+      setComparison({ text: data.response || '', spirit1: spirit1.name, spirit2: spirit2.name })
+    } catch { setComparison(null) }
+    finally { setComparingLoading(false) }
+  }
 
   const searchResults = searchQuery.length > 1
     ? demons.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
@@ -478,6 +711,18 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
       .catch(() => { setLibraryHits([]); setLoadingLibrary(false) })
   }, [])
 
+  function trackRecentSpirit(demon: Demon) {
+    try {
+      const recent = JSON.parse(localStorage.getItem('wri_recent_spirits') || '[]')
+      const updated = [
+        { name: demon.name, kingdom: demon.kingdom, id: demon.id },
+        ...recent.filter((r: any) => r.name !== demon.name),
+      ].slice(0, 8)
+      localStorage.setItem('wri_recent_spirits', JSON.stringify(updated))
+      setRecentSpirits(updated)
+    } catch {}
+  }
+
   // Navigate to a spirit — pushes current to history stack
   const selectSpirit = useCallback((demon: Demon) => {
     setSelectedSpirit(prev => {
@@ -485,8 +730,10 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
       return demon
     })
     setDossierExpanded(false)
+    setComparison(null)
     fetchResources(demon)
     fetchLibraryIntel(demon)
+    trackRecentSpirit(demon)
   }, [fetchResources, fetchLibraryIntel])
 
   // Navigate to parent — pops history if parent is in stack, else resets
@@ -515,8 +762,10 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
     setSelectedSpirit(demon)
     setSearchQuery('')
     setDossierExpanded(false)
+    setComparison(null)
     fetchResources(demon)
     fetchLibraryIntel(demon)
+    trackRecentSpirit(demon)
   }, [fetchResources, fetchLibraryIntel])
 
   const groupedByKingdom = demons.reduce((acc: Record<string, Demon[]>, d) => {
@@ -610,6 +859,42 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
           ))}
         </div>
 
+        {/* Compare mode toggle */}
+        <button onClick={() => { setCompareMode(m => !m); setComparison(null); setCompareQuery('') }}
+          style={{ padding: '5px 12px', background: compareMode ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${compareMode ? GC : MUT}`, borderRadius: 4, color: compareMode ? GC : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', flexShrink: 0 }}>
+          ⚖ COMPARE
+        </button>
+
+        {/* Compare search input */}
+        {compareMode && selectedSpirit && (
+          <div style={{ position: 'relative' as const, width: 220 }}>
+            <input
+              value={compareQuery}
+              onChange={e => setCompareQuery(e.target.value)}
+              placeholder="Compare with..."
+              style={{ width: '100%', padding: '8px 12px', background: SURF, border: `1px solid ${MUT}`, borderRadius: 6, color: '#c8b99a', fontFamily: inter, fontSize: 12, outline: 'none', boxSizing: 'border-box' as const }}
+            />
+            {compareQuery.length > 1 && (() => {
+              const compareResults = demons.filter(d =>
+                d.name.toLowerCase().includes(compareQuery.toLowerCase()) && d.id !== selectedSpirit.id
+              ).slice(0, 5)
+              return compareResults.length > 0 ? (
+                <div style={{ position: 'absolute' as const, top: '100%', left: 0, right: 0, background: SURF, border: `1px solid ${MUT}`, borderRadius: 6, marginTop: 4, zIndex: 100 }}>
+                  {compareResults.map(d => (
+                    <div key={d.id}
+                      onClick={() => { setCompareQuery(''); runComparison(selectedSpirit, d) }}
+                      style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${BDR}`, fontFamily: inter, fontSize: 12, color: '#c8b99a' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1a1528')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      {d.name}
+                    </div>
+                  ))}
+                </div>
+              ) : null
+            })()}
+          </div>
+        )}
+
         {selectedSpirit && (
           <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.06em', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
             {selectedSpirit.name}
@@ -627,6 +912,37 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
           {mode === 'network' ? (
             selectedSpirit ? (
               <div style={{ height: '100%', overflowY: 'auto' as const, padding: '20px 28px 20px 28px', background: DARK }}>
+
+                {/* Comparison display */}
+                {(comparison || comparingLoading) && (
+                  <div style={{ marginBottom: 24, padding: '20px 24px', background: '#0a0807', border: '1px solid #2a2218', borderRadius: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 12, color: GC, letterSpacing: '0.1em' }}>
+                        {comparison ? `${comparison.spirit1} vs ${comparison.spirit2}` : 'COMPARING...'}
+                      </div>
+                      {comparison && (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => navigator.clipboard.writeText(comparison.text)}
+                            style={{ padding: '4px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 3, color: '#6b5e45', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.08em' }}>COPY</button>
+                          <button onClick={() => exportToPDF(comparison.text, `${comparison.spirit1} vs ${comparison.spirit2}`)}
+                            style={{ padding: '4px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 3, color: '#6b5e45', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.08em' }}>PDF</button>
+                          <button onClick={() => setComparison(null)}
+                            style={{ padding: '4px 8px', background: 'transparent', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 16 }}>×</button>
+                        </div>
+                      )}
+                    </div>
+                    {comparingLoading ? (
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: '#6b5e45', letterSpacing: '0.1em' }}>GENERATING COMPARISON...</div>
+                    ) : comparison && (
+                      <div style={{ fontFamily: inter, fontSize: 14, color: '#a89878', lineHeight: 1.8 }}
+                        dangerouslySetInnerHTML={{ __html: comparison.text
+                          .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C9A84C">$1</strong>')
+                          .replace(/^## (.+)$/gm, '<div style="font-family:Cinzel,serif;font-size:11px;color:#C9A84C;letter-spacing:0.1em;margin:20px 0 8px">$1</div>')
+                          .replace(/^### (.+)$/gm, '<div style="font-family:Cinzel,serif;font-size:10px;color:#8a7a60;letter-spacing:0.08em;margin:14px 0 6px">$1</div>')
+                          .replace(/\n/g, '<br/>') }} />
+                    )}
+                  </div>
+                )}
 
                 {/* Breadcrumb — always visible when a spirit is selected */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' as const }}>
@@ -681,7 +997,7 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
                 )}
               </div>
             ) : (
-              <EmptyCanvas onSelectSpirit={searchSelect} demons={demons} />
+              <EmptyCanvas onSelectSpirit={searchSelect} demons={demons} recentSpirits={recentSpirits} />
             )
           ) : selectedSpirit ? (
             <DossierMode spirit={selectedSpirit} demons={demons} resources={resources} loadingResources={loadingResources} onSelectSpirit={selectSpirit} />
@@ -754,7 +1070,9 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
 
               {activeDrawer === 'documents' && (
                 <>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 12, paddingRight: 20 }}>📂 RELATED DOCUMENTS</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 12, paddingRight: 20 }}>
+                    📂 RECOMMENDED RESOURCES{resources.length > 0 ? ` (${resources.length})` : ''}
+                  </div>
                   {loadingResources ? (
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
                       {[80, 60, 70].map((w, i) => (
@@ -764,9 +1082,26 @@ export function SpiritNetwork({ demons, isMobile, getToken }: SpiritNetworkProps
                   ) : resources.length === 0 ? (
                     <div style={{ fontFamily: inter, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No documents tagged for this spirit.</div>
                   ) : resources.map((r: any) => (
-                    <div key={r.id} style={{ borderLeft: '2px solid rgba(201,168,76,0.3)', paddingLeft: 10, marginBottom: 10 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 10, color: '#c8b99a', letterSpacing: '0.04em', marginBottom: 1 }}>{r.title}</div>
-                      {r.topic && <div style={{ fontFamily: inter, fontSize: 10, color: DIM }}>{r.topic}</div>}
+                    <div key={r.id} style={{ padding: '10px 12px', marginBottom: 8, background: '#0a0807', border: '1px solid #2a2218', borderLeft: '2px solid #C9A84C', borderRadius: 4 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.04em', marginBottom: 4 }}>{r.title}</div>
+                      {r.description && (
+                        <div style={{ fontFamily: inter, fontSize: 12, color: '#6b5e45', marginBottom: 6, lineHeight: 1.5 }}>
+                          {r.description.slice(0, 80)}{r.description.length > 80 ? '...' : ''}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {r.tier && (
+                          <span style={{ fontFamily: cinzel, fontSize: 7, color: '#4a3f2f', padding: '1px 6px', border: '1px solid #2a2218', borderRadius: 10 }}>
+                            {r.tier.toUpperCase()}
+                          </span>
+                        )}
+                        {r.file_url && (
+                          <a href={r.file_url} target="_blank" rel="noopener noreferrer"
+                            style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.08em', textDecoration: 'none' }}>
+                            ↗ VIEW
+                          </a>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </>

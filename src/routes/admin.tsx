@@ -4179,20 +4179,30 @@ function DashboardView({ getToken, isDark, setTab }: {
   const [aiStats, setAiStats]       = useState<any>(null)
   const [memberStats, setMembers]   = useState<any>(null)
   const [loading, setLoading]       = useState(true)
+  const [sotw, setSotw]             = useState<any>(null)
+  const [sotwForm, setSotwForm]     = useState({ spirit_name: '', minister_note: '', deliverance_tip: '' })
+  const [sotwSaving, setSotwSaving] = useState(false)
+  const [sotwMsg, setSotwMsg]       = useState('')
 
   useEffect(() => {
     const load = async () => {
       try {
         const token = await getToken()
         const authHdr = { Authorization: `Bearer ${token}` }
-        const [dRes, aRes, mRes] = await Promise.allSettled([
+        const [dRes, aRes, mRes, sotwRes] = await Promise.allSettled([
           fetch('/api/demons').then(r => r.json()),
           fetch('/api/ai-usage', { headers: authHdr }).then(r => r.json()),
           fetch('/api/admin-members', { headers: authHdr }).then(r => r.json()),
+          fetch('/api/spirit-of-week').then(r => r.json()),
         ])
         if (dRes.status === 'fulfilled') setDemons(dRes.value.demons || [])
         if (aRes.status === 'fulfilled') setAiStats(aRes.value)
         if (mRes.status === 'fulfilled') setMembers(mRes.value)
+        if (sotwRes.status === 'fulfilled' && sotwRes.value.sotw) {
+          const s = sotwRes.value.sotw
+          setSotw(s)
+          setSotwForm({ spirit_name: s.spirit_name || '', minister_note: s.minister_note || '', deliverance_tip: s.deliverance_tip || '' })
+        }
       } catch {}
       setLoading(false)
     }
@@ -4416,7 +4426,7 @@ function DashboardView({ getToken, isDark, setTab }: {
 
       {/* Row 5 — Recently researched */}
       {recentEnhancements.length > 0 && (
-        <div>
+        <div style={{ marginBottom: 24 }}>
           <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>Recently Researched</div>
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto' as const, paddingBottom: 4 }}>
             {recentEnhancements.map((c: any, i: number) => c.spirit_name && (
@@ -4428,6 +4438,74 @@ function DashboardView({ getToken, isDark, setTab }: {
           </div>
         </div>
       )}
+
+      {/* Row 6 — Spirit of the Week editor */}
+      <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>🎯 Spirit of the Week</div>
+        {sotw && (
+          <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 14 }}>
+            Current: <strong style={{ color: TXT2 }}>{sotw.spirit_name}</strong>
+            {sotw.published_at && <> · set {new Date(sotw.published_at).toLocaleDateString()}</>}
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 4 }}>SPIRIT NAME</div>
+            <input
+              value={sotwForm.spirit_name}
+              onChange={e => setSotwForm(f => ({ ...f, spirit_name: e.target.value }))}
+              placeholder="e.g. Spirit of Fear"
+              list="sotw-demon-list"
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none' }}
+            />
+            <datalist id="sotw-demon-list">
+              {demons.slice(0, 100).map((d: any) => <option key={d.id} value={d.name} />)}
+            </datalist>
+          </div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 4 }}>MINISTER NOTE</div>
+            <textarea
+              value={sotwForm.minister_note}
+              onChange={e => setSotwForm(f => ({ ...f, minister_note: e.target.value }))}
+              placeholder="Why is this spirit on assignment this week? What should warriors know?"
+              rows={3}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none', resize: 'vertical' as const }}
+            />
+          </div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 4 }}>TACTICAL TIP</div>
+            <textarea
+              value={sotwForm.deliverance_tip}
+              onChange={e => setSotwForm(f => ({ ...f, deliverance_tip: e.target.value }))}
+              placeholder="A specific deliverance tip or prayer strategy for this week"
+              rows={2}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#f5f0e8', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2, fontSize: 13, fontFamily: crimson, outline: 'none', resize: 'vertical' as const }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              disabled={sotwSaving || !sotwForm.spirit_name.trim()}
+              onClick={async () => {
+                setSotwSaving(true); setSotwMsg('')
+                try {
+                  const token = await getToken()
+                  const res = await fetch('/api/spirit-of-week', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify(sotwForm),
+                  })
+                  const d = await res.json()
+                  if (res.ok) { setSotw(d.sotw); setSotwMsg('Published') }
+                  else setSotwMsg(d.error || 'Error')
+                } catch { setSotwMsg('Network error') }
+                setSotwSaving(false)
+              }}
+              style={{ padding: '8px 20px', background: sotwSaving ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.15)', border: `1px solid ${sotwSaving ? BDR2 : 'rgba(201,168,76,0.5)'}`, borderRadius: 6, color: sotwSaving ? MUT : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: sotwSaving ? 'default' : 'pointer', textTransform: 'uppercase' as const }}
+            >{sotwSaving ? 'Publishing...' : '🎯 Publish This Week'}</button>
+            {sotwMsg && <span style={{ fontFamily: crimson, fontSize: 12, color: sotwMsg === 'Published' ? '#4ade80' : '#e05c5c' }}>{sotwMsg}</span>}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

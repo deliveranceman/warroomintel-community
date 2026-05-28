@@ -1046,8 +1046,25 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
   const [editingPostId,   setEditingPostId]   = useState<string | null>(null)
   const [editDraft,       setEditDraft]       = useState('')
   const [showPrayerEmoji, setShowPrayerEmoji] = useState(false)
+  const [prayerJoined,    setPrayerJoined]    = useState<boolean>(() => {
+    try { return localStorage.getItem('wri_prayer_joined') === 'true' } catch { return false }
+  })
+  const [warriorCount, setWarriorCount]       = useState<number>(() => {
+    try { return parseInt(localStorage.getItem('wri_warrior_count') || '0', 10) || 0 } catch { return 0 }
+  })
   const inputRef = useRef<HTMLInputElement>(null)
   const PRAYER_EMOJIS = ['🙏','❤️','🔥','✝️','⚔️','💪','🕊️','👑','🌿','💧','🗡️','📖','🏔️','⭐','🌟','💛','🤍','🫶','🙌','✨']
+
+  function joinPrayerChain() {
+    if (prayerJoined) return
+    const next = warriorCount + 1
+    setPrayerJoined(true)
+    setWarriorCount(next)
+    try {
+      localStorage.setItem('wri_prayer_joined', 'true')
+      localStorage.setItem('wri_warrior_count', String(next))
+    } catch {}
+  }
 
   const fetchPrayers = useCallback(async () => {
     if (!streamToken || !apiKey) return
@@ -1093,12 +1110,26 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
               ☰
             </button>
           )}
-          <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
+          <div>
+            <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
+            {warriorCount > 0 && (
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: V.mut, letterSpacing: '0.08em', marginTop: 2 }}>
+                ⚔ {warriorCount} warrior{warriorCount !== 1 ? 's' : ''} in the chain
+              </div>
+            )}
+          </div>
         </div>
-        <button
-          onClick={() => inputRef.current?.focus()}
-          style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '6px', color: G, fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-        >+ Add Prayer</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={joinPrayerChain}
+            disabled={prayerJoined}
+            style={{ padding: '6px 14px', background: prayerJoined ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.15)', border: `1px solid ${prayerJoined ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.5)'}`, borderRadius: '6px', color: prayerJoined ? V.mut : G, fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', cursor: prayerJoined ? 'default' : 'pointer', textTransform: 'uppercase' as const }}
+          >{prayerJoined ? '✓ In the Chain' : '🙏 Join Prayer Chain'}</button>
+          <button
+            onClick={() => inputRef.current?.focus()}
+            style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '6px', color: G, fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          >+ Add Prayer</button>
+        </div>
       </div>
       <div style={{ margin: '12px 20px 0', padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start', flexShrink: 0 }}>
         <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⚠️</span>
@@ -1228,12 +1259,24 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
   const [submitting, setSubmitting]     = useState(false)
   const [submitted, setSubmitted]       = useState(false)
   const [expandedId, setExpandedId]     = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [reactions, setReactions]       = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('wri_reactions') || '{}') } catch { return {} }
+  })
+  const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     async function load() {
       const token = await getToken()
       const res = await fetch('/api/testimonies', { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) { const d = await res.json(); setTestimonies(d.testimonies || []) }
+      if (res.ok) {
+        const d = await res.json()
+        const ts = d.testimonies || []
+        setTestimonies(ts)
+        const counts: Record<string, number> = {}
+        ts.forEach((t: any) => { counts[t.id] = t.reaction_count || 0 })
+        setReactionCounts(counts)
+      }
       setLoading(false)
     }
     load()
@@ -1252,11 +1295,27 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
     if (res.ok) { setSubmitted(true); setShowForm(false); setTitle(''); setBody('') }
   }
 
-  const categories = ['personal', 'healing', 'deliverance', 'restoration', 'ministry']
-  const categoryLabels: Record<string, string> = {
-    personal: '✝ Personal', healing: '🙏 Healing', deliverance: '⚔ Deliverance',
-    restoration: '💛 Restoration', ministry: '📡 Ministry',
+  async function handleReaction(testimonyId: string) {
+    if (reactions[testimonyId]) return
+    const newReactions = { ...reactions, [testimonyId]: true }
+    setReactions(newReactions)
+    setReactionCounts(prev => ({ ...prev, [testimonyId]: (prev[testimonyId] || 0) + 1 }))
+    try {
+      localStorage.setItem('wri_reactions', JSON.stringify(newReactions))
+      const token = await getToken()
+      await fetch(`/api/testimonies?id=${testimonyId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {}
   }
+
+  const TESTIMONY_CATEGORIES = ['all', 'personal', 'healing', 'deliverance', 'restoration', 'ministry', 'freedom', 'breakthrough']
+  const categoryLabels: Record<string, string> = {
+    all: 'All', personal: '✝ Personal', healing: '🙏 Healing', deliverance: '⚔ Deliverance',
+    restoration: '💛 Restoration', ministry: '📡 Ministry', freedom: '🕊 Freedom', breakthrough: '⚡ Breakthrough',
+  }
+  const categories = ['personal', 'healing', 'deliverance', 'restoration', 'ministry', 'freedom', 'breakthrough']
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
@@ -1325,20 +1384,32 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
         </div>
       )}
 
+      {/* Category filter chips */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' as const }}>
+        {TESTIMONY_CATEGORIES.map(cat => (
+          <button key={cat} onClick={() => setActiveFilter(cat)}
+            style={{ padding: '4px 12px', background: activeFilter === cat ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${activeFilter === cat ? GG : bdr}`, borderRadius: 20, color: activeFilter === cat ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+            {categoryLabels[cat]}
+          </button>
+        ))}
+      </div>
+
       {/* Testimonies list */}
       {loading ? (
         <div style={{ textAlign: 'center' as const, color: mut, fontFamily: crimson, fontStyle: 'italic', padding: 40 }}>Loading testimonies...</div>
-      ) : testimonies.length === 0 ? (
+      ) : testimonies.filter(t => activeFilter === 'all' || t.category === activeFilter).length === 0 ? (
         <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '40px 24px', textAlign: 'center' as const }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>✝</div>
           <div style={{ fontFamily: cinzel, fontSize: 13, color: GG, letterSpacing: '0.08em', marginBottom: 8 }}>No Testimonies Yet</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-          {testimonies.map(t => {
+          {testimonies.filter(t => activeFilter === 'all' || t.category === activeFilter).map(t => {
             const isExpanded = expandedId === t.id
             const preview = t.body.length > 200 ? t.body.slice(0, 200) + '...' : t.body
             const initial = (t.user_name || 'A')[0].toUpperCase()
+            const hasReacted = reactions[t.id]
+            const count = reactionCounts[t.id] || 0
             return (
               <div key={t.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '20px 22px', borderLeft: `3px solid ${GG}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -1353,15 +1424,24 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
                   </div>
                 </div>
                 <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, letterSpacing: '0.04em', marginBottom: 10 }}>{t.title}</div>
-                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7, marginBottom: t.body.length > 200 ? 10 : 0 }}>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7, marginBottom: 12 }}>
                   {isExpanded ? t.body : preview}
                 </div>
-                {t.body.length > 200 && (
-                  <button onClick={() => setExpandedId(isExpanded ? null : t.id)}
-                    style={{ background: 'none', border: 'none', color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>
-                    {isExpanded ? '▲ Show Less' : '▼ Read More'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {t.body.length > 200 && (
+                    <button onClick={() => setExpandedId(isExpanded ? null : t.id)}
+                      style={{ background: 'none', border: 'none', color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>
+                      {isExpanded ? '▲ Show Less' : '▼ Read More'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleReaction(t.id)}
+                    style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', background: hasReacted ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${hasReacted ? GG : bdr}`, borderRadius: 20, color: hasReacted ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: hasReacted ? 'default' : 'pointer', textTransform: 'uppercase' as const }}>
+                    <span>⚔</span>
+                    <span>Standing with You</span>
+                    {count > 0 && <span style={{ color: GG, fontWeight: 700 }}>{count}</span>}
                   </button>
-                )}
+                </div>
               </div>
             )
           })}
@@ -2329,6 +2409,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   const [reports, setReports]     = useState<any[]>([])
   const [loading, setLoading]     = useState(true)
   const [recentResources, setRecentResources] = useState<any[]>([])
+  const [sotw, setSotw]           = useState<any>(null)
 
   const [showReportForm, setShowReportForm] = useState(false)
   const [reportForm, setReportForm]         = useState({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
@@ -2340,15 +2421,17 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
     async function fetchAll() {
       const token = await getToken()
       const auth  = { 'Authorization': `Bearer ${token}` }
-      const [postsRes, linksRes, reportsRes] = await Promise.allSettled([
+      const [postsRes, linksRes, reportsRes, sotwRes] = await Promise.allSettled([
         fetch('/api/intel-posts').then(r => r.json()),
         fetch('/api/intel-links').then(r => r.json()),
         fetch('/api/field-reports', { headers: auth }).then(r => r.json()),
+        fetch('/api/spirit-of-week').then(r => r.json()),
       ])
       if (cancelled) return
       if (postsRes.status   === 'fulfilled') setPosts(postsRes.value.posts || [])
       if (linksRes.status   === 'fulfilled') setLinks(linksRes.value.links || [])
       if (reportsRes.status === 'fulfilled') setReports(reportsRes.value.reports || [])
+      if (sotwRes.status    === 'fulfilled') setSotw(sotwRes.value.sotw || null)
       setLoading(false)
     }
     fetchAll()
@@ -2413,6 +2496,27 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
         </div>
         <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson }}>Operational briefings, field intelligence, and ministry resources</p>
       </div>
+
+      {/* Spirit of the Week */}
+      {sotw && (
+        <div style={{ marginBottom: 28, background: 'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.03))', border: `2px solid ${GG}`, borderRadius: 12, padding: '20px 24px' }}>
+          <div style={{ fontSize: 9, fontFamily: cinzel, color: GG, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 8 }}>🎯 Spirit of the Week</div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: txt, marginBottom: sotw.minister_note ? 10 : 0 }}>{sotw.spirit_name}</div>
+          {sotw.minister_note && (
+            <p style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.7, margin: '0 0 12px' }}>{sotw.minister_note}</p>
+          )}
+          {sotw.deliverance_tip && (
+            <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.12em', marginBottom: 4 }}>TACTICAL TIP</div>
+              <p style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.6, margin: 0 }}>{sotw.deliverance_tip}</p>
+            </div>
+          )}
+          <button
+            onClick={() => setActiveSection('database')}
+            style={{ padding: '6px 16px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 6, color: GG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          >View in Spirit Network</button>
+        </div>
+      )}
 
       {/* FULL WIDTH — Intel Briefing */}
       <div style={{ marginBottom: 32 }}>
@@ -4519,6 +4623,11 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
 
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
   const [hoveredRegion, setHoveredRegion]   = useState<string | null>(null)
+  const [regionPrayer, setRegionPrayer]     = useState<string | null>(null)
+  const [prayerLoading, setPrayerLoading]   = useState(false)
+  const { getToken } = useAuth()
+
+  useEffect(() => { setRegionPrayer(null) }, [selectedRegion])
 
   // Image is 1024×1536. Hotspot cx/cy/rx/ry are % of 100×150 viewBox (keeps 2:3 ratio)
   const BODY_REGIONS = [
@@ -4554,19 +4663,63 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
       keywords: ['legs', 'feet', 'running', 'escape', 'restlessness', 'instability', 'wandering', 'walk', 'path'] },
   ]
 
-  function getSpiritsForRegion(id: string) {
+  function getRegionMatches(id: string) {
     const region = BODY_REGIONS.find(r => r.id === id)
     if (!region || !demons.length) return []
-    return demons.filter((d: any) => {
-      const text = [d.name, d.description, d.manifestation, d.symptoms, d.primaryBattlefield, d.operationalNotes]
+    const kws = region.keywords.map((k: string) => k.toLowerCase())
+    return demons
+      .map((d: any) => {
+        let score = 0
+        const bf  = (d.primaryBattlefield || '').toLowerCase()
+        const si  = (d.sessionIndicators  || '').toLowerCase()
+        const sym = (d.symptoms           || '').toLowerCase()
+        const man = (d.manifestation      || '').toLowerCase()
+        const sup = [d.description, d.entryPoints, d.legalRights, d.name].filter(Boolean).join(' ').toLowerCase()
+        if (kws.some((k: string) => bf.includes(k)))  score += 5
+        if (kws.some((k: string) => si.includes(k)))  score += 4
+        if (kws.some((k: string) => sym.includes(k))) score += 3
+        if (kws.some((k: string) => man.includes(k))) score += 2
+        if (kws.some((k: string) => sup.includes(k))) score += 1
+        return { ...d, _score: score }
+      })
+      .filter((d: any) => d._score > 0)
+      .sort((a: any, b: any) => b._score - a._score)
+      .slice(0, 12)
+  }
+
+  function countRegions(d: any): number {
+    return BODY_REGIONS.filter(r => {
+      const kws = r.keywords.map(k => k.toLowerCase())
+      const text = [d.primaryBattlefield, d.sessionIndicators, d.symptoms, d.manifestation, d.description, d.name]
         .filter(Boolean).join(' ').toLowerCase()
-      return region.keywords.some(kw => text.includes(kw.toLowerCase()))
-    }).slice(0, 10)
+      return kws.some(k => text.includes(k))
+    }).length
+  }
+
+  async function generateRegionPrayer(region: any, spirits: any[]) {
+    if (prayerLoading) return
+    setPrayerLoading(true)
+    setRegionPrayer(null)
+    try {
+      const token = await getToken()
+      const spiritList = spirits.slice(0, 5).map((s: any) => s.name).join(', ')
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          message: `Write a short, powerful deliverance prayer (3-4 sentences) targeting spirits that manifest in the ${region.label} area. The spirits mapped here include: ${spiritList}. Keep it direct, authoritative, and scriptural.`,
+          context: 'deliverance prayer',
+        }),
+      })
+      const d = await res.json()
+      setRegionPrayer(d.response || d.message || d.content || '')
+    } catch { setRegionPrayer('Unable to generate prayer. Please try again.') }
+    setPrayerLoading(false)
   }
 
   const activeId      = selectedRegion
   const activeRegion  = BODY_REGIONS.find(r => r.id === activeId)
-  const regionSpirits = activeId ? getSpiritsForRegion(activeId) : []
+  const regionSpirits = activeId ? getRegionMatches(activeId) : []
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg }}>
@@ -4624,7 +4777,7 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
               {BODY_REGIONS.map(region => {
                 const isActive  = selectedRegion === region.id
                 const isHovered = hoveredRegion === region.id
-                const hasSpirits = getSpiritsForRegion(region.id).length > 0
+                const hasSpirits = getRegionMatches(region.id).length > 0
                 return (
                   <ellipse
                     key={region.id}
@@ -4675,10 +4828,27 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
                   {activeRegion.icon} {activeRegion.label}
                 </div>
                 <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 4 }}>{activeRegion.description}</div>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em', marginTop: 8 }}>
-                  {regionSpirits.length} SPIRIT{regionSpirits.length !== 1 ? 'S' : ''} MAPPED TO THIS AREA
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' as const }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>
+                    {regionSpirits.length} SPIRIT{regionSpirits.length !== 1 ? 'S' : ''} MAPPED
+                  </div>
+                  <button
+                    onClick={() => generateRegionPrayer(activeRegion, regionSpirits)}
+                    disabled={prayerLoading || regionSpirits.length === 0}
+                    style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 20, color: GC, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: prayerLoading || regionSpirits.length === 0 ? 'default' : 'pointer', opacity: regionSpirits.length === 0 ? 0.4 : 1 }}>
+                    {prayerLoading ? '...' : '🙏 Region Prayer'}
+                  </button>
                 </div>
               </div>
+
+              {/* Region prayer block */}
+              {regionPrayer && (
+                <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '14px 18px', marginBottom: 14 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.12em', marginBottom: 8 }}>DELIVERANCE PRAYER</div>
+                  <p style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.8, margin: '0 0 10px', fontStyle: 'italic' }}>{regionPrayer}</p>
+                  <button onClick={() => setRegionPrayer(null)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', padding: 0, letterSpacing: '0.06em' }}>✕ Close</button>
+                </div>
+              )}
 
               {regionSpirits.length === 0 ? (
                 <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '24px 20px', fontFamily: crimson, color: mut, fontStyle: 'italic', fontSize: 14, lineHeight: 1.7 }}>
@@ -4687,23 +4857,49 @@ function BodyMapView({ theme, isMobile, setSidebarOpen, demons, onSelectSpirit }
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-                  {regionSpirits.map((spirit: any) => (
-                    <div key={spirit.id}
-                      onClick={() => onSelectSpirit && onSelectSpirit(spirit)}
-                      style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '12px 16px', cursor: onSelectSpirit ? 'pointer' : 'default', transition: 'background 0.15s' }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: spirit.symptoms ? 4 : 0 }}>{spirit.name}</div>
-                      {spirit.symptoms && (
-                        <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5 }}>
-                          {String(spirit.symptoms).slice(0, 140)}{String(spirit.symptoms).length > 140 ? '…' : ''}
+                  {regionSpirits.map((spirit: any) => {
+                    const regionCount = countRegions(spirit)
+                    return (
+                      <div key={spirit.id}
+                        style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 10, padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: spirit.symptoms ? 4 : 8 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', flex: 1 }}>{spirit.name}</div>
+                          {regionCount > 1 && (
+                            <span style={{ fontSize: 8, color: mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+                              {regionCount} regions
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {spirit.hierarchyCategory && (
-                        <span style={{ marginTop: 6, display: 'inline-block', fontSize: 8, color: mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px' }}>
-                          {spirit.hierarchyCategory}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                        {spirit.symptoms && (
+                          <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5, marginBottom: 8 }}>
+                            {String(spirit.symptoms).slice(0, 140)}{String(spirit.symptoms).length > 140 ? '…' : ''}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            onClick={() => {
+                              try { localStorage.setItem('wri_prefill_spirit', JSON.stringify({ name: spirit.name, id: spirit.id })) } catch {}
+                              onSelectSpirit && onSelectSpirit(spirit)
+                            }}
+                            style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 12, color: GC, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                            Investigate
+                          </button>
+                          <button
+                            onClick={() => {
+                              try {
+                                const curr = JSON.parse(localStorage.getItem('wri_session_spirits') || '[]')
+                                if (!curr.some((s: any) => s.id === spirit.id)) {
+                                  localStorage.setItem('wri_session_spirits', JSON.stringify([...curr, { name: spirit.name, id: spirit.id }]))
+                                }
+                              } catch {}
+                            }}
+                            style={{ padding: '3px 10px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 12, color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                            + Case Files
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
