@@ -4898,6 +4898,8 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [gapError, setGapError] = useState('')
   const [addingSpirit, setAddingSpirit] = useState<any | null>(null)
   const [addSuccess, setAddSuccess] = useState<string | null>(null)
+  const [selectedGaps, setSelectedGaps] = useState<number[]>([])
+  const [bulkAdding, setBulkAdding] = useState(false)
 
   // Content query state
   const [cqQuery, setCqQuery] = useState('')
@@ -4977,23 +4979,76 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setReindexing(false)
   }
 
-  async function addToDatabase(spirit: any) {
-    setAddingSpirit(spirit)
+  async function fetchSpiritAIData(name: string): Promise<Record<string, string>> {
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `You are a demonic intelligence specialist. Provide structured data for the demon/spirit named "${name}" for a deliverance ministry database.\n\nReturn ONLY this JSON (no markdown):\n{\n  "description": "2-3 sentence description of this spirit's nature, function, and how it operates",\n  "kingdom": "one of: Witchcraft, Occult, False Religion / Paganism, Death / Destruction, Deception / Lies, Marine Kingdom, Familiar Spirits, Addiction, Sexual Perversion, Infirmity, Religious Spirit, Pride",\n  "rank": "one of: Principality, Power, World Ruler, Strongman, Common Spirit",\n  "entry_points": "comma-separated list of common entry points",\n  "manifestations": "comma-separated list of common manifestations",\n  "scriptures": "relevant scripture references"\n}`,
+          history: [],
+        }),
+      })
+      const data = await res.json()
+      const raw = (data.response || '').replace(/^```json\s*/im, '').replace(/```\s*$/im, '').trim()
+      const m = raw.match(/\{[\s\S]*\}/)
+      try { return JSON.parse(m ? m[0] : raw) } catch { return {} }
+    } catch { return {} }
+  }
+
+  async function handleAddWithAI(gap: any) {
+    setAddingSpirit({ name: gap.name, suggested_kingdom: gap.suggested_kingdom || '', context: gap.description || '', source: gap.source || '', loading: true })
+    const aiData = await fetchSpiritAIData(gap.name)
+    setAddingSpirit((prev: any) => prev ? {
+      ...prev,
+      suggested_kingdom: aiData.kingdom || prev.suggested_kingdom,
+      context: aiData.description || prev.context,
+      rank: aiData.rank || '',
+      entry_points: aiData.entry_points || '',
+      manifestations: aiData.manifestations || '',
+      scriptures: aiData.scriptures || '',
+      loading: false,
+    } : null)
+  }
+
+  async function handleBulkAddToDb() {
+    setBulkAdding(true)
+    const toAdd = selectedGaps.map(i => gapResults[i])
+    for (const spirit of toAdd) {
+      const aiData = await fetchSpiritAIData(spirit.name)
+      await confirmAdd({
+        name: spirit.name,
+        suggested_kingdom: aiData.kingdom || spirit.suggested_kingdom || '',
+        context: aiData.description || spirit.description || '',
+        rank: aiData.rank || '',
+        entry_points: aiData.entry_points || '',
+        manifestations: aiData.manifestations || '',
+        scriptures: aiData.scriptures || '',
+        source: spirit.source || '',
+      })
+    }
+    setGapResults((prev: any[]) => prev.filter((_: any, i: number) => !selectedGaps.includes(i)))
+    setSelectedGaps([])
+    setBulkAdding(false)
   }
 
   async function confirmAdd(spirit: any) {
     try {
       const token = await getToken()
       const spiritName = spirit.name || spirit.spirit_name || ''
-      const description = spirit.context || spirit.brief_description || ''
-      const fields: Record<string, string> = {
-        '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE': spiritName,
-        'Description': description,
-      }
       const res = await fetch('/api/admin-demon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ fields }),
+        body: JSON.stringify({
+          name: spiritName,
+          kingdom: spirit.suggested_kingdom,
+          description: spirit.context,
+          rank: spirit.rank,
+          entry_points: spirit.entry_points,
+          manifestations: spirit.manifestations,
+          scriptures: spirit.scriptures,
+          source: spirit.source,
+        }),
       })
       if (res.ok) {
         setAddSuccess(spiritName)
@@ -5051,33 +5106,71 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         {gapResults.length > 0 && (
           <div>
             <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G2, letterSpacing: '0.1em', marginBottom: 12 }}>
-              {gapResults.length} SPIRITS FOUND NOT IN DATABASE
+              {gapResults.length} SPIRITS FOUND IN LIBRARY
             </div>
             {gapSummary && (
               <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, marginBottom: 16, fontStyle: 'italic' }}>
                 {gapSummary}
               </div>
             )}
+            {/* Bulk actions toolbar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${bdr2}`, borderRadius: 6, marginBottom: 16 }}>
+              <input
+                type="checkbox"
+                checked={selectedGaps.length === gapResults.length}
+                onChange={e => setSelectedGaps(e.target.checked ? gapResults.map((_: any, i: number) => i) : [])}
+                style={{ cursor: 'pointer', width: 16, height: 16 }}
+              />
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: mut2, letterSpacing: '0.08em' }}>
+                {selectedGaps.length > 0 ? `${selectedGaps.length} SELECTED` : 'SELECT ALL'}
+              </span>
+              {selectedGaps.length > 0 && (
+                <>
+                  <button
+                    onClick={handleBulkAddToDb}
+                    disabled={bulkAdding}
+                    style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G2}`, borderRadius: 4, color: G2, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    {bulkAdding ? 'ADDING...' : `+ ADD ${selectedGaps.length} TO DATABASE`}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGapResults((prev: any[]) => prev.filter((_: any, i: number) => !selectedGaps.includes(i)))
+                      setSelectedGaps([])
+                    }}
+                    style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${bdr2}`, borderRadius: 4, color: mut2, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    DISMISS SELECTED
+                  </button>
+                </>
+              )}
+            </div>
             <div style={{ display: 'grid', gap: 8 }}>
               {gapResults.map((r, i) => (
-                <div key={i} style={{ padding: '12px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${bdr2}`, borderLeft: `3px solid ${G2}`, borderRadius: 4 }}>
-                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G2, marginBottom: 4 }}>
-                    {r.name || r.spirit_name}
-                  </div>
-                  {(r.context || r.brief_description) && (
-                    <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, marginBottom: 4, fontStyle: 'italic' }}>
-                      "{r.context || r.brief_description}"
+                <div key={i} style={{ padding: '12px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${bdr2}`, borderLeft: `3px solid ${G2}`, borderRadius: 4, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedGaps.includes(i)}
+                    onChange={e => setSelectedGaps(prev => e.target.checked ? [...prev, i] : prev.filter(x => x !== i))}
+                    style={{ cursor: 'pointer', marginTop: 3, flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G2, marginBottom: 4 }}>
+                      {r.name || r.spirit_name}
                     </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: 8 }}>
-                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: mut2, letterSpacing: '0.08em', display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
-                      {(r.source || r.source_document) && <span>SOURCE: {r.source || r.source_document}</span>}
-                      {r.suggested_kingdom && <span>KINGDOM: {r.suggested_kingdom}</span>}
-                      {r.suggested_rank && <span>RANK: {r.suggested_rank}</span>}
+                    {(r.context || r.brief_description) && (
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim2, marginBottom: 4, fontStyle: 'italic' }}>
+                        "{r.context || r.brief_description}"
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: 8 }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: mut2, letterSpacing: '0.08em', display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+                        {(r.source || r.source_document) && <span>SOURCE: {r.source || r.source_document}</span>}
+                        {r.suggested_kingdom && <span>KINGDOM: {r.suggested_kingdom}</span>}
+                        {r.confidence && <span>CONFIDENCE: {r.confidence}</span>}
+                      </div>
+                      <button onClick={() => handleAddWithAI(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
+                        + Add to DB
+                      </button>
                     </div>
-                    <button onClick={() => addToDatabase(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
-                      + Add to DB
-                    </button>
                   </div>
                 </div>
               ))}
@@ -5091,18 +5184,95 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         )}
       </div>
 
-      {/* Add to DB confirmation modal */}
+      {/* Add to DB modal — AI-enhanced */}
       {addingSpirit && (
-        <div onClick={() => setAddingSpirit(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: surf2, border: `1px solid ${G2}55`, borderRadius: 10, padding: 28, maxWidth: 440, width: '100%' }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G2, marginBottom: 12 }}>Add to Database</div>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: txt2, marginBottom: 8 }}>{addingSpirit.spirit_name}</div>
-            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, marginBottom: 16, lineHeight: 1.6 }}>{addingSpirit.brief_description}</div>
+        <div onClick={() => setAddingSpirit(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: surf2, border: `1px solid ${G2}55`, borderRadius: 10, padding: 28, maxWidth: 480, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, marginBottom: 16, letterSpacing: '0.08em' }}>Add to Database</div>
+            {addingSpirit.loading && (
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G2, letterSpacing: '0.1em', marginBottom: 14 }}>
+                ⚡ AI POPULATING FIELDS...
+              </div>
+            )}
+            {/* Name */}
+            <div style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim2, textTransform: 'uppercase' as const, marginBottom: 4 }}>NAME</div>
+            <input
+              value={addingSpirit.name || ''}
+              onChange={e => setAddingSpirit((s: any) => ({ ...s, name: e.target.value }))}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '8px 10px', color: txt2, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 12 }}
+            />
+            {/* Kingdom */}
+            <div style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim2, textTransform: 'uppercase' as const, marginBottom: 4 }}>KINGDOM</div>
+            <select
+              value={addingSpirit.suggested_kingdom || ''}
+              onChange={e => setAddingSpirit((s: any) => ({ ...s, suggested_kingdom: e.target.value }))}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '8px 10px', color: txt2, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 12 }}>
+              <option value="">Select kingdom...</option>
+              <option>Witchcraft</option>
+              <option>Occult</option>
+              <option>False Religion / Paganism</option>
+              <option>Death / Destruction</option>
+              <option>Deception / Lies</option>
+              <option>Marine Kingdom</option>
+              <option>Familiar Spirits</option>
+              <option>Addiction</option>
+              <option>Sexual Perversion</option>
+              <option>Infirmity</option>
+              <option>Religious Spirit</option>
+              <option>Pride</option>
+              <option>Rejection</option>
+              <option>Fear</option>
+            </select>
+            {/* Description */}
+            <div style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim2, textTransform: 'uppercase' as const, marginBottom: 4 }}>DESCRIPTION</div>
+            <textarea
+              value={addingSpirit.context || ''}
+              onChange={e => setAddingSpirit((s: any) => ({ ...s, context: e.target.value }))}
+              rows={3}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '8px 10px', color: txt2, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const, marginBottom: 12 }}
+            />
+            {/* Rank */}
+            <div style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim2, textTransform: 'uppercase' as const, marginBottom: 4 }}>RANK</div>
+            <select
+              value={addingSpirit.rank || ''}
+              onChange={e => setAddingSpirit((s: any) => ({ ...s, rank: e.target.value }))}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '8px 10px', color: txt2, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 12 }}>
+              <option value="">Select rank...</option>
+              <option>Principality</option>
+              <option>Power</option>
+              <option>World Ruler</option>
+              <option>Strongman</option>
+              <option>Common Spirit</option>
+            </select>
+            {/* Entry Points */}
+            <div style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim2, textTransform: 'uppercase' as const, marginBottom: 4 }}>ENTRY POINTS</div>
+            <input
+              value={addingSpirit.entry_points || ''}
+              onChange={e => setAddingSpirit((s: any) => ({ ...s, entry_points: e.target.value }))}
+              placeholder="e.g. Pride, Trauma, Occult contact"
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '8px 10px', color: txt2, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 12 }}
+            />
+            {/* Manifestations */}
+            <div style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim2, textTransform: 'uppercase' as const, marginBottom: 4 }}>MANIFESTATIONS</div>
+            <input
+              value={addingSpirit.manifestations || ''}
+              onChange={e => setAddingSpirit((s: any) => ({ ...s, manifestations: e.target.value }))}
+              placeholder="e.g. Twisting, confusion, isolation"
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '8px 10px', color: txt2, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 12 }}
+            />
+            {/* Scriptures */}
+            <div style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim2, textTransform: 'uppercase' as const, marginBottom: 4 }}>SCRIPTURES</div>
+            <input
+              value={addingSpirit.scriptures || ''}
+              onChange={e => setAddingSpirit((s: any) => ({ ...s, scriptures: e.target.value }))}
+              placeholder="e.g. Job 41:1, Isaiah 27:1"
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '8px 10px', color: txt2, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 20 }}
+            />
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => confirmAdd(addingSpirit)} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: '#80e090', border: 'none', borderRadius: 4, padding: '10px 20px', cursor: 'pointer' }}>
+              <button onClick={() => confirmAdd(addingSpirit)} disabled={!!addingSpirit.loading} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: '#80e090', border: 'none', borderRadius: 4, padding: '10px 20px', cursor: 'pointer', opacity: addingSpirit.loading ? 0.5 : 1 }}>
                 ✓ Confirm Add
               </button>
-              <button onClick={() => setAddingSpirit(null)} style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: dim2, background: 'transparent', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '10px 20px', cursor: 'pointer' }}>
+              <button onClick={() => setAddingSpirit(null)} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: dim2, background: 'transparent', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '10px 20px', cursor: 'pointer' }}>
                 Cancel
               </button>
             </div>

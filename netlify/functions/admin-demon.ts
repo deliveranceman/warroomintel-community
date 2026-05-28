@@ -281,8 +281,25 @@ export default async function handler(req: Request) {
 
   if (req.method === 'POST') {
     const body = await req.json()
-    const { fields } = body
-    if (!fields) return new Response(JSON.stringify({ error: 'fields required' }), { status: 400 })
+
+    // Support named-param format (from gap analysis add flow) OR raw { fields } format
+    let fields: Record<string, any>
+    if (body.fields) {
+      fields = body.fields
+    } else {
+      const { name, kingdom, description, rank, entry_points, manifestations, scriptures, source } = body
+      if (!name) return new Response(JSON.stringify({ error: 'name or fields required' }), { status: 400 })
+      fields = {
+        '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE': name,
+        'Kingdom':          kingdom,
+        'Description':      description,
+        'Biblical Rank':    rank,
+        'Entry Points':     entry_points,
+        'Manifestiation':   manifestations,   // Airtable field has this typo
+        'Counter Scriptures': scriptures,
+        'Source / Orgin':   source,           // Airtable field has this typo
+      }
+    }
 
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
       method: 'POST',
