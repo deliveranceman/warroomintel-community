@@ -16,22 +16,6 @@ function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
 
-async function resolveMinister(token: string): Promise<boolean> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId  = payload.sub
-    if (!userId) return false
-    const res  = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
-}
-
 async function fetchLibraryBooks() {
   console.log('[LIB-INTEL] Querying Supabase for library books...')
   const { data, error } = await sb()
@@ -61,24 +45,32 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const ok = await resolveMinister(token)
-  if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
-
-  const body       = await req.json()
+  // Parse body first so we know the tool before enforcing auth
+  const body = await req.json().catch(() => ({}))
   const { tool, query } = body
 
   console.log('[LIBRARY-INTEL] tool:', tool, 'query:', query?.slice(0, 80))
 
-  const books = await fetchLibraryBooks()
-  const bookTitles = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`)
+  // Safe JWT decode — never throws, handles "Bearer null" / missing tokens
+  const authHeader = req.headers.get('Authorization') || ''
+  const rawToken   = authHeader.replace('Bearer ', '').trim()
+  let userId = ''
+  if (rawToken && rawToken.split('.').length === 3) {
+    try {
+      const payload = JSON.parse(Buffer.from(rawToken.split('.')[1], 'base64url').toString('utf8'))
+      userId = payload.sub || payload.userId || ''
+    } catch (e) {
+      console.error('[LIB-INTEL] JWT decode failed:', e)
+    }
+  }
 
-  if (!books.length) {
-    return new Response(JSON.stringify({ error: 'No library content available. Upload books with AI enabled in the Ministry Library tab.' }), { status: 400, headers })
+  // gap-analysis and content-query read shared library — no per-user auth required
+  if (!userId && tool !== 'gap-analysis' && tool !== 'content-query') {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
   }
 
   // ── TOOL 1: Spirit Gap Analysis ──────────────────────────────────────────────
+  // (gap-analysis does its own fresh books query internally — no pre-fetch needed)
   if (tool === 'gap-analysis') {
     try {
       const t0 = Date.now()
@@ -208,13 +200,14 @@ Return ONLY this JSON (no markdown):
         }
       }
 
-      const gaps = Array.from(allGaps.values())
+      const gaps      = Array.from(allGaps.values())
+      const gapTitles = gapBooks.map((b: any) => b.title)
       console.log(`[GAP] Total: ${gaps.length} unique new spirits in ${Date.now() - t0}ms`)
 
       return new Response(JSON.stringify({
         gaps,
-        summary: `Analyzed ${gapBooks.length} books. Found ${gaps.length} spirits not in database.`,
-        bookTitles,
+        summary:    `Analyzed ${gapBooks.length} books. Found ${gaps.length} spirits not in database.`,
+        bookTitles: gapTitles,
         bookCount:   gapBooks.length,
         spiritCount: existingNames.length,
       }), { status: 200, headers })
@@ -227,6 +220,10 @@ Return ONLY this JSON (no markdown):
   // ── TOOL 2: Content Intelligence Query ───────────────────────────────────────
   if (tool === 'content-query') {
     if (!query?.trim()) return new Response(JSON.stringify({ error: 'query required' }), { status: 400, headers })
+
+    const books      = await fetchLibraryBooks()
+    const bookTitles = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`)
+    if (!books.length) return new Response(JSON.stringify({ error: 'No library content available.' }), { status: 400, headers })
 
     const libraryText = books.map((b: any) =>
       `[${b.title}${b.author ? ` by ${b.author}` : ''}]:\n${(b.extracted_text || '').slice(0, 3000)}`

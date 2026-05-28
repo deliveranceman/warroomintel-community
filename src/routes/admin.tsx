@@ -4917,9 +4917,12 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setGapMeta(null)
     try {
       const token = await getToken()
+      console.log('[FRONTEND] gap-analysis token present:', !!token, 'length:', token?.length)
+      const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) reqHeaders['Authorization'] = `Bearer ${token}`
       const res = await fetch('/api/library-intelligence', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: reqHeaders,
         body: JSON.stringify({ tool: 'gap-analysis' }),
       })
       const data = await res.json()
@@ -4938,9 +4941,11 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setCqError('')
     try {
       const token = await getToken()
+      const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) reqHeaders['Authorization'] = `Bearer ${token}`
       const res = await fetch('/api/library-intelligence', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: reqHeaders,
         body: JSON.stringify({ tool: 'content-query', query: cqQuery }),
       })
       const data = await res.json()
