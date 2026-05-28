@@ -151,6 +151,73 @@ export default async function handler(req: Request) {
           console.error('[LIBRARY-UPLOAD] FAILED at step: Update extracted_text', updateErr.message)
         } else {
           console.log('[LIBRARY-UPLOAD] extracted_text stored', { chars: extractedText.length, resourceId: row.id })
+          // AI spirit tag extraction — best effort, non-fatal
+          try {
+            const excerpt = extractedText.slice(0, 8000)
+            const aiPrompt = `You are analyzing a deliverance ministry document.
+
+DOCUMENT TEXT (first 8000 chars):
+${excerpt}
+
+Your task:
+1. Read the full text carefully
+2. Identify EVERY demonic spirit, demon name, spiritual entity, or occult force mentioned or strongly implied
+3. Include both explicit names (Leviathan, Baal, Jezebel) AND functional spirits (Pride, Rejection, Fear, Witchcraft, Divination)
+4. Cross-reference against known demon taxonomy:
+   Principalities: Satan, Leviathan, Baal, Jezebel, Python, Belial, Beelzebub, Apollyon, Abaddon, Mammon, Molech, Chemosh, Dagon, Ashtoreth, Baphomet
+   Powers: Witchcraft, Divination, Freemasonry spirits, Marine spirits, Religious spirit, Spirit of Death, Infirmity
+   Common spirits: Pride, Rejection, Fear, Shame, Lust, Perversion, Addiction, Confusion, Torment, Suicide, Rage, Control, Manipulation, Deception, Rebellion, Bitterness, Unforgiveness, Grief, Trauma
+   Occult: Familiar spirits, Ancestral spirits, Incubus, Succubus, Voodoo spirits, Santeria, New Age spirits
+5. Identify the document's PRIMARY ministry function
+6. Identify the PRIMARY topic category
+
+Return ONLY this JSON (no markdown, no code fences):
+{
+  "title": "clean professional document title",
+  "description": "2-3 sentence summary written for a deliverance minister explaining what this document is and how to use it in ministry",
+  "spirit_tags": ["Spirit1", "Spirit2"],
+  "function_tags": ["Teaching"],
+  "topic": "Deliverance Foundations"
+}
+
+function_tags must be from: Teaching, Protocol, Worksheet, Session Tool, Scripture Reference, Aftercare, Assessment Tool, Quick Reference, Leader Guide, Self-Deliverance, Group Exercise, Renunciation Prayer
+topic must be from: Soul Ties, Generational Curses, Forgiveness, Ungodly Vows, Freemasonry & Secret Societies, Sexual Bondage, Fear, Deliverance Foundations, Witchcraft & Occult, Marine Kingdom, False Religion / Paganism, Death & Destruction, Deception / Lies, Inner Healing, Trauma & Abuse`
+
+            const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY!,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 1000,
+                system: 'You are a deliverance ministry document analyst. Return ONLY valid JSON. No markdown, no code fences.',
+                messages: [{ role: 'user', content: aiPrompt }],
+              }),
+              signal: AbortSignal.timeout(15000),
+            })
+            if (aiRes.ok) {
+              const aiData = await aiRes.json()
+              const raw = (aiData.content?.[0]?.text || '').trim()
+                .replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim()
+              try {
+                const parsed = JSON.parse(raw)
+                const aiUpdate: Record<string, any> = {}
+                if (Array.isArray(parsed.spirit_tags) && parsed.spirit_tags.length > 0) aiUpdate.spirit_tags = parsed.spirit_tags
+                if (parsed.description) aiUpdate.description = parsed.description
+                if (Array.isArray(parsed.function_tags) && parsed.function_tags.length > 0) aiUpdate.function_tags = parsed.function_tags
+                if (parsed.topic) aiUpdate.topic = parsed.topic
+                if (Object.keys(aiUpdate).length > 0) {
+                  await sb.from('resources').update(aiUpdate).eq('id', row.id)
+                  console.log('[LIBRARY-UPLOAD] AI tagging stored', { spirits: aiUpdate.spirit_tags?.length ?? 0, topic: aiUpdate.topic })
+                }
+              } catch { console.error('[LIBRARY-UPLOAD] AI tagging JSON parse failed') }
+            }
+          } catch (e: any) {
+            console.error('[LIBRARY-UPLOAD] AI tagging failed:', e?.message)
+          }
         }
       } else {
         console.log('[LIBRARY-UPLOAD] No text extracted — extracted_text remains null')

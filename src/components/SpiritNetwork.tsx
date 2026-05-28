@@ -196,70 +196,6 @@ function EmptyCanvas({ onSelectSpirit, demons }: { onSelectSpirit: (d: Demon) =>
   )
 }
 
-// ── RIGHT DRAWER ───────────────────────────────────────────────────────────────
-
-function RightDrawer({ spirit, resources, loadingResources, onClose }: {
-  spirit: Demon; resources: any[]; loadingResources: boolean; onClose: () => void
-}) {
-  return (
-    <div style={{ flex: 1, overflowY: 'auto' as const, padding: 20, position: 'relative' as const }}>
-      <button onClick={onClose}
-        style={{ position: 'absolute' as const, top: 12, right: 12, background: 'transparent', border: 'none', color: DIM, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
-
-      <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.1em', marginBottom: 16, paddingRight: 24 }}>{spirit.name}</div>
-
-      {spirit.scripture && (
-        <section style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 8 }}>📖 SCRIPTURES</div>
-          <div style={{ fontFamily: inter, fontSize: 12, color: '#6a5a7a', lineHeight: 1.6 }}>{spirit.scripture}</div>
-        </section>
-      )}
-
-      <section style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 10 }}>🧠 GATEWAY INTEL</div>
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: inter, fontSize: 11, color: DIM }}>Generational:</span>
-            <span style={{ fontFamily: inter, fontSize: 10, padding: '1px 8px', borderRadius: 10, background: spirit.isGenerational ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.03)', color: spirit.isGenerational ? '#f87171' : DIM, border: `1px solid ${spirit.isGenerational ? 'rgba(248,113,113,0.3)' : MUT}` }}>
-              {spirit.isGenerational ? 'Yes' : 'No'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: inter, fontSize: 11, color: DIM }}>Territorial:</span>
-            <span style={{ fontFamily: inter, fontSize: 10, padding: '1px 8px', borderRadius: 10, background: spirit.isTerritorial ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.03)', color: spirit.isTerritorial ? '#fbbf24' : DIM, border: `1px solid ${spirit.isTerritorial ? 'rgba(251,191,36,0.3)' : MUT}` }}>
-              {spirit.isTerritorial ? 'Yes' : 'No'}
-            </span>
-          </div>
-          {spirit.primaryBattlefield && (
-            <div>
-              <div style={{ fontFamily: inter, fontSize: 10, color: DIM, marginBottom: 2 }}>Battlefield</div>
-              <div style={{ fontFamily: inter, fontSize: 12, color: '#8a7a6a' }}>{spirit.primaryBattlefield}</div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {(loadingResources || resources.length > 0) && (
-        <section style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 10 }}>📜 RELATED DOCUMENTS</div>
-          {loadingResources ? (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
-              {[80, 60, 70].map((w, i) => (
-                <div key={i} style={{ height: 12, background: BDR, borderRadius: 4, width: `${w}%` }} />
-              ))}
-            </div>
-          ) : resources.map((r: any) => (
-            <div key={r.id} style={{ borderLeft: '2px solid rgba(201,168,76,0.3)', paddingLeft: 10, marginBottom: 8 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 10, color: '#c8b99a', letterSpacing: '0.04em', marginBottom: 1 }}>{r.title}</div>
-              {r.topic && <div style={{ fontFamily: inter, fontSize: 10, color: DIM }}>{r.topic}</div>}
-            </div>
-          ))}
-        </section>
-      )}
-    </div>
-  )
-}
-
 // ── DOSSIER MODE ───────────────────────────────────────────────────────────────
 
 function DossierMode({ spirit, demons, resources, loadingResources, onSelectSpirit }: {
@@ -504,7 +440,7 @@ const KINGDOM_ORDER = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft'
 export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
   const [selectedSpirit,  setSelectedSpirit]  = useState<Demon | null>(null)
   const [mode,            setMode]            = useState<'network' | 'dossier'>('network')
-  const [drawerOpen,      setDrawerOpen]      = useState(false)
+  const [activeDrawer,    setActiveDrawer]    = useState<'scriptures' | 'gateway' | 'documents' | null>(null)
   const [dossierExpanded, setDossierExpanded] = useState(false)
   const [searchQuery,     setSearchQuery]     = useState('')
   const [resources,       setResources]       = useState<any[]>([])
@@ -530,7 +466,6 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
       if (prev) setNavStack(stack => [...stack, prev])
       return demon
     })
-    setDrawerOpen(true)
     setDossierExpanded(false)
     fetchResources(demon)
   }, [fetchResources])
@@ -542,7 +477,6 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
       return idx >= 0 ? prev.slice(0, idx) : []
     })
     setSelectedSpirit(demon)
-    setDrawerOpen(true)
     setDossierExpanded(false)
     fetchResources(demon)
   }, [fetchResources])
@@ -551,7 +485,6 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
   const navigateToHistory = useCallback((index: number, demon: Demon) => {
     setNavStack(prev => prev.slice(0, index))
     setSelectedSpirit(demon)
-    setDrawerOpen(true)
     fetchResources(demon)
   }, [fetchResources])
 
@@ -560,7 +493,6 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
     setNavStack([])
     setSelectedSpirit(demon)
     setSearchQuery('')
-    setDrawerOpen(true)
     setDossierExpanded(false)
     fetchResources(demon)
   }, [fetchResources])
@@ -667,27 +599,26 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
       {/* MAIN AREA */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
-        {/* CENTER — org chart or dossier, no left sidebar */}
-        <div style={{ flex: 1, position: 'relative' as const, overflow: 'hidden', minWidth: 0 }}>
+        {/* CENTER — full-width canvas, position relative for flyout */}
+        <div style={{ flex: 1, position: 'relative' as const, overflow: 'hidden', minWidth: 0 }}
+          onClick={() => setActiveDrawer(null)}>
           {mode === 'network' ? (
             selectedSpirit ? (
-              <div style={{ height: '100%', overflowY: 'auto' as const, padding: '20px 28px', background: DARK }}>
+              <div style={{ height: '100%', overflowY: 'auto' as const, padding: '20px 28px 20px 28px', background: DARK }}>
 
-                {/* Breadcrumb */}
-                {navStack.length > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' as const }}>
-                    {navStack.map((d, i) => (
-                      <span key={`${d.id}-${i}`}>
-                        <span onClick={() => navigateToHistory(i, d)}
-                          style={{ fontFamily: inter, fontSize: 11, color: GC, cursor: 'pointer', textDecoration: 'underline' }}>
-                          {d.name}
-                        </span>
-                        <span style={{ color: MUT, margin: '0 4px' }}>→</span>
+                {/* Breadcrumb — always visible when a spirit is selected */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' as const }}>
+                  {navStack.map((d, i) => (
+                    <span key={`${d.id}-${i}`}>
+                      <span onClick={e => { e.stopPropagation(); navigateToHistory(i, d) }}
+                        style={{ fontFamily: inter, fontSize: 11, color: GC, cursor: 'pointer', textDecoration: 'underline', opacity: 0.7 }}>
+                        {d.name}
                       </span>
-                    ))}
-                    <span style={{ fontFamily: inter, fontSize: 11, color: '#8a7a60' }}>{selectedSpirit.name}</span>
-                  </div>
-                )}
+                      <span style={{ color: MUT, margin: '0 4px', fontSize: 10 }}>→</span>
+                    </span>
+                  ))}
+                  <span style={{ fontFamily: inter, fontSize: 11, color: '#8a7a60' }}>{selectedSpirit.name}</span>
+                </div>
 
                 {/* SVG Org Chart */}
                 <OrgChartSVG
@@ -707,7 +638,7 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
                   </div>
                 )}
 
-                {/* Companion chips (mobile-style fallback when chart is too wide) */}
+                {/* Companion chips */}
                 {companionNames.length > 0 && (
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${BDR}` }}>
                     <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 10 }}>COMPANION SPIRITS</div>
@@ -715,7 +646,7 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
                       {companionNames.map(name => {
                         const found = demons.find(d => d.name.toLowerCase() === name.toLowerCase())
                         return (
-                          <button key={name} onClick={() => found && selectSpirit(found)}
+                          <button key={name} onClick={e => { e.stopPropagation(); found && selectSpirit(found) }}
                             style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${found ? 'rgba(201,168,76,0.4)' : MUT}`, borderRadius: 20, padding: '5px 12px', cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.05em', color: found ? GC : DIM }}
                             onMouseEnter={e => { if (found) e.currentTarget.style.background = 'rgba(201,168,76,0.14)' }}
                             onMouseLeave={e => { if (found) e.currentTarget.style.background = 'rgba(201,168,76,0.06)' }}>
@@ -724,21 +655,6 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
                         )
                       })}
                     </div>
-                  </div>
-                )}
-
-                {/* Documents section */}
-                {(resources.length > 0 || loadingResources) && (
-                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${BDR}` }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 10 }}>RELATED DOCUMENTS</div>
-                    {loadingResources ? (
-                      <div style={{ fontFamily: inter, fontSize: 13, color: DIM, fontStyle: 'italic' }}>Loading…</div>
-                    ) : resources.map((r: any) => (
-                      <div key={r.id} style={{ borderLeft: '2px solid rgba(201,168,76,0.3)', paddingLeft: 12, marginBottom: 8 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: '#c8b99a', marginBottom: 1 }}>{r.title}</div>
-                        {r.topic && <div style={{ fontFamily: inter, fontSize: 10, color: DIM }}>{r.topic}</div>}
-                      </div>
-                    ))}
                   </div>
                 )}
               </div>
@@ -750,12 +666,89 @@ export function SpiritNetwork({ demons, isMobile }: SpiritNetworkProps) {
           ) : (
             <EmptyCanvas onSelectSpirit={searchSelect} demons={demons} />
           )}
-        </div>
 
-        {/* RIGHT DRAWER */}
-        <div style={{ width: drawerOpen && selectedSpirit ? 280 : 0, flexShrink: 0, overflow: 'hidden', transition: 'width 250ms ease', background: DARK, borderLeft: drawerOpen && selectedSpirit ? `1px solid ${BDR}` : 'none', display: 'flex', flexDirection: 'column' as const }}>
-          {selectedSpirit && drawerOpen && (
-            <RightDrawer spirit={selectedSpirit} resources={resources} loadingResources={loadingResources} onClose={() => setDrawerOpen(false)} />
+          {/* FLYOUT TAB HANDLES — only when a spirit is selected */}
+          {selectedSpirit && (
+            <div style={{ position: 'absolute' as const, right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column' as const, gap: 6, zIndex: 20 }}>
+              {[
+                { key: 'scriptures' as const, icon: '📖', label: 'SCRIPTURES', show: !!selectedSpirit.scripture },
+                { key: 'gateway'    as const, icon: '🧠', label: 'GATEWAY',    show: true },
+                { key: 'documents'  as const, icon: '📂', label: 'DOCUMENTS',  show: true },
+              ].filter(t => t.show).map(tab => (
+                <button key={tab.key}
+                  onClick={e => { e.stopPropagation(); setActiveDrawer(activeDrawer === tab.key ? null : tab.key) }}
+                  style={{ writingMode: 'vertical-rl' as const, textOrientation: 'mixed' as const, padding: '12px 7px', background: activeDrawer === tab.key ? 'rgba(201,168,76,0.15)' : '#0d0a14', border: `1px solid ${activeDrawer === tab.key ? GC : MUT}`, borderRight: 'none', borderRadius: '6px 0 0 6px', color: activeDrawer === tab.key ? GC : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* FLYOUT PANEL — slides in from right edge */}
+          {selectedSpirit && (
+            <div onClick={e => e.stopPropagation()}
+              style={{ position: 'absolute' as const, right: 32, top: 0, bottom: 0, width: 272, background: '#09070F', borderLeft: `1px solid ${BDR}`, transform: activeDrawer ? 'translateX(0)' : 'translateX(110%)', transition: 'transform 200ms ease', zIndex: 19, overflowY: 'auto' as const, padding: 20 }}>
+              <button onClick={() => setActiveDrawer(null)} style={{ position: 'absolute' as const, top: 10, right: 12, background: 'transparent', border: 'none', color: DIM, fontSize: 16, cursor: 'pointer', lineHeight: 1 }}>×</button>
+
+              {activeDrawer === 'scriptures' && (
+                <>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 12, paddingRight: 20 }}>📖 SCRIPTURES</div>
+                  <div style={{ fontFamily: inter, fontSize: 13, color: '#8a7a6a', lineHeight: 1.7 }}>{selectedSpirit.scripture || 'No scriptures on record.'}</div>
+                </>
+              )}
+
+              {activeDrawer === 'gateway' && (
+                <>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 12, paddingRight: 20 }}>🧠 GATEWAY INTEL</div>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontFamily: inter, fontSize: 11, color: DIM, flexShrink: 0 }}>Generational:</span>
+                      <span style={{ fontFamily: inter, fontSize: 10, padding: '1px 8px', borderRadius: 10, background: selectedSpirit.isGenerational ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.03)', color: selectedSpirit.isGenerational ? '#f87171' : DIM, border: `1px solid ${selectedSpirit.isGenerational ? 'rgba(248,113,113,0.3)' : MUT}` }}>
+                        {selectedSpirit.isGenerational ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontFamily: inter, fontSize: 11, color: DIM, flexShrink: 0 }}>Territorial:</span>
+                      <span style={{ fontFamily: inter, fontSize: 10, padding: '1px 8px', borderRadius: 10, background: selectedSpirit.isTerritorial ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.03)', color: selectedSpirit.isTerritorial ? '#fbbf24' : DIM, border: `1px solid ${selectedSpirit.isTerritorial ? 'rgba(251,191,36,0.3)' : MUT}` }}>
+                        {selectedSpirit.isTerritorial ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    {selectedSpirit.primaryBattlefield && (
+                      <div>
+                        <div style={{ fontFamily: inter, fontSize: 10, color: DIM, marginBottom: 3 }}>Battlefield</div>
+                        <div style={{ fontFamily: inter, fontSize: 12, color: '#8a7a6a' }}>{selectedSpirit.primaryBattlefield}</div>
+                      </div>
+                    )}
+                    {selectedSpirit.entryPoints && (
+                      <div>
+                        <div style={{ fontFamily: inter, fontSize: 10, color: DIM, marginBottom: 3 }}>Entry Points</div>
+                        <div style={{ fontFamily: inter, fontSize: 12, color: '#8a7a6a', lineHeight: 1.6 }}>{selectedSpirit.entryPoints}</div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {activeDrawer === 'documents' && (
+                <>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 12, paddingRight: 20 }}>📂 RELATED DOCUMENTS</div>
+                  {loadingResources ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                      {[80, 60, 70].map((w, i) => (
+                        <div key={i} style={{ height: 12, background: BDR, borderRadius: 4, width: `${w}%` }} />
+                      ))}
+                    </div>
+                  ) : resources.length === 0 ? (
+                    <div style={{ fontFamily: inter, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No documents tagged for this spirit.</div>
+                  ) : resources.map((r: any) => (
+                    <div key={r.id} style={{ borderLeft: '2px solid rgba(201,168,76,0.3)', paddingLeft: 10, marginBottom: 10 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: '#c8b99a', letterSpacing: '0.04em', marginBottom: 1 }}>{r.title}</div>
+                      {r.topic && <div style={{ fontFamily: inter, fontSize: 10, color: DIM }}>{r.topic}</div>}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>

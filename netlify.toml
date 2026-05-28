@@ -47,12 +47,14 @@
 
 [functions."admin-library-save"]
   timeout = 10
+  external_node_modules = ["pdf-parse"]
 
 [functions."library-autofill"]
   timeout = 15
 
 [functions."library-index"]
   timeout = 26
+  external_node_modules = ["pdf-parse"]
 
 [functions."admin-taxonomy-ai"]
   timeout = 26
@@ -62,3 +64,11 @@
 
 [functions."forum-og"]
   timeout = 12
+
+[functions."library-backfill"]
+  timeout = 60
+  external_node_modules = ["pdf-parse"]
+
+[functions."library-reanalyze"]
+  timeout = 30
+  external_node_modules = ["pdf-parse"]

@@ -28,6 +28,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
+import { Route as CommunityForumRouteImport } from './routes/community_.forum'
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
@@ -149,6 +150,11 @@ const CommunitySpiritualMappingRoute =
     path: '/community/spiritual-mapping',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CommunityForumRoute = CommunityForumRouteImport.update({
+  id: '/community_/forum',
+  path: '/community/forum',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityFieldManualRoute = CommunityFieldManualRouteImport.update({
   id: '/community_/field-manual',
   path: '/community/field-manual',
@@ -311,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
+  '/community/forum': typeof CommunityForumRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -355,6 +362,7 @@ export interface FileRoutesByTo {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
+  '/community/forum': typeof CommunityForumRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
@@ -401,6 +409,7 @@ export interface FileRoutesById {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
+  '/community_/forum': typeof CommunityForumRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -448,6 +457,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community/field-manual'
+    | '/community/forum'
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
@@ -492,6 +502,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community/field-manual'
+    | '/community/forum'
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin'
@@ -537,6 +548,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community_/field-manual'
+    | '/community_/forum'
     | '/community_/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
@@ -582,6 +594,7 @@ export interface RootRouteChildren {
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
+  CommunityForumRoute: typeof CommunityForumRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
 }
@@ -719,6 +732,13 @@ declare module '@tanstack/react-router' {
       path: '/community/spiritual-mapping'
       fullPath: '/community/spiritual-mapping'
       preLoaderRoute: typeof CommunitySpiritualMappingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/forum': {
+      id: '/community_/forum'
+      path: '/community/forum'
+      fullPath: '/community/forum'
+      preLoaderRoute: typeof CommunityForumRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/field-manual': {
@@ -944,6 +964,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   CommunityFieldManualRoute: CommunityFieldManualRoute,
+  CommunityForumRoute: CommunityForumRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
 }

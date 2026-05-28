@@ -3238,6 +3238,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [editingId,   setEditingId]   = useState<string | null>(null)
   const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[] }>({ title: '', author: '', notes: '', topic: 'ministry-library', spirit_tags: [] })
   const [editLoading, setEditLoading] = useState(false)
+  const [reanalyzeId, setReanalyzeId] = useState<string | null>(null)
+  const [reanalyzeErr, setReanalyzeErr] = useState<string | null>(null)
 
   // Re-tag state
   const [retagRunning, setRetagRunning] = useState(false)
@@ -3485,6 +3487,23 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   function cancelEdit() {
     setEditingId(null)
     setEditLoading(false)
+  }
+
+  async function reanalyzeBook(bookId: string) {
+    setReanalyzeId(bookId)
+    setReanalyzeErr(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/library-reanalyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ resourceId: bookId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setReanalyzeErr(data.error || 'Reanalysis failed'); return }
+      if (data.resource) setBooks(prev => prev.map(b => b.id === bookId ? { ...b, ...data.resource } : b))
+    } catch (e: any) { setReanalyzeErr(e.message) }
+    finally { setReanalyzeId(null) }
   }
 
   async function saveEdit() {
@@ -3877,6 +3896,20 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '4px 8px', cursor: 'pointer', letterSpacing: '0.06em' }}
                           title="Strip leading numeric prefix from title"
                         >✂ Clean</button>
+                      )}
+                      {/* ⚡ RE-ANALYZE BUTTON */}
+                      {!isEditing && (
+                        <button
+                          onClick={() => reanalyzeBook(book.id)}
+                          disabled={reanalyzeId === book.id}
+                          style={{ background: 'transparent', border: '1px solid rgba(92,124,191,0.5)', borderRadius: 5, color: reanalyzeId === book.id ? '#4a6a9a' : '#5C7CBF', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: reanalyzeId === book.id ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}
+                          title="Re-analyze: extract text + AI spirit tags"
+                        >
+                          {reanalyzeId === book.id ? '⏳ Analyzing…' : '⚡ Re-analyze'}
+                        </button>
+                      )}
+                      {reanalyzeErr && reanalyzeId === null && (
+                        <span style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171' }}>{reanalyzeErr}</span>
                       )}
                       {/* ✎ EDIT BUTTON */}
                       <button

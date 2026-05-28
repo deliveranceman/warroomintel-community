@@ -2419,7 +2419,14 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
         <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
           ⚡ Intel Briefing
         </div>
-        {posts.length === 0 ? (
+        <style>{`@keyframes wri-pulse{0%,100%{opacity:0.4}50%{opacity:0.8}}`}</style>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ height: 110, background: 'rgba(201,168,76,0.04)', borderRadius: 10, border: '1px solid rgba(201,168,76,0.1)', animation: 'wri-pulse 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
+        ) : posts.length === 0 ? (
           <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '40px 24px', textAlign: 'center' as const }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
             <div style={{ fontFamily: cinzel, color: GG, fontSize: 16, marginBottom: 8 }}>No Briefings Yet</div>
@@ -3633,7 +3640,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       {/* Topic filter */}
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Topic</div>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any, flexWrap: 'nowrap' as const, paddingBottom: 4 }}>
           {['All', ...ARSENAL_TOPICS].map(t => (
             <button key={t} onClick={() => setTopicFilter(t === 'All' ? '' : t)}
               style={{ flexShrink: 0, padding: '4px 12px', background: (topicFilter === t || (t === 'All' && !topicFilter)) ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${(topicFilter === t || (t === 'All' && !topicFilter)) ? G : border}`, borderRadius: 20, color: (topicFilter === t || (t === 'All' && !topicFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
@@ -3646,7 +3653,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       {/* Function tag filter */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Function</div>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any, flexWrap: 'nowrap' as const, paddingBottom: 4 }}>
           {['All', ...ARSENAL_TAGS].map(t => (
             <button key={t} onClick={() => setTagFilter(t === 'All' ? '' : t)}
               style={{ flexShrink: 0, padding: '4px 12px', background: (tagFilter === t || (t === 'All' && !tagFilter)) ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${(tagFilter === t || (t === 'All' && !tagFilter)) ? G : border}`, borderRadius: 20, color: (tagFilter === t || (t === 'All' && !tagFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
@@ -5667,13 +5674,16 @@ function CommunityPage() {
     return () => clearTimeout(t)
   }, [user?.id])
 
-  // Fetch demons for Body Map + Spirit Network
+  // Fetch demons for Body Map + Spirit Network — delay 2s so critical fetches go first
   useEffect(() => {
     if (!user?.id) return
-    fetch('/api/demons')
-      .then(r => r.json())
-      .then(d => setDemons(d.demons || d.records || []))
-      .catch(() => {})
+    const t = setTimeout(() => {
+      fetch('/api/demons')
+        .then(r => r.json())
+        .then(d => setDemons(d.demons || d.records || []))
+        .catch(() => {})
+    }, 2000)
+    return () => clearTimeout(t)
   }, [user?.id])
 
   // Fetch Stream presence for Warriors section
@@ -6139,6 +6149,7 @@ function CommunityPage() {
 
         {/* ── FOUNDATION ── */}
         {sectionLabel('Foundation')}
+        {navItem('Arsenal', 'arsenal', '✦')}
         <a href="/community/field-manual" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
@@ -6222,7 +6233,6 @@ function CommunityPage() {
           <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📍</span>
           <span>Spiritual Mapping</span>
         </a>
-        {navItem('Arsenal', 'arsenal', '✦')}
         {navItem('Assessment', 'assessment', '📋')}
 
         {/* ── TRAINING (collapsible) ── */}

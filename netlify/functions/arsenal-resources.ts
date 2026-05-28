@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
 
@@ -66,7 +65,7 @@ export default async function handler(req: Request) {
   if (action === 'download' && resourceId) {
     const { data: resource, error: resourceError } = await supabase
       .from('resources')
-      .select('id, title, file_path, mime_type, tier')
+      .select('id, title, file_path, file_type, tier')
       .eq('id', resourceId)
       .single()
     if (resourceError || !resource) return new Response(JSON.stringify({ error: 'Resource not found' }), { status: 404, headers })
@@ -75,12 +74,16 @@ export default async function handler(req: Request) {
       .from('resources')
       .download(resource.file_path)
     if (error || !data) return new Response(JSON.stringify({ error: 'File not found' }), { status: 404, headers })
+    const mimeType = resource.file_type === 'pdf' ? 'application/pdf'
+      : resource.file_type === 'txt' ? 'text/plain'
+      : resource.file_type === 'mp3' || resource.file_type === 'mpeg' ? 'audio/mpeg'
+      : 'application/octet-stream'
     const arrayBuffer = await data.arrayBuffer()
     return new Response(arrayBuffer, {
       status: 200,
       headers: {
         ...headers,
-        'Content-Type': resource.mime_type || 'application/octet-stream',
+        'Content-Type': mimeType,
         'Content-Disposition': `attachment; filename="${resource.title}"`,
       }
     })
@@ -102,7 +105,21 @@ export default async function handler(req: Request) {
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
 
-  return new Response(JSON.stringify({ resources: data, userTier }), { status: 200, headers })
+  // Generate signed URLs for download links (bucket is private)
+  const paths = (data || []).filter((r: any) => r.file_path).map((r: any) => r.file_path)
+  const signedMap: Record<string, string> = {}
+  if (paths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from('resources').createSignedUrls(paths, 3600)
+    for (const su of signedUrls || []) {
+      if (su.signedUrl && su.path) signedMap[su.path] = su.signedUrl
+    }
+  }
+  const resources = (data || []).map((r: any) => ({
+    ...r,
+    file_url: r.file_path ? (signedMap[r.file_path] || null) : null,
+  }))
+
+  return new Response(JSON.stringify({ resources, userTier }), { status: 200, headers })
 }
 
 export const config = { path: '/api/arsenal-resources' }
