@@ -4995,7 +4995,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       let data: any = {}
       try { data = text ? JSON.parse(text) : {} } catch { data = { error: text } }
       if (!res.ok) { setReindexResult(`Error: ${data.error || data.errorMessage || `Request failed ${res.status}`}`); return }
-      setReindexResult(`Reindex complete: ${data.succeeded}/${data.processed} books extracted. Reload to test.`)
+      setReindexResult(data.message || `Reindex complete: ${data.processed} extracted, ${data.skipped ?? 0} already indexed.`)
     } catch (e: any) { setReindexResult(`Error: ${e.message}`) }
     setReindexing(false)
   }

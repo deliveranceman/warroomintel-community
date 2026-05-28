@@ -1,13 +1,16 @@
 /**
- * library-backfill — extract and store text for all ministry-library resources
- * that currently have extracted_text = null. Call once after deploying the fix.
+ * library-backfill — storage-first re-index for all ministry-library books.
+ * 1. Lists ALL files in storage bucket (root + user subfolder)
+ * 2. Processes existing resources rows with null extracted_text
+ * 3. Creates resources rows for storage files that have no DB record
+ * 4. Skips anything that already has extracted_text
  *
  * POST /api/library-backfill   (minister auth required)
  */
 
 import { createClient } from '@supabase/supabase-js'
 
-const BUCKET = 'ministry-library'
+const BUCKET    = 'ministry-library'
 const MAX_CHARS = 120_000
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,27 +25,34 @@ function sb() {
   )
 }
 
-async function isMinister(token: string): Promise<boolean> {
+async function resolveMinister(token: string): Promise<{ ok: boolean; userId: string }> {
   try {
     const parts = token.split('.')
-    if (parts.length !== 3) return false
+    if (parts.length !== 3) return { ok: false, userId: '' }
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
-    if (!userId) return false
+    if (!userId) return { ok: false, userId: '' }
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return false
+    if (!res.ok) return { ok: false, userId }
     const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
+    return { ok: data?.public_metadata?.role === 'minister', userId }
+  } catch { return { ok: false, userId: '' } }
 }
 
-async function extractText(blob: Blob): Promise<string | null> {
-  // All ministry-library files are .txt — read directly as UTF-8 text
-  const arrayBuffer = await blob.arrayBuffer()
-  const text = new TextDecoder('utf-8').decode(arrayBuffer).replace(/\0/g, ' ').slice(0, MAX_CHARS)
-  return text || null
+function extractTextFromBuffer(buf: ArrayBuffer): string {
+  return new TextDecoder('utf-8').decode(buf).replace(/\0/g, ' ').slice(0, MAX_CHARS)
+}
+
+function titleFromPath(filePath: string): string {
+  const name = filePath.split('/').pop() || filePath
+  return name
+    .replace(/^\d+[-_]/, '')           // strip timestamp prefix like 1234567890-
+    .replace(/[-_]/g, ' ')
+    .replace(/\.[^.]+$/, '')           // strip extension
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim() || 'Untitled'
 }
 
 export default async function handler(req: Request) {
@@ -51,70 +61,151 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-  const ok = await isMinister(token)
+
+  const { ok, userId } = await resolveMinister(token)
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: CORS })
 
   const client = sb()
+  let processed = 0
+  let skipped   = 0
+  let errors    = 0
+  const log: string[] = []
 
-  const { data: resources, error: fetchErr } = await client
+  // ── Step 1: Load all existing resources rows ────────────────────────────────
+  const { data: existingRows, error: rowsErr } = await client
     .from('resources')
-    .select('id, title, file_path, file_type, filename')
+    .select('id, title, file_path, extracted_text')
     .eq('topic', 'ministry-library')
-    .is('extracted_text', null)
 
-  if (fetchErr) {
-    return new Response(JSON.stringify({ error: fetchErr.message }), { status: 500, headers: CORS })
+  if (rowsErr) {
+    return new Response(JSON.stringify({ error: rowsErr.message }), { status: 500, headers: CORS })
   }
 
-  const rows = resources || []
-  console.log(`[library-backfill] Found ${rows.length} resources with null extracted_text`)
+  const byPath = new Map<string, { id: string; title: string; extracted_text: string | null }>(
+    (existingRows || []).map(r => [r.file_path, r])
+  )
+  console.log(`[BACKFILL] Existing DB rows: ${byPath.size}`)
+  log.push(`DB rows: ${byPath.size}`)
 
-  const results: Array<{ id: string; title: string; status: string; chars?: number }> = []
+  // ── Step 2: List all files in storage bucket ────────────────────────────────
+  const allPaths: string[] = []
 
-  for (const row of rows) {
-    const filePath = row.file_path
-
-    console.log(`[library-backfill] Processing: ${row.title} — ${filePath}`)
-
-    try {
-      const { data: blob, error: dlErr } = await client.storage.from(BUCKET).download(filePath)
-      if (dlErr || !blob) {
-        console.error(`[library-backfill] Download failed for ${row.id}:`, dlErr?.message)
-        results.push({ id: row.id, title: row.title, status: `download_failed: ${dlErr?.message}` })
-        continue
-      }
-
-      const extractedText = await extractText(blob)
-
-      if (!extractedText) {
-        console.log(`[library-backfill] No text extracted for ${row.id}`)
-        results.push({ id: row.id, title: row.title, status: 'no_text_extracted' })
-        continue
-      }
-
-      const { error: updateErr } = await client
-        .from('resources')
-        .update({ extracted_text: extractedText, ai_generated: true })
-        .eq('id', row.id)
-
-      if (updateErr) {
-        console.error(`[library-backfill] Update failed for ${row.id}:`, updateErr.message)
-        results.push({ id: row.id, title: row.title, status: `update_failed: ${updateErr.message}` })
-      } else {
-        console.log(`[library-backfill] Stored ${extractedText.length} chars for ${row.id}`)
-        results.push({ id: row.id, title: row.title, status: 'ok', chars: extractedText.length })
-      }
-    } catch (e: any) {
-      console.error(`[library-backfill] Exception for ${row.id}:`, e?.message)
-      results.push({ id: row.id, title: row.title, status: `error: ${e?.message}` })
+  // Root level files
+  const { data: rootFiles, error: rootErr } = await client.storage.from(BUCKET).list('', { limit: 200 })
+  if (rootErr) console.error('[BACKFILL] Root list error:', rootErr.message)
+  for (const f of rootFiles || []) {
+    if (f.name && !f.id?.endsWith('/') && f.name !== '.emptyFolderPlaceholder') {
+      allPaths.push(f.name)
     }
   }
 
-  const succeeded = results.filter(r => r.status === 'ok').length
-  console.log(`[library-backfill] Complete: ${succeeded}/${rows.length} extracted`)
+  // User subfolder (files uploaded via Supabase client direct upload)
+  if (userId) {
+    const { data: userFiles, error: userErr } = await client.storage.from(BUCKET).list(userId, { limit: 200 })
+    if (userErr) console.error('[BACKFILL] User folder list error:', userErr.message)
+    for (const f of userFiles || []) {
+      if (f.name && f.name !== '.emptyFolderPlaceholder') {
+        allPaths.push(`${userId}/${f.name}`)
+      }
+    }
+  }
+
+  console.log(`[BACKFILL] Storage files found: ${allPaths.length}`, allPaths)
+  log.push(`Storage files: ${allPaths.length}`)
+
+  // ── Step 3: Process existing rows with null extracted_text ──────────────────
+  for (const row of existingRows || []) {
+    if (row.extracted_text) {
+      skipped++
+      continue
+    }
+    if (!row.file_path) {
+      log.push(`skip (no file_path): ${row.title}`)
+      errors++
+      continue
+    }
+
+    console.log(`[BACKFILL] Processing existing row: ${row.title} — ${row.file_path}`)
+    try {
+      const { data: blob, error: dlErr } = await client.storage.from(BUCKET).download(row.file_path)
+      if (dlErr || !blob) {
+        console.error(`[BACKFILL] Download failed: ${row.file_path}`, dlErr?.message)
+        log.push(`error (download failed): ${row.title}`)
+        errors++
+        continue
+      }
+      const text = extractTextFromBuffer(await blob.arrayBuffer())
+      if (!text || text.length < 50) {
+        log.push(`skip (no text): ${row.title}`)
+        errors++
+        continue
+      }
+      const { error: updateErr } = await client
+        .from('resources')
+        .update({ extracted_text: text })
+        .eq('id', row.id)
+      if (updateErr) {
+        log.push(`error (update): ${row.title} — ${updateErr.message}`)
+        errors++
+      } else {
+        log.push(`ok (${text.length} chars): ${row.title}`)
+        processed++
+      }
+    } catch (e: any) {
+      log.push(`error (exception): ${row.title} — ${e?.message}`)
+      errors++
+    }
+  }
+
+  // ── Step 4: Create rows for storage files with no DB record ─────────────────
+  for (const filePath of allPaths) {
+    if (byPath.has(filePath)) continue  // already handled above
+
+    console.log(`[BACKFILL] Storage-only file (no DB row): ${filePath}`)
+    try {
+      const { data: blob, error: dlErr } = await client.storage.from(BUCKET).download(filePath)
+      if (dlErr || !blob) {
+        console.error(`[BACKFILL] Download failed: ${filePath}`, dlErr?.message)
+        log.push(`error (download): ${filePath}`)
+        errors++
+        continue
+      }
+      const text = extractTextFromBuffer(await blob.arrayBuffer())
+      if (!text || text.length < 50) {
+        log.push(`skip (no text): ${filePath}`)
+        errors++
+        continue
+      }
+      const title = titleFromPath(filePath)
+      const { error: insertErr } = await client.from('resources').insert({
+        title,
+        file_path: filePath,
+        file_type: filePath.toLowerCase().endsWith('.pdf') ? 'pdf' : 'txt',
+        topic: 'ministry-library',
+        extracted_text: text,
+        active: true,
+        ai_generated: true,
+        spirit_tags: [],
+        user_id: userId || null,
+      })
+      if (insertErr) {
+        log.push(`error (insert): ${filePath} — ${insertErr.message}`)
+        errors++
+      } else {
+        log.push(`ok (new row, ${text.length} chars): ${title}`)
+        processed++
+      }
+    } catch (e: any) {
+      log.push(`error (exception): ${filePath} — ${e?.message}`)
+      errors++
+    }
+  }
+
+  const message = `Reindex complete: ${processed} books extracted, ${skipped} already indexed${errors ? `, ${errors} errors` : ''}.`
+  console.log(`[BACKFILL] ${message}`)
 
   return new Response(
-    JSON.stringify({ processed: rows.length, succeeded, results }),
+    JSON.stringify({ processed, skipped, errors, message, log }),
     { status: 200, headers: CORS },
   )
 }
