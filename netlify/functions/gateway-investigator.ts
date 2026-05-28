@@ -46,11 +46,11 @@ async function fetchSpiritContext(spiritName: string): Promise<string> {
     if (!rec) return ''
     const f = rec.fields || {}
     const parts: string[] = []
-    if (f['Description'])   parts.push(`Description: ${String(f['Description']).slice(0, 300)}`)
-    if (f['Manifestiation'])parts.push(`Manifestations: ${String(f['Manifestiation']).slice(0, 200)}`)
-    if (f['Kingdom'])       parts.push(`Kingdom: ${f['Kingdom']}`)
-    if (f['Biblical Rank']) parts.push(`Biblical Rank: ${f['Biblical Rank']}`)
-    if (f['Sub-Kingdom'])   parts.push(`Sub-Kingdom: ${f['Sub-Kingdom']}`)
+    if (f['Description'])    parts.push(`Description: ${String(f['Description']).slice(0, 300)}`)
+    if (f['Manifestiation']) parts.push(`Manifestations: ${String(f['Manifestiation']).slice(0, 200)}`)
+    if (f['Kingdom'])        parts.push(`Kingdom: ${f['Kingdom']}`)
+    if (f['Biblical Rank'])  parts.push(`Biblical Rank: ${f['Biblical Rank']}`)
+    if (f['Sub-Kingdom'])    parts.push(`Sub-Kingdom: ${f['Sub-Kingdom']}`)
     if (Array.isArray(f['Cultural Presence']) && f['Cultural Presence'].length) {
       parts.push(`Known Cultural Presence: ${f['Cultural Presence'].join(', ')}`)
     }
@@ -62,79 +62,56 @@ async function fetchSpiritContext(spiritName: string): Promise<string> {
 }
 
 async function callClaude(spiritName: string, dbContext: string, personContext: string): Promise<any> {
-  const mode = spiritName && personContext ? 'combined'
-             : spiritName                  ? 'spirit_lookup'
-             : 'exposure_analysis'
+  const subject = spiritName || personContext.slice(0, 60) || 'General Analysis'
 
-  const subject = spiritName || personContext.slice(0, 60)
+  const systemPrompt = `You are a spiritual warfare intelligence system specializing in demonic gateway analysis for deliverance ministers.
+You MUST respond with ONLY a valid JSON object.
+Do NOT include any text before or after the JSON.
+Do NOT use markdown code fences.
+Start your response with { and end with }.`
 
-  const prompt = `You are a deliverance ministry intelligence analyst with deep knowledge of spiritual warfare, demonology, and cultural influences.
+  const userPrompt = `Analyze the demonic gateways and entry points for this case.
+${spiritName ? `Spirit/demon: ${spiritName}` : ''}
+${dbContext ? `Database intel on this spirit:\n${dbContext}` : ''}
+${personContext ? `Cultural exposure or session context: ${personContext}` : ''}
 
-Mode: ${mode}
-Spirit name: ${spiritName || 'not provided'}
-Cultural exposure or context: ${personContext || 'not provided'}
-Database notes on this spirit: ${dbContext || 'not in our database'}
-
-${mode === 'exposure_analysis'
-  ? 'Analyze this cultural exposure and identify what spiritual entities, doorways, and legal rights it may carry. Think deeply about the spiritual content, themes, and what spirits are glorified or invoked.'
-  : mode === 'spirit_lookup'
-  ? 'Identify every cultural gateway where this spirit appears or gains entry. Use your knowledge of movies, music, games, books, subcultures, and occult practices. Be specific with real titles and names.'
-  : 'Use both the spirit information and the cultural exposure context together to build a complete gateway report.'
-}
-
-Return ONLY valid JSON in this exact structure. No markdown. No code blocks. Start with { and end with }.
-
+Return this exact JSON structure:
 {
-  "title": "Gateway Intelligence Report: ${subject}",
-  "mode": "${mode}",
-  "identifiedSpirits": ["spirit1", "spirit2"],
-  "sections": {
-    "mediaGateways": {
-      "heading": "Media Gateways",
-      "items": ["Specific movie/show title: explanation of how it features or glorifies this spirit"]
+  "spirit": "${subject}",
+  "summary": "2-3 sentence executive summary of the gateway profile for a deliverance minister",
+  "sections": [
+    {
+      "title": "Primary Entry Points",
+      "items": ["specific entry point 1", "specific entry point 2", "specific entry point 3"]
     },
-    "musicGateways": {
-      "heading": "Music Gateways",
-      "items": ["Specific artist or song: explanation of the spiritual connection"]
+    {
+      "title": "Legal Grounds",
+      "items": ["legal ground 1 — sin, trauma, vow, or ancestral tie", "legal ground 2"]
     },
-    "gamingGateways": {
-      "heading": "Gaming Gateways",
-      "items": ["Specific video game, tabletop RPG, or card game: explanation"]
+    {
+      "title": "Generational Patterns",
+      "items": ["family pattern 1", "family pattern 2"]
     },
-    "literaryGateways": {
-      "heading": "Literary Gateways",
-      "items": ["Specific book, graphic novel, manga, or online fiction: explanation"]
+    {
+      "title": "Cultural and Exposure Gateways",
+      "items": ["specific media/music/game/book title and explanation", "specific subculture or practice"]
     },
-    "occultGateways": {
-      "heading": "Occult and Ritual Gateways",
-      "items": ["Specific occult practice, ritual, or system: how it opens this door"]
+    {
+      "title": "Session Questions",
+      "items": ["Have you ever...? (specific intake question)", "Did you or a family member...? (specific question)", "Were you exposed to...? (specific question)", "Have you participated in...?", "Did you experience...?"]
     },
-    "culturalGateways": {
-      "heading": "Cultural and Subcultural Gateways",
-      "items": ["Specific subculture, aesthetic, practice, or trend: explanation"]
-    },
-    "sessionQuestions": {
-      "heading": "Session Interview Questions",
-      "items": ["Specific question referencing real titles or practices"]
-    },
-    "generationalPatterns": {
-      "heading": "Generational Patterns",
-      "items": ["Specific family or ancestral pattern that may be relevant"]
+    {
+      "title": "Recommended Deliverance Sequence",
+      "items": ["Step 1: confess and renounce...", "Step 2: break legal ground of...", "Step 3: command the spirit of... to go"]
     }
-  },
-  "warningFlags": ["any urgent spiritual warfare notes for the minister"],
-  "relatedSpirits": ["connected spirits to investigate in the same session"]
+  ]
 }
 
 Rules:
-- Each section should have 3 to 6 specific items, never vague generalities
-- Name actual titles, franchises, artists, communities by name
+- Each section must have 3-6 specific items — no vague generalities
+- Name actual titles, artists, practices, and communities by name
 - Session questions must reference specific things the person may have been exposed to
-- If you genuinely cannot find items for a category return an empty array
-- Include at least 5 session questions
-- For identified spirits, list specifically named demonic entities (not general concepts)
-
-Return ONLY a raw JSON object. No markdown. No code fences. No explanation before or after. Start your response with { and end with }.`
+- Return ONLY the JSON. Nothing else.`
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -145,26 +122,68 @@ Return ONLY a raw JSON object. No markdown. No code fences. No explanation befor
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
-      system: 'You are a deliverance ministry intelligence analyst. Return ONLY valid JSON. No markdown, no code blocks, no explanation. Start with { and end with }.',
-      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
     }),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(25000),
   })
 
   if (!res.ok) throw new Error(`Claude error ${res.status}`)
   const data = await res.json()
   const rawText = (data.content?.[0]?.text || '').trim()
 
-  let cleaned = rawText
-    .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
-  if (jsonMatch) cleaned = jsonMatch[0]
+  console.log('[GATEWAY] Raw Claude response (first 1000 chars):')
+  console.log(rawText.slice(0, 1000))
+  console.log('[GATEWAY] Response length:', rawText.length)
 
-  try { return JSON.parse(cleaned) } catch (e: any) {
-    console.error('[gateway-investigator] Parse failed. Raw:', rawText.slice(0, 500))
-    throw new Error('AI response could not be parsed. Please try again.')
+  // Strategy 1: direct parse
+  let result: any = null
+  try {
+    result = JSON.parse(rawText)
+    console.log('[GATEWAY] Parse strategy 1 succeeded (direct)')
+  } catch {}
+
+  // Strategy 2: strip markdown fences
+  if (!result) {
+    try {
+      const stripped = rawText
+        .replace(/^```json\s*/im, '')
+        .replace(/^```\s*/im, '')
+        .replace(/```\s*$/im, '')
+        .trim()
+      result = JSON.parse(stripped)
+      console.log('[GATEWAY] Parse strategy 2 succeeded (fence strip)')
+    } catch {}
   }
+
+  // Strategy 3: extract first {...} block
+  if (!result) {
+    try {
+      const match = rawText.match(/\{[\s\S]*\}/)
+      if (match) {
+        result = JSON.parse(match[0])
+        console.log('[GATEWAY] Parse strategy 3 succeeded (brace extract)')
+      }
+    } catch {}
+  }
+
+  // Strategy 4: build minimal valid response from plain text
+  if (!result) {
+    console.error('[GATEWAY] All parse strategies failed. Raw:', rawText.slice(0, 500))
+    result = {
+      spirit: subject,
+      summary: 'Analysis complete — see content below.',
+      sections: [
+        {
+          title: 'Gateway Analysis',
+          items: [rawText],
+        },
+      ],
+    }
+  }
+
+  return result
 }
 
 export default async function handler(req: Request) {
@@ -186,7 +205,6 @@ export default async function handler(req: Request) {
   }
 
   try {
-    // Fetch spirit context from Airtable in parallel with nothing else — don't block Claude start
     const dbContext = spiritName?.trim() ? await fetchSpiritContext(spiritName.trim()) : ''
     const report = await callClaude(spiritName?.trim() || '', dbContext, personContext?.trim() || '')
     return new Response(JSON.stringify(report), { status: 200, headers })

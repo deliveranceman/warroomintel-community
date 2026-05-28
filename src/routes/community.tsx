@@ -3951,23 +3951,6 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
     setLoading(false)
   }
 
-  const Section = ({ title, items, color: c }: { title: string; items: string[]; color?: string }) => {
-    if (!items || items.length === 0) return null
-    return (
-      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: c || G, marginBottom: 12, textTransform: 'uppercase' as const }}>{title}</div>
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
-          {items.map((item: string, i: number) => (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <span style={{ color: G, flexShrink: 0, marginTop: 3 }}>•</span>
-              <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65 }}>{item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: bg, minHeight: 0 }}>
       <div style={{ maxWidth: 780, margin: '0 auto' }}>
@@ -4026,110 +4009,45 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
         )}
 
         {report && (
-          <div>
+          <div style={{ marginTop: 24 }}>
+            {/* Header */}
             <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>
-              {report.title || `Gateway Report: ${report.spiritName || personContext.slice(0, 50)}`}
+              GATEWAY INTELLIGENCE REPORT: {(report.spirit || spiritName || personContext.slice(0, 50)).toUpperCase()}
             </div>
 
-            {/* Identified spirits */}
-            {Array.isArray(report.identifiedSpirits) && report.identifiedSpirits.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 16 }}>
-                <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em', alignSelf: 'center' }}>Spirits identified:</span>
-                {report.identifiedSpirits.map((s: string) => (
-                  <span key={s} style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 10, fontFamily: cinzel, fontSize: 9, color: G, padding: '2px 10px', letterSpacing: '0.06em' }}>{s}</span>
-                ))}
+            {/* Summary */}
+            {report.summary && (
+              <div style={{ padding: '16px 20px', marginBottom: 24, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', marginBottom: 8 }}>INTELLIGENCE SUMMARY</div>
+                <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, color: isDark ? '#a89878' : '#4a3a2a', lineHeight: 1.7 }}>
+                  {report.summary}
+                </div>
               </div>
             )}
 
-            {/* Warning flags */}
-            {Array.isArray(report.warningFlags) && report.warningFlags.length > 0 && (
-              <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '12px 16px', marginBottom: 14 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.12em', marginBottom: 8 }}>⚠ WARNING FLAGS</div>
-                {report.warningFlags.map((f: string, i: number) => (
-                  <div key={i} style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: '#fca5a5', lineHeight: 1.5 }}>{f}</div>
-                ))}
-              </div>
-            )}
-
-            {/* Database context (old response format) */}
-            {report.databaseContext && (
-              <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 10, padding: '14px 18px', marginBottom: 16 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Database Intel</div>
-                <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, margin: 0 }}>{report.databaseContext}</p>
-              </div>
-            )}
-
-            {/* New sections structure */}
-            {report.sections ? (
-              <>
-                {(['mediaGateways','musicGateways','gamingGateways','literaryGateways','occultGateways','culturalGateways'] as const).map(key => {
-                  const sec = report.sections[key]
-                  if (!sec) return null
-                  const items = Array.isArray(sec) ? sec : (sec.items || [])
-                  const heading = typeof sec === 'object' && sec.heading ? sec.heading : key.replace(/([A-Z])/g, ' $1').trim()
-                  const colors: Record<string, string> = { musicGateways: '#8BA3D4', gamingGateways: '#7a9e7e', occultGateways: '#c47c7c', culturalGateways: '#a07830' }
-                  return <Section key={key} title={heading} items={items} color={colors[key]} />
-                })}
-                {/* Session questions */}
-                {(() => {
-                  const sq = report.sections.sessionQuestions
-                  const items: string[] = sq ? (Array.isArray(sq) ? sq : (sq.items || [])) : []
+            {/* Sections grid */}
+            {Array.isArray(report.sections) && report.sections.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                {report.sections.map((section: any, i: number) => {
+                  const items: string[] = Array.isArray(section.items) ? section.items : (section.content ? [section.content] : [])
                   if (!items.length) return null
+                  const isSessionQ = section.title?.toLowerCase().includes('session')
                   return (
-                    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, marginBottom: 14, textTransform: 'uppercase' as const }}>⚡ Session Intake Questions</div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                        {items.map((q: string, i: number) => (
-                          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                            <span style={{ fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, marginTop: 3 }}>{i + 1}.</span>
-                            <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, fontStyle: 'italic' }}>{q}</span>
+                    <div key={i} style={{ padding: '16px 20px', background: isDark ? '#0a0807' : '#f5f0e8', border: `1px solid ${isSessionQ ? 'rgba(201,168,76,0.3)' : (isDark ? '#2a2218' : 'rgba(160,120,48,0.2)')}`, borderLeft: isSessionQ ? `3px solid ${G}` : undefined, borderRadius: 6 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: isSessionQ ? G : mut, letterSpacing: '0.1em', marginBottom: 12, textTransform: 'uppercase' as const }}>
+                        {isSessionQ ? '⚡ ' : ''}{section.title}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {items.map((item: string, j: number) => (
+                          <div key={j} style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: isSessionQ ? txt : (isDark ? '#8a7a60' : '#5a4a3a'), lineHeight: 1.65, paddingLeft: 12, borderLeft: `1px solid ${isDark ? '#2a2218' : 'rgba(160,120,48,0.15)'}`, fontStyle: isSessionQ ? 'italic' : 'normal' }}>
+                            {isSessionQ && <span style={{ color: G, marginRight: 6, fontStyle: 'normal' }}>{j + 1}.</span>}
+                            {item}
                           </div>
                         ))}
                       </div>
                     </div>
                   )
-                })()}
-                {/* Generational patterns */}
-                {(() => {
-                  const gp = report.sections.generationalPatterns
-                  const items: string[] = gp ? (Array.isArray(gp) ? gp : (gp.items || [])) : []
-                  return <Section title="Generational Patterns" items={items} color="#a07830" />
-                })()}
-              </>
-            ) : (
-              // Legacy flat response structure
-              <>
-                <Section title="Media Gateways" items={report.mediaGateways} />
-                <Section title="Music Gateways" items={report.musicGateways} color="#8BA3D4" />
-                <Section title="Gaming Gateways" items={report.gamingGateways} color="#7a9e7e" />
-                <Section title="Literary Gateways" items={report.literaryGateways} />
-                <Section title="Online and Social Gateways" items={report.onlineGateways} color="#8BA3D4" />
-                <Section title="Subculture and Practice Gateways" items={report.subcultureGateways} color="#a07830" />
-                {report.sessionQuestions?.length > 0 && (
-                  <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderLeft: `3px solid ${G}`, borderRadius: 10, padding: '18px 22px', marginBottom: 14 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, marginBottom: 14, textTransform: 'uppercase' as const }}>Session Intake Questions</div>
-                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                      {report.sessionQuestions.map((q: string, i: number) => (
-                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                          <span style={{ fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0, marginTop: 3 }}>{i + 1}.</span>
-                          <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.65, fontStyle: 'italic' }}>{q}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Related spirits */}
-            {Array.isArray(report.relatedSpirits) && report.relatedSpirits.length > 0 && (
-              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 18px', marginBottom: 14 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', marginBottom: 10 }}>RELATED SPIRITS TO INVESTIGATE</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                  {report.relatedSpirits.map((s: string) => (
-                    <span key={s} style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${bdr}`, borderRadius: 10, fontFamily: cinzel, fontSize: 9, color: mut, padding: '2px 10px' }}>{s}</span>
-                  ))}
-                </div>
+                })}
               </div>
             )}
 
