@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 export const Route = createFileRoute('/community_/dream-interpreter')({
   ssr: false,
@@ -34,6 +35,12 @@ const VERDICT_META: Record<string, { color: string; bg: string; label: string }>
   trauma:      { color: '#a09080', bg: 'rgba(160,144,128,0.08)', label: 'SOULICAL / TRAUMA' },
   mixed:       { color: G,         bg: 'rgba(201,168,76,0.08)',  label: 'MIXED ANALYSIS' },
 }
+
+// Sections where items should render with prayer-directive styling
+const PRAYER_SECTIONS = ['prayer response', 'prayer directive']
+
+// Sections where items have "Symbol — meaning" format
+const SYMBOL_SECTIONS = ['key symbols', 'symbols']
 
 function exportToPrint(dreamText: string, report: DreamReport, v: { label: string }) {
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -118,6 +125,97 @@ function exportToPrint(dreamText: string, report: DreamReport, v: { label: strin
   }, { once: true })
 }
 
+// Renders a single section item with section-aware typography
+function SectionItem({ item, sectionKey }: { item: string; sectionKey: string }) {
+  const isPrayer  = PRAYER_SECTIONS.includes(sectionKey)
+  const isSymbol  = SYMBOL_SECTIONS.includes(sectionKey)
+
+  // Split on em-dash for symbol sections: "Symbol — meaning"
+  const emDashIdx = isSymbol ? item.indexOf(' — ') : -1
+  const hasDash   = emDashIdx !== -1
+
+  // Detect scripture pattern: "Book Chapter:Verse — quote" at end of any item
+  const scriptureMatch = item.match(/([1-3]?\s?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\s\d+:\d+[-\d]*)\s*[—–-]\s*(.+)$/)
+
+  if (isPrayer) {
+    return (
+      <li style={{ listStyle: 'none', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+        <div style={{
+          borderLeft: `3px solid ${G}`,
+          paddingLeft: 16,
+          fontFamily: 'Georgia, serif',
+          fontSize: 17,
+          color: 'var(--t-0)',
+          lineHeight: 1.75,
+        }}>
+          {item}
+        </div>
+      </li>
+    )
+  }
+
+  if (isSymbol && hasDash) {
+    const symbolName = item.slice(0, emDashIdx).trim()
+    const meaning    = item.slice(emDashIdx + 3).trim()
+
+    // Check if meaning itself contains a scripture reference
+    const scriptureSplit = meaning.match(/^(.+?)\s*[—–|]\s*((?:[1-3]?\s?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\s\d+:\d+.*)(?:\s*[—–-]\s*.+)?)$/)
+
+    return (
+      <li style={{ listStyle: 'none', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+        <span style={{ fontFamily: mono, fontSize: 12, color: G, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+          {symbolName}
+        </span>
+        {scriptureSplit ? (
+          <>
+            <span style={{ color: 'var(--t-1)', fontSize: 15, lineHeight: 1.65, display: 'block' }}>
+              {scriptureSplit[1].trim()}
+            </span>
+            <span style={{ fontStyle: 'italic', color: 'var(--gold-hi, #e5c572)', fontSize: 13, marginTop: 4, display: 'block' }}>
+              {scriptureSplit[2].trim()}
+            </span>
+          </>
+        ) : (
+          <span style={{ color: 'var(--t-1)', fontSize: 15, lineHeight: 1.65, display: 'block' }}>
+            {meaning}
+          </span>
+        )}
+      </li>
+    )
+  }
+
+  // Default item — scripture detection for prophetic/warfare sections
+  if (scriptureMatch && !isSymbol) {
+    const beforeRef = item.slice(0, item.indexOf(scriptureMatch[0])).trim()
+    return (
+      <li style={{ listStyle: 'none', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ width: 6, height: 6, background: G, flexShrink: 0, marginTop: 7 }} />
+          <div>
+            {beforeRef && (
+              <span style={{ color: 'var(--t-1)', fontSize: 15, lineHeight: 1.65, display: 'block' }}>
+                {beforeRef}
+              </span>
+            )}
+            <span style={{ fontStyle: 'italic', color: 'var(--gold-hi, #e5c572)', fontSize: 13, marginTop: 4, display: 'block' }}>
+              {scriptureMatch[0].trim()}
+            </span>
+          </div>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <li style={{ listStyle: 'none', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ width: 6, height: 6, background: G, flexShrink: 0, marginTop: 7 }} />
+        <span style={{ color: 'var(--t-1)', fontSize: 15, lineHeight: 1.65 }}>{item}</span>
+      </div>
+    </li>
+  )
+}
+
 function DreamInterpreterPage() {
   const { getToken }    = useAuth()
   const { user, isLoaded } = useUser()
@@ -128,17 +226,28 @@ function DreamInterpreterPage() {
   const [error, setError]     = useState<string | null>(null)
   const [report, setReport]   = useState<DreamReport | null>(null)
   const [submittedDream, setSubmittedDream] = useState('')
+  // collapsible state: keyed by section index, default true (open)
+  const [openSections, setOpenSections] = useState<Record<number, boolean>>({})
 
   const tier     = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const role     = (user?.publicMetadata?.role as string) || ''
   const tierLvl  = TIER_LEVELS[tier] ?? 0
   const hasAccess = tierLvl >= 1 || role === 'minister'
 
+  function toggleSection(idx: number) {
+    setOpenSections(prev => ({ ...prev, [idx]: !(prev[idx] ?? true) }))
+  }
+
+  function isSectionOpen(idx: number) {
+    return openSections[idx] ?? true
+  }
+
   async function interpret() {
     if (!dream.trim() || loading) return
     setLoading(true)
     setError(null)
     setReport(null)
+    setOpenSections({})
     try {
       const token = await getToken()
       const res = await fetch('/api/dream-interpreter', {
@@ -259,7 +368,7 @@ function DreamInterpreterPage() {
         {report && v && (
           <div>
             <button
-              onClick={() => { setReport(null); setDream(''); setContext(''); setSubmittedDream('') }}
+              onClick={() => { setReport(null); setDream(''); setContext(''); setSubmittedDream(''); setOpenSections({}) }}
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em', marginBottom: 20, padding: 0 }}
             >
               ← NEW INTERPRETATION
@@ -268,36 +377,82 @@ function DreamInterpreterPage() {
             {/* dream description */}
             <div style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: 20, marginBottom: 12 }}>
               <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.15em', marginBottom: 10 }}>DREAM DESCRIPTION</div>
-              <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: TXT, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' as const }}>
+              <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: 'var(--t-0)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' as const }}>
                 {submittedDream}
               </p>
             </div>
 
-            {/* verdict + summary */}
+            {/* verdict + summary — NOT collapsible */}
             <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 24, marginBottom: 12 }}>
+              {/* source classification badge */}
               <div style={{ marginBottom: 16 }}>
-                <span style={{ background: v.bg, border: `1px solid ${v.color}55`, borderRadius: 2, padding: '4px 10px', fontFamily: mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: v.color }}>
+                <span style={{
+                  background: v.bg,
+                  border: `1px solid ${v.color}55`,
+                  borderRadius: 2,
+                  padding: '4px 12px',
+                  fontFamily: mono,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  letterSpacing: 3,
+                  color: v.color,
+                  display: 'inline-block',
+                }}>
                   {v.label}
                 </span>
               </div>
               <div style={{ fontFamily: mono, fontSize: 9, color: MUT, letterSpacing: '0.18em', marginBottom: 10 }}>SUMMARY</div>
-              <p style={{ fontFamily: crimson, fontSize: 16, color: TXT, lineHeight: 1.7, margin: 0 }}>{report.summary}</p>
+              <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: 'var(--t-0)', lineHeight: 1.7, margin: 0 }}>{report.summary}</p>
             </div>
 
-            {/* sections */}
-            {report.sections.map((sec, si) => (
-              <div key={si} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 20, marginBottom: 10 }}>
-                <div style={{ fontFamily: mono, fontSize: 10, color: G, letterSpacing: '0.15em', marginBottom: 12 }}>{sec.title.toUpperCase()}</div>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                  {sec.items.map((item, ii) => (
-                    <li key={ii} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: ii < sec.items.length - 1 ? `1px solid rgba(201,168,76,0.1)` : 'none' }}>
-                      <span style={{ color: G, flexShrink: 0, fontFamily: mono, fontSize: 12, marginTop: 2 }}>›</span>
-                      <span style={{ fontFamily: crimson, fontSize: 15, color: TXT, lineHeight: 1.6 }}>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {/* collapsible sections */}
+            {report.sections.map((sec, si) => {
+              const open = isSectionOpen(si)
+              const sectionKey = sec.title.toLowerCase()
+              return (
+                <div key={si} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 20, marginBottom: 10 }}>
+                  {/* clickable header row */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleSection(si)}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggleSection(si)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      paddingBottom: open ? 12 : 0,
+                      userSelect: 'none' as const,
+                    }}
+                  >
+                    <span style={{
+                      fontFamily: mono,
+                      fontSize: 11,
+                      color: G,
+                      letterSpacing: 1.6,
+                      fontWeight: 700,
+                      textTransform: 'uppercase' as const,
+                    }}>
+                      {sec.title.toUpperCase()}
+                    </span>
+                    {open
+                      ? <ChevronUp size={16} color={G} />
+                      : <ChevronDown size={16} color={G} />
+                    }
+                  </div>
+
+                  {/* content — hidden when collapsed */}
+                  {open && (
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                      {sec.items.map((item, ii) => (
+                        <SectionItem key={ii} item={item} sectionKey={sectionKey} />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
 
             {/* export + reset */}
             <button
@@ -316,7 +471,7 @@ function DreamInterpreterPage() {
             </button>
 
             <button
-              onClick={() => { setReport(null); setSubmittedDream('') }}
+              onClick={() => { setReport(null); setSubmittedDream(''); setOpenSections({}) }}
               style={{ marginTop: 10, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 2, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, color: DIM, letterSpacing: '0.1em', cursor: 'pointer', width: '100%' }}
             >
               Interpret Another Dream
