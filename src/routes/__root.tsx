@@ -1,7 +1,9 @@
-import { HeadContent, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute, useRouterState, useNavigate } from '@tanstack/react-router'
 import { ClerkProvider } from '@clerk/tanstack-start'
 import { Header } from '@/components/Header'
 import { AIAssistant } from '@/components/AIAssistant'
+import { CommandPalette } from '@/components/primitives'
+import { useState, useEffect } from 'react'
 import '../styles.css'
 
 const BARE_ROUTES = ['/join']
@@ -14,9 +16,11 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
-      { name: 'theme-color', content: '#0D0B14' },
+      { name: 'theme-color', content: '#0d0b14' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
       { name: 'apple-mobile-web-app-capable', content: 'yes' },
       { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+      { name: 'apple-mobile-web-app-title', content: 'War Room Intel' },
       { title: 'The War Room Community: Deliverance Ministry' },
       { name: 'description', content: 'A members-only arsenal for deliverance ministers. Searchable demon database, prayer strategies, Scripture-anchored resources, and live training calls.' },
       { property: 'og:image', content: 'https://warroomintel.com/og-image.png' },
@@ -24,6 +28,12 @@ export const Route = createRootRoute({
       { property: 'og:image:height', content: '630' },
       { property: 'twitter:card', content: 'summary_large_image' },
       { property: 'twitter:image', content: 'https://warroomintel.com/og-image.png' },
+    ],
+    links: [
+      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
+      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap' },
+      { rel: 'manifest', href: '/manifest.json' },
     ],
   }),
   errorComponent: RootError,
@@ -54,6 +64,28 @@ function RootError({ error }: { error: unknown }) {
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const bare = BARE_ROUTES.includes(pathname)
+  const navigate = useNavigate()
+  const [cmdOpen, setCmdOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCmdOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const cmdResults = [
+    { id: 'nav-community', group: 'Navigation', label: 'Community Hub', sublabel: '/community', onSelect: () => navigate({ to: '/community' }) },
+    { id: 'nav-arsenal', group: 'Navigation', label: 'Arsenal', sublabel: '/arsenal', onSelect: () => navigate({ to: '/arsenal' }) },
+    { id: 'nav-investigate', group: 'Navigation', label: 'Investigate', sublabel: '/investigate', onSelect: () => navigate({ to: '/investigate' }) },
+    { id: 'nav-assessment', group: 'Navigation', label: 'Assessment', sublabel: '/assessment', onSelect: () => navigate({ to: '/assessment' }) },
+    { id: 'nav-admin', group: 'Admin', label: 'Admin Panel', sublabel: '/admin', onSelect: () => navigate({ to: '/admin' }) },
+  ]
+
   return (
     <html lang="en">
       <head>
@@ -72,6 +104,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           {!bare && <Header />}
           {children}
           {!bare && <AIAssistant />}
+          <CommandPalette
+            open={cmdOpen}
+            onClose={() => setCmdOpen(false)}
+            results={cmdResults}
+          />
         </ClerkProvider>
         <Scripts />
       </body>
