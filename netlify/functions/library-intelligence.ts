@@ -120,17 +120,48 @@ export default async function handler(req: Request) {
   if (tool === 'content-query') {
     if (!query?.trim()) return new Response(JSON.stringify({ error: 'query required' }), { status: 400, headers })
 
-    const start      = Date.now()
-    const books      = await fetchLibraryBooks()
-    const bookTitles = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`)
-    if (!books.length) return new Response(JSON.stringify({ error: 'No library content available.' }), { status: 400, headers })
+    const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
+    let libraryText  = ''
+    let bookTitles: string[] = []
 
-    const libraryText = books.map((b: any) =>
-      `[${b.title}${b.author ? ` by ${b.author}` : ''}]:\n${cleanExtractedText(b.extracted_text).slice(0, 3000)}`
-    ).join('\n\n---\n\n')
+    // ── Try semantic search first ──────────────────────────────────────────────
+    if (OPENAI_KEY) {
+      try {
+        const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+          body:    JSON.stringify({ model: 'text-embedding-3-small', input: [query.trim()] }),
+          signal:  AbortSignal.timeout(8000),
+        })
+        if (embRes.ok) {
+          const embData = await embRes.json()
+          const vector  = embData.data?.[0]?.embedding
+          if (vector) {
+            const { data: chunks } = await sb().rpc('match_library_chunks', {
+              query_embedding: vector,
+              match_threshold: 0.6,
+              match_count:     8,
+            })
+            if (chunks?.length > 0) {
+              libraryText = chunks.map((c: any) => `[From "${c.book_title}" — similarity ${(c.similarity * 100).toFixed(0)}%]:\n${c.chunk_text}`).join('\n\n---\n\n')
+              bookTitles  = Array.from(new Set(chunks.map((c: any) => c.book_title as string)))
+              console.log(`[CONTENT-QUERY] Vector search: ${chunks.length} chunks from ${bookTitles.length} books`)
+            }
+          }
+        }
+      } catch (e: any) {
+        console.log('[CONTENT-QUERY] Vector search failed, using full-text fallback:', e.message)
+      }
+    }
 
-    if (Date.now() - start > 20000) {
-      return new Response(JSON.stringify({ error: 'Query took too long — try a more specific question' }), { status: 408, headers })
+    // ── Fallback: load book full text ──────────────────────────────────────────
+    if (!libraryText) {
+      const books = await fetchLibraryBooks()
+      if (!books.length) return new Response(JSON.stringify({ error: 'No library content available.' }), { status: 400, headers })
+      bookTitles  = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`)
+      libraryText = books.map((b: any) =>
+        `[${b.title}${b.author ? ` by ${b.author}` : ''}]:\n${cleanExtractedText(b.extracted_text).slice(0, 3000)}`
+      ).join('\n\n---\n\n')
     }
 
     const system  = `You are a ministry content strategist for War Room Intel (warroomintel.com), a spiritual warfare platform for deliverance ministers. The platform has: Intel Archive (demon database), Field Ministry (knowledge base articles), Arsenal (scripture library), Assessment (diagnostic wizard), Training (courses/episodes), Fringe Intelligence (articles), Testimony Wall, Prayer Wall, Body Map, Spirit Network, Spiritual Mapping module. You have access to the admin's internal ministry library. Answer questions about what content exists in the library and how it could be used to build out the platform.`

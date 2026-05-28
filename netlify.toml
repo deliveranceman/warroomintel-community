@@ -76,3 +76,6 @@
 
 [functions."ai-backfill"]
   timeout = 60
+
+[functions."library-search"]
+  timeout = 15

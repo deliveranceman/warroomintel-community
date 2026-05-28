@@ -129,10 +129,57 @@ async function getPreamble(
         console.log(`[ai-spirit-enhance] Ministry library: ${books.length} books available, none matched spirit keywords`)
       }
 
-    // Inject uploaded resources library — use extracted_text chunks when available,
-    // fall back to title/author/notes metadata for books not yet indexed.
+    // Inject uploaded resources library — vector search first, keyword fallback
     const resourceBooks = resourceBooksResult.data || []
     if (resourceBooks.length > 0) {
+      let injectedResourceChunks = false
+
+      // ── Vector search path (if OPENAI_API_KEY is set and chunks exist) ───────
+      const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
+      if (OPENAI_KEY) {
+        try {
+          const searchQuery = `${spiritName} ${spiritDescription}`.trim()
+          const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+            body:    JSON.stringify({ model: 'text-embedding-3-small', input: [searchQuery] }),
+            signal:  AbortSignal.timeout(5000),
+          })
+          if (embRes.ok) {
+            const embData  = await embRes.json()
+            const vector   = embData.data?.[0]?.embedding
+            if (vector) {
+              const { data: vChunks } = await client.rpc('match_library_chunks', {
+                query_embedding: vector,
+                match_threshold: 0.65,
+                match_count:     5,
+              })
+              if (vChunks?.length > 0) {
+                let vsSection = `PERSONAL MINISTRY LIBRARY (highest authority):\n`
+                let usedV = 0
+                for (const chunk of vChunks) {
+                  const entry = `[From "${chunk.book_title}"]: ${chunk.chunk_text.slice(0, 1400)}\n\n`
+                  if ((preamble + vsSection + entry).length > MAX_CHARS) break
+                  vsSection += entry
+                  usedV++
+                }
+                if (usedV > 0) {
+                  preamble += vsSection
+                  usedLibrary = true
+                  librarySourceCount += usedV
+                  injectedResourceChunks = true
+                  console.log(`[ai-spirit-enhance] Vector search: ${usedV} chunks injected for "${spiritName}"`)
+                }
+              }
+            }
+          }
+        } catch (e: any) {
+          console.log('[ai-spirit-enhance] Vector search failed, using keyword fallback:', e.message)
+        }
+      }
+
+      // ── Keyword fallback (when no vector results or no OpenAI key) ────────────
+      if (!injectedResourceChunks) {
       const terms = spiritName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
       if (spiritDescription) {
         spiritDescription.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
@@ -170,9 +217,10 @@ async function getPreamble(
           preamble += rsSection
           usedLibrary = true
           librarySourceCount += usedR
-          console.log(`[ai-spirit-enhance] Injected ${usedR} resource-library text chunks`)
+          console.log(`[ai-spirit-enhance] Injected ${usedR} resource-library text chunks (keyword)`)
         }
       }
+      } // end keyword fallback
 
       // Books without extracted text — fall back to metadata summary
       const metaOnly = resourceBooks.filter(b => !b.extracted_text && b.title)

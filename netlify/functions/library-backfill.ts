@@ -51,6 +51,64 @@ function extractTextFromBuffer(buf: ArrayBuffer): string {
     .slice(0, MAX_CHARS)
 }
 
+const CHUNK_SIZE   = 500
+const CHUNK_OVERLAP = 50
+
+async function chunkAndEmbed(
+  client: ReturnType<typeof sb>,
+  bookId: string,
+  bookTitle: string,
+  fullText: string,
+): Promise<number> {
+  const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
+  if (!OPENAI_KEY) {
+    console.log('[EMBED] OPENAI_API_KEY not set — skipping embeddings')
+    return 0
+  }
+
+  const words  = fullText.split(/\s+/)
+  const chunks: string[] = []
+  for (let i = 0; i < words.length; i += CHUNK_SIZE - CHUNK_OVERLAP) {
+    const chunk = words.slice(i, i + CHUNK_SIZE).join(' ')
+    if (chunk.trim().length > 100) chunks.push(chunk)
+  }
+  if (!chunks.length) return 0
+
+  console.log(`[EMBED] ${bookTitle}: ${chunks.length} chunks`)
+  await client.from('library_chunks').delete().eq('book_id', bookId)
+
+  for (let i = 0; i < chunks.length; i += 10) {
+    const batch = chunks.slice(i, i + 10)
+    try {
+      const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+        body:    JSON.stringify({ model: 'text-embedding-3-small', input: batch }),
+        signal:  AbortSignal.timeout(20000),
+      })
+      if (!embRes.ok) {
+        console.error('[EMBED] OpenAI error:', embRes.status)
+        break
+      }
+      const embData = await embRes.json()
+      const rows = batch.map((chunk, j) => ({
+        book_id:     bookId,
+        book_title:  bookTitle,
+        chunk_index: i + j,
+        chunk_text:  chunk,
+        embedding:   embData.data[j]?.embedding ?? null,
+      }))
+      const { error } = await client.from('library_chunks').insert(rows)
+      if (error) console.error('[EMBED] Insert error:', error.message)
+      else console.log(`[EMBED] Inserted chunks ${i}–${i + batch.length - 1}`)
+    } catch (e: any) {
+      console.error('[EMBED] Batch error:', e.message)
+    }
+  }
+
+  return chunks.length
+}
+
 function regexExtractCandidates(text: string): string[] {
   const found = new Set<string>()
   const patterns: RegExp[] = [
@@ -198,6 +256,7 @@ export default async function handler(req: Request) {
         processed++
         const tags = regexExtractCandidates(text)
         await populateSpiritCache(client, row.id, row.title, tags)
+        await chunkAndEmbed(client, row.id, row.title, text)
       }
     } catch (e: any) {
       console.error('[BACKFILL] Failed on:', row.title, { error: e.message, stack: e.stack?.slice(0, 200) })
@@ -246,6 +305,7 @@ export default async function handler(req: Request) {
         if (newRow?.id) {
           const tags = regexExtractCandidates(text)
           await populateSpiritCache(client, newRow.id, title, tags)
+          await chunkAndEmbed(client, newRow.id, title, text)
         }
       }
     } catch (e: any) {
