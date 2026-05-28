@@ -807,7 +807,7 @@ function PricingSection() {
       locked: [
         'Weekly intimate calls (Coming Soon)',
       ],
-      btn: 'Start Free Trial',
+      btn: 'Join Commander →',
       url: COMMANDER_URL,
       featured: true,
     },

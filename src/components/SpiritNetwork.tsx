@@ -89,8 +89,8 @@ function OrgChartSVG({ selected, allDemons, onSelectParent, onSelectCompanion }:
 
         {/* ── PARENT NODE ── */}
         {hasParent && (() => {
-          const startX = cx,    startY = parentY + NODE_H
-          const endX   = cx,    endY   = selY
+          const startX = parentX + NODE_W / 2, startY = parentY + NODE_H
+          const endX   = selX    + NODE_W / 2, endY   = selY
           const midY   = (startY + endY) / 2
           return (
             <g
@@ -130,8 +130,8 @@ function OrgChartSVG({ selected, allDemons, onSelectParent, onSelectCompanion }:
           const demon  = allDemons.find(d => d.name.toLowerCase() === name.toLowerCase()) ?? null
           const compX  = compStartX + i * compSpacing
           const compCx = compX + NODE_W / 2
-          const startX = cx,    startY = selY + NODE_H
-          const endX   = compCx, endY   = compY
+          const startX = selX  + NODE_W / 2, startY = selY + NODE_H
+          const endX   = compCx,             endY   = compY
           const midY   = (startY + endY) / 2
           return (
             <g key={name} onClick={() => demon && onSelectCompanion(demon)} style={{ cursor: demon ? 'pointer' : 'default' }}>

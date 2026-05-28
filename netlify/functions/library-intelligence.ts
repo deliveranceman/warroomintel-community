@@ -4,8 +4,7 @@ const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN!
 const AIRTABLE_BASE  = 'appVXEj2DLPBTJTtD'
 const AIRTABLE_TABLE = 'tblcP4lgVykzOhLi4'
 const PRIMARY_FIELD  = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
-const MAX_BOOKS      = 20
-const CHARS_PER_BOOK = 10000
+const MAX_BOOKS = 20
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -65,149 +64,6 @@ async function fetchLibraryBooks() {
   return data || []
 }
 
-// ─── SHARED EXTRACTION PIPELINE ───────────────────────────────────────────────
-
-const STOPWORDS = new Set([
-  'god', 'jesus', 'christ', 'lord', 'holy spirit', 'father',
-  'blood', 'bible', 'scripture', 'name', 'amen', 'deliverance',
-  'prayer', 'people', 'family', 'church', 'children', 'things',
-  'power', 'truth', 'grace', 'faith', 'love', 'peace', 'joy',
-  'heaven', 'earth', 'man', 'men', 'woman', 'women', 'person',
-  'him', 'her', 'them', 'they', 'you', 'we', 'us', 'me', 'i',
-  'this', 'that', 'these', 'those', 'what', 'which', 'who',
-  'all', 'any', 'every', 'some', 'none', 'the', 'a', 'an',
-  'holy', 'spirit', 'spirits', 'demon', 'demons', 'evil',
-  'sin', 'sins', 'curse', 'curses', 'bond', 'bondage',
-  'satan', 'devil', 'enemy', 'darkness', 'light',
-  'pastor', 'minister', 'leader', 'group', 'meeting',
-  'body', 'soul', 'mind', 'heart', 'flesh', 'blood',
-])
-
-const CONTEXT_WORDS = ['come out', 'rebuke', 'renounce', 'bind', 'loose', 'cast out', 'command', 'leave', 'go now', 'depart']
-
-function regexExtractCandidates(text: string): Map<string, { score: number; canonical: string }> {
-  const patterns = [
-    /\ball\s+spirits\s+of\s+([A-Za-z][A-Za-z' \-,\/&]{2,120})/gi,
-    /\bspirits?\s+of\s+([A-Za-z][A-Za-z' \-]{2,60})/gi,
-    /\bdemons?\s+of\s+([A-Za-z][A-Za-z' \-]{2,60})/gi,
-    /\bspirit\s+([A-Z][a-zA-Z]{2,30})\b/g,
-  ]
-  const scores    = new Map<string, number>()
-  const canonical = new Map<string, string>()
-  const textLower = text.toLowerCase()
-
-  for (const pattern of patterns) {
-    const isAllSpirits = pattern.source.includes('all\\s+spirits')
-    const isSpiritOf   = pattern.source.includes('spirits?\\s+of')
-    let match
-    while ((match = pattern.exec(text)) !== null) {
-      const parts = match[1].split(/[,;\/]|\s+and\s+|\s+or\s+|&/)
-      for (const part of parts) {
-        let name = part.trim()
-          .replace(/^the\s+/i, '')
-          .replace(/[.!?:]+$/, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-        if (name.length < 3 || name.length > 50) continue
-        if (!/^[A-Z]/.test(name)) continue
-        name = name.replace(/\b\w/g, c => c.toUpperCase())
-        const nl = name.toLowerCase()
-        if (STOPWORDS.has(nl) || nl.split(' ').every(w => STOPWORDS.has(w))) continue
-        if (!canonical.has(nl)) canonical.set(nl, name)
-        const cur   = scores.get(nl) || 0
-        const bonus = isAllSpirits ? 4 : isSpiritOf ? 5 : 3
-        scores.set(nl, cur + bonus)
-        const pos    = match.index
-        const window = textLower.slice(Math.max(0, pos - 100), Math.min(textLower.length, pos + 150))
-        if (CONTEXT_WORDS.some(w => window.includes(w))) scores.set(nl, (scores.get(nl) || 0) + 2)
-      }
-    }
-  }
-
-  // Frequency bonus
-  for (const [nl, score] of scores.entries()) {
-    const occ = (textLower.match(new RegExp(nl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
-    if (occ >= 3)      scores.set(nl, score + 3)
-    else if (occ >= 2) scores.set(nl, score + 1)
-  }
-
-  const result = new Map<string, { score: number; canonical: string }>()
-  for (const [nl, score] of scores.entries()) {
-    if (score >= 4) result.set(nl, { score, canonical: canonical.get(nl) || nl })
-  }
-  return result
-}
-
-async function validateUnknownsWithClaude(
-  unknownCandidates: string[],
-  books: any[],
-): Promise<Array<{ name: string; context: string; source: string; suggested_kingdom: string }>> {
-  if (unknownCandidates.length === 0) return []
-
-  const BATCH_SIZE = 40
-  const allGaps: Array<{ name: string; context: string; source: string; suggested_kingdom: string }> = []
-
-  // Build a quick lookup: spirit name → book that mentions it
-  const textCorpus = books.map(b => ({
-    title: b.title,
-    text: (b.extracted_text || '').slice(0, CHARS_PER_BOOK).toLowerCase(),
-  }))
-
-  for (let i = 0; i < unknownCandidates.length; i += BATCH_SIZE) {
-    const batch = unknownCandidates.slice(i, i + BATCH_SIZE)
-    const prompt = `You are validating candidate spirit/demon names from deliverance ministry books to determine if they are NOT in our database yet.
-
-CANDIDATES (confirm which are real spiritual entities not commonly found in databases):
-${batch.map((n, idx) => `${idx + 1}. ${n}`).join('\n')}
-
-For each confirmed spiritual entity, suggest a kingdom category.
-
-Return ONLY this JSON (no markdown, start with {):
-{
-  "confirmed": [
-    {
-      "name": "Spirit Name",
-      "suggested_kingdom": "Witchcraft|Occult|False Religion|Air|Water|Earth|Darkness|Hell"
-    }
-  ]
-}`
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }),
-      })
-      const data = await res.json()
-      const raw  = data.content[0].text
-      const cleaned = raw.replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
-      const m = cleaned.match(/\{[\s\S]*\}/)
-      const result = JSON.parse(m ? m[0] : cleaned)
-
-      for (const item of (result.confirmed || [])) {
-        // Find which book mentions it
-        const nameLower = item.name.toLowerCase()
-        const sourceBook = textCorpus.find(b => b.text.includes(nameLower))
-        allGaps.push({
-          name:              item.name,
-          context:           `Mentioned in library document`,
-          source:            sourceBook?.title || 'Library document',
-          suggested_kingdom: item.suggested_kingdom || 'Unknown',
-        })
-      }
-    } catch (e) {
-      console.error('[GAP-ANALYSIS] Batch validation failed:', e)
-      // Fallback: add all from batch as unvalidated
-      for (const name of batch) {
-        const nameLower = name.toLowerCase()
-        const sourceBook = textCorpus.find(b => b.text.includes(nameLower))
-        allGaps.push({ name, context: 'Extracted via regex scan', source: sourceBook?.title || 'Library document', suggested_kingdom: 'Unknown' })
-      }
-    }
-  }
-
-  return allGaps
-}
-
 async function claudeCall(system: string, user: string): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -248,52 +104,101 @@ export default async function handler(req: Request) {
     const spiritNames = await fetchAllSpiritNames()
     console.log(`[GAP-ANALYSIS] Loaded ${spiritNames.length} spirit names in ${Date.now() - t0}ms`)
 
-    // Step 1: Run full-doc regex scan across all books
-    const globalScores = new Map<string, { score: number; canonical: string }>()
+    // Analyze each book with Claude Sonnet for comprehensive spirit extraction
+    const allGaps = new Map<string, { name: string; description: string; source: string; context: string; suggested_kingdom: string }>()
+
     for (const book of books) {
-      const text = (book.extracted_text || '').slice(0, CHARS_PER_BOOK)
-      const bookMap = regexExtractCandidates(text)
-      for (const [nl, entry] of bookMap.entries()) {
-        const existing = globalScores.get(nl)
-        if (!existing || entry.score > existing.score) {
-          globalScores.set(nl, entry)
-        } else {
-          globalScores.set(nl, { score: existing.score + entry.score, canonical: existing.canonical })
+      if (!book.extracted_text) continue
+      console.log(`[GAP-ANALYSIS] Analyzing: ${book.title} (${book.extracted_text.length} chars)`)
+
+      const prompt = `You are a demon database specialist for a deliverance ministry platform. We have ${spiritNames.length} spirits in our database.
+
+EXISTING DATABASE (do not include these):
+${spiritNames.slice(0, 300).join(', ')}
+
+BOOK: "${book.title}"
+
+FULL TEXT:
+${book.extracted_text}
+
+Task: Find every demon name, spirit name, or spiritual entity in this text that is NOT already in our database above.
+
+Pay special attention to:
+- Proper name dictionaries (entries like "ALVAIZEITAN: description")
+- Named spirits in ALL CAPS
+- Spirits mentioned in renunciation lists
+- Named principalities, powers, and entities
+- Foreign/ancient names (Babylonian, Egyptian, Canaanite, etc.)
+
+For each new spirit found, provide the exact name, a brief description from context, and a kingdom category.
+
+Return ONLY this JSON (no markdown):
+{
+  "newSpirits": [
+    {
+      "name": "ALVAIZEITAN",
+      "description": "Controller of alcohol, drugs, and murder",
+      "source": "${book.title}",
+      "context": "Found in proper names section",
+      "suggested_kingdom": "Addiction"
+    }
+  ]
+}`
+
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }),
+          signal: AbortSignal.timeout(50000),
+        })
+
+        if (!res.ok) {
+          console.error(`[GAP-ANALYSIS] Claude error for ${book.title}:`, res.status)
+          continue
         }
+
+        const data = await res.json()
+        const raw  = (data.content?.[0]?.text || '').trim()
+          .replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim()
+
+        let parsed: any = null
+        try { parsed = JSON.parse(raw) } catch {
+          const m = raw.match(/\{[\s\S]*\}/)
+          if (m) { try { parsed = JSON.parse(m[0]) } catch {} }
+        }
+
+        if (parsed?.newSpirits && Array.isArray(parsed.newSpirits)) {
+          for (const spirit of parsed.newSpirits) {
+            if (!spirit.name) continue
+            const key = spirit.name.toLowerCase().trim()
+            if (!allGaps.has(key)) {
+              allGaps.set(key, {
+                name:              spirit.name,
+                description:       spirit.description || '',
+                source:            spirit.source || book.title,
+                context:           spirit.context || 'Found in library document',
+                suggested_kingdom: spirit.suggested_kingdom || 'Unknown',
+              })
+            }
+          }
+        }
+
+        console.log(`[GAP-ANALYSIS] ${book.title}: ${parsed?.newSpirits?.length ?? 0} new spirits`)
+      } catch (e) {
+        console.error(`[GAP-ANALYSIS] Failed to analyze ${book.title}:`, e)
       }
     }
 
-    const allCandidates = Array.from(globalScores.entries())
-      .sort((a, b) => b[1].score - a[1].score)
-      .map(([_, v]) => v.canonical)
-
-    console.log(`[GAP-ANALYSIS] ${allCandidates.length} total candidates across ${books.length} books`)
-
-    // Step 2: Filter against existing database
-    const existingLower = new Set(spiritNames.map(n => n.toLowerCase()))
-    const unknownCandidates = allCandidates.filter(name => {
-      const nl = name.toLowerCase()
-      if (existingLower.has(nl)) return false
-      for (const ex of existingLower) {
-        if (ex.includes(nl) || nl.includes(ex)) return false
-      }
-      return true
-    })
-
-    console.log(`[GAP-ANALYSIS] ${unknownCandidates.length} unknown candidates after DB filter`)
-
-    // Step 3: Batch Claude validation
-    const gaps = await validateUnknownsWithClaude(unknownCandidates, books)
-
-    console.log(`[GAP-ANALYSIS] Confirmed ${gaps.length} gaps in ${Date.now() - t0}ms total`)
+    const gaps = Array.from(allGaps.values())
+    console.log(`[GAP-ANALYSIS] Total: ${gaps.length} unique new spirits in ${Date.now() - t0}ms`)
 
     return new Response(JSON.stringify({
       gaps,
-      summary: `Scanned ${books.length} books. Found ${allCandidates.length} spirit candidates, ${unknownCandidates.length} not in database, confirmed ${gaps.length} new spirits.`,
+      summary: `Analyzed ${books.length} books. Found ${gaps.length} spirits not in database.`,
       bookTitles,
-      bookCount:    books.length,
-      spiritCount:  spiritNames.length,
-      totalCandidates: allCandidates.length,
+      bookCount:   books.length,
+      spiritCount: spiritNames.length,
     }), { status: 200, headers })
   }
 

@@ -34,7 +34,7 @@
   timeout = 30
 
 [functions."library-intelligence"]
-  timeout = 30
+  timeout = 60
 
 [functions."admin-library"]
   timeout = 30

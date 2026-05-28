@@ -45,46 +45,69 @@ const STOPWORDS = new Set([
 
 const CONTEXT_WORDS = ['come out', 'rebuke', 'renounce', 'bind', 'loose', 'cast out', 'command', 'leave', 'go now', 'depart']
 
-function regexExtractCandidates(text: string): Map<string, { score: number; canonical: string }> {
-  const patterns = [
-    /\ball\s+spirits\s+of\s+([A-Za-z][A-Za-z' \-,\/&]{2,120})/gi,
-    /\bspirits?\s+of\s+([A-Za-z][A-Za-z' \-]{2,60})/gi,
-    /\bdemons?\s+of\s+([A-Za-z][A-Za-z' \-]{2,60})/gi,
-    /\bspirit\s+([A-Z][a-zA-Z]{2,30})\b/g,
-  ]
+function regexExtractCandidates(text: string, minScore = 4): Map<string, { score: number; canonical: string }> {
   const scores    = new Map<string, number>()
   const canonical = new Map<string, string>()
   const textLower = text.toLowerCase()
 
-  for (const pattern of patterns) {
-    const isAllSpirits = pattern.source.includes('all\\s+spirits')
-    const isSpiritOf   = pattern.source.includes('spirits?\\s+of')
-    let match
-    while ((match = pattern.exec(text)) !== null) {
-      const parts = match[1].split(/[,;\/]|\s+and\s+|\s+or\s+|&/)
-      for (const part of parts) {
-        let name = part.trim()
-          .replace(/^the\s+/i, '')
-          .replace(/[.!?:]+$/, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-        if (name.length < 3 || name.length > 50) continue
-        if (!/^[A-Z]/.test(name)) continue
-        name = name.replace(/\b\w/g, c => c.toUpperCase())
-        const nl = name.toLowerCase()
-        if (STOPWORDS.has(nl) || nl.split(' ').every(w => STOPWORDS.has(w))) continue
-        if (!canonical.has(nl)) canonical.set(nl, name)
-        const cur = scores.get(nl) || 0
-        const bonus = isAllSpirits ? 4 : isSpiritOf ? 5 : 3
-        scores.set(nl, cur + bonus)
-        const pos    = match.index
-        const window = textLower.slice(Math.max(0, pos - 100), Math.min(textLower.length, pos + 150))
-        if (CONTEXT_WORDS.some(w => window.includes(w))) scores.set(nl, (scores.get(nl) || 0) + 2)
+  // Detect "Proper Names of Demons" section — entries here get a confidence boost
+  const properNamesIdx  = text.indexOf('Proper Names of Demons')
+  const inProperSection = (pos: number) => properNamesIdx >= 0 && pos > properNamesIdx
+
+  function addCandidate(rawName: string, baseScore: number, matchPos: number) {
+    let name = rawName.trim()
+      .replace(/^the\s+/i, '')
+      .replace(/[.!?:]+$/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (name.length < 3 || name.length > 50) return
+    if (!/^[A-Z]/.test(name)) return
+    name = name.replace(/\b\w/g, c => c.toUpperCase())
+    const nl = name.toLowerCase()
+    if (STOPWORDS.has(nl) || nl.split(' ').every(w => STOPWORDS.has(w))) return
+    if (!canonical.has(nl)) canonical.set(nl, name)
+    let score = (scores.get(nl) || 0) + baseScore
+    const win = textLower.slice(Math.max(0, matchPos - 100), Math.min(textLower.length, matchPos + 150))
+    if (CONTEXT_WORDS.some(w => win.includes(w))) score += 2
+    if (inProperSection(matchPos)) score += 4
+    scores.set(nl, score)
+  }
+
+  // ── Proper name dictionary: DEMONNAME: description  or  NAME1, NAME2--description
+  const dictPatterns: RegExp[] = [
+    /^([A-Z]{3,}(?:,\s*[A-Z]{3,})*)\s*(?:--|:)\s*[a-z]/gm,
+    /^([A-Z][A-Z\s,]{3,40})--[a-z]/gm,
+  ]
+  for (const p of dictPatterns) {
+    let m
+    while ((m = p.exec(text)) !== null) {
+      for (const part of m[1].split(/,\s*/)) {
+        const clean = part.trim()
+        if (clean.length >= 3 && !/^\d+$/.test(clean)) addCandidate(clean, 6, m.index)
       }
     }
   }
 
-  // Frequency bonus
+  // ── Command context: "cast out / bind / rebuke" + Name
+  const cmdPat = /(?:cast out|bind|rebuke|command)\s+(?:the\s+)?([A-Z][a-zA-Z]{2,30})/g
+  let cm
+  while ((cm = cmdPat.exec(text)) !== null) addCandidate(cm[1], 3, cm.index)
+
+  // ── Spirit-of / demon-of patterns
+  const spiritPatterns = [
+    { re: /\ball\s+spirits\s+of\s+([A-Za-z][A-Za-z' \-,\/&]{2,120})/gi, base: 4 },
+    { re: /\bspirits?\s+of\s+([A-Za-z][A-Za-z' \-]{2,60})/gi,           base: 5 },
+    { re: /\bdemons?\s+of\s+([A-Za-z][A-Za-z' \-]{2,60})/gi,            base: 3 },
+    { re: /\bspirit\s+([A-Z][a-zA-Z]{2,30})\b/g,                         base: 3 },
+  ]
+  for (const { re, base } of spiritPatterns) {
+    let m
+    while ((m = re.exec(text)) !== null) {
+      for (const part of m[1].split(/[,;\/]|\s+and\s+|\s+or\s+|&/)) addCandidate(part, base, m.index)
+    }
+  }
+
+  // ── Frequency bonus
   for (const [nl, score] of scores.entries()) {
     const occ = (textLower.match(new RegExp(nl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
     if (occ >= 3)      scores.set(nl, score + 3)
@@ -93,7 +116,7 @@ function regexExtractCandidates(text: string): Map<string, { score: number; cano
 
   const result = new Map<string, { score: number; canonical: string }>()
   for (const [nl, score] of scores.entries()) {
-    if (score >= 4) result.set(nl, { score, canonical: canonical.get(nl) || nl })
+    if (score >= minScore) result.set(nl, { score, canonical: canonical.get(nl) || nl })
   }
   return result
 }
