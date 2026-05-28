@@ -70,23 +70,11 @@ export default async function handler(req: Request) {
       .single()
     if (resourceError || !resource) return new Response(JSON.stringify({ error: 'Resource not found' }), { status: 404, headers })
     if (!allowedTiers.includes(resource.tier)) return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers })
-    const { data, error } = await supabase.storage
+    const { data: signedData, error: signedError } = await supabase.storage
       .from('resources')
-      .download(resource.file_path)
-    if (error || !data) return new Response(JSON.stringify({ error: 'File not found' }), { status: 404, headers })
-    const mimeType = resource.file_type === 'pdf' ? 'application/pdf'
-      : resource.file_type === 'txt' ? 'text/plain'
-      : resource.file_type === 'mp3' || resource.file_type === 'mpeg' ? 'audio/mpeg'
-      : 'application/octet-stream'
-    const arrayBuffer = await data.arrayBuffer()
-    return new Response(arrayBuffer, {
-      status: 200,
-      headers: {
-        ...headers,
-        'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${resource.title}"`,
-      }
-    })
+      .createSignedUrl(resource.file_path, 3600)
+    if (signedError || !signedData?.signedUrl) return new Response(JSON.stringify({ error: 'Could not generate link' }), { status: 500, headers })
+    return new Response(JSON.stringify({ url: signedData.signedUrl }), { status: 200, headers })
   }
 
   let query = supabase

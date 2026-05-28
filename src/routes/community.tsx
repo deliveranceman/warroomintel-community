@@ -1661,8 +1661,8 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                         <button onClick={async () => {
                           const token = await getToken()
                           const res = await fetch(`/api/arsenal-resources?id=${att.resource_id || att.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } })
-                          if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = att.title || 'resource'; a.click(); URL.revokeObjectURL(url) }
-                        }} style={{ padding: '6px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0 }}>↓ Download</button>
+                          if (res.ok) { const d = await res.json(); if (d.url) window.open(d.url, '_blank') }
+                        }} style={{ padding: '6px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0 }}>↗ View</button>
                       </div>
                     ))}
                   </div>
@@ -3332,11 +3332,10 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                               <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title}</div>
                               <div style={{ fontSize: 10, color: mut }}>{r.topic || r.category}</div>
                             </div>
-                            <button onClick={async () => {
-                              const token = await getToken()
-                              const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } })
-                              if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = r.title; a.click(); URL.revokeObjectURL(url) }
-                            }} style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel }}>↓ Get</button>
+                            {r.file_url
+                              ? <a href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none' }}>↗ View</a>
+                              : <button onClick={async () => { const token = await getToken(); const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } }); if (res.ok) { const d = await res.json(); if (d.url) window.open(d.url, '_blank') } }} style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel }}>↗ View</button>
+                            }
                           </div>
                         ))}
                       </div>
@@ -3462,7 +3461,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [tierFilter, setTierFilter] = useState('All')
   const [topicFilter, setTopicFilter] = useState('')
   const [tagFilter, setTagFilter]   = useState('')
-  const [downloading, setDownloading] = useState<string | null>(null)
   const [error, setError]           = useState('')
 
   const ARSENAL_TOPICS = [
@@ -3505,29 +3503,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     }
     load()
   }, [])
-
-  async function handleDownload(resource: any) {
-    try {
-      const token = await getToken()
-      const res = await fetch(`/api/arsenal-resources?id=${resource.id}&action=download`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        alert(err.error || 'Download failed')
-        return
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = resource.title || 'resource'
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch(e) {
-      alert('Download failed. Please try again.')
-    }
-  }
 
   const FILE_ICONS: Record<string, string> = {
     'application/pdf': '📄',
@@ -3580,13 +3555,9 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
             </div>
           </div>
           {hasAccess ? (
-            <button
-              onClick={() => handleDownload(resource)}
-              disabled={downloading === resource.id}
-              style={{ background: downloading === resource.id ? 'rgba(201,168,76,0.2)' : G, color: downloading === resource.id ? muted : '#0D0B14', border: 'none', borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: downloading === resource.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
-            >
-              {downloading === resource.id ? '...' : '↓ Download'}
-            </button>
+            resource.file_url
+              ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0, textDecoration: 'none', display: 'inline-block' }}>↗ View</a>
+              : <span style={{ fontSize: 10, color: muted, fontFamily: cinzel }}>No file</span>
           ) : (
             <a href={upgradeLink} style={{ background: 'transparent', border: `1px solid ${G}`, color: G, borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
               🔒 Upgrade
