@@ -72,3 +72,6 @@
 [functions."library-reanalyze"]
   timeout = 30
   external_node_modules = ["pdf-parse"]
+
+[functions."ai-assistant"]
+  timeout = 26

@@ -5426,6 +5426,49 @@ const UPCOMING_CALLS = [
   { title: "General's Table",      date: 'Wed Jun 4 · 8pm CT', badge: 'General' },
 ]
 
+// ── ONBOARDING ─────────────────────────────────────────────
+function useFirstTime(key: string): [boolean, () => void] {
+  const [show, setShow] = useState(() => {
+    try { return !localStorage.getItem(key) } catch { return false }
+  })
+  const dismiss = useCallback(() => {
+    setShow(false)
+    try { localStorage.setItem(key, '1') } catch {}
+  }, [key])
+  return [show, dismiss]
+}
+
+function OnboardingOverlay({ storageKey, icon, title, points }: {
+  storageKey: string; icon: string; title: string; points: string[]
+}) {
+  const [show, dismiss] = useFirstTime(storageKey)
+  if (!show) return null
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: 'rgba(9,7,15,0.92)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ maxWidth: 480, width: '100%', background: '#0f0c07', border: '1px solid rgba(201,168,76,0.25)', borderTop: '2px solid #C9A84C', borderRadius: 8, padding: '32px 28px' }}>
+        <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' as const }}>{icon}</div>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, textAlign: 'center' as const, marginBottom: 20 }}>{title}</div>
+        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+          {points.map((pt, i) => (
+            <li key={i} style={{ display: 'flex', gap: 10, fontFamily: crimson, fontSize: 14, color: '#c8b896', lineHeight: 1.6 }}>
+              <span style={{ color: G, flexShrink: 0 }}>⚔</span>
+              {pt}
+            </li>
+          ))}
+        </ul>
+        <div style={{ textAlign: 'center' as const }}>
+          <button
+            onClick={dismiss}
+            style={{ padding: '10px 32px', background: 'transparent', border: '1px solid #C9A84C', borderRadius: 4, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          >
+            ENTER BRIEFING →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut } = useAuth()
@@ -5464,6 +5507,38 @@ function CommunityPage() {
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
   const [unreadDMs, setUnreadDMs]         = useState(0)
   const [unreadWarRoom, setUnreadWarRoom] = useState(0)
+
+  // AI Chatbot
+  const [chatOpen, setChatOpen]           = useState(false)
+  const [chatMessages, setChatMessages]   = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [chatInput, setChatInput]         = useState('')
+  const [chatLoading, setChatLoading]     = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  async function sendChat(msg: string) {
+    if (!msg.trim() || chatLoading) return
+    const userMsg = { role: 'user' as const, content: msg.trim() }
+    const history = [...chatMessages, userMsg]
+    setChatMessages(history)
+    setChatInput('')
+    setChatLoading(true)
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg.trim(), history: chatMessages }),
+      })
+      const data = await res.json()
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.response || 'No response received.' }])
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Unable to connect. Please try again.' }])
+    } finally {
+      setChatLoading(false)
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
+  }
+
   const [hoveredPrayer, setHoveredPrayer] = useState<any>(null)
   const [hoverY, setHoverY]               = useState(0)
   const [members, setMembers]             = useState<any[]>([])
@@ -6400,9 +6475,19 @@ function CommunityPage() {
             isMobile={isMobile}
           />
         )}
-        {activeSection === 'database'    && <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} />}
+        {activeSection === 'database'    && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} />
+            <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
+          </div>
+        )}
         {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
-        {activeSection === 'arsenal'     && <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'arsenal'     && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
+            <OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} />
+          </div>
+        )}
         {activeSection === 'testimony-wall' && (
           <TestimonyWallView
             theme={theme}
@@ -6419,8 +6504,18 @@ function CommunityPage() {
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'body-map' && <BodyMapView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} onSelectSpirit={(spirit: any) => { setActiveSection('database') }} />}
-        {activeSection === 'spirit-network' && <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} />}
-        {activeSection === 'gateway' && <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'spirit-network' && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} />
+            <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
+          </div>
+        )}
+        {activeSection === 'gateway' && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
+            <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','The AI cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
+          </div>
+        )}
         {activeSection === 'training'    && (
           <TrainingView
             theme={theme}
@@ -6434,7 +6529,12 @@ function CommunityPage() {
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
-        {activeSection === 'forum'       && <ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} />}
+        {activeSection === 'forum'       && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} />
+            <OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} />
+          </div>
+        )}
       </div>
 
       {/* ── MODALS ── */}
@@ -6710,6 +6810,107 @@ function CommunityPage() {
           </div>
         </div>
       )}
+
+      {/* ── AI CHATBOT ── */}
+      {chatOpen && (
+        <div style={{
+          position: 'fixed',
+          bottom: isMobile ? 0 : 136,
+          left: isMobile ? 0 : 20,
+          width: isMobile ? '100%' : 340,
+          height: isMobile ? '70vh' : 460,
+          background: '#0f0c07',
+          border: '1px solid #3a3020',
+          borderTop: '2px solid #C9A84C',
+          borderRadius: isMobile ? '12px 12px 0 0' : 8,
+          display: 'flex',
+          flexDirection: 'column' as const,
+          zIndex: 1001,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+        }}>
+          <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>⚔ WAR ROOM AI</span>
+            <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            {chatMessages.length === 0 && (
+              <div style={{ textAlign: 'center' as const, padding: '32px 16px', color: '#6b5e45', fontFamily: crimson, fontSize: 13, lineHeight: 1.6 }}>
+                Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, or any ministry question.
+              </div>
+            )}
+            {chatMessages.map((msg, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div style={{
+                  maxWidth: '85%',
+                  padding: '8px 12px',
+                  borderRadius: msg.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                  background: msg.role === 'user' ? 'rgba(201,168,76,0.1)' : '#1a1408',
+                  border: msg.role === 'user' ? '1px solid rgba(201,168,76,0.3)' : '1px solid #2a2010',
+                  fontFamily: crimson,
+                  fontSize: 14,
+                  color: msg.role === 'user' ? '#e8d9b0' : '#c8b896',
+                  lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap' as const,
+                }}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {chatLoading && (
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ padding: '8px 14px', background: '#1a1408', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>
+                  Analyzing…
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+          <div style={{ padding: 12, borderTop: '1px solid #1e1a0e', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <textarea
+                rows={2}
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(chatInput) } }}
+                placeholder="Ask a question…"
+                style={{ flex: 1, background: '#1a1408', border: '1px solid #2a2010', borderRadius: 6, padding: '8px 10px', color: '#c8b896', fontFamily: crimson, fontSize: 13, resize: 'none' as const, outline: 'none' }}
+              />
+              <button
+                onClick={() => sendChat(chatInput)}
+                disabled={chatLoading || !chatInput.trim()}
+                style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '0 14px', color: G, fontFamily: cinzel, fontSize: 10, cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer', opacity: chatLoading || !chatInput.trim() ? 0.5 : 1, flexShrink: 0, letterSpacing: '0.06em' }}
+              >
+                SEND
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <button
+        onClick={() => setChatOpen(o => !o)}
+        style={{
+          position: 'fixed',
+          bottom: 80,
+          left: 20,
+          zIndex: 1000,
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
+          border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
+          color: G,
+          fontSize: 22,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          transition: 'all 0.15s',
+        }}
+        title="War Room AI"
+      >
+        🧠
+      </button>
     </div>
   )
 }

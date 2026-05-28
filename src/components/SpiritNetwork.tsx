@@ -48,8 +48,8 @@ export interface SpiritNetworkProps {
 
 // ── SVG ORG CHART ─────────────────────────────────────────────────────────────
 
-const NODE_W = 140
-const NODE_H = 44
+const NODE_W = 160
+const NODE_H = 60
 
 function OrgChartSVG({ selected, allDemons, onSelectParent, onSelectCompanion }: {
   selected: Demon
