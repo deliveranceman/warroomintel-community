@@ -6859,13 +6859,15 @@ function CommunityPage() {
       {chatOpen && (
         <div style={{
           position: 'fixed',
-          bottom: isMobile ? 0 : 136,
-          left: isMobile ? 0 : 20,
+          bottom: isMobile ? 0 : 84,
+          right: isMobile ? undefined : 24,
+          left: isMobile ? 0 : undefined,
           width: isMobile ? '100%' : 340,
           height: isMobile ? '70vh' : 460,
           background: '#0f0c07',
           border: '1px solid #3a3020',
           borderTop: '2px solid #C9A84C',
+          right: isMobile ? 0 : undefined,
           borderRadius: isMobile ? '12px 12px 0 0' : 8,
           display: 'flex',
           flexDirection: 'column' as const,
@@ -6942,8 +6944,8 @@ function CommunityPage() {
         onClick={() => setChatOpen(o => !o)}
         style={{
           position: 'fixed',
-          bottom: 80,
-          left: 20,
+          bottom: isMobile ? 24 : 24,
+          right: isMobile ? 16 : 24,
           zIndex: 1000,
           width: 48,
           height: 48,
