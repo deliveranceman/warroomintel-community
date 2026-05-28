@@ -476,7 +476,9 @@ function DatabaseSection() {
             <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
             <span style={{ color: textDim }}>Soldier:</span> + Manifestations, Scripture, Strongman, Rank&nbsp;&nbsp;
             <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
-            <span style={{ color: muted }}>Commander &amp; General: Coming Soon</span>
+            <span style={{ color: textDim }}>Commander:</span> + Entry Points, Legal Rights, Protocols&nbsp;&nbsp;
+            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
+            <span style={{ color: textDim }}>General:</span> + Symptoms, Companions, Exorcist Notes
           </span>
         </div>
         <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>JOIN TO UNLOCK →</a>
