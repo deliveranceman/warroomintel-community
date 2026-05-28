@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
+import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -5621,6 +5622,156 @@ function OnboardingOverlay({ storageKey, icon, title, points }: {
   )
 }
 
+// ── SESSION CENTER VIEW ────────────────────────────────────
+function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, demons, onLaunch }: any) {
+  const isDark = theme !== 'light'
+  const bg     = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf   = isDark ? '#13111e' : '#FFFFFF'
+  const bdr    = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const txt    = isDark ? '#e8dcc8' : '#2D2924'
+  const dim    = isDark ? '#6b5e45' : '#5C5248'
+  const gold   = isDark ? '#C9A84C' : '#8B6914'
+
+  const [sessions, setSessions]     = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [step, setStep]             = useState<'list' | 'new'>(  'list')
+  const [alias, setAlias]           = useState('')
+  const [sessionNum, setSessionNum] = useState(1)
+  const [spiritsFromLS, setSpiritsFromLS] = useState<string[]>([])
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('wri_session_spirits') || '[]')
+      if (Array.isArray(stored)) setSpiritsFromLS(stored)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (step !== 'list') return
+    getToken().then((token: string | null) => {
+      fetch('/api/sessions', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { setSessions(d.sessions || []); setLoading(false) })
+        .catch(() => setLoading(false))
+    })
+  }, [step])
+
+  async function startNewSession() {
+    if (!alias.trim()) return
+    const token = await getToken()
+    const spiritSeq = spiritsFromLS.map(name => {
+      const d = demons.find((x: any) => x.name?.toLowerCase() === name.toLowerCase())
+      return { id: Math.random().toString(36).slice(2), name: d?.name || name, rank: d?.biblicalRank || 'Common Spirit', label: '', status: 'pending', reasoning: '', entryPoints: d?.entryPoints || '', companions: [], scriptures: [], breakthroughLevel: 'none' }
+    })
+    const res = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ subject_alias: alias.trim(), session_number: sessionNum, spirit_sequence: spiritSeq }),
+    })
+    const data = await res.json()
+    if (data.session) {
+      localStorage.removeItem('wri_session_spirits')
+      onLaunch(data.session.id, { subjectAlias: alias.trim(), sessionNumber: sessionNum })
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+    border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt,
+    fontFamily: "'Crimson Pro', serif", fontSize: 15, outline: 'none',
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 32px' }}>
+      {isMobile && (
+        <button onClick={() => setSidebarOpen(true)} style={{ background: 'transparent', border: 'none', color: gold, fontSize: 20, cursor: 'pointer', marginBottom: 16, padding: 0 }}>☰</button>
+      )}
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.2em', marginBottom: 4 }}>FIELD OPERATIONS</div>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, color: txt, marginBottom: 4 }}>Session Center</div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: 24 }}>Launch, manage, and resume deliverance sessions.</div>
+
+        {step === 'list' ? (
+          <>
+            <button onClick={() => setStep('new')} style={{ width: '100%', padding: '14px', background: gold, border: 'none', borderRadius: 8, fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.1em', color: '#060408', cursor: 'pointer', fontWeight: 700, marginBottom: 24 }}>
+              ⚔ START NEW SESSION
+            </button>
+            {spiritsFromLS.length > 0 && (
+              <div style={{ background: `${gold}11`, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.1em' }}>SPIRITS FROM CASE FILES:</span>
+                <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: txt }}>{spiritsFromLS.join(', ')}</span>
+              </div>
+            )}
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim, letterSpacing: '0.15em', marginBottom: 12 }}>RECENT SESSIONS</div>
+            {loading && <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim }}>Loading...</div>}
+            {!loading && sessions.length === 0 && (
+              <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim, fontStyle: 'italic' }}>No sessions yet. Start your first session above.</div>
+            )}
+            {sessions.map(s => {
+              const isActive = s.status === 'active' || s.status === 'paused'
+              const spirits  = (s.spirit_sequence || []).length
+              const expelled = (s.spirit_sequence || []).filter((x: any) => x.status === 'expelled').length
+              return (
+                <div key={s.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 18px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: txt }}>{s.subject_alias}</span>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>#{s.session_number}</span>
+                      {s.status === 'paused' && (
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: '#fb923c', background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.3)', borderRadius: 10, padding: '1px 6px' }}>IN PROGRESS</span>
+                      )}
+                      {s.status === 'completed' && (
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 10, padding: '1px 6px' }}>COMPLETED</span>
+                      )}
+                    </div>
+                    <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: dim }}>
+                      {new Date(s.created_at).toLocaleDateString()} · {spirits} spirits · {expelled} expelled
+                    </div>
+                  </div>
+                  {isActive && (
+                    <button onClick={() => onLaunch(s.id, { subjectAlias: s.subject_alias, sessionNumber: s.session_number })}
+                      style={{ padding: '8px 14px', background: s.status === 'paused' ? 'rgba(251,146,60,0.15)' : `${gold}22`, border: `1px solid ${s.status === 'paused' ? 'rgba(251,146,60,0.4)' : bdr}`, borderRadius: 6, color: s.status === 'paused' ? '#fb923c' : gold, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      {s.status === 'paused' ? '▶ RESUME' : '▶ ENTER'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </>
+        ) : (
+          /* New Session Form */
+          <div>
+            <button onClick={() => setStep('list')} style={{ background: 'transparent', border: 'none', color: dim, fontFamily: "'Cinzel', serif", fontSize: 9, cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 20, padding: 0 }}>← BACK</button>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: txt, marginBottom: 20 }}>New Session Setup</div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', color: dim, marginBottom: 5 }}>SUBJECT ALIAS</label>
+              <input value={alias} onChange={e => setAlias(e.target.value)} placeholder="e.g. Jane D." style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', color: dim, marginBottom: 5 }}>SESSION NUMBER</label>
+              <input type="number" min={1} value={sessionNum} onChange={e => setSessionNum(parseInt(e.target.value) || 1)} style={{ ...inputStyle, width: 100 }} />
+            </div>
+            {spiritsFromLS.length > 0 && (
+              <div style={{ background: `${gold}11`, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.1em', marginBottom: 6 }}>PRE-LOADED FROM CASE FILES</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                  {spiritsFromLS.map(name => (
+                    <span key={name} style={{ padding: '2px 8px', borderRadius: 10, background: `${gold}11`, border: `1px solid ${bdr}`, fontFamily: "'Cinzel', serif", fontSize: 9, color: gold }}>{name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button onClick={startNewSession} disabled={!alias.trim()}
+              style={{ width: '100%', padding: '14px', background: alias.trim() ? gold : 'transparent', border: `1px solid ${alias.trim() ? gold : bdr}`, borderRadius: 8, fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.1em', color: alias.trim() ? '#060408' : dim, cursor: alias.trim() ? 'pointer' : 'default', fontWeight: 700 }}>
+              ⚔ LAUNCH SESSION
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
@@ -5763,6 +5914,11 @@ function CommunityPage() {
     const win = window.open('', '_blank')
     if (win) { win.document.write(html); win.document.close() }
   }
+
+  // Session Command Center
+  const [sessionOpen, setSessionOpen]           = useState(false)
+  const [activeSessionId, setActiveSessionId]   = useState<string | undefined>(undefined)
+  const [activeSessionCF, setActiveSessionCF]   = useState<any>(undefined)
 
   const [hoveredPrayer, setHoveredPrayer] = useState<any>(null)
   const [hoverY, setHoverY]               = useState(0)
@@ -6528,6 +6684,7 @@ function CommunityPage() {
 
         {/* ── FIELD OPERATIONS ── */}
         {sectionLabel('Field Operations')}
+        {navItem('Session Center', 'session-center', '⚔')}
         <a href="/community/spiritual-mapping" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
@@ -6753,6 +6910,21 @@ function CommunityPage() {
             setActiveSection={setActiveSection}
           />
         )}
+        {activeSection === 'session-center' && (
+          <SessionCenterView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            userId={user?.id || ''}
+            getToken={getToken}
+            demons={demons}
+            onLaunch={(sessionId?: string, caseFile?: any) => {
+              setActiveSessionId(sessionId)
+              setActiveSessionCF(caseFile)
+              setSessionOpen(true)
+            }}
+          />
+        )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
         {activeSection === 'forum'       && (
@@ -6762,6 +6934,16 @@ function CommunityPage() {
           </div>
         )}
       </div>
+
+      {/* ── SESSION COMMAND CENTER ── */}
+      {sessionOpen && (
+        <SessionCommandCenter
+          sessionId={activeSessionId}
+          caseFile={activeSessionCF}
+          demons={demons}
+          onClose={() => { setSessionOpen(false); setActiveSessionId(undefined); setActiveSessionCF(undefined) }}
+        />
+      )}
 
       {/* ── MODALS ── */}
       {viewingProfile && (
