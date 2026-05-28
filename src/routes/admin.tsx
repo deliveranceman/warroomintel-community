@@ -5491,7 +5491,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -5554,7 +5554,9 @@ function AdminPage() {
     { key: 'lib-intel',   label: '🔬 Lib. Intel'         },
     { key: 'ai-command', label: '🤖 AI Command'         },
     { key: 'taxonomy',   label: '🔬 Taxonomy'           },
-    { key: 'tracker',   label: '🗂 Tracker'             },
+    { key: 'tracker',        label: '🗂 Tracker'       },
+    { key: 'internal-books', label: '📚 Books'         },
+    { key: 'admin-chat',     label: '💬 Admin Chat'    },
   ] as const
 
   return (
@@ -5607,7 +5609,7 @@ function AdminPage() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: tab === 'documents' || tab === 'field-ministry' || tab === 'taxonomy' ? 1200 : 900, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: tab === 'documents' || tab === 'field-ministry' || tab === 'taxonomy' || tab === 'internal-books' ? 1400 : tab === 'admin-chat' ? 1000 : 900, margin: '0 auto', padding: tab === 'admin-chat' ? '0' : '32px 24px' }}>
         {tab === 'dashboard'      && <DashboardView getToken={getToken} isDark={isDark} setTab={(t: string) => setTab(t as any)} />}
         {tab === 'arsenal'        && <ArsenalManager getToken={getToken} />}
         {tab === 'intel'          && <IntelArchive getToken={getToken} isDark={isDark} />}
@@ -5621,6 +5623,328 @@ function AdminPage() {
         {tab === 'ai-command'       && <AICommandManager getToken={getToken} isDark={isDark} />}
         {tab === 'taxonomy'         && <TaxonomyReview getToken={getToken} isDark={isDark} />}
         {tab === 'tracker'          && <TrackerView getToken={getToken} isDark={isDark} />}
+        {tab === 'internal-books'   && <InternalBooks getToken={getToken} isDark={isDark} />}
+        {tab === 'admin-chat'       && <AdminChat getToken={getToken} isDark={isDark} />}
+      </div>
+    </div>
+  )
+}
+
+// ─── InternalBooks ───────────────────────────────────────────────────────────
+
+function InternalBooks({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const G2    = isDark ? G : '#A07C2C'
+  const surf2 = isDark ? SURF2 : '#EDE6D3'
+  const bdr2  = isDark ? BDR : 'rgba(139,105,20,0.25)'
+  const txt2  = isDark ? TXT : '#1C1407'
+  const dim2  = isDark ? DIM : '#6B5520'
+
+  const [books, setBooks]               = useState<any[]>([])
+  const [booksLoading, setBooksLoading] = useState(true)
+  const [selectedBook, setSelectedBook] = useState<any>(null)
+  const [bookContent, setBookContent]   = useState('')
+  const [contentLoading, setContentLoading] = useState(false)
+  const [bookSearch, setBookSearch]     = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searching, setSearching]       = useState(false)
+  const searchTimer = useRef<any>(null)
+
+  useEffect(() => {
+    getToken().then((token: string | null) => {
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      fetch('/api/admin-library', { headers })
+        .then(r => r.json())
+        .then(d => setBooks(d.books || []))
+        .catch(() => {})
+        .finally(() => setBooksLoading(false))
+    })
+  }, [])
+
+  async function loadBook(book: any) {
+    setSelectedBook(book)
+    setSearchResults([])
+    setBookSearch('')
+    setContentLoading(true)
+    setBookContent('')
+    try {
+      const token = await getToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res  = await fetch(`/api/admin-library?id=${book.id}`, { headers })
+      const data = await res.json()
+      setBookContent(data.book?.extracted_text || '(No text content indexed for this book)')
+    } catch { setBookContent('(Failed to load book content)') }
+    setContentLoading(false)
+  }
+
+  function onSearchChange(val: string) {
+    setBookSearch(val)
+    clearTimeout(searchTimer.current)
+    if (!val.trim()) { setSearchResults([]); return }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res  = await fetch('/api/library-search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: val.trim(), limit: 10, threshold: 0.55 }),
+        })
+        const data = await res.json()
+        setSearchResults(data.chunks || [])
+      } catch { setSearchResults([]) }
+      setSearching(false)
+    }, 500)
+  }
+
+  const inp2: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', background: surf2,
+    border: `1px solid ${bdr2}`, borderRadius: 6, padding: '9px 12px',
+    color: txt2, fontFamily: crimson, fontSize: 14, outline: 'none',
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 0, minHeight: 'calc(100vh - 120px)', fontFamily: crimson }}>
+      {/* ── Left sidebar ── */}
+      <div style={{ width: 300, flexShrink: 0, borderRight: `1px solid ${bdr2}`, display: 'flex', flexDirection: 'column', padding: '24px 16px', gap: 12, overflowY: 'auto', background: isDark ? '#0f0d1a' : '#ede6d4' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.08em', marginBottom: 4 }}>📚 Ministry Library</div>
+        <input
+          value={bookSearch}
+          onChange={e => onSearchChange(e.target.value)}
+          placeholder="Search across all books..."
+          style={inp2}
+        />
+        {searching && <div style={{ fontFamily: cinzel, fontSize: 9, color: G2, letterSpacing: '0.08em' }}>SEARCHING...</div>}
+        <div style={{ height: 1, background: bdr2, margin: '4px 0' }} />
+        {booksLoading ? (
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: dim2, letterSpacing: '0.08em' }}>LOADING...</div>
+        ) : books.length === 0 ? (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: dim2, fontStyle: 'italic' }}>No books in library</div>
+        ) : books.map(b => (
+          <button key={b.id} onClick={() => loadBook(b)} style={{
+            textAlign: 'left', background: selectedBook?.id === b.id ? `rgba(201,168,76,0.12)` : 'transparent',
+            border: `1px solid ${selectedBook?.id === b.id ? G2 : bdr2}`, borderRadius: 6,
+            padding: '10px 12px', cursor: 'pointer', color: txt2,
+          }}>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: selectedBook?.id === b.id ? G2 : txt2, letterSpacing: '0.06em', marginBottom: 3 }}>
+              {b.title || 'Untitled'}
+            </div>
+            {b.author && <div style={{ fontFamily: crimson, fontSize: 12, color: dim2, marginBottom: 3 }}>{b.author}</div>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: b.is_indexed ? '#4ade80' : '#e09090', flexShrink: 0 }} />
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: dim2, letterSpacing: '0.06em' }}>
+                {b.is_indexed ? 'INDEXED' : 'NOT INDEXED'}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Right panel ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px' }}>
+        {/* Search results */}
+        {bookSearch.trim() && searchResults.length > 0 && (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G2, letterSpacing: '0.1em', marginBottom: 16 }}>
+              {searchResults.length} PASSAGES FOUND
+            </div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              {searchResults.map((chunk, i) => (
+                <div key={i} style={{ background: surf2, border: `1px solid ${bdr2}`, borderLeft: `3px solid ${G2}`, borderRadius: 6, padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: G2, letterSpacing: '0.08em' }}>{chunk.book_title}</div>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 10, padding: '2px 8px' }}>
+                      {Math.round((chunk.similarity || 0) * 100)}% match
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: dim2, lineHeight: 1.7, fontStyle: 'italic' }}>
+                    "{chunk.chunk_text?.slice(0, 400)}..."
+                  </div>
+                  <button onClick={() => { const b = books.find(bk => bk.title === chunk.book_title); if (b) loadBook(b) }}
+                    style={{ marginTop: 10, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: G2, background: 'transparent', border: `1px solid ${G2}55`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}>
+                    Open Book →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {bookSearch.trim() && searchResults.length === 0 && !searching && (
+          <div style={{ fontFamily: crimson, fontSize: 14, color: dim2, fontStyle: 'italic' }}>No passages found. Try different terms or run Reindex Library to build embeddings.</div>
+        )}
+
+        {/* Book reader */}
+        {!bookSearch.trim() && selectedBook && (
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 18, color: G2, letterSpacing: '0.06em', marginBottom: 6 }}>{selectedBook.title}</div>
+            {selectedBook.author && <div style={{ fontFamily: crimson, fontSize: 15, color: dim2, fontStyle: 'italic', marginBottom: 24 }}>by {selectedBook.author}</div>}
+            <div style={{ height: 1, background: bdr2, marginBottom: 32 }} />
+            {contentLoading ? (
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: G2, letterSpacing: '0.1em' }}>LOADING CONTENT...</div>
+            ) : (
+              <div style={{ fontFamily: crimson, fontSize: 16, color: txt2, lineHeight: 1.85, whiteSpace: 'pre-wrap' as const }}>
+                {bookContent}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!bookSearch.trim() && !selectedBook && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, color: dim2 }}>
+            <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>📚</div>
+            <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', marginBottom: 8 }}>SELECT A BOOK TO READ</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, fontStyle: 'italic' }}>or search across your library</div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── AdminChat ────────────────────────────────────────────────────────────────
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  sources?: string[]
+}
+
+function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const G2    = isDark ? G : '#A07C2C'
+  const surf2 = isDark ? SURF2 : '#EDE6D3'
+  const bdr2  = isDark ? BDR : 'rgba(139,105,20,0.25)'
+  const txt2  = isDark ? TXT : '#1C1407'
+  const dim2  = isDark ? DIM : '#6B5520'
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: 'assistant', content: 'War Room Intel Command AI online. I have access to your full ministry library, demon database, and WRI platform intelligence. Ask me anything.' },
+  ])
+  const [input, setInput]         = useState('')
+  const [loading, setLoading]     = useState(false)
+  const [contextMode, setContextMode] = useState<'library' | 'database' | 'both'>('both')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  async function sendMessage() {
+    const text = input.trim()
+    if (!text || loading) return
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', content: text }])
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const history = messages.slice(-12).map(m => ({ role: m.role, content: m.content }))
+      const res = await fetch('/api/admin-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: text, history, contextMode }),
+      })
+      const data = await res.json()
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response || data.error || 'No response', sources: data.sources }])
+    } catch (e: any) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e.message}` }])
+    }
+    setLoading(false)
+  }
+
+  function renderMd(text: string) {
+    return text.split('\n').map((line, i) => {
+      if (line.startsWith('### ')) return <div key={i} style={{ fontFamily: cinzel, fontSize: 11, color: G2, marginTop: 14, marginBottom: 4, letterSpacing: '0.06em' }}>{line.slice(4)}</div>
+      if (line.startsWith('## '))  return <div key={i} style={{ fontFamily: cinzel, fontSize: 13, color: G2, marginTop: 16, marginBottom: 6, letterSpacing: '0.06em' }}>{line.slice(3)}</div>
+      if (line.startsWith('# '))   return <div key={i} style={{ fontFamily: cinzel, fontSize: 15, color: G2, marginTop: 18, marginBottom: 8, letterSpacing: '0.06em' }}>{line.slice(2)}</div>
+      if (line.startsWith('- ') || line.startsWith('* ')) return (
+        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+          <span style={{ color: G2, flexShrink: 0 }}>•</span>
+          <span style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
+        </div>
+      )
+      if (line.match(/^\d+\./)) return (
+        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+          <span style={{ color: G2, flexShrink: 0, fontFamily: cinzel, fontSize: 11 }}>{line.match(/^\d+/)![0]}.</span>
+          <span style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: line.replace(/^\d+\.\s*/, '').replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
+        </div>
+      )
+      if (!line.trim()) return <div key={i} style={{ height: 8 }} />
+      return <div key={i} style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.7, marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
+    })
+  }
+
+  const chatHeight = 'calc(100vh - 180px)'
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: chatHeight, background: isDark ? '#0D0B14' : '#f5f0e8' }}>
+      {/* Header */}
+      <div style={{ padding: '14px 24px', borderBottom: `1px solid ${bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: isDark ? '#13111e' : '#e8e0d4' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.1em' }}>⚔ ADMIN COMMAND AI</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {(['library', 'database', 'both'] as const).map(mode => (
+            <button key={mode} onClick={() => setContextMode(mode)} style={{
+              padding: '4px 12px', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em',
+              background: contextMode === mode ? `rgba(201,168,76,0.15)` : 'transparent',
+              border: `1px solid ${contextMode === mode ? G2 : bdr2}`,
+              borderRadius: 20, color: contextMode === mode ? G2 : dim2, cursor: 'pointer',
+            }}>
+              {mode.toUpperCase()}
+            </button>
+          ))}
+          <button onClick={() => setMessages([{ role: 'assistant', content: 'War Room Intel Command AI online. I have access to your full ministry library, demon database, and WRI platform intelligence. Ask me anything.' }])}
+            style={{ padding: '4px 12px', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr2}`, borderRadius: 4, color: dim2, cursor: 'pointer', marginLeft: 8 }}>
+            CLEAR
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {messages.map((msg, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div style={{
+              padding: '14px 18px', borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+              background: msg.role === 'user' ? `rgba(201,168,76,0.15)` : surf2,
+              border: `1px solid ${msg.role === 'user' ? `rgba(201,168,76,0.35)` : bdr2}`,
+            }}>
+              {msg.role === 'user' ? (
+                <div style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.6 }}>{msg.content}</div>
+              ) : renderMd(msg.content)}
+            </div>
+            {msg.sources && msg.sources.length > 0 && (
+              <div style={{ marginTop: 6, padding: '6px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr2}`, borderRadius: 6, maxWidth: '100%' }}>
+                <span style={{ fontFamily: cinzel, fontSize: 8, color: G2, letterSpacing: '0.08em' }}>📚 SOURCES: </span>
+                <span style={{ fontFamily: crimson, fontSize: 12, color: dim2 }}>{[...new Set(msg.sources)].join(' · ')}</span>
+              </div>
+            )}
+          </div>
+        ))}
+        {loading && (
+          <div style={{ alignSelf: 'flex-start', padding: '14px 18px', background: surf2, border: `1px solid ${bdr2}`, borderRadius: '12px 12px 12px 2px' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: G2, letterSpacing: '0.1em' }}>⚡ PROCESSING...</div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: '16px 24px', borderTop: `1px solid ${bdr2}`, flexShrink: 0, background: isDark ? '#13111e' : '#e8e0d4', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+        <textarea
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+          placeholder="Ask about demons, your library, ministry protocols... (Enter to send, Shift+Enter for newline)"
+          rows={3}
+          style={{ flex: 1, background: surf2, border: `1px solid ${bdr2}`, borderRadius: 6, padding: '10px 14px', color: txt2, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'none' as const, lineHeight: 1.5 }}
+        />
+        <button onClick={sendMessage} disabled={loading || !input.trim()} style={{
+          padding: '10px 20px', background: G2, border: 'none', borderRadius: 6,
+          color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em',
+          cursor: loading || !input.trim() ? 'default' : 'pointer',
+          opacity: loading || !input.trim() ? 0.5 : 1, flexShrink: 0,
+        }}>
+          ⚔ SEND
+        </button>
       </div>
     </div>
   )

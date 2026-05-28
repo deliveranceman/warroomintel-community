@@ -64,8 +64,23 @@ export default async function handler(req: Request) {
 
   const sb = supabaseClient()
 
-  // ── GET — list all books ────────────────────────────────────────────────────
+  // ── GET — list all books (or single book with content) ─────────────────────
   if (req.method === 'GET') {
+    const url = new URL(req.url)
+    const bookId = url.searchParams.get('id')
+
+    // Single book fetch with extracted_text (for admin reader)
+    if (bookId) {
+      const { data: book, error } = await sb
+        .from('resources')
+        .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags,extracted_text,description,function_tags')
+        .eq('topic', 'ministry-library')
+        .eq('id', bookId)
+        .single()
+      if (error || !book) return new Response(JSON.stringify({ error: error?.message || 'Not found' }), { status: 404, headers })
+      return new Response(JSON.stringify({ book }), { status: 200, headers })
+    }
+
     const { data, error } = await sb
       .from('resources')
       .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags,extracted_text')
