@@ -3346,6 +3346,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [dragOverAi, setDragOverAi]   = useState(false)
   const [dragOverPdf, setDragOverPdf] = useState(false)
   const [uploadingAll, setUploadingAll] = useState(false)
+  const [bookSearch, setBookSearch]     = useState('')
+  const [quickTagId, setQuickTagId]     = useState<string | null>(null)
   const fileInputRef    = useRef<HTMLInputElement>(null)
   const pdfInputRef     = useRef<HTMLInputElement>(null)
 
@@ -3620,6 +3622,32 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     finally { setReanalyzeId(null) }
   }
 
+  async function quickTagBook(book: any) {
+    setQuickTagId(book.id)
+    try {
+      const token = await getToken()
+      const contentSnippet = [book.title, book.author, book.notes].filter(Boolean).join('\n\n')
+      const res = await fetch('/api/library-autofill', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: book.file_path || book.filename || book.title, contentSnippet, resourceId: book.id }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        const newTags: string[] = Array.isArray(d.spirit_tags) ? d.spirit_tags : []
+        if (newTags.length > 0) {
+          await fetch('/api/admin-library', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ id: book.id, spirit_tags: newTags }),
+          })
+          setBooks(prev => prev.map(b => b.id === book.id ? { ...b, spirit_tags: newTags } : b))
+        }
+      }
+    } catch { /* best-effort */ }
+    setQuickTagId(null)
+  }
+
   async function handleGenerateSuggestions(bookId: string) {
     setEnrichingId(bookId)
     setEnrichErrors(prev => { const n = { ...prev }; delete n[bookId]; return n })
@@ -3776,8 +3804,22 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const anyUploading = stagedFiles.some(f => f.status === 'uploading')
   const anyAnalyzing = stagedFiles.some(f => f.status === 'analyzing')
 
-  const aiBooks  = books.filter(b => !b.filename?.toLowerCase().endsWith('.pdf'))
-  const pdfBooks = books.filter(b =>  b.filename?.toLowerCase().endsWith('.pdf'))
+  function isPdfBook(b: any): boolean {
+    const fp = (b.file_path || b.filename || '').toLowerCase()
+    return fp.includes('.pdf') || (fp.length > 0 && !fp.includes('.txt') && !fp.includes('.docx'))
+  }
+  const aiBooks      = books.filter(b => !isPdfBook(b))
+  const allPdfBooks  = books.filter(isPdfBook)
+  const filteredBooks = allPdfBooks.filter(b => {
+    if (!bookSearch.trim()) return true
+    const q = bookSearch.toLowerCase()
+    return (
+      b.title?.toLowerCase().includes(q) ||
+      b.author?.toLowerCase().includes(q) ||
+      (b.spirit_tags || []).some((t: string) => t.toLowerCase().includes(q)) ||
+      b.notes?.toLowerCase().includes(q)
+    )
+  })
 
   return (
     <div style={{ color: LTXT, fontFamily: crimson }}>
@@ -4108,19 +4150,36 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         {/* PDF book list */}
         {booksLoading ? (
           <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, fontStyle: 'italic', padding: '20px 0' }}>Loading library...</div>
-        ) : pdfBooks.length === 0 ? (
+        ) : allPdfBooks.length === 0 ? (
           <div style={{ background: LSURF, border: `1px solid ${LBDR}`, borderRadius: 8, padding: '24px', textAlign: 'center' as const }}>
             <div style={{ fontFamily: cinzel, fontSize: 13, color: LMUT, marginBottom: 8 }}>No PDF books yet</div>
             <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT }}>Upload PDF files above to build your minister reading library.</div>
           </div>
         ) : (
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', marginBottom: 10 }}>
-              {pdfBooks.length} PDF{pdfBooks.length !== 1 ? 's' : ''}
+            {/* Search bar */}
+            <div style={{ position: 'relative' as const, marginBottom: 12 }}>
+              <input
+                value={bookSearch}
+                onChange={e => setBookSearch(e.target.value)}
+                placeholder="Search by title, author, or spirit tag..."
+                style={{ ...inp, paddingRight: bookSearch ? 32 : 12, fontSize: 13 }}
+              />
+              {bookSearch && (
+                <button onClick={() => setBookSearch('')}
+                  style={{ position: 'absolute' as const, right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: LMUT, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>
+                  ✕
+                </button>
+              )}
             </div>
+
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', marginBottom: 10 }}>
+              {filteredBooks.length} PDF{filteredBooks.length !== 1 ? 's' : ''}{bookSearch.trim() ? ` of ${allPdfBooks.length}` : ''}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-              {pdfBooks.map(book => (
-                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              {filteredBooks.map(book => (
+                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
                     {book.author && book.author !== 'Unknown' && (
@@ -4133,6 +4192,25 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                     {book.notes && (
                       <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginTop: 4 }}>{book.notes}</div>
                     )}
+                    {/* Spirit tags row */}
+                    <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap' as const, gap: 4, alignItems: 'center' }}>
+                      {Array.isArray(book.spirit_tags) && book.spirit_tags.length > 0 ? (
+                        book.spirit_tags.map((tag: string) => (
+                          <span key={tag} style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', fontFamily: cinzel, fontSize: 9, color: LG, padding: '2px 8px', borderRadius: 3 }}>{tag}</span>
+                        ))
+                      ) : (
+                        <>
+                          <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.04em' }}>No tags</span>
+                          <button onClick={() => quickTagBook(book)} disabled={quickTagId === book.id}
+                            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 3, color: LG, fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: quickTagId === book.id ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: quickTagId === book.id ? 0.6 : 1 }}>
+                            {quickTagId === book.id ? '⏳' : '✦ Tag'}
+                          </button>
+                        </>
+                      )}
+                      {book.source_type === 'intelligence' && (
+                        <span style={{ background: 'rgba(220,50,50,0.12)', border: '1px solid rgba(220,50,50,0.35)', fontFamily: cinzel, fontSize: 9, color: '#e05c5c', padding: '2px 8px', borderRadius: 3 }}>⚠ Intel Only</span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
                     {book.file_url && (
