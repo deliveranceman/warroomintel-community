@@ -3319,7 +3319,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   // Inline edit state — one card open at a time
   const [editingId,   setEditingId]   = useState<string | null>(null)
-  const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[] }>({ title: '', author: '', notes: '', topic: 'ministry-library', spirit_tags: [] })
+  const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence' }>({ title: '', author: '', notes: '', topic: 'ministry-library', spirit_tags: [], sourceType: 'christian' })
   const [editLoading, setEditLoading] = useState(false)
   const [reanalyzeId,     setReanalyzeId]     = useState<string | null>(null)
   const [reanalyzeErrors, setReanalyzeErrors] = useState<Record<string, string>>({})
@@ -3338,7 +3338,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   // Staged files state
   type StagedFile = {
     id: string; file: File; title: string; author: string; notes: string
-    spirit_tags: string[]
+    spirit_tags: string[]; sourceType: 'christian' | 'intelligence'
     status: 'pending' | 'analyzing' | 'uploading' | 'done' | 'error'
     errorMsg?: string; aiGenerated: boolean
   }
@@ -3357,6 +3357,18 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   }
 
   useEffect(() => { loadBooks() }, [])
+
+  // Auto-clear staged files 3s after all reach done/error, then refresh book list
+  useEffect(() => {
+    if (stagedFiles.length === 0) return
+    const allFinished = stagedFiles.every(f => f.status === 'done' || f.status === 'error')
+    if (!allFinished) return
+    const t = setTimeout(() => {
+      setStagedFiles([])
+      loadBooks()
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [stagedFiles])
 
   async function loadBooks() {
     setBooksLoading(true)
@@ -3387,7 +3399,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           // Strip extension → strip ALL leading numeric doc-ID blocks → normalise separators
           // e.g. "355225898-32149476-Principles-Of-Mass-Deliverance.txt" → "Principles Of Mass Deliverance"
           title: f.name.replace(/\.[^/.]+$/, '').replace(/^(\d+[-_\s]*)+/, '').replace(/[-_]/g, ' ').trim(),
-          author: '', notes: '', spirit_tags: [],
+          author: '', notes: '', spirit_tags: [], sourceType: 'christian' as const,
           status: 'pending' as const,
           aiGenerated: false,
         }))
@@ -3395,7 +3407,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     })
   }
 
-  function updateStaged(id: string, patch: Partial<{ title: string; author: string; notes: string; spirit_tags: string[]; status: StagedFile['status']; errorMsg: string; aiGenerated: boolean }>) {
+  function updateStaged(id: string, patch: Partial<{ title: string; author: string; notes: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence'; status: StagedFile['status']; errorMsg: string; aiGenerated: boolean }>) {
     setStagedFiles(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f))
   }
 
@@ -3506,6 +3518,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             author: sf.author.trim() || null,
             notes: sf.notes.trim() || null,
             spirit_tags: sf.spirit_tags ?? [],
+            sourceType: sf.sourceType ?? 'christian',
             filename: sf.file.name,
             file_size: sf.file.size,
             file_path: filePath,
@@ -3570,6 +3583,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       notes:       book.notes  || '',
       topic:       book.topic  || 'ministry-library',
       spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
+      sourceType:  (book.source_type === 'intelligence' ? 'intelligence' : 'christian') as 'christian' | 'intelligence',
     })
     setEditLoading(false)
   }
@@ -3643,6 +3657,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         notes:       editForm.notes.trim(),
         topic:       editForm.topic,
         spirit_tags: editForm.spirit_tags,
+        source_type: editForm.sourceType,
       }),
     })
     if (res.ok) {
@@ -3884,6 +3899,24 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                         onChange={tags => updateStaged(sf.id, { spirit_tags: tags })}
                         disabled={busy}
                       />
+                    </div>
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>SOURCE CLASSIFICATION</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" onClick={() => updateStaged(sf.id, { sourceType: 'christian' })} disabled={busy}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 4, border: (sf.sourceType ?? 'christian') === 'christian' ? `1px solid ${LG}` : `1px solid ${LBDR}`, background: (sf.sourceType ?? 'christian') === 'christian' ? 'rgba(201,168,76,0.15)' : 'transparent', color: (sf.sourceType ?? 'christian') === 'christian' ? LG : LMUT, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: busy ? 'default' : 'pointer', transition: 'all 0.15s' }}>
+                          + Christian Source
+                        </button>
+                        <button type="button" onClick={() => updateStaged(sf.id, { sourceType: 'intelligence' })} disabled={busy}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 4, border: (sf.sourceType ?? 'christian') === 'intelligence' ? '1px solid rgba(239,68,68,0.6)' : `1px solid ${LBDR}`, background: (sf.sourceType ?? 'christian') === 'intelligence' ? 'rgba(127,29,29,0.6)' : 'transparent', color: (sf.sourceType ?? 'christian') === 'intelligence' ? '#f87171' : LMUT, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: busy ? 'default' : 'pointer', transition: 'all 0.15s' }}>
+                          ! Intelligence Only
+                        </button>
+                      </div>
+                      {(sf.sourceType ?? 'christian') === 'intelligence' && (
+                        <div style={{ fontFamily: crimson, fontSize: 11, color: 'rgba(248,113,113,0.6)', marginTop: 4, lineHeight: 1.5 }}>
+                          AI will treat this as enemy source material. Tactics and spirit names extracted for counterintelligence only. Never presented as endorsed practice.
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
