@@ -6028,11 +6028,13 @@ function CommunityPage() {
   const [unreadDMs, setUnreadDMs]         = useState(0)
   const [showPushBanner, setShowPushBanner] = useState(() => {
     if (typeof window === 'undefined') return false
-    return !localStorage.getItem('wri-push-dismissed') && Notification.permission === 'default'
+    if (!('Notification' in window)) return false
+    return !localStorage.getItem('wri-push-dismissed') && window.Notification.permission === 'default'
   })
   const [pushSubscribed, setPushSubscribed] = useState(() => {
     if (typeof window === 'undefined') return false
-    return Notification.permission === 'granted'
+    if (!('Notification' in window)) return false
+    return window.Notification.permission === 'granted'
   })
   const [unreadWarRoom, setUnreadWarRoom] = useState(0)
 
@@ -6368,7 +6370,7 @@ function CommunityPage() {
 
   async function enablePushNotifications() {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return
-    const permission = await Notification.requestPermission()
+    const permission = await window.Notification.requestPermission()
     if (permission !== 'granted') {
       setShowPushBanner(false)
       try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
@@ -7169,7 +7171,7 @@ function CommunityPage() {
       <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
 
         {/* Push notification banner */}
-        {showPushBanner && !pushSubscribed && (
+        {showPushBanner && !pushSubscribed && typeof window !== 'undefined' && 'Notification' in window && (
           <div style={{
             flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -8,6 +8,17 @@ import '../styles.css'
 
 const BARE_ROUTES = ['/join']
 
+// Pages that have their own sidebar/shell — suppress the public marketing header and AI assistant
+const COMMUNITY_SHELL_ROUTES = [
+  '/arsenal',
+  '/community',
+  '/community/field-manual',
+  '/community/scripture',
+  '/community/dream-interpreter',
+  '/community/field-ops',
+  '/community/spiritual-mapping',
+]
+
 // Hardcoded fallback so ClerkProvider never receives undefined during SSR
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsud2Fycm9vbWludGVsLmNvbSQ'
 
@@ -81,6 +92,7 @@ const defaultResults: CommandResult[] = [
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const bare = BARE_ROUTES.includes(pathname)
+  const communityShell = COMMUNITY_SHELL_ROUTES.includes(pathname) || pathname.startsWith('/community/')
   const [cmdOpen, setCmdOpen] = useState(false)
 
   useEffect(() => {
@@ -109,9 +121,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             'https://www.warroomintel.com',
           ]}
         >
-          {!bare && <Header />}
+          {!bare && !communityShell && <Header />}
           {children}
-          {!bare && <AIAssistant />}
+          {!bare && !communityShell && <AIAssistant />}
           <CommandPalette
             open={cmdOpen}
             onClose={() => setCmdOpen(false)}
