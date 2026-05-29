@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
@@ -4726,6 +4726,23 @@ function bmMatch(region: BRegion | null, demons: any[]) {
   .slice(0, 10)
 }
 
+class BodyMapBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+  constructor(props: any) { super(props); this.state = { hasError: false } }
+  static getDerivedStateFromError() { return { hasError: true } }
+  render() {
+    if (this.state.hasError) return (
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#0D0B14', padding:'40px 20px' }}>
+        <div style={{ textAlign:'center', maxWidth:480 }}>
+          <div style={{ fontFamily:"'Cinzel',serif", fontSize:10, color:'#C9A84C', letterSpacing:'0.2em', marginBottom:12 }}>BODY MAP — LOADING ERROR</div>
+          <div style={{ fontFamily:"'Crimson Pro',serif", fontSize:15, color:'#8B7355', lineHeight:1.7, marginBottom:20 }}>The body map could not render. This is a known issue with certain browser configurations. Try refreshing or use the Symptom Investigator instead.</div>
+          <button onClick={() => this.setState({ hasError:false })} style={{ background:'#C9A84C', color:'#060408', border:'none', borderRadius:6, padding:'10px 24px', fontFamily:"'Cinzel',serif", fontSize:11, letterSpacing:'0.08em', cursor:'pointer', fontWeight:700 }}>Retry</button>
+        </div>
+      </div>
+    )
+    return this.props.children
+  }
+}
+
 function BodyMapView({ isMobile, setSidebarOpen, demons, setActiveSection }: any) {
   const GC = '#C9A84C'
 
@@ -7196,7 +7213,7 @@ function CommunityPage() {
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'body-map' && (
           tierLevel >= 2
-            ? <BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} setActiveSection={setActiveSection} />
+            ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} setActiveSection={setActiveSection} /></BodyMapBoundary>
             : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
                 <div style={{ textAlign:'center', maxWidth:480 }}>
                   <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>
@@ -7674,33 +7691,31 @@ function CommunityPage() {
           </div>
         </div>
       )}
-      {!isMobile && (
-        <button
-          onClick={() => setChatOpen(o => !o)}
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 1000,
-            width: 48,
-            height: 48,
-            borderRadius: '50%',
-            background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
-            border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
-            color: G,
-            fontSize: 18,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-            transition: 'all 0.15s',
-          }}
-          title="War Room AI"
-        >
-          ⚔
-        </button>
-      )}
+      <button
+        onClick={() => setChatOpen(o => !o)}
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 1000,
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
+          border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
+          color: G,
+          fontSize: 22,
+          cursor: 'pointer',
+          display: isMobile ? 'none' : 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          transition: 'all 0.15s',
+        }}
+        title="War Room AI"
+      >
+        🧠
+      </button>
 
       <BottomNav
         tabs={[
