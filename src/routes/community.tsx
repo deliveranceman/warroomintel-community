@@ -4302,6 +4302,29 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
     </div>
   )
 
+  const { user: fringeUser } = useUser()
+  const fringeTierNum = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[((fringeUser?.publicMetadata?.tier as string)||'watchman').toLowerCase()] ?? 0
+
+  const openTopics      = TOPICS.filter(t => t.tier === 'free')
+  const classifiedTopics = TOPICS.filter(t => t.tier !== 'free')
+
+  const TopicCard = ({ topic }: { topic: typeof TOPICS[0] }) => (
+    <div
+      onClick={() => openTopic(topic)}
+      style={{ background: surf, border: `1px solid ${border}`, borderRadius: 10, padding: '18px 20px', display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', transition: 'border-color 0.15s' }}
+      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = gold)}
+      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = border)}
+    >
+      <span style={{ fontSize: 24, flexShrink: 0 }}>{topic.icon}</span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, marginBottom: 4, letterSpacing: '0.06em' }}>{topic.label}</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5, marginBottom: 8 }}>{topic.desc}</div>
+        <span style={{ fontSize: 9, color: tierColors[topic.tier] || muted, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[topic.tier] || muted}`, borderRadius: 10, padding: '1px 7px' }}>{topic.tier}</span>
+      </div>
+      <span style={{ fontSize: 16, color: gold, flexShrink: 0 }}>›</span>
+    </div>
+  )
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
@@ -4314,24 +4337,36 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
           </div>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-        {TOPICS.map(({ key, icon, label, desc, tier }) => (
-          <div
-            key={key}
-            onClick={() => openTopic({ key, icon, label, desc, tier })}
-            style={{ background: surf, border: `1px solid ${border}`, borderRadius: 10, padding: '18px 20px', display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = gold)}
-            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = border)}
-          >
-            <span style={{ fontSize: 24, flexShrink: 0 }}>{icon}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, marginBottom: 4, letterSpacing: '0.06em' }}>{label}</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5, marginBottom: 8 }}>{desc}</div>
-              <span style={{ fontSize: 9, color: tierColors[tier] || muted, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[tier] || muted}`, borderRadius: 10, padding: '1px 7px' }}>{tier}</span>
-            </div>
-            <span style={{ fontSize: 16, color: gold, flexShrink: 0 }}>›</span>
+
+      {/* Open Intelligence */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Open Intelligence</div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+          {openTopics.map(t => <TopicCard key={t.key} topic={t} />)}
+        </div>
+      </div>
+
+      {/* Classified Intelligence */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>Classified Intelligence</div>
+          <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 10, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', letterSpacing: '0.06em' }}>SOLDIER+</span>
+        </div>
+        {fringeTierNum >= 1 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+            {classifiedTopics.map(t => <TopicCard key={t.key} topic={t} />)}
           </div>
-        ))}
+        ) : (
+          <div style={{ background: surf, border: '1px solid rgba(122,158,126,0.25)', borderRadius: 10, padding: '28px 24px', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: '#7a9e7e', letterSpacing: '0.1em', marginBottom: 8 }}>SOLDIER TIER REQUIRED</div>
+            <p style={{ fontFamily: crimson, fontSize: 14, color: muted, lineHeight: 1.6, marginBottom: 20 }}>
+              Classified intelligence covers bloodline warfare, Nephilim research, government programming, and fringe science. Unlock with Soldier tier membership.
+            </p>
+            <a href="/membership" style={{ display: 'inline-block', background: '#7a9e7e', color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '9px 24px', borderRadius: 6, textDecoration: 'none' }}>
+              Upgrade to Soldier
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -5698,6 +5733,8 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
     fontFamily: "'Crimson Pro', serif", fontSize: 15, outline: 'none',
   }
 
+  const tierLevel = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[(userTier||'').toLowerCase()] ?? 0
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 32px' }}>
       {isMobile && (
@@ -5706,7 +5743,21 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
       <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.2em', marginBottom: 4 }}>FIELD OPERATIONS</div>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, color: txt, marginBottom: 4 }}>Session Center</div>
-        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: isCommanderOnly ? 12 : 24 }}>Launch, manage, and resume deliverance sessions.</div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: tierLevel < 2 ? 24 : (isCommanderOnly ? 12 : 24) }}>Launch, manage, and resume deliverance sessions.</div>
+
+        {tierLevel < 2 && (
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ fontSize: 40, color: gold, marginBottom: 20, fontFamily: "'Cinzel', serif" }}>⚔</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: gold, letterSpacing: '0.2em', marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
+            <p style={{ color: dim, fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: "'Crimson Pro', serif" }}>
+              The Session Center is a live deliverance operations tool for Commander-tier ministers and above. Upgrade to unlock guided sessions, case file integration, and the 9-role command structure.
+            </p>
+            <a href="/membership" style={{ display: 'inline-block', background: gold, color: '#0D0B14', fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, textDecoration: 'none' }}>
+              Upgrade to Commander
+            </a>
+          </div>
+        )}
+        {tierLevel >= 2 && <>
 
         {/* Commander tier — offline only */}
         {isCommanderOnly && (
@@ -5797,6 +5848,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
             </button>
           </div>
         )}
+        </>}
       </div>
     </div>
   )
@@ -6034,6 +6086,7 @@ function CommunityPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const tier     = (user?.publicMetadata?.tier as string) || 'Watchman'
+  const tierLevel = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[tier.toLowerCase()] ?? 0
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
 
   // Responsive breakpoint
@@ -7105,15 +7158,70 @@ function CommunityPage() {
           />
         )}
 
-        {activeSection === 'assessment'  && <LauncherView title="Assessment"        icon="📋" href="/assessment" />}
+        {activeSection === 'assessment'  && (
+          <div style={{ flex:1, overflowY:'auto', background: isDark?'#0D0B14':'#FAF8F5', padding: isMobile?'16px':'28px 32px' }}>
+            {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background:'none', border:'none', color:G, fontSize:20, cursor:'pointer', marginBottom:16, padding:0 }}>☰</button>}
+            <div style={{ maxWidth:560, margin:'0 auto' }}>
+              <div style={{ fontFamily:cinzel, fontSize:9, color:G, letterSpacing:'0.2em', marginBottom:4 }}>INTELLIGENCE TOOL</div>
+              <div style={{ fontFamily:cinzel, fontSize:22, color: isDark?'#e8dcc8':'#2D2924', marginBottom:8 }}>Ministry Assessment</div>
+              <p style={{ fontFamily:crimson, fontSize:15, color: isDark?'#6b5e45':'#5C5248', lineHeight:1.7, marginBottom:28 }}>
+                A structured diagnostic to identify spiritual vulnerabilities, open doors, and tactical priorities. AI-powered results are available at Soldier tier and above.
+              </p>
+              <a href="/assessment" style={{ display:'block', width:'100%', boxSizing:'border-box', padding:'14px', background:G, border:'none', borderRadius:8, fontFamily:cinzel, fontSize:12, letterSpacing:'0.1em', color:'#060408', cursor:'pointer', fontWeight:700, textDecoration:'none', textAlign:'center' as const }}>
+                ⚔ Start Assessment
+              </a>
+              {tierLevel === 0 && (
+                <div style={{ marginTop:20, background: isDark?'rgba(122,158,126,0.06)':'rgba(122,158,126,0.1)', border:'1px solid rgba(122,158,126,0.25)', borderRadius:8, padding:'16px 18px' }}>
+                  <div style={{ fontFamily:cinzel, fontSize:9, color:'#7a9e7e', letterSpacing:'0.12em', marginBottom:6 }}>SOLDIER TIER — AI RESULTS</div>
+                  <p style={{ fontFamily:crimson, fontSize:14, color: isDark?'#6b5e45':'#5C5248', lineHeight:1.6, margin:'0 0 12px' }}>Upgrade to Soldier to unlock AI-powered analysis of your assessment results, including spirit identification and strategic recommendations.</p>
+                  <a href="/membership" style={{ fontFamily:cinzel, fontSize:10, color:'#7a9e7e', letterSpacing:'0.08em', textDecoration:'none' }}>Upgrade to Soldier →</a>
+                </div>
+              )}
+              {tierLevel === 1 && (
+                <div style={{ marginTop:20, background: isDark?'rgba(139,157,202,0.06)':'rgba(139,157,202,0.1)', border:'1px solid rgba(139,157,202,0.25)', borderRadius:8, padding:'16px 18px' }}>
+                  <div style={{ fontFamily:cinzel, fontSize:9, color:'#8B9DCA', letterSpacing:'0.12em', marginBottom:6 }}>COMMANDER TIER — CASE FILE INTEGRATION</div>
+                  <p style={{ fontFamily:crimson, fontSize:14, color: isDark?'#6b5e45':'#5C5248', lineHeight:1.6, margin:'0 0 12px' }}>Upgrade to Commander to unlock Case File integration — assessment results automatically populate your active session with spirits, entry points, and recommended sequences.</p>
+                  <a href="/membership" style={{ fontFamily:cinzel, fontSize:10, color:'#8B9DCA', letterSpacing:'0.08em', textDecoration:'none' }}>Upgrade to Commander →</a>
+                </div>
+              )}
+              {tierLevel >= 2 && (
+                <div style={{ marginTop:20, background: isDark?'rgba(201,168,76,0.05)':'rgba(201,168,76,0.08)', border:`1px solid rgba(201,168,76,0.2)`, borderRadius:8, padding:'14px 16px', fontFamily:crimson, fontSize:13, color: isDark?'#8B7355':'#5C5248', lineHeight:1.6 }}>
+                  ✓ Case File integration active — assessment results will be linked to your open sessions.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
-        {activeSection === 'body-map' && <BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} setActiveSection={setActiveSection} />}
+        {activeSection === 'body-map' && (
+          tierLevel >= 2
+            ? <BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} setActiveSection={setActiveSection} />
+            : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+                <div style={{ textAlign:'center', maxWidth:480 }}>
+                  <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>
+                  <div style={{ fontFamily:cinzel, fontSize:10, color:G, letterSpacing:'0.2em', marginBottom:12 }}>BODY MAP</div>
+                  <h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2>
+                  <p style={{ color:isDark?'#8B7355':'#5C5248', fontSize:15, lineHeight:1.7, marginBottom:28, fontFamily:crimson }}>The Body Map is an advanced session tool for Commander-tier ministers and above. Upgrade to unlock symptom-to-spirit mapping, anatomical gate analysis, and live session integration.</p>
+                  <a href="/membership" style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, textDecoration:'none' }}>Upgrade to Commander</a>
+                </div>
+              </div>
+        )}
         {activeSection === 'spirit-network' && (
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
-            <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
-          </div>
+          tierLevel >= 2
+            ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
+                <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
+              </div>
+            : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+                <div style={{ textAlign:'center', maxWidth:480 }}>
+                  <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>
+                  <div style={{ fontFamily:cinzel, fontSize:10, color:G, letterSpacing:'0.2em', marginBottom:12 }}>SPIRIT NETWORK</div>
+                  <h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2>
+                  <p style={{ color:isDark?'#8B7355':'#5C5248', fontSize:15, lineHeight:1.7, marginBottom:28, fontFamily:crimson }}>The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above. Upgrade to unlock org-chart navigation, companion spirit mapping, and live network traversal.</p>
+                  <a href="/membership" style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, textDecoration:'none' }}>Upgrade to Commander</a>
+                </div>
+              </div>
         )}
         {activeSection === 'gateway' && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
