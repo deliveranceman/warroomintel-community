@@ -43,8 +43,8 @@ const BIBLE_BOOKS = [
 interface Verse { verse: number; text: string }
 interface ConversationMessage { role: 'user' | 'assistant'; content: string }
 
-const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL  as string | undefined
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const SUPABASE_URL  = (import.meta.env.VITE_SUPABASE_URL  as string | undefined) || 'https://uurfiasxtcvdpkfosofn.supabase.co'
+const SUPABASE_ANON = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1cmZpYXN4dGN2ZHBrZm9zb2ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODY0NTAsImV4cCI6MjA5NDI2MjQ1MH0.ewiwAuAQLBFSmx460xI6O7OWINepMJ2zIOUQc209D1Q'
 
 function ScripturePage() {
   const { getToken }       = useAuth()
@@ -118,21 +118,27 @@ function ScripturePage() {
     }
     setSelectedVerse(verseNum)
     setDakeNote(null)
-    if (!SUPABASE_URL || !SUPABASE_ANON) { setLoadingDake(false); return }
     setLoadingDake(true)
     try {
       const url = `${SUPABASE_URL}/rest/v1/bible_notes?book=eq.${encodeURIComponent(book)}&chapter=eq.${chapter}&verse=eq.${verseNum}&select=note`
+      console.log('[Dake] Fetching:', url, { book, chapter, verse: verseNum })
       const res = await fetch(url, {
         headers: {
           apikey: SUPABASE_ANON,
           Authorization: `Bearer ${SUPABASE_ANON}`,
         },
       })
+      console.log('[Dake] Response status:', res.status)
       if (res.ok) {
         const data = await res.json()
+        console.log('[Dake] Rows returned:', data?.length, data?.[0] ?? '(no row)')
         setDakeNote(data?.[0]?.note || null)
+      } else {
+        console.error('[Dake] Non-OK response:', res.status, await res.text())
       }
-    } catch {}
+    } catch (e: any) {
+      console.error('[Dake] Fetch error:', e?.message)
+    }
     setLoadingDake(false)
   }
 
@@ -230,18 +236,10 @@ function ScripturePage() {
           <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FOUNDATION</span>
         </div>
 
-        <div style={{ fontFamily: cinzel, fontSize: isMobile ? 22 : 28, color: G, fontWeight: 700, letterSpacing: '0.06em', marginBottom: 2 }}>
-          SCRIPTURE
-        </div>
-        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 10 }}>
-          Dake Annotated Reference Bible
-        </div>
-        <div style={{
-          display: 'inline-block', fontFamily: cinzel, fontSize: 8, color: '#7a9e7e',
-          background: 'rgba(122,158,126,0.1)', border: '1px solid rgba(122,158,126,0.3)',
-          borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', marginBottom: 16,
-        }}>
-          CLASS III · SOLDIER ACCESS
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' as const }}>
+          <span style={{ fontFamily: cinzel, fontSize: 20, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>SCRIPTURE</span>
+          <span style={{ fontFamily: mono, fontSize: 10, color: MUT }}>Dake Annotated Reference Bible</span>
+          <div style={{ marginLeft: 'auto', fontFamily: cinzel, fontSize: 8, color: '#7a9e7e', background: 'rgba(122,158,126,0.1)', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>CLASS III · SOLDIER ACCESS</div>
         </div>
 
         {/* Navigation bar */}

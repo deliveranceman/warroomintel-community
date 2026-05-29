@@ -947,11 +947,15 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
     const guidedFilteredDemons = guidedSpiritSearch.length > 1
       ? demons.filter((d: any) => d.name?.toLowerCase().includes(guidedSpiritSearch.toLowerCase())).slice(0, 8)
       : []
+    const exitGuided = () => { setSession(s => ({ ...s, mode: 'live' })); setGuidedStep(0) }
     const topBar = (
       <div style={{ height: 44, background: '#060408', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.15em' }}>⚔ GUIDED SESSION SETUP</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={exitGuided} style={{ background: 'transparent', border: 'none', color: DIM, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 2px' }}>×</button>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.15em' }}>⚔ GUIDED SESSION SETUP</div>
+        </div>
         <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700 }}>{formatElapsed(elapsed)}</div>
-        <button onClick={() => setSession(s => ({ ...s, mode: 'live' }))} style={{ fontFamily: cinzel, fontSize: 9, color: DIM, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>SKIP TO LIVE</button>
+        <button onClick={exitGuided} style={{ fontFamily: cinzel, fontSize: 9, color: DIM, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>SKIP TO LIVE</button>
       </div>
     )
     const progress = (
