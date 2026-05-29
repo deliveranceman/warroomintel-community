@@ -392,8 +392,6 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
       setConversations(filtered)
       const total = filtered.reduce((sum: number, ch: any) => sum + (ch.channel?.unread_count || 0), 0)
       onUnreadChange?.(total)
-      console.log('loadConvos result:', filtered.length, filtered.map((c: any) => c.channel?.id || c.id))
-      console.log('raw channels from Stream:', d.channels?.length, d.channels?.map((c: any) => c.channel?.id))
     } catch (err) {
       console.error('loadConvos error:', err)
     } finally {
@@ -821,6 +819,7 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
 
   const q = search.toLowerCase()
   const filtered = members
+    .filter(m => m.id !== currentUserId)
     .filter(m => {
       const name = `${m.firstName||''} ${m.lastName||''} ${m.username||''}`.toLowerCase()
       const matchSearch = !q || name.includes(q)
@@ -3612,7 +3611,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     'image/jpeg': '🖼️',
   }
 
-  const TIERS      = ['All', 'Free', 'Soldier', 'Commander', 'General']
+  const TIERS      = ['All', 'Watchman', 'Soldier', 'Commander', 'General']
 
   const TIER_COLORS: Record<string, string> = {
     Free: '#4ade80', Soldier: '#C9A84C', Commander: '#38bdf8', General: '#f87171',
@@ -3623,7 +3622,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       r.title?.toLowerCase().includes(query.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(query.toLowerCase()) ||
       (Array.isArray(r.tags) ? r.tags.some((t: string) => t.toLowerCase().includes(query.toLowerCase())) : false)
-    const matchTier  = tierFilter === 'All' || r.tier === tierFilter
+    const matchTier  = tierFilter === 'All' || (tierFilter === 'Watchman' ? (r.tier === 'Free' || r.tier === 'free' || r.tier === 'Watchman') : r.tier === tierFilter)
     const matchTopic = !topicFilter || r.topic === topicFilter || r.category === topicFilter
     const matchTag   = !tagFilter || (Array.isArray(r.tags) ? r.tags.includes(tagFilter) : String(r.tags || '').includes(tagFilter))
     return matchSearch && matchTier && matchTopic && matchTag
@@ -3649,7 +3648,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
               <span style={{ fontFamily: cinzel, fontSize: 13, color: hasAccess ? G : muted, fontWeight: 600 }}>{resource.title}</span>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, alignItems: 'center' }}>
-              <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${tc}20`, color: tc, border: `1px solid ${tc}40`, letterSpacing: '0.06em' }}>{resource.tier}</span>
+              <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${tc}20`, color: tc, border: `1px solid ${tc}40`, letterSpacing: '0.06em' }}>{(resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier}</span>
               <span style={{ fontSize: 10, color: muted, fontFamily: crimson }}>{resource.topic || resource.category}</span>
               {sizeMB && <span style={{ fontSize: 11, color: muted }}>· {sizeMB} MB</span>}
             </div>
@@ -3711,7 +3710,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       {/* Topic filter */}
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Topic</div>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any, flexWrap: 'nowrap' as const, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, paddingBottom: 4 }}>
           {['All', ...ARSENAL_TOPICS].map(t => (
             <button key={t} onClick={() => setTopicFilter(t === 'All' ? '' : t)}
               style={{ flexShrink: 0, padding: '4px 12px', background: (topicFilter === t || (t === 'All' && !topicFilter)) ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${(topicFilter === t || (t === 'All' && !topicFilter)) ? G : border}`, borderRadius: 20, color: (topicFilter === t || (t === 'All' && !topicFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
@@ -3724,7 +3723,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       {/* Function tag filter */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Function</div>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any, flexWrap: 'nowrap' as const, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, paddingBottom: 4 }}>
           {['All', ...ARSENAL_TAGS].map(t => (
             <button key={t} onClick={() => setTagFilter(t === 'All' ? '' : t)}
               style={{ flexShrink: 0, padding: '4px 12px', background: (tagFilter === t || (t === 'All' && !tagFilter)) ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${(tagFilter === t || (t === 'All' && !tagFilter)) ? G : border}`, borderRadius: 20, color: (tagFilter === t || (t === 'All' && !tagFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
@@ -6323,12 +6322,17 @@ function CommunityPage() {
           const timeAgo = mins < 1 ? 'now' : mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           const otherMember = (ch.members || []).find((m: any) => m.user_id !== uid)
           const clerkMatch = members?.find((m: any) => m.id === otherMember?.user_id)
-          const senderName = (clerkMatch ? `${clerkMatch.firstName||''} ${clerkMatch.lastName||''}`.trim() : '')
-            || (otherMember?.user?.name && !otherMember.user.name.startsWith('user_') ? otherMember.user.name : '')
-            || 'Warrior'
+          const clerkName = (clerkMatch ? `${clerkMatch.firstName||''} ${clerkMatch.lastName||''}`.trim() : '')
+          const streamName = (otherMember?.user?.name && !otherMember.user.name.startsWith('user_') ? otherMember.user.name : '')
+          const clerkUsername = (clerkMatch?.username && !clerkMatch.username.startsWith('user_')) ? clerkMatch.username : ''
+          const senderName = clerkName || streamName || clerkUsername || 'Warrior'
           msgs.push({ id: msg.id, senderName, text: msg.text || '', timeAgo })
         }
         setRecentMessages(msgs)
+        const totalUnread = (data.channels || [])
+          .filter((ch: any) => ch.channel?.id !== 'war-room-general' && ch.channel?.id !== 'prayer-wall-requests')
+          .reduce((sum: number, ch: any) => sum + (ch.channel?.unread_count || 0), 0)
+        setUnreadDMs(totalUnread)
       } catch { /* silent */ }
     }
     loadRecentMessages()

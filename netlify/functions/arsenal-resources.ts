@@ -79,9 +79,10 @@ export default async function handler(req: Request) {
 
   let query = supabase
     .from('resources')
-    .select('id, title, description, tier, category, topic, tags, file_path, file_type, file_size, created_at')
+    .select('id, title, description, tier, category, topic, tags, file_path, file_type, file_size, source_type, created_at')
     .in('tier', allowedTiers)
     .neq('topic', 'ministry-library')
+    .or('source_type.is.null,source_type.neq.intelligence')
 
   if (searchParam) {
     query = query.or(`title.ilike.%${searchParam}%,description.ilike.%${searchParam}%`)
