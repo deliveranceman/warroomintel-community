@@ -924,6 +924,15 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [backfillProgress, setBackfillProgress] = useState('')
   const [backfillResults, setBackfillResults]   = useState<{ totalUpdated: number; totalSkipped: number; totalFailed: number; complete: boolean } | null>(null)
 
+  // Sub-section navigation
+  const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates'>('database')
+
+  // Duplicate Finder
+  const [dupeGroups, setDupeGroups] = useState<Array<{ key: string; entries: any[] }>>([])
+  const [dupeScanned, setDupeScanned] = useState(false)
+  const [dupeResolving, setDupeResolving] = useState<string | null>(null)
+  const [dupeLog, setDupeLog] = useState<string[]>([])
+
   function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
     setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), status, editing: false } }))
   }
@@ -946,6 +955,55 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       }
     } catch { setDemons([]) }
     finally { setDLoading(false) }
+  }
+
+  function scanDupes() {
+    const groups: Record<string, any[]> = {}
+    for (const d of demons) {
+      const key = (d.name || '').toLowerCase().trim()
+      if (!key) continue
+      if (!groups[key]) groups[key] = []
+      groups[key].push(d)
+    }
+    setDupeGroups(
+      Object.entries(groups)
+        .filter(([, g]) => g.length > 1)
+        .map(([key, entries]) => ({ key, entries }))
+    )
+    setDupeScanned(true)
+  }
+
+  async function handleKeepEntry(group: { key: string; entries: any[] }, keepIdx: number) {
+    const toDelete = group.entries.filter((_, i) => i !== keepIdx)
+    setDupeResolving(group.key)
+    const token = await getToken()
+    for (const d of toDelete) {
+      try {
+        await fetch(`/api/admin-demon?id=${d.airtableId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      } catch {}
+    }
+    setDupeGroups(prev => prev.filter(g => g.key !== group.key))
+    setDupeLog(prev => [...prev, `Kept "${group.entries[keepIdx].name}" — deleted ${toDelete.length} duplicate${toDelete.length !== 1 ? 's' : ''}`])
+    setDupeResolving(null)
+    fetchDemons()
+  }
+
+  async function handleDeleteEntry(group: { key: string; entries: any[] }, delIdx: number) {
+    const d = group.entries[delIdx]
+    setDupeResolving(group.key)
+    const token = await getToken()
+    try {
+      await fetch(`/api/admin-demon?id=${d.airtableId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    } catch {}
+    const remaining = group.entries.filter((_, i) => i !== delIdx)
+    if (remaining.length < 2) {
+      setDupeGroups(prev => prev.filter(g => g.key !== group.key))
+    } else {
+      setDupeGroups(prev => prev.map(g => g.key === group.key ? { ...g, entries: remaining } : g))
+    }
+    setDupeLog(prev => [...prev, `Deleted duplicate "${d.name}"`])
+    setDupeResolving(null)
+    fetchDemons()
   }
 
   async function handleAIBackfill() {
@@ -1337,6 +1395,21 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
   return (
     <div>
+      {/* Sub-section nav */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${BDR}`, overflowX: 'auto' as const }}>
+        {(['database', 'enrichment', 'taxonomy', 'gap-analysis', 'duplicates'] as const).map(t => {
+          const labels: Record<string, string> = { database: 'SPIRIT DATABASE', enrichment: 'ENRICHMENT', taxonomy: 'TAXONOMY', 'gap-analysis': 'GAP ANALYSIS', duplicates: 'DUPLICATE FINDER' }
+          return (
+            <button key={t} onClick={() => setIntelTab(t)}
+              style={{ padding: '10px 18px', background: 'transparent', border: 'none', borderBottom: intelTab === t ? `2px solid ${G}` : '2px solid transparent', color: intelTab === t ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', flexShrink: 0, marginBottom: -1, whiteSpace: 'nowrap' as const }}>
+              {labels[t]}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── SPIRIT DATABASE ──────────────────────────────────────────────────── */}
+      {intelTab === 'database' && (<>
       {/* Stat cards */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' as const }}>
         {([
@@ -1621,6 +1694,92 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
               <button onClick={() => deleteLink(l.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>Remove</button>
             </div>
           ))}
+        </div>
+      )}
+      </>)}
+
+      {/* ── ENRICHMENT ───────────────────────────────────────────────────────── */}
+      {intelTab === 'enrichment' && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
+
+      {/* ── TAXONOMY ─────────────────────────────────────────────────────────── */}
+      {intelTab === 'taxonomy' && <TaxonomyReview getToken={getToken} isDark={isDark} />}
+
+      {/* ── GAP ANALYSIS ─────────────────────────────────────────────────────── */}
+      {intelTab === 'gap-analysis' && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
+
+      {/* ── DUPLICATE FINDER ─────────────────────────────────────────────────── */}
+      {intelTab === 'duplicates' && (
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 6 }}>DUPLICATE FINDER</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 20, lineHeight: 1.6 }}>
+            Scans loaded spirits for entries with identical names (case-insensitive). Resolve each group with Keep or Delete.
+          </div>
+
+          {dLoading ? (
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em' }}>Loading spirit database...</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
+                <button onClick={scanDupes}
+                  style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
+                  🔍 Scan {demons.length} Spirits for Duplicates
+                </button>
+                {dupeScanned && (
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: dupeGroups.length === 0 ? '#4ade80' : G, letterSpacing: '0.08em' }}>
+                    {dupeGroups.length === 0 ? '✓ No duplicates found' : `${dupeGroups.length} duplicate group${dupeGroups.length !== 1 ? 's' : ''} found`}
+                  </span>
+                )}
+              </div>
+
+              {dupeLog.length > 0 && (
+                <div style={{ marginBottom: 20, padding: '12px 16px', background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 6 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.1em', marginBottom: 8 }}>
+                    RESOLVED — {dupeLog.length} ACTION{dupeLog.length !== 1 ? 'S' : ''}
+                  </div>
+                  {dupeLog.map((entry, i) => (
+                    <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: '#80e090', marginBottom: 2 }}>✓ {entry}</div>
+                  ))}
+                </div>
+              )}
+
+              {dupeGroups.map(group => (
+                <div key={group.key} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, marginBottom: 16, overflow: 'hidden', opacity: dupeResolving === group.key ? 0.5 : 1 }}>
+                  <div style={{ padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em' }}>{group.entries[0].name}</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.06em' }}>{group.entries.length} ENTRIES</span>
+                    {dupeResolving === group.key && <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em' }}>RESOLVING...</span>}
+                  </div>
+                  {group.entries.map((d, idx) => (
+                    <div key={d.airtableId || idx} style={{ padding: '12px 16px', borderBottom: idx < group.entries.length - 1 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 5 }}>
+                          {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.biblicalRank}</span>}
+                          {d.hierarchyCategory && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.hierarchyCategory}</span>}
+                          {d.kingdom && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.kingdom}</span>}
+                        </div>
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, lineHeight: 1.5, maxHeight: 48, overflow: 'hidden' }}>
+                          {d.operationalNotes ? d.operationalNotes.slice(0, 140) + (d.operationalNotes.length > 140 ? '…' : '') : <em>No notes</em>}
+                        </div>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.3)', letterSpacing: '0.06em', marginTop: 4 }}>
+                          {d.createdTime ? `Added ${new Date(d.createdTime).toLocaleDateString()}` : 'No date'} · {d.airtableId}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => handleKeepEntry(group, idx)} disabled={!!dupeResolving}
+                          style={{ padding: '5px 12px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: dupeResolving ? 'default' : 'pointer', whiteSpace: 'nowrap' as const }}>
+                          KEEP THIS
+                        </button>
+                        <button onClick={() => handleDeleteEntry(group, idx)} disabled={!!dupeResolving}
+                          style={{ padding: '5px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: dupeResolving ? 'default' : 'pointer', whiteSpace: 'nowrap' as const }}>
+                          DELETE THIS
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -5846,13 +6005,43 @@ function AdminPage() {
             {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
             {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}
             {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
-            {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
+            {tab === 'lib-intel'         && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em' }}>Also available at:</span>
+                  <button onClick={() => setTab('intel')} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textDecoration: 'underline' }}>
+                    Intel Archive → Gap Analysis
+                  </button>
+                </div>
+                <LibraryIntelligence getToken={getToken} isDark={isDark} />
+              </div>
+            )}
             {tab === 'ai-command'        && <AICommandManager getToken={getToken} isDark={isDark} />}
-            {tab === 'taxonomy'          && <TaxonomyReview getToken={getToken} isDark={isDark} />}
+            {tab === 'taxonomy'          && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em' }}>Also available at:</span>
+                  <button onClick={() => setTab('intel')} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textDecoration: 'underline' }}>
+                    Intel Archive → Taxonomy
+                  </button>
+                </div>
+                <TaxonomyReview getToken={getToken} isDark={isDark} />
+              </div>
+            )}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
             {tab === 'internal-books'    && <InternalBooks getToken={getToken} isDark={isDark} />}
             {tab === 'admin-chat'        && <AdminChat getToken={getToken} isDark={isDark} />}
-            {tab === 'enrichment'        && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
+            {tab === 'enrichment'        && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em' }}>Also available at:</span>
+                  <button onClick={() => setTab('intel')} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textDecoration: 'underline' }}>
+                    Intel Archive → Enrichment
+                  </button>
+                </div>
+                <EnrichmentSuggestions getToken={getToken} isDark={isDark} />
+              </div>
+            )}
             {tab === 'suggested-edits'   && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
           </div>
         </div>

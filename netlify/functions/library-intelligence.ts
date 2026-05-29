@@ -125,10 +125,12 @@ export default async function handler(req: Request) {
     const seen = new Set<string>()
     const gaps = (cached || [])
       .filter(r => {
-        if (seen.has(r.normalized_name)) return false
-        seen.add(r.normalized_name)
-        // Filter out spirits already in Airtable (case-insensitive)
+        const normalizedKey = r.normalized_name?.toLowerCase().trim() ?? ''
+        if (seen.has(normalizedKey)) return false
+        seen.add(normalizedKey)
+        // Filter out spirits already in Airtable — check both spirit_name and normalized_name
         if (existingNames.has(r.spirit_name.toLowerCase().trim())) return false
+        if (normalizedKey && existingNames.has(normalizedKey)) return false
         return true
       })
       .map(r => ({
