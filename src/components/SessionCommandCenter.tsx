@@ -219,6 +219,12 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
   const [teamInput, setTeamInput] = useState('')
   const [teamRole, setTeamRole] = useState('recorder')
   const [addTeamOpen, setAddTeamOpen] = useState(false)
+  const [sessionContext, setSessionContext] = useState<any>(null)
+  const [showSaveToCase, setShowSaveToCase] = useState(false)
+  const [saveCases, setSaveCases] = useState<any[]>([])
+  const [saveForm, setSaveForm] = useState({ caseFileId: '', outcome: 'incomplete', spirits_encountered: '', breakthroughs: '', resistances: '', follow_up_needed: false, private_notes: '' })
+  const [saveSubmitting, setSaveSubmitting] = useState(false)
+  const [saveDoneMsg, setSaveDoneMsg] = useState('')
   const [renuncFilter, setRenuncFilter] = useState('')
   const [guidedStep, setGuidedStep] = useState(0)
   const [guidedTeamNames, setGuidedTeamNames] = useState<Record<string, string>>({})
@@ -288,6 +294,23 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
     autoSaveRef.current = setInterval(() => { saveSession(false) }, 30000)
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
   }, [session])
+
+  // ── CASE FILE CONTEXT from localStorage ──────────────────────────────────
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('wri-session-context')
+      if (raw) {
+        const ctx = JSON.parse(raw)
+        setSessionContext(ctx)
+        setSaveForm(f => ({
+          ...f,
+          caseFileId: ctx.caseFileId || '',
+          spirits_encountered: (ctx.spiritsFlagged || []).join(', '),
+        }))
+        localStorage.removeItem('wri-session-context')
+      }
+    } catch {}
+  }, [])
 
   // ── SCROLL LOG TO BOTTOM ──────────────────────────────────────────────────
   useEffect(() => {
@@ -607,6 +630,47 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
       reader.readAsDataURL(file)
     }
     if (fileRef.current) fileRef.current.value = ''
+  }
+
+  // ── FETCH CASES FOR SAVE DROPDOWN ────────────────────────────────────────
+  async function fetchCasesForSave() {
+    const token = await getToken()
+    try {
+      const res = await fetch('/api/field-ops?resource=cases', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const d = await res.json()
+      setSaveCases(d.cases || [])
+    } catch {}
+  }
+
+  // ── SUBMIT SAVE TO CASE FILE ──────────────────────────────────────────────
+  async function submitSaveToCase() {
+    if (!saveForm.caseFileId) return
+    setSaveSubmitting(true)
+    const token = await getToken()
+    try {
+      const body = {
+        case_file_id: saveForm.caseFileId,
+        outcome: saveForm.outcome,
+        spirits_encountered: saveForm.spirits_encountered.split(',').map((s: string) => s.trim()).filter(Boolean),
+        breakthroughs: saveForm.breakthroughs.trim() || null,
+        resistances: saveForm.resistances.trim() || null,
+        follow_up_needed: saveForm.follow_up_needed,
+        private_notes: saveForm.private_notes.trim() || null,
+        duration_minutes: Math.round(elapsed / 60) || null,
+      }
+      const res = await fetch('/api/field-ops?resource=sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setSaveDoneMsg('Session saved to case file')
+        setTimeout(() => { setShowSaveToCase(false); setSaveDoneMsg('') }, 2000)
+      }
+    } catch {}
+    setSaveSubmitting(false)
   }
 
   // ── SAVE & PAUSE ──────────────────────────────────────────────────────────
@@ -1050,6 +1114,39 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
           <span style={{ fontSize: 14 }}>🌊</span>
           <span style={{ fontFamily: crimson, fontSize: 14, color: '#34d399', flex: 1 }}>SEER: {seerNotif}</span>
           <span style={{ fontFamily: cinzel, fontSize: 8, color: '#34d399', opacity: 0.6 }}>TAP TO DISMISS</span>
+        </div>
+      )}
+
+      {/* ── CASE FILE CONTEXT BANNER ──────────────────────────────────────── */}
+      {sessionContext && (
+        <div style={{ background: 'rgba(201,168,76,0.06)', borderBottom: '1px solid rgba(201,168,76,0.18)', padding: '8px 16px', flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: G, letterSpacing: '0.2em', marginBottom: 3 }}>[ CASE FILE ]</div>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: TXT, fontWeight: 600 }}>{sessionContext.subjectName}</div>
+            {sessionContext.subjectAlias && (
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>CODENAME: {sessionContext.subjectAlias}</div>
+            )}
+            {sessionContext.primaryIssue && (
+              <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginTop: 2, maxWidth: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {sessionContext.primaryIssue}
+              </div>
+            )}
+            {sessionContext.spiritsFlagged?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 4 }}>
+                {(sessionContext.spiritsFlagged as string[]).map((s: string) => (
+                  <span key={s} style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 2, padding: '1px 6px', fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#f87171', letterSpacing: '0.06em' }}>
+                    {s}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => { fetchCasesForSave(); setShowSaveToCase(true) }}
+            style={{ flexShrink: 0, background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '5px 10px', fontFamily: cinzel, fontSize: 8, color: G, letterSpacing: '0.1em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+          >
+            SAVE TO CASE FILE
+          </button>
         </div>
       )}
 
@@ -1640,6 +1737,88 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
           </div>
         </div>
       </div>
+
+      {/* ── SAVE TO CASE FILE MODAL ───────────────────────────────────────── */}
+      {showSaveToCase && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#13111e', border: `1px solid ${BDR}`, borderRadius: 12, width: '100%', maxWidth: 500, padding: 28, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.12em', marginBottom: 20 }}>SAVE SESSION TO CASE FILE</div>
+            {saveDoneMsg ? (
+              <div style={{ textAlign: 'center' as const, padding: '24px 0', fontFamily: cinzel, fontSize: 13, color: '#4ade80', letterSpacing: '0.1em' }}>{saveDoneMsg}</div>
+            ) : (
+              <>
+                {sessionContext ? (
+                  <div style={{ marginBottom: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: G, background: `${G}10`, border: `1px solid ${BDR}`, borderRadius: 4, padding: '8px 12px', letterSpacing: '0.08em' }}>
+                    {sessionContext.subjectName}{sessionContext.subjectAlias ? ` · ${sessionContext.subjectAlias}` : ''}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.16em', marginBottom: 6 }}>CASE FILE</div>
+                    <select value={saveForm.caseFileId} onChange={e => setSaveForm(f => ({ ...f, caseFileId: e.target.value }))}
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                      <option value="">-- Select case file --</option>
+                      {saveCases.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.subject_name}{c.subject_alias ? ` (${c.subject_alias})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.16em', marginBottom: 6 }}>OUTCOME</div>
+                  <select value={saveForm.outcome} onChange={e => setSaveForm(f => ({ ...f, outcome: e.target.value }))}
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                    <option value="breakthrough">Breakthrough</option>
+                    <option value="partial">Partial</option>
+                    <option value="resistance">Resistance</option>
+                    <option value="incomplete">Incomplete</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.16em', marginBottom: 6 }}>SPIRITS ENCOUNTERED (comma-separated)</div>
+                  <input value={saveForm.spirits_encountered} onChange={e => setSaveForm(f => ({ ...f, spirits_encountered: e.target.value }))}
+                    placeholder="e.g. Rejection, Fear, Leviathan"
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.16em', marginBottom: 6 }}>BREAKTHROUGHS</div>
+                  <textarea value={saveForm.breakthroughs} onChange={e => setSaveForm(f => ({ ...f, breakthroughs: e.target.value }))}
+                    rows={2} placeholder="What was accomplished..."
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const }} />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.16em', marginBottom: 6 }}>RESISTANCES</div>
+                  <textarea value={saveForm.resistances} onChange={e => setSaveForm(f => ({ ...f, resistances: e.target.value }))}
+                    rows={2} placeholder="What resisted or remained..."
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const }} />
+                </div>
+                <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button onClick={() => setSaveForm(f => ({ ...f, follow_up_needed: !f.follow_up_needed }))}
+                    style={{ width: 16, height: 16, borderRadius: 3, border: `1px solid ${saveForm.follow_up_needed ? '#86efac' : BDR}`, background: saveForm.follow_up_needed ? '#86efac22' : 'transparent', color: '#86efac', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {saveForm.follow_up_needed ? '✓' : ''}
+                  </button>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>FOLLOW-UP NEEDED</span>
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.16em', marginBottom: 6 }}>PRIVATE NOTES</div>
+                  <textarea value={saveForm.private_notes} onChange={e => setSaveForm(f => ({ ...f, private_notes: e.target.value }))}
+                    rows={3} placeholder="Confidential observations..."
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const }} />
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={submitSaveToCase} disabled={saveSubmitting || !saveForm.caseFileId}
+                    style={{ flex: 1, padding: '10px', background: G, color: '#1a1305', border: 'none', borderRadius: 6, fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', cursor: saveSubmitting || !saveForm.caseFileId ? 'default' : 'pointer', opacity: !saveForm.caseFileId ? 0.5 : 1 }}>
+                    {saveSubmitting ? 'SAVING...' : 'SAVE SESSION'}
+                  </button>
+                  <button onClick={() => setShowSaveToCase(false)}
+                    style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    CANCEL
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── END SESSION MODAL ─────────────────────────────────────────────── */}
       {showEndModal && (

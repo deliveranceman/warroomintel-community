@@ -496,6 +496,23 @@ function FieldOpsPage() {
                   + Session
                 </button>
                 <button
+                  onClick={() => {
+                    try {
+                      localStorage.setItem('wri-session-context', JSON.stringify({
+                        caseFileId: c.id,
+                        subjectName: c.subject_name,
+                        subjectAlias: c.subject_alias,
+                        spiritsFlagged: c.spirits_flagged,
+                        primaryIssue: c.primary_issue,
+                      }))
+                    } catch {}
+                    window.location.href = '/community?section=session-center'
+                  }}
+                  style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 2, padding: '8px 14px', fontFamily: cinzel, fontSize: 11, fontWeight: 600, color: G, cursor: 'pointer', letterSpacing: '0.1em' }}
+                >
+                  Launch Session
+                </button>
+                <button
                   onClick={() => deleteCase(c)}
                   style={{ background: 'transparent', border: `1px solid rgba(200,74,74,0.3)`, borderRadius: 2, padding: '8px 14px', fontFamily: mono, fontSize: 10, color: '#e07070', cursor: 'pointer' }}
                 >
