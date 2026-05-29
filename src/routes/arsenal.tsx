@@ -152,7 +152,7 @@ function FileCard({
 
       {/* Description */}
       {resource.description && (
-        <div style={{ fontFamily: crimson, fontStyle: 'italic', fontSize: 12, color: 'var(--t-3)', lineHeight: 1.5, marginBottom: 10 }}>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: 14, color: 'var(--t-2)', lineHeight: 1.6, marginBottom: 10 }}>
           {resource.description}
         </div>
       )}
@@ -385,18 +385,16 @@ function ArsenalPage() {
       </div>
 
       {/* ── Hero ── */}
-      <div className="res-hero" style={{ padding: '20px 32px', borderBottom: '1px solid var(--gold-line)' }}>
-        <TacticalCard brackets glow={false} padding="20px 24px">
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.2em', color: 'var(--t-4)', marginBottom: 8, textTransform: 'uppercase' as const }}>
-            Ministry Library · Tier-Gated Access
-          </div>
-          <div style={{ fontFamily: cinzel, fontSize: 28, color: 'var(--gold)', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 6 }}>
+      <div className="res-hero" style={{ padding: '14px 32px', borderBottom: '1px solid var(--gold-line)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 24, color: 'var(--gold)', letterSpacing: '2px' }}>
             ARSENAL
           </div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-3)', letterSpacing: '0.05em' }}>
-            {resources.length} Resources · {memberTier} Access
-          </div>
-        </TacticalCard>
+          <HUDChip>{resources.length} Resources</HUDChip>
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--t-3)', letterSpacing: '3px', textTransform: 'uppercase' as const }}>
+          PDF · AUDIO · REFERENCE · TRAINING · MINISTRY TOOLS
+        </div>
       </div>
 
       {/* ── Search ── */}
