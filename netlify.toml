@@ -118,3 +118,6 @@
 
 [functions."send-push"]
   timeout = 15
+
+[functions."fringe-articles"]
+  timeout = 10

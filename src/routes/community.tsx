@@ -4169,212 +4169,309 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
 }
 
 // ── FRINGE INTEL VIEW ─────────────────────────────────────
-function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
-  const isDark = theme !== 'light'
-  const bg = isDark ? '#0D0B14' : '#FAF8F5'
-  const surf = isDark ? '#FFFFFF' : '#FFFFFF'
-  const border = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
-  const muted = isDark ? '#8B7355' : '#5C5248'
-  const txt = isDark ? '#f0e8d8' : '#2D2924'
-  const gold = isDark ? G : '#8B6914'
-  const { getToken } = useAuth()
-  const { user: fringeUser } = useUser()
-  const fringeTierNum = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[((fringeUser?.publicMetadata?.tier as string)||'watchman').toLowerCase()] ?? 0
+function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
+  const isDark  = theme !== 'light'
+  const G2      = isDark ? '#C9A84C' : '#a07830'
+  const SURF    = isDark ? 'rgba(201,168,76,0.03)' : '#f9f5ee'
+  const BDR     = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.2)'
+  const TXT     = isDark ? '#f0e8d8' : '#1a1410'
+  const MUT     = isDark ? '#9a8c74' : '#5c4a3a'
+  const cinzel  = "'Cinzel', serif"
+  const crimson = "'Crimson Pro', serif"
+  const SOLDIER_URL = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
 
-  const TOPICS = [
-    { key: 'ufo-disclosure',   icon: '👽', label: 'UFO Disclosure',    desc: 'Craft sightings, government programs, interdimensional origins', tier: 'free' },
-    { key: 'genesis-6',        icon: '📖', label: 'Genesis 6',         desc: 'The Nephilim, sons of God, ancient giants and their bloodlines', tier: 'free' },
-    { key: 'bloodline-warfare',icon: '🧬', label: 'Bloodline Warfare',  desc: 'Generational corruption, hybrid entities, seed war', tier: 'soldier' },
-    { key: 'nephilim',         icon: '👁', label: 'Nephilim',           desc: 'Pre-flood entities, giant clans, post-flood remnants', tier: 'soldier' },
-    { key: 'gov-programming',  icon: '🖥', label: 'Gov. Programming',   desc: 'MK Ultra, monarch programming, demonic tech interfaces', tier: 'commander' },
-    { key: 'fringe-science',   icon: '⚗️', label: 'Fringe Science',     desc: 'Quantum, frequency, AI consciousness — the demonic angle', tier: 'commander' },
+  function tierLevel(t: string): number {
+    return ({ free:0, watchman:0, soldier:1, commander:2, general:3, minister:3 }[t?.toLowerCase()] ?? 0)
+  }
+
+  const TAG_BG: Record<string,string> = {
+    disclosure:'rgba(83,74,183,0.15)', genesis6:'rgba(201,168,76,0.15)',
+    occult:'rgba(216,90,48,0.15)', transhumanist:'rgba(13,110,86,0.15)',
+    nwo:'rgba(150,30,30,0.15)', prophecy:'rgba(14,80,180,0.15)',
+  }
+  const TAG_CLR: Record<string,string> = {
+    disclosure:'#AFA9EC', genesis6:'#C9A84C', occult:'#E8703A',
+    transhumanist:'#1D9E75', nwo:'#E87070', prophecy:'#5BADF0',
+  }
+
+  const level      = tierLevel(userTier || 'free')
+  const hasSoldier = level >= 1
+
+  const [feed, setFeed]       = React.useState<any[]>([])
+  const [feedLoading, setFL]  = React.useState(true)
+  const [feedFilter, setFF]   = React.useState('all')
+  const [activeTab, setTab]   = React.useState<'open'|'classified'|'feed'|'faq'>('open')
+  const [faqOpen, setFaqOpen] = React.useState<number|null>(null)
+
+  React.useEffect(() => {
+    setFL(true)
+    const tokenP = (window as any).Clerk?.session?.getToken?.() || Promise.resolve('')
+    Promise.resolve(tokenP).then((t: string) => {
+      fetch('/api/fringe-articles', { headers: t ? { Authorization: 'Bearer ' + t } : {} })
+        .then(r => r.json()).then(d => setFeed(Array.isArray(d) ? d : [])).catch(() => setFeed([]))
+        .finally(() => setFL(false))
+    })
+  }, [])
+
+  const filteredFeed = feedFilter === 'all' ? feed : feed.filter((a: any) => a.tag === feedFilter)
+
+  const openTopics = [
+    { icon:'🛸', title:'UAP DISCLOSURE', sub:'Daily intelligence from the disclosure front',
+      desc:'Congressional hearings, whistleblower testimony, and declassified documents — all examined through the lens of what Genesis 6 already revealed. What the Pentagon calls non-human intelligence has a name.', tag:'disclosure' },
+    { icon:'📖', title:'GENESIS 6 FILES', sub:'The original incursion and its modern echoes',
+      desc:'The Watcher descent on Mount Hermon, the Nephilim bloodlines, the forbidden knowledge given to humanity — and the archaeology, ancient texts, and cross-cultural records that confirm it happened.', tag:'genesis6' },
   ]
 
-  const [selectedTopic, setSelectedTopic] = useState<any>(null)
-  const [selectedArticle, setSelectedArticle] = useState<any>(null)
-  const [articles, setArticles] = useState<any[]>([])
-  const [articleBody, setArticleBody] = useState<string>('')
-  const [loadingArticles, setLoadingArticles] = useState(false)
-  const [loadingBody, setLoadingBody] = useState(false)
+  const classifiedTopics = [
+    { icon:'👁', title:'GOVT PROGRAMS', sub:'MK-Ultra, Monarch, and the mind control legacy',
+      desc:'How Nazi occult science became CIA doctrine through Operation Paperclip. Trauma-based programming, Monarch conditioning, and the demonic access points created by systematic psychological fracture.', tag:'occult' },
+    { icon:'🧬', title:'TRANSHUMANISM', sub:'The new Tower of Babel — GRIN technologies',
+      desc:'DARPA, Neuralink, mRNA platforms, and the convergence of Genetics, Robotics, Information, and Nanotechnology aimed at producing the posthuman. Alberino\'s Birthright framework applied to current headlines.', tag:'transhumanist' },
+    { icon:'🕯', title:'OCCULT OPS', sub:'Witchcraft in media, government, and entertainment',
+      desc:'Bohemian Grove\'s Molech ritual. Skull and Bones blood oath initiations. Hollywood as mass initiation system. The occult architecture of Washington D.C. and the Masonic eschatology of the Great Seal.', tag:'occult' },
+    { icon:'🌐', title:'NWO WATCH', sub:'Beast system infrastructure going live',
+      desc:'CBDC in 11 nations. WHO pandemic treaty. Global digital ID. WEF Great Reset. Revelation 13 mapped to current events. The plumbing is installed. The switch is not yet thrown.', tag:'nwo' },
+  ]
 
-  async function openTopic(topic: any) {
-    setSelectedTopic(topic)
-    setSelectedArticle(null)
-    setArticleBody('')
-    setLoadingArticles(true)
-    try {
-      const token = await getToken()
-      const res = await fetch(`/api/fringe-articles?topic=${topic.key}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const d = await res.json()
-        setArticles(d.articles || [])
-      }
-    } catch(e) {}
-    setLoadingArticles(false)
-  }
+  const faqData = [
+    { q:'Are aliens demons? What does Scripture actually say?',
+      biblical:'1 John 4:1 commands testing every spirit. 2 Corinthians 11:14 warns that Satan masquerades as an angel of light. Revelation 16:14 identifies spirits of devils working miracles going to the kings of the earth in the last days. These are not separate categories of being — they are the same entities described with different cultural vocabularies across human history.',
+      historical:'The Book of Enoch (chapters 6-8) names 200 Watcher angels who descended to Mount Hermon, led by Semyaza and Azazel. Their disembodied hybrid offspring became what Scripture calls demons — 1 Enoch 15:8-9 states: evil spirits shall proceed from their flesh. Scott Alan Roberts documents in Rise and Fall of the Nephilim that virtually every ancient culture preserves parallel accounts: the Anunnaki of Sumeria, the Apkallu of Babylon, the Apsaras of Hindu tradition.',
+      ops:'Alberino argues in Birthright that the gray alien abduction program is a continuation of the Watcher breeding agenda — a second incursion producing a hybrid race to inherit Adam\'s dominion. The Disclosure movement is a managed revelation designed to reframe demonic entities as extraterrestrial benefactors. Their next move: they seeded humanity. This is the setup for the great deception of 2 Thessalonians 2:11.',
+      tag:'genesis6' },
+    { q:'What happened in Genesis 6 and why does it matter for today?',
+      biblical:'Genesis 6:1-4 describes the Bene Elohim taking human wives and producing the Nephilim. Jude 1:6-7 confirms the angels did not keep their domain and committed fornication — for which they are held in eternal bonds. 2 Peter 2:4 confirms imprisonment in Tartarus awaiting judgment. Matthew 24:37 — Jesus says the last days will be as the days of Noah. This is structural prophecy, not merely moral comparison.',
+      historical:'The Book of Enoch names 200 Watchers who descended to Mount Hermon — named for the oath they swore there (1 Enoch 6:6). Leaders: Semyaza, Azazel, Baraqiel, Kokabiel. They taught weapons, astrology, sorcery, pharmakeia. The result: three hybrid races who devoured humanity and filled the earth with violence. Enoch 10:12 records their sentence: bound for 70 generations under the hills of the earth until the Day of Judgment.',
+      ops:'Gary Wayne documents in Genesis 6 Conspiracy II that post-flood Rephaim lineages — Anakim, Emim, Zamzummim — carried hybrid bloodlines through Canaan. Israel did not fully obey the command to destroy them. Those bloodlines continued into occult dynastic families of Europe and the secret society networks of today. Daniel 2:43 prophesies the final world empire will mingle with the seed of men — a non-human genetic intrusion.',
+      tag:'genesis6' },
+    { q:'What is the Mark of the Beast and how close are we?',
+      biblical:'Revelation 13:16-17: no one may buy or sell except one who has the mark. Revelation 14:9-11 makes the stakes absolute: receiving the mark results in eternal separation from God. This is not an economic inconvenience — it is a permanent spiritual and biological decision with eternal consequences.',
+      historical:'Alberino\'s analysis in Birthright is the most thorough theological framework available on this question. His argument: the Mark is not merely a tracking chip. It represents the voluntary genetic modification of the human image — the exchange of imago Dei for the genetic markers of the beast kingdom. Just as Esau sold his birthright for a bowl of stew, the final generation will sell Adam\'s dominion for enhanced capabilities and inclusion in the posthuman economy.',
+      ops:'CBDC systems are live in 11 nations, in development in 119 more. Global digital ID frameworks are being standardized through the WEF and WHO. The pandemic treaty would give a global authority power to mandate medical interventions. The beast system does not appear fully formed — it assembles piece by piece so no single component triggers alarm. By the time it is complete, the infrastructure will already be inside everyone\'s home.',
+      tag:'nwo' },
+    { q:'How does MK-Ultra connect to spiritual warfare and the occult?',
+      biblical:'The principalities and powers of Ephesians 6:12 operate through human institutions — intelligence agencies and research programs are not beyond their reach. Azazel\'s indictment in 1 Enoch 10:8 reads: the whole earth has been ruined by the work and teaching of Azazel. Isaiah 47 lists the sorceries of Babylon that invite divine judgment.',
+      historical:'Operation Paperclip imported over 1,600 Nazi scientists into American programs — including those from Himmler\'s Ahnenerbe. MK-Ultra used LSD, trauma, and repeated electroshock to fracture the psyche and install controllable alter personalities. Dr. Ewen Cameron at McGill received CIA funding to run experiments that permanently damaged patients. Fritz Springmeier documents how Monarch programming merged these CIA techniques with Satanic ritual abuse, using trauma-created demonic access points.',
+      ops:'Tom Horn documents in Apollyon Rising how Skull and Bones, the CIA old boys network, and European Black Nobility families form a continuous covenant system from pre-war occult Germany into the post-war American establishment. The same demonic principalities that empowered the Third Reich now operate through financial systems, intelligence agencies, and globalist policy bodies. The spirit transferred institutions. It did not retire.',
+      tag:'occult' },
+    { q:'What is Cydonia on Mars and why do the mystery schools care?',
+      biblical:'Job 26:12: By his understanding He smiteth Rahab. Psalm 89:10: You have broken Rahab in pieces. Isaiah 51:9 mentions cutting Rahab and piercing the dragon. Rahab in these passages is not Egypt — it is a destroyed cosmic entity, a world. Ezekiel 28 and Isaiah 14 describe Lucifer\'s pre-fall dominion over sanctuaries across the created order.',
+      historical:'David Flynn documented in Cydonia: The Secret Chronicles of Mars that the geometric relationships between the Face on Mars and surrounding pyramid formations mirror the sacred geometry of Giza with mathematical precision. Flynn identified Rahab as the destroyed planet between Mars and Jupiter — now the asteroid belt — the former capital world of Lucifer\'s pre-Adamic dominion. Every high-degree Masonic initiation encodes the geometry of Cydonia. The mystery schools know what is there.',
+      ops:'Alberino notes in Birthright that dragon princes will deploy from fortifications on Mars at Armageddon — consistent with Flynn\'s framework that Mars served as a staging ground for Lucifer\'s cosmic operations. The sudden government push for a Space Force, Moon return, and UAP disclosure may be preparatory to events that biblical prophecy describes as a final interplanetary conflict. The Face on Mars is not erosion. It is a monument.',
+      tag:'disclosure' },
+  ]
 
-  async function openArticle(article: any) {
-    if (!article.hasAccess) return
-    setSelectedArticle(article)
-    setLoadingBody(true)
-    try {
-      const token = await getToken()
-      const res = await fetch(`/api/fringe-articles?id=${article.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const d = await res.json()
-        setArticleBody(d.article?.body || '')
-      }
-    } catch(e) {}
-    setLoadingBody(false)
-  }
+  const feedTags = ['all','disclosure','genesis6','occult','transhumanist','nwo','prophecy']
 
-  const tierColors: Record<string, string> = { free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
-
-  if (selectedArticle) return (
-    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
-      <button onClick={() => { setSelectedArticle(null); setArticleBody('') }}
-        style={{ background: 'none', border: 'none', color: gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 4 }}>
-        ← Back to {selectedTopic?.label}
-      </button>
-      <div style={{ maxWidth: 720 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, letterSpacing: '0.04em' }}>{selectedArticle.title}</div>
-          <FlagButton contentType="fringe-intelligence" contentId={String(selectedArticle.id)} contentTitle={selectedArticle.title} />
-        </div>
-        <div style={{ fontSize: 11, color: muted, fontFamily: crimson, marginBottom: 24 }}>
-          {selectedArticle.author_name} · {new Date(selectedArticle.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-        </div>
-        {loadingBody ? (
-          <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic' }}>Loading...</div>
-        ) : (
-          <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{articleBody}</div>
-        )}
+  const Divider = ({ label, badge }: { label: string; badge?: string }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
+      <div style={{ height:1, flex:1, background:'rgba(201,168,76,0.15)' }}/>
+      <div style={{ fontFamily:cinzel, fontSize:9, letterSpacing:'0.14em', color:G2, display:'flex', alignItems:'center', gap:8 }}>
+        {label}
+        {badge && <span style={{ fontSize:8, background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.25)', padding:'2px 8px', borderRadius:20 }}>{badge}</span>}
       </div>
-    </div>
-  )
-
-  if (selectedTopic) return (
-    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
-      <button onClick={() => { setSelectedTopic(null); setArticles([]) }}
-        style={{ background: 'none', border: 'none', color: gold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 4 }}>
-        ← Fringe Intelligence
-      </button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <span style={{ fontSize: 28 }}>{selectedTopic.icon}</span>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 16 : 20, color: gold, letterSpacing: '0.06em' }}>{selectedTopic.label}</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: muted, marginTop: 2 }}>{selectedTopic.desc}</div>
-        </div>
-      </div>
-      {loadingArticles ? (
-        <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic' }}>Loading intelligence...</div>
-      ) : articles.length === 0 ? (
-        <div style={{ background: surf, border: `1px solid ${border}`, borderRadius: 12, padding: '40px 24px', textAlign: 'center' as const }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: gold, letterSpacing: '0.08em', marginBottom: 8 }}>Intelligence Incoming</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: muted, fontStyle: 'italic' }}>Articles for this topic are being prepared. Check back soon.</div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
-          {articles.map((article: any) => (
-            <div
-              key={article.id}
-              onClick={() => openArticle(article)}
-              style={{
-                background: surf, border: `1px solid ${article.hasAccess ? border : 'rgba(255,255,255,0.05)'}`,
-                borderLeft: `3px solid ${article.hasAccess ? gold : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 10, padding: '16px 18px',
-                cursor: article.hasAccess ? 'pointer' : 'default', opacity: article.hasAccess ? 1 : 0.6,
-                transition: 'border-color 0.15s',
-              }}
-              onMouseEnter={e => article.hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = gold)}
-              onMouseLeave={e => article.hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = border)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 13, color: article.hasAccess ? txt : muted, letterSpacing: '0.04em', marginBottom: 4 }}>
-                    {!article.hasAccess && '🔒 '}{article.title}
-                  </div>
-                  {article.summary && <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5 }}>{article.summary}</div>}
-                </div>
-                <span style={{ fontSize: 9, color: tierColors[article.tier] || muted, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[article.tier] || muted}`, borderRadius: 10, padding: '2px 8px', flexShrink: 0 }}>
-                  {article.tier}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-
-  const openTopics      = TOPICS.filter(t => t.tier === 'free')
-  const classifiedTopics = TOPICS.filter(t => t.tier !== 'free')
-
-  const TopicCard = ({ topic }: { topic: typeof TOPICS[0] }) => (
-    <div
-      onClick={() => openTopic(topic)}
-      style={{ background: surf, border: `1px solid ${border}`, borderRadius: 10, padding: '18px 20px', display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', transition: 'border-color 0.15s' }}
-      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = gold)}
-      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = border)}
-    >
-      <span style={{ fontSize: 24, flexShrink: 0 }}>{topic.icon}</span>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, marginBottom: 4, letterSpacing: '0.06em' }}>{topic.label}</div>
-        <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5, marginBottom: 8 }}>{topic.desc}</div>
-        <span style={{ fontSize: 9, color: tierColors[topic.tier] || muted, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[topic.tier] || muted}`, borderRadius: 10, padding: '1px 7px' }}>{topic.tier}</span>
-      </div>
-      <span style={{ fontSize: 16, color: gold, flexShrink: 0 }}>›</span>
+      <div style={{ height:1, flex:1, background:'rgba(201,168,76,0.15)' }}/>
     </div>
   )
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: gold, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
-        <div>
-          <div style={{ fontSize: 10, color: gold, letterSpacing: '0.2em', fontFamily: cinzel, marginBottom: 6, textTransform: 'uppercase' as const }}>⚠ CLASSIFIED — LEVEL 5 CLEARANCE</div>
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, fontWeight: 700, marginBottom: 4 }}>👁 Fringe Intelligence</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.6 }}>
-            Where the strange things get explained. Aliens are demons in meat suits. Giants were real. The cover-up is spiritual.
-          </div>
-        </div>
-      </div>
+    <div style={{ padding: isMobile ? 16 : '28px 32px', maxWidth:960, margin:'0 auto', fontFamily:crimson, color:TXT, overflowY:'auto' as const, flex:1 }}>
 
-      {/* Open Intelligence */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Open Intelligence</div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-          {openTopics.map(t => <TopicCard key={t.key} topic={t} />)}
-        </div>
-      </div>
-
-      {/* Classified Intelligence */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>Classified Intelligence</div>
-          <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 10, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', letterSpacing: '0.06em' }}>SOLDIER+</span>
-        </div>
-        {fringeTierNum >= 1 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-            {classifiedTopics.map(t => <TopicCard key={t.key} topic={t} />)}
+      {/* HEADER */}
+      <div style={{ marginBottom:24 }}>
+        {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{background:'none',border:'none',color:G2,cursor:'pointer',padding:'0 0 12px',fontSize:20}}>☰</button>}
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',flexWrap:'wrap' as const,gap:12,marginBottom:6}}>
+          <div>
+            <div style={{fontFamily:cinzel,fontSize:isMobile?18:22,color:G2,letterSpacing:'0.06em',marginBottom:4}}>⬛ FRINGE INTELLIGENCE</div>
+            <div style={{fontFamily:crimson,fontSize:14,color:MUT}}>Daily briefings on prophecy, disclosure, and the hidden architecture of the antichrist system</div>
           </div>
-        ) : (
-          <div style={{ background: surf, border: '1px solid rgba(122,158,126,0.25)', borderRadius: 10, padding: '28px 24px', textAlign: 'center' as const }}>
-            <div style={{ fontFamily: cinzel, fontSize: 12, color: '#7a9e7e', letterSpacing: '0.1em', marginBottom: 8 }}>SOLDIER TIER REQUIRED</div>
-            <p style={{ fontFamily: crimson, fontSize: 14, color: muted, lineHeight: 1.6, marginBottom: 20 }}>
-              Classified intelligence covers bloodline warfare, Nephilim research, government programming, and fringe science. Unlock with Soldier tier membership.
-            </p>
-            <a href="/membership" style={{ display: 'inline-block', background: '#7a9e7e', color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '9px 24px', borderRadius: 6, textDecoration: 'none' }}>
-              Upgrade to Soldier
+          {!hasSoldier && (
+            <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none'}}>
+              <button style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
             </a>
-          </div>
-        )}
+          )}
+        </div>
+        <div style={{display:'flex',gap:2,borderBottom:'1px solid '+BDR,marginTop:14}}>
+          {([{key:'open',label:'Open Intel'},{key:'classified',label:hasSoldier?'Classified Intel':'🔒 Classified'},{key:'feed',label:'📡 The Feed'},{key:'faq',label:'🗂 Intel FAQ'}] as const).map(({key,label}) => (
+            <button key={key} onClick={()=>setTab(key)} style={{fontFamily:cinzel,fontSize:isMobile?9:10,letterSpacing:'0.1em',padding:isMobile?'7px 10px':'8px 16px',background:'none',border:'none',borderBottom:activeTab===key?'2px solid '+G2:'2px solid transparent',color:activeTab===key?G2:MUT,cursor:'pointer',transition:'all 0.15s',marginBottom:-1}}>{label}</button>
+          ))}
+        </div>
       </div>
+
+      {/* OPEN INTEL */}
+      {activeTab === 'open' && (
+        <div>
+          <Divider label="OPEN INTELLIGENCE" badge="ALL RANKS" />
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>These files are open to all Watchmen. The truth of Genesis 6 and the reality of the UAP phenomenon belong in the hands of the church — it simply needs the theological framework to understand what it is seeing.</p>
+          <div style={{display:'flex',gap:16,flexWrap:'wrap' as const,marginBottom:28}}>
+            {openTopics.map(t => {
+              const [h,setH] = React.useState(false)
+              return (
+                <div key={t.title} onClick={()=>setTab('feed')} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+                  style={{flex:1,minWidth:260,background:h?'rgba(201,168,76,0.06)':SURF,border:'1px solid '+(h?'rgba(201,168,76,0.45)':BDR),borderTop:'3px solid '+G2,borderRadius:10,padding:'22px 20px',cursor:'pointer',transition:'all 0.18s'}}>
+                  <div style={{fontSize:28,marginBottom:10}}>{t.icon}</div>
+                  <div style={{fontFamily:cinzel,fontSize:13,color:G2,letterSpacing:'0.06em',marginBottom:4}}>{t.title}</div>
+                  <div style={{fontFamily:crimson,fontSize:13,color:MUT,marginBottom:10}}>{t.sub}</div>
+                  <p style={{fontFamily:crimson,fontSize:14,color:TXT,lineHeight:1.6,marginBottom:14}}>{t.desc}</p>
+                  <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[t.tag]||'rgba(201,168,76,0.12)',color:TAG_CLR[t.tag]||G2,padding:'3px 10px',borderRadius:20}}>{t.tag.toUpperCase()}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{background:SURF,border:'1px solid '+BDR,borderLeft:'4px solid rgba(83,74,183,0.7)',borderRadius:8,padding:'18px 20px',marginBottom:18}}>
+            <div style={{fontFamily:cinzel,fontSize:11,color:'#AFA9EC',letterSpacing:'0.1em',marginBottom:12}}>📚 FIELD RESEARCH LIBRARY</div>
+            <div style={{display:'flex',gap:20,flexWrap:'wrap' as const}}>
+              {[
+                {title:'Cydonia: The Secret Chronicles of Mars',author:'David Flynn + Timothy Alberino',note:'Mars sacred geometry, Rahab the destroyed planet, and the mystery schools\' knowledge of pre-Adamic civilizations.',c:'#AFA9EC'},
+                {title:'Birthright',author:'Timothy Alberino',note:'The GRIN technology agenda as posthuman apocalypse. The Mark of the Beast as genetic usurpation of Adam\'s dominion.',c:'#9FE1CB'},
+                {title:'Genesis 6 Conspiracy II',author:'Gary Wayne',note:'Nimrod, Babel, the Seventy Nations, Rephaim bloodlines, and the chain from Watcher incursion to end-times prophecy.',c:'#FAC775'},
+                {title:'Apollyon Rising',author:'Tom Horn',note:'The Masonic Great Seal, Novus Ordo Seclorum, and the occult plan to summon the return of Apollo encoded in American founding documents.',c:'#F5C4B3'},
+              ].map(b => (
+                <div key={b.title} style={{flex:1,minWidth:180}}>
+                  <div style={{fontFamily:cinzel,fontSize:11,color:b.c,marginBottom:2}}>{b.title}</div>
+                  <div style={{fontFamily:crimson,fontSize:11,color:MUT,marginBottom:4}}>{b.author}</div>
+                  <div style={{fontFamily:crimson,fontSize:12,color:TXT,lineHeight:1.55,opacity:0.85}}>{b.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {!hasSoldier && (
+            <div style={{background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,padding:'14px 20px',textAlign:'center' as const}}>
+              <span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 CLASSIFIED INTELLIGENCE available to Soldier rank and above — </span>
+              <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em'}}>UPGRADE NOW</a>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CLASSIFIED */}
+      {activeTab === 'classified' && (
+        <div>
+          {hasSoldier ? (
+            <>
+              <Divider label="CLASSIFIED INTELLIGENCE" badge="SOLDIER+" />
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Operational intelligence on the deeper mechanisms of the antichrist system. Government programs, occult operations, the transhumanist agenda, and the globalist control grid — examined through Scripture and Christian discernment.</p>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(210px,1fr))',gap:14,marginBottom:28}}>
+                {classifiedTopics.map(t => {
+                  const [h,setH] = React.useState(false)
+                  return (
+                    <div key={t.title} onClick={()=>setTab('feed')} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+                      style={{background:h?'rgba(201,168,76,0.07)':SURF,border:'1px solid '+(h?'rgba(201,168,76,0.5)':'rgba(201,168,76,0.2)'),borderTop:'3px solid rgba(216,90,48,0.7)',borderRadius:10,padding:'22px 20px',cursor:'pointer',transition:'all 0.18s'}}>
+                      <div style={{fontSize:24,marginBottom:8}}>{t.icon}</div>
+                      <div style={{fontFamily:cinzel,fontSize:12,color:G2,letterSpacing:'0.05em',marginBottom:4}}>{t.title}</div>
+                      <div style={{fontFamily:crimson,fontSize:12,color:MUT,marginBottom:10}}>{t.sub}</div>
+                      <p style={{fontFamily:crimson,fontSize:13,color:TXT,lineHeight:1.5,marginBottom:10}}>{t.desc}</p>
+                      <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[t.tag]||'rgba(201,168,76,0.12)',color:TAG_CLR[t.tag]||G2,padding:'3px 10px',borderRadius:20}}>{t.tag.toUpperCase()}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{background:'rgba(60,52,137,0.08)',border:'1px solid rgba(83,74,183,0.35)',borderLeft:'4px solid rgba(83,74,183,0.7)',borderRadius:8,padding:'20px 22px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                  <span style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.12em',color:'#AFA9EC'}}>CLASSIFIED DOSSIER</span>
+                  <span style={{fontFamily:cinzel,fontSize:8,background:'rgba(216,90,48,0.15)',color:'#E87070',padding:'2px 8px',borderRadius:20,letterSpacing:'0.1em'}}>COMING SOON</span>
+                </div>
+                <div style={{fontFamily:cinzel,fontSize:15,color:'#EEEDFE',letterSpacing:'0.04em',marginBottom:8}}>The Nazi Occult Kingdom: Thule to Paperclip to Now</div>
+                <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65}}>The Third Reich was not merely a political movement — it was a fully operational demonic kingdom. From Dietrich Eckart initiating Hitler into the Secret Doctrine, to Himmler's SS priesthood at Wewelsburg Castle, to Operation Paperclip seeding Nazi scientists directly into the CIA and NASA. The spirit did not die in the bunker. It transferred institutions. Full network map included. Sources: Apollyon Rising (Horn), Birthright (Alberino), Genesis 6 Conspiracy (Wayne).</p>
+              </div>
+            </>
+          ) : (
+            <div style={{border:'1px dashed rgba(201,168,76,0.25)',borderRadius:10,padding:'40px 24px',textAlign:'center' as const,background:'rgba(201,168,76,0.02)'}}>
+              <div style={{fontSize:32,marginBottom:12}}>🔒</div>
+              <div style={{fontFamily:cinzel,fontSize:14,color:G2,letterSpacing:'0.08em',marginBottom:10}}>CLASSIFIED INTELLIGENCE</div>
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20,maxWidth:480,margin:'0 auto 20px'}}>Government programs, occult operations, transhumanist agenda, and New World Order watch reports are available to Soldier rank and above.</p>
+              <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap' as const,marginBottom:20}}>
+                {['Govt Programs','Transhumanism','Occult Ops','NWO Watch'].map(l=>(
+                  <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:'rgba(201,168,76,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
+                ))}
+              </div>
+              <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none'}}>
+                <button style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* THE FEED */}
+      {activeTab === 'feed' && (
+        <div>
+          <Divider label="THE FEED" badge="AI-CURATED DAILY" />
+          <div style={{display:'flex',gap:6,flexWrap:'wrap' as const,marginBottom:20}}>
+            {feedTags.map(tag=>(
+              <button key={tag} onClick={()=>setFF(tag)} style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',padding:'4px 12px',borderRadius:20,cursor:'pointer',background:feedFilter===tag?(TAG_BG[tag]||'rgba(201,168,76,0.2)'):'transparent',color:feedFilter===tag?(TAG_CLR[tag]||G2):MUT,border:'1px solid '+(feedFilter===tag?(TAG_CLR[tag]||G2):'rgba(201,168,76,0.15)'),transition:'all 0.15s'}}>
+                {tag==='all'?'ALL':tag.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {feedLoading ? (
+            <div style={{textAlign:'center' as const,padding:48,fontFamily:cinzel,fontSize:11,color:MUT,letterSpacing:'0.1em'}}>LOADING INTELLIGENCE FEED...</div>
+          ) : filteredFeed.length===0 ? (
+            <div style={{textAlign:'center' as const,padding:48,border:'1px dashed '+BDR,borderRadius:8}}>
+              <div style={{fontFamily:cinzel,fontSize:11,color:MUT,letterSpacing:'0.08em',marginBottom:8}}>📡 FEED INITIALIZING</div>
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT}}>No briefings published for this filter yet. Check back — the feed updates every 48 hours.</p>
+            </div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
+              {filteredFeed.map((a:any,i:number)=>{
+                const [h,setH]=React.useState(false)
+                const tag=a.tag||'disclosure'
+                return (
+                  <a key={a.id||i} href={a.source_url||'#'} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none',display:'block'}}>
+                    <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{background:h?'rgba(201,168,76,0.04)':SURF,border:'1px solid '+(h?'rgba(201,168,76,0.35)':BDR),borderLeft:'3px solid '+(TAG_CLR[tag]||G2),borderRadius:8,padding:'14px 16px',transition:'all 0.15s',cursor:'pointer',display:'flex',gap:14,alignItems:'flex-start'}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5,flexWrap:'wrap' as const}}>
+                          <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[tag]||'rgba(201,168,76,0.12)',color:TAG_CLR[tag]||G2,padding:'2px 8px',borderRadius:20}}>{tag.toUpperCase()}</span>
+                          {a.source_type==='youtube'&&<span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.08em',color:'#E87070',background:'rgba(216,90,48,0.12)',padding:'2px 8px',borderRadius:20}}>VIDEO</span>}
+                          <span style={{fontFamily:crimson,fontSize:11,color:MUT,marginLeft:'auto'}}>{a.published_at?new Date(a.published_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}</span>
+                        </div>
+                        <div style={{fontFamily:cinzel,fontSize:13,color:TXT,letterSpacing:'0.03em',marginBottom:5,lineHeight:1.4}}>{a.title}</div>
+                        <p style={{fontFamily:crimson,fontSize:13,color:MUT,lineHeight:1.55,margin:0,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical' as any}}>{a.summary}</p>
+                        {a.wri_take&&<div style={{marginTop:8,padding:'6px 10px',background:'rgba(201,168,76,0.06)',border:'1px solid rgba(201,168,76,0.2)',borderRadius:5,fontFamily:crimson,fontSize:12,color:G2,lineHeight:1.5}}><span style={{fontSize:9,fontFamily:cinzel,letterSpacing:'0.08em',opacity:0.7}}>WRI TAKE: </span>{a.wri_take}</div>}
+                      </div>
+                      {a.significance&&<span style={{flexShrink:0,display:'inline-flex',gap:3,alignItems:'center',paddingTop:2}}>{[1,2,3,4,5].map((d:number)=><span key={d} style={{width:6,height:6,borderRadius:'50%',background:d<=a.significance?(TAG_CLR[tag]||G2):'rgba(201,168,76,0.15)',display:'inline-block'}}/>)}</span>}
+                    </div>
+                  </a>
+                )
+              })}
+            </div>
+          )}
+          {!hasSoldier&&<div style={{marginTop:20,padding:'14px 20px',background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,textAlign:'center' as const}}><span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 Occult Ops, NWO Watch, and Govt Programs feed items require Soldier+ rank.</span></div>}
+        </div>
+      )}
+
+      {/* INTEL FAQ */}
+      {activeTab === 'faq' && (
+        <div>
+          <Divider label="FRINGE INTEL FAQ" badge="DOSSIER FORMAT" />
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Deep-dive intelligence on critical questions in Christian fringe research. Each entry is structured as a three-part dossier: Biblical Intelligence, Historical Record, and Current Operations. Sources: Book of Enoch, Alberino, Gary Wayne, Tom Horn, David Flynn.</p>
+          <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
+            {faqData.map((item,i)=>{
+              const open=faqOpen===i
+              const tagClr=TAG_CLR[item.tag]||G2
+              return (
+                <div key={i} style={{background:SURF,border:'1px solid '+(open?'rgba(201,168,76,0.35)':BDR),borderLeft:'3px solid '+(open?tagClr:'rgba(201,168,76,0.2)'),borderRadius:8,overflow:'hidden',transition:'all 0.2s'}}>
+                  <button onClick={()=>setFaqOpen(open?null:i)} style={{width:'100%',background:'none',border:'none',padding:'16px 18px',cursor:'pointer',display:'flex',alignItems:'center',gap:12,textAlign:'left' as const}}>
+                    <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[item.tag]||'rgba(201,168,76,0.12)',color:tagClr,padding:'2px 8px',borderRadius:20,flexShrink:0}}>{item.tag.toUpperCase()}</span>
+                    <span style={{fontFamily:cinzel,fontSize:12,color:open?G2:TXT,letterSpacing:'0.04em',flex:1,lineHeight:1.4}}>{item.q}</span>
+                    <span style={{fontFamily:cinzel,fontSize:16,color:G2,flexShrink:0,transform:open?'rotate(45deg)':'none',transition:'transform 0.2s'}}>+</span>
+                  </button>
+                  {open&&(
+                    <div style={{padding:'0 18px 18px',borderTop:'1px solid rgba(201,168,76,0.1)'}}>
+                      {([{label:'BIBLICAL INTELLIGENCE',content:item.biblical,color:'#AFA9EC'},{label:'HISTORICAL RECORD',content:item.historical,color:'#C9A84C'},{label:'CURRENT OPERATIONS',content:item.ops,color:'#E8703A'}]).map(sec=>(
+                        <div key={sec.label} style={{marginTop:14}}>
+                          <div style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.12em',color:sec.color,marginBottom:6}}>{sec.label}</div>
+                          <p style={{fontFamily:crimson,fontSize:14,color:TXT,lineHeight:1.7,margin:0}}>{sec.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -7217,7 +7314,7 @@ function CommunityPage() {
           </div>
         )}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
-        {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'body-map' && (
           tierLevel >= 2
             ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} demons={demons} setActiveSection={setActiveSection} /></BodyMapBoundary>
