@@ -7,6 +7,10 @@
   STRIPE_CHARTER_COMMANDER_PRICE_ID = "price_1Tb1ms5V5uqVT9Sodiu1xbrR"
   STRIPE_CHARTER_SOLDIER_URL = "https://buy.stripe.com/9B6fZafJ689F1Zrb4XfrW03"
   STRIPE_CHARTER_COMMANDER_URL = "https://buy.stripe.com/8x24gsaoMey39rT4GzfrW04"
+
+[functions]
+  node_bundler = "esbuild"
+
 [dev]
   command = "npm run dev"
   targetPort = 3000
