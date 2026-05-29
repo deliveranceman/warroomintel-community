@@ -3,7 +3,7 @@ import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
-import { BottomNav } from '@/components/primitives'
+import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar } from '@/components/primitives'
 import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
@@ -2553,35 +2553,29 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
               </button>
             )}
           </div>
-        ) : posts.slice(0, 3).map(post => (
-          <div key={post.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${GG}`, borderRadius: 10, padding: isMobile ? '16px 16px' : '20px 24px', marginBottom: 16, minWidth: 0, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: GG, fontWeight: 600, marginBottom: 4 }}>{post.title}</div>
-                <div style={{ fontSize: 11, color: dm }}>{post.author_name} · {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+        ) : posts.slice(0, 3).map(post => {
+          const classBadgeLevel = post.post_type === 'external-alert' ? 'I' : post.post_type === 'watch-report' ? 'III' : 'II'
+          const classBadgeLabel = post.post_type === 'external-alert' ? 'ALERT' : post.post_type === 'watch-report' ? 'WATCH REPORT' : 'BRIEFING'
+          return (
+            <TacticalCard key={post.id} brackets style={{ marginBottom: 16, minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap' as const, gap: 8 }}>
+                <div>
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: GG, fontWeight: 600, marginBottom: 4 }}>{post.title}</div>
+                  <div style={{ fontSize: 11, color: dm, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {post.author_name} · <MonoTime size={11} color={dm}>{new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</MonoTime>
+                  </div>
+                </div>
+                <ClassBadge level={classBadgeLevel as any} label={classBadgeLabel} />
               </div>
-              {post.post_type && (() => {
-                const PT: Record<string, { label: string; color: string }> = {
-                  'briefing':       { label: '⚔ Briefing',     color: GG      },
-                  'watch-report':   { label: '👁 Watch Report', color: '#38bdf8' },
-                  'external-alert': { label: '⚡ Alert',        color: '#f87171' },
-                }
-                const pt = PT[post.post_type] || { label: post.post_type, color: GG }
-                return (
-                  <span style={{ fontSize: 9, fontFamily: "'Cinzel', serif", letterSpacing: '0.1em', padding: '3px 10px', borderRadius: 999, background: `${pt.color}15`, color: pt.color, border: `1px solid ${pt.color}40` }}>
-                    {pt.label}
-                  </span>
-                )
-              })()}
-            </div>
-            <div style={{ fontSize: 15, color: txt, lineHeight: 1.75, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>{post.body}</div>
-            {post.scripture && (
-              <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, fontSize: 13, color: '#86efac', fontFamily: "'Crimson Pro', serif", fontStyle: 'italic' }}>
-                📖 {post.scripture}
-              </div>
-            )}
-          </div>
-        ))}
+              <div style={{ fontSize: 15, color: txt, lineHeight: 1.75, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>{post.body}</div>
+              {post.scripture && (
+                <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, fontSize: 13, color: '#86efac', fontFamily: "'Crimson Pro', serif", fontStyle: 'italic' }}>
+                  📖 {post.scripture}
+                </div>
+              )}
+            </TacticalCard>
+          )
+        })}
       </div>
 
       {/* TWO COLUMNS */}
@@ -2655,15 +2649,18 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
             Field reports from active ministers will appear here.
           </div>
         ) : reports.filter(r => r.status === 'approved').map(report => (
-          <div key={report.id} style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: '3px solid #7c3aed', borderRadius: 8, padding: '16px 20px', marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 4 }}>
+          <TacticalCard key={report.id} brackets style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, flexWrap: 'wrap' as const, gap: 4 }}>
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG }}>{report.spirit_names}</div>
-              <div style={{ fontSize: 11, color: dm }}>{report.submitted_by_name}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}</div>
+              <ClassBadge level="I" label="FIELD REPORT" />
+            </div>
+            <div style={{ fontSize: 11, color: dm, fontFamily: "'JetBrains Mono', monospace", marginBottom: 8 }}>
+              {report.submitted_by_name}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}
             </div>
             <div style={{ fontSize: 13, color: txt, lineHeight: 1.6, fontFamily: "'Crimson Pro', serif" }}>{report.manifestations}</div>
             {report.entry_points && <div style={{ fontSize: 12, color: mut, marginTop: 6 }}>Entry points: {report.entry_points}</div>}
             {report.outcome && <div style={{ fontSize: 12, color: '#86efac', marginTop: 4 }}>Outcome: {report.outcome}</div>}
-          </div>
+          </TacticalCard>
         ))}
 
         {isMinister && reports.filter(r => r.status === 'pending').length > 0 && (
@@ -3028,43 +3025,29 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
 
           return (
-            <div key={id} onClick={() => setSelectedEntry(entry)} style={{
-              background: dbSurf,
-              border: `1px solid ${dbIsDark ? color + '40' : dbBorder}`,
-              borderLeft: `3px solid ${hierColors ? hierColors.border : color}`,
-              borderRadius: 8, padding: 14, cursor: 'pointer', transition: 'box-shadow 0.2s',
-              boxShadow: dbIsDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)',
-            }}>
-              {/* Name row — no classification badge here; biblicalRank shown as pill below */}
-              <div style={{ marginBottom: 4 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 14, color: dbIsDark ? color : '#2D2924', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
+            <TacticalCard key={id} brackets onClick={() => setSelectedEntry(entry)} style={{ marginBottom: 12, cursor: 'pointer' }}>
+              {/* Name row */}
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: 'var(--t-0)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
               </div>
-              {/* Hierarchy category badge */}
-              {hierCat && hierColors && (
-                <span style={{
-                  fontSize: 9, padding: '2px 8px', borderRadius: 999, display: 'inline-block', marginBottom: 6,
-                  backgroundColor: dbIsDark ? hierColors.bg : hierColors.border + '22',
-                  color: dbIsDark ? hierColors.text : '#1C1410',
-                  border: `1px solid ${hierColors.border}`,
-                  fontFamily: cinzel, letterSpacing: '0.05em',
-                }}>
-                  {hierCat}
-                </span>
-              )}
 
-              {/* Rank + generational/territorial badges */}
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: entry.aka ? 0 : 6 }}>
+              {/* Threat level */}
+              <div style={{ marginBottom: 8 }}>
+                <ThreatBar level={entry.threatLevel ?? 3} />
+              </div>
+
+              {/* Hierarchy category + rank as HUDChips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 8 }}>
+                {hierCat && (
+                  <HUDChip active style={{ fontSize: 9 }}>{hierCat}</HUDChip>
+                )}
                 {entry.biblicalRank && (
-                  <span style={{ fontSize: 8, color: '#8B9DCA', background: 'rgba(139,157,202,0.12)', border: '1px solid rgba(139,157,202,0.3)', borderRadius: 3, padding: '2px 7px', fontFamily: cinzel, letterSpacing: '0.06em', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'inline-block' }}>
+                  <HUDChip style={{ fontSize: 9, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                     {entry.biblicalRank.length > 40 ? entry.biblicalRank.slice(0, 40) + '…' : entry.biblicalRank}
-                  </span>
+                  </HUDChip>
                 )}
-                {entry.isGenerational && (
-                  <span style={{ fontSize: 8, color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 10, padding: '1px 6px', fontFamily: cinzel, letterSpacing: '0.04em' }}>🧬 Gen.</span>
-                )}
-                {entry.isTerritorial && (
-                  <span style={{ fontSize: 8, color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', borderRadius: 10, padding: '1px 6px', fontFamily: cinzel, letterSpacing: '0.04em' }}>🗺 Terr.</span>
-                )}
+                {entry.isGenerational && <HUDChip style={{ fontSize: 9 }}>GEN.</HUDChip>}
+                {entry.isTerritorial && <HUDChip style={{ fontSize: 9 }}>TERR.</HUDChip>}
               </div>
 
               {/* Aliases */}
@@ -3104,7 +3087,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
               <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
                 ▼ VIEW FULL INTEL
               </div>
-            </div>
+            </TacticalCard>
           )
         })}
       </div>
