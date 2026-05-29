@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
+import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
 
 export const Route = createFileRoute('/')({
   component: WarRoomHome,
@@ -15,24 +16,20 @@ interface DemonEntry {
   kingdom?: string
   description?: string
   assignment?: string
-  // Soldier tier
   function?: string
   manifestation?: string
   scripture?: string
   strongman?: string
   rank?: string
-  // Commander tier
   entryPoints?: string
   legalRights?: string
   protocol?: string
-  // General tier
   symptoms?: string
   companionSpirits?: string
   wriNotes?: string
 }
 
-// ── MIGHTY NETWORKS JOIN URLS ───────────────────────────
-// Replace these with your actual Mighty Networks plan join URLs
+// ── URLS ─────────────────────────────────────────────────
 const SIGNUP_URL    = 'https://accounts.warroomintel.com/sign-up'
 const SOLDIER_URL   = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
 const COMMANDER_URL = 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01'
@@ -43,35 +40,40 @@ const COMMUNITY_URL = '/community'
 const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
 
 const FEATURES = [
-  { icon: '⚔', title: 'Master Demon Database', desc: 'A growing database of documented spirits: names, aliases, types, functions, and manifestations. Free members see full entries. Detailed fields unlock with membership.' },
-  { icon: '📋', title: 'Ministry Assessment Tool', desc: 'A confidential 9-step intake wizard. Submit your situation and receive a personal response from our deliverance team.' },
-  { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman: Freemasonry, soul ties, occult doorways, lust, addiction and more.' },
-  { icon: '🗣', title: 'Live Ministry Calls', desc: 'Monthly group calls for Soldier members. Bi-weekly Q&A for Commander. Weekly intimate sessions for General members.' },
-  { icon: '✦', title: 'Scripture — Special Warfare Edition', desc: "Full KJV Bible with Finis Jennings Dake's complete annotation notes — 20,399 notes across the entire Bible. Ask the AI questions using Dake's commentary, your ministry library, and the Intel Archive as combined context. Expanded warfare commentary coming soon." },
-  { icon: '🗡', title: 'Community Submissions', desc: 'Submit new demon entries, suggest corrections, and contribute to the most comprehensive spiritual warfare database available.' },
+  { icon: '⚔', title: 'Master Demon Database', desc: 'A growing database of documented spirits: names, aliases, types, functions, and manifestations. Free members see full entries. Detailed fields unlock with membership.', cls: 'IV' as const },
+  { icon: '📋', title: 'Ministry Assessment Tool', desc: 'A confidential 9-step intake wizard. Submit your situation and receive a personal response from our deliverance team.', cls: 'IV' as const },
+  { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman: Freemasonry, soul ties, occult doorways, lust, addiction and more.', cls: 'III' as const },
+  { icon: '🗣', title: 'Live Ministry Calls', desc: 'Monthly group calls for Soldier members. Bi-weekly Q&A for Commander. Weekly intimate sessions for General members.', cls: 'III' as const },
+  { icon: '✦', title: 'Scripture — Special Warfare Edition', desc: "Full KJV Bible with Finis Jennings Dake's complete annotation notes — 20,399 notes across the entire Bible. Ask the AI questions using Dake's commentary, your ministry library, and the Intel Archive as combined context.", cls: 'III' as const },
+  { icon: '🗡', title: 'Community Submissions', desc: 'Submit new demon entries, suggest corrections, and contribute to the most comprehensive spiritual warfare database available.', cls: 'IV' as const },
 ]
 
 const FAQ = [
   { q: 'Is this a replacement for professional mental health care?', a: 'No. War Room Intel is a spiritual ministry resource only. We are not licensed therapists or medical practitioners. If you are experiencing a mental health crisis please seek professional support. We encourage maintaining any current medical or therapeutic treatment alongside ministry.' },
   { q: 'How is my assessment information kept confidential?', a: 'All assessment information is seen only by our ministry team and is never published, shared, or sold. Anything posted to the public response board is fully anonymized with your permission.' },
   { q: 'What denominations or theological traditions does this represent?', a: 'War Room Intel is rooted in Scripture and Charismatic/Pentecostal ministry tradition. We operate under the pastoral oversight of Staffordtown Church, Copperhill TN. We welcome all Spirit-filled believers regardless of denomination.' },
-  { q: 'What membership tiers are available?', a: 'Membership is live now. Watchman is free forever. Soldier is $19/mo, Commander $39/mo, General\'s Table $97/mo. Charter pricing (Soldier $9/mo, Commander $20/mo) is locked for life for the first 100 members. All paid tiers include a 30-day free trial.' },
+  { q: 'What membership tiers are available?', a: "Membership is live now. Watchman is free forever. Soldier is $19/mo, Commander $39/mo, General's Table $97/mo. Charter pricing (Soldier $9/mo, Commander $20/mo) is locked for life for the first 100 members. All paid tiers include a 30-day free trial." },
   { q: 'Can I submit a demon that is not in the database?', a: 'Yes! Use the Submit a Demon form in the Assessment menu. All submissions are reviewed by our ministry team before being added. We credit contributors where possible.' },
   { q: 'How do I get a personal ministry response?', a: 'Submit the free Ministry Assessment. Every submission receives a personal response from Pastor Justin. Soldier tier and above receive priority response.' },
 ]
 
+const TICKER_ITEMS = [
+  'Intel Archive · 800+ Documented Spirits',
+  'Assessment Tool · 9-Step Intake · Personal Response',
+  'Protocol Library · Freemasonry · Soul Ties · Occult Doorways',
+  'Dake Bible · 20,399 Annotation Notes',
+  'Live Ministry Calls · Soldier · Commander · General',
+  'Community · Warriors in the Fight',
+  'New Entries Added Weekly',
+  'AI-Powered Spirit Diagnostics',
+]
+
 // ── HELPERS ──────────────────────────────────────────────
-const cinzel = "'Cinzel', serif"
-const crimson = "'Crimson Pro', serif"
-const gold = 'var(--gold)'
-const deep = 'var(--deep)'
-const surface = 'var(--surface)'
-const surface2 = 'var(--surface2)'
-const border = 'var(--border)'
-const borderBright = 'var(--border-bright)'
-const text = 'var(--text)'
-const textDim = 'var(--text-dim)'
-const muted = 'var(--muted)'
+const cinzel  = 'var(--font-display)'
+const mono    = 'var(--font-mono)'
+const reading = 'Georgia, serif'
+const G       = 'var(--gold)'
+const GOLD    = '#C9A84C'
 
 function typeColor(type: string) {
   const map: Record<string, string> = {
@@ -83,192 +85,47 @@ function typeColor(type: string) {
   return map[type] || '#6B6480'
 }
 
-// ── MOBILE RESPONSIVE STYLES ─────────────────────────────
-const mobileStyles = `
-  /* ── Database table → card layout on mobile ── */
+// ── GLOBAL STYLES ────────────────────────────────────────
+const pageStyles = `
+  @keyframes ticker {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-gold {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
   @media (max-width: 640px) {
     .db-table-header { display: none !important; }
-    .db-row {
-      display: block !important;
-      padding: 16px !important;
-    }
+    .db-row { display: block !important; padding: 16px !important; }
     .db-row-name { margin-bottom: 8px; }
     .db-row-type { display: none !important; }
     .db-row-func { margin-bottom: 8px; }
     .db-row-toggle { float: right; margin-top: -52px; }
-    .db-expanded-grid {
-      grid-template-columns: 1fr !important;
-    }
-    .db-expanded-protocol {
-      grid-column: span 1 !important;
-    }
-    /* AssessmentCTA two-column → single column */
-    .cta-grid {
-      grid-template-columns: 1fr !important;
-    }
-    /* Pricing border separators on mobile */
-    .pricing-tier {
-      border-right: none !important;
-      border-bottom: 1px solid rgba(201,168,76,0.18) !important;
-    }
-    /* DB banner flex → wrap tighter */
-    .db-banner {
-      flex-direction: column !important;
-      align-items: flex-start !important;
-      gap: 6px !important;
-    }
-    /* Features grid minWidth override */
-    .features-grid {
-      grid-template-columns: 1fr !important;
-    }
-    /* Hero CTA buttons — stack vertically */
-    .hero-ctas {
-      flex-direction: column !important;
-      width: 100% !important;
-      max-width: 340px !important;
-      margin-left: auto !important;
-      margin-right: auto !important;
-    }
-    .hero-ctas a,
-    .hero-ctas button {
-      width: 100% !important;
-      justify-content: center !important;
-      text-align: center !important;
-      box-sizing: border-box !important;
-    }
+    .db-expanded-grid { grid-template-columns: 1fr !important; }
+    .db-expanded-protocol { grid-column: span 1 !important; }
+    .wri-hero-ctas { flex-direction: column !important; width: 100% !important; max-width: 320px !important; margin: 0 auto !important; }
+    .wri-hero-ctas > * { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+    .wri-3col { grid-template-columns: 1fr !important; }
+    .wri-2col { grid-template-columns: 1fr !important; }
+    .wri-4col { grid-template-columns: 1fr 1fr !important; }
+    .pricing-tier { border-right: none !important; border-bottom: 1px solid rgba(201,168,76,0.18) !important; }
+    .db-banner { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+    .intake-2col { grid-template-columns: 1fr !important; }
+    .footer-grid { grid-template-columns: 1fr 1fr !important; }
   }
   @media (min-width: 641px) and (max-width: 900px) {
-    .db-row {
-      grid-template-columns: 1fr 90px 36px !important;
-    }
+    .db-row { grid-template-columns: 1fr 90px 36px !important; }
     .db-row-func { display: none !important; }
     .db-table-header { grid-template-columns: 1fr 90px 36px !important; }
     .db-table-header-func { display: none !important; }
+    .wri-3col { grid-template-columns: 1fr 1fr !important; }
   }
 `
-
-// ── COMPONENTS ───────────────────────────────────────────
-
-function MobileStyleInjector() {
-  return <style>{mobileStyles}</style>
-}
-
-function Divider({ label }: { label?: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '0 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, var(--border-bright), transparent)' }} />
-      {label && <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.25em', color: muted, whiteSpace: 'nowrap' as const }}>{label}</span>}
-      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, var(--border-bright), transparent)' }} />
-    </div>
-  )
-}
-
-// ── HERO ─────────────────────────────────────────────────
-function Hero() {
-  return (
-    <section style={{ minHeight: '94vh', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '5rem 2rem 4rem', position: 'relative', overflow: 'hidden' }}>
-      {/* Background */}
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,168,76,0.07) 0%, transparent 65%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(138,80,255,0.04) 0%, transparent 60%)', pointerEvents: 'none' }} />
-      {/* Grid */}
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(201,168,76,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.03) 1px, transparent 1px)', backgroundSize: '60px 60px', maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 100%)', pointerEvents: 'none' }} />
-
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: '820px' }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px', animation: 'fadeUp 0.8s 0s both' }}>
-          <img src="/logo.png" alt="War Room Intel" style={{ height: '140px', width: '140px', objectFit: 'contain', background: 'transparent', filter: 'drop-shadow(0 0 40px rgba(201,168,76,0.3))' }} />
-        </div>
-
-        <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.35em', color: gold, marginBottom: '20px', animation: 'fadeUp 0.8s 0.1s both' }}>
-          ✦ &nbsp; A Ministry of Staffordtown Church · Copperhill, TN &nbsp; ✦
-        </p>
-
-        <h1 style={{ fontFamily: cinzel, fontSize: 'clamp(36px, 7vw, 78px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '0.02em', marginBottom: '20px', animation: 'fadeUp 0.8s 0.2s both' }}>
-          The <em style={{ color: gold, fontStyle: 'normal' }}>War Room</em><br />Intelligence
-        </h1>
-
-        <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', color: textDim, fontWeight: 300, fontStyle: 'italic', fontFamily: crimson, maxWidth: '600px', margin: '0 auto 36px', lineHeight: 1.7, animation: 'fadeUp 0.8s 0.3s both' }}>
-          The most complete spiritual warfare resource available: a searchable demon database, ministry assessment tool, deliverance protocols, and a growing community of warriors.
-        </p>
-
-        {/* CTAs */}
-        <div className="hero-ctas" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' as const, justifyContent: 'center', marginBottom: '20px', animation: 'fadeUp 0.8s 0.4s both' }}>
-          <a href="#database" style={{ background: gold, color: deep, fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', textDecoration: 'none', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--gold-light)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = gold; e.currentTarget.style.transform = 'translateY(0)' }}>
-            Search the Database ⚔
-          </a>
-          <a href="/assessment" style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid ${borderBright}`, textDecoration: 'none', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-            Take the Assessment →
-          </a>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.3)`, cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-                Member Login →
-              </button>
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <a href="/resources" style={{ background: 'transparent', color: gold, fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.1em', padding: '14px 32px', borderRadius: '3px', border: `1px solid rgba(201,168,76,0.3)`, textDecoration: 'none', transition: 'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-              My Arsenal →
-            </a>
-          </SignedIn>
-        </div>
-
-        <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: muted, animation: 'fadeUp 0.8s 0.5s both' }}>
-          Free to join · Sign up in 30 seconds · No card required
-        </p>
-
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: '40px', justifyContent: 'center', marginTop: '52px', paddingTop: '40px', borderTop: `1px solid ${border}`, flexWrap: 'wrap' as const, animation: 'fadeUp 0.8s 0.55s both' }}>
-          {[
-            { n: 'Growing', l: 'Spirit Database' },
-            { n: 'Watchman', l: 'Watchman Tier' },
-            { n: 'AI-Powered', l: 'Spirit Diagnostics' },
-            { n: 'Live', l: 'Active Community' },
-          ].map(({ n, l }) => (
-            <div key={l} style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 700, color: gold }}>{n}</div>
-              <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.18em', color: muted, marginTop: '4px' }}>{l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── WHAT YOU GET ─────────────────────────────────────────
-function FeaturesSection() {
-  return (
-    <section style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-        <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '12px' }}>
-          Built for Those Who Are <em style={{ color: gold, fontStyle: 'normal' }}>Serious About the Fight</em>
-        </h2>
-        <p style={{ fontSize: '17px', color: textDim, fontStyle: 'italic', fontFamily: crimson, maxWidth: '520px', margin: '0 auto' }}>
-          Not theory. Not inspiration content. Real tools for real spiritual warfare.
-        </p>
-      </div>
-      <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1px', background: border, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
-        {FEATURES.map(f => (
-          <div key={f.title} style={{ background: surface, padding: '2rem', transition: 'background 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = surface2)}
-            onMouseLeave={e => (e.currentTarget.style.background = surface)}>
-            <div style={{ fontSize: '26px', marginBottom: '12px' }}>{f.icon}</div>
-            <div style={{ fontFamily: cinzel, fontSize: '13px', fontWeight: 600, color: text, marginBottom: '10px' }}>{f.title}</div>
-            <p style={{ fontSize: '14px', color: textDim, lineHeight: 1.7, fontWeight: 300 }}>{f.desc}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
 
 // ── LOCKED FIELD ─────────────────────────────────────────
 const TIER_LABELS: Record<string, string> = {
@@ -279,14 +136,14 @@ const TIER_LABELS: Record<string, string> = {
 
 function LockedField({ tier, desc, wide, upgradeUrl }: { tier: string; desc: string; wide?: boolean; upgradeUrl?: string }) {
   return (
-    <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: '4px', padding: wide ? '12px 16px' : '10px 12px', display: 'flex', alignItems: wide ? 'center' : 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '10px' }}>
+    <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 4, padding: wide ? '12px 16px' : '10px 12px', display: 'flex', alignItems: wide ? 'center' : 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: cinzel, fontSize: '9px', color: muted, letterSpacing: '0.1em', marginBottom: '4px' }}>{TIER_LABELS[tier]}</div>
-        <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{desc}</div>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--t-3)', letterSpacing: '0.1em', marginBottom: 4 }}>{TIER_LABELS[tier]}</div>
+        <div style={{ fontSize: 12, color: 'var(--t-3)', fontStyle: 'italic' }}>{desc}</div>
       </div>
       {upgradeUrl && (
         <a href={upgradeUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.35)`, padding: '3px 10px', borderRadius: '2px', whiteSpace: 'nowrap' as const, transition: 'background 0.2s', flexShrink: 0 }}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: G, textDecoration: 'none', border: '1px solid rgba(201,168,76,0.35)', padding: '3px 10px', borderRadius: 2, whiteSpace: 'nowrap' as const, transition: 'background 0.2s', flexShrink: 0 }}
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.12)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           Unlock →
@@ -298,13 +155,13 @@ function LockedField({ tier, desc, wide, upgradeUrl }: { tier: string; desc: str
 
 function TierCallout({ title, desc, url, btnLabel }: { title: string; desc: string; url: string; btnLabel: string }) {
   return (
-    <div style={{ background: surface2, border: `1px solid ${border}`, borderRadius: '5px', padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '14px' }}>
+    <div style={{ background: 'var(--bg-3)', border: '1px solid var(--gold-line)', borderRadius: 4, padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 14 }}>
       <div>
-        <div style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 600, color: gold, letterSpacing: '0.07em', marginBottom: '4px' }}>{title}</div>
-        <div style={{ fontSize: '13px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>{desc}</div>
+        <div style={{ fontFamily: cinzel, fontSize: 10, fontWeight: 600, color: G, letterSpacing: '0.07em', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 13, color: 'var(--t-2)', fontFamily: reading, fontStyle: 'italic' }}>{desc}</div>
       </div>
       <a href={url} target="_blank" rel="noopener noreferrer"
-        style={{ fontFamily: cinzel, fontSize: '9px', fontWeight: 700, letterSpacing: '0.09em', color: deep, background: gold, textDecoration: 'none', padding: '7px 16px', borderRadius: '3px', whiteSpace: 'nowrap' as const, flexShrink: 0, transition: 'opacity 0.2s' }}
+        style={{ fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.09em', color: 'var(--bg-0)', background: GOLD, textDecoration: 'none', padding: '7px 16px', borderRadius: 2, whiteSpace: 'nowrap' as const, flexShrink: 0, transition: 'opacity 0.2s' }}
         onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
         onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
         {btnLabel} →
@@ -313,67 +170,173 @@ function TierCallout({ title, desc, url, btnLabel }: { title: string; desc: stri
   )
 }
 
-// ── PATH TO FREEDOM ──────────────────────────────────────
-function PathToFreedomSection() {
-  const pillars = [
-    {
-      icon: '🕊',
-      title: 'Inner Healing',
-      body: 'Unresolved wounds become open doors. Before a spirit can be cast out its legal right must be removed — and legal rights are built on pain, trauma, and lies the enemy has anchored in the soul. Inner healing is not therapy. It is the surrendering of every wounded place to the authority of Jesus Christ.',
-    },
+// ── CLASSIFIED TICKER ─────────────────────────────────────
+function ClassifiedTicker() {
+  const items = [...TICKER_ITEMS, ...TICKER_ITEMS]
+  return (
+    <div style={{ overflow: 'hidden', borderTop: '1px solid var(--gold-line)', borderBottom: '1px solid var(--gold-line)', background: 'rgba(201,168,76,0.04)', padding: '7px 0' }}>
+      <div style={{ display: 'flex', gap: '3rem', animation: 'ticker 40s linear infinite', width: 'max-content', whiteSpace: 'nowrap' as const }}>
+        {items.map((item, i) => (
+          <span key={i} style={{ fontFamily: mono, fontSize: 10, letterSpacing: '0.12em', color: 'var(--t-3)', textTransform: 'uppercase' as const, flexShrink: 0 }}>
+            <span style={{ color: GOLD, marginRight: 10 }}>⬥</span>{item}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── TACTICAL HERO ─────────────────────────────────────────
+function TacticalHero() {
+  return (
+    <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' as const, position: 'relative', overflow: 'hidden', background: 'var(--bg-0)' }}>
+      {/* Classified strip */}
+      <div style={{ background: 'rgba(201,168,76,0.08)', borderBottom: '1px solid var(--gold-line)', padding: '6px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.22em', color: 'var(--t-4)', textTransform: 'uppercase' as const }}>CLASSIFICATION: OPEN · MINISTRY INTELLIGENCE PLATFORM</span>
+        <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-4)' }}>WRI-PUBLIC-001</span>
+      </div>
+
+      {/* Background grid */}
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(201,168,76,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px', maskImage: 'radial-gradient(ellipse 90% 90% at 50% 40%, black 0%, transparent 100%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 50% at 50% 20%, rgba(201,168,76,0.06) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(138,80,255,0.03) 0%, transparent 60%)', pointerEvents: 'none' }} />
+
+      {/* Content */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem 3rem', position: 'relative', zIndex: 1, textAlign: 'center' }}>
+
+        {/* Logo */}
+        <div style={{ animation: 'fadeUp 0.7s 0s both', marginBottom: 32, position: 'relative' }}>
+          <img src="/logo.png" alt="War Room Intel" style={{ height: 130, width: 130, objectFit: 'contain', filter: 'drop-shadow(0 0 50px rgba(201,168,76,0.25))' }} />
+        </div>
+
+        <div style={{ animation: 'fadeUp 0.7s 0.1s both', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <HUDChip active style={{ fontSize: 9, letterSpacing: '0.2em' }}>CLASSIFIED INTEL</HUDChip>
+          <span style={{ fontFamily: mono, fontSize: 9, color: 'var(--t-4)', letterSpacing: '0.15em' }}>A MINISTRY OF STAFFORDTOWN CHURCH · COPPERHILL, TN</span>
+        </div>
+
+        <h1 style={{ fontFamily: cinzel, fontSize: 'clamp(38px, 7vw, 80px)', fontWeight: 700, lineHeight: 0.95, letterSpacing: '0.01em', color: 'var(--t-0)', marginBottom: 20, animation: 'fadeUp 0.7s 0.15s both' }}>
+          The <span style={{ color: G }}>War Room</span><br />Intelligence
+        </h1>
+
+        <p style={{ fontFamily: reading, fontSize: 'clamp(16px, 2vw, 20px)', color: 'var(--t-2)', fontStyle: 'italic', maxWidth: 600, lineHeight: 1.7, marginBottom: 36, animation: 'fadeUp 0.7s 0.2s both' }}>
+          The most complete spiritual warfare resource available — a searchable demon database, ministry assessment, deliverance protocols, and a community of warriors.
+        </p>
+
+        {/* CTA buttons */}
+        <div className="wri-hero-ctas" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, justifyContent: 'center', marginBottom: 48, animation: 'fadeUp 0.7s 0.25s both' }}>
+          <a href="#database"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', background: 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)', color: '#1a1305', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textDecoration: 'none', borderRadius: 2, boxShadow: '0 1px 0 rgba(255,255,255,0.18) inset, 0 4px 20px rgba(201,168,76,0.25)', transition: 'opacity 0.2s, transform 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}>
+            ⚔ Search the Database
+          </a>
+          <a href="/assessment"
+            style={{ display: 'inline-flex', alignItems: 'center', padding: '13px 28px', background: 'transparent', color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', textDecoration: 'none', borderRadius: 2, border: '1px solid var(--gold-line-hi)', transition: 'background 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            Take Assessment →
+          </a>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button
+                style={{ display: 'inline-flex', alignItems: 'center', padding: '13px 28px', background: 'transparent', color: 'var(--t-2)', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2, cursor: 'pointer', transition: 'border-color 0.2s, color 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.color = G; e.currentTarget.style.borderColor = 'var(--gold-line)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--t-2)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
+                Member Login →
+              </button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <a href="/community"
+              style={{ display: 'inline-flex', alignItems: 'center', padding: '13px 28px', background: 'transparent', color: 'var(--t-2)', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2, textDecoration: 'none', transition: 'border-color 0.2s, color 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = G; e.currentTarget.style.borderColor = 'var(--gold-line)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--t-2)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
+              Enter War Room →
+            </a>
+          </SignedIn>
+        </div>
+
+        {/* Stat chips */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, justifyContent: 'center', animation: 'fadeUp 0.7s 0.3s both' }}>
+          {[
+            { n: '800+', l: 'Spirits Documented' },
+            { n: 'AI', l: 'Spirit Diagnostics' },
+            { n: 'Free', l: 'Entry Tier' },
+            { n: 'Live', l: 'Active Community' },
+          ].map(({ n, l }) => (
+            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', border: '1px solid var(--gold-line)', borderRadius: 2, background: 'rgba(201,168,76,0.04)' }}>
+              <span style={{ fontFamily: cinzel, fontSize: 13, fontWeight: 700, color: G }}>{n}</span>
+              <span style={{ fontFamily: mono, fontSize: 9, color: 'var(--t-4)', letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Ticker */}
+      <ClassifiedTicker />
+    </section>
+  )
+}
+
+// ── MISSION BRIEFING ─────────────────────────────────────
+function MissionBriefing() {
+  const missions = [
     {
       icon: '⚔',
-      title: 'Deliverance',
-      body: 'Once the wound is surrendered and the legal right is broken the spirit must be commanded to go. This is not negotiation — it is authority. The name of Jesus Christ carries all authority in heaven and on earth. Deliverance is the enforcing of what the cross already accomplished.',
+      title: 'Intel Archive',
+      sub: 'OPERATIONAL DATABASE',
+      body: 'Search 800+ documented spirits by name, alias, type, kingdom, and function. Unlock entry points, legal rights, protocols, and exorcist notes with membership.',
+      cta: 'Search Archive',
+      href: '#database',
+      cls: 'IV' as const,
     },
     {
-      icon: '🔥',
-      title: 'Walking in Freedom',
-      body: 'Deliverance is a door, not a destination. What comes next determines whether the freedom holds. Renewing the mind, building new patterns, staying in community, and maintaining your armor daily — this is how you keep what was won in the session.',
+      icon: '🗡',
+      title: 'Session Center',
+      sub: 'ACTIVE MINISTRY',
+      body: 'Submit a ministry assessment and receive a personal response from our deliverance team. Access the AI assistant for session preparation and protocol guidance.',
+      cta: 'Begin Assessment',
+      href: '/assessment',
+      cls: 'III' as const,
+    },
+    {
+      icon: '📄',
+      title: 'Field Training',
+      sub: 'PROTOCOL LIBRARY',
+      body: 'Step-by-step deliverance protocols for every major strongman. Structured PDFs for Freemasonry, soul ties, occult doorways, and more.',
+      cta: 'View Library',
+      href: COMMUNITY_URL,
+      cls: 'III' as const,
     },
   ]
 
   return (
-    <section style={{ padding: '5rem 2rem', background: 'var(--surface)', borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ The Ministry Framework</p>
-          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '16px' }}>
-            Freedom Is More Than <em style={{ color: gold, fontStyle: 'normal' }}>Deliverance</em>
-          </h2>
-          <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', color: textDim, fontStyle: 'italic', fontFamily: crimson, maxWidth: '580px', margin: '0 auto', lineHeight: 1.7 }}>
-            You cannot cast out what has not been surrendered. True freedom requires the whole man — spirit, soul, and body.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1px', background: border, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden', marginBottom: '48px' }}>
-          {pillars.map(p => (
-            <div key={p.title} style={{ background: surface2, padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column' as const, gap: '16px' }}>
-              <div style={{ fontSize: '32px' }}>{p.icon}</div>
-              <div style={{ fontFamily: cinzel, fontSize: '13px', fontWeight: 700, letterSpacing: '0.1em', color: gold }}>{p.title}</div>
-              <div style={{ height: '1px', background: border }} />
-              <p style={{ fontSize: '14px', color: textDim, lineHeight: 1.9, fontFamily: crimson, fontStyle: 'italic', margin: 0 }}>{p.body}</p>
+    <section style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginBottom: 36 }}>
+        <SectionLabel>Mission Briefing</SectionLabel>
+      </div>
+      <div className="wri-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        {missions.map(m => (
+          <TacticalCard key={m.title} brackets glow style={{ display: 'flex', flexDirection: 'column' as const, height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 28 }}>{m.icon}</div>
+              <ClassBadge level={m.cls} label={m.sub} />
             </div>
-          ))}
-        </div>
-
-        <div style={{ textAlign: 'center', padding: '0 2rem 40px' }}>
-          <p style={{ fontFamily: crimson, fontSize: 'clamp(20px, 3vw, 28px)', fontStyle: 'italic', color: text, lineHeight: 1.5, maxWidth: '640px', margin: '0 auto 32px', borderLeft: `3px solid ${gold}`, paddingLeft: '24px', textAlign: 'left' as const }}>
-            "You were not set free to survive. You were set free to war."
-          </p>
-          <a href="/assessment"
-            style={{ display: 'inline-block', fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', padding: '14px 32px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', transition: 'background 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
-            onMouseLeave={e => (e.currentTarget.style.background = gold)}>
-            Take the Free Ministry Assessment ⚔
-          </a>
-        </div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, fontWeight: 600, color: 'var(--t-0)', marginBottom: 10, letterSpacing: '0.04em' }}>{m.title}</div>
+            <p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading, flex: 1, marginBottom: 20 }}>{m.body}</p>
+            <a href={m.href}
+              style={{ display: 'inline-flex', alignItems: 'center', padding: '8px 16px', background: 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)', color: '#1a1305', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textDecoration: 'none', borderRadius: 2, alignSelf: 'flex-start' }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+              {m.cta} ⚔
+            </a>
+          </TacticalCard>
+        ))}
       </div>
     </section>
   )
 }
 
-// ── DATABASE ─────────────────────────────────────────────
+// ── DATABASE (unchanged logic) ────────────────────────────
 function DatabaseSection() {
   const [entries, setEntries] = useState<DemonEntry[]>([])
   const [filtered, setFiltered] = useState<DemonEntry[]>([])
@@ -388,12 +351,7 @@ function DatabaseSection() {
   useEffect(() => {
     fetch('/api/demons')
       .then(r => r.json())
-      .then(data => {
-        const demons = data.demons || []
-        setEntries(demons)
-        setFiltered(demons)
-        setLoading(false)
-      })
+      .then(data => { setEntries(data.demons || []); setFiltered(data.demons || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -413,246 +371,156 @@ function DatabaseSection() {
   const pageEntries = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   return (
-    <section id="database" style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '16px', marginBottom: '24px' }}>
+    <section id="database" style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24 }}>
+        <SectionLabel action="+ SUBMIT DEMON" onAction={() => window.location.href = '/submit-demon'}>
+          Intel Archive · Demon Database
+        </SectionLabel>
+      </div>
+
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12, marginBottom: 16 }}>
         <div>
-          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '10px' }}>✦ Master Database</p>
-          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 700, color: text, marginBottom: '8px' }}>
-            The <em style={{ color: gold, fontStyle: 'normal' }}>Demon Database</em>
-          </h2>
-          <p style={{ fontSize: '15px', color: textDim, fontStyle: 'italic', fontFamily: crimson }}>
-            {loading
-              ? 'Loading database...'
-              : (search || typeFilter !== 'All Types')
-                ? `${filtered.length} of ${entries.length} entries matching your search`
-                : `${entries.length} entries · Searchable by name, alias, and function · Detailed fields unlock with membership`
-            }
+          <div style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 700, color: 'var(--t-0)', marginBottom: 6 }}>
+            The <span style={{ color: G }}>Demon Database</span>
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>
+            {loading ? 'Loading database...' : (search || typeFilter !== 'All Types') ? `${filtered.length} of ${entries.length} entries` : `${entries.length} entries · Detailed fields unlock with membership`}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' as const }}>
-          <a href="/submit-demon" style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '9px 18px', borderRadius: '3px', border: `1px solid ${borderBright}`, color: gold, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-            🗡 Submit a Demon
-          </a>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <ClassBadge level="IV" label="FREE ACCESS" />
+          <HUDChip>{entries.length} Entries</HUDChip>
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' as const }}>
-        <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-          <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: muted, fontSize: '14px' }}>⚔</span>
+      {/* Search */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' as const }}>
+        <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--t-4)', fontSize: 13 }}>⚔</span>
           <input
             ref={searchRef}
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, alias, or function..."
-            style={{ width: '100%', background: surface, border: `1px solid ${border}`, borderRadius: '4px', padding: '11px 14px 11px 38px', fontFamily: crimson, fontSize: '15px', color: text, outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
-            onBlur={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}
+            style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--gold-line)', borderRadius: 2, padding: '10px 12px 10px 36px', fontFamily: reading, fontSize: 14, color: 'var(--t-0)', outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')}
           />
         </div>
         <select
           value={typeFilter}
           onChange={e => setTypeFilter(e.target.value)}
-          style={{ background: surface, border: `1px solid ${border}`, borderRadius: '4px', padding: '11px 14px', fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.06em', color: textDim, outline: 'none', cursor: 'pointer', minWidth: '160px' }}>
-          {DEMON_TYPES.map(t => <option key={t} value={t} style={{ background: surface }}>{t}</option>)}
+          style={{ background: 'var(--bg-2)', border: '1px solid var(--gold-line)', borderRadius: 2, padding: '10px 12px', fontFamily: mono, fontSize: 10, letterSpacing: '0.06em', color: 'var(--t-2)', outline: 'none', cursor: 'pointer', minWidth: 160 }}>
+          {DEMON_TYPES.map(t => <option key={t} value={t} style={{ background: 'var(--bg-2)' }}>{t}</option>)}
         </select>
         {(search || typeFilter !== 'All Types') && (
           <button onClick={() => { setSearch(''); setTypeFilter('All Types') }}
-            style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '9px 16px', background: 'transparent', border: `1px solid ${border}`, borderRadius: '4px', color: muted, cursor: 'pointer' }}>
+            style={{ fontFamily: mono, fontSize: 10, padding: '9px 14px', background: 'transparent', border: '1px solid var(--gold-line)', borderRadius: 2, color: 'var(--t-3)', cursor: 'pointer' }}>
             Clear ×
           </button>
         )}
       </div>
 
-      {/* Membership Info Banner */}
-      <div className="db-banner" style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: '6px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' as const }}>
-          <span style={{ fontSize: '14px' }}>🔒</span>
-          <span style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.07em', color: gold }}>
-            <span style={{ color: textDim }}>Free:</span> Name, Type, Kingdom, Function&nbsp;&nbsp;
-            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
-            <span style={{ color: textDim }}>Soldier:</span> + Manifestations, Scripture, Strongman, Rank&nbsp;&nbsp;
-            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
-            <span style={{ color: textDim }}>Commander:</span> + Entry Points, Legal Rights, Protocols&nbsp;&nbsp;
-            <span style={{ color: muted }}>·</span>&nbsp;&nbsp;
-            <span style={{ color: textDim }}>General:</span> + Symptoms, Companions, Exorcist Notes
-          </span>
-        </div>
-        <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.1em', color: gold, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: '2px', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>JOIN TO UNLOCK →</a>
+      {/* Lock banner */}
+      <div className="db-banner" style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid var(--gold-line)', borderRadius: 2, padding: '10px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+        <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.07em', color: 'var(--t-3)' }}>
+          FREE: Name · Type · Kingdom · Function&nbsp;&nbsp;|&nbsp;&nbsp;
+          SOLDIER: + Manifestations · Scripture · Strongman&nbsp;&nbsp;|&nbsp;&nbsp;
+          COMMANDER: + Entry Points · Legal Rights · Protocol&nbsp;&nbsp;|&nbsp;&nbsp;
+          GENERAL: + Symptoms · Companions · Exorcist Notes
+        </span>
+        <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: G, background: 'rgba(201,168,76,0.1)', padding: '4px 12px', borderRadius: 2, textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+          JOIN TO UNLOCK →
+        </a>
       </div>
 
-      {/* Database Table */}
-      <div style={{ border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
-        {/* Table Header */}
-        <div className="db-table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr 36px', gap: '0', background: surface2, padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
+      {/* Table */}
+      <div style={{ border: '1px solid var(--gold-line)', borderRadius: 4, overflow: 'hidden' }}>
+        <div className="db-table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr 36px', background: 'var(--bg-3)', padding: '10px 20px', borderBottom: '1px solid var(--gold-line)' }}>
           {['Name / Alias', 'Type', 'Description', ''].map((h, i) => (
-            <div key={h} className={i === 2 ? 'db-table-header-func' : ''} style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: muted }}>{h}</div>
+            <div key={h} className={i === 2 ? 'db-table-header-func' : ''} style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: 'var(--t-4)', textTransform: 'uppercase' as const }}>{h}</div>
           ))}
         </div>
 
-        {loading && (
-          <div style={{ padding: '4rem', textAlign: 'center', fontFamily: cinzel, fontSize: '11px', color: gold, letterSpacing: '0.1em' }}>Loading database...</div>
-        )}
-
+        {loading && <div style={{ padding: '4rem', textAlign: 'center', fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', animation: 'pulse-gold 1.5s ease infinite' }}>Loading database...</div>}
         {!loading && filtered.length === 0 && (
           <div style={{ padding: '4rem', textAlign: 'center' }}>
-            <div style={{ fontFamily: cinzel, fontSize: '13px', color: gold, marginBottom: '8px' }}>No entries found</div>
-            <p style={{ fontSize: '14px', color: textDim, fontStyle: 'italic' }}>Try a different search term or clear the filter.</p>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, marginBottom: 8 }}>No entries found</div>
+            <p style={{ fontSize: 14, color: 'var(--t-3)', fontStyle: 'italic' }}>Try a different search term or clear the filter.</p>
           </div>
         )}
 
         {pageEntries.map((entry, i) => (
-          <div key={entry.id} style={{ borderBottom: i < pageEntries.length - 1 ? `1px solid ${border}` : 'none' }}>
-            {/* Row */}
+          <div key={entry.id} style={{ borderBottom: i < pageEntries.length - 1 ? '1px solid var(--gold-line)' : 'none' }}>
             <div
               className="db-row"
               onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
-              style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr 36px', gap: '0', padding: '14px 20px', cursor: 'pointer', transition: 'background 0.15s', alignItems: 'start' }}
-              onMouseEnter={e => (e.currentTarget.style.background = surface)}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr 36px', padding: '13px 20px', cursor: 'pointer', transition: 'background 0.15s', alignItems: 'start' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-3)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
               <div className="db-row-name">
-                <div style={{ fontFamily: cinzel, fontSize: '13px', color: text, fontWeight: 600, marginBottom: '3px' }}>{entry.name}</div>
-                {entry.aka && <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>{entry.aka}</div>}
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: 'var(--t-0)', fontWeight: 600, marginBottom: 3 }}>{entry.name}</div>
+                {entry.aka && <div style={{ fontSize: 12, color: 'var(--t-4)', fontStyle: 'italic' }}>{entry.aka}</div>}
               </div>
               <div className="db-row-type">
                 {(() => {
                   const primary = (entry.type || '').split('/')[0].trim() || '—'
                   const color = typeColor(primary)
                   return (
-                    <span title={entry.type || undefined} style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '2px', background: color + '22', color, border: `1px solid ${color}44`, display: 'block', maxWidth: '85px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    <span title={entry.type || undefined} style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: 2, background: color + '22', color, border: `1px solid ${color}44`, display: 'block', maxWidth: 85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       {primary}
                     </span>
                   )
                 })()}
               </div>
-              <div className="db-row-func" style={{ fontSize: '13px', color: textDim, lineHeight: 1.5, paddingRight: '8px' }}>
+              <div className="db-row-func" style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.5, paddingRight: 8 }}>
                 {entry.description ? (entry.description.length > 120 ? entry.description.slice(0, 120) + '...' : entry.description) : '—'}
               </div>
-              <div className="db-row-toggle" style={{ textAlign: 'center', color: gold, fontSize: '16px', transition: 'transform 0.2s', transform: expanded === entry.id ? 'rotate(45deg)' : 'rotate(0)' }}>+</div>
+              <div className="db-row-toggle" style={{ textAlign: 'center', color: G, fontSize: 16, transition: 'transform 0.2s', transform: expanded === entry.id ? 'rotate(45deg)' : 'rotate(0)' }}>+</div>
             </div>
 
-            {/* Expanded detail */}
             {expanded === entry.id && (
-              <div style={{ padding: '16px 20px 20px', borderTop: `1px solid ${border}`, background: surface }}>
-
-                {/* ── FREE TIER ── */}
-                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>KINGDOM</div>
-                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.kingdom || 'Not documented'}</p>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DESCRIPTION</div>
-                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.description || 'Not documented'}</p>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>ASSIGNMENT</div>
-                    <p style={{ fontSize: '13px', color: textDim, lineHeight: 1.7, fontFamily: crimson }}>{entry.assignment || 'Not documented'}</p>
-                  </div>
+              <div style={{ padding: '16px 20px 20px', borderTop: '1px solid var(--gold-line)', background: 'var(--bg-1)' }}>
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 20 }}>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>KINGDOM</div><p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading }}>{entry.kingdom || 'Not documented'}</p></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>DESCRIPTION</div><p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading }}>{entry.description || 'Not documented'}</p></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>ASSIGNMENT</div><p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading }}>{entry.assignment || 'Not documented'}</p></div>
                 </div>
-
-                {/* ── SOLDIER TIER ── */}
-                <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
-                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '10px' }}>🔒 SOLDIER TIER</div>
-                <TierCallout
-                  title="⚔ Upgrade to Soldier — $19/month · 30 days free"
-                  desc="Includes everything in Free plus Manifestations, Scripture References, Strongman, and Rank"
-                  url={SOLDIER_URL}
-                  btnLabel="Upgrade to Soldier"
-                />
-                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>FUNCTION / ROLE</div>
-                    <LockedField tier="Soldier" desc="The specific function or role this spirit plays in the demonic hierarchy and in the life of the host." upgradeUrl={SOLDIER_URL} />
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>MANIFESTATIONS</div>
-                    <LockedField tier="Soldier" desc="Physical, emotional, and spiritual signs this spirit produces in those it inhabits." upgradeUrl={SOLDIER_URL} />
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SCRIPTURE REFERENCES</div>
-                    <LockedField tier="Soldier" desc="Biblical passages that identify, address, or give authority over this spirit." upgradeUrl={SOLDIER_URL} />
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>STRONGMAN</div>
-                    <LockedField tier="Soldier" desc="The major strongman this spirit operates under (e.g., Bitterness, Fear, Rejection, Leviathan)." upgradeUrl={SOLDIER_URL} />
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>RANK / CLASSIFICATION</div>
-                    <LockedField tier="Soldier" desc="Hierarchical rank in the demonic order: Principality, Power, Strongman, Spirit, Familiar, Unclean, etc." upgradeUrl={SOLDIER_URL} />
-                  </div>
+                <div style={{ height: 1, background: 'var(--gold-line)', marginBottom: 16 }} />
+                <div style={{ fontFamily: mono, fontSize: 7, letterSpacing: '0.22em', color: 'var(--t-4)', marginBottom: 10 }}>🔒 SOLDIER TIER</div>
+                <TierCallout title="⚔ Upgrade to Soldier — $19/month · 30 days free" desc="Manifestations, Scripture References, Strongman, and Rank" url={SOLDIER_URL} btnLabel="Upgrade to Soldier" />
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 20 }}>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>FUNCTION</div><LockedField tier="Soldier" desc="The specific function or role in the demonic hierarchy." upgradeUrl={SOLDIER_URL} /></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>MANIFESTATIONS</div><LockedField tier="Soldier" desc="Physical and spiritual signs this spirit produces." upgradeUrl={SOLDIER_URL} /></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>SCRIPTURE</div><LockedField tier="Soldier" desc="Biblical passages that identify or give authority over this spirit." upgradeUrl={SOLDIER_URL} /></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>STRONGMAN</div><LockedField tier="Soldier" desc="The major strongman this spirit operates under." upgradeUrl={SOLDIER_URL} /></div>
                 </div>
-
-                {/* ── COMMANDER TIER ── */}
-                <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
-                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '10px' }}>🔒 COMMANDER TIER</div>
-                <TierCallout
-                  title="⚔ Upgrade to Commander — $39/month · 30 days free"
-                  desc="Includes everything in Soldier plus Entry Points, Legal Rights, and Deliverance Protocol"
-                  url={COMMANDER_URL}
-                  btnLabel="Upgrade to Commander"
-                />
-                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>ENTRY POINTS</div>
-                    <LockedField tier="Commander" desc="How this spirit gains access — trauma, generational patterns, sin, occult doorways, soul ties, etc." upgradeUrl={COMMANDER_URL} />
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>LEGAL RIGHTS</div>
-                    <LockedField tier="Commander" desc="What gives this spirit legal authority: generational iniquity, blood oaths, trauma, occult involvement, unconfessed sin, etc." upgradeUrl={COMMANDER_URL} />
-                  </div>
-                  <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>DELIVERANCE PROTOCOL</div>
-                    <LockedField tier="Commander" desc="Step-by-step protocol for commanding this spirit out, breaking its legal rights, and maintaining freedom." wide upgradeUrl={COMMANDER_URL} />
-                  </div>
+                <div style={{ height: 1, background: 'var(--gold-line)', marginBottom: 16 }} />
+                <div style={{ fontFamily: mono, fontSize: 7, letterSpacing: '0.22em', color: 'var(--t-4)', marginBottom: 10 }}>🔒 COMMANDER TIER</div>
+                <TierCallout title="⚔ Upgrade to Commander — $39/month · 30 days free" desc="Entry Points, Legal Rights, and Deliverance Protocol" url={COMMANDER_URL} btnLabel="Upgrade to Commander" />
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 20 }}>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>ENTRY POINTS</div><LockedField tier="Commander" desc="How this spirit gains access — trauma, generational patterns, occult doorways." upgradeUrl={COMMANDER_URL} /></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>LEGAL RIGHTS</div><LockedField tier="Commander" desc="What gives this spirit authority: iniquity, oaths, trauma, occult involvement." upgradeUrl={COMMANDER_URL} /></div>
+                  <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>DELIVERANCE PROTOCOL</div><LockedField tier="Commander" desc="Step-by-step protocol for commanding this spirit out and maintaining freedom." wide upgradeUrl={COMMANDER_URL} /></div>
                 </div>
-
-                {/* ── GENERAL TIER ── */}
-                <div style={{ height: '1px', background: border, marginBottom: '16px' }} />
-                <div style={{ fontFamily: cinzel, fontSize: '7px', letterSpacing: '0.22em', color: muted, marginBottom: '10px' }}>🔒 GENERAL TIER</div>
-                <TierCallout
-                  title="⚔ Upgrade to General — $97/month · 30 days free"
-                  desc="Includes everything in Commander plus Symptoms, Companion Spirits, and WRI Exorcist Notes"
-                  url={GENERAL_URL}
-                  btnLabel="Upgrade to General"
-                />
-                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>SYMPTOMS</div>
-                    <LockedField tier="General" desc="Physical and mental symptoms this spirit produces (e.g., heart palpitations, insomnia, anxiety attacks, depression, rage episodes, cancer)." upgradeUrl={GENERAL_URL} />
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>COMPANION SPIRITS</div>
-                    <LockedField tier="General" desc="Spirits that cluster with this one and almost always appear together in the same person." upgradeUrl={GENERAL_URL} />
-                  </div>
-                  <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}>
-                    <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.18em', color: gold, marginBottom: '8px' }}>WRI EXORCIST NOTES</div>
-                    <LockedField tier="General" desc="Private ministry notes from the War Room Intel deliverance team — field observations, case patterns, and operational intelligence." wide upgradeUrl={GENERAL_URL} />
-                  </div>
+                <div style={{ height: 1, background: 'var(--gold-line)', marginBottom: 16 }} />
+                <div style={{ fontFamily: mono, fontSize: 7, letterSpacing: '0.22em', color: 'var(--t-4)', marginBottom: 10 }}>🔒 GENERAL TIER</div>
+                <TierCallout title="⚔ Upgrade to General — $97/month · 30 days free" desc="Symptoms, Companion Spirits, and WRI Exorcist Notes" url={GENERAL_URL} btnLabel="Upgrade to General" />
+                <div className="db-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>SYMPTOMS</div><LockedField tier="General" desc="Physical and mental symptoms this spirit produces." upgradeUrl={GENERAL_URL} /></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>COMPANION SPIRITS</div><LockedField tier="General" desc="Spirits that cluster with this one." upgradeUrl={GENERAL_URL} /></div>
+                  <div className="db-expanded-protocol" style={{ gridColumn: 'span 2' }}><div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.18em', color: G, marginBottom: 8 }}>WRI EXORCIST NOTES</div><LockedField tier="General" desc="Private ministry notes — field observations, case patterns, operational intelligence." wide upgradeUrl={GENERAL_URL} /></div>
                 </div>
-
-                {/* Submit correction */}
-                <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '8px' }}>
-                  <span style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Know more about this entry? Help us improve the database.</span>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' as const, alignItems: 'center' }}>
-                    {/* Field Card — locked until Soldier auth is wired */}
-                    <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer"
-                      title="Requires Soldier membership — click to upgrade"
-                      style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.35)`, padding: '5px 14px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px', opacity: 0.65, transition: 'opacity 0.2s, border-color 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.6)' }}
-                      onMouseLeave={e => { e.currentTarget.style.opacity = '0.65'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.35)' }}>
-                      🔒 ⬇ Field Card
-                    </a>
-                    <a href={`/submit-demon?suggest=${encodeURIComponent(entry.name)}`}
-                      style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', color: gold, textDecoration: 'none', border: `1px solid ${border}`, padding: '5px 14px', borderRadius: '3px', transition: 'border-color 0.2s' }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
-                      🗡 Suggest a Change
-                    </a>
-                  </div>
+                <div style={{ marginTop: 20, paddingTop: 14, borderTop: '1px solid var(--gold-line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--t-4)', fontStyle: 'italic' }}>Know more about this entry? Help us improve the database.</span>
+                  <a href={`/submit-demon?suggest=${encodeURIComponent(entry.name)}`}
+                    style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: G, textDecoration: 'none', border: '1px solid var(--gold-line)', padding: '5px 14px', borderRadius: 2, transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')}>
+                    🗡 Suggest a Change
+                  </a>
                 </div>
               </div>
             )}
@@ -662,82 +530,317 @@ function DatabaseSection() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' as const }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, flexWrap: 'wrap' as const }}>
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '8px 16px', background: 'transparent', border: `1px solid ${border}`, borderRadius: '3px', color: page === 1 ? muted : textDim, cursor: page === 1 ? 'default' : 'pointer' }}>
+            style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '8px 16px', background: 'transparent', border: '1px solid var(--gold-line)', borderRadius: 2, color: page === 1 ? 'var(--t-4)' : 'var(--t-2)', cursor: page === 1 ? 'default' : 'pointer' }}>
             ← Prev
           </button>
           {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
             const p = totalPages <= 7 ? i + 1 : page <= 4 ? i + 1 : page >= totalPages - 3 ? totalPages - 6 + i : page - 3 + i
             return (
               <button key={p} onClick={() => setPage(p)}
-                style={{ fontFamily: cinzel, fontSize: '10px', padding: '8px 14px', background: p === page ? gold : 'transparent', border: `1px solid ${p === page ? gold : border}`, borderRadius: '3px', color: p === page ? deep : textDim, cursor: 'pointer' }}>
+                style={{ fontFamily: cinzel, fontSize: 10, padding: '8px 14px', background: p === page ? GOLD : 'transparent', border: `1px solid ${p === page ? GOLD : 'var(--gold-line)'}`, borderRadius: 2, color: p === page ? '#1a1305' : 'var(--t-2)', cursor: 'pointer' }}>
                 {p}
               </button>
             )
           })}
           <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-            style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '8px 16px', background: 'transparent', border: `1px solid ${border}`, borderRadius: '3px', color: page === totalPages ? muted : textDim, cursor: page === totalPages ? 'default' : 'pointer' }}>
+            style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '8px 16px', background: 'transparent', border: '1px solid var(--gold-line)', borderRadius: 2, color: page === totalPages ? 'var(--t-4)' : 'var(--t-2)', cursor: page === totalPages ? 'default' : 'pointer' }}>
             Next →
           </button>
-          <span style={{ fontFamily: cinzel, fontSize: '9px', color: muted, marginLeft: '8px' }}>{total} entries · Page {page} of {totalPages}</span>
+          <MonoTime size={9} color="var(--t-4)">{total} entries · Page {page} of {totalPages}</MonoTime>
         </div>
       )}
 
       {/* Submit CTA */}
-      <div style={{ marginTop: '32px', background: surface, border: `1px solid ${border}`, borderRadius: '8px', padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '16px' }}>
+      <TacticalCard style={{ marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 16 }}>
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: '13px', color: text, fontWeight: 600, marginBottom: '6px' }}>Know a spirit that's not in the database?</div>
-          <p style={{ fontSize: '14px', color: textDim, fontStyle: 'italic', fontFamily: crimson }}>Help us build the most complete spiritual warfare reference available. All submissions are reviewed by our ministry team.</p>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: 'var(--t-0)', fontWeight: 600, marginBottom: 6 }}>Know a spirit that's not in the database?</div>
+          <p style={{ fontSize: 14, color: 'var(--t-2)', fontFamily: reading, fontStyle: 'italic', margin: 0 }}>Help us build the most complete spiritual warfare reference available.</p>
         </div>
-        <a href="/submit-demon"
-          style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', padding: '12px 24px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', whiteSpace: 'nowrap' as const, transition: 'background 0.2s', flexShrink: 0 }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
-          onMouseLeave={e => (e.currentTarget.style.background = gold)}>
-          🗡 Submit a Demon
-        </a>
+        <GoldButton onClick={() => window.location.href = '/submit-demon'} icon="🗡">Submit a Demon</GoldButton>
+      </TacticalCard>
+    </section>
+  )
+}
+
+// ── FEATURES GRID ─────────────────────────────────────────
+function FeaturesSection() {
+  return (
+    <section style={{ padding: '4rem 2rem', background: 'var(--bg-1)', borderTop: '1px solid var(--gold-line)', borderBottom: '1px solid var(--gold-line)' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ marginBottom: 36, textAlign: 'center' }}>
+          <SectionLabel style={{ justifyContent: 'center' }}>Platform Capabilities</SectionLabel>
+          <div style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3.5vw, 36px)', fontWeight: 700, color: 'var(--t-0)', marginTop: 12, marginBottom: 8 }}>
+            Built for Those Who Are <span style={{ color: G }}>Serious About the Fight</span>
+          </div>
+          <p style={{ fontSize: 16, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Not theory. Not inspiration content. Real tools for real spiritual warfare.</p>
+        </div>
+        <div className="wri-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {FEATURES.map(f => (
+            <TacticalCard key={f.title} brackets style={{ display: 'flex', flexDirection: 'column' as const, height: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ fontSize: 24 }}>{f.icon}</span>
+                <ClassBadge level={f.cls} label={f.cls === 'IV' ? 'FREE' : 'MEMBER'} />
+              </div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, fontWeight: 600, color: 'var(--t-0)', marginBottom: 8, letterSpacing: '0.03em' }}>{f.title}</div>
+              <p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading, margin: 0 }}>{f.desc}</p>
+            </TacticalCard>
+          ))}
+        </div>
       </div>
     </section>
   )
 }
 
-// ── ASSESSMENT CTA ────────────────────────────────────────
-function AssessmentCTA() {
+// ── CONSULTATION INTAKE FORM ──────────────────────────────
+function IntakeFormSection() {
+  const ISSUE_OPTIONS = ['Addiction', 'Anxiety / Fear', 'Depression', 'Freemasonry / Occult', 'Generational Bondage', 'Lust / Sexual Sin', 'Rage / Anger', 'Rejection', 'Soul Ties', 'Witchcraft', 'Other']
+
+  const [form, setForm] = useState({
+    name: '', email: '', phone: '', issues: [] as string[],
+    duration: '', received_before: false, description: '', contact_method: 'email',
+    honeypot: '',
+  })
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  function toggle(issue: string) {
+    setForm(f => ({
+      ...f,
+      issues: f.issues.includes(issue) ? f.issues.filter(i => i !== issue) : [...f.issues, issue],
+    }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (form.honeypot) return
+    if (!form.name.trim() || !form.email.trim()) return
+    setStatus('sending')
+    try {
+      const res = await fetch('/api/intake-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name, email: form.email, phone: form.phone,
+          issues: form.issues, duration: form.duration,
+          received_before: form.received_before, description: form.description,
+          contact_method: form.contact_method,
+        }),
+      })
+      if (res.ok) setStatus('sent')
+      else setStatus('error')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  const inputStyle = { width: '100%', background: 'var(--bg-1)', border: '1px solid var(--gold-line)', borderRadius: 2, padding: '10px 12px', fontFamily: reading, fontSize: 14, color: 'var(--t-0)', outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }
+
+  if (status === 'sent') {
+    return (
+      <section style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
+        <TacticalCard brackets glow style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center', padding: 40 }}>
+          <div style={{ fontSize: 40, marginBottom: 20 }}>⚔</div>
+          <div style={{ fontFamily: cinzel, fontSize: 18, color: G, marginBottom: 12, letterSpacing: '0.04em' }}>Assessment Received</div>
+          <p style={{ fontSize: 15, color: 'var(--t-2)', fontFamily: reading, lineHeight: 1.8 }}>Your ministry assessment has been submitted. Our team will personally respond within 24–72 hours. Check your email for a confirmation.</p>
+        </TacticalCard>
+      </section>
+    )
+  }
+
   return (
-    <section style={{ padding: '2rem 2rem 5rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ background: surface, border: `1px solid ${borderBright}`, borderRadius: '8px', padding: 'clamp(2rem, 5vw, 3.5rem)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 80% at 50% 0%, rgba(201,168,76,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div className="cta-grid" style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto', gap: '32px', alignItems: 'center' }}>
-          <div>
-            <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Free Ministry Tool</p>
-            <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 34px)', fontWeight: 700, color: text, marginBottom: '12px', lineHeight: 1.2 }}>
-              Take the Free <em style={{ color: gold, fontStyle: 'normal' }}>Ministry Assessment</em>
-            </h2>
-            <p style={{ fontSize: '16px', color: textDim, fontFamily: crimson, fontStyle: 'italic', lineHeight: 1.7, maxWidth: '500px', marginBottom: '20px' }}>
-              A confidential 9-step ministry intake. Your answers are reviewed by our team and mapped to likely spiritual strongholds. Receive a personal response from a real minister — free, no account required.
-            </p>
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' as const }}>
-              {['Completely confidential', 'Personal ministry response', 'No account required'].map(item => (
-                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: muted }}>
-                  <span style={{ color: gold, fontSize: '10px' }}>✦</span> {item}
-                </div>
-              ))}
+    <section id="consultation" style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginBottom: 32 }}>
+        <SectionLabel>Free Ministry Assessment</SectionLabel>
+        <div style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 700, color: 'var(--t-0)', marginTop: 12, marginBottom: 8 }}>
+          Take the Free <span style={{ color: G }}>Ministry Consultation</span>
+        </div>
+        <p style={{ fontSize: 15, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Confidential · 9-step intake · Personal response from our team · No account required</p>
+      </div>
+
+      <div className="wri-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
+        <TacticalCard brackets>
+          <form onSubmit={handleSubmit}>
+            {/* Honeypot */}
+            <input name="website" value={form.honeypot} onChange={e => setForm(f => ({ ...f, honeypot: e.target.value }))} style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+
+            <div className="intake-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>NAME *</label>
+                <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
+              </div>
+              <div>
+                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>EMAIL *</label>
+                <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
+              </div>
             </div>
+
+            <div className="intake-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>PHONE (optional)</label>
+                <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
+              </div>
+              <div>
+                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>HOW LONG STRUGGLING?</label>
+                <select value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
+                  style={{ ...inputStyle, fontFamily: mono, fontSize: 10 }}>
+                  <option value="">Select...</option>
+                  {['Less than a year', '1–3 years', '3–10 years', '10+ years', 'Since childhood'].map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 10 }}>AREAS OF STRUGGLE (select all that apply)</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                {ISSUE_OPTIONS.map(issue => {
+                  const active = form.issues.includes(issue)
+                  return (
+                    <button key={issue} type="button" onClick={() => toggle(issue)}
+                      style={{ padding: '5px 12px', fontFamily: mono, fontSize: 10, letterSpacing: '0.06em', borderRadius: 2, border: `1px solid ${active ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, background: active ? 'rgba(201,168,76,0.12)' : 'transparent', color: active ? G : 'var(--t-3)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                      {issue}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>RECEIVED DELIVERANCE MINISTRY BEFORE?</label>
+              <div style={{ display: 'flex', gap: 16 }}>
+                {[{ v: true, l: 'Yes' }, { v: false, l: 'No' }].map(({ v, l }) => (
+                  <button key={l} type="button" onClick={() => setForm(f => ({ ...f, received_before: v }))}
+                    style={{ padding: '6px 20px', fontFamily: mono, fontSize: 10, letterSpacing: '0.08em', borderRadius: 2, border: `1px solid ${form.received_before === v ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, background: form.received_before === v ? 'rgba(201,168,76,0.12)' : 'transparent', color: form.received_before === v ? G : 'var(--t-3)', cursor: 'pointer' }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>DESCRIBE YOUR SITUATION (optional)</label>
+              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4}
+                placeholder="Share what you're dealing with in your own words..."
+                style={{ ...inputStyle, resize: 'vertical' as const, minHeight: 100 }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>PREFERRED CONTACT METHOD</label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {['email', 'phone', 'either'].map(m => (
+                  <button key={m} type="button" onClick={() => setForm(f => ({ ...f, contact_method: m }))}
+                    style={{ padding: '6px 16px', fontFamily: mono, fontSize: 10, letterSpacing: '0.06em', borderRadius: 2, border: `1px solid ${form.contact_method === m ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, background: form.contact_method === m ? 'rgba(201,168,76,0.12)' : 'transparent', color: form.contact_method === m ? G : 'var(--t-3)', cursor: 'pointer', textTransform: 'capitalize' as const }}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {status === 'error' && (
+              <p style={{ fontFamily: mono, fontSize: 11, color: 'var(--crit)', marginBottom: 14 }}>Something went wrong. Please try again or email exorcist@warroomintel.com</p>
+            )}
+
+            <GoldButton type="submit" full disabled={status === 'sending'}>
+              {status === 'sending' ? 'Submitting...' : 'Submit Ministry Assessment ⚔'}
+            </GoldButton>
+          </form>
+        </TacticalCard>
+
+        {/* Side panel */}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+          <TacticalCard>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>WHAT HAPPENS NEXT</div>
+            {[
+              { n: '01', t: 'Submission Reviewed', b: 'Our ministry team reads every assessment personally.' },
+              { n: '02', t: 'Mapped to Strongholds', b: 'We identify likely spiritual strongholds from your intake.' },
+              { n: '03', t: 'Personal Response', b: 'Pastor Justin responds personally — typically within 72 hours.' },
+            ].map(step => (
+              <div key={step.n} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                <MonoTime size={11} color="var(--gold)">{step.n}</MonoTime>
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', marginBottom: 4 }}>{step.t}</div>
+                  <div style={{ fontSize: 12, color: 'var(--t-3)', fontFamily: reading }}>{step.b}</div>
+                </div>
+              </div>
+            ))}
+          </TacticalCard>
+          <TacticalCard>
+            <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-4)', marginBottom: 10 }}>CONFIDENTIALITY</div>
+            <p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading, fontStyle: 'italic', margin: 0 }}>All assessment information is seen only by our ministry team. It is never published, shared, or sold. Anything posted to the public response board is fully anonymized with your permission.</p>
+          </TacticalCard>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── FIELD COMMANDERS ─────────────────────────────────────
+function FieldCommandersSection() {
+  const commanders = [
+    {
+      name: 'Pastor Justin Payne',
+      role: 'Founder · Lead Exorcist',
+      sub: 'GENERAL',
+      cls: 'I' as const,
+      bio: 'Lead pastor of Staffordtown Church. 10+ years in deliverance ministry. Founder of War Room Intel and developer of the Intel Archive database.',
+      badge: 'General',
+    },
+    {
+      name: 'Ruby Payne',
+      role: 'Ministry Co-Lead',
+      sub: 'COMMANDER',
+      cls: 'II' as const,
+      bio: 'Co-minister and session coordinator. Specializes in inner healing, generational bondage, and preparing individuals for deliverance ministry.',
+      badge: 'Commander',
+    },
+    {
+      name: 'Dakota McAllister',
+      role: 'Field Operations',
+      sub: 'SOLDIER',
+      cls: 'III' as const,
+      bio: 'Field minister and community coordinator. Manages session scheduling, member follow-up, and front-line ministry operations.',
+      badge: 'Soldier',
+    },
+  ]
+
+  return (
+    <section style={{ padding: '4rem 2rem', background: 'var(--bg-1)', borderTop: '1px solid var(--gold-line)', borderBottom: '1px solid var(--gold-line)' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ marginBottom: 36, textAlign: 'center' }}>
+          <SectionLabel style={{ justifyContent: 'center' }}>The Ministry Team</SectionLabel>
+          <div style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 700, color: 'var(--t-0)', marginTop: 12, marginBottom: 8 }}>
+            Built by Ministers, <span style={{ color: G }}>For Ministers</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', flexShrink: 0 }}>
-            <a href="/assessment"
-              style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', padding: '14px 28px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', textAlign: 'center', transition: 'background 0.2s', whiteSpace: 'nowrap' as const }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
-              onMouseLeave={e => (e.currentTarget.style.background = gold)}>
-              Take Assessment ⚔
-            </a>
-            <a href="/assessment-board"
-              style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', padding: '11px 28px', background: 'transparent', color: gold, textDecoration: 'none', borderRadius: '3px', textAlign: 'center', border: `1px solid ${border}`, transition: 'border-color 0.2s', whiteSpace: 'nowrap' as const }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
-              View Response Board →
-            </a>
-          </div>
+          <p style={{ fontSize: 15, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Field-tested spiritual warfare intelligence from Staffordtown Church, Copperhill TN.</p>
+        </div>
+        <div className="wri-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          {commanders.map(c => (
+            <TacticalCard key={c.name} brackets style={{ display: 'flex', flexDirection: 'column' as const }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.05))', border: '1px solid var(--gold-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 18, color: G }}>
+                  {c.name.charAt(0)}
+                </div>
+                <ClassBadge level={c.cls} label={c.sub} />
+              </div>
+              <div style={{ fontFamily: cinzel, fontSize: 14, fontWeight: 600, color: 'var(--t-0)', marginBottom: 4 }}>{c.name}</div>
+              <MonoTime size={10} color="var(--t-4)">{c.role}</MonoTime>
+              <div style={{ height: 1, background: 'var(--gold-line)', margin: '14px 0' }} />
+              <p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading, fontStyle: 'italic', flex: 1, margin: 0 }}>{c.bio}</p>
+            </TacticalCard>
+          ))}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 32 }}>
+          <p style={{ fontSize: 14, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic', marginBottom: 16 }}>
+            A ministry of <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer" style={{ color: G, textDecoration: 'none' }}>Staffordtown Church</a> · Copperhill, TN
+          </p>
         </div>
       </div>
     </section>
@@ -748,227 +851,115 @@ function AssessmentCTA() {
 function PricingSection() {
   const tiers = [
     {
-      name: 'Watchman',
-      price: '$0',
-      period: 'forever',
-      badge: null,
-      features: [
-        'General community discussion',
-        'Prayer requests board',
-        'Weekly devotional posts',
-        'Demon database — name, type, kingdom, function',
-        'Watchman protocol PDFs',
-      ],
-      locked: [
-        'Full database fields (Coming Soon)',
-        'Scripture & entry points (Coming Soon)',
-        'Deliverance protocols (Coming Soon)',
-        'Ministry calls (Coming Soon)',
-      ],
-      btn: 'Join as Watchman',
-      url: SIGNUP_URL,
-      featured: false,
+      name: 'Watchman', cls: 'IV' as const, price: '$0', period: 'forever', badge: null,
+      features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', 'Demon database — name, type, kingdom, function', 'Watchman protocol PDFs'],
+      locked: ['Full database fields', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
+      btn: 'Join as Watchman', url: SIGNUP_URL, featured: false, isSignup: true,
     },
     {
-      name: 'Soldier',
-      price: '$19',
-      period: '/month',
-      badge: null,
-      features: [
-        'Everything in Watchman',
-        'Full database access — all entries',
-        'Scripture & entry point fields',
-        'Manifestations, Strongman, Rank fields',
-        'Soldier protocol PDFs',
-        'Monthly group prayer call (Coming Soon)',
-      ],
-      locked: [
-        'Commander fields (Coming Soon)',
-        'Bi-weekly calls (Coming Soon)',
-      ],
-      btn: 'Start Free Trial',
-      url: SOLDIER_URL,
-      featured: false,
+      name: 'Soldier', cls: 'III' as const, price: '$19', period: '/month', badge: null,
+      features: ['Everything in Watchman', 'Full database access', 'Scripture & entry point fields', 'Manifestations, Strongman, Rank fields', 'Soldier protocol PDFs', 'Monthly group prayer call'],
+      locked: ['Commander fields', 'Bi-weekly calls'],
+      btn: 'Start Free Trial', url: SOLDIER_URL, featured: false, isSignup: false,
     },
     {
-      name: 'Commander',
-      price: '$39',
-      period: '/month',
-      badge: 'Most Popular',
-      features: [
-        'Everything in Soldier',
-        'All database fields unlocked',
-        'Full protocol PDF library',
-        'Personal assessment response',
-        'Entry Points, Legal Rights, Protocol fields',
-        'Freemasonry protocol PDF',
-        'Bi-weekly group call (Coming Soon)',
-      ],
-      locked: [
-        'Weekly intimate calls (Coming Soon)',
-      ],
-      btn: 'Join Commander →',
-      url: COMMANDER_URL,
-      featured: true,
+      name: 'Commander', cls: 'II' as const, price: '$39', period: '/month', badge: 'Most Popular',
+      features: ['Everything in Soldier', 'All database fields unlocked', 'Full protocol PDF library', 'Personal assessment response', 'Entry Points, Legal Rights, Protocol fields', 'Bi-weekly group call'],
+      locked: ['Weekly intimate calls'],
+      btn: 'Join Commander', url: COMMANDER_URL, featured: true, isSignup: false,
     },
     {
-      name: 'General',
-      price: '$97',
-      period: '/month',
-      badge: null,
-      comingSoon: false,
-      features: [
-        'Everything in Commander',
-        'Leadership PDF library',
-        'Weekly intimate group call',
-        'Direct ministry access',
-        'Symptoms, Companion Spirits, Exorcist Notes',
-        'Ministry certification track',
-        'Priority assessment response',
-      ],
+      name: "General's Table", cls: 'I' as const, price: '$97', period: '/month', badge: null,
+      features: ["Everything in Commander", 'Leadership PDF library', 'Weekly intimate group call', 'Direct ministry access', 'Symptoms, Companion Spirits, Exorcist Notes', 'Ministry certification track', 'Priority assessment response'],
       locked: [],
-      btn: "Join General's Table →",
-      url: GENERAL_URL,
-      featured: false,
+      btn: "Join General's Table", url: GENERAL_URL, featured: false, isSignup: false,
     },
   ]
 
   return (
-    <section id="pricing" style={{ padding: '5rem 2rem', background: 'var(--surface)' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Coming soon banner */}
-        <div style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '14px 20px', marginBottom: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span style={{ fontSize: '20px' }}>⚔</span>
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, color: gold, letterSpacing: '0.1em', marginBottom: '4px' }}>THE COMMUNITY IS LIVE</div>
-              <div style={{ fontSize: '14px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>
-                All plans include a 30-day free trial. The Watchman tier requires no card. Join the community at{' '}
-                <a href={SIGNUP_URL} style={{ color: gold, textDecoration: 'none' }}>Join free →</a>
-              </div>
-            </div>
-          </div>
-          <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer"
-            style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', padding: '10px 20px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
-            Login to Community →
-          </a>
+    <section id="pricing" style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginBottom: 32 }}>
+        <SectionLabel>Membership</SectionLabel>
+        <div style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 700, color: 'var(--t-0)', marginTop: 12, marginBottom: 8 }}>
+          Join the <span style={{ color: G }}>War Room</span>
         </div>
-
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Membership</p>
-          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 700, color: text, marginBottom: '12px' }}>
-            Join the <em style={{ color: gold, fontStyle: 'normal' }}>War Room</em>
-          </h2>
-          <p style={{ fontSize: '17px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>Start free. All paid tiers include a 30-day free trial. Charter pricing locked for life for the first 100 members.</p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0', border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
-          {tiers.map((tier, i) => (
-            <div key={tier.name} className="pricing-tier" style={{ padding: '2rem 1.75rem', background: tier.featured ? surface2 : deep, borderRight: i < tiers.length - 1 ? `1px solid ${border}` : 'none', position: 'relative' }}>
-              {tier.badge && (
-                <div style={{ position: 'absolute', top: '-1px', left: '50%', transform: 'translateX(-50%)', background: gold, color: deep, fontFamily: cinzel, fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 14px', borderRadius: '0 0 4px 4px' }}>
-                  {tier.badge}
-                </div>
-              )}
-              {tier.featured && <div style={{ position: 'absolute', inset: 0, border: `2px solid ${gold}`, borderRadius: '0', pointerEvents: 'none' }} />}
-
-              <div style={{ fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.12em', color: gold, marginBottom: '8px' }}>{tier.name}</div>
-              <div style={{ marginBottom: '4px' }}>
-                <span style={{ fontFamily: cinzel, fontSize: '38px', fontWeight: 700, color: text }}>{tier.price}</span>
-                <span style={{ fontSize: '14px', color: muted, marginLeft: '4px' }}>{tier.period}</span>
-              </div>
-              <p style={{ fontSize: '12px', color: gold, fontStyle: 'italic', marginBottom: '20px', fontFamily: crimson }}>
-                {tier.price === '$0' ? 'No card required' : '30 days free to start'}
-              </p>
-
-              <div style={{ height: '1px', background: border, margin: '0 0 16px' }} />
-
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
-                {tier.features.map(f => {
-                  const soon = f.includes(' (Coming Soon)')
-                  const label = soon ? f.replace(' (Coming Soon)', '') : f
-                  return (
-                    <li key={f} style={{ fontSize: '13px', color: soon ? muted : textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px' }}>
-                      <span style={{ color: soon ? muted : gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>
-                      <span>
-                        {label}
-                        {soon && <span style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.08em', color: gold, border: `1px solid ${borderBright}`, padding: '1px 6px', borderRadius: '10px', whiteSpace: 'nowrap' as const, marginLeft: '6px', verticalAlign: 'middle', opacity: 0.8 }}>Soon</span>}
-                      </span>
-                    </li>
-                  )
-                })}
-                {tier.locked.map(f => {
-                  const soon = f.includes(' (Coming Soon)')
-                  const label = soon ? f.replace(' (Coming Soon)', '') : f
-                  return (
-                    <li key={f} style={{ fontSize: '13px', color: muted, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.8, paddingBottom: '4px', opacity: 0.4 }}>
-                      <span style={{ fontSize: '8px', flexShrink: 0, marginTop: '4px' }}>○</span>
-                      <span>
-                        {label}
-                        {soon && <span style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.08em', color: gold, border: `1px solid ${borderBright}`, padding: '1px 6px', borderRadius: '10px', whiteSpace: 'nowrap' as const, marginLeft: '6px', verticalAlign: 'middle' }}>Soon</span>}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
-
-              {/* Join button */}
-              {tier.comingSoon ? (
-                <div style={{
-                  width: '100%',
-                  padding: '14px',
-                  background: 'rgba(201,168,76,0.08)',
-                  color: 'var(--muted)',
-                  border: '1px solid rgba(201,168,76,0.15)',
-                  borderRadius: '4px',
-                  fontFamily: 'Cinzel, serif',
-                  fontSize: '10px',
-                  letterSpacing: '0.15em',
-                  textAlign: 'center' as const,
-                  cursor: 'default',
-                  boxSizing: 'border-box' as const,
-                }}>COMING SOON</div>
-              ) : tier.name === 'Watchman' ? (
-                <SignUpButton mode="modal">
-                  <button style={{
-                    width: '100%',
-                    padding: '14px',
-                    background: 'transparent',
-                    color: 'var(--gold)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '4px',
-                    fontFamily: 'Cinzel, serif',
-                    fontSize: '11px',
-                    letterSpacing: '0.12em',
-                    cursor: 'pointer',
-                    textTransform: 'uppercase' as const,
-                    boxSizing: 'border-box' as const,
-                  }}>Join as Watchman ⚔</button>
-                </SignUpButton>
-              ) : (
-                <a href={tier.url} target="_blank" rel="noopener noreferrer"
-                  style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', borderRadius: '3px', border: tier.featured ? 'none' : `1px solid ${borderBright}`, background: tier.featured ? gold : 'transparent', color: tier.featured ? deep : gold, textAlign: 'center', boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'all 0.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
-                  {tier.btn} ⚔
-                </a>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: muted, fontFamily: crimson, fontStyle: 'italic' }}>
-          Questions about membership? Email{' '}
-          <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none' }}>exorcist@warroomintel.com</a>
-        </p>
-
-        {/* Charter founding member callout */}
-        <div style={{ marginTop: '32px', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: '6px', padding: '14px 20px', textAlign: 'center', background: 'rgba(201,168,76,0.04)' }}>
-          <p style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.18em', color: gold, margin: 0 }}>
-            ⚔ Founding Member Rates Available — Charter Soldier $9/mo · Charter Commander $20/mo · First 100 Only
-          </p>
-        </div>
+        <p style={{ fontSize: 15, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Start free. All paid tiers include a 30-day free trial. Charter pricing locked for life for the first 100 members.</p>
       </div>
+
+      {/* Live banner */}
+      <TacticalCard style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12, marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <HUDChip active>⚔ COMMUNITY LIVE</HUDChip>
+          <span style={{ fontSize: 13, color: 'var(--t-2)', fontFamily: reading, fontStyle: 'italic' }}>
+            All plans include a 30-day free trial. Watchman requires no card.
+          </span>
+        </div>
+        <a href={COMMUNITY_URL}
+          style={{ fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', padding: '8px 18px', background: GOLD, color: '#1a1305', textDecoration: 'none', borderRadius: 2 }}>
+          Enter Community →
+        </a>
+      </TacticalCard>
+
+      <div className="wri-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        {tiers.map(tier => (
+          <TacticalCard key={tier.name} brackets={tier.featured} glow={tier.featured} style={{ display: 'flex', flexDirection: 'column' as const, position: 'relative', border: tier.featured ? '1px solid var(--gold-line-hi)' : undefined }}>
+            {tier.badge && (
+              <div style={{ position: 'absolute', top: -1, left: '50%', transform: 'translateX(-50%)', background: GOLD, color: '#1a1305', fontFamily: cinzel, fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', padding: '3px 12px', borderRadius: '0 0 3px 3px', whiteSpace: 'nowrap' as const }}>
+                {tier.badge}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', color: G }}>{tier.name}</span>
+              <ClassBadge level={tier.cls} label={tier.cls === 'IV' ? 'FREE' : tier.cls === 'III' ? 'SOLD' : tier.cls === 'II' ? 'CMD' : 'GEN'} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 34, fontWeight: 700, color: 'var(--t-0)' }}>{tier.price}</span>
+              <span style={{ fontSize: 13, color: 'var(--t-4)', marginLeft: 4 }}>{tier.period}</span>
+            </div>
+            <div style={{ height: 1, background: 'var(--gold-line)', marginBottom: 14 }} />
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 14px', display: 'flex', flexDirection: 'column' as const, gap: 7, flex: 1 }}>
+              {tier.features.map(f => {
+                return (
+                  <li key={f} style={{ fontSize: 12, color: 'var(--t-2)', display: 'flex', gap: 7, alignItems: 'flex-start', lineHeight: 1.7 }}>
+                    <span style={{ color: G, fontSize: 7, flexShrink: 0, marginTop: 5 }}>✦</span>
+                    <span>{f.replace(' (Coming Soon)', '')}</span>
+                  </li>
+                )
+              })}
+              {tier.locked.map(f => (
+                <li key={f} style={{ fontSize: 12, color: 'var(--t-4)', display: 'flex', gap: 7, alignItems: 'flex-start', lineHeight: 1.7, opacity: 0.4 }}>
+                  <span style={{ fontSize: 7, flexShrink: 0, marginTop: 4 }}>○</span>
+                  <span>{f.replace(' (Coming Soon)', '')}</span>
+                </li>
+              ))}
+            </ul>
+            {tier.isSignup ? (
+              <SignUpButton mode="modal">
+                <button style={{ width: '100%', padding: '11px', background: 'transparent', color: G, border: '1px solid var(--gold-line)', borderRadius: 2, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const, boxSizing: 'border-box' as const }}>
+                  Join as Watchman ⚔
+                </button>
+              </SignUpButton>
+            ) : (
+              <a href={tier.url} target="_blank" rel="noopener noreferrer"
+                style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2, border: tier.featured ? 'none' : '1px solid var(--gold-line-hi)', background: tier.featured ? 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)' : 'transparent', color: tier.featured ? '#1a1305' : G, textAlign: 'center' as const, boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'opacity 0.2s' }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+                {tier.btn} ⚔
+              </a>
+            )}
+          </TacticalCard>
+        ))}
+      </div>
+
+      {/* Charter callout */}
+      <TacticalCard style={{ marginTop: 20, textAlign: 'center' as const }}>
+        <MonoTime size={10} color="var(--gold)">⚔ Founding Member Rates Available · Charter Soldier $9/mo · Charter Commander $20/mo · First 100 Only</MonoTime>
+      </TacticalCard>
+
+      <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'var(--t-4)', fontFamily: reading, fontStyle: 'italic' }}>
+        Questions? Email{' '}
+        <a href="mailto:exorcist@warroomintel.com" style={{ color: G, textDecoration: 'none' }}>exorcist@warroomintel.com</a>
+      </p>
     </section>
   )
 }
@@ -977,200 +968,121 @@ function PricingSection() {
 function FAQSection() {
   const [open, setOpen] = useState<number | null>(null)
   return (
-    <section id="faq" style={{ padding: '5rem 2rem', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ Common Questions</p>
-        <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 700, color: text }}>
-          Questions & <em style={{ color: gold, fontStyle: 'normal' }}>Answers</em>
-        </h2>
+    <section id="faq" style={{ padding: '4rem 2rem', maxWidth: 860, margin: '0 auto' }}>
+      <div style={{ marginBottom: 32, textAlign: 'center' }}>
+        <SectionLabel style={{ justifyContent: 'center' }}>Intel Briefing · FAQ</SectionLabel>
+        <div style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 700, color: 'var(--t-0)', marginTop: 12 }}>
+          Questions &amp; <span style={{ color: G }}>Answers</span>
+        </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
         {FAQ.map((item, i) => (
-          <div key={i} style={{ border: `1px solid ${open === i ? borderBright : border}`, borderRadius: '6px', overflow: 'hidden', transition: 'border-color 0.2s' }}>
+          <TacticalCard key={i} style={{ padding: 0, overflow: 'hidden', border: open === i ? '1px solid var(--gold-line-hi)' : undefined, transition: 'border-color 0.2s' }}>
             <button onClick={() => setOpen(open === i ? null : i)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', gap: '16px', textAlign: 'left' as const }}>
-              <span style={{ fontFamily: cinzel, fontSize: '12px', fontWeight: 600, color: open === i ? gold : text, letterSpacing: '0.04em', lineHeight: 1.4 }}>{item.q}</span>
-              <span style={{ color: gold, fontSize: '20px', opacity: 0.7, flexShrink: 0, transition: 'transform 0.2s', transform: open === i ? 'rotate(45deg)' : 'rotate(0)', display: 'inline-block' }}>+</span>
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', gap: 16, textAlign: 'left' as const }}>
+              <span style={{ fontFamily: cinzel, fontSize: 12, fontWeight: 600, color: open === i ? G : 'var(--t-0)', letterSpacing: '0.03em', lineHeight: 1.4 }}>{item.q}</span>
+              <span style={{ color: G, fontSize: 18, opacity: 0.7, flexShrink: 0, transition: 'transform 0.2s', transform: open === i ? 'rotate(45deg)' : 'rotate(0)', display: 'inline-block' }}>+</span>
             </button>
             {open === i && (
-              <div style={{ padding: '4px 20px 20px', borderTop: `1px solid ${border}` }}>
-                <p style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, fontFamily: crimson, margin: 0 }}>{item.a}</p>
+              <div style={{ padding: '4px 20px 18px', borderTop: '1px solid var(--gold-line)' }}>
+                <p style={{ fontSize: 14, color: 'var(--t-2)', lineHeight: 1.8, fontFamily: reading, margin: 0 }}>{item.a}</p>
               </div>
             )}
-          </div>
+          </TacticalCard>
         ))}
       </div>
     </section>
   )
 }
 
-// ── ABOUT ─────────────────────────────────────────────────
-function AboutSection() {
-  return (
-    <section style={{ padding: '5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
-        <div>
-          <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '12px' }}>✦ About This Ministry</p>
-          <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 38px)', fontWeight: 700, color: text, marginBottom: '20px', lineHeight: 1.15 }}>
-            Built by Ministers,<br /><em style={{ color: gold, fontStyle: 'normal' }}>For Ministers</em>
-          </h2>
-          <p style={{ fontSize: '16px', color: textDim, fontFamily: crimson, fontStyle: 'italic', lineHeight: 1.8, marginBottom: '16px' }}>
-            War Room Intel was born out of frustration with the lack of practical, organized spiritual warfare resources available to ministers on the front lines.
-          </p>
-          <p style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, marginBottom: '20px' }}>
-            We are a ministry of Staffordtown Church in Copperhill, Tennessee. Everything here — the database, the assessment tool, the protocols — was built from real ministry experience. We believe in naming what you're dealing with, commanding it by name, and walking in the freedom Christ purchased.
-          </p>
-          <p style={{ fontSize: '15px', color: textDim, lineHeight: 1.8, marginBottom: '28px' }}>
-            This is not academic theology. This is field-tested spiritual warfare intelligence.
-          </p>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' as const }}>
-            <a href="/assessment" style={{ fontFamily: cinzel, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', padding: '12px 24px', background: gold, color: deep, textDecoration: 'none', borderRadius: '3px', transition: 'background 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
-              onMouseLeave={e => (e.currentTarget.style.background = gold)}>
-              Take Assessment ⚔
-            </a>
-            <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em', padding: '12px 24px', background: 'transparent', color: gold, textDecoration: 'none', border: `1px solid ${border}`, borderRadius: '3px', transition: 'border-color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
-              Staffordtown Church →
-            </a>
-            <a href={SIGNUP_URL} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em', padding: '12px 24px', background: 'transparent', color: gold, textDecoration: 'none', border: `1px solid ${border}`, borderRadius: '3px', transition: 'border-color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.45)')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.18)')}>
-              Join the Community →
-            </a>
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          {[
-            { n: 'Growing', l: 'Documented Spirits', sub: 'New entries added regularly' },
-            { n: '7', l: 'Assessment Categories', sub: 'Full intake process' },
-            { n: 'Free', l: 'Ministry Assessment', sub: 'No account needed' },
-            { n: 'Personal', l: 'Ministry Response', sub: 'From our team' },
-          ].map(({ n, l, sub }) => (
-            <div key={l} style={{ background: surface, border: `1px solid ${border}`, borderRadius: '6px', padding: '1.5rem', textAlign: 'center' }}>
-              <div style={{ fontFamily: cinzel, fontSize: 'clamp(24px, 3vw, 34px)', fontWeight: 700, color: gold, marginBottom: '6px' }}>{n}</div>
-              <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', color: text, marginBottom: '4px' }}>{l}</div>
-              <div style={{ fontSize: '12px', color: muted, fontStyle: 'italic', fontFamily: crimson }}>{sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ── FOOTER ────────────────────────────────────────────────
-function Footer() {
+function TacticalFooter() {
   return (
-    <footer style={{ borderTop: `1px solid ${border}`, padding: '3rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' as const }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-            <img src="/logo.png" alt="War Room Intel" style={{ height: '40px', width: '40px', objectFit: 'contain', background: 'transparent' }} />
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: '12px', fontWeight: 600, color: gold, letterSpacing: '0.12em' }}>WAR ROOM INTEL</div>
-              <div style={{ fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.2em', color: muted }}>SPIRITUAL WARFARE</div>
+    <footer style={{ borderTop: '1px solid var(--gold-line)', background: 'var(--bg-0)' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '3rem 2rem' }}>
+        <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <img src="/logo.png" alt="War Room Intel" style={{ height: 36, width: 36, objectFit: 'contain' }} />
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 11, fontWeight: 600, color: G, letterSpacing: '0.12em' }}>WAR ROOM INTEL</div>
+                <div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.2em', color: 'var(--t-4)' }}>SPIRITUAL WARFARE</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--t-4)', lineHeight: 1.7, maxWidth: 260, fontFamily: reading, fontStyle: 'italic', marginBottom: 10 }}>
+              A spiritual warfare ministry resource. Not a substitute for professional medical or psychological care.
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--t-4)', lineHeight: 1.6 }}>
+              A ministry of <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer" style={{ color: G, textDecoration: 'none' }}>Staffordtown Church</a><br />
+              Copperhill, TN · Tennessee, USA
+            </p>
+          </div>
+          <div>
+            <div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.2em', color: G, marginBottom: 12 }}>MINISTRY TOOLS</div>
+            {[{ label: 'Demon Database', href: '#database' }, { label: 'Take Assessment', href: '/assessment' }, { label: 'Response Board', href: '/assessment-board' }, { label: 'Submit a Demon', href: '/submit-demon' }].map(({ label, href }) => (
+              <div key={label} style={{ marginBottom: 8 }}>
+                <a href={href} style={{ fontSize: 12, color: 'var(--t-4)', textDecoration: 'none', transition: 'color 0.2s', fontFamily: reading }}
+                  onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-4)')}>
+                  {label}
+                </a>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.2em', color: G, marginBottom: 12 }}>MEMBERSHIP</div>
+            {[
+              { label: 'Watchman — Free', url: SIGNUP_URL },
+              { label: 'Soldier — $19/mo', url: SOLDIER_URL },
+              { label: 'Commander — $39/mo', url: COMMANDER_URL },
+              { label: "General — $97/mo", url: GENERAL_URL },
+            ].map(({ label, url }) => (
+              <div key={label} style={{ marginBottom: 8 }}>
+                <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--t-4)', textDecoration: 'none', fontFamily: reading, transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-4)')}>
+                  {label}
+                </a>
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>
+              <a href={COMMUNITY_URL} style={{ fontSize: 10, color: G, textDecoration: 'none', fontFamily: cinzel, letterSpacing: '0.08em' }}>⚔ Community Login →</a>
             </div>
           </div>
-          <p style={{ fontSize: '13px', color: muted, lineHeight: 1.7, maxWidth: '260px', fontFamily: crimson, fontStyle: 'italic', marginBottom: '12px' }}>
-            A spiritual warfare ministry resource. Not a substitute for professional medical or psychological care.
-          </p>
-          <p style={{ fontSize: '12px', color: muted, lineHeight: 1.6 }}>
-            A ministry of <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer" style={{ color: gold, textDecoration: 'none' }}>Staffordtown Church</a><br />
-            Copperhill, TN · Tennessee, USA
-          </p>
-        </div>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Ministry Tools</div>
-          {[
-            { label: 'Demon Database', href: '#database' },
-            { label: 'Take Assessment', href: '/assessment' },
-            { label: 'Response Board', href: '/assessment-board' },
-            { label: 'Submit a Demon', href: '/submit-demon' },
-          ].map(({ label, href }) => (
-            <div key={label} style={{ marginBottom: '8px' }}>
-              <a href={href} style={{ fontSize: '13px', color: muted, textDecoration: 'none', transition: 'color 0.2s', fontFamily: crimson }}
-                onMouseEnter={e => (e.currentTarget.style.color = gold)}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
-                {label}
-              </a>
-            </div>
-          ))}
-        </div>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Membership</div>
-          {[
-            { label: 'Watchman — Free Forever', url: SIGNUP_URL },
-            { label: 'Soldier — $19/month', url: SOLDIER_URL },
-            { label: 'Commander — $39/month', url: COMMANDER_URL },
-            { label: 'General — $97/month', url: GENERAL_URL },
-          ].map(({ label, url }) => (
-            <div key={label} style={{ marginBottom: '8px' }}>
-              <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: muted, textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
-                onMouseEnter={e => (e.currentTarget.style.color = gold)}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
-                {label}
-              </a>
-            </div>
-          ))}
-          <div style={{ marginTop: '8px' }}>
-            <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: gold, textDecoration: 'none', fontFamily: cinzel, letterSpacing: '0.08em' }}>
-              ⚔ Community Login →
-            </a>
-          </div>
-        </div>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Contact</div>
-          <div style={{ marginBottom: '8px' }}>
-            <a href="mailto:exorcist@warroomintel.com" style={{ fontSize: '13px', color: muted, textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = gold)}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
+          <div>
+            <div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.2em', color: G, marginBottom: 12 }}>CONTACT</div>
+            <a href="mailto:exorcist@warroomintel.com" style={{ fontSize: 12, color: 'var(--t-4)', textDecoration: 'none', fontFamily: reading, display: 'block', marginBottom: 8, transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-4)')}>
               exorcist@warroomintel.com
             </a>
-          </div>
-          <div style={{ marginBottom: '8px' }}>
-            <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: muted, textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = gold)}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
+            <a href="https://churchonfire.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--t-4)', textDecoration: 'none', fontFamily: reading, display: 'block', marginBottom: 16, transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-4)')}>
               churchonfire.com
             </a>
-          </div>
-          <div style={{ marginTop: '16px', fontSize: '12px', color: muted, fontFamily: cinzel, letterSpacing: '0.06em' }}>
-            Membership Inquiries:<br />
-            <a href="mailto:exorcist@warroomintel.com" style={{ color: gold, textDecoration: 'none', fontSize: '11px' }}>
-              exorcist@warroomintel.com
-            </a>
-          </div>
-          <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
-            <a href="https://youtube.com/@warroomintel" target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: '13px', color: 'var(--gold)', textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--gold)')}>
-              YouTube
-            </a>
-            <a href="https://facebook.com/warroomintel" target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: '13px', color: 'var(--gold)', textDecoration: 'none', fontFamily: crimson, transition: 'color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--gold)')}>
-              Facebook
-            </a>
+            <div style={{ display: 'flex', gap: 14 }}>
+              {[{ l: 'YouTube', h: 'https://youtube.com/@warroomintel' }, { l: 'Facebook', h: 'https://facebook.com/warroomintel' }].map(({ l, h }) => (
+                <a key={l} href={h} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: G, textDecoration: 'none', fontFamily: reading, transition: 'opacity 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+                  {l}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-      <div style={{ borderTop: `1px solid ${border}`, paddingTop: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '12px' }}>
-        <p style={{ fontSize: '12px', color: muted, fontFamily: cinzel, margin: 0 }}>
-          © {new Date().getFullYear()} War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN
-        </p>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <a href="/terms" style={{ fontSize: '12px', color: gold, textDecoration: 'none', fontFamily: crimson, transition: 'opacity 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>Terms of Service</a>
-          <a href="/privacy" style={{ fontSize: '12px', color: gold, textDecoration: 'none', fontFamily: crimson, transition: 'opacity 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>Privacy Policy</a>
+        <div style={{ borderTop: '1px solid var(--gold-line)', paddingTop: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
+          <MonoTime size={10} color="var(--t-4)">© {new Date().getFullYear()} WAR ROOM INTEL · A MINISTRY OF STAFFORDTOWN CHURCH · COPPERHILL, TN</MonoTime>
+          <div style={{ display: 'flex', gap: 20 }}>
+            {[{ l: 'Terms of Service', h: '/terms' }, { l: 'Privacy Policy', h: '/privacy' }].map(({ l, h }) => (
+              <a key={l} href={h} style={{ fontSize: 11, color: 'var(--t-4)', textDecoration: 'none', fontFamily: reading, transition: 'color 0.2s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-4)')}>
+                {l}
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </footer>
@@ -1180,63 +1092,17 @@ function Footer() {
 // ── PAGE ─────────────────────────────────────────────────
 function WarRoomHome() {
   return (
-    <div>
-      <MobileStyleInjector />
-      <Hero />
-      <Divider label="✦ What's Inside ✦" />
-      <FeaturesSection />
-      <Divider label="✦ The Path to Freedom ✦" />
-      <PathToFreedomSection />
-      <Divider label="✦ The Database ✦" />
+    <div style={{ background: 'var(--bg-0)', minHeight: '100vh' }}>
+      <style>{pageStyles}</style>
+      <TacticalHero />
+      <MissionBriefing />
       <DatabaseSection />
-      <Divider label="✦ Ministry Assessment ✦" />
-      <AssessmentCTA />
-      <Divider label="✦ About ✦" />
-      <AboutSection />
-      <Divider label="✦ Membership ✦" />
+      <FeaturesSection />
+      <IntakeFormSection />
+      <FieldCommandersSection />
       <PricingSection />
-      <Divider label="✦ Questions ✦" />
       <FAQSection />
-      <Footer />
-      <footer style={{
-        borderTop: '1px solid #1e1a0e',
-        padding: '32px 40px',
-        background: '#0a0807',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap' as const,
-        gap: 16,
-      }}>
-        <div style={{ fontFamily: cinzel, fontSize: 10, color: '#3a3020', letterSpacing: '0.1em' }}>
-          © 2026 WAR ROOM INTEL · A MINISTRY OF STAFFORDTOWN CHURCH · COPPERHILL, TN
-        </div>
-        <div style={{ display: 'flex', gap: 24 }}>
-          {[
-            { label: 'TERMS OF SERVICE', href: '/legal/terms' },
-            { label: 'PRIVACY POLICY',   href: '/legal/privacy' },
-            { label: 'CONTACT',          href: 'mailto:exorcist@warroomintel.com' },
-          ].map(({ label, href }) => (
-            <a key={label} href={href}
-              style={{ fontFamily: cinzel, fontSize: 10, color: '#4a3f2f', letterSpacing: '0.08em', textDecoration: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#4a3f2f')}>
-              {label}
-            </a>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          {[
-            { label: 'YOUTUBE',  href: 'https://youtube.com/@warroomintel' },
-            { label: 'FACEBOOK', href: 'https://facebook.com/warroomintel' },
-          ].map(({ label, href }) => (
-            <a key={label} href={href} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: cinzel, fontSize: 10, color: '#3a3020', letterSpacing: '0.08em', textDecoration: 'none' }}>
-              {label}
-            </a>
-          ))}
-        </div>
-      </footer>
+      <TacticalFooter />
     </div>
   )
 }
