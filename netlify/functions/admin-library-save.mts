@@ -84,7 +84,8 @@ export default async function handler(req: Request) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { title, author, notes, spirit_tags, filename, file_size, file_path, ai_generated } = body
+  const { title, author, notes, spirit_tags, filename, file_size, file_path, ai_generated, sourceType } = body
+  const source_type: string = sourceType === 'intelligence' ? 'intelligence' : 'christian'
 
   console.log('[LIBRARY-UPLOAD] Request received', { userId, filename, file_size, file_path })
 
@@ -114,6 +115,7 @@ export default async function handler(req: Request) {
       ai_generated: Boolean(ai_generated),
       active: true,
       spirit_tags: Array.isArray(spirit_tags) ? spirit_tags : [],
+      source_type,
     })
     .select()
     .single()
