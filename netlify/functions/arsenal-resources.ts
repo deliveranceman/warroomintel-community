@@ -83,6 +83,8 @@ export default async function handler(req: Request) {
     .in('tier', allowedTiers)
     .neq('topic', 'ministry-library')
     .or('source_type.is.null,source_type.neq.intelligence')
+    .not('file_path', 'like', 'user_%')
+    .not('tier', 'is', null)
 
   if (searchParam) {
     query = query.or(`title.ilike.%${searchParam}%,description.ilike.%${searchParam}%`)

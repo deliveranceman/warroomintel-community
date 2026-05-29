@@ -516,8 +516,8 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
     const other   = members.find((m: any) => m.user_id !== userId)
     const otherId = other?.user_id || null
     const clerkMatch = dmMembers.find((m: any) => m.id === otherId)
-    const clerkName = clerkMatch ? (`${clerkMatch.firstName || ''} ${clerkMatch.lastName || ''}`).trim() : ''
-    const streamName = (other?.user?.name && !other.user.name.startsWith('user_')) ? other.user.name : ''
+    const clerkName = clerkMatch ? (clerkMatch.firstName || clerkMatch.username || '') : ''
+    const streamName = (other?.user?.name && !other.user.name.startsWith('user_')) ? other.user.name.split(' ')[0] : ''
     const name = clerkName || streamName || (otherId ? otherId.slice(0, 12) : (other ? 'Warrior' : 'Loading...'))
     const avatar  = clerkMatch?.imageUrl || other?.user?.image || ''
     const unread  = channel.unread_count || 0
@@ -552,7 +552,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
           </div>
           <div style={{ flex: 1, overflowY: 'auto' as const }}>
             {dmMembers.filter(m => m.id !== userId).map(member => {
-              const displayName = member.firstName ? `${member.firstName} ${member.lastName || ''}`.trim() : member.username || 'Warrior'
+              const displayName = member.firstName || member.username || 'Warrior'
               const isSelected = member.id === selectedDMUserId
               return (
                 <div key={member.id}
@@ -755,7 +755,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
             />
             <div style={{ maxHeight: 240, overflowY: 'auto' as const }}>
               {dmMembers.filter(m => m.id !== userId && `${m.firstName || ''} ${m.lastName || ''} ${m.username || ''}`.toLowerCase().includes(newDMSearch.toLowerCase())).map(m => {
-                const name = m.firstName ? `${m.firstName} ${m.lastName || ''}`.trim() : m.username || 'Member'
+                const name = m.firstName || m.username || 'Member'
                 return (
                   <div
                     key={m.id}
@@ -845,7 +845,7 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
     const tierColor   = TIER_COLORS[tier] || '#6b6b7a'
     const tierGlow    = TIER_GLOW[tier] || 'transparent'
     const isOwn       = member.id === currentUserId
-    const displayName = member.fullName || (member.firstName ? `${member.firstName} ${member.lastName||''}`.trim() : member.username || 'Warrior')
+    const displayName = member.firstName || member.username || 'Warrior'
     const avatarSize  = large ? 72 : 48
     const initials    = ((member.firstName?.[0]||'') + (member.lastName?.[0]||'')).toUpperCase() || displayName[0]?.toUpperCase() || 'W'
 
@@ -2656,7 +2656,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
               <ClassBadge level="I" label="FIELD REPORT" />
             </div>
             <div style={{ fontSize: 11, color: dm, fontFamily: "'JetBrains Mono', monospace", marginBottom: 8 }}>
-              {report.submitted_by_name}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}
+              {report.submitted_by_name?.split(' ')[0]}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}
             </div>
             <div style={{ fontSize: 13, color: txt, lineHeight: 1.6, fontFamily: "'Crimson Pro', serif" }}>{report.manifestations}</div>
             {report.entry_points && <div style={{ fontSize: 12, color: mut, marginTop: 6 }}>Entry points: {report.entry_points}</div>}
@@ -2852,6 +2852,14 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
       localStorage.setItem('wri-archive-legend-seen', 'true')
     }
   }, [])
+
+  useEffect(() => {
+    const jump = localStorage.getItem('wri_jump_to_spirit')
+    if (jump && demonsProp.length > 0) {
+      const match = demonsProp.find((d: any) => d.name?.toLowerCase() === jump.toLowerCase())
+      if (match) { setSelectedEntry(match); localStorage.removeItem('wri_jump_to_spirit') }
+    }
+  }, [demonsProp])
 
   const CLASS_COLOR: Record<string, string> = {
     Strongman:    '#C9A84C',
@@ -6392,7 +6400,7 @@ function CommunityPage() {
           const timeAgo = mins < 1 ? 'now' : mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           const otherMember = (ch.members || []).find((m: any) => m.user_id !== uid)
           const clerkMatch = members?.find((m: any) => m.id === otherMember?.user_id)
-          const clerkName = (clerkMatch ? `${clerkMatch.firstName||''} ${clerkMatch.lastName||''}`.trim() : '')
+          const clerkName = (clerkMatch ? (clerkMatch.firstName || clerkMatch.username || '') : '')
           const streamName = (otherMember?.user?.name && !otherMember.user.name.startsWith('user_') ? otherMember.user.name : '')
           const clerkUsername = (clerkMatch?.username && !clerkMatch.username.startsWith('user_')) ? clerkMatch.username : ''
           const senderName = clerkName || streamName || clerkUsername || 'Warrior'
@@ -7374,7 +7382,7 @@ function CommunityPage() {
               <div
                 ref={railFlyoutRef}
                 style={{
-                  position: 'fixed', top: 0, right: 48, height: '100vh',
+                  position: 'fixed', top: 60, right: 48, height: 'calc(100vh - 60px)',
                   width: 280, background: 'var(--bg-1)',
                   border: '1px solid var(--gold-line)', borderRight: 'none',
                   borderRadius: '8px 0 0 8px',
@@ -7538,7 +7546,7 @@ function CommunityPage() {
                           const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
                           const tierColor = tierColors[memberTier] || '#6b6b7a'
                           const currentUserId = user?.id || ''
-                          const displayName = (() => { const full = [member.firstName, member.lastName].filter(Boolean).join(' ').trim(); if (full) return full; if (member.username && !member.username.startsWith('user_')) return member.username; return 'Warrior' })()
+                          const displayName = member.firstName || (member.username && !member.username.startsWith('user_') ? member.username : '') || 'Warrior'
                           const presence = memberPresence[member.id]
                           const isOnline = presence?.online === true
                           const lastActive = presence?.lastActive ?? null
@@ -7591,11 +7599,21 @@ function CommunityPage() {
                       <div style={{ marginBottom: 10 }}>
                         <SectionLabel action="VIEW ALL" onAction={() => { setActiveSection('database'); setActiveRailSection(null) }}>New to Intel Archive</SectionLabel>
                       </div>
-                      <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                        <div style={{ fontSize: 28, marginBottom: 12 }}>⚔</div>
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', marginBottom: 6 }}>Spirit Database</div>
-                        <p style={{ fontSize: 12, color: 'var(--t-4)', fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6, marginBottom: 14 }}>Search the full Intel Archive for documented spirits.</p>
-                        <button onClick={() => { setActiveSection('database'); setActiveRailSection(null) }} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '7px 16px', background: 'rgba(201,168,76,0.1)', border: '1px solid var(--gold-line)', borderRadius: 2, color: 'var(--gold)', cursor: 'pointer' }}>Open Archive →</button>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {demons.length === 0 ? (
+                          <div style={{ fontSize: 13, color: 'var(--t-4)', fontStyle: 'italic', fontFamily: crimson }}>No spirits indexed yet</div>
+                        ) : (
+                          [...demons].sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 10).map((d: any) => (
+                            <TacticalCard key={d.id || d.name} padding="8px 10px" onClick={() => {
+                              try { localStorage.setItem('wri_jump_to_spirit', d.name) } catch {}
+                              setActiveSection('database')
+                              setActiveRailSection(null)
+                            }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', marginBottom: 3 }}>{d.name}</div>
+                              {d.hierarchyCategory && <div style={{ fontSize: 10, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{d.hierarchyCategory}</div>}
+                            </TacticalCard>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
