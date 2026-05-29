@@ -5798,7 +5798,8 @@ function AdminPage() {
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
   }, [])
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile]     = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === 'undefined') return true
     return localStorage.getItem('wri-theme') !== 'light'
@@ -5843,94 +5844,144 @@ function AdminPage() {
     )
   }
 
-  const TABS = [
-    { key: 'dashboard',       label: '⚡ Dashboard'    },
-    { key: 'arsenal',         label: 'Arsenal'          },
-    { key: 'intel',           label: 'Intel Archive'    },
-    { key: 'moderation',      label: 'Moderation'       },
-    { key: 'training',        label: 'Training'         },
-    { key: 'field-ministry',  label: 'Field Min.'       },
-    { key: 'documents',       label: 'Documents'        },
-    { key: 'library',         label: 'Min. Library'     },
-    { key: 'spiritual-mapping', label: '📍 Sp. Mapping' },
-    { key: 'lib-intel',   label: '🔬 Lib. Intel'         },
-    { key: 'ai-command',  label: '🤖 AI Command'         },
-    { key: 'enrichment', label: '🔗 Enrichment'         },
-    { key: 'taxonomy',   label: '🔬 Taxonomy'           },
-    { key: 'tracker',        label: '🗂 Tracker'       },
-    { key: 'internal-books', label: '📚 Books'         },
-    { key: 'admin-chat',     label: '💬 Admin Chat'    },
-    { key: 'suggested-edits', label: '🚩 Flags'        },
+  const SIDEBAR_GROUPS = [
+    { label: 'OVERVIEW', items: [
+      { key: 'dashboard', label: '⚡ Dashboard' },
+    ]},
+    { label: 'CONTENT', items: [
+      { key: 'intel',          label: 'Intel Archive'    },
+      { key: 'library',        label: 'Ministry Library' },
+      { key: 'arsenal',        label: 'Arsenal'          },
+      { key: 'documents',      label: 'Documents'        },
+      { key: 'field-ministry', label: 'Field Ministry'   },
+    ]},
+    { label: 'COMMUNITY', items: [
+      { key: 'moderation',  label: 'Moderation'  },
+      { key: 'training',    label: 'Training'    },
+      { key: 'admin-chat',  label: 'Admin Chat'  },
+    ]},
+    { label: 'OPERATIONS', items: [
+      { key: 'spiritual-mapping', label: 'Spiritual Mapping' },
+      { key: 'lib-intel',         label: 'Library Intel'     },
+      { key: 'ai-command',        label: 'AI Command'        },
+      { key: 'taxonomy',          label: 'Taxonomy'          },
+      { key: 'enrichment',        label: 'Enrichment'        },
+    ]},
+    { label: 'SYSTEM', items: [
+      { key: 'tracker',         label: 'Tracker'        },
+      { key: 'internal-books',  label: 'Internal Books' },
+      { key: 'suggested-edits', label: '🚩 Flags'       },
+    ]},
   ] as const
 
+  const sidebarBg  = isDark ? '#0f0e16' : '#FAFAF7'
+  const WIDE_TABS  = new Set(['documents', 'field-ministry', 'taxonomy', 'internal-books'])
+  const maxWidth   = WIDE_TABS.has(tab) ? 1400 : tab === 'admin-chat' ? 1000 : 900
+  const contentPad = tab === 'admin-chat' ? '0' : '28px 28px'
+
   return (
-    <div style={{ minHeight: '100vh', background: contentBg, color: TXT, fontFamily: crimson }}>
-      {isMobile && (
-        <div style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: '12px 16px', margin: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>⚠</span>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: adDim }}>
-            Admin panel is optimized for desktop. Some features may be limited on mobile.
-          </div>
-        </div>
-      )}
-      {/* Header */}
-      <div style={{ background: headerBg, borderBottom: `1px solid ${adBdr}`, padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ minHeight: '100vh', background: contentBg, color: TXT, fontFamily: crimson, display: 'flex', flexDirection: 'column' as const }}>
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, background: headerBg, borderBottom: `1px solid ${adBdr}`, padding: '13px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky' as const, top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(o => !o)}
+              style={{ background: 'none', border: `1px solid ${adBdr}`, borderRadius: 4, width: 30, height: 30, color: adGold, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              ☰
+            </button>
+          )}
           <a href="/community" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: adDim, textDecoration: 'none' }}>← Community</a>
           <span style={{ color: adBdr }}>|</span>
           <span style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.14em', color: adGold }}>⚔ Admin Panel</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: adDim }}>{user?.firstName} {user?.lastName}</span>
-          <button onClick={() => {
-            const next = !isDark
-            setIsDark(next)
-            localStorage.setItem('wri-theme', next ? 'dark' : 'light')
-          }} style={{ background: 'none', border: `1px solid ${adBdr}`, borderRadius: '50%', width: 28, height: 28, color: adGold, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => { const next = !isDark; setIsDark(next); localStorage.setItem('wri-theme', next ? 'dark' : 'light') }}
+            style={{ background: 'none', border: `1px solid ${adBdr}`, borderRadius: '50%', width: 28, height: 28, color: adGold, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {isDark ? '☀' : '🌙'}
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ borderBottom: `1px solid ${adBdr}`, padding: '0 16px', display: 'flex', background: headerBg, overflowX: 'auto' as const, WebkitOverflowScrolling: 'touch' as any, whiteSpace: 'nowrap' as const, scrollbarWidth: 'none' as any }}>
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: '11px 10px', background: 'none', border: 'none',
-              borderBottom: `2px solid ${tab === t.key ? adGold : 'transparent'}`,
-              color: tab === t.key ? adGold : adDim,
-              fontFamily: cinzel, fontSize: 9,
-              letterSpacing: '0.06em', cursor: 'pointer', marginBottom: '-1px',
-              transition: 'all 0.15s', whiteSpace: 'nowrap' as const, flexShrink: 0,
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* ── Body: sidebar + content ────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' as const }}>
 
-      {/* Content */}
-      <div style={{ maxWidth: tab === 'documents' || tab === 'field-ministry' || tab === 'taxonomy' || tab === 'internal-books' ? 1400 : tab === 'admin-chat' ? 1000 : 900, margin: '0 auto', padding: tab === 'admin-chat' ? '0' : '32px 24px' }}>
-        {tab === 'dashboard'      && <DashboardView getToken={getToken} isDark={isDark} setTab={(t: string) => setTab(t as any)} />}
-        {tab === 'arsenal'        && <ArsenalManager getToken={getToken} />}
-        {tab === 'intel'          && <IntelArchive getToken={getToken} isDark={isDark} />}
-        {tab === 'moderation'     && <ModerationPanel getToken={getToken} />}
-        {tab === 'training'       && <TrainingManager getToken={getToken} isDark={isDark} />}
-        {tab === 'field-ministry' && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
-        {tab === 'documents'      && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
-        {tab === 'library'        && <LibraryManager getToken={getToken} isDark={isDark} />}
-        {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
-        {tab === 'lib-intel'        && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
-        {tab === 'ai-command'       && <AICommandManager getToken={getToken} isDark={isDark} />}
-        {tab === 'taxonomy'         && <TaxonomyReview getToken={getToken} isDark={isDark} />}
-        {tab === 'tracker'          && <TrackerView getToken={getToken} isDark={isDark} />}
-        {tab === 'internal-books'   && <InternalBooks getToken={getToken} isDark={isDark} />}
-        {tab === 'admin-chat'       && <AdminChat getToken={getToken} isDark={isDark} />}
-        {tab === 'enrichment'       && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
-        {tab === 'suggested-edits'  && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
+        {/* Mobile overlay backdrop */}
+        {isMobile && sidebarOpen && (
+          <div onClick={() => setSidebarOpen(false)}
+            style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 49 }} />
+        )}
+
+        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+        {(!isMobile || sidebarOpen) && (
+          <div style={{
+            width: 210, flexShrink: 0,
+            background: sidebarBg,
+            borderRight: `1px solid ${adBdr}`,
+            overflowY: 'auto' as const,
+            paddingTop: 16, paddingBottom: 32,
+            ...(isMobile ? { position: 'absolute' as const, top: 0, left: 0, bottom: 0, zIndex: 50, boxShadow: '4px 0 24px rgba(0,0,0,0.45)' } : {}),
+          }}>
+            {SIDEBAR_GROUPS.map(group => (
+              <div key={group.label} style={{ marginBottom: 8 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.45)', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
+                  {group.label}
+                </div>
+                {group.items.map(item => {
+                  const active = tab === item.key
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => { setTab(item.key as any); if (isMobile) setSidebarOpen(false) }}
+                      style={{
+                        width: '100%', textAlign: 'left' as const,
+                        padding: '8px 20px 8px 18px',
+                        background: active ? (isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)') : 'transparent',
+                        border: 'none',
+                        borderLeft: `2px solid ${active ? adGold : 'transparent'}`,
+                        color: active ? adGold : adDim,
+                        fontFamily: cinzel, fontSize: 10,
+                        letterSpacing: '0.06em',
+                        cursor: 'pointer',
+                        transition: 'color 0.12s, background 0.12s',
+                        display: 'block',
+                      }}
+                      onMouseEnter={e => { if (!active) e.currentTarget.style.color = isDark ? 'rgba(201,168,76,0.8)' : '#8B6914' }}
+                      onMouseLeave={e => { if (!active) e.currentTarget.style.color = adDim }}
+                    >
+                      {item.label}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Content ──────────────────────────────────────────────────────── */}
+        <div style={{ flex: 1, overflowY: 'auto' as const, minWidth: 0 }}>
+          <div style={{ maxWidth, margin: '0 auto', padding: contentPad }}>
+            {tab === 'dashboard'         && <DashboardView getToken={getToken} isDark={isDark} setTab={(t: string) => setTab(t as any)} />}
+            {tab === 'arsenal'           && <ArsenalManager getToken={getToken} />}
+            {tab === 'intel'             && <IntelArchive getToken={getToken} isDark={isDark} />}
+            {tab === 'moderation'        && <ModerationPanel getToken={getToken} />}
+            {tab === 'training'          && <TrainingManager getToken={getToken} isDark={isDark} />}
+            {tab === 'field-ministry'    && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
+            {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
+            {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}
+            {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
+            {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
+            {tab === 'ai-command'        && <AICommandManager getToken={getToken} isDark={isDark} />}
+            {tab === 'taxonomy'          && <TaxonomyReview getToken={getToken} isDark={isDark} />}
+            {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
+            {tab === 'internal-books'    && <InternalBooks getToken={getToken} isDark={isDark} />}
+            {tab === 'admin-chat'        && <AdminChat getToken={getToken} isDark={isDark} />}
+            {tab === 'enrichment'        && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
+            {tab === 'suggested-edits'   && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
+          </div>
+        </div>
+
       </div>
     </div>
   )
