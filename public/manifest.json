@@ -1,39 +1,36 @@
 {
   "name": "War Room Intel",
   "short_name": "WRI",
-  "description": "Intelligence for the Fight — Deliverance Ministry Training Platform",
-  "start_url": "/",
+  "description": "Intelligence for the Fight — Deliverance Ministry Platform",
+  "start_url": "/community",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#08060e",
   "theme_color": "#0d0b14",
   "icons": [
-    {
-      "src": "/favicon-32.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "apple touch icon"
-    },
-    {
-      "src": "/favicon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any"
-    }
+    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "apple touch icon" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "categories": ["productivity", "lifestyle"],
   "lang": "en-US",
-  "dir": "ltr"
+  "dir": "ltr",
+  "shortcuts": [
+    {
+      "name": "Intel Archive",
+      "url": "/community",
+      "description": "Search the spirit database"
+    },
+    {
+      "name": "Session Center",
+      "url": "/community?section=session-center",
+      "description": "Launch a ministry session"
+    },
+    {
+      "name": "Scripture",
+      "url": "/community/scripture",
+      "description": "Dake annotated Bible"
+    }
+  ]
 }
