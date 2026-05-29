@@ -15,8 +15,8 @@ const muted = 'var(--muted)'
 const cinzel = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 
-const TIER_NUM: Record<string, number> = {
-  free: 1, watchman: 1, soldier: 2, commander: 3, general: 4, minister: 4,
+const TIER_ORDER: Record<string, number> = {
+  Watchman: 1, Free: 1, Soldier: 2, Commander: 3, General: 4, Minister: 4,
 }
 
 function useIsMobile() {
@@ -45,13 +45,13 @@ export function Header() {
   const dropdownRef = useRef<HTMLLIElement>(null)
   const isMobile = useIsMobile()
 
-  // Exact pattern from community.tsx lines 5805-5806 + 5973
+  // community.tsx lines 5805-5806 + 5973 + MembersView TIER_ORDER (line 806)
   const { isLoaded } = useAuth()
   const { user } = useUser()
   const tier    = (user?.publicMetadata?.tier as string) || 'Watchman'
   const tierNum = (user?.publicMetadata?.role as string) === 'minister'
     ? 4
-    : (TIER_NUM[tier.toLowerCase()] ?? 1)
+    : (TIER_ORDER[tier] ?? 1)
 
   // Active path
   const routerState = useRouterState()
