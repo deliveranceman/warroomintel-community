@@ -328,7 +328,7 @@ export function SecureRibbon({ tier = 1, activeOps = 0 }: SecureRibbonProps) {
         · SESSION {h}:{m}:{s}
         {activeOps > 0 && ` · ${activeOps} OPS ACTIVE`}
       </span>
-      <span style={{ color: 'var(--t-4)' }}>{date}</span>
+      <span style={{ color: 'var(--t-4)' }}>· {date}</span>
     </div>
   )
 }
