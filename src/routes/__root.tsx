@@ -93,9 +93,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation()
   const bare = BARE_ROUTES.includes(pathname)
   const communityShell = COMMUNITY_SHELL_ROUTES.includes(pathname) || pathname.startsWith('/community/')
-  const hidePubHeader = pathname === '/community' ||
-    pathname.startsWith('/community/') ||
-    pathname === '/arsenal'
   const [cmdOpen, setCmdOpen] = useState(false)
 
   useEffect(() => {
@@ -124,7 +121,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             'https://www.warroomintel.com',
           ]}
         >
-          {!hidePubHeader && <Header />}
+          {!bare && !communityShell && <Header />}
           {children}
           {!bare && !communityShell && <AIAssistant />}
           <CommandPalette
