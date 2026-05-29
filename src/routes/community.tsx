@@ -4178,6 +4178,8 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
   const txt = isDark ? '#f0e8d8' : '#2D2924'
   const gold = isDark ? G : '#8B6914'
   const { getToken } = useAuth()
+  const { user: fringeUser } = useUser()
+  const fringeTierNum = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[((fringeUser?.publicMetadata?.tier as string)||'watchman').toLowerCase()] ?? 0
 
   const TOPICS = [
     { key: 'ufo-disclosure',   icon: '👽', label: 'UFO Disclosure',    desc: 'Craft sightings, government programs, interdimensional origins', tier: 'free' },
@@ -4309,9 +4311,6 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
       )}
     </div>
   )
-
-  const { user: fringeUser } = useUser()
-  const fringeTierNum = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[((fringeUser?.publicMetadata?.tier as string)||'watchman').toLowerCase()] ?? 0
 
   const openTopics      = TOPICS.filter(t => t.tier === 'free')
   const classifiedTopics = TOPICS.filter(t => t.tier !== 'free')
