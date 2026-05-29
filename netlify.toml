@@ -103,3 +103,6 @@
 
 [functions."intake-request"]
   timeout = 10
+
+[functions."send-email"]
+  timeout = 15

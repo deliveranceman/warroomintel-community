@@ -51,6 +51,22 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Failed to submit request' }), { status: 500, headers: HEADERS })
   }
 
+  // Fire confirmation + admin emails — non-blocking
+  const emailBase = `${new URL(req.url).origin}/api/send-email`
+  const emailBody = { name, phone, issues, duration, received_before, description, contact_method }
+  Promise.all([
+    fetch(emailBase, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'intake-confirmation', to: email.trim().toLowerCase(), name: name.trim(), submissionId: data.id }),
+    }),
+    fetch(emailBase, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'intake-admin', to: email.trim().toLowerCase(), name: name.trim(), submissionId: data.id, details: emailBody }),
+    }),
+  ]).catch(err => console.error('[intake-request] email error:', err))
+
   return new Response(JSON.stringify({ success: true, id: data.id }), { status: 200, headers: HEADERS })
 }
 
