@@ -2026,6 +2026,9 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   const [evtZoomTier, setEvtZoomTier]     = useState('free')
   const [evtPublished, setEvtPublished]   = useState(false)
   const [evtMaxAtt, setEvtMaxAtt]         = useState('')
+  const [evtRecordingUrl, setEvtRecordingUrl] = useState('')
+  const [evtRecurring, setEvtRecurring]       = useState(false)
+  const [evtRecurrenceType, setEvtRecurrenceType] = useState('weekly')
 
   async function loadEvents() {
     setEvtLoading(true)
@@ -2048,11 +2051,15 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
       setEvtZoomTier(evt.zoom_link_tier || 'free')
       setEvtPublished(evt.is_published || false)
       setEvtMaxAtt(evt.max_attendees ? String(evt.max_attendees) : '')
+      setEvtRecordingUrl(evt.recording_url || '')
+      setEvtRecurring(!!evt.recurrence_type)
+      setEvtRecurrenceType(evt.recurrence_type || 'weekly')
     } else {
       setEditingEvt(null)
       setEvtTitle(''); setEvtDesc(''); setEvtDate(''); setEvtDuration('60')
       setEvtType('live_training'); setEvtZoom(''); setEvtZoomTier('free')
       setEvtPublished(false); setEvtMaxAtt('')
+      setEvtRecordingUrl(''); setEvtRecurring(false); setEvtRecurrenceType('weekly')
     }
     setEvtMsg('')
     setShowEvtForm(true)
@@ -2069,6 +2076,8 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
       event_type: evtType, zoom_link: evtZoom.trim() || null,
       zoom_link_tier: evtZoomTier, is_published: evtPublished,
       max_attendees: evtMaxAtt ? parseInt(evtMaxAtt) : null,
+      recording_url: evtRecordingUrl.trim() || null,
+      recurrence_type: evtRecurring ? evtRecurrenceType : null,
     }
     const url  = editingEvt ? `/api/events?id=${editingEvt.id}` : '/api/events'
     const method = editingEvt ? 'PATCH' : 'POST'
@@ -2592,7 +2601,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
               {evts.map(evt => {
                 const evtDate = new Date(evt.event_date)
                 const isPast = evtDate < new Date()
-                const typeColors: Record<string, string> = { live_training: GG, prayer_call: '#7a9e7e', q_and_a: '#8B9DCA', deliverance_workshop: '#b87333' }
+                const typeColors: Record<string, string> = { live_training: GG, prayer_call: '#7a9e7e', q_and_a: '#8B9DCA', deliverance_workshop: '#b87333', group_warfare_prayer: '#9b59b6', generals_table: '#c0392b', youtube_premiere: '#e74c3c' }
                 const tc = typeColors[evt.event_type] || GG
                 return (
                   <div key={evt.id} style={{ background: BG2, border: `1px solid ${BDR2}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '14px 18px', opacity: isPast ? 0.65 : 1 }}>
@@ -2605,7 +2614,9 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                         <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' as const }}>
                           <span style={{ fontFamily: cinzel, fontSize: 9, color: tc, border: `1px solid ${tc}40`, borderRadius: 10, padding: '1px 8px', letterSpacing: '0.06em' }}>{evt.event_type.replace('_', ' ')}</span>
                           <span style={{ fontFamily: cinzel, fontSize: 9, color: evt.is_published ? '#4ade80' : MUT, letterSpacing: '0.06em' }}>{evt.is_published ? '● Published' : '○ Draft'}</span>
-                          {evt.zoom_link && <span style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.06em' }}>🔗 Zoom ({evt.zoom_link_tier}+)</span>}
+                          {evt.zoom_link && <span style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.06em' }}>🔗 Join ({evt.zoom_link_tier}+)</span>}
+                          {evt.recording_url && <span style={{ fontFamily: cinzel, fontSize: 9, color: '#38bdf8', letterSpacing: '0.06em' }}>▶ Recording</span>}
+                          {evt.recurrence_type && <span style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.06em' }}>↻ {evt.recurrence_type}</span>}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -2651,6 +2662,9 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                         <option value="prayer_call">Prayer Call</option>
                         <option value="q_and_a">Q&A Session</option>
                         <option value="deliverance_workshop">Deliverance Workshop</option>
+                        <option value="group_warfare_prayer">Group Warfare Prayer</option>
+                        <option value="generals_table">General's Table</option>
+                        <option value="youtube_premiere">YouTube Premiere</option>
                       </select>
                     </div>
                     <div style={{ flex: 1 }}>
@@ -2659,18 +2673,33 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>ZOOM LINK</label>
-                    <input value={evtZoom} onChange={e => setEvtZoom(e.target.value)} style={{ ...inp2 }} placeholder="https://zoom.us/j/..." />
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>JOIN LINK</label>
+                    <input value={evtZoom} onChange={e => setEvtZoom(e.target.value)} style={{ ...inp2 }} placeholder="https://zoom.us/j/... or YouTube link" />
                   </div>
                   <div>
-                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>ZOOM LINK / MINIMUM TIER</label>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>JOIN LINK / MINIMUM TIER</label>
                     <select value={evtZoomTier} onChange={e => setEvtZoomTier(e.target.value)} style={{ ...inp2 }}>
-                      {['free', 'soldier', 'commander', 'general', 'minister'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                      {['free', 'soldier', 'commander', 'general', 'minister'].map(t => <option key={t} value={t}>{t === 'free' ? 'Watchman' : t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>RECORDING URL</label>
+                    <input value={evtRecordingUrl} onChange={e => setEvtRecordingUrl(e.target.value)} style={{ ...inp2 }} placeholder="https://youtube.com/watch?v=..." />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <input type="checkbox" id="evtPub" checked={evtPublished} onChange={e => setEvtPublished(e.target.checked)} style={{ width: 16, height: 16, accentColor: GG }} />
                     <label htmlFor="evtPub" style={{ fontFamily: cinzel, fontSize: 10, color: TXT2, letterSpacing: '0.06em', cursor: 'pointer' }}>Published (visible to members)</label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input type="checkbox" id="evtRecur" checked={evtRecurring} onChange={e => setEvtRecurring(e.target.checked)} style={{ width: 16, height: 16, accentColor: GG }} />
+                    <label htmlFor="evtRecur" style={{ fontFamily: cinzel, fontSize: 10, color: TXT2, letterSpacing: '0.06em', cursor: 'pointer' }}>Recurring event</label>
+                    {evtRecurring && (
+                      <select value={evtRecurrenceType} onChange={e => setEvtRecurrenceType(e.target.value)} style={{ ...inp2, flex: 1, marginBottom: 0 }}>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    )}
                   </div>
                   {evtMsg && <div style={{ color: '#f87171', fontFamily: crimson, fontSize: 13 }}>{evtMsg}</div>}
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>

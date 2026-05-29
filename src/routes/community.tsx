@@ -4344,9 +4344,13 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   prayer_call: '🙏 Prayer Call',
   q_and_a: '❓ Q&A Session',
   deliverance_workshop: '⚔ Deliverance Workshop',
+  group_warfare_prayer: '🔥 Group Warfare Prayer',
+  generals_table: "🪖 General's Table",
+  youtube_premiere: '▶ YouTube Premiere',
 }
 const EVENT_TYPE_COLORS: Record<string, string> = {
   live_training: '#C9A84C', prayer_call: '#7a9e7e', q_and_a: '#8B9DCA', deliverance_workshop: '#b87333',
+  group_warfare_prayer: '#9b59b6', generals_table: '#c0392b', youtube_premiere: '#e74c3c',
 }
 const TIER_LEVEL_MAP: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
 
@@ -4409,12 +4413,13 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
 
   function EventCard({ event }: { event: any }) {
     const eventDate = new Date(event.event_date)
+    const isPast = eventDate < now
     const typeColor = EVENT_TYPE_COLORS[event.event_type] || G
     const typeLabel = EVENT_TYPE_LABELS[event.event_type] || event.event_type
     const requiredLevel = TIER_LEVEL_MAP[event.zoom_link_tier?.toLowerCase() || 'free'] ?? 0
     const canSeeZoom = userLevel >= requiredLevel
     return (
-      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14, opacity: isPast ? 0.8 : 1 }}>
         <div style={{ background: `${typeColor}12`, borderBottom: `1px solid ${typeColor}30`, padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: typeColor }}>{typeLabel}</span>
           <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>
@@ -4425,21 +4430,29 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
           <div style={{ fontFamily: cinzel, fontSize: 15, color: G, fontWeight: 700, marginBottom: 6 }}>{event.title}</div>
           {event.description && <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65, marginBottom: 12 }}>{event.description}</div>}
           {event.duration_minutes && <div style={{ fontFamily: crimson, fontSize: 12, color: muted, marginBottom: 12 }}>⏱ {event.duration_minutes} minutes{event.max_attendees ? ` · max ${event.max_attendees} attendees` : ''}</div>}
-          {/* Zoom link or gate */}
-          {event.zoom_link && canSeeZoom ? (
-            <a href={event.zoom_link} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none', marginRight: 8 }}>
-              🔗 Join Zoom
-            </a>
-          ) : event.zoom_link_blocked ? (
-            <div style={{ display: 'inline-block', padding: '8px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', marginRight: 8 }}>
-              🔒 Zoom link · Upgrade to {(event.zoom_link_required_tier || 'soldier').toUpperCase()} to access
-            </div>
-          ) : null}
-          <button onClick={() => downloadICS(event)}
-            style={{ display: 'inline-block', padding: '8px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
-            📅 Add to Calendar
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+            {isPast && event.recording_url ? (
+              <a href={event.recording_url} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+                ▶ Watch Recording
+              </a>
+            ) : !isPast && event.zoom_link && canSeeZoom ? (
+              <a href={event.zoom_link} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+                🔗 Join
+              </a>
+            ) : !isPast && event.zoom_link && !canSeeZoom ? (
+              <div style={{ display: 'inline-block', padding: '8px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em' }}>
+                🔒 Join link · {(event.zoom_link_tier || 'soldier').toUpperCase()}+ required
+              </div>
+            ) : null}
+            {!isPast && (
+              <button onClick={() => downloadICS(event)}
+                style={{ display: 'inline-block', padding: '8px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                📅 Add to Calendar
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -5571,12 +5584,6 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
   )
 }
 
-// ── UPCOMING CALLS — update manually here ──
-const UPCOMING_CALLS = [
-  { title: 'Group Warfare Prayer', date: 'Sat Jun 7 · 7pm CT', badge: 'Soldier' },
-  { title: "General's Table",      date: 'Wed Jun 4 · 8pm CT', badge: 'General' },
-]
-
 // ── ONBOARDING ─────────────────────────────────────────────
 function useFirstTime(key: string): [boolean, () => void] {
   const [show, setShow] = useState(() => {
@@ -5817,9 +5824,7 @@ function CommunityPage() {
   })
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
   const [isTablet, setIsTablet]       = useState(() => window.innerWidth >= 768 && window.innerWidth < 1100)
-  const [railOpen, setRailOpen]       = useState(() => {
-    try { return localStorage.getItem('wri-rail-open') !== 'false' } catch { return true }
-  })
+  const [activeRailSection, setActiveRailSection] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
@@ -6016,11 +6021,14 @@ function CommunityPage() {
   const [pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
   const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
   const warriorHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const railFlyoutRef   = useRef<HTMLDivElement>(null)
+  const railStripRef    = useRef<HTMLDivElement>(null)
   const showWarriorCard = (id: string) => { clearTimeout(warriorHoverTimer.current!); setHoveredWarrior(id) }
   const hideWarriorCard = () => { warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 150) }
   const [recentMessages, setRecentMessages] = useState<Array<{
     id: string; senderName: string; text: string; timeAgo: string
   }>>([])
+  const [railEvents, setRailEvents] = useState<any[]>([])
 
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -6219,6 +6227,21 @@ function CommunityPage() {
   }, [])
 
   useEffect(() => {
+    if (!activeRailSection) return
+    function handleOutsideClick(e: MouseEvent) {
+      const target = e.target as Node
+      if (
+        railFlyoutRef.current && !railFlyoutRef.current.contains(target) &&
+        railStripRef.current  && !railStripRef.current.contains(target)
+      ) {
+        setActiveRailSection(null)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [activeRailSection])
+
+  useEffect(() => {
     if (!user?.id) return
     const t = setTimeout(() => {
       fetch('/api/get-members')
@@ -6311,6 +6334,17 @@ function CommunityPage() {
     const t = setInterval(loadRecentMessages, 20000)
     return () => clearInterval(t)
   }, [streamToken, apiKey, user?.id])
+
+  useEffect(() => {
+    async function loadRailEvents() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/events', token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        if (res.ok) { const d = await res.json(); setRailEvents(d.events || []) }
+      } catch { /* silent */ }
+    }
+    loadRailEvents()
+  }, [isSignedIn])
 
   async function sendPost() {
     if (!draft.trim() || !streamToken || !apiKey || sending) return
@@ -7155,271 +7189,291 @@ function CommunityPage() {
         />
       )}
 
-      {/* ── RIGHT SIDEBAR — desktop only ── */}
-      {!isMobile && !isTablet && (
-        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden', height: '100vh', flexShrink: 0, width: railOpen ? '280px' : '16px', position: 'relative', transition: 'width 0.2s ease' }}>
-          {/* Toggle strip */}
-          <button
-            onClick={() => {
-              const next = !railOpen
-              setRailOpen(next)
-              try { localStorage.setItem('wri-rail-open', String(next)) } catch {}
-            }}
-            style={{
-              position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
-              width: 16, height: 48,
-              background: 'var(--bg-2)', border: `1px solid var(--gold-line)`,
-              color: 'var(--t-3)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 9, zIndex: 10, padding: 0,
-            }}
-            title={railOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+      {/* ── RIGHT RAIL — Option D: icon strip + flyout panels ── */}
+      {!isMobile && !isTablet && (() => {
+        const onlineCount = Object.values(memberPresence).filter(p => p.online).length + 1
+        const hasPrayers  = prayers.length > 0
+        const hasMessages = unreadDMs > 0
+        const hasOnline   = onlineCount > 1
+
+        const RAIL_ICONS: Array<{ id: string; icon: React.ReactNode; label: string; dot: boolean }> = [
+          { id: 'prayer',   icon: <Heart size={18} strokeWidth={1.6} />,         label: 'Prayer Wall',          dot: hasPrayers },
+          { id: 'messages', icon: <MessageSquare size={18} strokeWidth={1.6} />, label: 'Recent Messages',      dot: hasMessages },
+          { id: 'calls',    icon: <Calendar size={18} strokeWidth={1.6} />,      label: 'Upcoming Calls',       dot: false },
+          { id: 'warriors', icon: <Users size={18} strokeWidth={1.6} />,         label: 'Warriors Online',      dot: hasOnline },
+          { id: 'arsenal',  icon: <Archive size={18} strokeWidth={1.6} />,       label: 'Latest Arsenal Drops', dot: false },
+          { id: 'archive',  icon: <BookOpen size={18} strokeWidth={1.6} />,      label: 'New to Intel Archive', dot: false },
+        ]
+
+        return (
+          <div
+            ref={railStripRef}
+            style={{ width: 48, flexShrink: 0, borderLeft: '1px solid var(--gold-line)', background: 'var(--bg-1)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 2, position: 'relative', zIndex: 50 }}
           >
-            {railOpen ? '▶' : '◀'}
-          </button>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px', display: railOpen ? 'block' : 'none' }}>
+            {RAIL_ICONS.map(({ id, icon, label, dot }) => {
+              const isActive = activeRailSection === id
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveRailSection(isActive ? null : id)}
+                  title={label}
+                  style={{
+                    width: 48, height: 48, border: 'none', cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
+                    color: isActive ? 'var(--gold)' : 'var(--t-3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'relative', flexShrink: 0,
+                    transition: 'background 0.15s, color 0.15s',
+                    borderLeft: isActive ? '2px solid var(--gold)' : '2px solid transparent',
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(201,168,76,0.08)'; e.currentTarget.style.color = 'var(--t-1)' } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t-3)' } }}
+                >
+                  {icon}
+                  {dot && (
+                    <span style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 4px var(--gold)' }} />
+                  )}
+                </button>
+              )
+            })}
 
-            {/* Prayer Wall widget */}
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}` }}>
-                <SectionLabel action="+ ADD" onAction={() => setActiveSection('prayer-wall')}>
-                  Prayer Wall
-                </SectionLabel>
-              </div>
-              <div style={{ padding: '10px 14px 0' }}>
-              {/* Callout — rendered once OUTSIDE the scrollable div, position:fixed */}
-              {hoveredPrayer && (
-                <div style={{
-                  position: 'fixed', right: 300, top: hoverY,
-                  width: 240, background: V.s2,
-                  border: `1px solid rgba(201,168,76,0.45)`,
-                  borderRadius: 10, padding: '14px 16px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-                  zIndex: 9999, pointerEvents: 'none',
-                }}>
-                  <div style={{ position: 'absolute', right: -6, top: 16, width: 10, height: 10, background: V.s2, border: `1px solid rgba(201,168,76,0.45)`, borderLeft: 'none', borderBottom: 'none', transform: 'rotate(45deg)' }} />
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
-                    {(hoveredPrayer.user?.name || 'Warrior').split(' ')[0]}
-                    <span style={{ color: V.mut, fontWeight: 400 }}>{' · '}{(() => {
-                      const diff = Date.now() - new Date(hoveredPrayer.created_at).getTime()
-                      if (diff < 60000) return 'just now'
-                      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
-                      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
-                      return `${Math.floor(diff / 86400000)}d ago`
-                    })()}</span>
-                  </div>
-                  <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.55 }}>
-                    {hoveredPrayer.text.length > 220 ? hoveredPrayer.text.slice(0, 220) + '…' : hoveredPrayer.text}
-                  </div>
-                  <div style={{ marginTop: 8, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    Click to open Prayer Wall →
-                  </div>
+            {/* Flyout panel */}
+            {activeRailSection && (
+              <div
+                ref={railFlyoutRef}
+                style={{
+                  position: 'fixed', top: 0, right: 48, height: '100vh',
+                  width: 280, background: 'var(--bg-1)',
+                  border: '1px solid var(--gold-line)', borderRight: 'none',
+                  borderRadius: '8px 0 0 8px',
+                  boxShadow: '-4px 0 20px rgba(0,0,0,0.4)',
+                  zIndex: 100, display: 'flex', flexDirection: 'column',
+                  animation: 'railFlyoutIn 200ms ease both',
+                }}
+              >
+                {/* Flyout header */}
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--gold-line)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: 'var(--gold)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>
+                    {RAIL_ICONS.find(r => r.id === activeRailSection)?.label}
+                  </span>
+                  <button onClick={() => setActiveRailSection(null)} style={{ background: 'none', border: 'none', color: 'var(--t-4)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px' }}>×</button>
                 </div>
-              )}
 
-              <div style={{ maxHeight: 220, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: `${V.bdr} transparent` } as React.CSSProperties}>
-                {prayers.length === 0 ? (
-                  <div style={{ color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14 }}>
-                    No requests yet
-                  </div>
-                ) : (
-                  [...prayers].reverse().slice(0, 8).map(p => {
-                    const name = (p.user?.name || 'Warrior').split(' ')[0]
-                    const preview = p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text
-                    const timeAgo = (() => {
-                      const diff = Date.now() - new Date(p.created_at).getTime()
-                      if (diff < 60000) return 'just now'
-                      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
-                      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
-                      return `${Math.floor(diff / 86400000)}d ago`
-                    })()
-                    return (
-                      <div
-                        key={p.id}
-                        style={{ marginBottom: 8 }}
-                        onMouseEnter={e => { setHoverY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredPrayer(p) }}
-                        onMouseLeave={() => setHoveredPrayer(null)}
-                      >
-                        <TacticalCard onClick={() => setActiveSection('prayer-wall')} padding={10}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <div style={{ fontFamily: cinzel, fontSize: 12, color: 'var(--t-0)', letterSpacing: '0.06em' }}>{name}</div>
-                            <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
+                {/* Flyout content */}
+                <div style={{ flex: 1, overflowY: 'auto' as const, padding: '12px 14px' }}>
+
+                  {/* ── PRAYER WALL ── */}
+                  {activeRailSection === 'prayer' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel action="+ ADD" onAction={() => { setActiveSection('prayer-wall'); setActiveRailSection(null) }}>
+                          Prayer Wall
+                        </SectionLabel>
+                      </div>
+                      {hoveredPrayer && (
+                        <div style={{ position: 'fixed', right: 336, top: hoverY, width: 240, background: V.s2, border: '1px solid rgba(201,168,76,0.45)', borderRadius: 10, padding: '14px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', zIndex: 9999, pointerEvents: 'none' }}>
+                          <div style={{ position: 'absolute', right: -6, top: 16, width: 10, height: 10, background: V.s2, border: '1px solid rgba(201,168,76,0.45)', borderLeft: 'none', borderBottom: 'none', transform: 'rotate(45deg)' }} />
+                          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
+                            {(hoveredPrayer.user?.name || 'Warrior').split(' ')[0]}
+                            <span style={{ color: V.mut, fontWeight: 400 }}>{' · '}{(() => { const d = Date.now() - new Date(hoveredPrayer.created_at).getTime(); return d < 60000 ? 'just now' : d < 3600000 ? `${Math.floor(d / 60000)}m ago` : d < 86400000 ? `${Math.floor(d / 3600000)}h ago` : `${Math.floor(d / 86400000)}d ago` })()}</span>
                           </div>
-                          <div style={{ fontFamily: 'Georgia, serif', fontSize: 14, color: 'var(--t-1)', lineHeight: 1.6 }}>{preview}</div>
-                        </TacticalCard>
+                          <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.55 }}>{hoveredPrayer.text.length > 220 ? hoveredPrayer.text.slice(0, 220) + '…' : hoveredPrayer.text}</div>
+                          <div style={{ marginTop: 8, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>Click to open Prayer Wall →</div>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                        {prayers.length === 0 ? (
+                          <div style={{ color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14 }}>No requests yet</div>
+                        ) : (
+                          [...prayers].reverse().slice(0, 8).map(p => {
+                            const name = (p.user?.name || 'Warrior').split(' ')[0]
+                            const preview = p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text
+                            const d = Date.now() - new Date(p.created_at).getTime()
+                            const timeAgo = d < 60000 ? 'just now' : d < 3600000 ? `${Math.floor(d / 60000)}m ago` : d < 86400000 ? `${Math.floor(d / 3600000)}h ago` : `${Math.floor(d / 86400000)}d ago`
+                            return (
+                              <div key={p.id} onMouseEnter={e => { setHoverY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredPrayer(p) }} onMouseLeave={() => setHoveredPrayer(null)}>
+                                <TacticalCard onClick={() => { setActiveSection('prayer-wall'); setActiveRailSection(null) }} padding={10}>
+                                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+                                    <div style={{ fontFamily: cinzel, fontSize: 12, color: 'var(--t-0)', letterSpacing: '0.06em' }}>{name}</div>
+                                    <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
+                                  </div>
+                                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 14, color: 'var(--t-1)', lineHeight: 1.6 }}>{preview}</div>
+                                </TacticalCard>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── RECENT MESSAGES ── */}
+                  {activeRailSection === 'messages' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel>Recent Messages</SectionLabel>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {recentMessages.length === 0 ? (
+                          <div style={{ fontSize: 13, color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>No messages yet</div>
+                        ) : (
+                          recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 8).map((msg: any) => (
+                            <TacticalCard key={msg.id} onClick={() => setActiveSection('dms')} padding={10}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <StatusDot kind="info" size={5} />
+                                  <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 130 }}>{msg.senderName}</span>
+                                </div>
+                                <MonoTime size={9} color="var(--t-4)">{msg.timeAgo}</MonoTime>
+                              </div>
+                              <div style={{ fontSize: 13, color: 'var(--t-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{msg.text}</div>
+                            </TacticalCard>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── UPCOMING CALLS ── */}
+                  {activeRailSection === 'calls' && (() => {
+                    const now2 = new Date()
+                    const upcomingEvts = railEvents.filter(e => new Date(e.event_date) >= now2).slice(0, 5)
+                    const recentPast   = railEvents.filter(e => new Date(e.event_date) < now2 && e.recording_url).slice(0, 3)
+                    return (
+                      <div>
+                        <div style={{ marginBottom: 10 }}>
+                          <SectionLabel>Upcoming Calls</SectionLabel>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                          {upcomingEvts.length === 0 && recentPast.length === 0 && (
+                            <div style={{ fontSize: 12, color: 'var(--t-4)', fontStyle: 'italic', fontFamily: crimson }}>No scheduled events</div>
+                          )}
+                          {upcomingEvts.map(ev => {
+                            const d = new Date(ev.event_date)
+                            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                            const t = (ev.zoom_link_tier || 'free')
+                            const badgeLabel = t === 'free' ? 'WATCHMAN' : t.toUpperCase()
+                            const badgeLevel = t === 'general' ? 'I' : t === 'commander' ? 'II' : t === 'soldier' ? 'III' : 'IV'
+                            return (
+                              <TacticalCard key={ev.id} padding="10px 12px">
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4, gap: 6 }}>
+                                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)', flex: 1 }}>{ev.title}</span>
+                                  <ClassBadge level={badgeLevel} label={badgeLabel} />
+                                </div>
+                                <MonoTime color="var(--gold)" size={10}>{dateStr}</MonoTime>
+                              </TacticalCard>
+                            )
+                          })}
+                          {recentPast.length > 0 && (
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--t-4)', letterSpacing: '0.1em', margin: '4px 0 2px' }}>RECORDINGS</div>
+                          )}
+                          {recentPast.map(ev => (
+                            <TacticalCard key={ev.id} padding="10px 12px">
+                              <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)', marginBottom: 6 }}>{ev.title}</div>
+                              <a href={ev.recording_url} target="_blank" rel="noopener noreferrer"
+                                style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--gold)', letterSpacing: '0.06em', textDecoration: 'none' }}>▶ Watch Recording</a>
+                            </TacticalCard>
+                          ))}
+                        </div>
                       </div>
                     )
-                  })
-                )}
-              </div>
-              </div>
-            </div>
+                  })()}
 
-            {/* Recent Messages */}
-            <div style={{ borderBottom: `1px solid ${V.bdr}`, padding: '0 0 8px' }}>
-              <div style={{ padding: '10px 14px 8px' }}>
-                <SectionLabel>Recent Messages</SectionLabel>
-              </div>
-              <div style={{ maxHeight: '200px', overflowY: 'auto' as const }}>
-                {recentMessages.length === 0 ? (
-                  <div style={{ padding: '8px 14px 12px', fontSize: '12px', color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>
-                    No messages yet
-                  </div>
-                ) : (
-                  recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 5).map((msg: any) => (
-                    <div key={msg.id} style={{ padding: '4px 14px', marginBottom: 4 }}>
-                      <TacticalCard onClick={() => setActiveSection('dms')} padding={10}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <StatusDot kind="info" size={5} />
-                            <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '110px' }}>
-                              {msg.senderName}
-                            </span>
-                          </div>
-                          <MonoTime size={9} color="var(--t-4)">{msg.timeAgo}</MonoTime>
+                  {/* ── WARRIORS ONLINE ── */}
+                  {activeRailSection === 'warriors' && (
+                    <div>
+                      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <SectionLabel>Warriors</SectionLabel>
+                        <HUDChip>{onlineCount} online</HUDChip>
+                      </div>
+                      {/* Current user */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden', flexShrink: 0 }}>
+                          {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--t-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                          {msg.text}
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)' }}>{user?.firstName || 'You'}</div>
+                          <ClassBadge level={tier === 'General' ? 'I' : tier === 'Commander' ? 'II' : tier === 'Soldier' ? 'III' : 'IV'} label={tier.toUpperCase()} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}><StatusDot kind="ok" size={4} /></div>
                         </div>
-                      </TacticalCard>
+                      </div>
+                      {/* Other members */}
+                      {[...members.filter(m => m.id !== user?.id)]
+                        .sort((a, b) => new Date(b.lastActiveAt || b.lastSignInAt || 0).getTime() - new Date(a.lastActiveAt || a.lastSignInAt || 0).getTime())
+                        .slice(0, 8)
+                        .map((member, index) => {
+                          const memberTier = member.publicMetadata?.tier || 'Watchman'
+                          const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
+                          const tierColor = tierColors[memberTier] || '#6b6b7a'
+                          const currentUserId = user?.id || ''
+                          const displayName = (() => { const full = [member.firstName, member.lastName].filter(Boolean).join(' ').trim(); if (full) return full; if (member.username && !member.username.startsWith('user_')) return member.username; return 'Warrior' })()
+                          const presence = memberPresence[member.id]
+                          const isOnline = presence?.online === true
+                          const lastActive = presence?.lastActive ?? null
+                          return (
+                            <div key={member.id} style={{ position: 'relative', overflow: 'visible' }} onMouseEnter={() => showWarriorCard(member.id)} onMouseLeave={hideWarriorCard}>
+                              <button onClick={() => setViewingProfile(member)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}>
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
+                                  {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
+                                </div>
+                                <div>
+                                  <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.03em' }}>{displayName}</div>
+                                  <ClassBadge level={memberTier === 'General' ? 'I' : memberTier === 'Commander' ? 'II' : memberTier === 'Soldier' ? 'III' : 'IV'} label={memberTier.toUpperCase()} />
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                                    {isOnline ? <StatusDot kind="ok" size={4} /> : lastActive ? <span style={{ fontSize: 9, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{streamTimeAgo(lastActive)}</span> : null}
+                                  </div>
+                                </div>
+                              </button>
+                              {hoveredWarrior === member.id && member.id !== currentUserId && (
+                                <div onMouseEnter={() => clearTimeout(warriorHoverTimer.current!)} onMouseLeave={hideWarriorCard}
+                                  style={{ position: 'absolute', bottom: index > 1 ? 'calc(100% + 6px)' : 'auto', top: index > 1 ? 'auto' : 'calc(100% + 6px)', right: 0, left: 0, background: '#0f0c07', border: '1px solid #3a3020', borderTop: index > 1 ? '2px solid #C9A84C' : '1px solid #3a3020', borderBottom: index > 1 ? '1px solid #3a3020' : '2px solid #C9A84C', borderRadius: 6, padding: '12px 14px', zIndex: 200, boxShadow: index > 1 ? '0 -8px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)', minWidth: 160 }}>
+                                  <div style={{ fontFamily: cinzel, fontSize: 11, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 10, borderBottom: '1px solid #1e1a0e', paddingBottom: 8 }}>{displayName}</div>
+                                  <button onClick={() => setViewingProfile(member)} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 6, textAlign: 'left' as const }}>👤 PROFILE</button>
+                                  <button onClick={() => { setPendingDMWith(member.id); setActiveSection('dms') }} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'left' as const }}>💬 MESSAGE</button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
+                  )}
 
-            {/* Upcoming Calls */}
-            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${V.bdr}` }}>
-              <div style={{ marginBottom: 12 }}>
-                <SectionLabel>📅 Upcoming Calls</SectionLabel>
-              </div>
-              {UPCOMING_CALLS.map(ev => (
-                <TacticalCard key={ev.title} padding="10px 12px" style={{ marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.04em', color: 'var(--t-0)' }}>{ev.title}</span>
-                    <ClassBadge
-                      level={ev.badge === 'General' ? 'I' : ev.badge === 'Commander' ? 'II' : ev.badge === 'Soldier' ? 'III' : 'IV'}
-                      label={ev.badge.toUpperCase()}
-                    />
-                  </div>
-                  <MonoTime color="var(--gold)" size={10}>{ev.date}</MonoTime>
-                </TacticalCard>
-              ))}
-            </div>
+                  {/* ── ARSENAL DROPS ── */}
+                  {activeRailSection === 'arsenal' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel action="VIEW ALL" onAction={() => { setActiveSection('arsenal'); setActiveRailSection(null) }}>Latest Arsenal Drops</SectionLabel>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                        <div style={{ fontSize: 28, marginBottom: 12 }}>📄</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', marginBottom: 6 }}>Arsenal Library</div>
+                        <p style={{ fontSize: 12, color: 'var(--t-4)', fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6, marginBottom: 14 }}>Browse the full PDF and resource library.</p>
+                        <button onClick={() => { setActiveSection('arsenal'); setActiveRailSection(null) }} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '7px 16px', background: 'rgba(201,168,76,0.1)', border: '1px solid var(--gold-line)', borderRadius: 2, color: 'var(--gold)', cursor: 'pointer' }}>Open Arsenal →</button>
+                      </div>
+                    </div>
+                  )}
 
-            {/* Warriors */}
-            <div style={{ padding: '14px 16px', position: 'relative', overflow: 'visible' }}>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <SectionLabel>Warriors</SectionLabel>
-                  <HUDChip>{Object.values(memberPresence).filter(p => p.online).length + 1} online</HUDChip>
+                  {/* ── INTEL ARCHIVE ── */}
+                  {activeRailSection === 'archive' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel action="VIEW ALL" onAction={() => { setActiveSection('database'); setActiveRailSection(null) }}>New to Intel Archive</SectionLabel>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                        <div style={{ fontSize: 28, marginBottom: 12 }}>⚔</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', marginBottom: 6 }}>Spirit Database</div>
+                        <p style={{ fontSize: 12, color: 'var(--t-4)', fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6, marginBottom: 14 }}>Search the full Intel Archive for documented spirits.</p>
+                        <button onClick={() => { setActiveSection('database'); setActiveRailSection(null) }} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '7px 16px', background: 'rgba(201,168,76,0.1)', border: '1px solid var(--gold-line)', borderRadius: 2, color: 'var(--gold)', cursor: 'pointer' }}>Open Archive →</button>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
-              {/* Current user always shown first */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden' }}>
-                  {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
-                </div>
-                <div>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)' }}>{user?.firstName || 'You'}</div>
-                  <ClassBadge level={tier === 'General' ? 'I' : tier === 'Commander' ? 'II' : tier === 'Soldier' ? 'III' : 'IV'} label={tier.toUpperCase()} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                    <StatusDot kind="ok" size={4} />
-                  </div>
-                </div>
-              </div>
-              {/* Other members — sorted by last active */}
-              {[...members.filter(m => m.id !== user?.id)]
-                .sort((a, b) => {
-                  const aTime = new Date(a.lastActiveAt || a.lastSignInAt || 0).getTime()
-                  const bTime = new Date(b.lastActiveAt || b.lastSignInAt || 0).getTime()
-                  return bTime - aTime
-                })
-                .slice(0, 6)
-                .map((member, index) => {
-                const memberTier = member.publicMetadata?.tier || 'Watchman'
-                const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
-                const tierColor = tierColors[memberTier] || '#6b6b7a'
-                const currentUserId = user?.id || ''
-                const displayName = (() => {
-                  const full = [member.firstName, member.lastName].filter(Boolean).join(' ').trim()
-                  if (full) return full
-                  if (member.username && !member.username.startsWith('user_')) return member.username
-                  return 'Warrior'
-                })()
-                const presence = memberPresence[member.id]
-                const isOnline = presence?.online === true
-                const lastActive = presence?.lastActive ?? null
-                return (
-                  <div
-                    key={member.id}
-                    style={{ position: 'relative', overflow: 'visible' }}
-                    onMouseEnter={() => showWarriorCard(member.id)}
-                    onMouseLeave={hideWarriorCard}
-                  >
-                    <button
-                      onClick={() => setViewingProfile(member)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}
-                    >
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
-                        {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.03em' }}>{displayName}</div>
-                        <ClassBadge level={memberTier === 'General' ? 'I' : memberTier === 'Commander' ? 'II' : memberTier === 'Soldier' ? 'III' : 'IV'} label={memberTier.toUpperCase()} />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                          {isOnline
-                            ? <StatusDot kind="ok" size={4} />
-                            : lastActive ? <span style={{ fontSize: 9, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{streamTimeAgo(lastActive)}</span> : null
-                          }
-                        </div>
-                      </div>
-                    </button>
-                    {hoveredWarrior === member.id && member.id !== currentUserId && (
-                      <div
-                        onMouseEnter={() => clearTimeout(warriorHoverTimer.current!)}
-                        onMouseLeave={hideWarriorCard}
-                        style={{
-                          position: 'absolute',
-                          bottom: index > 1 ? 'calc(100% + 6px)' : 'auto',
-                          top: index > 1 ? 'auto' : 'calc(100% + 6px)',
-                          right: 0,
-                          left: 0,
-                          background: '#0f0c07',
-                          border: '1px solid #3a3020',
-                          borderTop: index > 1 ? '2px solid #C9A84C' : '1px solid #3a3020',
-                          borderBottom: index > 1 ? '1px solid #3a3020' : '2px solid #C9A84C',
-                          borderRadius: 6,
-                          padding: '12px 14px',
-                          zIndex: 200,
-                          boxShadow: index > 1 ? '0 -8px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)',
-                          minWidth: 160,
-                        }}
-                      >
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 10, borderBottom: '1px solid #1e1a0e', paddingBottom: 8 }}>
-                          {displayName}
-                        </div>
-                        <button
-                          onClick={() => setViewingProfile(member)}
-                          onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')}
-                          onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')}
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 6, textAlign: 'left' as const }}
-                        >👤 PROFILE</button>
-                        <button
-                          onClick={() => { setPendingDMWith(member.id); setActiveSection('dms') }}
-                          onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')}
-                          onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')}
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'left' as const }}
-                        >💬 MESSAGE</button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── AI CHATBOT ── */}
       {chatOpen && (
