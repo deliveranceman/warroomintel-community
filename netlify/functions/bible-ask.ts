@@ -1,3 +1,30 @@
+import { createClient } from '@supabase/supabase-js'
+
+function sb() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+}
+
+async function searchLibrary(question: string): Promise<string> {
+  try {
+    const client = sb()
+    const keywords = question.toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length > 4)
+      .slice(0, 5)
+    if (keywords.length === 0) return ''
+    const orFilter = keywords.map(k => `title.ilike.%${k}%,description.ilike.%${k}%`).join(',')
+    const { data } = await client
+      .from('resources')
+      .select('title, description, spirit_tags, author')
+      .or(orFilter)
+      .limit(4)
+    if (!data || data.length === 0) return ''
+    return data.map(r =>
+      `TITLE: ${r.title}${r.author ? ` by ${r.author}` : ''}\n${r.description || ''}\nTags: ${(r.spirit_tags || []).join(', ')}`
+    ).join('\n\n')
+  } catch { return '' }
+}
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -28,6 +55,7 @@ async function callClaude(
   chapter: number,
   verseText: string,
   conversationHistory: Array<{ role: string; content: string }>,
+  libraryContext?: string,
 ): Promise<string> {
   const systemPrompt = `You are a theological scholar with deep knowledge of Finis Jennings Dake's Annotated Reference Bible.
 You answer questions about Scripture passages drawing from:
@@ -42,7 +70,7 @@ When they ask about spirits mentioned, name them specifically and give biblical 
 When referencing Dake's notes, begin with "According to Dake," and present his position clearly.
 Include Scripture citations in the format Book Chapter:Verse whenever applicable.
 Be specific, scholarly, and spiritually practical.
-Keep responses focused — typically 2-4 paragraphs.`
+Keep responses focused — typically 2-4 paragraphs.${libraryContext ? `\n\nRelevant ministry library resources for additional context:\n${libraryContext}` : ''}`
 
   const contextLine = verseText
     ? `Current passage: ${book} ${chapter}\nSelected verse: "${verseText}"`
@@ -87,13 +115,14 @@ export default async function handler(req: Request) {
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS }) }
 
-  const { question = '', book = 'Genesis', chapter = 1, verseText = '', conversationHistory = [] } = body || {}
+  const { question = '', book = 'Genesis', chapter = 1, verseText = '', conversationHistory = [], useLibrary } = body || {}
   if (!question?.trim()) {
     return new Response(JSON.stringify({ error: 'question is required' }), { status: 400, headers: HEADERS })
   }
 
   try {
-    const response = await callClaude(question.trim(), book, Number(chapter), verseText, conversationHistory)
+    const libraryContext = useLibrary !== false ? await searchLibrary(question.trim()) : ''
+    const response = await callClaude(question.trim(), book, Number(chapter), verseText, conversationHistory, libraryContext)
     return new Response(JSON.stringify({ response }), { status: 200, headers: HEADERS })
   } catch (e: any) {
     console.error('[bible-ask] Error:', e.message)

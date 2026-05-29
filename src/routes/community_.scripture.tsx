@@ -43,6 +43,110 @@ const BIBLE_BOOKS = [
 interface Verse { verse: number; text: string }
 interface ConversationMessage { role: 'user' | 'assistant'; content: string }
 
+interface AiPanelProps {
+  conversation: ConversationMessage[]
+  loadingAI: boolean
+  aiError: string | null
+  question: string
+  setQuestion: (q: string) => void
+  useLibrary: boolean
+  setUseLibrary: (v: boolean) => void
+  onSubmit: () => void
+  convEndRef: React.RefObject<HTMLDivElement | null>
+  questionRef: React.RefObject<HTMLTextAreaElement | null>
+}
+
+function AiPanelContent({
+  conversation, loadingAI, aiError,
+  question, setQuestion,
+  useLibrary, setUseLibrary,
+  onSubmit, convEndRef, questionRef,
+}: AiPanelProps) {
+  return (
+    <>
+      {/* Conversation */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+        {conversation.length === 0 && (
+          <div style={{ fontFamily: crimson, fontSize: 15, color: MUT, lineHeight: 1.6, fontStyle: 'italic', marginTop: 8 }}>
+            Select a verse to load Dake's notes, or ask a question about this chapter.
+          </div>
+        )}
+        {conversation.map((msg, i) => (
+          <div key={i} style={{ marginBottom: 16, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            {msg.role === 'user' ? (
+              <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, padding: '8px 14px', maxWidth: '85%' }}>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.5 }}>{msg.content}</div>
+              </div>
+            ) : (
+              <div style={{ border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 16px', maxWidth: '92%' }}>
+                <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>
+                  {msg.content}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        {loadingAI && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: G, animation: 'pulse 1.2s ease-in-out infinite' }} />
+            <span style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em' }}>Analyzing...</span>
+          </div>
+        )}
+        {aiError && (
+          <div style={{ fontFamily: mono, fontSize: 10, color: '#e07070', padding: '8px 12px', background: 'rgba(224,112,112,0.08)', borderRadius: 4, marginTop: 8 }}>
+            {aiError}
+          </div>
+        )}
+        <div ref={convEndRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: '12px 20px 16px', borderTop: `1px solid ${BDR}`, flexShrink: 0 }}>
+        <textarea
+          ref={questionRef}
+          value={question}
+          onChange={e => setQuestion(e.target.value)}
+          rows={2}
+          placeholder="Ask about this passage, a spirit mentioned, Greek/Hebrew meaning, warfare application..."
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit() } }}
+          style={{
+            width: '100%', boxSizing: 'border-box' as const,
+            background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4,
+            color: TXT, fontFamily: crimson, fontSize: 14,
+            padding: '10px 12px', outline: 'none', resize: 'none' as const,
+            lineHeight: 1.5, marginBottom: 8,
+          }}
+        />
+        {/* Library toggle */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={useLibrary}
+            onChange={e => setUseLibrary(e.target.checked)}
+            style={{ accentColor: G, width: 13, height: 13, cursor: 'pointer' }}
+          />
+          <span style={{ fontFamily: mono, fontSize: 10, color: useLibrary ? DIM : MUT, letterSpacing: '0.04em', transition: 'color 0.15s' }}>
+            📚 Include Ministry Library
+          </span>
+        </label>
+        <button
+          onClick={onSubmit}
+          disabled={!question.trim() || loadingAI}
+          style={{
+            width: '100%',
+            background: !question.trim() || loadingAI ? 'rgba(201,168,76,0.25)' : G,
+            color: '#1a1305', border: 'none', borderRadius: 4,
+            fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+            padding: '10px 0', cursor: !question.trim() || loadingAI ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Ask
+        </button>
+      </div>
+    </>
+  )
+}
+
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL  as string | undefined
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
@@ -66,7 +170,9 @@ function ScripturePage() {
   const [aiError,      setAiError]      = useState<string | null>(null)
   const [isMobile,     setIsMobile]     = useState(false)
   const [showAIPanel,  setShowAIPanel]  = useState(false)
-  const convEndRef = useRef<HTMLDivElement>(null)
+  const convEndRef  = useRef<HTMLDivElement>(null)
+  const questionRef = useRef<HTMLTextAreaElement>(null)
+  const [useLibrary, setUseLibrary] = useState(true)
 
   const tier      = ((user?.publicMetadata?.tier as string) || 'watchman').toLowerCase()
   const tierLevel = TIER_LEVELS[tier] ?? 0
@@ -146,6 +252,7 @@ function ScripturePage() {
     if (!question.trim() || loadingAI) return
     const q = question.trim()
     setQuestion('')
+    setTimeout(() => questionRef.current?.focus(), 0)
     setAiError(null)
     const selectedVerseText = selectedVerse
       ? verses.find(v => v.verse === selectedVerse)?.text || ''
@@ -164,6 +271,7 @@ function ScripturePage() {
           chapter,
           verseText: selectedVerseText,
           conversationHistory: conversation,
+          useLibrary,
         }),
       })
       const data = await res.json()
@@ -377,86 +485,24 @@ function ScripturePage() {
   )
 
   // ── RIGHT PANEL — AI chat ────────────────────────────────────────────────────
-  function AiPanelContent() {
-    return (
-      <>
-        {/* Conversation */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-          {conversation.length === 0 && (
-            <div style={{ fontFamily: crimson, fontSize: 15, color: MUT, lineHeight: 1.6, fontStyle: 'italic', marginTop: 8 }}>
-              Select a verse to load Dake's notes, or ask a question about this chapter.
-            </div>
-          )}
-          {conversation.map((msg, i) => (
-            <div key={i} style={{ marginBottom: 16, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              {msg.role === 'user' ? (
-                <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, padding: '8px 14px', maxWidth: '85%' }}>
-                  <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.5 }}>{msg.content}</div>
-                </div>
-              ) : (
-                <div style={{ border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 16px', maxWidth: '92%' }}>
-                  <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>
-                    {msg.content}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          {loadingAI && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: G, animation: 'pulse 1.2s ease-in-out infinite' }} />
-              <span style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em' }}>Analyzing...</span>
-            </div>
-          )}
-          {aiError && (
-            <div style={{ fontFamily: mono, fontSize: 10, color: '#e07070', padding: '8px 12px', background: 'rgba(224,112,112,0.08)', borderRadius: 4, marginTop: 8 }}>
-              {aiError}
-            </div>
-          )}
-          <div ref={convEndRef} />
-        </div>
-
-        {/* Input */}
-        <div style={{ padding: '12px 20px 20px', borderTop: `1px solid ${BDR}`, flexShrink: 0 }}>
-          <textarea
-            value={question}
-            onChange={e => setQuestion(e.target.value)}
-            rows={2}
-            placeholder="Ask about this passage, a spirit mentioned, Greek/Hebrew meaning, warfare application..."
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askDake() } }}
-            style={{
-              width: '100%', boxSizing: 'border-box' as const,
-              background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4,
-              color: TXT, fontFamily: crimson, fontSize: 14,
-              padding: '10px 12px', outline: 'none', resize: 'none' as const,
-              lineHeight: 1.5, marginBottom: 8,
-            }}
-          />
-          <button
-            onClick={askDake}
-            disabled={!question.trim() || loadingAI}
-            style={{
-              width: '100%',
-              background: !question.trim() || loadingAI ? 'rgba(201,168,76,0.25)' : G,
-              color: '#1a1305', border: 'none', borderRadius: 4,
-              fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-              padding: '10px 0', cursor: !question.trim() || loadingAI ? 'not-allowed' : 'pointer',
-            }}
-          >
-            Ask
-          </button>
-        </div>
-      </>
-    )
-  }
-
   const rightPanel = (
     <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column' as const, background: SURF, overflow: 'hidden' }}>
       <div style={{ padding: '20px 24px 12px', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
         <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700, letterSpacing: '0.06em', marginBottom: 2 }}>ASK DAKE</div>
         <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
       </div>
-      <AiPanelContent />
+      <AiPanelContent
+        conversation={conversation}
+        loadingAI={loadingAI}
+        aiError={aiError}
+        question={question}
+        setQuestion={setQuestion}
+        useLibrary={useLibrary}
+        setUseLibrary={setUseLibrary}
+        onSubmit={askDake}
+        convEndRef={convEndRef}
+        questionRef={questionRef}
+      />
     </div>
   )
 
@@ -492,7 +538,18 @@ function ScripturePage() {
                 <X size={20} color={MUT} />
               </button>
             </div>
-            <AiPanelContent />
+            <AiPanelContent
+              conversation={conversation}
+              loadingAI={loadingAI}
+              aiError={aiError}
+              question={question}
+              setQuestion={setQuestion}
+              useLibrary={useLibrary}
+              setUseLibrary={setUseLibrary}
+              onSubmit={askDake}
+              convEndRef={convEndRef}
+              questionRef={questionRef}
+            />
           </div>
         </div>
       )}
