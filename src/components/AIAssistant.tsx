@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '@clerk/tanstack-start'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -10,10 +11,21 @@ export function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [rateLimited, setRateLimited] = useState(false)
+  const { isSignedIn, isLoaded } = useAuth()
 
   async function sendMessage() {
     const text = input.trim()
     if (!text || loading) return
+
+    if (!isSignedIn) {
+      const msgCount = parseInt(sessionStorage.getItem('wri-anon-msgs') || '0')
+      if (msgCount >= 3) {
+        setRateLimited(true)
+        return
+      }
+      sessionStorage.setItem('wri-anon-msgs', String(msgCount + 1))
+    }
 
     const newMessages: Message[] = [...messages, { role: 'user', content: text }]
     setMessages(newMessages)
@@ -160,7 +172,7 @@ export function AIAssistant() {
               gap: '0.75rem',
             }}
           >
-            {messages.length === 0 && (
+            {messages.length === 0 && !rateLimited && (
               <p
                 style={{
                   fontSize: '14px',
@@ -172,6 +184,43 @@ export function AIAssistant() {
               >
                 How can I help you with your ministry today?
               </p>
+            )}
+            {rateLimited && (
+              <div style={{
+                margin: '1rem auto',
+                padding: '1rem',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border-bright)',
+                borderRadius: '8px',
+                textAlign: 'center',
+                maxWidth: '280px',
+              }}>
+                <p style={{
+                  fontSize: '14px',
+                  color: 'var(--text-dim)',
+                  lineHeight: 1.5,
+                  marginBottom: '0.75rem',
+                }}>
+                  Sign up free to continue chatting with the War Room Assistant. No card required.
+                </p>
+                <a
+                  href="/join"
+                  style={{
+                    display: 'inline-block',
+                    padding: '8px 20px',
+                    background: 'var(--gold)',
+                    color: 'var(--deep)',
+                    fontFamily: "'Cinzel', serif",
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    letterSpacing: '0.08em',
+                    textDecoration: 'none',
+                    borderRadius: '4px',
+                  }}
+                >
+                  Join Free
+                </a>
+              </div>
             )}
             {messages.map((msg, i) => (
               <div
@@ -218,7 +267,7 @@ export function AIAssistant() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
               placeholder="Ask a question..."
-              disabled={loading}
+              disabled={loading || rateLimited}
               style={{
                 flex: 1,
                 background: 'var(--deep)',
@@ -233,23 +282,34 @@ export function AIAssistant() {
             />
             <button
               onClick={sendMessage}
-              disabled={loading || !input.trim()}
+              disabled={loading || rateLimited || !input.trim()}
               style={{
-                background: loading || !input.trim() ? 'var(--surface3)' : 'var(--gold)',
-                color: loading || !input.trim() ? 'var(--muted)' : 'var(--deep)',
+                background: loading || rateLimited || !input.trim() ? 'var(--surface3)' : 'var(--gold)',
+                color: loading || rateLimited || !input.trim() ? 'var(--muted)' : 'var(--deep)',
                 border: 'none',
                 borderRadius: '4px',
                 padding: '8px 14px',
                 fontFamily: "'Cinzel', serif",
                 fontSize: '11px',
                 fontWeight: 600,
-                cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+                cursor: loading || rateLimited || !input.trim() ? 'not-allowed' : 'pointer',
                 transition: 'background 0.2s',
               }}
             >
               Send
             </button>
           </div>
+          {isLoaded && !isSignedIn && !rateLimited && (
+            <div style={{
+              padding: '0.35rem 0.75rem 0.5rem',
+              textAlign: 'center',
+              fontSize: '11px',
+              color: 'var(--muted)',
+              borderTop: '1px solid var(--border)',
+            }}>
+              3 free questions · Sign up for unlimited access
+            </div>
+          )}
         </div>
       )}
     </>
