@@ -3,10 +3,18 @@ import { createClient } from '@supabase/supabase-js'
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
-const BUCKET       = process.env.SUPABASE_BUCKET || 'resources'
 const EXPIRY_SECS  = 14400 // 4 hours
 
-const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
+const TIER_ORDER: Record<string, number> = {
+  free: 0, Free: 0,
+  soldier: 1, Soldier: 1,
+  commander: 2, Commander: 2,
+  general: 3, General: 3,
+}
+
+function bucketForPath(filePath: string): string {
+  return filePath.startsWith('user_') ? 'ministry-library' : (process.env.SUPABASE_BUCKET || 'resources')
+}
 
 async function verifyAndGetTier(token: string): Promise<{ userId: string; tier: string } | null> {
   const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
@@ -58,9 +66,10 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: `${resource.tier} tier required` }), { status: 403 })
   }
 
-  // Generate signed URL
+  // Generate signed URL — detect bucket from path format
+  const bucket = bucketForPath(resource.file_path)
   const { data: signed, error: signErr } = await supabase.storage
-    .from(BUCKET)
+    .from(bucket)
     .createSignedUrl(resource.file_path, EXPIRY_SECS)
 
   if (signErr || !signed?.signedUrl) {

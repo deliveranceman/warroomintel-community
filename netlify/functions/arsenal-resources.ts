@@ -93,11 +93,20 @@ export default async function handler(req: Request) {
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
 
-  // Generate signed URLs for download links (bucket is private)
-  const paths = (data || []).filter((r: any) => r.file_path).map((r: any) => r.file_path)
+  // Generate signed URLs for download links — split by bucket (path format determines bucket)
   const signedMap: Record<string, string> = {}
-  if (paths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from('resources').createSignedUrls(paths, 3600)
+  const allPaths = (data || []).filter((r: any) => r.file_path).map((r: any) => r.file_path as string)
+  const libPaths = allPaths.filter(p => p.startsWith('user_'))
+  const resPaths = allPaths.filter(p => !p.startsWith('user_'))
+  const bucketName = process.env.SUPABASE_BUCKET || 'resources'
+  if (resPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from(bucketName).createSignedUrls(resPaths, 3600)
+    for (const su of signedUrls || []) {
+      if (su.signedUrl && su.path) signedMap[su.path] = su.signedUrl
+    }
+  }
+  if (libPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from('ministry-library').createSignedUrls(libPaths, 3600)
     for (const su of signedUrls || []) {
       if (su.signedUrl && su.path) signedMap[su.path] = su.signedUrl
     }

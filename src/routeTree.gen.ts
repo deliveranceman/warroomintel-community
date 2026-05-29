@@ -28,6 +28,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
+import { Route as CommunityScriptureRouteImport } from './routes/community_.scripture'
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
 import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field-ops'
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
@@ -152,6 +153,11 @@ const CommunitySpiritualMappingRoute =
     path: '/community/spiritual-mapping',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CommunityScriptureRoute = CommunityScriptureRouteImport.update({
+  id: '/community_/scripture',
+  path: '/community/scripture',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityForumRoute = CommunityForumRouteImport.update({
   id: '/community_/forum',
   path: '/community/forum',
@@ -333,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
+  '/community/scripture': typeof CommunityScriptureRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -380,6 +387,7 @@ export interface FileRoutesByTo {
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
+  '/community/scripture': typeof CommunityScriptureRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
@@ -429,6 +437,7 @@ export interface FileRoutesById {
   '/community_/field-manual': typeof CommunityFieldManualRoute
   '/community_/field-ops': typeof CommunityFieldOpsRoute
   '/community_/forum': typeof CommunityForumRoute
+  '/community_/scripture': typeof CommunityScriptureRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -479,6 +488,7 @@ export interface FileRouteTypes {
     | '/community/field-manual'
     | '/community/field-ops'
     | '/community/forum'
+    | '/community/scripture'
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
@@ -526,6 +536,7 @@ export interface FileRouteTypes {
     | '/community/field-manual'
     | '/community/field-ops'
     | '/community/forum'
+    | '/community/scripture'
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin'
@@ -574,6 +585,7 @@ export interface FileRouteTypes {
     | '/community_/field-manual'
     | '/community_/field-ops'
     | '/community_/forum'
+    | '/community_/scripture'
     | '/community_/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
@@ -622,6 +634,7 @@ export interface RootRouteChildren {
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
   CommunityFieldOpsRoute: typeof CommunityFieldOpsRoute
   CommunityForumRoute: typeof CommunityForumRoute
+  CommunityScriptureRoute: typeof CommunityScriptureRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
 }
@@ -759,6 +772,13 @@ declare module '@tanstack/react-router' {
       path: '/community/spiritual-mapping'
       fullPath: '/community/spiritual-mapping'
       preLoaderRoute: typeof CommunitySpiritualMappingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/scripture': {
+      id: '/community_/scripture'
+      path: '/community/scripture'
+      fullPath: '/community/scripture'
+      preLoaderRoute: typeof CommunityScriptureRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/forum': {
@@ -1008,6 +1028,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityFieldManualRoute: CommunityFieldManualRoute,
   CommunityFieldOpsRoute: CommunityFieldOpsRoute,
   CommunityForumRoute: CommunityForumRoute,
+  CommunityScriptureRoute: CommunityScriptureRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
 }

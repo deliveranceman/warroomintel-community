@@ -5808,6 +5808,9 @@ function CommunityPage() {
   })
   const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
   const [isTablet, setIsTablet]       = useState(() => window.innerWidth >= 768 && window.innerWidth < 1100)
+  const [railOpen, setRailOpen]       = useState(() => {
+    try { return localStorage.getItem('wri-rail-open') !== 'false' } catch { return true }
+  })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
@@ -7089,8 +7092,27 @@ function CommunityPage() {
 
       {/* ── RIGHT SIDEBAR — desktop only ── */}
       {!isMobile && !isTablet && (
-        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden', height: '100vh', flexShrink: 0, width: '280px', position: 'relative' }}>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', background: isDark ? V.surf : '#ede6db', borderLeft: `1px solid ${V.bdr}`, overflow: 'hidden', height: '100vh', flexShrink: 0, width: railOpen ? '280px' : '16px', position: 'relative', transition: 'width 0.2s ease' }}>
+          {/* Toggle strip */}
+          <button
+            onClick={() => {
+              const next = !railOpen
+              setRailOpen(next)
+              try { localStorage.setItem('wri-rail-open', String(next)) } catch {}
+            }}
+            style={{
+              position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+              width: 16, height: 48,
+              background: 'var(--bg-2)', border: `1px solid var(--gold-line)`,
+              color: 'var(--t-3)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 9, zIndex: 10, padding: 0,
+            }}
+            title={railOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            {railOpen ? '▶' : '◀'}
+          </button>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px', display: railOpen ? 'block' : 'none' }}>
 
             {/* Prayer Wall widget */}
             <div style={{ marginBottom: 24 }}>
