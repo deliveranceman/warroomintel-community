@@ -4997,6 +4997,8 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [bulkAdding, setBulkAdding]     = useState(false)
   const [bulkProgress, setBulkProgress] = useState('')
   const [bulkComplete, setBulkComplete] = useState<{ succeeded: number; failed: number; duplicates: number; total: number; newDbTotal: number } | null>(null)
+  const [existingSpiritNames, setExistingSpiritNames] = useState<Set<string>>(new Set())
+  const [existingSpiritTotal, setExistingSpiritTotal] = useState(0)
 
   // Content query state
   const [cqQuery, setCqQuery] = useState('')
@@ -5008,6 +5010,18 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   // Reindex state
   const [reindexing, setReindexing] = useState(false)
   const [reindexResult, setReindexResult] = useState<string>('')
+
+  async function fetchDemonNames(): Promise<{ names: Set<string>; total: number }> {
+    try {
+      const res = await fetch('/api/taxonomy-spirits')
+      if (!res.ok) return { names: new Set(), total: 0 }
+      const data = await res.json()
+      const names = new Set<string>((data.spirits || []).map((s: any) => String(s.name).toLowerCase().trim()))
+      return { names, total: data.total || names.size }
+    } catch {
+      return { names: new Set(), total: 0 }
+    }
+  }
 
   async function runGapAnalysis() {
     setGapLoading(true)
@@ -5028,9 +5042,18 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       })
       const data = await res.json()
       if (!res.ok) { setGapError(data.error || 'Analysis failed'); return }
-      setGapResults(data.gaps || [])
+
+      // Client-side dedup — fetch fresh Airtable names as belt-and-suspenders
+      const { names, total } = await fetchDemonNames()
+      setExistingSpiritNames(names)
+      setExistingSpiritTotal(total)
+
+      const genuinelyNew = (data.gaps || []).filter((g: any) =>
+        !names.has((g.name || '').toLowerCase().trim())
+      )
+      setGapResults(genuinelyNew)
       setGapSummary(data.summary || '')
-      setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: data.spiritCount || 0, bookCount: data.bookCount || 0 })
+      setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: total, bookCount: data.bookCount || 0 })
     } catch (e: any) { setGapError(e.message) }
     setGapStatus('')
     setGapLoading(false)
@@ -5094,8 +5117,24 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   }
 
   async function handleAddWithAI(gap: any) {
-    setAddingSpirit({ name: gap.name, suggested_kingdom: gap.suggested_kingdom || '', context: gap.description || '', source: gap.source || '', loading: true })
-    const aiData = await fetchSpiritAIData(gap.name)
+    const spiritName = gap.name || ''
+    // Check client-side cache first; re-fetch from Airtable if cache is empty
+    let names = existingSpiritNames
+    if (names.size === 0) {
+      const fresh = await fetchDemonNames()
+      names = fresh.names
+      setExistingSpiritNames(fresh.names)
+      setExistingSpiritTotal(fresh.total)
+    }
+    if (names.has(spiritName.toLowerCase().trim())) {
+      // Mark row as already-in-DB (shows amber badge instead of button)
+      setGapResults(prev => prev.map((r: any) =>
+        (r.name || '') === spiritName ? { ...r, alreadyInDb: true } : r
+      ))
+      return
+    }
+    setAddingSpirit({ name: spiritName, suggested_kingdom: gap.suggested_kingdom || '', context: gap.description || '', source: gap.source || '', loading: true })
+    const aiData = await fetchSpiritAIData(spiritName)
     setAddingSpirit((prev: any) => prev ? {
       ...prev,
       suggested_kingdom: aiData.kingdom || prev.suggested_kingdom,
@@ -5111,10 +5150,20 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   async function handleBulkAddToDb() {
     setBulkAdding(true)
     setBulkComplete(null)
-    const toAdd = selectedGaps.map(i => gapResults[i])
+    setBulkProgress('Checking existing database...')
+
+    // Fetch fresh list to pre-filter before sending anything
+    const { names: freshNames, total: freshTotal } = await fetchDemonNames()
+    setExistingSpiritNames(freshNames)
+    setExistingSpiritTotal(freshTotal)
+
+    const allSelected = selectedGaps.map(i => gapResults[i])
+    const toAdd = allSelected.filter(s => !freshNames.has((s.name || '').toLowerCase().trim()))
+    const preExisting = allSelected.length - toAdd.length
+
     let succeeded  = 0
     let failed     = 0
-    let duplicates = 0
+    let duplicates = preExisting  // start with pre-filtered count
 
     for (let idx = 0; idx < toAdd.length; idx++) {
       const spirit = toAdd[idx]
@@ -5177,8 +5226,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setSelectedGaps([])
     setBulkAdding(false)
     setBulkProgress('')
-    const prevTotal = gapMeta?.spiritCount ?? 0
-    setBulkComplete({ succeeded, failed, duplicates, total: toAdd.length, newDbTotal: prevTotal + succeeded })
+    setBulkComplete({ succeeded, failed, duplicates, total: allSelected.length, newDbTotal: freshTotal + succeeded })
   }
 
   async function confirmAdd(spirit: any) {
@@ -5347,9 +5395,15 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
                         {r.suggested_kingdom && <span>KINGDOM: {r.suggested_kingdom}</span>}
                         {r.confidence && <span>CONFIDENCE: {r.confidence}</span>}
                       </div>
-                      <button onClick={() => handleAddWithAI(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
-                        + Add to DB
-                      </button>
+                      {r.alreadyInDb ? (
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#d97706', background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.4)', borderRadius: 4, padding: '5px 10px', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
+                          Already in DB
+                        </span>
+                      ) : (
+                        <button onClick={() => handleAddWithAI(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
+                          + Add to DB
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
