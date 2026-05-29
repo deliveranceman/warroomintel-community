@@ -47,7 +47,7 @@ const FEATURES = [
   { icon: '📋', title: 'Ministry Assessment Tool', desc: 'A confidential 9-step intake wizard. Submit your situation and receive a personal response from our deliverance team.' },
   { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman: Freemasonry, soul ties, occult doorways, lust, addiction and more.' },
   { icon: '🗣', title: 'Live Ministry Calls', desc: 'Monthly group calls for Soldier members. Bi-weekly Q&A for Commander. Weekly intimate sessions for General members.' },
-  { icon: '✦', title: 'Scripture Arsenal', desc: 'Community-built warfare scripture library organized by battle category: fear, rejection, witchcraft, identity and more.' },
+  { icon: '✦', title: 'Scripture — Special Warfare Edition', desc: "Full KJV Bible with Finis Jennings Dake's complete annotation notes — 20,399 notes across the entire Bible. Ask the AI questions using Dake's commentary, your ministry library, and the Intel Archive as combined context. Expanded warfare commentary coming soon." },
   { icon: '🗡', title: 'Community Submissions', desc: 'Submit new demon entries, suggest corrections, and contribute to the most comprehensive spiritual warfare database available.' },
 ]
 
@@ -227,8 +227,8 @@ function Hero() {
         {/* Stats */}
         <div style={{ display: 'flex', gap: '40px', justifyContent: 'center', marginTop: '52px', paddingTop: '40px', borderTop: `1px solid ${border}`, flexWrap: 'wrap' as const, animation: 'fadeUp 0.8s 0.55s both' }}>
           {[
-            { n: '285+', l: 'Spirits Documented' },
-            { n: 'Free', l: 'Free Watchman Tier' },
+            { n: 'Growing', l: 'Spirit Database' },
+            { n: 'Watchman', l: 'Watchman Tier' },
             { n: 'AI-Powered', l: 'Spirit Diagnostics' },
             { n: 'Live', l: 'Active Community' },
           ].map(({ n, l }) => (
@@ -748,7 +748,7 @@ function AssessmentCTA() {
 function PricingSection() {
   const tiers = [
     {
-      name: 'Free',
+      name: 'Watchman',
       price: '$0',
       period: 'forever',
       badge: null,
@@ -757,7 +757,7 @@ function PricingSection() {
         'Prayer requests board',
         'Weekly devotional posts',
         'Demon database — name, type, kingdom, function',
-        'Free protocol PDFs',
+        'Watchman protocol PDFs',
       ],
       locked: [
         'Full database fields (Coming Soon)',
@@ -765,7 +765,7 @@ function PricingSection() {
         'Deliverance protocols (Coming Soon)',
         'Ministry calls (Coming Soon)',
       ],
-      btn: 'Join Free',
+      btn: 'Join as Watchman',
       url: SIGNUP_URL,
       featured: false,
     },
@@ -775,7 +775,7 @@ function PricingSection() {
       period: '/month',
       badge: null,
       features: [
-        'Everything in Free',
+        'Everything in Watchman',
         'Full database access — all entries',
         'Scripture & entry point fields',
         'Manifestations, Strongman, Rank fields',
@@ -843,7 +843,7 @@ function PricingSection() {
             <div>
               <div style={{ fontFamily: cinzel, fontSize: '11px', fontWeight: 700, color: gold, letterSpacing: '0.1em', marginBottom: '4px' }}>THE COMMUNITY IS LIVE</div>
               <div style={{ fontSize: '14px', color: textDim, fontFamily: crimson, fontStyle: 'italic' }}>
-                All plans include a 30-day free trial. The Free tier requires no card. Join the community at{' '}
+                All plans include a 30-day free trial. The Watchman tier requires no card. Join the community at{' '}
                 <a href={SIGNUP_URL} style={{ color: gold, textDecoration: 'none' }}>Join free →</a>
               </div>
             </div>
@@ -928,7 +928,7 @@ function PricingSection() {
                   cursor: 'default',
                   boxSizing: 'border-box' as const,
                 }}>COMING SOON</div>
-              ) : tier.name === 'Free' ? (
+              ) : tier.name === 'Watchman' ? (
                 <SignUpButton mode="modal">
                   <button style={{
                     width: '100%',
@@ -943,7 +943,7 @@ function PricingSection() {
                     cursor: 'pointer',
                     textTransform: 'uppercase' as const,
                     boxSizing: 'border-box' as const,
-                  }}>Join Free ⚔</button>
+                  }}>Join as Watchman ⚔</button>
                 </SignUpButton>
               ) : (
                 <a href={tier.url} target="_blank" rel="noopener noreferrer"
@@ -1103,7 +1103,7 @@ function Footer() {
         <div>
           <div style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.2em', color: gold, marginBottom: '12px' }}>Membership</div>
           {[
-            { label: 'Free — The Watchman', url: SIGNUP_URL },
+            { label: 'Watchman — Free Forever', url: SIGNUP_URL },
             { label: 'Soldier — $19/month', url: SOLDIER_URL },
             { label: 'Commander — $39/month', url: COMMANDER_URL },
             { label: 'General — $97/month', url: GENERAL_URL },
