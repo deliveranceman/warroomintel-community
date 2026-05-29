@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar } from '@/components/primitives'
+import { FlagButton } from '@/components/FlagButton'
 import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
@@ -3180,8 +3181,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             <div onClick={e => e.stopPropagation()}
               style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto' as const, padding: 28, position: 'relative' }}>
 
-              <button onClick={() => setSelectedEntry(null)}
-                style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
+              <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FlagButton contentType="intel-archive" contentId={String(entry.id || entry.name)} contentTitle={name} />
+                <button onClick={() => setSelectedEntry(null)}
+                  style={{ background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
+              </div>
 
               {/* Name + badges header */}
               <div style={{ marginBottom: 16 }}>
@@ -4227,7 +4231,10 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen }: any) {
         ← Back to {selectedTopic?.label}
       </button>
       <div style={{ maxWidth: 720 }}>
-        <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, letterSpacing: '0.04em', marginBottom: 8 }}>{selectedArticle.title}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: gold, letterSpacing: '0.04em' }}>{selectedArticle.title}</div>
+          <FlagButton contentType="fringe-intelligence" contentId={String(selectedArticle.id)} contentTitle={selectedArticle.title} />
+        </div>
         <div style={{ fontSize: 11, color: muted, fontFamily: crimson, marginBottom: 24 }}>
           {selectedArticle.author_name} · {new Date(selectedArticle.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
         </div>

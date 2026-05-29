@@ -5715,7 +5715,7 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -5782,6 +5782,7 @@ function AdminPage() {
     { key: 'tracker',        label: '🗂 Tracker'       },
     { key: 'internal-books', label: '📚 Books'         },
     { key: 'admin-chat',     label: '💬 Admin Chat'    },
+    { key: 'suggested-edits', label: '🚩 Flags'        },
   ] as const
 
   return (
@@ -5851,6 +5852,7 @@ function AdminPage() {
         {tab === 'internal-books'   && <InternalBooks getToken={getToken} isDark={isDark} />}
         {tab === 'admin-chat'       && <AdminChat getToken={getToken} isDark={isDark} />}
         {tab === 'enrichment'       && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
+        {tab === 'suggested-edits'  && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
       </div>
     </div>
   )
@@ -7080,6 +7082,143 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
           ))}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── SuggestedEditsAdmin ──────────────────────────────────────────────────────
+
+function SuggestedEditsAdmin({ getToken, isDark }: { getToken: () => Promise<string | null>; isDark: boolean }) {
+  const adGold   = isDark ? '#C9A84C' : '#8a6d1e'
+  const adDim    = isDark ? 'rgba(200,190,170,0.55)' : '#6b5e45'
+  const adBdr    = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,109,30,0.25)'
+  const surf     = isDark ? '#13111a' : '#ffffff'
+  const txt      = isDark ? 'rgba(232,224,208,0.9)' : '#2c2416'
+  const cinzel   = "'Cinzel', serif"
+  const crimson  = "'Crimson Text', serif"
+  const mono     = "'JetBrains Mono', monospace"
+
+  const [edits, setEdits]           = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [statusFilter, setStatusFilter] = useState('pending')
+  const [expanded, setExpanded]     = useState<string | null>(null)
+  const [adminNotes, setAdminNotes] = useState<Record<string, string>>({})
+  const [saving, setSaving]         = useState<string | null>(null)
+
+  async function load(status = statusFilter) {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/suggested-edits?status=${status}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) { const d = await res.json(); setEdits(d.edits ?? []) }
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [statusFilter])
+
+  async function updateStatus(id: string, status: string) {
+    setSaving(id)
+    try {
+      const token = await getToken()
+      await fetch('/api/suggested-edits', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, status, admin_notes: adminNotes[id] ?? undefined }),
+      })
+      setEdits(prev => prev.map(e => e.id === id ? { ...e, status, admin_notes: adminNotes[id] ?? e.admin_notes } : e))
+    } catch { /* ignore */ }
+    setSaving(null)
+  }
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending:  'rgba(201,168,76,0.8)',
+    approved: '#5ca85c',
+    rejected: '#a85c5c',
+    resolved: '#5c8ca8',
+  }
+
+  return (
+    <div style={{ color: txt, fontFamily: crimson }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap' as const, gap: 12 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 14, color: adGold, letterSpacing: '0.1em' }}>🚩 Suggested Edits / Flags</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['pending', 'approved', 'rejected', 'resolved', 'all'] as const).map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              style={{ padding: '5px 12px', background: statusFilter === s ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${statusFilter === s ? adGold : adBdr}`, borderRadius: 3, color: statusFilter === s ? adGold : adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ color: adDim, fontFamily: mono, fontSize: 12 }}>Loading...</div>
+      ) : edits.length === 0 ? (
+        <div style={{ background: surf, border: `1px solid ${adBdr}`, borderRadius: 8, padding: '40px 24px', textAlign: 'center' as const, color: adDim, fontFamily: crimson, fontSize: 14 }}>
+          No {statusFilter === 'all' ? '' : statusFilter} submissions.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          {edits.map(edit => (
+            <div key={edit.id} style={{ background: surf, border: `1px solid ${adBdr}`, borderRadius: 6, overflow: 'hidden' }}>
+              <div
+                onClick={() => setExpanded(expanded === edit.id ? null : edit.id)}
+                style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', cursor: 'pointer' }}
+              >
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: adGold, letterSpacing: '0.06em', marginBottom: 2 }}>{edit.content_title || edit.content_id}</div>
+                  <div style={{ fontSize: 12, color: txt, lineHeight: 1.4 }}>{edit.description.slice(0, 100)}{edit.description.length > 100 ? '…' : ''}</div>
+                  <div style={{ fontSize: 10, color: adDim, fontFamily: mono, marginTop: 4 }}>{edit.user_name} · {edit.content_type} · {new Date(edit.created_at).toLocaleDateString()}</div>
+                </div>
+                <span style={{ fontFamily: mono, fontSize: 9, padding: '2px 8px', borderRadius: 3, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: adGold, whiteSpace: 'nowrap' as const }}>{edit.issue_type}</span>
+                <span style={{ fontFamily: mono, fontSize: 9, padding: '2px 8px', borderRadius: 3, border: `1px solid ${STATUS_COLORS[edit.status] || adBdr}55`, color: STATUS_COLORS[edit.status] || adDim, whiteSpace: 'nowrap' as const }}>{edit.status}</span>
+                <span style={{ color: adDim, fontSize: 14 }}>{expanded === edit.id ? '▲' : '▼'}</span>
+              </div>
+
+              {expanded === edit.id && (
+                <div style={{ borderTop: `1px solid ${adBdr}`, padding: '16px 20px', background: isDark ? '#0a0a0d' : '#f0ede8' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: edit.suggestion ? '1fr 1fr' : '1fr', gap: 16, marginBottom: 16 }}>
+                    <div>
+                      <div style={{ fontFamily: mono, fontSize: 9, color: adDim, letterSpacing: '0.08em', marginBottom: 4 }}>DESCRIPTION</div>
+                      <div style={{ fontSize: 13, color: txt, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>{edit.description}</div>
+                    </div>
+                    {edit.suggestion && (
+                      <div>
+                        <div style={{ fontFamily: mono, fontSize: 9, color: adDim, letterSpacing: '0.08em', marginBottom: 4 }}>SUGGESTION</div>
+                        <div style={{ fontSize: 13, color: txt, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>{edit.suggestion}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontFamily: mono, fontSize: 9, color: adDim, letterSpacing: '0.08em', marginBottom: 4 }}>ADMIN NOTES</div>
+                    <textarea
+                      value={adminNotes[edit.id] ?? (edit.admin_notes || '')}
+                      onChange={e => setAdminNotes(prev => ({ ...prev, [edit.id]: e.target.value }))}
+                      placeholder="Add internal notes…"
+                      rows={2}
+                      style={{ width: '100%', padding: '8px 10px', background: isDark ? '#111114' : '#fff', border: `1px solid ${adBdr}`, borderRadius: 3, color: txt, fontFamily: mono, fontSize: 11, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                    {(['approved', 'rejected', 'resolved', 'pending'] as const).map(s => (
+                      <button key={s} onClick={() => updateStatus(edit.id, s)}
+                        disabled={saving === edit.id || edit.status === s}
+                        style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${STATUS_COLORS[s] || adBdr}`, borderRadius: 3, color: STATUS_COLORS[s] || adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: edit.status === s ? 'default' : 'pointer', opacity: edit.status === s ? 0.4 : saving === edit.id ? 0.6 : 1, textTransform: 'uppercase' as const }}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
