@@ -163,6 +163,12 @@ async function extractSpiritsFromText(
   existingDemonNames: string[],
   apiKey: string,
 ): Promise<{ spiritTags: string[]; candidateCount: number; confirmedCount: number; extractionMethod: string; sourceCharCount: number }> {
+  // Try direct AI extraction first — works even for short title/notes snippets
+  const directTags = await directExtractSpirits(fullText, apiKey)
+  if (directTags.length > 0) {
+    return { spiritTags: directTags, candidateCount: directTags.length, confirmedCount: directTags.length, extractionMethod: 'direct-ai', sourceCharCount: fullText.length }
+  }
+
   const scoredMap  = regexExtractCandidates(fullText)
   const candidates = Array.from(scoredMap.entries())
     .sort((a, b) => b[1].score - a[1].score)
@@ -190,6 +196,51 @@ async function extractSpiritsFromText(
   const confirmedUnknown = await validateWithClaude(unknownCandidates, apiKey)
   const finalSpirits     = [...new Set([...knownFound, ...confirmedUnknown])].slice(0, 60)
   return { spiritTags: finalSpirits, candidateCount: candidates.length, confirmedCount: confirmedUnknown.length, extractionMethod: 'regex+ai-validation', sourceCharCount: fullText.length }
+}
+
+// ─── DIRECT AI SPIRIT EXTRACTION ─────────────────────────────────────────────
+
+async function directExtractSpirits(text: string, apiKey: string): Promise<string[]> {
+  const prompt = `Extract ONLY specific named demonic spirits from this text.
+Return a JSON array of spirit names as strings.
+Rules:
+- Only named spirits (Jezebel, Leviathan, Python, Baal, etc.)
+- Never return categories like 'Demons', 'Evil spirits', 'Territorial spirits'
+- Never return concepts like 'Spiritual warfare', 'Deliverance'
+- If no specific named spirits are mentioned, return []
+- Maximum 8 spirits
+Return ONLY the JSON array, nothing else. Example: ["Jezebel","Leviathan"]
+
+Text:
+${text.slice(0, 6000)}`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, messages: [{ role: 'user', content: prompt }] }),
+    })
+    const data = await res.json()
+    const rawText = data.content?.[0]?.text?.trim() || ''
+    console.log('[autofill] raw AI text:', rawText)
+    let spirit_tags: string[] = []
+    try {
+      const cleaned = rawText.replace(/```json|```/g, '').trim()
+      const parsed = JSON.parse(cleaned)
+      if (Array.isArray(parsed)) {
+        spirit_tags = parsed
+          .filter((s: any) => typeof s === 'string' && s.length > 0)
+          .slice(0, 8)
+      }
+    } catch {
+      spirit_tags = []
+    }
+    console.log('[autofill] parsed spirit_tags:', spirit_tags)
+    return spirit_tags
+  } catch (e) {
+    console.error('[autofill] directExtractSpirits failed:', e)
+    return []
+  }
 }
 
 // ─── SPIRIT SECTION EXTRACTOR (context for Claude title call) ─────────────────
@@ -356,7 +407,7 @@ Rules:
     ? extractionResult.spiritTags
     : []  // extraction returned nothing; caller can use their own fallback
 
-  console.log('[library-autofill] parsed — title:', title, 'spirit_tags:', spirit_tags.length)
+  console.log('[library-autofill] final — title:', title, 'spirit_tags:', spirit_tags)
   return new Response(JSON.stringify({
     title, author, notes, topic, spirit_tags,
     _meta: {
