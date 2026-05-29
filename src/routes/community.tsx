@@ -7704,10 +7704,10 @@ function CommunityPage() {
 
       <BottomNav
         tabs={[
-          { id: 'intel',    label: 'Home',    icon: <Home size={20} strokeWidth={1.6} /> },
-          { id: 'database', label: 'Intel',   icon: <FileText size={20} strokeWidth={1.6} /> },
-          { id: 'forum',    label: 'Ops',     icon: <Crosshair size={20} strokeWidth={1.6} /> },
-          { id: 'ai',       label: 'AI',      icon: <Zap size={20} strokeWidth={1.6} /> },
+          { id: 'intel',    label: 'Home',     icon: <Home size={20} strokeWidth={1.6} /> },
+          { id: 'database', label: 'Database', icon: <Library size={20} strokeWidth={1.6} /> },
+          { id: 'forum',    label: 'Ops',      icon: <MessageSquare size={20} strokeWidth={1.6} /> },
+          { id: 'ai',       label: 'AI',       icon: <Zap size={20} strokeWidth={1.6} /> },
         ]}
         activeId={activeSection}
         onTab={(id) => {
