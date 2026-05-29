@@ -57,7 +57,7 @@ export function ClassBadge({ level = 'II', label = 'INTEL' }: ClassBadgeProps) {
       color: c.text, background: c.bg, borderRadius: 2,
     }}>
       <span style={{ width: 4, height: 4, borderRadius: '50%', background: c.text, flexShrink: 0 }} />
-      CLASS-{level} · {label}
+      CLASS-{level} · {label === 'FREE' ? 'WATCHMAN' : label}
     </span>
   )
 }

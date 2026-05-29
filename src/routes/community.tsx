@@ -255,7 +255,7 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
             <div style={{ fontFamily: mc, fontSize: 14, color: '#C9A84C', marginBottom: 3 }}>{firstName} {lastName}</div>
             <div style={{ fontSize: 12, color: dim, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{user?.primaryEmailAddress?.emailAddress}</div>
             <div style={{ fontSize: 10, color: dim, fontFamily: mc, letterSpacing: '0.06em' }}>
-              {((user?.publicMetadata?.tier as string) || 'Free').toUpperCase()} · {(user?.publicMetadata?.role as string) || 'member'}
+              {(t => (t.toLowerCase() === 'free' ? 'Watchman' : t).toUpperCase())((user?.publicMetadata?.tier as string) || 'Watchman')} · {(user?.publicMetadata?.role as string) || 'member'}
             </div>
           </div>
           <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ fontFamily: mc, fontSize: '9px', letterSpacing: '0.08em', color: dim, textDecoration: 'none', borderBottom: `1px solid ${bdr}`, paddingBottom: 1, flexShrink: 0 }}>

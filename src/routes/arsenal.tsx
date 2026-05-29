@@ -90,7 +90,7 @@ function getTierLevel(tier: string) { return TIER_ORDER[tier] ?? 0 }
 
 function normalizeTier(t: string): 'Free' | 'Soldier' | 'Commander' | 'General' {
   const map: Record<string, 'Free' | 'Soldier' | 'Commander' | 'General'> = {
-    free: 'Free', Free: 'Free',
+    free: 'Free', Free: 'Free', watchman: 'Free', Watchman: 'Free',
     soldier: 'Soldier', Soldier: 'Soldier',
     commander: 'Commander', Commander: 'Commander',
     general: 'General', General: 'General',
@@ -199,9 +199,10 @@ function SectionHeader({ tier }: { tier: string }) {
                 tier === 'Soldier'   ? 'Field Protocols' :
                 tier === 'Commander' ? 'Advanced Intelligence' :
                                        'Command-Level Resources'
+  const display = tier === 'Free' ? 'WATCHMAN' : tier.toUpperCase()
   return (
     <SectionLabel style={{ marginBottom: 16 }}>
-      {TIER_ICONS[tier]} {tier.toUpperCase()} — {label}
+      {TIER_ICONS[tier]} {display} — {label}
     </SectionLabel>
   )
 }
@@ -317,7 +318,7 @@ function ArsenalPage() {
     'Prayer': r => ['Prayer', 'Renunciation'].includes(r.category ?? ''),
     'Reference': r => ['Reference', 'Foundational'].includes(r.category ?? ''),
     'Training': r => ['Teaching', 'Ministry'].includes(r.category ?? ''),
-    'Free Only': r => r.tier === 'Free',
+    'Watchman Only': r => r.tier === 'Free',
   }
 
   // Recently Added — first 5 (backend orders by created_at DESC)
@@ -475,7 +476,7 @@ function ArsenalPage() {
               color: active ? 'var(--gold)' : 'var(--t-3)',
               cursor: 'pointer', marginBottom: '-1px', transition: 'all 0.15s',
             }}>
-              {t}
+              {t === 'Free' ? 'Watchman' : t}
               <span style={{
                 marginLeft: '6px', fontSize: '9px',
                 background: active ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
@@ -494,7 +495,7 @@ function ArsenalPage() {
 
         {/* Quick filter chips */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' as const, marginBottom: '20px' }}>
-          {(['All', 'Deliverance', 'Prayer', 'Reference', 'Training', 'Free Only'] as const).map(qf => (
+          {(['All', 'Deliverance', 'Prayer', 'Reference', 'Training', 'Watchman Only'] as const).map(qf => (
             <button
               key={qf}
               onClick={() => setActiveQuickFilter(qf)}

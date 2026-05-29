@@ -308,7 +308,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                           onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, tier: e.target.value } : x))}
                           style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '3px 6px', color: TXT, fontFamily: cinzel, fontSize: 9, outline: 'none' }}
                         >
-                          <option value="free">Free</option>
+                          <option value="free">Watchman</option>
                           <option value="soldier">Soldier</option>
                           <option value="commander">Commander</option>
                           <option value="general">General</option>
@@ -408,7 +408,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                   <div style={{ flex: 1 }}>
                     <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TIER</label>
                     <select value={arsenalEditForm.tier} onChange={e => setArsenalEditForm((f: any) => ({ ...f, tier: e.target.value }))} style={{ width: '100%', background: BG, border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
-                      {['free','soldier','commander','general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                      {['free','soldier','commander','general'].map(t => <option key={t} value={t}>{t === 'free' ? 'Watchman' : t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                     </select>
                   </div>
                   <div style={{ flex: 2 }}>
@@ -2516,7 +2516,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
               <input value={cThumbnail} onChange={e => setCThumbnail(e.target.value)} placeholder="Thumbnail URL (optional)" style={inp2} />
               <div style={{ display: 'flex', gap: 10 }}>
                 <select value={cTier} onChange={e => setCTier(e.target.value)} style={{ ...inp2, flex: 1 }}>
-                  <option value="free">Free</option>
+                  <option value="free">Watchman</option>
                   <option value="soldier">Soldier</option>
                   <option value="commander">Commander</option>
                   <option value="general">General</option>
@@ -4385,7 +4385,7 @@ function DashboardView({ getToken, isDark, setTab }: {
             return (
               <div key={tier} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em' }}>
-                  <span style={{ color: col }}>{tier.toUpperCase()}</span>
+                  <span style={{ color: col }}>{tier === 'free' || tier === 'Free' ? 'WATCHMAN' : tier.toUpperCase()}</span>
                   <span style={{ color: MUT }}>{count} ({pct}%)</span>
                 </div>
                 <div style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)', borderRadius: 3, height: 5 }}>
