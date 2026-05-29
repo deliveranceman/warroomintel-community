@@ -58,6 +58,12 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'resourceId, filePath, and fileType required' }), { status: 400, headers: CORS })
   }
 
+  // Only process PDF files — skip .txt, .docx, and anything else
+  if (!filePath.toLowerCase().endsWith('.pdf')) {
+    console.log(`[library-index] skipping non-PDF: ${filePath}`)
+    return new Response(JSON.stringify({ success: true, skipped: true, reason: 'not a PDF' }), { status: 200, headers: CORS })
+  }
+
   console.log(`[library-index] indexing resource=${resourceId} path=${filePath} type=${fileType}`)
 
   const client = sb()

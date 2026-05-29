@@ -5071,7 +5071,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       let data: any = {}
       try { data = text ? JSON.parse(text) : {} } catch { data = { error: text } }
       if (!res.ok) { setReindexResult(`Error: ${data.error || data.errorMessage || `Request failed ${res.status}`}`); return }
-      setReindexResult(data.message || `Reindex complete: ${data.processed} extracted, ${data.skipped ?? 0} already indexed.`)
+      setReindexResult(data.message || `Reindex complete: ${data.processed} books indexed, ${data.skippedNonPdf ?? 0} skipped (non-PDF), ${data.skipped ?? 0} already indexed${data.errors ? `, ${data.errors} errors` : ''}.`)
     } catch (e: any) { setReindexResult(`Error: ${e.message}`) }
     setReindexing(false)
   }

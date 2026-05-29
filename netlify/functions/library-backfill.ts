@@ -170,9 +170,10 @@ export default async function handler(req: Request) {
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: CORS })
 
   const client = sb()
-  let processed = 0
-  let skipped   = 0
-  let errors    = 0
+  let processed     = 0
+  let skipped       = 0
+  let skippedNonPdf = 0
+  let errors        = 0
   const log: string[] = []
 
   // ── Step 1: Load all existing resources rows ────────────────────────────────
@@ -228,6 +229,11 @@ export default async function handler(req: Request) {
       errors++
       continue
     }
+    if (!row.file_path.toLowerCase().endsWith('.pdf')) {
+      log.push(`skip (non-PDF): ${row.title}`)
+      skippedNonPdf++
+      continue
+    }
 
     console.log(`[BACKFILL] Processing existing row: ${row.title} — ${row.file_path}`)
     try {
@@ -268,6 +274,12 @@ export default async function handler(req: Request) {
   // ── Step 4: Create rows for storage files with no DB record ─────────────────
   for (const filePath of allPaths) {
     if (byPath.has(filePath)) continue  // already handled above
+
+    if (!filePath.toLowerCase().endsWith('.pdf')) {
+      log.push(`skip (non-PDF): ${filePath}`)
+      skippedNonPdf++
+      continue
+    }
 
     console.log(`[BACKFILL] Storage-only file (no DB row): ${filePath}`)
     try {
@@ -315,11 +327,11 @@ export default async function handler(req: Request) {
     }
   }
 
-  const message = `Reindex complete: ${processed} books extracted, ${skipped} already indexed${errors ? `, ${errors} errors` : ''}.`
+  const message = `Reindex complete: ${processed} books indexed, ${skippedNonPdf} skipped (non-PDF), ${skipped} already indexed${errors ? `, ${errors} errors` : ''}.`
   console.log(`[BACKFILL] ${message}`)
 
   return new Response(
-    JSON.stringify({ processed, skipped, errors, message, log }),
+    JSON.stringify({ processed, skipped, skippedNonPdf, errors, message, log }),
     { status: 200, headers: CORS },
   )
 }
