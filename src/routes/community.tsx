@@ -5967,6 +5967,16 @@ function CommunityPage() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // Read ?section= URL param on mount (e.g. from Launch Session redirect)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const section = params.get('section')
+    if (section) {
+      setActiveSection(section)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   // Close sidebar when switching to desktop
   useEffect(() => { if (!isMobile) setSidebarOpen(false) }, [isMobile])
 
