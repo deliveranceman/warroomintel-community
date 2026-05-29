@@ -83,6 +83,9 @@
 [functions."dream-interpreter"]
   timeout = 26
 
+[functions."bible-ask"]
+  timeout = 26
+
 [functions."library-search"]
   timeout = 15
 
