@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#08060e"/>
+  <!-- Corner brackets -->
+  <path d="M36,36 L36,80 M36,36 L80,36" stroke="#C9A84C" stroke-width="3.5" fill="none" stroke-linecap="square"/>
+  <path d="M476,36 L432,36 M476,36 L476,80" stroke="#C9A84C" stroke-width="3.5" fill="none" stroke-linecap="square"/>
+  <path d="M36,476 L36,432 M36,476 L80,476" stroke="#C9A84C" stroke-width="3.5" fill="none" stroke-linecap="square"/>
+  <path d="M476,476 L476,432 M476,476 L432,476" stroke="#C9A84C" stroke-width="3.5" fill="none" stroke-linecap="square"/>
+  <!-- Sword blade -->
+  <rect x="249" y="72" width="14" height="228" fill="#C9A84C" rx="2"/>
+  <!-- Blade tip -->
+  <polygon points="249,72 256,44 263,72" fill="#C9A84C"/>
+  <!-- Crossguard -->
+  <rect x="178" y="295" width="156" height="12" fill="#C9A84C" rx="2"/>
+  <rect x="174" y="291" width="10" height="20" fill="#C9A84C" rx="2"/>
+  <rect x="328" y="291" width="10" height="20" fill="#C9A84C" rx="2"/>
+  <!-- Grip -->
+  <rect x="251" y="307" width="10" height="68" fill="#a08030" rx="2"/>
+  <!-- Grip wrapping lines -->
+  <rect x="249" y="318" width="14" height="2" fill="#08060e" opacity="0.5"/>
+  <rect x="249" y="330" width="14" height="2" fill="#08060e" opacity="0.5"/>
+  <rect x="249" y="342" width="14" height="2" fill="#08060e" opacity="0.5"/>
+  <rect x="249" y="354" width="14" height="2" fill="#08060e" opacity="0.5"/>
+  <!-- Pommel -->
+  <ellipse cx="256" cy="392" rx="22" ry="16" fill="#C9A84C"/>
+  <ellipse cx="256" cy="392" rx="12" ry="8" fill="#08060e"/>
+  <ellipse cx="256" cy="392" rx="4" ry="3" fill="#C9A84C"/>
+  <!-- Decorative line below crossguard -->
+  <line x1="200" y1="282" x2="312" y2="282" stroke="#C9A84C" stroke-width="1" opacity="0.4"/>
+  <!-- Star/cross accent above blade -->
+  <line x1="256" y1="430" x2="256" y2="460" stroke="#C9A84C" stroke-width="1.5" opacity="0.3"/>
+  <line x1="241" y1="445" x2="271" y2="445" stroke="#C9A84C" stroke-width="1.5" opacity="0.3"/>
+</svg>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>War Room Intel — Offline</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #08060e;
+      color: #e8e0d0;
+      font-family: Georgia, 'Times New Roman', serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+      text-align: center;
+    }
+    .card {
+      position: relative;
+      background: #0d0b14;
+      border: 1px solid rgba(201,168,76,0.22);
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+    }
+    .bracket { position: absolute; width: 14px; height: 14px; }
+    .bracket-tl { top: -1px; left: -1px; border-top: 1.5px solid #C9A84C; border-left: 1.5px solid #C9A84C; }
+    .bracket-tr { top: -1px; right: -1px; border-top: 1.5px solid #C9A84C; border-right: 1.5px solid #C9A84C; }
+    .bracket-bl { bottom: -1px; left: -1px; border-bottom: 1.5px solid #C9A84C; border-left: 1.5px solid #C9A84C; }
+    .bracket-br { bottom: -1px; right: -1px; border-bottom: 1.5px solid #C9A84C; border-right: 1.5px solid #C9A84C; }
+    .eyebrow {
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      color: rgba(201,168,76,0.55);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .logo-wrap { margin-bottom: 20px; }
+    .logo-wrap img { width: 56px; height: 56px; object-fit: contain; opacity: 0.9; }
+    h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #C9A84C;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      color: rgba(201,168,76,0.5);
+      margin-bottom: 32px;
+      text-transform: uppercase;
+    }
+    .divider {
+      height: 1px;
+      background: rgba(201,168,76,0.15);
+      margin-bottom: 28px;
+    }
+    .signal-icon {
+      font-size: 36px;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+    .message {
+      font-size: 16px;
+      color: #b9b2a4;
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+    .message strong {
+      color: #e8e0d0;
+      font-style: italic;
+    }
+    .retry-btn {
+      display: inline-block;
+      padding: 11px 28px;
+      background: transparent;
+      border: 1px solid rgba(201,168,76,0.55);
+      color: #C9A84C;
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .retry-btn:hover {
+      background: rgba(201,168,76,0.1);
+      border-color: #C9A84C;
+    }
+    .status-strip {
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(201,168,76,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: rgba(201,168,76,0.35);
+    }
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(200,74,74,0.8);
+      box-shadow: 0 0 5px rgba(200,74,74,0.5);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="bracket bracket-tl"></div>
+    <div class="bracket bracket-tr"></div>
+    <div class="bracket bracket-bl"></div>
+    <div class="bracket bracket-br"></div>
+
+    <div class="eyebrow">War Room Intel · Signal Lost</div>
+
+    <div class="logo-wrap">
+      <img src="/logo.png" alt="War Room Intel" onerror="this.style.display='none'" />
+    </div>
+
+    <h1>WAR ROOM INTEL</h1>
+    <div class="subtitle">Intelligence for the Fight</div>
+
+    <div class="divider"></div>
+
+    <div class="signal-icon">📡</div>
+    <p class="message">
+      You are <strong>offline.</strong><br />
+      Reconnect to continue your mission.
+    </p>
+
+    <button class="retry-btn" onclick="window.location.reload()">
+      ⚔ Retry Connection
+    </button>
+
+    <div class="status-strip">
+      <div class="dot"></div>
+      <span>CONNECTION · OFFLINE · STAND BY</span>
+    </div>
+  </div>
+</body>
+</html>

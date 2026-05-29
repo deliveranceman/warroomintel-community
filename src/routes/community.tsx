@@ -3,7 +3,7 @@ import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
-import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar } from '@/components/primitives'
+import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { FlagButton } from '@/components/FlagButton'
 import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen } from 'lucide-react'
 
@@ -837,6 +837,10 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
   const featured  = filtered.filter(m => ['General','Commander'].includes(m.publicMetadata?.tier || ''))
   const roster    = filtered.filter(m => !['General','Commander'].includes(m.publicMetadata?.tier || ''))
 
+  const TIER_TO_CLASS: Record<string, import('@/components/primitives').ClassLevel> = {
+    General: 'I', Commander: 'II', Soldier: 'III', Watchman: 'IV',
+  }
+
   function MemberCard({ member, large = false }: { member: any, large?: boolean }) {
     const tier        = member.publicMetadata?.tier || 'Watchman'
     const tierColor   = TIER_COLORS[tier] || '#6b6b7a'
@@ -847,41 +851,31 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
     const initials    = ((member.firstName?.[0]||'') + (member.lastName?.[0]||'')).toUpperCase() || displayName[0]?.toUpperCase() || 'W'
 
     return (
-      <div
+      <TacticalCard
+        brackets={large}
+        glow={large}
+        padding={large ? '24px 20px' : '16px 14px'}
         onClick={() => onViewProfile(member)}
         style={{
-          background: large ? `linear-gradient(135deg, ${s2}, ${tierGlow})` : s2,
-          border: `1px solid ${large ? tierColor + '55' : bdr}`,
-          borderRadius: large ? 16 : 12,
-          padding: large ? '24px 20px' : '16px 14px',
-          cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column' as const,
           alignItems: 'center',
           gap: large ? 10 : 8,
-          position: 'relative' as const,
+          cursor: 'pointer',
           transition: 'transform 0.15s, box-shadow 0.15s',
-          boxShadow: large ? `0 4px 24px ${tierGlow}` : 'none',
+          ...(large ? { background: `linear-gradient(135deg, var(--bg-2), ${tierGlow})` } : {}),
         }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 32px ${tierGlow}` }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = large ? `0 4px 24px ${tierGlow}` : 'none' }}
       >
         {isOwn && (
-          <div style={{ position:'absolute', top:8, right:8, fontSize:9, fontFamily:mc, color:'#C9A84C', letterSpacing:'0.08em', background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, padding:'2px 6px' }}>YOU</div>
-        )}
-        {large && tier === 'General' && (
-          <div style={{ position:'absolute', top:10, left:12, fontSize:14 }}>⚔️</div>
-        )}
-        {large && tier === 'Commander' && (
-          <div style={{ position:'absolute', top:10, left:12, fontSize:14 }}>🛡️</div>
+          <HUDChip style={{ position: 'absolute', top: 8, right: 8, fontSize: 9 }}>YOU</HUDChip>
         )}
         <div style={{ width:avatarSize, height:avatarSize, borderRadius:'50%', border:`2px solid ${tierColor}`, overflow:'hidden', flexShrink:0, background:`rgba(201,168,76,0.1)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:large?24:16, fontFamily:mc, color:'#C9A84C', boxShadow: large ? `0 0 16px ${tierGlow}` : 'none' }}>
           {member.imageUrl ? <img src={member.imageUrl} alt={displayName} style={{ width:'100%', height:'100%', objectFit:'cover' as const }} /> : initials}
         </div>
         <div style={{ textAlign:'center' as const, width:'100%' }}>
-          <div style={{ fontFamily:mc, fontSize: large ? 13 : 11, color:txt, letterSpacing:'0.05em', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayName}</div>
-          <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:4, flexWrap:'wrap' as const, marginTop:4 }}>
-            <div style={{ display:'inline-block', padding:'2px 8px', borderRadius:10, background:`${tierColor}22`, border:`1px solid ${tierColor}55`, fontFamily:mc, fontSize:9, color:tierColor, letterSpacing:'0.1em', textTransform:'uppercase' as const }}>{tier}</div>
+          <div style={{ fontFamily: cinzel, fontSize: large ? 13 : 11, color: txt, letterSpacing:'0.05em', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom: 6 }}>{displayName}</div>
+          <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:4, flexWrap:'wrap' as const }}>
+            <ClassBadge level={TIER_TO_CLASS[tier] || 'IV'} label={tier.toUpperCase()} />
             {member.publicMetadata?.foundingMember && <FoundingBadge />}
           </div>
         </div>
@@ -891,7 +885,7 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
             style={{ marginTop:2, padding: large ? '6px 18px' : '4px 12px', background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent', border:`1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius:6, color: canDM ? '#C9A84C' : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
           >{canDM ? '💬 Message' : '🔒 Soldier+'}</button>
         )}
-      </div>
+      </TacticalCard>
     )
   }
 
@@ -964,23 +958,30 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
   const emojiMap: Record<string, string> = { pray: '🙏', love: '❤️', fire: '🔥', cross: '✝️', sword: '⚔️' }
   const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
   const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
+  const isNew = Date.now() - new Date(msg.created_at).getTime() < 86400000
   return (
     <div
       onMouseEnter={() => onHover?.(msg.id)}
       onMouseLeave={() => onHover?.(null)}
-      style={{ background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 6, padding: 20, marginBottom: 12, position: 'relative', overflow: 'visible', boxShadow: V.shadow }}
+      style={{ position: 'relative', background: 'var(--bg-2)', border: `1px solid var(--gold-line)`, padding: 20, marginBottom: 12, overflow: 'visible' }}
     >
+      {/* Bracket corners */}
+      <div style={{ position: 'absolute', top: -1, left: -1, width: 10, height: 10, borderTop: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -1, right: -1, width: 10, height: 10, borderTop: '1px solid var(--gold)', borderRight: '1px solid var(--gold)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -1, left: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderRight: '1px solid var(--gold)', pointerEvents: 'none' }} />
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid var(--gold-line)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
           {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: cinzel, fontSize: 15, letterSpacing: '0.06em', color: V.txt }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
-            {pinned && <span style={{ fontFamily: cinzel, fontSize: 8, color: G, border: `1px solid ${BR2}`, padding: '1px 6px', borderRadius: 8 }}>HOST</span>}
-            <span style={{ fontFamily: crimson, fontSize: 13, color: V.mut }}>{time}</span>
+            <MonoTime size={13}>{msg.user?.name || msg.user?.id || 'Warrior'}</MonoTime>
+            {pinned && <HUDChip>HOST</HUDChip>}
+            {isNew && <StatusDot kind="ok" label="New" size={5} />}
+            <MonoTime color="var(--t-3)" size={11}>{time}</MonoTime>
           </div>
-          <p style={{ fontFamily: crimson, fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
           {/* Reactions */}
           <div style={{ position: 'relative', display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 8, alignItems: 'center' }}>
             {hoveredId === msg.id && streamToken && (
@@ -5309,10 +5310,15 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete 
 
   const isOwn = post.user_id === userId
 
+  const postTypeToClass: Record<string, import('@/components/primitives').ClassLevel> = {
+    discussion: 'III', question: 'III', revelation: 'II',
+    field_report: 'I', prayer: 'IV', resource: 'II',
+  }
+
   return (
-    <div style={{ background: F_SURF, border: `1px solid ${post.pinned ? 'rgba(201,168,76,0.4)' : F_BDR}`, borderLeft: post.pinned ? `3px solid ${G}` : '3px solid transparent', borderRadius: 10, overflow: 'hidden' }}>
+    <div style={{ position: 'relative', background: 'var(--bg-2)', border: `1px solid ${post.pinned ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, borderLeft: post.pinned ? `3px solid var(--gold)` : '3px solid transparent', overflow: 'hidden' }}>
       <div style={{ display: 'flex', gap: 0 }}>
-        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '16px 10px', gap: 2, borderRight: `1px solid ${F_BDR}`, flexShrink: 0, width: 52 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '16px 10px', gap: 2, borderRight: `1px solid var(--gold-line)`, flexShrink: 0, width: 52 }}>
           <button onClick={vote} title={post.voted ? 'Remove vote' : 'Upvote'}
             style={{ background: post.voted ? 'rgba(201,168,76,0.15)' : 'transparent', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2, transition: 'background 0.15s' }}>
             <span style={{ fontSize: 14, color: post.voted ? G : F_MUT }}>▲</span>
@@ -5321,8 +5327,8 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete 
         </div>
         <div style={{ flex: 1, minWidth: 0, padding: '12px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' as const }}>
-            <span style={{ background: tc.bg, color: tc.color, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', padding: '2px 8px', borderRadius: 10, border: `1px solid ${tc.color}44` }}>{tc.label}</span>
-            {post.pinned && <span style={{ background: 'rgba(201,168,76,0.1)', color: G, fontFamily: cinzel, fontSize: 7, padding: '1px 6px', borderRadius: 10 }}>📌 Pinned</span>}
+            <ClassBadge level={postTypeToClass[post.post_type] || 'III'} label={tc.label} />
+            {post.pinned && <HUDChip>📌 Pinned</HUDChip>}
             {(post.tags || []).map((tag: string) => (
               <span key={tag} style={{ background: 'rgba(74,158,232,0.08)', color: '#4A9EE8', fontFamily: cinzel, fontSize: 7, padding: '1px 7px', borderRadius: 10, border: '1px solid rgba(74,158,232,0.25)' }}>{tag}</span>
             ))}
@@ -5345,7 +5351,7 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' as const }}>
                 <span style={{ fontFamily: cinzel, fontSize: 9, color: F_DIM, letterSpacing: '0.04em' }}>{post.author_name}</span>
                 <ForumTierPill tier={post.author_tier} />
-                <span style={{ fontFamily: cinzel, fontSize: 8, color: F_MUT }}>{timeAgo(post.created_at)}</span>
+                <MonoTime color="var(--t-4)" size={9}>{timeAgo(post.created_at)}</MonoTime>
                 <button onClick={() => setExpanded(e => !e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 4, color: F_DIM }}>
                   <span style={{ fontSize: 11 }}>💬</span>
                   <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em' }}>{post.comment_count || 0}</span>
@@ -5847,6 +5853,45 @@ function CommunityPage() {
     setChatInput('')
     setChatLoading(true)
     setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+
+    // /library command — list ministry library grouped by source_type
+    const isLibraryCmd = msg.trim().toLowerCase() === '/library'
+      || msg.trim().toLowerCase().includes('list my books')
+      || msg.trim().toLowerCase().includes('show my library')
+    if (isLibraryCmd) {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/admin-library', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        const books: any[] = data.books || []
+        if (!books.length) {
+          setChatMessages(prev => [...prev, { role: 'assistant', content: 'Your ministry library is empty. Upload books in the Admin → Library tab.' }])
+        } else {
+          const groups: Record<string, string[]> = {}
+          for (const b of books) {
+            const group = b.source_type === 'intelligence' ? 'Intelligence Resources' : 'Christian Ministry'
+            if (!groups[group]) groups[group] = []
+            groups[group].push(`• ${b.title}${b.author && b.author !== 'Unknown' ? ` — ${b.author}` : ''}`)
+          }
+          const lines: string[] = [`**Ministry Library** (${books.length} books)\n`]
+          for (const [group, titles] of Object.entries(groups)) {
+            lines.push(`### ${group}`)
+            lines.push(...titles)
+            lines.push('')
+          }
+          setChatMessages(prev => [...prev, { role: 'assistant', content: lines.join('\n') }])
+        }
+      } catch {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: 'Unable to load library. Please try again.' }])
+      } finally {
+        setChatLoading(false)
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      }
+      return
+    }
+
     try {
       const res = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -7049,12 +7094,10 @@ function CommunityPage() {
 
             {/* Prayer Wall widget */}
             <div style={{ marginBottom: 24 }}>
-              <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${V.bdr}` }}>
-                <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em', color: G, textTransform: 'uppercase' }}>🙏 Prayer Wall</span>
-                <button
-                  onClick={() => setActiveSection('prayer-wall')}
-                  style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '20px', color: '#C9A84C', fontFamily: cinzel, fontSize: '8px', letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-                >+ Add</button>
+              <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}` }}>
+                <SectionLabel action="+ Add" onAction={() => setActiveSection('prayer-wall')}>
+                  🙏 Prayer Wall
+                </SectionLabel>
               </div>
               <div style={{ padding: '10px 14px 0' }}>
               {/* Callout — rendered once OUTSIDE the scrollable div, position:fixed */}
@@ -7151,30 +7194,26 @@ function CommunityPage() {
 
             {/* Upcoming Calls */}
             <div style={{ padding: '14px 16px', borderBottom: `1px solid ${V.bdr}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                <span style={{ color: G }}>📅</span>
-                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>UPCOMING CALLS</span>
+              <div style={{ marginBottom: 12 }}>
+                <SectionLabel>📅 Upcoming Calls</SectionLabel>
               </div>
               {UPCOMING_CALLS.map(ev => (
-                <div key={ev.title} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${V.bdr}` }}>
+                <TacticalCard key={ev.title} padding="10px 12px" style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{ev.title}</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-1)' }}>{ev.title}</span>
                     <TierBadge tier={ev.badge} />
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim }}>{ev.date}</div>
-                </div>
+                  <MonoTime color="var(--t-3)" size={11}>{ev.date}</MonoTime>
+                </TacticalCard>
               ))}
             </div>
 
             {/* Warriors */}
             <div style={{ padding: '14px 16px', position: 'relative', overflow: 'visible' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.2em', color: G }}>
-                  <span style={{ color: '#4ade80', fontSize: 8 }}>●</span>{' '}WARRIORS
-                </span>
-                <span style={{ fontSize: 9, color: V.mut, fontFamily: cinzel }}>
-                  ({Object.values(memberPresence).filter(p => p.online).length + 1} online)
-                </span>
+              <div style={{ marginBottom: 12 }}>
+                <SectionLabel>
+                  <StatusDot kind="ok" label={`Warriors (${Object.values(memberPresence).filter(p => p.online).length + 1} online)`} />
+                </SectionLabel>
               </div>
               {/* Current user always shown first */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
