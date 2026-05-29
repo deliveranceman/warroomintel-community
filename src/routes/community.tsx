@@ -7095,8 +7095,8 @@ function CommunityPage() {
             {/* Prayer Wall widget */}
             <div style={{ marginBottom: 24 }}>
               <div style={{ padding: '10px 14px', borderBottom: `1px solid ${V.bdr}` }}>
-                <SectionLabel action="+ Add" onAction={() => setActiveSection('prayer-wall')}>
-                  🙏 Prayer Wall
+                <SectionLabel action="+ ADD" onAction={() => setActiveSection('prayer-wall')}>
+                  Prayer Wall
                 </SectionLabel>
               </div>
               <div style={{ padding: '10px 14px 0' }}>
@@ -7139,17 +7139,27 @@ function CommunityPage() {
                   [...prayers].reverse().slice(0, 8).map(p => {
                     const name = (p.user?.name || 'Warrior').split(' ')[0]
                     const preview = p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text
-                    const isHovered = hoveredPrayer?.id === p.id
+                    const timeAgo = (() => {
+                      const diff = Date.now() - new Date(p.created_at).getTime()
+                      if (diff < 60000) return 'just now'
+                      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+                      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+                      return `${Math.floor(diff / 86400000)}d ago`
+                    })()
                     return (
-                      <div key={p.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${V.bdr}` }}>
-                        <div
-                          onClick={() => setActiveSection('prayer-wall')}
-                          onMouseEnter={e => { setHoverY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredPrayer(p) }}
-                          onMouseLeave={() => setHoveredPrayer(null)}
-                          style={{ cursor: 'pointer', background: isHovered ? 'rgba(201,168,76,0.06)' : 'transparent', borderRadius: 6, padding: '4px 6px', transition: 'background 0.15s ease' }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 2 }}>{name}</div>
-                          <div style={{ fontFamily: crimson, fontSize: 13, color: V.dim, lineHeight: 1.4 }}>{preview}</div>
-                        </div>
+                      <div
+                        key={p.id}
+                        style={{ marginBottom: 8 }}
+                        onMouseEnter={e => { setHoverY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredPrayer(p) }}
+                        onMouseLeave={() => setHoveredPrayer(null)}
+                      >
+                        <TacticalCard onClick={() => setActiveSection('prayer-wall')} padding={10}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 12, color: 'var(--t-0)', letterSpacing: '0.06em' }}>{name}</div>
+                            <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
+                          </div>
+                          <div style={{ fontFamily: 'Georgia, serif', fontSize: 14, color: 'var(--t-1)', lineHeight: 1.6 }}>{preview}</div>
+                        </TacticalCard>
                       </div>
                     )
                   })
@@ -7159,9 +7169,9 @@ function CommunityPage() {
             </div>
 
             {/* Recent Messages */}
-            <div style={{ borderBottom: `1px solid ${V.bdr}`, padding: '0' }}>
-              <div style={{ padding: '10px 14px 8px', fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', color: G, textTransform: 'uppercase' as const }}>
-                📨 Recent Messages
+            <div style={{ borderBottom: `1px solid ${V.bdr}`, padding: '0 0 8px' }}>
+              <div style={{ padding: '10px 14px 8px' }}>
+                <SectionLabel>Recent Messages</SectionLabel>
               </div>
               <div style={{ maxHeight: '200px', overflowY: 'auto' as const }}>
                 {recentMessages.length === 0 ? (
@@ -7170,22 +7180,21 @@ function CommunityPage() {
                   </div>
                 ) : (
                   recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 5).map((msg: any) => (
-                    <div
-                      key={msg.id}
-                      onClick={() => setActiveSection('dms')}
-                      style={{ padding: '8px 14px', borderBottom: `1px solid ${V.bdr}`, cursor: 'pointer', transition: 'background 0.15s' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                        <span style={{ fontFamily: cinzel, fontSize: '10px', color: G, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '130px' }}>
-                          {msg.senderName}
-                        </span>
-                        <span style={{ fontSize: '9px', color: V.mut, flexShrink: 0 }}>{msg.timeAgo}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: V.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                        {msg.text}
-                      </div>
+                    <div key={msg.id} style={{ padding: '4px 14px', marginBottom: 4 }}>
+                      <TacticalCard onClick={() => setActiveSection('dms')} padding={10}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <StatusDot kind="info" size={5} />
+                            <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: '110px' }}>
+                              {msg.senderName}
+                            </span>
+                          </div>
+                          <MonoTime size={9} color="var(--t-4)">{msg.timeAgo}</MonoTime>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--t-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                          {msg.text}
+                        </div>
+                      </TacticalCard>
                     </div>
                   ))
                 )}
@@ -7199,11 +7208,14 @@ function CommunityPage() {
               </div>
               {UPCOMING_CALLS.map(ev => (
                 <TacticalCard key={ev.title} padding="10px 12px" style={{ marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-1)' }}>{ev.title}</span>
-                    <TierBadge tier={ev.badge} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.04em', color: 'var(--t-0)' }}>{ev.title}</span>
+                    <ClassBadge
+                      level={ev.badge === 'General' ? 'I' : ev.badge === 'Commander' ? 'II' : ev.badge === 'Soldier' ? 'III' : 'IV'}
+                      label={ev.badge.toUpperCase()}
+                    />
                   </div>
-                  <MonoTime color="var(--t-3)" size={11}>{ev.date}</MonoTime>
+                  <MonoTime color="var(--gold)" size={10}>{ev.date}</MonoTime>
                 </TacticalCard>
               ))}
             </div>
@@ -7211,21 +7223,21 @@ function CommunityPage() {
             {/* Warriors */}
             <div style={{ padding: '14px 16px', position: 'relative', overflow: 'visible' }}>
               <div style={{ marginBottom: 12 }}>
-                <SectionLabel>
-                  <StatusDot kind="ok" label={`Warriors (${Object.values(memberPresence).filter(p => p.online).length + 1} online)`} />
-                </SectionLabel>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <SectionLabel>Warriors</SectionLabel>
+                  <HUDChip>{Object.values(memberPresence).filter(p => p.online).length + 1} online</HUDChip>
+                </div>
               </div>
               {/* Current user always shown first */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden' }}>
                   {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
                 </div>
                 <div>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: V.txt }}>{user?.firstName || 'You'}</div>
-                  <TierBadge tier={tier} />
+                  <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)' }}>{user?.firstName || 'You'}</div>
+                  <ClassBadge level={tier === 'General' ? 'I' : tier === 'Commander' ? 'II' : tier === 'Soldier' ? 'III' : 'IV'} label={tier.toUpperCase()} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
-                    <div style={{ fontSize: 9, color: '#4ade80', fontFamily: crimson }}>Online now</div>
+                    <StatusDot kind="ok" size={4} />
                   </div>
                 </div>
               </div>
@@ -7262,22 +7274,17 @@ function CommunityPage() {
                       onClick={() => setViewingProfile(member)}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}
                     >
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
                         {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.03em' }}>{displayName}</div>
-                        <TierBadge tier={memberTier} />
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.03em' }}>{displayName}</div>
+                        <ClassBadge level={memberTier === 'General' ? 'I' : memberTier === 'Commander' ? 'II' : memberTier === 'Soldier' ? 'III' : 'IV'} label={memberTier.toUpperCase()} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                          <div style={{
-                            width: 7, height: 7, borderRadius: '50%',
-                            background: isOnline ? '#4ade80' : 'rgba(255,255,255,0.15)',
-                            flexShrink: 0,
-                            boxShadow: isOnline ? '0 0 4px rgba(74,222,128,0.6)' : 'none',
-                          }} />
-                          <div style={{ fontSize: 9, color: isOnline ? '#4ade80' : V.mut, fontFamily: crimson }}>
-                            {isOnline ? 'Online' : lastActive ? streamTimeAgo(lastActive) : ''}
-                          </div>
+                          {isOnline
+                            ? <StatusDot kind="ok" size={4} />
+                            : lastActive ? <span style={{ fontSize: 9, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{streamTimeAgo(lastActive)}</span> : null
+                          }
                         </div>
                       </div>
                     </button>
