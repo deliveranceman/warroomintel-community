@@ -5,7 +5,7 @@ import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { FlagButton } from '@/components/FlagButton'
-import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen } from 'lucide-react'
+import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen, Zap } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -2504,7 +2504,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
           {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
           <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>⚡ Weekly Intel</h2>
         </div>
-        <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson }}>Operational briefings, field intelligence, and ministry resources</p>
+        {!isMobile && <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson }}>Operational briefings, field intelligence, and ministry resources</p>}
       </div>
 
       {/* Spirit of the Week */}
@@ -5819,6 +5819,7 @@ function CommunityPage() {
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') return 'dark'
+    if (window.innerWidth < 768) return 'dark'
     const stored = localStorage.getItem('wri-theme')
     return (stored === 'dark' || stored === 'light') ? stored : 'dark'
   })
@@ -6666,13 +6667,15 @@ function CommunityPage() {
                 {tier}
               </div>
             </div>
-            <button
-              onClick={() => setTheme((t: string) => t === 'dark' ? 'light' : 'dark')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2, flexShrink: 0 }}
-              title="Toggle theme"
-            >
-              {isDark ? '☀️' : '🌙'}
-            </button>
+            {!isMobile && (
+              <button
+                onClick={() => setTheme((t: string) => t === 'dark' ? 'light' : 'dark')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2, flexShrink: 0 }}
+                title="Toggle theme"
+              >
+                {isDark ? '☀️' : '🌙'}
+              </button>
+            )}
             <button
               onClick={() => signOut()}
               style={{
@@ -7479,7 +7482,7 @@ function CommunityPage() {
       {chatOpen && (
         <div style={{
           position: 'fixed',
-          bottom: isMobile ? 0 : 84,
+          bottom: isMobile ? 66 : 84,
           right: isMobile ? 0 : 24,
           left: isMobile ? 0 : undefined,
           width: isMobile ? '100%' : 340,
@@ -7559,42 +7562,47 @@ function CommunityPage() {
           </div>
         </div>
       )}
-      <button
-        onClick={() => setChatOpen(o => !o)}
-        style={{
-          position: 'fixed',
-          bottom: isMobile ? 24 : 24,
-          right: isMobile ? 16 : 24,
-          zIndex: 1000,
-          width: 48,
-          height: 48,
-          borderRadius: '50%',
-          background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
-          border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
-          color: G,
-          fontSize: 22,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-          transition: 'all 0.15s',
-        }}
-        title="War Room AI"
-      >
-        🧠
-      </button>
+      {!isMobile && (
+        <button
+          onClick={() => setChatOpen(o => !o)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 1000,
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
+            border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
+            color: G,
+            fontSize: 18,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            transition: 'all 0.15s',
+          }}
+          title="War Room AI"
+        >
+          ⚔
+        </button>
+      )}
 
       <BottomNav
         tabs={[
-          { id: 'home',    label: 'Home',    icon: <Home size={20} strokeWidth={1.6} /> },
-          { id: 'intel',   label: 'Intel',   icon: <FileText size={20} strokeWidth={1.6} /> },
-          { id: 'ops',     label: 'Ops',     icon: <Crosshair size={20} strokeWidth={1.6} /> },
-          { id: 'profile', label: 'Profile', icon: <User size={20} strokeWidth={1.6} /> },
+          { id: 'intel',    label: 'Home',    icon: <Home size={20} strokeWidth={1.6} /> },
+          { id: 'database', label: 'Intel',   icon: <FileText size={20} strokeWidth={1.6} /> },
+          { id: 'forum',    label: 'Ops',     icon: <Crosshair size={20} strokeWidth={1.6} /> },
+          { id: 'ai',       label: 'AI',      icon: <Zap size={20} strokeWidth={1.6} /> },
         ]}
         activeId={activeSection}
-        onTab={(id) => setActiveSection(id)}
-        onFAB={() => setActiveSection('session')}
+        onTab={(id) => {
+          if (id === 'ai') { setChatOpen(o => !o) }
+          else { setActiveSection(id) }
+        }}
+        onFAB={() => setActiveSection('session-center')}
         onLongPress={() => {
           window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
         }}
