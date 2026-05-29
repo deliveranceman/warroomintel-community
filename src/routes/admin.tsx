@@ -67,37 +67,23 @@ async function authFetch(url: string, getToken: () => Promise<string | null>, op
 
 // ─── ARSENAL MANAGER ─────────────────────────────────────────────────────────
 function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
-  const [file, setFile]             = useState<File | null>(null)
-  const [title, setTitle]           = useState('')
-  const [description, setDesc]      = useState('')
-  const [tier, setTier]             = useState('Free')
-  const [topic, setTopic]           = useState('General Ministry')
-  const [tags, setTags]             = useState<string[]>([])
-  const [analyzing, setAnalyzing]   = useState(false)
-  const [aiSuggested, setAiSuggested] = useState(false)
-  // Track which fields were AI-filled and haven't been manually edited
-  const [aiFields, setAiFields]     = useState<Set<string>>(new Set())
-  const [uploading, setUploading]   = useState(false)
-  const [uploadMsg, setUploadMsg]   = useState('')
-  const [uploadErr, setUploadErr]   = useState('')
-  const [dragging, setDragging]     = useState(false)
-  const [resources, setResources]   = useState<any[]>([])
-  const [resLoading, setResLoading] = useState(true)
-  const [deleting, setDeleting]     = useState<string | null>(null)
+  const [resources, setResources]       = useState<any[]>([])
+  const [resLoading, setResLoading]     = useState(true)
+  const [deleting, setDeleting]         = useState<string | null>(null)
   const [arsenalEditId, setArsenalEditId] = useState<string | null>(null)
   const [arsenalEditForm, setArsenalEditForm] = useState<any>({})
-  const fileRef    = useRef<HTMLInputElement>(null)
-  const [bulkFiles, setBulkFiles]         = useState<File[]>([])
-  const [bulkPreviews, setBulkPreviews]   = useState<any[]>([])
-  const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [stagedFiles, setStagedFiles]   = useState<{
+    id: number; file: File; filename: string; sizeLabel: string; tier: string;
+    status: 'pending'|'uploading'|'done'|'error'|'duplicate'; errorMsg?: string
+  }[]>([])
+  const [listExpanded, setListExpanded] = useState(true)
   const [bulkUploading, setBulkUploading] = useState(false)
-  const [dragOver, setDragOver]           = useState(false)
-  const [analyzingIdx, setAnalyzingIdx]   = useState<number>(-1)
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
+  const [dragOver, setDragOver]         = useState(false)
   const [showCatManager, setShowCatManager] = useState(false)
   const [customCategories, setCustomCategories] = useState<string[]>([])
-  const [newCategory, setNewCategory]     = useState('')
+  const [newCategory, setNewCategory]   = useState('')
 
-  const TIERS      = ['Free', 'Soldier', 'Commander', 'General']
   const TOPICS = [
     'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
     'Freemasonry & Secret Societies', 'Sexual Bondage', 'Fear & Rejection',
@@ -106,12 +92,6 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     'Python & Constriction', 'Deliverance Foundations', 'Aftercare',
     'Prayer & Intercession', 'Scripture Reference', 'General Ministry',
   ]
-  const FUNCTION_TAGS = [
-    'Renunciation Prayer', 'Worksheet', 'Teaching', 'Protocol', 'Session Tool',
-    'Scripture Reference', 'Aftercare', 'Assessment Tool', 'Quick Reference',
-    'Leader Guide', 'Self-Deliverance', 'Group Exercise',
-  ]
-  const allTopics = [...TOPICS, ...customCategories]
 
   async function fetchResources() {
     setResLoading(true)
@@ -154,60 +134,6 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     localStorage.setItem('wri-custom-categories', JSON.stringify(updated))
   }
 
-  async function analyzeFile(f: File) {
-    setAnalyzing(true)
-    try {
-      const res = await fetch('/api/analyze-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: f.name, content_preview: '' }),
-      })
-      const data = await res.json()
-      const filled = new Set<string>()
-      if (data.title)    { setTitle(data.title);    filled.add('title') }
-      if (data.description) { setDesc(data.description); filled.add('description') }
-      if (data.topic && allTopics.includes(data.topic)) { setTopic(data.topic); filled.add('topic') }
-      if (data.tags?.length) { setTags(data.tags);  filled.add('tags') }
-      if (filled.size > 0) { setAiFields(filled); setAiSuggested(true) }
-    } catch (e) { console.error('Analysis failed', e) }
-    finally { setAnalyzing(false) }
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    const f = e.dataTransfer.files[0]
-    if (f) { setFile(f); analyzeFile(f) }
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] || null
-    setFile(f)
-    if (f) analyzeFile(f)
-  }
-
-  async function handleUpload() {
-    if (!file || !title.trim()) return
-    setUploading(true); setUploadMsg(''); setUploadErr('')
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('title', title.trim())
-    fd.append('description', description.trim())
-    fd.append('tier', tier)
-    fd.append('topic', topic)
-    fd.append('tags', JSON.stringify(tags))
-    try {
-      const res = await authFetch('/api/admin-upload', getToken, { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
-      setUploadMsg(`✓ "${data.resource?.title}" uploaded successfully`)
-      setFile(null); setTitle(''); setDesc(''); setTags([]); setTopic('General Ministry'); setAiFields(new Set()); setAiSuggested(false)
-      if (fileRef.current) fileRef.current.value = ''
-      await fetchResources()
-    } catch (err: any) { setUploadErr(err.message) }
-    finally { setUploading(false) }
-  }
-
   async function handleDelete(id: string) {
     if (!confirm('Delete this resource? This cannot be undone.')) return
     setDeleting(id)
@@ -218,376 +144,207 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     finally { setDeleting(null) }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', boxSizing: 'border-box', background: SURF2,
-    border: `1px solid ${BDR}`, borderRadius: 6, padding: '10px 12px',
-    color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none',
+  function detectTier(filename: string): string {
+    const lower = filename.toLowerCase()
+    if (lower.includes('commander') || lower.includes('cmd')) return 'commander'
+    if (lower.includes('general') || lower.includes('gen')) return 'general'
+    return 'soldier'
   }
-  const labelStyle: React.CSSProperties = {
-    display: 'block', fontFamily: cinzel, fontSize: 9,
-    letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase', marginBottom: 6,
+
+  function checkDuplicate(file: File): boolean {
+    return resources.some(r =>
+      r.file_path?.split('/').pop() === file.name ||
+      r.title?.toLowerCase() === file.name.replace(/\.[^/.]+$/, '').toLowerCase()
+    )
   }
-  const AiBadge = () => (
-    <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', color: G, background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '1px 5px', marginLeft: 6, verticalAlign: 'middle' }}>✦ AI</span>
-  )
+
+  function addStagedFiles(files: File[]) {
+    const allowed = files
+      .filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf') || f.name.endsWith('.docx'))
+      .slice(0, Math.max(0, 20 - stagedFiles.length))
+    if (!allowed.length) return
+    const now = Date.now()
+    const mapped = allowed.map((f, i) => ({
+      id: now + i,
+      file: f,
+      filename: f.name,
+      sizeLabel: fmtBytes(f.size),
+      tier: detectTier(f.name),
+      status: (checkDuplicate(f) ? 'duplicate' : 'pending') as 'pending'|'uploading'|'done'|'error'|'duplicate',
+    }))
+    setStagedFiles(prev => [...prev, ...mapped])
+    if (stagedFiles.length + mapped.length > 5) setListExpanded(false)
+  }
+
+  function removeStagedFile(id: number) {
+    setStagedFiles(prev => prev.filter(sf => sf.id !== id))
+  }
+
+  async function handleBulkUpload() {
+    const pending = stagedFiles.filter(sf => sf.status === 'pending')
+    if (!pending.length || bulkUploading) return
+    setBulkUploading(true)
+    setUploadProgress({ done: 0, total: pending.length })
+    for (const sf of pending) {
+      setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'uploading' as const } : x))
+      try {
+        const fd = new FormData()
+        fd.append('file', sf.file)
+        fd.append('title', sf.filename.replace(/\.[^.]+$/, ''))
+        fd.append('tier', sf.tier)
+        fd.append('topic', 'General Ministry')
+        fd.append('tags', '[]')
+        const token = await getToken()
+        const res = await fetch('/api/admin-upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        })
+        if (res.ok) {
+          setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'done' as const } : x))
+          setUploadProgress(p => ({ ...p, done: p.done + 1 }))
+        } else {
+          const d = await res.json().catch(() => ({}))
+          setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'error' as const, errorMsg: d.error || 'Upload failed' } : x))
+        }
+      } catch (e: any) {
+        setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'error' as const, errorMsg: e.message } : x))
+      }
+    }
+    setBulkUploading(false)
+    await fetchResources()
+  }
 
   return (
     <div>
       {/* ── BULK UPLOAD ── */}
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>📦 Bulk Upload</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>📦 Bulk Upload</span>
+          {stagedFiles.length > 0 && (
+            <span style={{ fontFamily: crimson, fontSize: 12, color: DIM }}>
+              {stagedFiles.length} staged · {stagedFiles.filter(sf => sf.status === 'pending').length} pending
+              {stagedFiles.filter(sf => sf.status === 'duplicate').length > 0 && ` · ${stagedFiles.filter(sf => sf.status === 'duplicate').length} duplicate`}
+            </span>
+          )}
+        </div>
 
         {/* Drop zone */}
         <div
           onDragOver={e => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={e => {
-            e.preventDefault()
-            setDragOver(false)
-            const files = Array.from(e.dataTransfer.files).filter(f =>
-              f.type === 'application/pdf' || f.name.endsWith('.docx') || f.name.endsWith('.pdf')
-            ).slice(0, 10)
-            setBulkFiles(files)
-            setBulkPreviews([])
-          }}
+          onDrop={e => { e.preventDefault(); setDragOver(false); addStagedFiles(Array.from(e.dataTransfer.files)) }}
+          onClick={() => document.getElementById('bulk-file-input')?.click()}
           style={{
             border: `2px dashed ${dragOver ? G : 'rgba(201,168,76,0.3)'}`,
-            borderRadius: 10,
-            padding: '28px 20px',
-            textAlign: 'center' as const,
-            marginBottom: 24,
-            background: dragOver ? 'rgba(201,168,76,0.04)' : 'transparent',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
+            borderRadius: 10, padding: '28px 20px', textAlign: 'center' as const,
+            marginBottom: 16, background: dragOver ? 'rgba(201,168,76,0.04)' : 'transparent',
+            cursor: 'pointer', transition: 'all 0.2s',
           }}
-          onClick={() => document.getElementById('bulk-file-input')?.click()}
         >
           <input
-            id="bulk-file-input"
-            type="file"
-            multiple
-            accept=".pdf,.docx"
+            id="bulk-file-input" type="file" multiple accept=".pdf,.docx"
             style={{ display: 'none' }}
-            onChange={e => {
-              const files = Array.from(e.target.files || []).slice(0, 10)
-              setBulkFiles(files)
-              setBulkPreviews([])
-            }}
+            onChange={e => { addStagedFiles(Array.from(e.target.files || [])); e.target.value = '' }}
           />
           <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
           <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>
-            Drag & Drop up to 10 files
+            Drop PDFs here or click to browse
           </div>
-          <div style={{ fontSize: 11, color: DIM }}>PDF or DOCX · Click to browse</div>
-          {bulkFiles.length > 0 && (
-            <div style={{ marginTop: 10, fontSize: 11, color: G }}>
-              {bulkFiles.length} file{bulkFiles.length > 1 ? 's' : ''} selected
-            </div>
-          )}
+          <div style={{ fontSize: 11, color: DIM }}>Up to 20 files · PDF or DOCX · Tier auto-detected from filename</div>
         </div>
 
-        {/* AI Analyze button */}
-        {bulkFiles.length > 0 && bulkPreviews.length === 0 && (
-          <button
-            onClick={async () => {
-              setBulkProcessing(true)
-              const results: any[] = []
-              for (let i = 0; i < bulkFiles.length; i++) {
-                setAnalyzingIdx(i)
-                const file = bulkFiles[i]
-                const formData = new FormData()
-                formData.append('file', file)
-                formData.append('aiAnalyze', 'true')
-                try {
-                  const token = await getToken()
-                  const res = await fetch('/api/admin-upload', {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${token}` },
-                    body: formData,
-                  })
-                  const d = await res.json()
-                  results.push({
-                    file,
-                    fileName: file.name,
-                    title: d.title || file.name.replace(/\.[^.]+$/, ''),
-                    description: d.description || '',
-                    topic: d.topic || d.category || 'General Ministry',
-                    tags: d.tags || [],
-                    tier: d.tier || 'free',
-                    fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-                    approved: true,
-                  })
-                } catch {
-                  results.push({
-                    file,
-                    fileName: file.name,
-                    title: file.name.replace(/\.[^.]+$/, ''),
-                    description: '',
-                    topic: 'General Ministry',
-                    tags: [],
-                    tier: 'free',
-                    fileSize: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-                    approved: true,
-                    error: true,
-                  })
-                }
-              }
-              setBulkPreviews(results)
-              setAnalyzingIdx(-1)
-              setBulkProcessing(false)
-            }}
-            disabled={bulkProcessing}
-            style={{ padding: '10px 24px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 20, width: '100%', textTransform: 'uppercase' as const }}
-          >
-            {bulkProcessing ? `⚙ Analyzing file ${analyzingIdx + 1} of ${bulkFiles.length}...` : `✦ Analyze ${bulkFiles.length} Files with AI`}
-          </button>
-        )}
-
-        {/* Review cards */}
-        {bulkPreviews.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14 }}>
-              Review & Confirm: {bulkPreviews.filter(p => p.approved).length} of {bulkPreviews.length} selected
-            </div>
-            {bulkPreviews.map((preview, idx) => (
-              <div key={idx} style={{
-                background: preview.approved ? 'rgba(201,168,76,0.04)' : 'rgba(0,0,0,0.2)',
-                border: `1px solid ${preview.approved ? 'rgba(201,168,76,0.25)' : 'rgba(255,255,255,0.05)'}`,
-                borderRadius: 8, padding: '14px 16px', marginBottom: 10,
-                opacity: preview.approved ? 1 : 0.5,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{preview.fileName}</div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, color: DIM }}>{preview.fileSize}</span>
-                    <button
-                      onClick={() => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, approved: !p.approved } : p))}
-                      style={{ fontSize: 10, padding: '2px 10px', background: preview.approved ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${preview.approved ? G : 'rgba(255,255,255,0.1)'}`, borderRadius: 4, color: preview.approved ? G : DIM, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em' }}
-                    >{preview.approved ? '✓ Include' : '✗ Skip'}</button>
-                  </div>
-                </div>
-                <input
-                  value={preview.title}
-                  onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, title: e.target.value } : p))}
-                  style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '6px 10px', color: TXT, fontFamily: cinzel, fontSize: 11, marginBottom: 6, outline: 'none' }}
-                  placeholder="Title"
-                />
-                <textarea
-                  value={preview.description}
-                  onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, description: e.target.value } : p))}
-                  rows={2}
-                  style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 12, marginBottom: 6, outline: 'none', resize: 'vertical' as const }}
-                  placeholder="Description"
-                />
-                {/* Function Tags checklist */}
-                <div style={{ marginBottom: 6 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Function Tags</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-                    {FUNCTION_TAGS.map(tag => {
-                      const selected = (Array.isArray(preview.tags) ? preview.tags : []).includes(tag)
-                      return (
-                        <button key={tag}
-                          onClick={() => setBulkPreviews(prev => prev.map((p, i) => {
-                            if (i !== idx) return p
-                            const cur = Array.isArray(p.tags) ? p.tags : []
-                            return { ...p, tags: selected ? cur.filter((t: string) => t !== tag) : [...cur, tag] }
-                          }))}
-                          style={{ padding: '3px 10px', background: selected ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${selected ? G : 'rgba(201,168,76,0.2)'}`, borderRadius: 20, color: selected ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s' }}>
-                          {selected ? '✓ ' : ''}{tag}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <select
-                    value={preview.tier}
-                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, tier: e.target.value } : p))}
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}
-                  >
-                    <option value="free">Free</option>
-                    <option value="soldier">Soldier</option>
-                    <option value="commander">Commander</option>
-                    <option value="general">General</option>
-                  </select>
-                  <select
-                    value={preview.topic || preview.category || 'General Ministry'}
-                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, topic: e.target.value } : p))}
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}
-                  >
-                    {allTopics.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div style={{ marginTop: 6 }}>
-                  <input
-                    value={preview.spirit_tags || ''}
-                    onChange={e => setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, spirit_tags: e.target.value } : p))}
-                    placeholder="Spirit Tags (optional): Baal, Jezebel, Leviathan"
-                    style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '5px 8px', color: TXT, fontFamily: crimson, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
+        {/* Staged file list */}
+        {stagedFiles.length > 0 && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <button
+                onClick={() => setListExpanded(e => !e)}
+                style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const, padding: 0 }}
+              >
+                {listExpanded ? '▲' : '▼'} {stagedFiles.length} File{stagedFiles.length !== 1 ? 's' : ''} Staged
+              </button>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                {bulkUploading && (
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em' }}>
+                    {uploadProgress.done} / {uploadProgress.total} uploaded
+                  </span>
+                )}
+                {!bulkUploading && stagedFiles.some(sf => sf.status === 'done') && (
+                  <button
+                    onClick={() => setStagedFiles(prev => prev.filter(sf => sf.status !== 'done'))}
+                    style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, padding: 0 }}
+                  >Clear Done</button>
+                )}
               </div>
-            ))}
+            </div>
+
+            {listExpanded && (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 12 }}>
+                {stagedFiles.map(sf => {
+                  const statusColors: Record<string, string> = {
+                    pending: DIM, uploading: G, done: '#4ade80', error: '#f87171', duplicate: '#f59e0b',
+                  }
+                  const statusLabels: Record<string, string> = {
+                    pending: 'Pending', uploading: '⏳ Uploading', done: '✓ Done', error: '✗ Error', duplicate: '⚠ Duplicate',
+                  }
+                  const sc = statusColors[sf.status] || DIM
+                  return (
+                    <div key={sf.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      background: 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${sf.status === 'duplicate' ? 'rgba(245,158,11,0.25)' : sf.status === 'error' ? 'rgba(248,113,113,0.25)' : sf.status === 'done' ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)'}`,
+                      borderRadius: 6, padding: '8px 12px',
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sf.filename}</div>
+                        <div style={{ fontFamily: crimson, fontSize: 11, color: DIM }}>{sf.sizeLabel}</div>
+                        {sf.status === 'duplicate' && <div style={{ fontFamily: crimson, fontSize: 11, color: '#f59e0b', fontStyle: 'italic' as const }}>Already exists in library</div>}
+                        {sf.status === 'error' && sf.errorMsg && <div style={{ fontFamily: crimson, fontSize: 11, color: '#f87171', fontStyle: 'italic' as const }}>{sf.errorMsg}</div>}
+                      </div>
+                      {(sf.status === 'pending' || sf.status === 'duplicate') && (
+                        <select
+                          value={sf.tier}
+                          onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, tier: e.target.value } : x))}
+                          style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '3px 6px', color: TXT, fontFamily: cinzel, fontSize: 9, outline: 'none' }}
+                        >
+                          <option value="free">Free</option>
+                          <option value="soldier">Soldier</option>
+                          <option value="commander">Commander</option>
+                          <option value="general">General</option>
+                        </select>
+                      )}
+                      <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: sc, border: `1px solid ${sc}44`, borderRadius: 10, padding: '2px 8px', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+                        {statusLabels[sf.status] || sf.status}
+                      </span>
+                      {sf.status === 'pending' && (
+                        <button onClick={() => removeStagedFile(sf.id)} style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px', flexShrink: 0 }} title="Remove">×</button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             <button
-              onClick={async () => {
-                setBulkUploading(true)
-                const toUpload = bulkPreviews.filter(p => p.approved)
-                let succeeded = 0
-                for (const preview of toUpload) {
-                  try {
-                    const formData = new FormData()
-                    formData.append('file', preview.file)
-                    formData.append('title', preview.title)
-                    formData.append('description', preview.description)
-                    formData.append('topic', preview.topic || preview.category || 'General Ministry')
-                    formData.append('tier', preview.tier)
-                    formData.append('tags', JSON.stringify(preview.tags))
-                    if (preview.spirit_tags) formData.append('spirit_tags', preview.spirit_tags)
-                    const token = await getToken()
-                    const res = await fetch('/api/admin-upload', {
-                      method: 'POST',
-                      headers: { Authorization: `Bearer ${token}` },
-                      body: formData,
-                    })
-                    if (res.ok) succeeded++
-                  } catch { /* silent */ }
-                }
-                setBulkUploading(false)
-                setBulkFiles([])
-                setBulkPreviews([])
-                alert(`Uploaded ${succeeded} of ${toUpload.length} files successfully.`)
+              onClick={handleBulkUpload}
+              disabled={bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')}
+              style={{
+                width: '100%', padding: '12px',
+                background: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? 'rgba(201,168,76,0.2)' : G,
+                border: 'none', borderRadius: 8,
+                color: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? DIM : '#0D0B14',
+                fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
+                cursor: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? 'not-allowed' : 'pointer',
+                textTransform: 'uppercase' as const, fontWeight: 700,
               }}
-              disabled={bulkUploading || bulkPreviews.filter(p => p.approved).length === 0}
-              style={{ width: '100%', padding: '12px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700 }}
             >
-              {bulkUploading ? 'Uploading...' : `⚔ Upload ${bulkPreviews.filter(p => p.approved).length} Files`}
+              {bulkUploading
+                ? `⬆ Uploading... ${uploadProgress.done + 1} / ${uploadProgress.total}`
+                : `⚔ Upload ${stagedFiles.filter(sf => sf.status === 'pending').length} File${stagedFiles.filter(sf => sf.status === 'pending').length !== 1 ? 's' : ''}`}
             </button>
           </div>
         )}
-      </div>
-
-      {/* Upload Form */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>⬆ Upload Resource</div>
-
-        {/* Drop zone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileRef.current?.click()}
-          style={{
-            border: `2px dashed ${dragging ? G : BDR}`,
-            borderRadius: 8, padding: '32px 20px', textAlign: 'center',
-            cursor: 'pointer', marginBottom: analyzing ? 8 : 20, transition: 'border-color 0.2s',
-            background: dragging ? 'rgba(201,168,76,0.04)' : 'transparent',
-          }}
-        >
-          <input ref={fileRef} type="file" accept=".pdf,.docx,.mp3,.png,.jpg,.jpeg" style={{ display: 'none' }} onChange={handleFileChange} />
-          {file ? (
-            <div>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>{FILE_ICONS[fileExt(file.name)] || '📎'}</div>
-              <div style={{ fontFamily: crimson, color: TXT, fontSize: 15 }}>{file.name}</div>
-              <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, marginTop: 4 }}>{fmtBytes(file.size)}</div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
-              <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: DIM }}>Drop file here or click to browse</div>
-              <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginTop: 4, fontStyle: 'italic' }}>PDF, DOCX, MP3, PNG, JPG · max 50MB</div>
-            </div>
-          )}
-        </div>
-
-        {/* AI analyzing indicator */}
-        {analyzing && (
-          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 16, textAlign: 'center' }}>
-            ⚔ Analyzing document...
-          </div>
-        )}
-
-        {/* Fields */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>
-              Title *{aiFields.has('title') && <AiBadge />}
-            </label>
-            <input
-              value={title}
-              onChange={e => { setTitle(e.target.value); setAiFields(prev => { const n = new Set(prev); n.delete('title'); return n }) }}
-              placeholder="Resource title..."
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Tier</label>
-            <select value={tier} onChange={e => setTier(e.target.value)} style={{ ...inputStyle }}>
-              {TIERS.map(t => <option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>
-              Topic{aiFields.has('topic') && <AiBadge />}
-            </label>
-            <select
-              value={topic}
-              onChange={e => { setTopic(e.target.value); setAiFields(prev => { const n = new Set(prev); n.delete('topic'); return n }) }}
-              style={{ ...inputStyle }}
-            >
-              {allTopics.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>
-              Description (optional){aiFields.has('description') && <AiBadge />}
-            </label>
-            <textarea
-              value={description}
-              onChange={e => { setDesc(e.target.value.slice(0, 200)); setAiFields(prev => { const n = new Set(prev); n.delete('description'); return n }) }}
-              rows={2} placeholder="Brief description..."
-              style={{ ...inputStyle, resize: 'vertical' as const }}
-            />
-            <div style={{ fontSize: 10, color: DIM, textAlign: 'right' as const, marginTop: 2 }}>{description.length}/200</div>
-          </div>
-
-          {/* Function Tags checklist */}
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>
-              Function Tags{aiFields.has('tags') && <AiBadge />}
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-              {FUNCTION_TAGS.map(tag => {
-                const selected = tags.includes(tag)
-                return (
-                  <button key={tag}
-                    onClick={() => setTags(prev => selected ? prev.filter(t => t !== tag) : [...prev, tag])}
-                    style={{ padding: '3px 10px', background: selected ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${selected ? G : 'rgba(201,168,76,0.2)'}`, borderRadius: 20, color: selected ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s' }}>
-                    {selected ? '✓ ' : ''}{tag}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {uploadMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: '#4ade80', marginBottom: 10 }}>{uploadMsg}</div>}
-        {uploadErr && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 10 }}>⚠ {uploadErr}</div>}
-
-        <button
-          onClick={handleUpload}
-          disabled={!file || !title.trim() || uploading || analyzing}
-          style={{
-            width: '100%', padding: '11px', fontFamily: cinzel, fontSize: 10,
-            letterSpacing: '0.1em', border: 'none', borderRadius: 6,
-            cursor: (!file || !title.trim() || uploading || analyzing) ? 'not-allowed' : 'pointer',
-            background: (!file || !title.trim() || uploading || analyzing) ? 'rgba(201,168,76,0.2)' : G,
-            color: (!file || !title.trim() || uploading || analyzing) ? DIM : '#0D0B14',
-            transition: 'all 0.2s',
-          }}
-        >
-          {uploading ? '⬆ Uploading...' : analyzing ? '⚔ Analyzing...' : '⬆ Upload Resource'}
-        </button>
       </div>
 
       {/* Resource List */}
@@ -3348,6 +3105,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [uploadingAll, setUploadingAll] = useState(false)
   const [bookSearch, setBookSearch]     = useState('')
   const [quickTagId, setQuickTagId]     = useState<string | null>(null)
+  const [kbExpanded, setKbExpanded]     = useState(false)
   const fileInputRef    = useRef<HTMLInputElement>(null)
   const pdfInputRef     = useRef<HTMLInputElement>(null)
 
@@ -3626,7 +3384,17 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setQuickTagId(book.id)
     try {
       const token = await getToken()
-      const contentSnippet = [book.title, book.author, book.notes].filter(Boolean).join('\n\n')
+      let contentSnippet = [book.title, book.author, book.notes].filter(Boolean).join('\n\n')
+      try {
+        const textRes = await fetch(`/api/admin-library?id=${book.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (textRes.ok) {
+          const textData = await textRes.json()
+          const extracted = textData.book?.extracted_text
+          if (extracted && extracted.length > 50) contentSnippet = extracted.slice(0, 6000)
+        }
+      } catch { /* fall back to notes */ }
       const res = await fetch('/api/library-autofill', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -3703,10 +3471,21 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setEditLoading(true)
     try {
       const token = await getToken()
+      let contentSnippet = book.notes || ''
+      try {
+        const textRes = await fetch(`/api/admin-library?id=${book.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (textRes.ok) {
+          const textData = await textRes.json()
+          const extracted = textData.book?.extracted_text
+          if (extracted && extracted.length > 50) contentSnippet = extracted.slice(0, 6000)
+        }
+      } catch { /* fall back to notes */ }
       const resp  = await fetch('/api/library-autofill', {
         method:  'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
+        body:    JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet }),
       })
       const d = await resp.json()
       if (resp.ok) {
@@ -3751,10 +3530,21 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       for (let i = 0; i < needsRetag.length; i++) {
         const book = needsRetag[i]
         try {
+          let contentSnippet = book.notes || ''
+          try {
+            const textRes = await fetch(`/api/admin-library?id=${book.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            if (textRes.ok) {
+              const textData = await textRes.json()
+              const extracted = textData.book?.extracted_text
+              if (extracted && extracted.length > 50) contentSnippet = extracted.slice(0, 6000)
+            }
+          } catch { /* fall back to notes */ }
           const autofillRes = await fetch('/api/library-autofill', {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet: book.notes || '' }),
+            body: JSON.stringify({ filename: book.filename || book.file_path || book.title, contentSnippet }),
           })
           if (autofillRes.ok) {
             const d = await autofillRes.json()
@@ -3826,24 +3616,28 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
       {/* ══ AI KNOWLEDGE BASE ══════════════════════════════════════════════════ */}
       <div style={{ marginBottom: 40 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-          <div>
-            <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', marginBottom: 4 }}>🧠 AI Knowledge Base</div>
-            <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.5 }}>
-              TXT and DOCX files the AI reads, searches, and references when enhancing spirits and answering questions.
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: kbExpanded ? 12 : 0 }}>
+          <button
+            onClick={() => setKbExpanded(e => !e)}
+            style={{ background: 'none', border: 'none', color: LG, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', padding: 0 }}
+          >
+            {kbExpanded ? '▲' : '▼'} 🧠 AI Knowledge Base (ingestion)
+          </button>
+          {kbExpanded && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              {retagProgress && (
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
+                  {retagRunning ? `Re-tagging ${retagProgress.done}/${retagProgress.total}…` : `✓ ${retagProgress.updated} updated`}
+                </span>
+              )}
+              <button onClick={retagAllBooks} disabled={retagRunning}
+                style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: retagRunning ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: retagRunning ? 0.6 : 1, whiteSpace: 'nowrap' as const }}
+              >{retagRunning ? '✦ Re-tagging…' : '✦ Re-run AI Tags'}</button>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            {retagProgress && (
-              <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.06em' }}>
-                {retagRunning ? `Re-tagging ${retagProgress.done}/${retagProgress.total}…` : `✓ ${retagProgress.updated} updated`}
-              </span>
-            )}
-            <button onClick={retagAllBooks} disabled={retagRunning}
-              style={{ background: 'transparent', border: `1px solid rgba(92,124,191,0.5)`, borderRadius: 5, color: '#8BA3D4', fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: retagRunning ? 'wait' : 'pointer', letterSpacing: '0.06em', opacity: retagRunning ? 0.6 : 1, whiteSpace: 'nowrap' as const }}
-            >{retagRunning ? '✦ Re-tagging…' : '✦ Re-run AI Tags'}</button>
-          </div>
+          )}
         </div>
+
+        {kbExpanded && (<>
 
         {/* ── AI dropzone ── */}
         <div
@@ -4120,13 +3914,14 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             </div>
           </div>
         )}
+        </>)}
       </div>
 
       {/* ══ READING LIBRARY ══════════════════════════════════════════════════════ */}
       <div style={{ marginTop: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
           <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,0.18)' }} />
-          <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>📚 Reading Library</div>
+          <div style={{ fontFamily: cinzel, fontSize: 15, color: LG, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>📚 PDF Library</div>
           <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,0.18)' }} />
         </div>
         <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.5, marginBottom: 14 }}>
