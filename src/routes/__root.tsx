@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute, useLocation } from '@tanstack/react-router'
 import { ClerkProvider } from '@clerk/tanstack-start'
 import { Header } from '@/components/Header'
 import { AIAssistant } from '@/components/AIAssistant'
@@ -90,9 +90,12 @@ const defaultResults: CommandResult[] = [
 ]
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const pathname = useRouterState({ select: s => s.location.pathname })
+  const { pathname } = useLocation()
   const bare = BARE_ROUTES.includes(pathname)
   const communityShell = COMMUNITY_SHELL_ROUTES.includes(pathname) || pathname.startsWith('/community/')
+  const hidePubHeader = pathname === '/community' ||
+    pathname.startsWith('/community/') ||
+    pathname === '/arsenal'
   const [cmdOpen, setCmdOpen] = useState(false)
 
   useEffect(() => {
@@ -121,7 +124,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             'https://www.warroomintel.com',
           ]}
         >
-          {!bare && !communityShell && <Header />}
+          {!hidePubHeader && <Header />}
           {children}
           {!bare && !communityShell && <AIAssistant />}
           <CommandPalette
