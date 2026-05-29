@@ -4,6 +4,7 @@ import { useAuth, useUser, useClerk, SignInButton, SignUpButton } from '@clerk/t
 import { Search } from 'lucide-react'
 import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
 import type { ClassLevel } from '@/components/primitives'
+import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 
 export const Route = createFileRoute('/arsenal')({
   component: ArsenalPage,
@@ -12,14 +13,6 @@ export const Route = createFileRoute('/arsenal')({
 // ─── MOBILE STYLES ────────────────────────────────────────────────────────────
 const resourcesMobileStyles = `
   @media (max-width: 640px) {
-    .res-topbar {
-      flex-direction: column !important;
-      gap: 10px !important;
-      padding: 12px 16px !important;
-      align-items: flex-start !important;
-    }
-    .res-topbar-nav { display: none !important; }
-    .res-topbar-tier { flex-direction: row; align-items: center; gap: 8px; }
     .res-hero { padding: 16px !important; }
     .res-search-bar { padding: 14px 16px 0 !important; }
     .res-filters { padding: 10px 16px 0 !important; }
@@ -32,8 +25,6 @@ const resourcesMobileStyles = `
     .res-section-header { padding: 0 16px 10px !important; }
   }
   @media (min-width: 641px) and (max-width: 900px) {
-    .res-topbar { padding: 12px 20px !important; }
-    .res-topbar-nav a { font-size: 9px !important; }
     .res-hero { padding: 16px 20px !important; }
     .res-search-bar { padding: 14px 20px 0 !important; }
     .res-filters { padding: 10px 20px 0 !important; }
@@ -345,45 +336,13 @@ function ArsenalPage() {
   const tierCounts: Record<string, number> = {}
   resources.forEach(r => { tierCounts[r.tier] = (tierCounts[r.tier] || 0) + 1 })
 
-  return (
-    <div style={{ background: 'var(--bg-1)', minHeight: '100vh', color: 'var(--t-1)', fontFamily: crimson }}>
-      <style>{resourcesMobileStyles}</style>
+  const userName      = user?.firstName || user?.username || ''
+  const userTierLabel = memberTier === 'Free' ? 'WATCHMAN' : memberTier.toUpperCase()
 
-      {/* ── Topbar ── */}
-      <div className="res-topbar" style={{ background: 'var(--bg-0)', borderBottom: '1px solid var(--gold-line)', padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <a href="/" style={{ fontFamily: cinzel, fontSize: '13px', letterSpacing: '0.18em', color: 'var(--gold)', textDecoration: 'none', textTransform: 'uppercase' as const }}>
-          War Room Intel
-        </a>
-        <div className="res-topbar-nav" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          {(['/', '/assessment'] as const).map((href, i) => (
-            <a key={href} href={href} style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: 'var(--t-3)', textDecoration: 'none' }}>
-              {['Home', 'Assessment'][i]}
-            </a>
-          ))}
-          <span style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: 'var(--gold)' }}>
-            Arsenal
-          </span>
-        </div>
-        {/* Member session display */}
-        <div className="res-topbar-tier" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {user?.firstName && (
-            <span style={{ fontFamily: cinzel, fontSize: '9px', color: 'var(--t-3)', letterSpacing: '0.08em' }}>
-              {user.firstName}
-            </span>
-          )}
-          <ClassBadge level={TIER_CLASS[memberTier] || 'IV'} label={memberTier.toUpperCase()} />
-          <button
-            onClick={() => signOut()}
-            style={{
-              background: 'transparent', border: '1px solid var(--gold-line)',
-              color: 'var(--t-3)', fontFamily: cinzel, fontSize: '8px',
-              letterSpacing: '0.1em', padding: '4px 10px', borderRadius: '2px', cursor: 'pointer',
-            }}
-          >
-            LOGOUT
-          </button>
-        </div>
-      </div>
+  return (
+    <CommunitySidebarShell activeItem="Arsenal" userName={userName} userTierLabel={userTierLabel}>
+      <style>{resourcesMobileStyles}</style>
+      <div style={{ color: 'var(--t-1)', fontFamily: crimson }}>
 
       {/* ── Hero ── */}
       <div className="res-hero" style={{ padding: '14px 32px', borderBottom: '1px solid var(--gold-line)' }}>
@@ -598,6 +557,7 @@ function ArsenalPage() {
           ⚔ Manage Membership →
         </a>
       </div>
-    </div>
+      </div>
+    </CommunitySidebarShell>
   )
 }

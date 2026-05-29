@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect } from 'react'
+import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 
 const MobileSubpageNav = () => (
   <>
@@ -952,15 +953,17 @@ function FieldManualPage() {
     </div>
   )
 
+  const fmUserName      = user.firstName || user.username || 'Warrior'
+  const fmUserTierLabel = tier === 'watchman' || tier === 'free' ? 'WATCHMAN' : tier.toUpperCase()
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: BG, overflow: 'hidden' }}>
-      {/* Hero banner — matching Spiritual Mapping exactly */}
+    <CommunitySidebarShell activeItem="Field Manual" userName={fmUserName} userTierLabel={fmUserTierLabel} fillViewport>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: BG, overflow: 'hidden' }}>
+      {/* Hero banner */}
       <div style={{ padding: isMobile ? '0 16px' : '0 32px', background: `linear-gradient(180deg, rgba(201,168,76,0.08) 0%, transparent 100%)`, borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingBottom: 0 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <a href="/community" style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, textDecoration: 'none', minHeight: 44, display: 'flex', alignItems: 'center' }}>← COMMUNITY</a>
-              <span style={{ color: BDR }}>|</span>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FIELD OPERATIONS</div>
             </div>
             <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700, marginTop: 8, letterSpacing: '0.06em' }}>
@@ -1018,5 +1021,6 @@ function FieldManualPage() {
         )}
       </div>
     </div>
+    </CommunitySidebarShell>
   )
 }

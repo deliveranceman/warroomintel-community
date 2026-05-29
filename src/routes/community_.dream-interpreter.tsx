@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 
 export const Route = createFileRoute('/community_/dream-interpreter')({
   ssr: false,
@@ -233,6 +234,8 @@ function DreamInterpreterPage() {
   const role     = (user?.publicMetadata?.role as string) || ''
   const tierLvl  = TIER_LEVELS[tier] ?? 0
   const hasAccess = tierLvl >= 1 || role === 'minister'
+  const dreUserName      = user?.firstName || user?.username || ''
+  const dreUserTierLabel = tier === 'watchman' || tier === 'free' || !tier ? 'WATCHMAN' : tier.toUpperCase()
 
   function toggleSection(idx: number) {
     setOpenSections(prev => ({ ...prev, [idx]: !(prev[idx] ?? true) }))
@@ -301,14 +304,8 @@ function DreamInterpreterPage() {
   const v = report ? (VERDICT_META[report.verdict] ?? VERDICT_META.mixed) : null
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, color: TXT }}>
-      {/* breadcrumb */}
-      <div style={{ borderBottom: `1px solid ${BDR}`, padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <a href="/community" style={{ color: MUT, fontFamily: mono, fontSize: 10, letterSpacing: '0.1em', textDecoration: 'none' }}>← COMMUNITY</a>
-        <span style={{ color: MUT, opacity: 0.4, fontSize: 12 }}>›</span>
-        <span style={{ fontFamily: mono, fontSize: 10, color: G, letterSpacing: '0.1em' }}>DREAM INTERPRETER</span>
-      </div>
-
+    <CommunitySidebarShell activeItem="Dream Interpreter" userName={dreUserName} userTierLabel={dreUserTierLabel}>
+    <div style={{ color: TXT }}>
       <div style={{ maxWidth: 820, margin: '0 auto', padding: '40px 24px 100px' }}>
         {/* page title */}
         <div style={{ marginBottom: 32 }}>
@@ -504,5 +501,6 @@ function DreamInterpreterPage() {
         </a>
       </nav>
     </div>
+    </CommunitySidebarShell>
   )
 }

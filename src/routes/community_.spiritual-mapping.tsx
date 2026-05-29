@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useUser } from '@clerk/tanstack-start'
 import { useState } from 'react'
+import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { Training } from '@/components/spiritual-mapping/Training'
 import { IntelligenceMap } from '@/components/spiritual-mapping/IntelligenceMap'
 import { Assessment } from '@/components/spiritual-mapping/Assessment'
@@ -67,6 +68,7 @@ function SpiritualMappingPage() {
   const userLevel = TIER_LEVELS[tier.toLowerCase()] ?? 0
   const userId = user?.id || ''
   const userName = user?.firstName || user?.username || 'Warrior'
+  const smUserTierLabel = tier.toLowerCase() === 'watchman' || tier.toLowerCase() === 'free' ? 'WATCHMAN' : tier.toUpperCase()
 
   if (!isLoaded) {
     return (
@@ -89,7 +91,8 @@ function SpiritualMappingPage() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: BG, overflow: 'hidden' }}>
+    <CommunitySidebarShell activeItem="Spiritual Mapping" userName={userName} userTierLabel={smUserTierLabel} fillViewport>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Hero banner */}
       <div style={{
         padding: '0 32px',
@@ -100,8 +103,6 @@ function SpiritualMappingPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingBottom: 0 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <a href="/community" style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, textDecoration: 'none' }}>← COMMUNITY</a>
-              <span style={{ color: BDR }}>|</span>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FIELD OPERATIONS</div>
             </div>
             <div style={{ fontFamily: cinzel, fontSize: 22, color: G, fontWeight: 700, marginTop: 8, letterSpacing: '0.06em' }}>
@@ -157,5 +158,6 @@ function SpiritualMappingPage() {
         {activeTab === 'submit'     && <SubmitRegion userId={userId} userName={userName} />}
       </div>
     </div>
+    </CommunitySidebarShell>
   )
 }

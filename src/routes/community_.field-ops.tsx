@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect } from 'react'
+import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 
 const MobileSubpageNav = () => (
   <>
@@ -171,6 +172,8 @@ function FieldOpsPage() {
   const role    = (user?.publicMetadata?.role as string) || ''
   const tierLvl = TIER_LEVELS[tier] ?? 0
   const isCommanderPlus = tierLvl >= 2 || role === 'minister'
+  const foUserName      = user?.firstName || user?.username || ''
+  const foUserTierLabel = tier === 'watchman' || tier === 'free' || !tier ? 'WATCHMAN' : tier.toUpperCase()
 
   async function apiFetch(path: string, opts: RequestInit = {}) {
     const token = await getToken()
@@ -347,8 +350,6 @@ function FieldOpsPage() {
   // ── BREADCRUMB ──────────────────────────────────────────────────────────────
   const Breadcrumb = () => (
     <div style={{ borderBottom: `1px solid ${BDR}`, padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-      <a href="/community" style={{ color: MUT, fontFamily: mono, fontSize: 10, letterSpacing: '0.1em', textDecoration: 'none' }}>← COMMUNITY</a>
-      <span style={{ color: MUT, opacity: 0.4, fontSize: 12 }}>›</span>
       <button onClick={() => setView('list')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: mono, fontSize: 10, letterSpacing: '0.1em', color: view === 'list' ? G : MUT, padding: 0 }}>
         FIELD OPS
       </button>
@@ -412,7 +413,8 @@ function FieldOpsPage() {
 
   // ── LIST VIEW ───────────────────────────────────────────────────────────────
   if (view === 'list') return (
-    <div style={{ minHeight: '100vh', background: BG, color: TXT, display: 'flex', flexDirection: 'column' as const }}>
+    <CommunitySidebarShell activeItem="Field Ops" userName={foUserName} userTierLabel={foUserTierLabel}>
+    <div style={{ color: TXT, display: 'flex', flexDirection: 'column' as const }}>
       <Breadcrumb />
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px 100px', width: '100%', boxSizing: 'border-box' as const }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
@@ -490,13 +492,15 @@ function FieldOpsPage() {
         )}
       </div>
     </div>
+    </CommunitySidebarShell>
   )
 
   // ── DETAIL VIEW ─────────────────────────────────────────────────────────────
   if (view === 'detail' && selectedCase) {
     const c = selectedCase
     return (
-      <div style={{ minHeight: '100vh', background: BG, color: TXT, display: 'flex', flexDirection: 'column' as const }}>
+      <CommunitySidebarShell activeItem="Field Ops" userName={foUserName} userTierLabel={foUserTierLabel}>
+      <div style={{ color: TXT, display: 'flex', flexDirection: 'column' as const }}>
         <Breadcrumb />
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px 100px', width: '100%', boxSizing: 'border-box' as const }}>
 
@@ -651,12 +655,14 @@ function FieldOpsPage() {
           )}
         </div>
       </div>
+      </CommunitySidebarShell>
     )
   }
 
   // ── NEW CASE FORM ───────────────────────────────────────────────────────────
   if (view === 'new-case') return (
-    <div style={{ minHeight: '100vh', background: BG, color: TXT, display: 'flex', flexDirection: 'column' as const }}>
+    <CommunitySidebarShell activeItem="Field Ops" userName={foUserName} userTierLabel={foUserTierLabel}>
+    <div style={{ color: TXT, display: 'flex', flexDirection: 'column' as const }}>
       <Breadcrumb />
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px 100px', width: '100%', boxSizing: 'border-box' as const }}>
         <h1 style={{ fontFamily: cinzel, fontSize: 22, color: G, fontWeight: 700, margin: '0 0 24px' }}>New Case File</h1>
@@ -723,13 +729,15 @@ function FieldOpsPage() {
         </div>
       </div>
     </div>
+    </CommunitySidebarShell>
   )
 
   // ── SESSION FORM (shared by new-session + edit-session) ────────────────────
   if (view === 'new-session' || view === 'edit-session') {
     const isEdit = view === 'edit-session'
     return (
-      <div style={{ minHeight: '100vh', background: BG, color: TXT, display: 'flex', flexDirection: 'column' as const }}>
+      <CommunitySidebarShell activeItem="Field Ops" userName={foUserName} userTierLabel={foUserTierLabel}>
+      <div style={{ color: TXT, display: 'flex', flexDirection: 'column' as const }}>
         <Breadcrumb />
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px 100px', width: '100%', boxSizing: 'border-box' as const }}>
           <h1 style={{ fontFamily: cinzel, fontSize: 22, color: G, fontWeight: 700, margin: '0 0 4px' }}>
@@ -809,6 +817,7 @@ function FieldOpsPage() {
           </div>
         </div>
       </div>
+      </CommunitySidebarShell>
     )
   }
 

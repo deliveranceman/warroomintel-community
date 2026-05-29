@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
+import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 
 const MobileSubpageNav = () => (
   <>
@@ -366,8 +367,6 @@ function ScripturePage() {
       {/* Page header */}
       <div style={{ padding: isMobile ? '16px 16px 0' : '24px 32px 0', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <a href="/community" style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, textDecoration: 'none', minHeight: 36, display: 'flex', alignItems: 'center' }}>← COMMUNITY</a>
-          <span style={{ color: BDR }}>|</span>
           <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FOUNDATION</span>
         </div>
 
@@ -533,8 +532,12 @@ function ScripturePage() {
     </div>
   )
 
+  const scrUserName      = user?.firstName || user?.username || 'Warrior'
+  const scrUserTierLabel = tier === 'watchman' || tier === 'free' ? 'WATCHMAN' : tier.toUpperCase()
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' as const, background: BG, overflow: 'hidden' }}>
+    <CommunitySidebarShell activeItem="Scripture" userName={scrUserName} userTierLabel={scrUserTierLabel} fillViewport>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: BG, overflow: 'hidden' }}>
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {leftPanel}
         {!isMobile && rightPanel}
@@ -581,5 +584,6 @@ function ScripturePage() {
         </div>
       )}
     </div>
+    </CommunitySidebarShell>
   )
 }
