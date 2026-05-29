@@ -2533,7 +2533,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
         <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
           ⚡ Intel Briefing
         </div>
-        <style>{`@keyframes wri-pulse{0%,100%{opacity:0.4}50%{opacity:0.8}}`}</style>
+        <style>{`@keyframes wri-pulse{0%,100%{opacity:0.4}50%{opacity:0.8}}@keyframes railFlyoutIn{from{transform:translateX(280px);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
             {[1, 2, 3].map(i => (
