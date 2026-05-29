@@ -278,58 +278,62 @@ export function Header() {
           <div style={{ flex: 1 }} />
 
           {/* ⌘K button (desktop only) */}
-          <button
-            className="wr-nav-desktop"
-            onClick={openCmd}
-            title="Command palette (⌘K)"
-            aria-label="Open command palette"
-            style={{
-              background: 'none',
-              border: `1px solid ${borderBright}`,
-              borderRadius: '4px',
-              color: textDim,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '5px 10px',
-              fontFamily: cinzel,
-              fontSize: '10px',
-              letterSpacing: '0.08em',
-              flexShrink: 0,
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = gold; e.currentTarget.style.color = gold }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = borderBright; e.currentTarget.style.color = textDim }}
-          >
-            <span style={{ fontSize: '11px' }}>⌘K</span>
-          </button>
+          <SignedIn>
+            <button
+              className="wr-nav-desktop"
+              onClick={openCmd}
+              title="Command palette (⌘K)"
+              aria-label="Open command palette"
+              style={{
+                background: 'none',
+                border: `1px solid ${borderBright}`,
+                borderRadius: '4px',
+                color: textDim,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 10px',
+                fontFamily: cinzel,
+                fontSize: '10px',
+                letterSpacing: '0.08em',
+                flexShrink: 0,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = gold; e.currentTarget.style.color = gold }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = borderBright; e.currentTarget.style.color = textDim }}
+            >
+              <span style={{ fontSize: '11px' }}>⌘K</span>
+            </button>
+          </SignedIn>
 
           {/* Bell (desktop only) */}
-          <button
-            className="wr-nav-desktop"
-            aria-label="Notifications"
-            title="Notifications"
-            style={{
-              width: '32px', height: '32px',
-              background: 'none',
-              border: `1px solid ${borderBright}`,
-              borderRadius: '50%',
-              color: textDim,
-              cursor: 'pointer',
-              fontSize: '14px',
-              lineHeight: 1,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.2s, color 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = goldDim; e.currentTarget.style.color = gold }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = textDim }}
-          >
-            🔔
-          </button>
+          <SignedIn>
+            <button
+              className="wr-nav-desktop"
+              aria-label="Notifications"
+              title="Notifications"
+              style={{
+                width: '32px', height: '32px',
+                background: 'none',
+                border: `1px solid ${borderBright}`,
+                borderRadius: '50%',
+                color: textDim,
+                cursor: 'pointer',
+                fontSize: '14px',
+                lineHeight: 1,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s, color 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = goldDim; e.currentTarget.style.color = gold }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = textDim }}
+            >
+              🔔
+            </button>
+          </SignedIn>
 
           {/* Desktop CTA — signed-out only */}
           {mounted && (
