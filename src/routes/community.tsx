@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav } from '@/components/primitives'
-import { Home, FileText, Crosshair, User, Plus, BookOpen } from 'lucide-react'
+import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -6308,7 +6308,7 @@ function CommunityPage() {
   const NAV_DEFAULT = isDark ? '#b8a98a' : '#3d2e1e'
   const navGold    = isDark ? G : '#8B6914'
 
-  const navItem = (label: string, section: string, icon?: string) => {
+  const navItem = (label: string, section: string, icon?: React.ReactNode) => {
     const active = activeSection === section
     const collapsed = sidebarCollapsed && !isMobile
     return (
@@ -6329,7 +6329,7 @@ function CommunityPage() {
         onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
       >
-        {icon && <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>}
+        {icon && <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>{icon}</span>}
         {!collapsed && label}
       </button>
     )
@@ -6594,20 +6594,20 @@ function CommunityPage() {
 
         {/* ── QUICK ACCESS ICON STRIP ── */}
         {!(sidebarCollapsed && !isMobile) && <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
-          {[
-            { icon: '💬', label: 'War Room Chat',     mobileLabel: 'Chat',      section: 'war-room-chat'  },
-            { icon: '📨',  label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
-            { icon: '🙏', label: 'Prayer Wall',       mobileLabel: 'Prayer',    section: 'prayer-wall'    },
-            { icon: '✝',  label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
-            { icon: '👥', label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
-            { icon: '❓', label: 'Feedback',          mobileLabel: 'Feedback',  section: 'feedback'       },
-          ].map(({ icon, label, mobileLabel, section }, idx) => (
+          {([
+            { icon: <MessageSquare size={16} strokeWidth={1.6} />, label: 'War Room Chat',     mobileLabel: 'Chat',      section: 'war-room-chat'  },
+            { icon: <Inbox size={16} strokeWidth={1.6} />,         label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
+            { icon: <Heart size={16} strokeWidth={1.6} />,         label: 'Prayer Wall',       mobileLabel: 'Prayer',    section: 'prayer-wall'    },
+            { icon: <Cross size={16} strokeWidth={1.6} />,         label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
+            { icon: <Users size={16} strokeWidth={1.6} />,         label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
+            { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Feedback',          mobileLabel: 'Feedback',  section: 'feedback'       },
+          ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
                 onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
                 onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
                 onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
-                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, cursor: 'pointer', fontSize: section === 'testimony-wall' ? 15 : 16, color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
+                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
               >
                 {icon}
                 {section === 'dms' && unreadDMs > 0 && (
@@ -6641,13 +6641,13 @@ function CommunityPage() {
               <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-                <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📁</span>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FolderOpen size={14} strokeWidth={1.6} /></span>
                 <span>Case Files</span>
               </a>
               <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-                <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📝</span>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
                 <span>Session Notes</span>
               </a>
             </div>
@@ -6656,17 +6656,17 @@ function CommunityPage() {
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
-        {navItem('Weekly Intel', 'intel', '📡')}
-        {navItem('Ops Board', 'forum', '💬')}
-        {navItem('Field Ministry', 'field-ministry', '📖')}
+        {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
+        {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
+        {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
 
         {/* ── FOUNDATION ── */}
         {sectionLabel('Foundation')}
-        {navItem('Arsenal', 'arsenal', '✦')}
+        {navItem('Arsenal', 'arsenal', <Archive size={16} strokeWidth={1.6} />)}
         <a href="/community/field-manual" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚔</span>
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
           <span>Field Manual</span>
         </a>
         <a href="/community/scripture" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
@@ -6690,7 +6690,7 @@ function CommunityPage() {
               onMouseEnter={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
               onMouseLeave={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
             >
-              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📚</span>
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Library size={14} strokeWidth={1.6} /></span>
               Intel Archive
             </button>
             <button
@@ -6707,41 +6707,41 @@ function CommunityPage() {
           <div style={{ overflow: 'hidden', maxHeight: archiveOpen ? 250 : 0, transition: 'max-height 0.2s ease' }}>
             <div style={{ paddingLeft: 16 }}>
               <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <span style={{ fontSize: 11 }}>🔍</span>
+                <Search size={11} strokeWidth={1.6} />
                 <span>Symptom Investigator</span>
               </button>
               <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <span style={{ fontSize: 11 }}>🗺️</span>
+                <Map size={11} strokeWidth={1.6} />
                 <span>Body Map</span>
               </button>
               <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <span style={{ fontSize: 11 }}>🕸️</span>
+                <Network size={11} strokeWidth={1.6} />
                 <span>Spirit Network</span>
               </button>
               <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <span style={{ fontSize: 11 }}>🧱</span>
+                <DoorOpen size={11} strokeWidth={1.6} />
                 <span>Gateway Investigator</span>
               </button>
               <a href="/community/dream-interpreter" style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid rgba(201,168,76,0.1)', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', boxSizing: 'border-box' as const }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#6b5e45' : '#5C5248'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}>
-                <span style={{ fontSize: 11 }}>🌙</span>
+                <Moon size={11} strokeWidth={1.6} />
                 <span>Dream Interpreter</span>
               </a>
             </div>
           </div>
 
           <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>👁</span>
+            <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Eye size={14} strokeWidth={1.6} /></span>
             <span style={{ flex: 1 }}>Fringe Intelligence</span>
             <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
           </button>
           {fringeExpanded && (
             <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
-              {navItem('The Feed', 'fringe-feed', '📡')}
-              {[{ label: 'The Archive', icon: '🗂' }, { label: 'Fringe Chat', icon: '💬' }, { label: 'Courses', icon: '🎓' }].map(({ label, icon }) => (
+              {navItem('The Feed', 'fringe-feed', <Radio size={16} strokeWidth={1.6} />)}
+              {([{ label: 'The Archive', icon: <FolderArchive size={13} strokeWidth={1.6} /> }, { label: 'Fringe Chat', icon: <MessageSquare size={13} strokeWidth={1.6} /> }, { label: 'Courses', icon: <GraduationCap size={13} strokeWidth={1.6} /> }] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
-                  <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
                   <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
                   <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
                 </div>
@@ -6752,14 +6752,14 @@ function CommunityPage() {
 
         {/* ── FIELD OPERATIONS ── */}
         {sectionLabel('Field Operations')}
-        {navItem('Session Center', 'session-center', '⚔')}
+        {navItem('Session Center', 'session-center', <Sword size={16} strokeWidth={1.6} />)}
         <a href="/community/spiritual-mapping" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>📍</span>
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><MapPin size={14} strokeWidth={1.6} /></span>
           <span>Spiritual Mapping</span>
         </a>
-        {navItem('Assessment', 'assessment', '📋')}
+        {navItem('Assessment', 'assessment', <ClipboardList size={16} strokeWidth={1.6} />)}
 
         {/* ── TRAINING (collapsible) ── */}
         <button onClick={() => setTrainingExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px 6px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#6b5e45' : '#5C5248', textTransform: 'uppercase' as const, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
@@ -6768,10 +6768,10 @@ function CommunityPage() {
         </button>
         {trainingExpanded && (
           <>
-            {navItem('Courses', 'training', '🎬')}
-            {[{ label: "General's Table", icon: '✦' }, { label: 'Protocols', icon: '⚔' }].map(({ label, icon }) => (
+            {navItem('Courses', 'training', <Clapperboard size={16} strokeWidth={1.6} />)}
+            {([{ label: "General's Table", icon: <Star size={13} strokeWidth={1.6} /> }, { label: 'Protocols', icon: <Sword size={13} strokeWidth={1.6} /> }] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
-                <span style={{ fontSize: 13, width: 20 }}>{icon}</span>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
                 <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
                 <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
               </div>
@@ -6780,7 +6780,7 @@ function CommunityPage() {
         )}
 
         {/* ── EVENTS ── */}
-        {navItem('Events', 'events', '📅')}
+        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
 
         {/* ── ADMIN (minister only) ── */}
         {(user?.publicMetadata?.role as string) === 'minister' && (
@@ -6790,7 +6790,7 @@ function CommunityPage() {
               onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.12)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.06)' }}
             >
-              <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>🛡</span>
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Shield size={14} strokeWidth={1.6} /></span>
               Admin Panel
             </a>
           </>
@@ -6805,7 +6805,7 @@ function CommunityPage() {
           onMouseEnter={e => { e.currentTarget.style.color = G }}
           onMouseLeave={e => { e.currentTarget.style.color = NAV_DEFAULT }}
         >
-          <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>⚙</span>
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Settings size={14} strokeWidth={1.6} /></span>
           Settings
         </button>
         <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12 }}>
