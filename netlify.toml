@@ -100,3 +100,6 @@
 
 [functions."spirit-of-week"]
   timeout = 10
+
+[functions."intake-request"]
+  timeout = 10
