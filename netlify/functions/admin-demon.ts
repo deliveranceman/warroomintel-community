@@ -284,11 +284,14 @@ export default async function handler(req: Request) {
 
     // Support named-param format (from gap analysis add flow) OR raw { fields } format
     let fields: Record<string, any>
+    let nameForCheck = ''
     if (body.fields) {
       fields = body.fields
+      nameForCheck = body.fields['⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'] || ''
     } else {
       const { name, kingdom, description, rank, entry_points, manifestations, scriptures, source } = body
       if (!name) return new Response(JSON.stringify({ error: 'name or fields required' }), { status: 400 })
+      nameForCheck = name
       fields = {
         '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE': name,
         'Kingdom':          kingdom,
@@ -298,6 +301,26 @@ export default async function handler(req: Request) {
         'Manifestiation':   manifestations,   // Airtable field has this typo
         'Counter Scriptures': scriptures,
         'Source / Orgin':   source,           // Airtable field has this typo
+      }
+    }
+
+    // Duplicate check — case-insensitive search before inserting
+    if (nameForCheck) {
+      try {
+        const safeNameForCheck = nameForCheck.toLowerCase().replace(/'/g, "\\'")
+        const checkUrl = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+        checkUrl.searchParams.set('filterByFormula', `LOWER({⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE})='${safeNameForCheck}'`)
+        checkUrl.searchParams.append('fields[]', '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE')
+        checkUrl.searchParams.set('maxRecords', '1')
+        const checkRes = await fetch(checkUrl.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
+        if (checkRes.ok) {
+          const checkData = await checkRes.json()
+          if ((checkData.records || []).length > 0) {
+            return new Response(JSON.stringify({ conflict: true, message: `"${nameForCheck}" already exists in the database` }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+          }
+        }
+      } catch (e: any) {
+        console.error('[admin-demon] Duplicate check failed (continuing):', e.message)
       }
     }
 

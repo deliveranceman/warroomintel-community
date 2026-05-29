@@ -4996,7 +4996,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [selectedGaps, setSelectedGaps] = useState<number[]>([])
   const [bulkAdding, setBulkAdding]     = useState(false)
   const [bulkProgress, setBulkProgress] = useState('')
-  const [bulkComplete, setBulkComplete] = useState<{ succeeded: number; failed: number; total: number } | null>(null)
+  const [bulkComplete, setBulkComplete] = useState<{ succeeded: number; failed: number; duplicates: number; total: number; newDbTotal: number } | null>(null)
 
   // Content query state
   const [cqQuery, setCqQuery] = useState('')
@@ -5112,8 +5112,9 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setBulkAdding(true)
     setBulkComplete(null)
     const toAdd = selectedGaps.map(i => gapResults[i])
-    let succeeded = 0
-    let failed    = 0
+    let succeeded  = 0
+    let failed     = 0
+    let duplicates = 0
 
     for (let idx = 0; idx < toAdd.length; idx++) {
       const spirit = toAdd[idx]
@@ -5158,7 +5159,13 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
             source: spirit.source || 'Library Gap Analysis',
           }),
         })
-        if (addRes.ok) { succeeded++ } else { failed++; console.error('[BULK-ADD] Failed for:', spirit.name) }
+        if (addRes.ok) {
+          const addData = await addRes.json()
+          if (addData.conflict) { duplicates++ } else { succeeded++ }
+        } else {
+          failed++
+          console.error('[BULK-ADD] Failed for:', spirit.name)
+        }
       } catch (e) {
         failed++
         console.error('[BULK-ADD] Error on:', spirit.name, e)
@@ -5170,7 +5177,8 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setSelectedGaps([])
     setBulkAdding(false)
     setBulkProgress('')
-    setBulkComplete({ succeeded, failed, total: toAdd.length })
+    const prevTotal = gapMeta?.spiritCount ?? 0
+    setBulkComplete({ succeeded, failed, duplicates, total: toAdd.length, newDbTotal: prevTotal + succeeded })
   }
 
   async function confirmAdd(spirit: any) {
@@ -5192,9 +5200,16 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         }),
       })
       if (res.ok) {
-        setAddSuccess(spiritName)
+        const data = await res.json()
+        if (data.conflict) {
+          setAddSuccess(`"${spiritName}" is already in the database`)
+        } else {
+          setAddSuccess(`${spiritName} added — database now has ~${(gapMeta?.spiritCount ?? 0) + 1} spirits`)
+        }
         setAddingSpirit(null)
-        setTimeout(() => setAddSuccess(null), 3000)
+        // Remove from gap results regardless — either added or already there
+        setGapResults((prev: any[]) => prev.filter((r: any) => (r.name || r.spirit_name) !== spiritName))
+        setTimeout(() => setAddSuccess(null), 5000)
       }
     } catch {}
   }
@@ -5240,14 +5255,14 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         {addSuccess && <div style={{ color: '#80e090', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.08em', marginBottom: 12 }}>✓ {addSuccess} added to database</div>}
         {gapMeta && (
           <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: mut2, marginBottom: 12 }}>
-            Analyzed {gapMeta.bookCount} book{gapMeta.bookCount !== 1 ? 's' : ''} against {gapMeta.spiritCount} database entries
-            {gapMeta.bookTitles.length > 0 && `: ${gapMeta.bookTitles.join(' · ')}`}
+            Scanned {gapMeta.bookCount} book{gapMeta.bookCount !== 1 ? 's' : ''} · {gapMeta.spiritCount} spirits already in database
+            {gapMeta.bookTitles.length > 0 && ` · ${gapMeta.bookTitles.join(' · ')}`}
           </div>
         )}
         {gapResults.length > 0 && (
           <div>
             <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G2, letterSpacing: '0.1em', marginBottom: 12 }}>
-              {gapResults.length} SPIRITS FOUND IN LIBRARY
+              {gapResults.length} SPIRITS IN LIBRARY NOT YET IN DATABASE
             </div>
             {gapSummary && (
               <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim2, marginBottom: 16, fontStyle: 'italic' }}>
@@ -5290,11 +5305,22 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
               </div>
             )}
             {bulkComplete && (
-              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(74,122,74,0.08)', border: '1px solid #4a7a4a', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: cinzel, fontSize: 10, color: '#4a7a4a', letterSpacing: '0.1em' }}>
-                  ✓ BATCH COMPLETE — {bulkComplete.succeeded} ADDED{bulkComplete.failed > 0 ? `, ${bulkComplete.failed} FAILED` : ''}
-                </span>
-                <button onClick={() => setBulkComplete(null)} style={{ background: 'transparent', border: 'none', color: '#4a7a4a', cursor: 'pointer', fontSize: 14 }}>×</button>
+              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(74,122,74,0.08)', border: '1px solid #4a7a4a', borderRadius: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: '#4a7a4a', letterSpacing: '0.1em', marginBottom: 4 }}>
+                      ✓ BATCH COMPLETE — {bulkComplete.succeeded} SPIRIT{bulkComplete.succeeded !== 1 ? 'S' : ''} ADDED
+                      {bulkComplete.duplicates > 0 ? `, ${bulkComplete.duplicates} ALREADY IN DB` : ''}
+                      {bulkComplete.failed > 0 ? `, ${bulkComplete.failed} FAILED` : ''}
+                    </div>
+                    {bulkComplete.newDbTotal > 0 && (
+                      <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: '#80c080', fontStyle: 'italic' }}>
+                        Database now has ~{bulkComplete.newDbTotal} spirits
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => setBulkComplete(null)} style={{ background: 'transparent', border: 'none', color: '#4a7a4a', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                </div>
               </div>
             )}
             <div style={{ display: 'grid', gap: 8 }}>

@@ -2,6 +2,38 @@ import { createClient } from '@supabase/supabase-js'
 
 const MAX_BOOKS = 20
 
+const AT_TOKEN     = () => process.env.AIRTABLE_TOKEN!
+const AT_BASE      = 'appVXEj2DLPBTJTtD'
+const AT_TABLE     = 'tblcP4lgVykzOhLi4'
+const AT_NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
+
+async function fetchExistingSpiritNames(): Promise<{ names: Set<string>; total: number }> {
+  const names = new Set<string>()
+  let offset: string | undefined
+  try {
+    do {
+      const url = new URL(`https://api.airtable.com/v0/${AT_BASE}/${AT_TABLE}`)
+      url.searchParams.set('pageSize', '100')
+      url.searchParams.append('fields[]', AT_NAME_FIELD)
+      if (offset) url.searchParams.set('offset', offset)
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${AT_TOKEN()}` },
+        signal: AbortSignal.timeout(12000),
+      })
+      if (!res.ok) { console.error('[GAP] Airtable error:', res.status); break }
+      const data = await res.json()
+      for (const r of data.records || []) {
+        const n = r.fields[AT_NAME_FIELD]
+        if (n && n !== 'Primary Name') names.add(n.toLowerCase().trim())
+      }
+      offset = data.offset
+    } while (offset)
+  } catch (e: any) {
+    console.error('[GAP] Airtable fetch failed:', e.message)
+  }
+  return { names, total: names.size }
+}
+
 const headers = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -71,32 +103,32 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
   }
 
-  // ── TOOL 1: Spirit Gap Analysis (cache-only, no external calls) ──────────────
+  // ── TOOL 1: Spirit Gap Analysis ──────────────────────────────────────────────
   if (tool === 'gap-analysis') {
-    console.log('[GAP] Fast cache-only gap analysis')
+    console.log('[GAP] Gap analysis — fetching library cache + Airtable names')
 
     const client = sb()
 
-    const { data: cached, error: cacheErr } = await client
-      .from('library_spirit_cache')
-      .select('spirit_name, normalized_name, source, confidence')
-      .order('confidence', { ascending: false })
-      .limit(200)
+    // Fetch in parallel: library spirit cache + existing Airtable spirit names
+    const [{ data: cached, error: cacheErr }, { data: books }, { names: existingNames, total: spiritCount }] = await Promise.all([
+      client.from('library_spirit_cache').select('spirit_name, normalized_name, source, confidence').order('confidence', { ascending: false }).limit(200),
+      client.from('resources').select('title').eq('topic', 'ministry-library'),
+      fetchExistingSpiritNames(),
+    ])
 
     if (cacheErr) {
       return new Response(JSON.stringify({ error: cacheErr.message }), { status: 500, headers })
     }
 
-    const { data: books } = await client
-      .from('resources')
-      .select('title')
-      .eq('topic', 'ministry-library')
+    console.log(`[GAP] Library cache: ${cached?.length ?? 0} entries, Airtable: ${spiritCount} spirits`)
 
     const seen = new Set<string>()
     const gaps = (cached || [])
       .filter(r => {
         if (seen.has(r.normalized_name)) return false
         seen.add(r.normalized_name)
+        // Filter out spirits already in Airtable (case-insensitive)
+        if (existingNames.has(r.spirit_name.toLowerCase().trim())) return false
         return true
       })
       .map(r => ({
@@ -109,10 +141,10 @@ export default async function handler(req: Request) {
 
     return new Response(JSON.stringify({
       gaps,
-      summary:   `Found ${gaps.length} spirits in your library. Compare against your database to identify gaps.`,
+      spiritCount,
+      summary:   `Found ${gaps.length} spirits in your library not yet in your database (${spiritCount} spirits already in DB).`,
       bookCount: books?.length || 0,
       bookTitles: (books || []).map((b: any) => b.title),
-      note:      'Showing all library spirits — cross-reference your demon database manually or via Intel Archive.',
     }), { status: 200, headers })
   }
 
