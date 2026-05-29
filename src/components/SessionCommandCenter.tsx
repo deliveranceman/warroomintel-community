@@ -67,6 +67,56 @@ const RENUNCIATION_CATEGORIES = [
   'Hindrance Inventory',
 ]
 
+const SCRIPTURE_TOPICS: Record<string, {ref: string; text: string}[]> = {
+  fear: [
+    { ref: '2 Timothy 1:7', text: 'For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind.' },
+    { ref: 'Isaiah 41:10', text: 'Fear thou not; for I am with thee: be not dismayed; for I am thy God.' },
+    { ref: 'Psalm 91:5', text: 'Thou shalt not be afraid for the terror by night; nor for the arrow that flieth by day.' },
+  ],
+  protection: [
+    { ref: 'Psalm 91:1', text: 'He that dwelleth in the secret place of the most High shall abide under the shadow of the Almighty.' },
+    { ref: 'Psalm 34:7', text: 'The angel of the LORD encampeth round about them that fear him, and delivereth them.' },
+  ],
+  blood: [
+    { ref: 'Revelation 12:11', text: 'And they overcame him by the blood of the Lamb, and by the word of their testimony.' },
+    { ref: '1 John 1:7', text: 'The blood of Jesus Christ his Son cleanseth us from all sin.' },
+  ],
+  healing: [
+    { ref: 'Isaiah 53:5', text: 'With his stripes we are healed.' },
+    { ref: 'Psalm 103:3', text: 'Who forgiveth all thine iniquities; who healeth all thy diseases.' },
+  ],
+  authority: [
+    { ref: 'Luke 10:19', text: 'Behold, I give unto you power to tread on serpents and scorpions, and over all the power of the enemy.' },
+    { ref: 'Matthew 18:18', text: 'Whatsoever ye shall bind on earth shall be bound in heaven.' },
+  ],
+  deliverance: [
+    { ref: 'Psalm 34:4', text: 'I sought the LORD, and he heard me, and delivered me from all my fears.' },
+    { ref: 'Mark 16:17', text: 'In my name shall they cast out devils.' },
+  ],
+  peace: [
+    { ref: 'Philippians 4:7', text: 'The peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus.' },
+    { ref: 'Isaiah 26:3', text: 'Thou wilt keep him in perfect peace, whose mind is stayed on thee.' },
+  ],
+}
+
+const RENUNC_PRAYERS: Record<string, string> = {
+  'Spiritual Freedom / Lordship': 'Lord Jesus, I acknowledge You as Lord over every area of my life. I surrender my will, my mind, and my body to You completely.',
+  'Recommitment to Christ': 'Father, I recommit my life to Jesus Christ. I renounce any covenant with darkness and reaffirm my covenant with the living God.',
+  'Forgiveness Prayer': 'Lord, I choose to forgive every person who has wronged me. I release them from my judgment and ask You to heal every wound.',
+  'Occult Confession': 'I confess and renounce all involvement with the occult, witchcraft, divination, and all works of darkness in my life and bloodline.',
+  'Witchcraft (personal)': 'I renounce all personal involvement with witchcraft in any form. I break every curse spoken and every hex placed on my behalf.',
+  'Witchcraft (generational)': 'I renounce all generational witchcraft in my bloodline. I break the power of every ancestral covenant with darkness.',
+  'Freemasonry': 'I renounce all Freemasonry oaths, rituals, and covenants in my bloodline. I break the power of every Masonic curse over my family.',
+  'Breaking Soul Ties': 'I renounce and break every ungodly soul tie. I take back every piece of my soul given away and return what belongs to others.',
+  'Bloodline Covenant Prayer': 'I renounce every ancestral covenant made with darkness. I plead the blood of Jesus over my bloodline and break every generational curse.',
+}
+
+const ENCOURAGER_FALLBACK = [
+  "You are deeply loved by the Father. What is leaving you has no right to remain — you are His.",
+  "God sees every wound and every chain. Today is the day of your freedom. You are worth fighting for.",
+  "You are not alone in this room. Heaven is standing with you right now. Be at peace.",
+]
+
 const PRE_SESSION_CHECKLIST = {
   team_prep: [
     { id: 'unity_prayer',    text: 'Team unity prayer' },
@@ -236,6 +286,14 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
   const [seenSeer, setSeenSeer] = useState(false)
   const [rollingNoteInput, setRollingNoteInput] = useState('')
   const [spiritNoteInputs, setSpiritNoteInputs] = useState<Record<string, string>>({})
+  const [scriptureQuery, setScriptureQuery] = useState('')
+  const [scriptureResults, setScriptureResults] = useState<{ref: string; text: string}[]>([])
+  const [scriptureLoading, setScriptureLoading] = useState(false)
+  const [encouragements, setEncouragements] = useState<string[]>([])
+  const [encLoading, setEncLoading] = useState(false)
+  const [seerManifestDesc, setSeerManifestDesc] = useState('')
+  const [seerManifestRegion, setSeerManifestRegion] = useState<string | null>(null)
+  const [expandedRenunc, setExpandedRenunc] = useState<string | null>(null)
 
   const photoRef = useRef<HTMLInputElement>(null)
   const fileRef  = useRef<HTMLInputElement>(null)
@@ -320,6 +378,25 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
   useEffect(() => {
     rollingEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [session.logEntries.length])
+
+  // ── ENCOURAGER — refresh suggestions when phase changes ──────────────────
+  useEffect(() => {
+    if (session.activeRole !== 'encourager') return
+    const phaseLabel = PHASES.find(p => p.id === session.currentPhase)?.label || session.currentPhase
+    setEncLoading(true)
+    fetch('/api/session-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'encourager_suggestions', data: { phase: phaseLabel } }),
+    }).then(r => r.json()).then(data => {
+      if (Array.isArray(data.suggestions) && data.suggestions.length >= 3) {
+        setEncouragements(data.suggestions.slice(0, 3))
+      } else {
+        setEncouragements(ENCOURAGER_FALLBACK)
+      }
+    }).catch(() => setEncouragements(ENCOURAGER_FALLBACK))
+    .finally(() => setEncLoading(false))
+  }, [session.currentPhase, session.activeRole])
 
   // ── SAVE ──────────────────────────────────────────────────────────────────
   const saveSession = useCallback(async (showMsg = true) => {
@@ -733,6 +810,32 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
     setSeerInput('')
     setSeenSeer(false)
     setTimeout(() => { setSeerNotif(''); setSeenSeer(true) }, 8000)
+  }
+
+  // ── SCRIPTURE SEARCH ─────────────────────────────────────────────────────
+  async function searchScriptures() {
+    if (!scriptureQuery.trim()) return
+    setScriptureLoading(true)
+    setScriptureResults([])
+    const q = scriptureQuery.trim().toLowerCase()
+    const matches: {ref: string; text: string}[] = []
+    for (const [key, verses] of Object.entries(SCRIPTURE_TOPICS)) {
+      if (key.includes(q) || q.includes(key)) matches.push(...verses)
+    }
+    if (matches.length > 0) {
+      setScriptureResults(matches)
+      setScriptureLoading(false)
+      return
+    }
+    try {
+      const res = await fetch(`https://bible-api.com/data/kjv/search?q=${encodeURIComponent(q)}`)
+      const data = await res.json()
+      const results = (data.results || []).slice(0, 5).map((r: any) => ({ ref: r.reference, text: r.text?.trim() || '' }))
+      setScriptureResults(results.length > 0 ? results : [{ ref: 'No results', text: 'Try: fear, protection, blood, healing, authority, deliverance, peace' }])
+    } catch {
+      setScriptureResults([{ ref: 'No results', text: 'Try: fear, protection, blood, healing, authority, deliverance, peace' }])
+    }
+    setScriptureLoading(false)
   }
 
   // ── DRAG & DROP — PHASES ─────────────────────────────────────────────────
@@ -1491,18 +1594,19 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                 </div>
               </div>
 
-              {/* Rolling Notes */}
+              {/* Rolling Notes — ALL session entries */}
               <div style={{ marginTop: 20 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', marginBottom: 8 }}>ROLLING NOTES</div>
-                <div className="scc-scroll" style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 8, background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '8px 10px', border: `1px solid rgba(201,168,76,0.08)` }}>
-                  {session.logEntries.filter(e => e.type === 'recorder_note').length === 0 && (
-                    <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No notes yet. Use inputs above or the field below.</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', marginBottom: 8 }}>ALL SESSION LOGS</div>
+                <div className="scc-scroll" style={{ maxHeight: 260, overflowY: 'auto', marginBottom: 8, background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '8px 10px', border: `1px solid rgba(201,168,76,0.08)` }}>
+                  {session.logEntries.length === 0 && (
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No entries yet.</div>
                   )}
-                  {session.logEntries.filter(e => e.type === 'recorder_note').map(e => (
+                  {session.logEntries.map(e => (
                     <div key={e.id} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
-                      <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM, whiteSpace: 'nowrap', flexShrink: 0 }}>{fmtTime(e.timestamp)}</span>
-                      {e.spiritContext && <span style={{ fontFamily: cinzel, fontSize: 8, color: G, flexShrink: 0, marginTop: 1 }}>[{e.spiritContext}]</span>}
-                      <span style={{ fontFamily: crimson, fontSize: 13, color: '#93c5fd', flex: 1, lineHeight: 1.4 }}>{e.content}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, whiteSpace: 'nowrap', flexShrink: 0 }}>{fmtTime(e.timestamp)}</span>
+                      {e.role && e.role !== 'leader' && <span style={{ fontFamily: cinzel, fontSize: 7, color: G, flexShrink: 0, marginTop: 1, letterSpacing: '0.06em' }}>[{e.role}]</span>}
+                      {e.spiritContext && <span style={{ fontFamily: cinzel, fontSize: 7, color: DIM, flexShrink: 0, marginTop: 1 }}>{e.spiritContext}</span>}
+                      <span style={{ fontFamily: crimson, fontSize: 12, color: LOG_COLORS[e.type] || TXT, flex: 1, lineHeight: 1.4, opacity: e.processing ? 0.6 : 1 }}>{e.content}</span>
                     </div>
                   ))}
                   <div ref={rollingEndRef} />
@@ -1541,7 +1645,34 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                   )}
                 </div>
               )}
-              <form onSubmit={submitLog} style={{ marginTop: 12 }}>
+              {/* Scripture Topic Search */}
+              <div style={{ marginTop: 16, marginBottom: 4 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', marginBottom: 8 }}>SCRIPTURE LOOKUP</div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <input value={scriptureQuery} onChange={e => setScriptureQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') searchScriptures() }}
+                    placeholder="Search by topic (fear, protection, blood of Jesus...)"
+                    style={{ flex: 1, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 5, padding: '7px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none' }} />
+                  <button onClick={searchScriptures} disabled={scriptureLoading}
+                    style={{ padding: '7px 12px', background: `${G}22`, border: `1px solid ${BDR}`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+                    {scriptureLoading ? '...' : 'SEARCH'}
+                  </button>
+                </div>
+                {scriptureResults.map((v, i) => (
+                  <div key={i} style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 7, padding: '10px 12px', marginBottom: 8 }}>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: G, fontWeight: 700, marginBottom: 5 }}>{v.ref}</div>
+                    <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: TXT, lineHeight: 1.6, marginBottom: 8 }}>{v.text}</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => { try { navigator.clipboard.writeText(`${v.ref}: ${v.text}`) } catch {} }}
+                        style={{ padding: '3px 9px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 3, color: DIM, fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em' }}>COPY</button>
+                      <button onClick={() => addLog('note', `[INTERCESSOR] ${v.ref}: ${v.text}`, { role: 'intercessor' })}
+                        style={{ padding: '3px 9px', background: `${G}15`, border: `1px solid ${BDR}`, borderRadius: 3, color: G, fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em' }}>LOG</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <form onSubmit={submitLog} style={{ marginTop: 8 }}>
                 <input value={logInput} onChange={e => setLogInput(e.target.value)} placeholder="Log prayer observation..."
                   style={{ width: '100%', boxSizing: 'border-box', background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none' }} />
               </form>
@@ -1563,6 +1694,38 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                   )
                 })}
               </div>
+              {/* AI Encouragement Suggestions */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em' }}>
+                    WORDS FOR THIS PHASE{encLoading ? ' — GENERATING...' : ''}
+                  </div>
+                  <button onClick={() => {
+                    const phaseLabel = PHASES.find(p => p.id === session.currentPhase)?.label || session.currentPhase
+                    setEncLoading(true)
+                    fetch('/api/session-ai', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'encourager_suggestions', data: { phase: phaseLabel } }),
+                    }).then(r => r.json()).then(data => {
+                      setEncouragements(Array.isArray(data.suggestions) && data.suggestions.length >= 3 ? data.suggestions.slice(0, 3) : ENCOURAGER_FALLBACK)
+                    }).catch(() => setEncouragements(ENCOURAGER_FALLBACK))
+                    .finally(() => setEncLoading(false))
+                  }} style={{ padding: '2px 8px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 3, color: DIM, fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                    ↻ REFRESH
+                  </button>
+                </div>
+                {(encouragements.length > 0 ? encouragements : ENCOURAGER_FALLBACK).map((text, i) => (
+                  <div key={i} style={{ background: SURF2, borderLeft: `3px solid ${G}`, borderRadius: '0 7px 7px 0', padding: '10px 14px', marginBottom: 8 }}>
+                    <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: TXT, lineHeight: 1.65, marginBottom: 8 }}>{text}</div>
+                    <button onClick={() => addLog('note', `[ENCOURAGER] ${text}`, { role: 'encourager' })}
+                      style={{ padding: '3px 10px', background: `${G}15`, border: `1px solid ${BDR}`, borderRadius: 3, color: G, fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                      ✓ SPEAK / LOG
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               {caseFile?.notes && (
                 <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 14px', marginBottom: 12 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>SUBJECT BACKGROUND (READ ONLY)</div>
@@ -1579,6 +1742,59 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
           {/* ── SEER TAB ──────────────────────────────────────────────────── */}
           {session.activeRole === 'seer' && (
             <div className="scc-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+
+              {/* Session Context Panel */}
+              <div style={{ background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 14 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: '#34d399', letterSpacing: '0.15em', marginBottom: 6 }}>SESSION CONTEXT</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, marginBottom: 3 }}>
+                  PHASE: <span style={{ color: TXT }}>{PHASES.find(p => p.id === session.currentPhase)?.label || session.currentPhase}</span>
+                </div>
+                {session.spiritSequence.filter(s => s.status === 'active' || s.status === 'manifesting').length > 0 && (
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, marginBottom: 3 }}>
+                    ACTIVE: <span style={{ color: G }}>{session.spiritSequence.filter(s => s.status === 'active' || s.status === 'manifesting').map(s => s.name).join(', ')}</span>
+                  </div>
+                )}
+                <div style={{ marginTop: 6 }}>
+                  {session.logEntries.filter(e => e.role === 'leader').slice(-3).map(e => (
+                    <div key={e.id} style={{ fontFamily: crimson, fontSize: 11, color: DIM, lineHeight: 1.4, borderTop: '1px solid rgba(52,211,153,0.08)', paddingTop: 4, marginTop: 4 }}>
+                      <span style={{ color: '#34d39966', fontSize: 9 }}>{fmtTime(e.timestamp)} </span>{e.content}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Manifestation Logging */}
+              <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, padding: '10px 12px', marginBottom: 14 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', marginBottom: 8 }}>MANIFESTATION OBSERVED</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 8 }}>
+                  {BODY_REGIONS_SCC.map(r => (
+                    <button key={r.id} onClick={() => setSeerManifestRegion(seerManifestRegion === r.id ? null : r.id)}
+                      style={{ padding: '3px 7px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
+                        border: `1px solid ${seerManifestRegion === r.id ? G : 'rgba(201,168,76,0.2)'}`,
+                        background: seerManifestRegion === r.id ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.02)', color: TXT }}>
+                      {r.icon} <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.04em' }}>{r.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <input value={seerManifestDesc} onChange={e => setSeerManifestDesc(e.target.value)}
+                  placeholder="Describe what you see/sense..."
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.3)', border: `1px solid ${BDR}`, borderRadius: 5, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 6 }} />
+                <button
+                  onClick={() => {
+                    if (!seerManifestDesc.trim()) return
+                    const region = BODY_REGIONS_SCC.find(r => r.id === seerManifestRegion)
+                    const content = region
+                      ? `SEER: ${region.label} — ${seerManifestDesc.trim()}`
+                      : `SEER: ${seerManifestDesc.trim()}`
+                    addLog('seer_note', content, { role: 'seer', bodyRegion: seerManifestRegion || undefined })
+                    setSeerManifestDesc('')
+                    setSeerManifestRegion(null)
+                  }}
+                  style={{ width: '100%', padding: '7px', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 5, color: '#34d399', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  LOG MANIFESTATION
+                </button>
+              </div>
+
               <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', marginBottom: 10 }}>PASS TO LEADER</div>
               <textarea value={seerInput} onChange={e => setSeerInput(e.target.value)} rows={5}
                 placeholder="Enter spiritual impression or seer observation to send to the leader..."
@@ -1683,18 +1899,37 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
               {session.renunciations
                 .filter(r => !renuncFilter || r.category.toLowerCase().includes(renuncFilter.toLowerCase()))
                 .map(r => (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 5, padding: '3px 0', borderBottom: '1px solid rgba(201,168,76,0.04)' }}>
-                    <button onClick={() => {
-                      setSession(s => ({
-                        ...s,
-                        renunciations: s.renunciations.map(x => x.id === r.id ? { ...x, completed: !x.completed } : x),
-                      }))
-                      if (!r.completed) addLog('renunciation', `RENUNCIATION: ${r.category}`)
-                    }}
-                      style={{ width: 12, height: 12, borderRadius: 2, border: `1px solid ${r.completed ? '#86efac' : BDR}`, background: r.completed ? '#86efac22' : 'transparent', color: '#86efac', fontSize: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-                      {r.completed ? '✓' : ''}
-                    </button>
-                    <span style={{ fontFamily: crimson, fontSize: 11, color: r.completed ? DIM : TXT, textDecoration: r.completed ? 'line-through' : 'none', lineHeight: 1.3 }}>{r.category}</span>
+                  <div key={r.id} style={{ borderBottom: '1px solid rgba(201,168,76,0.04)', paddingBottom: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 5, padding: '3px 0', cursor: 'pointer' }}
+                      onClick={() => setExpandedRenunc(expandedRenunc === r.id ? null : r.id)}>
+                      <button onClick={e => {
+                        e.stopPropagation()
+                        setSession(s => ({
+                          ...s,
+                          renunciations: s.renunciations.map(x => x.id === r.id ? { ...x, completed: !x.completed } : x),
+                        }))
+                        if (!r.completed) {
+                          addLog('renunciation', `RENUNCIATION: ${r.category}`)
+                          setExpandedRenunc(r.id)
+                        }
+                      }}
+                        style={{ width: 12, height: 12, borderRadius: 2, border: `1px solid ${r.completed ? '#86efac' : BDR}`, background: r.completed ? '#86efac22' : 'transparent', color: '#86efac', fontSize: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                        {r.completed ? '✓' : ''}
+                      </button>
+                      <span style={{ fontFamily: crimson, fontSize: 11, color: r.completed ? DIM : TXT, textDecoration: r.completed ? 'line-through' : 'none', lineHeight: 1.3, flex: 1 }}>{r.category}</span>
+                      {RENUNC_PRAYERS[r.category] && (
+                        <span style={{ fontFamily: cinzel, fontSize: 7, color: DIM, flexShrink: 0, marginTop: 2 }}>{expandedRenunc === r.id ? '▲' : '▼'}</span>
+                      )}
+                    </div>
+                    {expandedRenunc === r.id && RENUNC_PRAYERS[r.category] && (
+                      <div style={{ marginBottom: 6, padding: '8px 10px', background: 'rgba(201,168,76,0.04)', borderLeft: `3px solid ${G}`, borderRadius: '0 5px 5px 0' }}>
+                        <div style={{ fontFamily: 'Georgia, serif', fontSize: 12, color: TXT, lineHeight: 1.6, marginBottom: 6 }}>{RENUNC_PRAYERS[r.category]}</div>
+                        <button onClick={() => { try { navigator.clipboard.writeText(RENUNC_PRAYERS[r.category]) } catch {} }}
+                          style={{ padding: '2px 8px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 3, color: DIM, fontFamily: cinzel, fontSize: 7, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                          COPY PRAYER
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))
               }
