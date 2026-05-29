@@ -54,6 +54,7 @@
 
 [functions."library-index"]
   timeout = 26
+  external_node_modules = ["mammoth", "pdf-parse"]
 
 [functions."admin-taxonomy-ai"]
   timeout = 26
@@ -66,6 +67,7 @@
 
 [functions."library-backfill"]
   timeout = 60
+  external_node_modules = ["mammoth", "pdf-parse"]
 
 [functions."library-reanalyze"]
   timeout = 45

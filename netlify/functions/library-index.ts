@@ -5,7 +5,7 @@
  * internal secret (INTERNAL_API_KEY env var) so this never needs a Clerk JWT.
  *
  * POST /api/library-index
- * Body: { resourceId: string, filePath: string, fileType: 'pdf' | 'txt' }
+ * Body: { resourceId: string, filePath: string, fileType: 'pdf' | 'txt' | 'docx' }
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -25,10 +25,37 @@ function sb() {
   )
 }
 
-async function extractText(buffer: Buffer): Promise<string | null> {
-  // All ministry-library files are .txt — read directly as UTF-8 text
-  const text = new TextDecoder('utf-8').decode(buffer).replace(/\0/g, ' ').slice(0, MAX_CHARS)
-  return text || null
+async function extractText(buffer: Buffer, filePath: string): Promise<string | null> {
+  const ext = filePath.toLowerCase().split('.').pop() || ''
+
+  if (ext === 'txt') {
+    const text = new TextDecoder('utf-8').decode(buffer).replace(/\0/g, ' ').slice(0, MAX_CHARS)
+    return text || null
+  }
+
+  if (ext === 'pdf') {
+    try {
+      const pdfParse = (await import('pdf-parse')).default
+      const data = await pdfParse(buffer)
+      return data.text?.slice(0, MAX_CHARS) || null
+    } catch (e: any) {
+      console.error('[library-index] PDF extraction failed:', e.message)
+      return null
+    }
+  }
+
+  if (ext === 'docx') {
+    try {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.extractRawText({ buffer })
+      return result.value?.slice(0, MAX_CHARS) || null
+    } catch (e: any) {
+      console.error('[library-index] DOCX extraction failed:', e.message)
+      return null
+    }
+  }
+
+  return null  // unsupported format — caller will skip
 }
 
 export default async function handler(req: Request) {
@@ -58,10 +85,10 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'resourceId, filePath, and fileType required' }), { status: 400, headers: CORS })
   }
 
-  // Only process PDF files — skip .txt, .docx, and anything else
-  if (!filePath.toLowerCase().endsWith('.pdf')) {
-    console.log(`[library-index] skipping non-PDF: ${filePath}`)
-    return new Response(JSON.stringify({ success: true, skipped: true, reason: 'not a PDF' }), { status: 200, headers: CORS })
+  const ext = filePath.toLowerCase().split('.').pop() || ''
+  if (!['txt', 'pdf', 'docx'].includes(ext)) {
+    console.log(`[library-index] unsupported format: ${filePath}`)
+    return new Response(JSON.stringify({ success: true, skipped: true, reason: 'unsupported format' }), { status: 200, headers: CORS })
   }
 
   console.log(`[library-index] indexing resource=${resourceId} path=${filePath} type=${fileType}`)
@@ -78,7 +105,7 @@ export default async function handler(req: Request) {
   const buffer = Buffer.from(await fileBlob.arrayBuffer())
   console.log(`[library-index] downloaded ${buffer.length} bytes`)
 
-  const extractedText = await extractText(buffer)
+  const extractedText = await extractText(buffer, filePath)
 
   if (!extractedText) {
     console.log('[library-index] no text extracted — leaving extracted_text null')

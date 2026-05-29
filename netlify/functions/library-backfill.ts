@@ -41,14 +41,42 @@ async function resolveMinister(token: string): Promise<{ ok: boolean; userId: st
   } catch { return { ok: false, userId: '' } }
 }
 
-function extractTextFromBuffer(buf: ArrayBuffer): string {
-  const raw = new TextDecoder('utf-8').decode(buf)
-  return raw
-    .replace(/\0/g, ' ')
-    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, MAX_CHARS)
+async function extractText(buf: ArrayBuffer, filePath: string): Promise<string | null> {
+  const ext = filePath.toLowerCase().split('.').pop() || ''
+
+  if (ext === 'txt') {
+    const raw = new TextDecoder('utf-8').decode(buf)
+    return raw
+      .replace(/\0/g, ' ')
+      .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, MAX_CHARS) || null
+  }
+
+  if (ext === 'pdf') {
+    try {
+      const pdfParse = (await import('pdf-parse')).default
+      const data = await pdfParse(Buffer.from(buf))
+      return data.text?.slice(0, MAX_CHARS) || null
+    } catch (e: any) {
+      console.error('[BACKFILL] PDF extraction failed:', e.message)
+      return null
+    }
+  }
+
+  if (ext === 'docx') {
+    try {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.extractRawText({ buffer: Buffer.from(buf) })
+      return result.value?.slice(0, MAX_CHARS) || null
+    } catch (e: any) {
+      console.error('[BACKFILL] DOCX extraction failed:', e.message)
+      return null
+    }
+  }
+
+  return null  // unsupported format
 }
 
 const CHUNK_SIZE   = 500
@@ -170,10 +198,10 @@ export default async function handler(req: Request) {
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: CORS })
 
   const client = sb()
-  let processed     = 0
-  let skipped       = 0
-  let skippedNonPdf = 0
-  let errors        = 0
+  let processed      = 0
+  let skipped        = 0
+  let skippedFormat  = 0
+  let errors         = 0
   const log: string[] = []
 
   // ── Step 1: Load all existing resources rows ────────────────────────────────
@@ -229,9 +257,11 @@ export default async function handler(req: Request) {
       errors++
       continue
     }
-    if (!row.file_path.toLowerCase().endsWith('.pdf')) {
-      log.push(`skip (non-PDF): ${row.title}`)
-      skippedNonPdf++
+
+    const ext1 = row.file_path.toLowerCase().split('.').pop() || ''
+    if (!['txt', 'pdf', 'docx'].includes(ext1)) {
+      log.push(`skip (unsupported format): ${row.title}`)
+      skippedFormat++
       continue
     }
 
@@ -244,7 +274,7 @@ export default async function handler(req: Request) {
         errors++
         continue
       }
-      const text = extractTextFromBuffer(await blob.arrayBuffer())
+      const text = await extractText(await blob.arrayBuffer(), row.file_path)
       if (!text || text.length < 50) {
         log.push(`skip (no text): ${row.title}`)
         errors++
@@ -275,9 +305,10 @@ export default async function handler(req: Request) {
   for (const filePath of allPaths) {
     if (byPath.has(filePath)) continue  // already handled above
 
-    if (!filePath.toLowerCase().endsWith('.pdf')) {
-      log.push(`skip (non-PDF): ${filePath}`)
-      skippedNonPdf++
+    const ext2 = filePath.toLowerCase().split('.').pop() || ''
+    if (!['txt', 'pdf', 'docx'].includes(ext2)) {
+      log.push(`skip (unsupported format): ${filePath}`)
+      skippedFormat++
       continue
     }
 
@@ -290,7 +321,7 @@ export default async function handler(req: Request) {
         errors++
         continue
       }
-      const text = extractTextFromBuffer(await blob.arrayBuffer())
+      const text = await extractText(await blob.arrayBuffer(), filePath)
       if (!text || text.length < 50) {
         log.push(`skip (no text): ${filePath}`)
         errors++
@@ -327,11 +358,11 @@ export default async function handler(req: Request) {
     }
   }
 
-  const message = `Reindex complete: ${processed} books indexed, ${skippedNonPdf} skipped (non-PDF), ${skipped} already indexed${errors ? `, ${errors} errors` : ''}.`
+  const message = `Reindex complete: ${processed} books indexed, ${skippedFormat} skipped (unsupported format), ${skipped} already indexed${errors ? `, ${errors} errors` : ''}.`
   console.log(`[BACKFILL] ${message}`)
 
   return new Response(
-    JSON.stringify({ processed, skipped, skippedNonPdf, errors, message, log }),
+    JSON.stringify({ processed, skipped, skippedFormat, errors, message, log }),
     { status: 200, headers: CORS },
   )
 }
