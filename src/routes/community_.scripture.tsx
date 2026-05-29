@@ -43,8 +43,8 @@ const BIBLE_BOOKS = [
 interface Verse { verse: number; text: string }
 interface ConversationMessage { role: 'user' | 'assistant'; content: string }
 
-const SUPABASE_URL  = (import.meta.env.VITE_SUPABASE_URL  as string | undefined) || 'https://uurfiasxtcvdpkfosofn.supabase.co'
-const SUPABASE_ANON = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1cmZpYXN4dGN2ZHBrZm9zb2ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODY0NTAsImV4cCI6MjA5NDI2MjQ1MH0.ewiwAuAQLBFSmx460xI6O7OWINepMJ2zIOUQc209D1Q'
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL  as string | undefined
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 function ScripturePage() {
   const { getToken }       = useAuth()
