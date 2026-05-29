@@ -5797,6 +5797,15 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
 }
 
 // ── MAIN PAGE ──────────────────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BBD2uBk5oFcPJN7Ao_FVIZ1ZFzuNNbmZlhqFU7T46uWm1EadCzJNK1hsjK51KvN0l62SKiWd8b_6eM4mM4Jq8qk'
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+}
+
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
@@ -5839,6 +5848,14 @@ function CommunityPage() {
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
   const [unreadDMs, setUnreadDMs]         = useState(0)
+  const [showPushBanner, setShowPushBanner] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return !localStorage.getItem('wri-push-dismissed') && Notification.permission === 'default'
+  })
+  const [pushSubscribed, setPushSubscribed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return Notification.permission === 'granted'
+  })
   const [unreadWarRoom, setUnreadWarRoom] = useState(0)
 
   // AI Chatbot
@@ -6167,34 +6184,39 @@ function CommunityPage() {
     return () => { document.title = 'War Room Intel' }
   }, [unreadDMs])
 
-  // Phase 4 — web push permission + service worker registration
-  async function requestPushPermission() {
-    if (!('Notification' in window)) return
-    if (Notification.permission === 'granted') return
-    if (Notification.permission === 'denied') return
+  async function enablePushNotifications() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return
-    if ('serviceWorker' in navigator) {
-      try {
-        const reg = await navigator.serviceWorker.register('/sw.js')
-        console.log('SW registered:', reg.scope)
-        await fetch('/api/push-subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user?.id,
-            subscription: { endpoint: reg.scope, keys: {} },
-          }),
-        })
-      } catch (err) {
-        console.error('SW registration failed:', err)
-      }
+    if (permission !== 'granted') {
+      setShowPushBanner(false)
+      try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
+      return
+    }
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+      await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, subscription: sub.toJSON() }),
+      })
+      setPushSubscribed(true)
+      setShowPushBanner(false)
+    } catch (err) {
+      console.error('[push] subscription failed:', err)
+      setShowPushBanner(false)
     }
   }
 
   useEffect(() => {
-    if (streamToken) setTimeout(requestPushPermission, 3000)
-  }, [streamToken])
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+  }, [])
 
   useEffect(() => {
     if (!user?.id) return
@@ -6930,6 +6952,49 @@ function CommunityPage() {
 
       {/* ── CENTER ── */}
       <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
+
+        {/* Push notification banner */}
+        {showPushBanner && !pushSubscribed && (
+          <div style={{
+            flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 12, padding: '8px 16px',
+            background: isDark ? 'rgba(201,168,76,0.07)' : 'rgba(201,168,76,0.12)',
+            borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.35)'}`,
+          }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: isDark ? 'var(--t-2)' : V.mut, letterSpacing: '0.04em' }}>
+              Enable notifications for prayer requests and session alerts.
+            </span>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={enablePushNotifications}
+                style={{
+                  padding: '4px 12px', fontFamily: 'var(--font-mono)', fontSize: 10,
+                  fontWeight: 600, letterSpacing: '0.08em',
+                  background: 'var(--gold)', color: '#1a1305',
+                  border: 'none', borderRadius: 2, cursor: 'pointer',
+                }}
+              >
+                Enable
+              </button>
+              <button
+                onClick={() => {
+                  setShowPushBanner(false)
+                  try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
+                }}
+                style={{
+                  padding: '4px 10px', fontFamily: 'var(--font-mono)', fontSize: 10,
+                  letterSpacing: '0.05em', color: isDark ? 'var(--t-3)' : V.mut,
+                  background: 'none', border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : V.bdr}`,
+                  borderRadius: 2, cursor: 'pointer',
+                }}
+              >
+                Not Now
+              </button>
+            </div>
+          </div>
+        )}
+
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
         {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'war-room'      && <WarRoomView />}

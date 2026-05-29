@@ -106,3 +106,9 @@
 
 [functions."send-email"]
   timeout = 15
+
+[functions."push-subscribe"]
+  timeout = 10
+
+[functions."send-push"]
+  timeout = 15

@@ -1,27 +1,66 @@
-import type { Context } from '@netlify/functions'
+import { createClient } from '@supabase/supabase-js'
 
-export default async (req: Request, _ctx: Context) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    })
+const HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Content-Type': 'application/json',
+}
+
+function sb() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+}
+
+export default async function handler(req: Request) {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
+
+  if (req.method === 'POST') {
+    let body: any
+    try { body = await req.json() } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS })
+    }
+
+    const { userId, subscription } = body || {}
+    if (!userId || !subscription) {
+      return new Response(JSON.stringify({ error: 'userId and subscription required' }), { status: 400, headers: HEADERS })
+    }
+
+    const { error } = await sb()
+      .from('push_subscriptions')
+      .upsert({ user_id: userId, subscription }, { onConflict: 'user_id' })
+
+    if (error) {
+      console.error('[push-subscribe] upsert error:', error.message)
+      return new Response(JSON.stringify({ error: 'Failed to save subscription' }), { status: 500, headers: HEADERS })
+    }
+
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: HEADERS })
   }
 
-  const body = await req.json()
-  const { subscription, userId } = body
+  if (req.method === 'DELETE') {
+    let body: any
+    try { body = await req.json() } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS })
+    }
 
-  console.log('Push subscription for user:', userId, subscription.endpoint)
+    const { userId } = body || {}
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'userId required' }), { status: 400, headers: HEADERS })
+    }
 
-  return new Response(JSON.stringify({ ok: true }), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
-  })
+    const { error } = await sb()
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('[push-subscribe] delete error:', error.message)
+      return new Response(JSON.stringify({ error: 'Failed to remove subscription' }), { status: 500, headers: HEADERS })
+    }
+
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: HEADERS })
+  }
+
+  return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
 }
 
 export const config = { path: '/api/push-subscribe' }
