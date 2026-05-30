@@ -847,6 +847,248 @@ const FIELD_GROUPS = [
   ['etymologyNotes', 'archaeologyNotes', 'description', 'prayerPoints', 'aftercareNotes', 'scriptureContext'],
 ]
 
+// ─── BODY MAP ADMIN ──────────────────────────────────────────────────────────
+type BMManifestation = {
+  id: string
+  hotspot_id: string
+  body_part: string
+  region: string
+  manifestation: string
+  spirit_names: string[]
+  notes: string | null
+  source: string | null
+  created_at: string
+}
+
+const BM_HOTSPOT_OPTIONS = [
+  { id: 'head_mind',    label: 'Head / Mind' },
+  { id: 'eyes_vision',  label: 'Eyes / Vision' },
+  { id: 'throat_voice', label: 'Throat / Voice' },
+  { id: 'heart_chest',  label: 'Heart / Chest' },
+  { id: 'stomach_gut',  label: 'Stomach / Gut' },
+  { id: 'reproductive', label: 'Reproductive' },
+  { id: 'left_arm',     label: 'Left Arm' },
+  { id: 'right_arm',    label: 'Right Arm' },
+  { id: 'legs_feet',    label: 'Legs / Feet' },
+  { id: 'back_spine',   label: 'Back / Spine' },
+  { id: 'skin_body',    label: 'Skin / Body' },
+]
+
+function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
+  const [rows, setRows] = useState<BMManifestation[]>([])
+  const [loading, setLoading] = useState(false)
+  const [filterHotspot, setFilterHotspot] = useState<string>('all')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const blank = { hotspot_id: 'head_mind', body_part: '', region: '', manifestation: '', spirit_names: '', notes: '', source: '' }
+  const [form, setForm] = useState(blank)
+
+  async function load() {
+    setLoading(true)
+    setError(null)
+    try {
+      const token = await getToken()
+      const qs = filterHotspot !== 'all' ? `?hotspot_id=${filterHotspot}` : ''
+      const res = await fetch(`/api/body-map${qs}`, { headers: { Authorization: `Bearer ${token}` } })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error)
+      setRows(j.manifestations)
+    } catch (e: any) { setError(e.message) }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [filterHotspot])
+
+  async function save() {
+    setSaving(true)
+    setError(null)
+    try {
+      const token = await getToken()
+      const payload = {
+        hotspot_id: form.hotspot_id,
+        body_part: form.body_part,
+        region: form.region,
+        manifestation: form.manifestation,
+        spirit_names: form.spirit_names.split(',').map(s => s.trim()).filter(Boolean),
+        notes: form.notes || null,
+        source: form.source || null,
+      }
+      const isEdit = !!editingId
+      const res = await fetch(`/api/body-map${isEdit ? `?id=${editingId}` : ''}`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error)
+      setShowAdd(false)
+      setEditingId(null)
+      setForm(blank)
+      await load()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  async function del(id: string) {
+    if (!confirm('Delete this manifestation entry?')) return
+    setError(null)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/body-map?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error)
+      await load()
+    } catch (e: any) { setError(e.message) }
+  }
+
+  function startEdit(row: BMManifestation) {
+    setEditingId(row.id)
+    setForm({
+      hotspot_id: row.hotspot_id,
+      body_part: row.body_part,
+      region: row.region,
+      manifestation: row.manifestation,
+      spirit_names: (row.spirit_names || []).join(', '),
+      notes: row.notes || '',
+      source: row.source || '',
+    })
+    setShowAdd(true)
+  }
+
+  const inp: React.CSSProperties = {
+    width: '100%', background: isDark ? '#0D0B14' : '#fff',
+    border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.3)'}`,
+    borderRadius: 4, padding: '7px 10px', color: isDark ? '#e8ddc8' : '#1a1208',
+    fontFamily: crimson, fontSize: 14, boxSizing: 'border-box' as const,
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap' as const, gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>BODY MAP MANIFESTATIONS</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic' }}>
+            {rows.length} entr{rows.length !== 1 ? 'ies' : 'y'} — link spirits to body regions
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
+          <select value={filterHotspot} onChange={e => setFilterHotspot(e.target.value)}
+            style={{ ...inp, width: 'auto', paddingRight: 28 }}>
+            <option value="all">All Hotspots</option>
+            {BM_HOTSPOT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+          <button onClick={() => { setShowAdd(true); setEditingId(null); setForm(blank) }}
+            style={{ padding: '8px 18px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
+            + ADD ENTRY
+          </button>
+        </div>
+      </div>
+
+      {error && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '10px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 16 }}>{error}</div>}
+
+      {/* Add / Edit Form */}
+      {showAdd && (
+        <div style={{ background: isDark ? 'rgba(201,168,76,0.04)' : '#fffdf5', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.2)'}`, borderRadius: 8, padding: '20px 24px', marginBottom: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>{editingId ? 'EDIT ENTRY' : 'NEW ENTRY'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+            {([
+              ['Hotspot', 'hotspot_id', 'select'],
+              ['Body Part', 'body_part', 'text'],
+              ['Region', 'region', 'text'],
+              ['Spirit Names (comma-sep)', 'spirit_names', 'text'],
+              ['Source', 'source', 'text'],
+            ] as [string, keyof typeof form, string][]).map(([label, key, type]) => (
+              <div key={key}>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>{label}</label>
+                {type === 'select' ? (
+                  <select value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inp}>
+                    {BM_HOTSPOT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inp} />
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>MANIFESTATION</label>
+            <textarea value={form.manifestation} onChange={e => setForm(f => ({ ...f, manifestation: e.target.value }))}
+              rows={3} style={{ ...inp, resize: 'vertical' as const }} />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>NOTES</label>
+            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <button onClick={save} disabled={saving || !form.manifestation.trim()}
+              style={{ padding: '8px 22px', background: saving || !form.manifestation.trim() ? DIM : G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: saving ? 'wait' : 'pointer', fontWeight: 700 }}>
+              {saving ? 'Saving…' : editingId ? 'Update' : 'Add'}
+            </button>
+            <button onClick={() => { setShowAdd(false); setEditingId(null); setForm(blank) }}
+              style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      {loading ? (
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '40px 0', textAlign: 'center' as const }}>Loading…</div>
+      ) : rows.length === 0 ? (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '40px 0', textAlign: 'center' as const }}>No entries yet — add the first one above.</div>
+      ) : (
+        <div style={{ overflowX: 'auto' as const }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontFamily: crimson, fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.2)'}` }}>
+                {['Hotspot', 'Manifestation', 'Spirits', 'Source', ''].map(h => (
+                  <th key={h} style={{ textAlign: 'left' as const, padding: '6px 10px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM, fontWeight: 600, whiteSpace: 'nowrap' as const }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={row.id} style={{ borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'}` }}>
+                  <td style={{ padding: '8px 10px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+                    {BM_HOTSPOT_OPTIONS.find(o => o.id === row.hotspot_id)?.label ?? row.hotspot_id}
+                  </td>
+                  <td style={{ padding: '8px 10px', color: isDark ? '#e8ddc8' : '#1a1208', maxWidth: 320, lineHeight: 1.4 }}>{row.manifestation}</td>
+                  <td style={{ padding: '8px 10px', maxWidth: 200 }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
+                      {(row.spirit_names || []).map(s => (
+                        <a key={s} href={`/community?section=database&search=${encodeURIComponent(s)}`}
+                          style={{ padding: '2px 8px', background: isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 4, color: G, fontSize: 11, fontFamily: cinzel, letterSpacing: '0.05em', textDecoration: 'none' }}>
+                          {s}
+                        </a>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ padding: '8px 10px', color: DIM, fontSize: 12 }}>{row.source || '—'}</td>
+                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' as const }}>
+                    <button onClick={() => startEdit(row)}
+                      style={{ background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: '4px 10px', marginRight: 6 }}>
+                      Edit
+                    </button>
+                    <button onClick={() => del(row.id)}
+                      style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: '4px 10px' }}>
+                      Del
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── INTEL ARCHIVE TAB ───────────────────────────────────────────────────────
 function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
   const adStatBg  = isDark ? SURF : '#fff'
@@ -925,7 +1167,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [backfillResults, setBackfillResults]   = useState<{ totalUpdated: number; totalSkipped: number; totalFailed: number; complete: boolean } | null>(null)
 
   // Sub-section navigation
-  const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates'>('database')
+  const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates' | 'body-map'>('database')
 
   // Duplicate Finder
   const [dupeGroups, setDupeGroups] = useState<Array<{ key: string; entries: any[] }>>([])
@@ -1397,8 +1639,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     <div>
       {/* Sub-section nav */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${BDR}`, overflowX: 'auto' as const }}>
-        {(['database', 'enrichment', 'taxonomy', 'gap-analysis', 'duplicates'] as const).map(t => {
-          const labels: Record<string, string> = { database: 'SPIRIT DATABASE', enrichment: 'ENRICHMENT', taxonomy: 'TAXONOMY', 'gap-analysis': 'GAP ANALYSIS', duplicates: 'DUPLICATE FINDER' }
+        {(['database', 'enrichment', 'taxonomy', 'gap-analysis', 'duplicates', 'body-map'] as const).map(t => {
+          const labels: Record<string, string> = { database: 'SPIRIT DATABASE', enrichment: 'ENRICHMENT', taxonomy: 'TAXONOMY', 'gap-analysis': 'GAP ANALYSIS', duplicates: 'DUPLICATE FINDER', 'body-map': 'BODY MAP' }
           return (
             <button key={t} onClick={() => setIntelTab(t)}
               style={{ padding: '10px 18px', background: 'transparent', border: 'none', borderBottom: intelTab === t ? `2px solid ${G}` : '2px solid transparent', color: intelTab === t ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', flexShrink: 0, marginBottom: -1, whiteSpace: 'nowrap' as const }}>
@@ -1782,6 +2024,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           )}
         </div>
       )}
+
+      {/* ── BODY MAP ─────────────────────────────────────────────────────────── */}
+      {intelTab === 'body-map' && <BodyMapAdmin getToken={getToken} isDark={isDark} />}
 
       {/* AI Enhancement Panel */}
       {showAiPanel && aiTargetDemon && (
