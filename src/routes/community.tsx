@@ -2495,7 +2495,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   }).slice(0, 6)
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
+    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0, maxWidth: '100%', boxSizing: 'border-box' as const }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
@@ -2999,10 +2999,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
       {/* Cards grid */}
       <div style={{
-        flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 16px 16px',
+        flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '8px 16px 16px',
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
         gap: 12, alignContent: 'start',
+        maxWidth: '100%', boxSizing: 'border-box' as const,
       }}>
         {dbLoading && (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
@@ -3187,7 +3188,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           <div onClick={() => setSelectedEntry(null)}
             style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? 8 : 20, paddingTop: isMobile ? 20 : undefined, backdropFilter: 'blur(4px)' }}>
             <div onClick={e => e.stopPropagation()}
-              style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto' as const, padding: 28, position: 'relative' }}>
+              style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '85vh' : '85vh', overflowY: 'auto' as const, padding: 28, paddingBottom: 'max(28px, env(safe-area-inset-bottom, 28px))', position: 'relative', boxSizing: 'border-box' as const }}>
 
               <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FlagButton contentType="intel-archive" contentId={String(entry.id || entry.name)} contentTitle={name} />
@@ -6068,10 +6069,11 @@ function CommunityPage() {
   const [showInstallBanner, setShowInstallBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (typeof navigator === 'undefined') return false
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
-    const isStandalone = ('standalone' in window.navigator) && (window.navigator as any).standalone
+    const isMobileUA = /Mobi|Android|iPad|iPhone|iPod/i.test(navigator.userAgent)
+    const isStandalone = ('standalone' in window.navigator && (window.navigator as any).standalone === true) ||
+      window.matchMedia('(display-mode: standalone)').matches
     const dismissed = localStorage.getItem('wri-pwa-dismissed')
-    return isIOS && !isStandalone && !dismissed
+    return isMobileUA && !isStandalone && !dismissed
   })
 
   // AI Chatbot
@@ -7158,6 +7160,8 @@ function CommunityPage() {
       width: '100%',
       maxWidth: '100vw',
       position: 'relative',
+      paddingTop: isMobile ? 'env(safe-area-inset-top)' : 0,
+      boxSizing: 'border-box' as const,
     }}>
 
       {/* Mobile overlay */}
@@ -7882,10 +7886,11 @@ function CommunityPage() {
         <div style={{
           position: 'fixed',
           bottom: isMobile ? 72 : 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
+          ...(isMobile
+            ? { left: 16, right: 16 }
+            : { left: '50%', transform: 'translateX(-50%)', width: 420 }),
           zIndex: 200,
-          width: isMobile ? 'calc(100% - 32px)' : 420,
+          maxWidth: isMobile ? 'calc(100vw - 32px)' : 420,
           background: 'linear-gradient(135deg, #1a1408 0%, #0f0c07 100%)',
           border: '1px solid rgba(201,168,76,0.45)',
           borderRadius: 12,
@@ -7894,6 +7899,8 @@ function CommunityPage() {
           alignItems: 'flex-start',
           gap: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          overflowX: 'hidden',
+          boxSizing: 'border-box' as const,
         }}>
           <div style={{
             width: 44, height: 44, borderRadius: 10, flexShrink: 0,
