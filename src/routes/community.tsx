@@ -1593,7 +1593,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                           <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
                           {hasAccess && course.watchedCount > 0 && <span style={{ fontSize: 11, color: '#4ade80', fontFamily: crimson }}>{course.watchedCount}/{course.episodeCount} watched</span>}
                         </div>
-                        {!hasAccess && <button onClick={e => { e.stopPropagation(); window.open(STRIPE_LINKS[course.tier] || '/membership', '_blank') }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
+                        {!hasAccess && <button onClick={e => { e.stopPropagation(); handleUpgrade(course.tier, getToken) }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
                       </div>
                     </div>
                   )
@@ -2121,14 +2121,23 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 }
 
 // ── DATABASE VIEW ──────────────────────────────────────────
-// ── STRIPE UPGRADE LINKS ──────────────────────────────────────────────────────
-const STRIPE_LINKS: Record<string, string> = {
-  Soldier:   'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
-  Commander: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
-  General:   'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
-  soldier:   'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
-  commander: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
-  general:   'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
+// ── STRIPE UPGRADE ────────────────────────────────────────────────────────────
+async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    const token = await getToken()
+    if (!token) { window.location.href = '/sign-in'; return }
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tier }),
+    })
+    if (!res.ok) throw new Error('Checkout failed')
+    const data = await res.json()
+    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (data.url) window.location.href = data.url
+  } catch (err) {
+    console.error('Upgrade error:', err)
+  }
 }
 const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
 const tierNum = (t: string) => TIER_LEVEL[t?.toLowerCase()] ?? 0
@@ -2641,7 +2650,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.06em', marginBottom: 3 }}>Commander Tier Required</div>
               <div style={{ fontSize: 12, color: mut }}>Submit field intelligence reports from your sessions.</div>
             </div>
-            <a href={STRIPE_LINKS.Commander} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const }}>Upgrade</a>
+            <button onClick={() => handleUpgrade('commander', getToken)} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
           </div>
         )}
 
@@ -3112,10 +3121,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         const surf  = dbSurf
         const txt   = dbText
         const mut   = dbDim
-        const MODAL_STRIPE: Record<string, string> = {
-          soldier: STRIPE_LINKS.soldier, commander: STRIPE_LINKS.commander, general: STRIPE_LINKS.general,
-        }
-
         const TierGate = ({ tierName, children }: { tierName: string; children: React.ReactNode }) => {
           if (atLeast(tierName)) return <>{children}</>
           return (
@@ -3128,7 +3133,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
                   Upgrade to {tierName} to unlock this intelligence.
                 </div>
-                <a href="/membership" style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textDecoration: 'none' }}>Upgrade Now</a>
+                <button onClick={() => handleUpgrade(tierName, getToken)} style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}>Upgrade Now</button>
               </div>
             </div>
           )
@@ -3587,12 +3592,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
 
   const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
 
-  const STRIPE_LINKS: Record<string, string> = {
-    Soldier:   'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00',
-    Commander: 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01',
-    General:   'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02',
-  }
-
   useEffect(() => {
     async function load() {
       try {
@@ -3643,7 +3642,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
 
   const ResourceCard = ({ resource }: { resource: any }) => {
     const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
-    const upgradeLink = STRIPE_LINKS[resource.tier]
     const icon   = FILE_ICONS[resource.file_type] || '📄'
     const sizeMB = resource.file_size ? (resource.file_size / 1024 / 1024).toFixed(1) : null
     const tc     = TIER_COLORS[resource.tier] || G
@@ -3667,9 +3665,9 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
               ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0, textDecoration: 'none', display: 'inline-block' }}>↗ View</a>
               : <span style={{ fontSize: 10, color: muted, fontFamily: cinzel }}>No file</span>
           ) : (
-            <a href={upgradeLink} style={{ background: 'transparent', border: `1px solid ${G}`, color: G, borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+            <button onClick={() => handleUpgrade(resource.tier, getToken)} style={{ background: 'transparent', border: `1px solid ${G}`, color: G, borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
               🔒 Upgrade
-            </a>
+            </button>
           )}
         </div>
         {resource.description && (
@@ -3815,9 +3813,9 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
             The Symptom Investigator is an AI-powered operational intelligence tool available to Commander and General members.
             Upgrade to access real-time spirit analysis, deliverance sequencing, and session support.
           </p>
-          <a href="https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01" style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, textDecoration: 'none' }}>
+          <button onClick={() => handleUpgrade('commander', getToken)} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
             Upgrade to Commander — $39/mo
-          </a>
+          </button>
         </div>
       </div>
     )
@@ -4171,6 +4169,7 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
 
 // ── FRINGE INTEL VIEW ─────────────────────────────────────
 function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
+  const { getToken } = useAuth()
   const isDark  = theme !== 'light'
   const G2      = isDark ? '#C9A84C' : '#a07830'
   const SURF    = isDark ? 'rgba(201,168,76,0.03)' : '#f9f5ee'
@@ -4179,7 +4178,6 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const MUT     = isDark ? '#9a8c74' : '#5c4a3a'
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
-  const SOLDIER_URL = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
 
   function tierLevel(t: string): number {
     return ({ free:0, watchman:0, soldier:1, commander:2, general:3, minister:3 }[t?.toLowerCase()] ?? 0)
@@ -4304,9 +4302,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
             <div style={{fontFamily:crimson,fontSize:14,color:MUT}}>Daily briefings on prophecy, disclosure, and the hidden architecture of the antichrist system</div>
           </div>
           {!hasSoldier && (
-            <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none'}}>
-              <button style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
-            </a>
+            <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
           )}
         </div>
         <div style={{display:'flex',gap:2,borderBottom:'1px solid '+BDR,marginTop:14}}>
@@ -4361,7 +4357,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           {!hasSoldier && (
             <div style={{background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,padding:'14px 20px',textAlign:'center' as const}}>
               <span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 CLASSIFIED INTELLIGENCE — Govt Programs, Transhumanism, Occult Ops, NWO Watch — available to Soldier rank and above. </span>
-              <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em'}}>UPGRADE NOW</a>
+              <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em',background:'none',border:'none',cursor:'pointer',padding:0}}>UPGRADE NOW</button>
             </div>
           )}
         </div>
@@ -4408,9 +4404,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                   <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:'rgba(201,168,76,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
                 ))}
               </div>
-              <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none'}}>
-                <button style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
-              </a>
+              <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
             </div>
           )}
         </div>
@@ -6470,6 +6464,21 @@ function CommunityPage() {
       if (chatBtn) chatBtn.style.display = ''
     }
   }, [])
+
+  // Update last_login_at in Clerk metadata (throttled 24hr)
+  useEffect(() => {
+    if (!user?.id) return
+    const key = `wri-last-login-ping-${user.id}`
+    const last = localStorage.getItem(key)
+    if (last && Date.now() - Number(last) < 24 * 60 * 60 * 1000) return
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/update-last-login', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(() => localStorage.setItem(key, String(Date.now()))).catch(() => {})
+    })
+  }, [user?.id])
 
   // Fetch Stream token — upserts user in Stream then returns a valid token
   useEffect(() => {

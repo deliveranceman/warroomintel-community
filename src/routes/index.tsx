@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
-import { SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
+import { useAuth, SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
 
 export const Route = createFileRoute('/')({
@@ -31,10 +31,25 @@ interface DemonEntry {
 
 // ── URLS ─────────────────────────────────────────────────
 const SIGNUP_URL    = 'https://accounts.warroomintel.com/sign-up'
-const SOLDIER_URL   = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
-const COMMANDER_URL = 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01'
-const GENERAL_URL   = 'https://buy.stripe.com/aFa00c0Oc4Xt5bD0qjfrW02'
 const COMMUNITY_URL = '/community'
+
+async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    const token = await getToken()
+    if (!token) { window.location.href = '/sign-in'; return }
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tier }),
+    })
+    if (!res.ok) throw new Error('Checkout failed')
+    const data = await res.json()
+    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (data.url) window.location.href = data.url
+  } catch (err) {
+    console.error('Upgrade error:', err)
+  }
+}
 
 // ── CONSTANTS ────────────────────────────────────────────
 const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
@@ -849,30 +864,39 @@ function FieldCommandersSection() {
 
 // ── PRICING ───────────────────────────────────────────────
 function PricingSection() {
+  const { getToken } = useAuth()
+  const [foundingCount, setFoundingCount] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('/api/founding-general-count')
+      .then(r => r.json())
+      .then(d => setFoundingCount(d.count ?? 0))
+      .catch(() => {})
+  }, [])
+
   const tiers = [
     {
       name: 'Watchman', cls: 'IV' as const, price: '$0', period: 'forever', badge: null,
       features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', 'Demon database — name, type, kingdom, function', 'Watchman protocol PDFs'],
       locked: ['Full database fields', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
-      btn: 'Join as Watchman', url: SIGNUP_URL, featured: false, isSignup: true,
+      btn: 'Join as Watchman', tier: null, featured: false, isSignup: true,
     },
     {
       name: 'Soldier', cls: 'III' as const, price: '$19', period: '/month', badge: null,
       features: ['Everything in Watchman', 'Full database access', 'Scripture & entry point fields', 'Manifestations, Strongman, Rank fields', 'Soldier protocol PDFs', 'Monthly group prayer call'],
       locked: ['Commander fields', 'Bi-weekly calls'],
-      btn: 'Start Free Trial', url: SOLDIER_URL, featured: false, isSignup: false,
+      btn: 'Start Free Trial', tier: 'soldier', featured: false, isSignup: false,
     },
     {
       name: 'Commander', cls: 'II' as const, price: '$39', period: '/month', badge: 'Most Popular',
       features: ['Everything in Soldier', 'All database fields unlocked', 'Full protocol PDF library', 'Personal assessment response', 'Entry Points, Legal Rights, Protocol fields', 'Bi-weekly group call'],
       locked: ['Weekly intimate calls'],
-      btn: 'Join Commander', url: COMMANDER_URL, featured: true, isSignup: false,
+      btn: 'Join Commander', tier: 'commander', featured: true, isSignup: false,
     },
     {
       name: "General's Table", cls: 'I' as const, price: '$97', period: '/month', badge: null,
       features: ["Everything in Commander", 'Leadership PDF library', 'Weekly intimate group call', 'Direct ministry access', 'Symptoms, Companion Spirits, Exorcist Notes', 'Ministry certification track', 'Priority assessment response'],
       locked: [],
-      btn: "Join General's Table", url: GENERAL_URL, featured: false, isSignup: false,
+      btn: "Join General's Table", tier: 'general', featured: false, isSignup: false,
     },
   ]
 
@@ -940,16 +964,64 @@ function PricingSection() {
                 </button>
               </SignUpButton>
             ) : (
-              <a href={tier.url} target="_blank" rel="noopener noreferrer"
-                style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2, border: tier.featured ? 'none' : '1px solid var(--gold-line-hi)', background: tier.featured ? 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)' : 'transparent', color: tier.featured ? '#1a1305' : G, textAlign: 'center' as const, boxSizing: 'border-box' as const, cursor: 'pointer', textDecoration: 'none', display: 'block', transition: 'opacity 0.2s' }}
+              <button
+                onClick={() => handleUpgrade(tier.tier!, getToken)}
+                style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2, border: tier.featured ? 'none' : '1px solid var(--gold-line-hi)', background: tier.featured ? 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)' : 'transparent', color: tier.featured ? '#1a1305' : G, textAlign: 'center' as const, boxSizing: 'border-box' as const, cursor: 'pointer', transition: 'opacity 0.2s' }}
                 onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                 onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
                 {tier.btn} ⚔
-              </a>
+              </button>
             )}
           </TacticalCard>
         ))}
       </div>
+
+      {/* Founding General card */}
+      {(() => {
+        const spotsLeft = foundingCount !== null ? Math.max(0, 100 - foundingCount) : null
+        const soldOut = spotsLeft !== null && spotsLeft <= 0
+        return (
+          <TacticalCard brackets style={{ marginTop: 20, background: 'linear-gradient(135deg, rgba(201,168,76,0.07) 0%, transparent 100%)', border: '1px solid rgba(201,168,76,0.45)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 24, alignItems: 'flex-start' }}>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.15em', color: G }}>⚜ FOUNDING GENERAL</span>
+                  <ClassBadge level="I" label="LIFE" />
+                  {soldOut
+                    ? <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: '#e05c5c', background: 'rgba(224,92,92,0.12)', border: '1px solid rgba(224,92,92,0.3)', padding: '2px 8px', borderRadius: 10 }}>SOLD OUT</span>
+                    : spotsLeft !== null && <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: G, background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', padding: '2px 8px', borderRadius: 10 }}>{spotsLeft} of 100 remaining</span>}
+                </div>
+                <div>
+                  <span style={{ fontFamily: cinzel, fontSize: 34, fontWeight: 700, color: 'var(--t-0)' }}>$1,000</span>
+                  <span style={{ fontSize: 13, color: 'var(--t-4)', marginLeft: 8 }}>one-time · lifetime access</span>
+                </div>
+                <p style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--t-3)', fontStyle: 'italic', marginTop: 8, marginBottom: 0, lineHeight: 1.6 }}>
+                  Lock in every current and future feature at the General's Table — forever. Founding Generals receive a permanent badge, first access to new tools, and recognition in the War Room community.
+                </p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, minWidth: 200 }}>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                  {["Everything in General's Table", 'Lifetime access — no monthly fees', '⚜ Founding General badge', 'First access to new features', 'Name in the War Room founders list', 'One-time payment, never charged again'].map(f => (
+                    <li key={f} style={{ fontSize: 12, color: 'var(--t-2)', display: 'flex', gap: 7, alignItems: 'flex-start', lineHeight: 1.6 }}>
+                      <span style={{ color: G, fontSize: 7, flexShrink: 0, marginTop: 4 }}>✦</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  disabled={soldOut}
+                  onClick={() => !soldOut && handleUpgrade('founding_general', getToken)}
+                  style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2, border: '1px solid var(--gold-line-hi)', background: soldOut ? 'transparent' : 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)', color: soldOut ? 'var(--t-4)' : '#1a1305', cursor: soldOut ? 'not-allowed' : 'pointer', opacity: soldOut ? 0.5 : 1, transition: 'opacity 0.2s', boxSizing: 'border-box' as const }}>
+                  {soldOut ? 'Sold Out' : 'Secure Your Founding Seat ⚔'}
+                </button>
+                <p style={{ fontSize: 10, color: 'var(--t-4)', fontFamily: 'Georgia, serif', fontStyle: 'italic', margin: 0, textAlign: 'center' as const, lineHeight: 1.5 }}>
+                  Limited to 100 founding members. Non-refundable. Does not include a subscription — this is a one-time lifetime access purchase.
+                </p>
+              </div>
+            </div>
+          </TacticalCard>
+        )
+      })()}
 
       {/* Charter callout */}
       <TacticalCard style={{ marginTop: 20, textAlign: 'center' as const }}>

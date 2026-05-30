@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -13,35 +14,47 @@ const PRICE_TO_TIER: Record<string, string> = {
   'price_1Tb1ms5V5uqVT9Sodiu1xbrR': 'commander',
 }
 
+const FOUNDING_GENERAL_PRICE_ID = process.env.STRIPE_FOUNDING_GENERAL_PRICE_ID
+
 const CHARTER_PRICE_IDS = new Set([
   'price_1Tb1mO5V5uqVT9So3ZRRltDC',
   'price_1Tb1ms5V5uqVT9Sodiu1xbrR',
 ])
+
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+}
+
+async function resolveClerkUserId(email: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(email)}&limit=1`,
+      { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } }
+    )
+    if (!res.ok) return null
+    const users = await res.json()
+    return users[0]?.id ?? null
+  } catch { return null }
+}
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Content-Type': 'application/json',
 }
 
-async function setClerkTier(email: string, tier: string, foundingMember?: boolean) {
-  const searchRes = await fetch(
-    `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(email)}&limit=1`,
-    { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } }
-  )
-  if (!searchRes.ok) throw new Error('Clerk search failed')
-  const users = await searchRes.json()
-  if (!users.length) throw new Error(`No Clerk user found for ${email}`)
-
-  const userId = users[0].id
-  const currentMeta = users[0].public_metadata || {}
+async function setClerkTierById(userId: string, tier: string, extra?: Record<string, any>) {
+  const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+    headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+  })
+  if (!userRes.ok) throw new Error(`Clerk user fetch failed for ${userId}`)
+  const userData = await userRes.json()
+  const currentMeta = userData.public_metadata || {}
 
   const meta: Record<string, any> = {
     ...currentMeta,
     tier,
     stripeUpdatedAt: new Date().toISOString(),
-  }
-  if (foundingMember !== undefined) {
-    meta.foundingMember = foundingMember
+    ...extra,
   }
 
   const updateRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
@@ -54,6 +67,19 @@ async function setClerkTier(email: string, tier: string, foundingMember?: boolea
   })
   if (!updateRes.ok) throw new Error('Clerk update failed')
   return userId
+}
+
+async function setClerkTier(email: string, tier: string, foundingMember?: boolean) {
+  const searchRes = await fetch(
+    `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(email)}&limit=1`,
+    { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } }
+  )
+  if (!searchRes.ok) throw new Error('Clerk search failed')
+  const users = await searchRes.json()
+  if (!users.length) throw new Error(`No Clerk user found for ${email}`)
+
+  const extra = foundingMember !== undefined ? { foundingMember } : undefined
+  return setClerkTierById(users[0].id, tier, extra)
 }
 
 export default async function handler(req: Request) {
@@ -84,24 +110,55 @@ export default async function handler(req: Request) {
       // Payment succeeded — upgrade tier
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.CheckoutSession
+        const clerkUserId = session.client_reference_id
         const email = session.customer_details?.email || session.customer_email
-        const priceId = session.line_items?.data?.[0]?.price?.id
 
-        if (!email) { console.error('No email in checkout session'); break }
-
-        // Get price ID from subscription if not in session directly
-        let resolvedPriceId = priceId
+        // Get price ID from subscription or payment intent
+        let resolvedPriceId = session.line_items?.data?.[0]?.price?.id
         if (!resolvedPriceId && session.subscription) {
           const sub = await stripe.subscriptions.retrieve(session.subscription as string)
           resolvedPriceId = sub.items.data[0]?.price?.id
+        }
+
+        // Check for founding general
+        const isFoundingGeneral = resolvedPriceId && FOUNDING_GENERAL_PRICE_ID && resolvedPriceId === FOUNDING_GENERAL_PRICE_ID
+        if (isFoundingGeneral) {
+          const userId = clerkUserId || (email ? await resolveClerkUserId(email) : null)
+          if (!userId) { console.error('No user ID for founding_general purchase'); break }
+          await setClerkTierById(userId, 'general', { foundingGeneral: true, foundingGeneralAt: new Date().toISOString() })
+          const supabase = getSupabase()
+          await supabase.from('founding_generals').upsert({ clerk_user_id: userId, stripe_session_id: session.id }, { onConflict: 'clerk_user_id' })
+          console.log(`✅ Founding General: ${userId}`)
+          break
         }
 
         const tier = resolvedPriceId ? PRICE_TO_TIER[resolvedPriceId] : null
         if (!tier) { console.error('Unknown price ID:', resolvedPriceId); break }
 
         const isCharter = resolvedPriceId ? CHARTER_PRICE_IDS.has(resolvedPriceId) : false
-        await setClerkTier(email, tier, isCharter)
-        console.log(`✅ Upgraded ${email} to ${tier}${isCharter ? ' (founding member)' : ''}`)
+
+        if (clerkUserId) {
+          await setClerkTierById(clerkUserId, tier, isCharter ? { foundingMember: true } : undefined)
+          console.log(`✅ Upgraded ${clerkUserId} to ${tier}${isCharter ? ' (charter)' : ''}`)
+        } else if (email) {
+          await setClerkTier(email, tier, isCharter)
+          console.log(`✅ Upgraded ${email} to ${tier}${isCharter ? ' (charter)' : ''} (email fallback)`)
+        } else {
+          console.error('No user identifier in checkout session')
+        }
+        break
+      }
+
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription
+        const priceId = sub.items.data[0]?.price?.id
+        const tier = priceId ? PRICE_TO_TIER[priceId] : null
+        if (!tier) break
+        const customer = await stripe.customers.retrieve(sub.customer as string)
+        const email = (customer as Stripe.Customer).email
+        if (!email) break
+        await setClerkTier(email, tier)
+        console.log(`✅ Subscription updated ${email} → ${tier}`)
         break
       }
 

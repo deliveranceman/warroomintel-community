@@ -1,9 +1,27 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
+import { useAuth } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/membership')({
   component: MembershipPage,
 })
+
+async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    const token = await getToken()
+    if (!token) { window.location.href = '/sign-in'; return }
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tier }),
+    })
+    if (!res.ok) throw new Error('Checkout failed')
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+  } catch (err) {
+    console.error('Upgrade error:', err)
+  }
+}
 
 const cinzel = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
@@ -17,12 +35,8 @@ const text = 'var(--text)'
 const textDim = 'var(--text-dim)'
 const muted = 'var(--muted)'
 
-const SOLDIER_URL = 'https://buy.stripe.com/4gM6oA68wblRdI9b4XfrW00'
-const COMMANDER_URL = 'https://buy.stripe.com/6oU8wI1Sg4Xt1ZrgphfrW01'
-const CHARTER_SOLDIER_URL = 'https://buy.stripe.com/9B6fZafJ689F1Zrb4XfrW03'
-const CHARTER_COMMANDER_URL = 'https://buy.stripe.com/8x24gsaoMey39rT4GzfrW04'
-
 function MembershipPage() {
+  const { getToken } = useAuth()
   const [generalClicked, setGeneralClicked] = useState(false)
 
   return (
@@ -72,16 +86,16 @@ function MembershipPage() {
                 </li>
               ))}
             </ul>
-            <a href={CHARTER_SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{
+            <button onClick={() => handleUpgrade('charter_soldier', getToken)} style={{
               display: 'block', width: '100%', padding: '14px', textAlign: 'center',
               fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
-              borderRadius: '4px', textDecoration: 'none', boxSizing: 'border-box',
-              background: gold, color: deep, border: 'none', transition: 'opacity 0.2s',
+              borderRadius: '4px', boxSizing: 'border-box',
+              background: gold, color: deep, border: 'none', cursor: 'pointer', transition: 'opacity 0.2s',
             }}
               onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
               onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
               Claim Charter Soldier ⚔
-            </a>
+            </button>
           </div>
 
           {/* Charter Commander */}
@@ -110,16 +124,16 @@ function MembershipPage() {
                 </li>
               ))}
             </ul>
-            <a href={CHARTER_COMMANDER_URL} target="_blank" rel="noopener noreferrer" style={{
+            <button onClick={() => handleUpgrade('charter_commander', getToken)} style={{
               display: 'block', width: '100%', padding: '14px', textAlign: 'center',
               fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
-              borderRadius: '4px', textDecoration: 'none', boxSizing: 'border-box',
-              background: gold, color: deep, border: 'none', transition: 'opacity 0.2s',
+              borderRadius: '4px', boxSizing: 'border-box',
+              background: gold, color: deep, border: 'none', cursor: 'pointer', transition: 'opacity 0.2s',
             }}
               onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
               onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
               Claim Charter Commander ⚔
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -206,17 +220,17 @@ function MembershipPage() {
               </li>
             ))}
           </ul>
-          <a href={SOLDIER_URL} style={{
+          <button onClick={() => handleUpgrade('soldier', getToken)} style={{
             display: 'block', width: '100%', padding: '14px', textAlign: 'center',
             fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
-            borderRadius: '4px', textDecoration: 'none', boxSizing: 'border-box',
+            borderRadius: '4px', boxSizing: 'border-box',
             background: 'transparent', color: gold, border: `1px solid ${borderBright}`,
-            transition: 'all 0.2s',
+            cursor: 'pointer', transition: 'all 0.2s',
           }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
             Start Free Trial ⚔
-          </a>
+          </button>
         </div>
 
         {/* ── COMMANDER ── */}
@@ -248,17 +262,17 @@ function MembershipPage() {
               </li>
             ))}
           </ul>
-          <a href={COMMANDER_URL} style={{
+          <button onClick={() => handleUpgrade('commander', getToken)} style={{
             display: 'block', width: '100%', padding: '14px', textAlign: 'center',
             fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
-            borderRadius: '4px', textDecoration: 'none', boxSizing: 'border-box',
+            borderRadius: '4px', boxSizing: 'border-box',
             background: gold, color: deep, border: 'none',
-            transition: 'opacity 0.2s',
+            cursor: 'pointer', transition: 'opacity 0.2s',
           }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}>
             Start Free Trial ⚔
-          </a>
+          </button>
         </div>
 
         {/* ── GENERAL'S TABLE ── */}
