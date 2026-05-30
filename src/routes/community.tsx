@@ -962,7 +962,7 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
     <div
       onMouseEnter={() => onHover?.(msg.id)}
       onMouseLeave={() => onHover?.(null)}
-      style={{ position: 'relative', background: 'var(--bg-2)', border: `1px solid var(--gold-line)`, padding: 20, marginBottom: 12, overflow: 'visible' }}
+      style={{ position: 'relative', background: hoveredId === msg.id ? 'rgba(201,168,76,0.06)' : 'var(--bg-2)', border: `1px solid ${hoveredId === msg.id ? 'rgba(201,168,76,0.35)' : 'var(--gold-line)'}`, padding: 20, marginBottom: 12, overflow: 'visible', transition: 'background 0.15s, border-color 0.15s', cursor: 'default' }}
     >
       {/* Bracket corners */}
       <div style={{ position: 'absolute', top: -1, left: -1, width: 10, height: 10, borderTop: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
