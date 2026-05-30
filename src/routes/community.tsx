@@ -4217,48 +4217,65 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
 
   const openTopics = [
     { icon:'🛸', title:'UAP DISCLOSURE', sub:'Daily intelligence from the disclosure front',
-      desc:'Congressional hearings, whistleblower testimony, and declassified documents — all examined through the lens of what Genesis 6 already revealed. What the Pentagon calls non-human intelligence has a name.', tag:'disclosure' },
+      desc:'Congressional hearings, whistleblower testimony, and declassified documents examined through the lens of Genesis 6. What the Pentagon calls "non-human intelligence" has a name and a 3,000-year-old criminal dossier.', tag:'disclosure' },
     { icon:'📖', title:'GENESIS 6 FILES', sub:'The original incursion and its modern echoes',
-      desc:'The Watcher descent on Mount Hermon, the Nephilim bloodlines, the forbidden knowledge given to humanity — and the archaeology, ancient texts, and cross-cultural records that confirm it happened.', tag:'genesis6' },
+      desc:'The Watcher descent on Mount Hermon, the Nephilim bloodlines, the three-race hybrid offspring, and the forbidden knowledge still operating through secret societies today. The church has the oldest intelligence file on this subject.', tag:'genesis6' },
   ]
 
   const classifiedTopics = [
     { icon:'👁', title:'GOVT PROGRAMS', sub:'MK-Ultra, Monarch, and the mind control legacy',
-      desc:'How Nazi occult science became CIA doctrine through Operation Paperclip. Trauma-based programming, Monarch conditioning, and the demonic access points created by systematic psychological fracture.', tag:'occult' },
-    { icon:'🧬', title:'TRANSHUMANISM', sub:'The new Tower of Babel — GRIN technologies',
-      desc:'DARPA, Neuralink, mRNA platforms, and the convergence of Genetics, Robotics, Information, and Nanotechnology aimed at producing the posthuman. Alberino\'s Birthright framework applied to current headlines.', tag:'transhumanist' },
-    { icon:'🕯', title:'OCCULT OPS', sub:'Witchcraft in media, government, and entertainment',
-      desc:'Bohemian Grove\'s Molech ritual. Skull and Bones blood oath initiations. Hollywood as mass initiation system. The occult architecture of Washington D.C. and the Masonic eschatology of the Great Seal.', tag:'occult' },
+      desc:'Operation Paperclip imported Nazi occult scientists into the CIA. The same demonic access points exploited by the SS Ahnenerbe drove MK-Ultra. Monarch programming merges trauma-based dissociation with Satanic ritual abuse.', tag:'occult' },
+    { icon:'🧬', title:'TRANSHUMANISM', sub:'Watcher technology — the new Tower of Babel',
+      desc:'Gary Wayne identifies AI as fallen angel technology. The convergence of AI, quantum computing, and neural interface chips creates the architecture for the speaking image of the beast and the hive mind system discussed at Davos in 2018.', tag:'transhumanist' },
+    { icon:'🕯', title:'OCCULT OPS', sub:'CERN, bloodlines, and the horn god network',
+      desc:'CERN derives from Cernunnos — the Indo-Aryan horn god, cognate with Baphomet and Azazel. The Shiva statue at CERN is not decorative. Royal bloodlines trace to Nephilim patriarchs and fallen angel godfathers. The dragon bloodline has kept its genealogies for 4,000 years.', tag:'occult' },
     { icon:'🌐', title:'NWO WATCH', sub:'Beast system infrastructure going live',
-      desc:'CBDC in 11 nations. WHO pandemic treaty. Global digital ID. WEF Great Reset. Revelation 13 mapped to current events. The plumbing is installed. The switch is not yet thrown.', tag:'nwo' },
+      desc:'CBDC operational in 11 nations. WHO pandemic treaty. Global digital ID. The Ten Kings rise before Antichrist. Babylon the Harlot controls them first. Then at the ordained hour everything transfers to him. We are watching the transfer infrastructure being built.', tag:'nwo' },
   ]
 
   const faqData = [
-    { q:'Are aliens demons? What does Scripture actually say?',
-      biblical:'1 John 4:1 commands testing every spirit. 2 Corinthians 11:14 warns that Satan masquerades as an angel of light. Revelation 16:14 identifies spirits of devils working miracles going to the kings of the earth in the last days. These are not separate categories of being — they are the same entities described with different cultural vocabularies across human history.',
-      historical:'The Book of Enoch (chapters 6-8) names 200 Watcher angels who descended to Mount Hermon, led by Semyaza and Azazel. Their disembodied hybrid offspring became what Scripture calls demons — 1 Enoch 15:8-9 states: evil spirits shall proceed from their flesh. Scott Alan Roberts documents in Rise and Fall of the Nephilim that virtually every ancient culture preserves parallel accounts: the Anunnaki of Sumeria, the Apkallu of Babylon, the Apsaras of Hindu tradition.',
-      ops:'Alberino argues in Birthright that the gray alien abduction program is a continuation of the Watcher breeding agenda — a second incursion producing a hybrid race to inherit Adam\'s dominion. The Disclosure movement is a managed revelation designed to reframe demonic entities as extraterrestrial benefactors. Their next move: they seeded humanity. This is the setup for the great deception of 2 Thessalonians 2:11.',
-      tag:'genesis6' },
-    { q:'What happened in Genesis 6 and why does it matter for today?',
-      biblical:'Genesis 6:1-4 describes the Bene Elohim taking human wives and producing the Nephilim. Jude 1:6-7 confirms the angels did not keep their domain and committed fornication — for which they are held in eternal bonds. 2 Peter 2:4 confirms imprisonment in Tartarus awaiting judgment. Matthew 24:37 — Jesus says the last days will be as the days of Noah. This is structural prophecy, not merely moral comparison.',
-      historical:'The Book of Enoch names 200 Watchers who descended to Mount Hermon — named for the oath they swore there (1 Enoch 6:6). Leaders: Semyaza, Azazel, Baraqiel, Kokabiel. They taught weapons, astrology, sorcery, pharmakeia. The result: three hybrid races who devoured humanity and filled the earth with violence. Enoch 10:12 records their sentence: bound for 70 generations under the hills of the earth until the Day of Judgment.',
-      ops:'Gary Wayne documents in Genesis 6 Conspiracy II that post-flood Rephaim lineages — Anakim, Emim, Zamzummim — carried hybrid bloodlines through Canaan. Israel did not fully obey the command to destroy them. Those bloodlines continued into occult dynastic families of Europe and the secret society networks of today. Daniel 2:43 prophesies the final world empire will mingle with the seed of men — a non-human genetic intrusion.',
-      tag:'genesis6' },
-    { q:'What is the Mark of the Beast and how close are we?',
-      biblical:'Revelation 13:16-17: no one may buy or sell except one who has the mark. Revelation 14:9-11 makes the stakes absolute: receiving the mark results in eternal separation from God. This is not an economic inconvenience — it is a permanent spiritual and biological decision with eternal consequences.',
-      historical:'Alberino\'s analysis in Birthright is the most thorough theological framework available on this question. His argument: the Mark is not merely a tracking chip. It represents the voluntary genetic modification of the human image — the exchange of imago Dei for the genetic markers of the beast kingdom. Just as Esau sold his birthright for a bowl of stew, the final generation will sell Adam\'s dominion for enhanced capabilities and inclusion in the posthuman economy.',
-      ops:'CBDC systems are live in 11 nations, in development in 119 more. Global digital ID frameworks are being standardized through the WEF and WHO. The pandemic treaty would give a global authority power to mandate medical interventions. The beast system does not appear fully formed — it assembles piece by piece so no single component triggers alarm. By the time it is complete, the infrastructure will already be inside everyone\'s home.',
-      tag:'nwo' },
-    { q:'How does MK-Ultra connect to spiritual warfare and the occult?',
-      biblical:'The principalities and powers of Ephesians 6:12 operate through human institutions — intelligence agencies and research programs are not beyond their reach. Azazel\'s indictment in 1 Enoch 10:8 reads: the whole earth has been ruined by the work and teaching of Azazel. Isaiah 47 lists the sorceries of Babylon that invite divine judgment.',
-      historical:'Operation Paperclip imported over 1,600 Nazi scientists into American programs — including those from Himmler\'s Ahnenerbe. MK-Ultra used LSD, trauma, and repeated electroshock to fracture the psyche and install controllable alter personalities. Dr. Ewen Cameron at McGill received CIA funding to run experiments that permanently damaged patients. Fritz Springmeier documents how Monarch programming merged these CIA techniques with Satanic ritual abuse, using trauma-created demonic access points.',
-      ops:'Tom Horn documents in Apollyon Rising how Skull and Bones, the CIA old boys network, and European Black Nobility families form a continuous covenant system from pre-war occult Germany into the post-war American establishment. The same demonic principalities that empowered the Third Reich now operate through financial systems, intelligence agencies, and globalist policy bodies. The spirit transferred institutions. It did not retire.',
-      tag:'occult' },
-    { q:'What is Cydonia on Mars and why do the mystery schools care?',
-      biblical:'Job 26:12: By his understanding He smiteth Rahab. Psalm 89:10: You have broken Rahab in pieces. Isaiah 51:9 mentions cutting Rahab and piercing the dragon. Rahab in these passages is not Egypt — it is a destroyed cosmic entity, a world. Ezekiel 28 and Isaiah 14 describe Lucifer\'s pre-fall dominion over sanctuaries across the created order.',
-      historical:'David Flynn documented in Cydonia: The Secret Chronicles of Mars that the geometric relationships between the Face on Mars and surrounding pyramid formations mirror the sacred geometry of Giza with mathematical precision. Flynn identified Rahab as the destroyed planet between Mars and Jupiter — now the asteroid belt — the former capital world of Lucifer\'s pre-Adamic dominion. Every high-degree Masonic initiation encodes the geometry of Cydonia. The mystery schools know what is there.',
-      ops:'Alberino notes in Birthright that dragon princes will deploy from fortifications on Mars at Armageddon — consistent with Flynn\'s framework that Mars served as a staging ground for Lucifer\'s cosmic operations. The sudden government push for a Space Force, Moon return, and UAP disclosure may be preparatory to events that biblical prophecy describes as a final interplanetary conflict. The Face on Mars is not erosion. It is a monument.',
-      tag:'disclosure' },
+    {
+      q: 'Are aliens demons? What does Scripture actually say?',
+      biblical: '1 John 4:1 commands testing every spirit. 2 Corinthians 11:14: Satan masquerades as an angel of light. Revelation 16:14 identifies spirits of devils working miracles going to the kings of the earth in the last days. These are not separate categories of being — they are the same entities named with different cultural vocabularies. The term "non-human intelligence" now used by the Pentagon is a bureaucratic rebranding of what Genesis 6 called Bene Elohim.',
+      historical: 'The Book of Enoch (chapters 6-8) names 200 Watcher angels who descended to Mount Hermon, led by Semyaza and Azazel. Their disembodied hybrid offspring became what Scripture calls demons — 1 Enoch 15:8-9: evil spirits shall proceed from their flesh. Scott Alan Roberts documents in Rise and Fall of the Nephilim that virtually every ancient culture preserves parallel accounts: the Anunnaki of Sumeria, the Apkallu of Babylon, the Apsaras of Hindu tradition — all memories of the same event.',
+      ops: 'Gary Wayne argues that the Nazi Aryan program was a deliberate attempt to recover Nephilim bloodlines — and the modern gray alien abduction program is a continuation of the same Watcher breeding agenda. The UAP Disclosure movement is a managed revelation. Their next declared narrative will be that extraterrestrials seeded humanity. That is the setup for 2 Thessalonians 2:11 — the great deception God permits because people refused the love of the truth.',
+      tag: 'genesis6'
+    },
+    {
+      q: 'What is CERN really and why does it have a Shiva statue?',
+      biblical: 'Revelation 9:1-11 describes an angel opening the abyss and releasing Apollyon — the Destroyer — from the pit prison. Isaiah 14 and Ezekiel 28 describe Lucifer\'s pre-fall dominion and fall. The Book of Enoch (10:4-6) records Azazel being bound in the pit at Dudael until the Great Day of Judgment. Revelation 9:14 mentions four fallen angels bound at the Euphrates who are released at the sixth trumpet.',
+      historical: 'Gary Wayne documents that CERN is an Indo-Aryan word meaning horn god — cognate with Cernunnos (Celtic), the Etruscan god Cern, and Baphomet (Ba-Phomet: Father Mithras). All are representations of Azazel, the goat-headed fallen Watcher who taught all the arts of destruction. The Shiva statue at CERN entrance depicts the destroyer deity — same function as Azazel, Apollyon, and Abaddon in their respective languages. CERN also created the internet. The technology that connects all of humanity was born at a location dedicated to a horn god.',
+      ops: 'Wayne\'s framework: CERN is the modern technological attempt to do what Nimrod attempted at Babel — open a portal into another dimension. Hades and Sheol are understood in occult tradition as occupying the same dimensional space as the inner earth. If interdimensional technology could punch through, it could potentially reach the pit prison and release Azazel before the ordained time. This is why the book of Revelation specifies that it is an angel who opens the abyss with a key (Rev 9:1) — the timing is under divine control, not human or demonic control.',
+      tag: 'occult'
+    },
+    {
+      q: 'How does AI connect to fallen angel technology and the Mark of the Beast?',
+      biblical: 'Revelation 13:15: the second beast was given power to give breath to the image of the first beast, so that the image could speak and cause all who refused to worship it to be killed. Daniel 12:4: knowledge shall increase. Azazel\'s indictment in 1 Enoch 10:8: the whole earth has been ruined by the work and teaching of Azazel — therefore all sin will be ascribed to him. The forbidden knowledge given before the flood is the same knowledge being weaponized now.',
+      historical: 'Gary Wayne identifies AI as Watcher technology — not dangerous in itself but in how it will be used. The ancient teraphim were family idols that could speak — seemingly inanimate objects with a demonic intelligence occupying them. The speaking image of the Antichrist will function identically: an AI system serving as an oikitarian — a dwelling place for disembodied spirits seeking a body. The Nephilim\'s disembodied spirits have been seeking oikitarians since the flood. AI may provide them a technological vessel for mass-scale habitation.',
+      ops: 'Wayne documents that at Davos 2018, the global elite discussed needing AI to advance faster to implement the neural link chip system enabling a hive mind — direct thought-to-thought communication. The convergence: AI plus quantum computing (which operates interdimensionally) plus neural interface chips plus CBDC creates the complete Mark of the Beast architecture. Wayne adds: they intend to offer immortality and unlimited knowledge as part of the mark covenant — a Faustian bargain on a civilizational scale.',
+      tag: 'transhumanist'
+    },
+    {
+      q: 'What was the Nazi Aryan program really attempting?',
+      biblical: 'Daniel 8:23-24: a fierce-looking king, a master of intrigue, will arise. He will become very strong, but not by his own power. Hitler was an antichrist-type figure — demonically empowered. 1 John 4:3 confirms the spirit of antichrist has been with us all along, always seeking a possible vessel. Matthew 24:37: as in the days of Noah — the conditions of Genesis 6 return in the last days.',
+      historical: 'Gary Wayne: Hans Harberger wrote the genealogical framework tracing the German Aryan race back to post-flood Nephilim bloodlines. The Nazi elite maintained bloodline records tracing to specific Rephaim patriarchs and fallen angel godfathers. They created the Rice Church in 1933 to formalize Ariosophy — a fusion of Theosophy, Volkish ideology, and Aryanism — as a state religion. The Thule Society is named for the ancient Atlantis of Norse mythology — the pre-flood Nephilim civilization. The Nazi program was a deliberate attempt to recreate the Nephilim superman through eugenics. Their Fuhrer was their counterfeit messiah. The Third Reich was their counterfeit millennium.',
+      ops: 'Wayne\'s key insight: it does not matter whether their genealogies are accurate. What matters is that they believe them and are working an agenda based on them. The Nazi program\'s logic continues today in the transhumanist movement: instead of selective breeding, they now use genetic engineering and mRNA platforms to introduce non-human genetic elements. The goal is identical — the creation of a new man. Gary Wayne identifies the "thousand points of light" phrase in political speeches as New Age language for the spark of the fallen angels — the divine essence the bloodline families believe they carry and are trying to recover and amplify.',
+      tag: 'occult'
+    },
+    {
+      q: 'What is the Mark of the Beast and how close are we?',
+      biblical: 'Revelation 13:16-17: no one may buy or sell except one who has the mark. Revelation 14:9-11: receiving the mark results in eternal separation from God. This is not temporary economic inconvenience — it is a permanent covenant decision with eternal consequences. Alberino in Birthright: the mark is the voluntary genetic modification of the human image — the exchange of imago Dei for the genetic markers of the beast kingdom.',
+      historical: 'Gary Wayne\'s timeline from Genesis 6 Conspiracy II: the Ten Kings rise before Antichrist comes to power at the midpoint of the last seven years. The Babylon Harlot religion controls the Ten Kings first — riding the beast empire. Then at the ordained hour, the Ten Kings destroy Babylon and hand their power to Antichrist. He then implements the mark. Wayne connects the mark to the complete package: AI image, neural link, quantum connectivity, CBDC economic control, and the oikitarian for demonic spirits. They are building all five components simultaneously.',
+      ops: 'The infrastructure is now in active deployment. CBDC live in 11 nations, developing in 119 more. WHO pandemic treaty being ratified. Global digital ID framework standardizing through WEF. DARPA neural interface research accelerating. AI development being fast-tracked specifically because the Davos meetings said it is not yet advanced enough for the chip system they need. The beast system does not appear fully formed — it assembles piece by piece so no single component triggers resistance. The plumbing is going into the walls before anyone notices the blueprint.',
+      tag: 'nwo'
+    },
+    {
+      q: "Why did David cut off Goliath's head and what does it mean for spiritual warfare?",
+      biblical: 'The Strongs concordance: Hebrew 7495 (Rapha) = to heal or doctor. 7496 = the disembodied demon spirit. 7497 = giant. The Rephaim are simultaneously healers, demon spirits, and giants — because their nature is hybrid. Their name encodes their biology. Ezekiel 32 documents the terrible ones in the sides of the pit — Rephaim dynastic kings in Sheol, speaking to Pharaoh.',
+      historical: 'Gary Wayne: David took five stones not because he expected to miss, but because Goliath had four brothers — five kings total he may have needed to fight. More critically, Rephaim giants had a supernatural healing ability. Severed limbs could regenerate. Only decapitation could prevent this. When David cut off Goliath\'s head and raised it before both armies, he was making a theological declaration: this being is officially dead and cannot return. The worst death for a royal in the ancient world was beheading because it prevented the Ugaritic funeral rite — being escorted by other Rephaim kings through Sheol to dwell with the gods. Beheading trapped the spirit in the dry places.',
+      ops: 'This framework has end-times implications. Wayne notes that the Antichrist will behead those who refuse the mark — not merely as execution, but as the same ritual logic. Some rival bloodlines will not submit to his kingship. Beheading ensures they stay dead and cannot become opposition in the spiritual realm. The AI image commands the beheading. Revelation 20:4 confirms the martyrs who are beheaded for their witness. Understanding the Rephaim theology makes clear why this specific method is prescribed — it is not arbitrary cruelty. It is ancient spiritual warfare logic translated into end-time policy.',
+      tag: 'genesis6'
+    },
   ]
 
   const feedTags = ['all','disclosure','genesis6','occult','transhumanist','nwo','prophecy']
@@ -4275,7 +4292,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   )
 
   return (
-    <div style={{ padding: isMobile ? 16 : '28px 32px', maxWidth:960, margin:'0 auto', fontFamily:crimson, color:TXT, overflowY:'auto' as const, flex:1 }}>
+    <div style={{ padding:isMobile?16:'28px 32px', maxWidth:960, margin:'0 auto', fontFamily:crimson, color:TXT }}>
 
       {/* HEADER */}
       <div style={{ marginBottom:24 }}>
@@ -4292,7 +4309,12 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           )}
         </div>
         <div style={{display:'flex',gap:2,borderBottom:'1px solid '+BDR,marginTop:14}}>
-          {([{key:'open',label:'Open Intel'},{key:'classified',label:hasSoldier?'Classified Intel':'🔒 Classified'},{key:'feed',label:'📡 The Feed'},{key:'faq',label:'🗂 Intel FAQ'}] as const).map(({key,label}) => (
+          {([
+            {key:'open',label:'Open Intel'},
+            {key:'classified',label:hasSoldier?'Classified Intel':'🔒 Classified'},
+            {key:'feed',label:'📡 The Feed'},
+            {key:'faq',label:'🗂 Intel FAQ'},
+          ] as const).map(({key,label}) => (
             <button key={key} onClick={()=>setTab(key)} style={{fontFamily:cinzel,fontSize:isMobile?9:10,letterSpacing:'0.1em',padding:isMobile?'7px 10px':'8px 16px',background:'none',border:'none',borderBottom:activeTab===key?'2px solid '+G2:'2px solid transparent',color:activeTab===key?G2:MUT,cursor:'pointer',transition:'all 0.15s',marginBottom:-1}}>{label}</button>
           ))}
         </div>
@@ -4302,7 +4324,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
       {activeTab === 'open' && (
         <div>
           <Divider label="OPEN INTELLIGENCE" badge="ALL RANKS" />
-          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>These files are open to all Watchmen. The truth of Genesis 6 and the reality of the UAP phenomenon belong in the hands of the church — it simply needs the theological framework to understand what it is seeing.</p>
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>These files are open to all Watchmen. The truth of Genesis 6 and the reality of the UAP phenomenon belong in the hands of the church — equipped with the theological framework to understand what it is seeing.</p>
           <div style={{display:'flex',gap:16,flexWrap:'wrap' as const,marginBottom:28}}>
             {openTopics.map(t => {
               const [h,setH] = React.useState(false)
@@ -4322,10 +4344,10 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
             <div style={{fontFamily:cinzel,fontSize:11,color:'#AFA9EC',letterSpacing:'0.1em',marginBottom:12}}>📚 FIELD RESEARCH LIBRARY</div>
             <div style={{display:'flex',gap:20,flexWrap:'wrap' as const}}>
               {[
-                {title:'Cydonia: The Secret Chronicles of Mars',author:'David Flynn + Timothy Alberino',note:'Mars sacred geometry, Rahab the destroyed planet, and the mystery schools\' knowledge of pre-Adamic civilizations.',c:'#AFA9EC'},
-                {title:'Birthright',author:'Timothy Alberino',note:'The GRIN technology agenda as posthuman apocalypse. The Mark of the Beast as genetic usurpation of Adam\'s dominion.',c:'#9FE1CB'},
-                {title:'Genesis 6 Conspiracy II',author:'Gary Wayne',note:'Nimrod, Babel, the Seventy Nations, Rephaim bloodlines, and the chain from Watcher incursion to end-times prophecy.',c:'#FAC775'},
-                {title:'Apollyon Rising',author:'Tom Horn',note:'The Masonic Great Seal, Novus Ordo Seclorum, and the occult plan to summon the return of Apollo encoded in American founding documents.',c:'#F5C4B3'},
+                {title:'Genesis 6 Conspiracy (I & II)',author:'Gary Wayne',note:'Nephilim bloodlines from before the flood through the Nazi regime to the end-time Ten Kings. The most comprehensive biblical genealogy of the hidden rulers.',c:'#FAC775'},
+                {title:'Cydonia: The Secret Chronicles of Mars',author:'David Flynn + Timothy Alberino',note:'The destroyed planet Rahab, Cydonia sacred geometry, and the mystery school knowledge of pre-Adamic civilizations that still drives the elite.',c:'#AFA9EC'},
+                {title:'Birthright',author:'Timothy Alberino',note:'The GRIN technology agenda as posthuman apocalypse. Mark of the Beast as genetic usurpation of Adam\'s dominion — the most rigorous theological framework on transhumanism.',c:'#9FE1CB'},
+                {title:'Apollyon Rising',author:'Tom Horn',note:'The Masonic Great Seal, Novus Ordo Seclorum, and the occult plan to summon the return of Apollo encoded in American founding documents and presidential speeches.',c:'#F5C4B3'},
               ].map(b => (
                 <div key={b.title} style={{flex:1,minWidth:180}}>
                   <div style={{fontFamily:cinzel,fontSize:11,color:b.c,marginBottom:2}}>{b.title}</div>
@@ -4337,7 +4359,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           </div>
           {!hasSoldier && (
             <div style={{background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,padding:'14px 20px',textAlign:'center' as const}}>
-              <span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 CLASSIFIED INTELLIGENCE available to Soldier rank and above — </span>
+              <span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 CLASSIFIED INTELLIGENCE — Govt Programs, Transhumanism, Occult Ops, NWO Watch — available to Soldier rank and above. </span>
               <a href={SOLDIER_URL} target="_blank" rel="noopener noreferrer" style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em'}}>UPGRADE NOW</a>
             </div>
           )}
@@ -4350,7 +4372,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           {hasSoldier ? (
             <>
               <Divider label="CLASSIFIED INTELLIGENCE" badge="SOLDIER+" />
-              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Operational intelligence on the deeper mechanisms of the antichrist system. Government programs, occult operations, the transhumanist agenda, and the globalist control grid — examined through Scripture and Christian discernment.</p>
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Operational intelligence on the deeper mechanisms of the antichrist system. Government programs, CERN and interdimensional technology, Nephilim bloodline networks, the transhumanist mark agenda, and the globalist control grid — examined through Scripture and Christian discernment.</p>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(210px,1fr))',gap:14,marginBottom:28}}>
                 {classifiedTopics.map(t => {
                   const [h,setH] = React.useState(false)
@@ -4372,14 +4394,14 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                   <span style={{fontFamily:cinzel,fontSize:8,background:'rgba(216,90,48,0.15)',color:'#E87070',padding:'2px 8px',borderRadius:20,letterSpacing:'0.1em'}}>COMING SOON</span>
                 </div>
                 <div style={{fontFamily:cinzel,fontSize:15,color:'#EEEDFE',letterSpacing:'0.04em',marginBottom:8}}>The Nazi Occult Kingdom: Thule to Paperclip to Now</div>
-                <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65}}>The Third Reich was not merely a political movement — it was a fully operational demonic kingdom. From Dietrich Eckart initiating Hitler into the Secret Doctrine, to Himmler's SS priesthood at Wewelsburg Castle, to Operation Paperclip seeding Nazi scientists directly into the CIA and NASA. The spirit did not die in the bunker. It transferred institutions. Full network map included. Sources: Apollyon Rising (Horn), Birthright (Alberino), Genesis 6 Conspiracy (Wayne).</p>
+                <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65}}>The Third Reich as a fully operational demonic kingdom. Gary Wayne documents the Ariosophy religion, the bloodline genealogies of the Nazi elite, their Messiah-figure Fuhrer, the counterfeit millennium of the Thousand-Year Reich, and how Operation Paperclip transferred the entire apparatus — scientists, occult knowledge, and demonic allegiance — into the CIA and NASA. The spirit did not die in the bunker. Interactive network map included. Sources: Gary Wayne, Tom Horn, Timothy Alberino.</p>
               </div>
             </>
           ) : (
             <div style={{border:'1px dashed rgba(201,168,76,0.25)',borderRadius:10,padding:'40px 24px',textAlign:'center' as const,background:'rgba(201,168,76,0.02)'}}>
               <div style={{fontSize:32,marginBottom:12}}>🔒</div>
               <div style={{fontFamily:cinzel,fontSize:14,color:G2,letterSpacing:'0.08em',marginBottom:10}}>CLASSIFIED INTELLIGENCE</div>
-              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20,maxWidth:480,margin:'0 auto 20px'}}>Government programs, occult operations, transhumanist agenda, and New World Order watch reports are available to Soldier rank and above.</p>
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20,maxWidth:480,margin:'0 auto 20px'}}>Government programs, CERN and interdimensional technology, Nephilim bloodline networks, the transhumanist mark agenda, and the globalist control grid — available to Soldier rank and above.</p>
               <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap' as const,marginBottom:20}}>
                 {['Govt Programs','Transhumanism','Occult Ops','NWO Watch'].map(l=>(
                   <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:'rgba(201,168,76,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
@@ -4397,6 +4419,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
       {activeTab === 'feed' && (
         <div>
           <Divider label="THE FEED" badge="AI-CURATED DAILY" />
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:16}}>External articles, video drops, and intelligence briefings — curated by criteria and filtered through biblical discernment. Updated every 48 hours. Items are reviewed before publication.</p>
           <div style={{display:'flex',gap:6,flexWrap:'wrap' as const,marginBottom:20}}>
             {feedTags.map(tag=>(
               <button key={tag} onClick={()=>setFF(tag)} style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',padding:'4px 12px',borderRadius:20,cursor:'pointer',background:feedFilter===tag?(TAG_BG[tag]||'rgba(201,168,76,0.2)'):'transparent',color:feedFilter===tag?(TAG_CLR[tag]||G2):MUT,border:'1px solid '+(feedFilter===tag?(TAG_CLR[tag]||G2):'rgba(201,168,76,0.15)'),transition:'all 0.15s'}}>
@@ -4409,7 +4432,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           ) : filteredFeed.length===0 ? (
             <div style={{textAlign:'center' as const,padding:48,border:'1px dashed '+BDR,borderRadius:8}}>
               <div style={{fontFamily:cinzel,fontSize:11,color:MUT,letterSpacing:'0.08em',marginBottom:8}}>📡 FEED INITIALIZING</div>
-              <p style={{fontFamily:crimson,fontSize:14,color:MUT}}>No briefings published for this filter yet. Check back — the feed updates every 48 hours.</p>
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.6}}>No briefings published for this filter yet. Check back — the feed updates every 48 hours.</p>
             </div>
           ) : (
             <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
@@ -4444,7 +4467,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
       {activeTab === 'faq' && (
         <div>
           <Divider label="FRINGE INTEL FAQ" badge="DOSSIER FORMAT" />
-          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Deep-dive intelligence on critical questions in Christian fringe research. Each entry is structured as a three-part dossier: Biblical Intelligence, Historical Record, and Current Operations. Sources: Book of Enoch, Alberino, Gary Wayne, Tom Horn, David Flynn.</p>
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Deep-dive intelligence in three-part dossier format: Biblical Intelligence, Historical Record, Current Operations. Sources: Book of Enoch (Knibb), Gary Wayne (Genesis 6 Conspiracy I & II), Timothy Alberino (Birthright), Tom Horn (Apollyon Rising), David Flynn (Cydonia), Scott Alan Roberts.</p>
           <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
             {faqData.map((item,i)=>{
               const open=faqOpen===i
@@ -4458,7 +4481,11 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                   </button>
                   {open&&(
                     <div style={{padding:'0 18px 18px',borderTop:'1px solid rgba(201,168,76,0.1)'}}>
-                      {([{label:'BIBLICAL INTELLIGENCE',content:item.biblical,color:'#AFA9EC'},{label:'HISTORICAL RECORD',content:item.historical,color:'#C9A84C'},{label:'CURRENT OPERATIONS',content:item.ops,color:'#E8703A'}]).map(sec=>(
+                      {([
+                        {label:'BIBLICAL INTELLIGENCE',content:item.biblical,color:'#AFA9EC'},
+                        {label:'HISTORICAL RECORD',content:item.historical,color:'#C9A84C'},
+                        {label:'CURRENT OPERATIONS',content:item.ops,color:'#E8703A'},
+                      ]).map(sec=>(
                         <div key={sec.label} style={{marginTop:14}}>
                           <div style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.12em',color:sec.color,marginBottom:6}}>{sec.label}</div>
                           <p style={{fontFamily:crimson,fontSize:14,color:TXT,lineHeight:1.7,margin:0}}>{sec.content}</p>
@@ -4472,6 +4499,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           </div>
         </div>
       )}
+
     </div>
   )
 }
