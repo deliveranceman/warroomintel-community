@@ -72,7 +72,7 @@ function SpiritualMappingPage() {
 
   if (!isLoaded) {
     return (
-      <div style={{ height: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ height: '100dvh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: MUT }}>LOADING...</div>
       </div>
     )
@@ -80,7 +80,7 @@ function SpiritualMappingPage() {
 
   if (!user) {
     return (
-      <div style={{ height: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ height: '100dvh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 12 }}>📍 Spiritual Mapping</div>
           <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, marginBottom: 20 }}>Sign in to access the Spiritual Mapping module</div>

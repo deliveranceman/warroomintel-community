@@ -2971,7 +2971,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           })}
         </div>
         {/* Biblical rank filter */}
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', overflowX: 'hidden', marginTop: 8, maxWidth: '100%' }}>
           {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
             <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
               style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
@@ -7392,12 +7392,12 @@ function CommunityPage() {
   // ── FULL LAYOUT ────────────────────────────────────────────
   return (
     <div style={{
-      height: '100vh',
+      height: '100dvh',
       display: isMobile ? 'block' : 'flex',
       background: V.bg,
       overflow: 'hidden',
       width: '100%',
-      maxWidth: '100vw',
+      maxWidth: '100%',
       position: 'relative',
       paddingTop: isMobile ? 'env(safe-area-inset-top)' : 0,
       boxSizing: 'border-box' as const,
@@ -7424,7 +7424,7 @@ function CommunityPage() {
       } : {
         display: 'flex', flexDirection: 'column', position: 'relative' as const,
         background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
-        height: '100vh', overflowY: sidebarCollapsed ? 'hidden' : 'auto', flexShrink: 0,
+        height: '100dvh', overflowY: sidebarCollapsed ? 'hidden' : 'auto', flexShrink: 0,
         width: sidebarCollapsed ? '48px' : (isTablet ? '220px' : '280px'),
         transition: 'width 0.2s ease',
         overflow: 'hidden' as const,
@@ -7456,7 +7456,7 @@ function CommunityPage() {
       </div>
 
       {/* ── CENTER ── */}
-      <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100vh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: isMobile ? '100vw' : undefined }}>
+      <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100dvh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: '100%', paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : undefined }}>
 
         {/* Push notification banner */}
         {showPushBanner && !pushSubscribed && typeof window !== 'undefined' && 'Notification' in window && (
@@ -8106,7 +8106,7 @@ function CommunityPage() {
             ? { left: 16, right: 16 }
             : { left: '50%', transform: 'translateX(-50%)', width: 420 }),
           zIndex: 200,
-          maxWidth: isMobile ? 'calc(100vw - 32px)' : 420,
+          maxWidth: isMobile ? 'calc(100% - 32px)' : 420,
           background: 'linear-gradient(135deg, #1a1408 0%, #0f0c07 100%)',
           border: '1px solid rgba(201,168,76,0.45)',
           borderRadius: 12,

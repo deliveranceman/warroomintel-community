@@ -118,7 +118,7 @@ export function AIAssistant() {
             bottom: '5rem',
             left: '1.5rem',
             width: '360px',
-            maxWidth: 'calc(100vw - 3rem)',
+            maxWidth: 'calc(100% - 3rem)',
             maxHeight: '500px',
             background: 'var(--surface)',
             border: '1px solid var(--border-bright)',

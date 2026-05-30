@@ -679,11 +679,11 @@ function TierGate({ tier }: { tier: string }) {
 }
 
 // ── MODULE CONTENT ─────────────────────────────────────────────────────────────
-function ModuleContent({ mod, hasAccess, completed, onMarkComplete, saving }: {
-  mod: Module; hasAccess: boolean; completed: boolean; onMarkComplete: () => void; saving: boolean
+function ModuleContent({ mod, hasAccess, completed, onMarkComplete, saving, isMobile }: {
+  mod: Module; hasAccess: boolean; completed: boolean; onMarkComplete: () => void; saving: boolean; isMobile?: boolean
 }) {
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '28px 36px 60px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 12px calc(80px + env(safe-area-inset-bottom, 0px))' : '28px 36px 60px' }}>
       {/* Module header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
         <span style={{ fontSize: 28, flexShrink: 0, marginTop: 4 }}>{mod.icon}</span>
@@ -780,7 +780,7 @@ function ModuleTabView({ modules, progress, hasFullAccess, onMarkComplete, savin
             <button onClick={() => setShowList(true)} style={{ background: 'none', border: 'none', borderBottom: `1px solid ${BDR}`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: '14px 20px', textAlign: 'left' as const, display: 'flex', alignItems: 'center', gap: 6, minHeight: 44 }}>
               ← All Modules
             </button>
-            <ModuleContent mod={selected} hasAccess={hasAccess(selected)} completed={done(selected.id)} onMarkComplete={() => onMarkComplete(selected.id)} saving={saving} />
+            <ModuleContent mod={selected} hasAccess={hasAccess(selected)} completed={done(selected.id)} onMarkComplete={() => onMarkComplete(selected.id)} saving={saving} isMobile={isMobile} />
           </div>
         )}
       </div>
@@ -811,7 +811,7 @@ function ModuleTabView({ modules, progress, hasFullAccess, onMarkComplete, savin
         })}
       </div>
       {/* Right content */}
-      <ModuleContent mod={selected} hasAccess={hasAccess(selected)} completed={done(selected.id)} onMarkComplete={() => onMarkComplete(selected.id)} saving={saving} />
+      <ModuleContent mod={selected} hasAccess={hasAccess(selected)} completed={done(selected.id)} onMarkComplete={() => onMarkComplete(selected.id)} saving={saving} isMobile={isMobile} />
     </div>
   )
 }

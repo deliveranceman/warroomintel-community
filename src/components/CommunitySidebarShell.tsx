@@ -124,13 +124,13 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
       display: 'flex',
       background: '#0D0B14',
       color: '#e8dcc8',
-      ...(fillViewport ? { height: '100vh', overflow: 'hidden' } : { minHeight: '100vh' }),
+      ...(fillViewport ? { height: '100dvh', overflow: 'hidden' } : { minHeight: '100dvh' }),
     }}>
       <style>{`
         @media (max-width: 767px) {
           .wri-shell-sidebar  { display: none !important; }
           .wri-shell-rail     { display: none !important; }
-          .wri-shell-main     { margin-left: 0 !important; margin-right: 0 !important; padding-bottom: 66px; }
+          .wri-shell-main     { margin-left: 0 !important; margin-right: 0 !important; overflow-x: hidden !important; max-width: 100% !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
           .wri-shell-mobile-bc { display: flex !important; }
         }
         .wri-sub-bottom-nav { display: none; }
