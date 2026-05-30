@@ -6014,6 +6014,245 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
+function AssessmentUploadView({ theme, isMobile, setSidebarOpen, tier, tierLevel, user, getToken }: {
+  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void;
+  tier: string; tierLevel: number; user: any; getToken: () => Promise<string | null>
+}) {
+  const isDark = theme === 'dark'
+  const G = '#C9A84C'
+  const cinzel = "'Cinzel', serif"
+  const crimson = "'Crimson Pro', serif"
+
+  const [tab, setTab] = useState<'upload'|'fill'|'strategy'>('upload')
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [strategy, setStrategy] = useState('')
+  const [strategyLoading, setStrategyLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showAnonConsent, setShowAnonConsent] = useState(false)
+  const [anonConsented, setAnonConsented] = useState<boolean | null>(null)
+  const [extractedText, setExtractedText] = useState('')
+
+  async function handleFileUpload(f: File) {
+    setFile(f)
+    setError('')
+    setStrategy('')
+
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const base64 = (e.target?.result as string)?.split(',')[1]
+      if (!base64) return
+
+      setUploading(true)
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/assessment-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ fileName: f.name, fileType: f.type, fileData: base64 }),
+        })
+        const data = await res.json()
+        if (data.extractedText) {
+          setExtractedText(data.extractedText)
+          setShowAnonConsent(true)
+        } else {
+          setError(data.error || 'Could not read the file. Please try a different format.')
+        }
+      } catch {
+        setError('Upload failed. Please try again.')
+      } finally {
+        setUploading(false)
+      }
+    }
+    reader.readAsDataURL(f)
+  }
+
+  async function generateStrategy(consented: boolean) {
+    setShowAnonConsent(false)
+    setAnonConsented(consented)
+    setStrategyLoading(true)
+    setTab('strategy')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/assessment-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          assessmentText: extractedText,
+          anonymizeAndLog: consented,
+          userName: user?.firstName || 'Warrior',
+        }),
+      })
+      const data = await res.json()
+      if (data.strategy) {
+        setStrategy(data.strategy)
+      } else {
+        setError(data.error || 'Strategy generation failed.')
+      }
+    } catch {
+      setError('Could not generate strategy. Please try again.')
+    } finally {
+      setStrategyLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: isDark ? '#0D0B14' : '#FAF8F5', padding: isMobile ? '16px' : '28px 32px' }}>
+      {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', marginBottom: 16, padding: 0 }}>☰</button>}
+
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.2em', marginBottom: 4 }}>INTELLIGENCE TOOL</div>
+        <div style={{ fontFamily: cinzel, fontSize: 22, color: isDark ? '#e8dcc8' : '#2D2924', marginBottom: 6 }}>Ministry Assessment</div>
+        <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>
+          Complete the WRI Ministry Assessment to receive an AI-generated spiritual warfare strategy tailored to your situation.
+        </p>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: `1px solid rgba(201,168,76,0.15)`, paddingBottom: 0 }}>
+          {[
+            { id: 'upload',   label: '⬆ Upload Assessment' },
+            { id: 'fill',     label: '✏ Fill Out Now' },
+            { id: 'strategy', label: '⚔ War Strategy' },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id as any)} style={{
+              background: 'none', border: 'none',
+              borderBottom: tab === t.id ? `2px solid ${G}` : '2px solid transparent',
+              color: tab === t.id ? G : isDark ? '#6b5e45' : '#8B7355',
+              fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em',
+              padding: '10px 16px', cursor: 'pointer', marginBottom: -1,
+              transition: 'all 0.15s',
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* UPLOAD TAB */}
+        {tab === 'upload' && (
+          <div>
+            <div style={{ background: isDark ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '16px 20px', marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>STEP 1 — GET THE TEMPLATE</div>
+              <p style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#8B7355' : '#5C5248', lineHeight: 1.6, marginBottom: 12 }}>
+                Download the WRI Ministry Assessment PDF. Fill it out on paper or digitally, then upload it below for your AI-generated war strategy.
+              </p>
+              <a href="/assessment" target="_blank" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: G, color: '#060408', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 18px', borderRadius: 5, textDecoration: 'none', fontWeight: 700 }}>
+                Open Assessment Template →
+              </a>
+            </div>
+
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>STEP 2 — UPLOAD COMPLETED ASSESSMENT</div>
+            <p style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#6b5e45' : '#5C5248', marginBottom: 16 }}>
+              Accepts PDF, PNG, JPG (photo of paper form), or DOCX. The AI will read the content and generate a personalized war strategy.
+            </p>
+
+            <label style={{ display: 'block', border: `2px dashed rgba(201,168,76,${file ? '0.6' : '0.25'})`, borderRadius: 10, padding: '40px 20px', textAlign: 'center' as const, cursor: 'pointer', background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.04)', transition: 'all 0.2s' }}>
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f) }} />
+              {uploading ? (
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>READING ASSESSMENT...</div>
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#6b5e45' : '#8B7355' }}>AI is extracting your answers...</div>
+                </div>
+              ) : file ? (
+                <div>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>{file.name}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#6b5e45' : '#8B7355' }}>Click to choose a different file</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? '#e8dcc8' : '#2D2924', letterSpacing: '0.08em', marginBottom: 6 }}>DROP FILE HERE OR CLICK TO BROWSE</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#6b5e45' : '#8B7355' }}>PDF · PNG · JPG · DOCX</div>
+                </div>
+              )}
+            </label>
+
+            {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, fontFamily: crimson, fontSize: 14, color: '#fca5a5' }}>{error}</div>}
+
+            <div style={{ textAlign: 'center' as const, marginTop: 28, paddingTop: 24, borderTop: `1px solid rgba(201,168,76,0.12)` }}>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#6b5e45' : '#8B7355', marginBottom: 8 }}>Don't have a completed assessment?</div>
+              <button onClick={() => setTab('fill')} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.35)`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
+                Fill Out Assessment Now →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FILL TAB */}
+        {tab === 'fill' && (
+          <div>
+            <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#8B7355' : '#5C5248', lineHeight: 1.7, marginBottom: 20 }}>
+              Complete the assessment directly here. When you finish, an AI-generated war strategy will be created immediately.
+            </p>
+            <a href="/assessment" style={{ display: 'block', width: '100%', boxSizing: 'border-box' as const, padding: 14, background: G, border: 'none', borderRadius: 8, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: '#060408', cursor: 'pointer', fontWeight: 700, textDecoration: 'none', textAlign: 'center' as const }}>
+              ⚔ Open Full Assessment
+            </a>
+            <p style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#4a3f2a' : '#8B7355', marginTop: 12, textAlign: 'center' as const }}>
+              The full assessment includes Heritage & Bloodline and Inner Healing sections now.
+            </p>
+          </div>
+        )}
+
+        {/* STRATEGY TAB */}
+        {tab === 'strategy' && (
+          <div>
+            {strategyLoading ? (
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>GENERATING WAR STRATEGY...</div>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#8B7355', lineHeight: 1.7 }}>
+                  AI is analyzing your assessment and building a personalized spiritual warfare strategy. This takes 15-30 seconds.
+                </div>
+              </div>
+            ) : strategy ? (
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', marginBottom: 16 }}>⚔ PERSONALIZED WAR STRATEGY</div>
+                <div style={{ whiteSpace: 'pre-wrap' as const, fontFamily: crimson, fontSize: 15, color: isDark ? '#e8dcc8' : '#2D2924', lineHeight: 1.8, background: isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '20px 24px' }}>
+                  {strategy}
+                </div>
+                {anonConsented && (
+                  <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6, fontFamily: crimson, fontSize: 13, color: '#86efac' }}>
+                    ✓ An anonymized copy has been logged to help improve WRI ministry resources.
+                  </div>
+                )}
+                <button onClick={() => { setStrategy(''); setFile(null); setExtractedText(''); setTab('upload') }} style={{ marginTop: 20, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
+                  ← New Assessment
+                </button>
+              </div>
+            ) : !file && !extractedText ? (
+              <div style={{ textAlign: 'center' as const, padding: '40px 20px' }}>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#8B7355' }}>Upload a completed assessment to generate your war strategy.</div>
+                <button onClick={() => setTab('upload')} style={{ marginTop: 16, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>Upload Assessment →</button>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {/* ANONYMOUS CONSENT MODAL */}
+      {showAnonConsent && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#0f0c07', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 12, padding: 28, maxWidth: 480, width: '100%' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>DATA CONSENT</div>
+            <p style={{ fontFamily: crimson, fontSize: 15, color: '#e8dcc8', lineHeight: 1.7, marginBottom: 20 }}>
+              Your assessment has been read successfully. May we anonymize your responses (removing all personal identifiers) and add them to our ministry research database? This helps us improve WRI resources and better understand spiritual warfare patterns across the Body of Christ.
+            </p>
+            <p style={{ fontFamily: crimson, fontSize: 13, color: '#6b5e45', lineHeight: 1.6, marginBottom: 24 }}>
+              Your name, email, and any identifying details will be completely removed. You can say no and still receive your war strategy.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => generateStrategy(true)} style={{ flex: 1, background: G, border: 'none', borderRadius: 6, padding: '12px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#060408', cursor: 'pointer', fontWeight: 700 }}>
+                ✓ Yes, I Consent
+              </button>
+              <button onClick={() => generateStrategy(false)} style={{ flex: 1, background: 'none', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '12px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: G, cursor: 'pointer' }}>
+                No Thanks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
@@ -7331,38 +7570,15 @@ function CommunityPage() {
         )}
 
         {activeSection === 'assessment'  && (
-          <div style={{ flex:1, overflowY:'auto', background: isDark?'#0D0B14':'#FAF8F5', padding: isMobile?'16px':'28px 32px' }}>
-            {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background:'none', border:'none', color:G, fontSize:20, cursor:'pointer', marginBottom:16, padding:0 }}>☰</button>}
-            <div style={{ maxWidth:560, margin:'0 auto' }}>
-              <div style={{ fontFamily:cinzel, fontSize:9, color:G, letterSpacing:'0.2em', marginBottom:4 }}>INTELLIGENCE TOOL</div>
-              <div style={{ fontFamily:cinzel, fontSize:22, color: isDark?'#e8dcc8':'#2D2924', marginBottom:8 }}>Ministry Assessment</div>
-              <p style={{ fontFamily:crimson, fontSize:15, color: isDark?'#6b5e45':'#5C5248', lineHeight:1.7, marginBottom:28 }}>
-                A structured diagnostic to identify spiritual vulnerabilities, open doors, and tactical priorities. AI-powered results are available at Soldier tier and above.
-              </p>
-              <a href="/assessment" style={{ display:'block', width:'100%', boxSizing:'border-box', padding:'14px', background:G, border:'none', borderRadius:8, fontFamily:cinzel, fontSize:12, letterSpacing:'0.1em', color:'#060408', cursor:'pointer', fontWeight:700, textDecoration:'none', textAlign:'center' as const }}>
-                ⚔ Start Assessment
-              </a>
-              {tierLevel === 0 && (
-                <div style={{ marginTop:20, background: isDark?'rgba(122,158,126,0.06)':'rgba(122,158,126,0.1)', border:'1px solid rgba(122,158,126,0.25)', borderRadius:8, padding:'16px 18px' }}>
-                  <div style={{ fontFamily:cinzel, fontSize:9, color:'#7a9e7e', letterSpacing:'0.12em', marginBottom:6 }}>SOLDIER TIER — AI RESULTS</div>
-                  <p style={{ fontFamily:crimson, fontSize:14, color: isDark?'#6b5e45':'#5C5248', lineHeight:1.6, margin:'0 0 12px' }}>Upgrade to Soldier to unlock AI-powered analysis of your assessment results, including spirit identification and strategic recommendations.</p>
-                  <a href="/membership" style={{ fontFamily:cinzel, fontSize:10, color:'#7a9e7e', letterSpacing:'0.08em', textDecoration:'none' }}>Upgrade to Soldier →</a>
-                </div>
-              )}
-              {tierLevel === 1 && (
-                <div style={{ marginTop:20, background: isDark?'rgba(139,157,202,0.06)':'rgba(139,157,202,0.1)', border:'1px solid rgba(139,157,202,0.25)', borderRadius:8, padding:'16px 18px' }}>
-                  <div style={{ fontFamily:cinzel, fontSize:9, color:'#8B9DCA', letterSpacing:'0.12em', marginBottom:6 }}>COMMANDER TIER — CASE FILE INTEGRATION</div>
-                  <p style={{ fontFamily:crimson, fontSize:14, color: isDark?'#6b5e45':'#5C5248', lineHeight:1.6, margin:'0 0 12px' }}>Upgrade to Commander to unlock Case File integration — assessment results automatically populate your active session with spirits, entry points, and recommended sequences.</p>
-                  <a href="/membership" style={{ fontFamily:cinzel, fontSize:10, color:'#8B9DCA', letterSpacing:'0.08em', textDecoration:'none' }}>Upgrade to Commander →</a>
-                </div>
-              )}
-              {tierLevel >= 2 && (
-                <div style={{ marginTop:20, background: isDark?'rgba(201,168,76,0.05)':'rgba(201,168,76,0.08)', border:`1px solid rgba(201,168,76,0.2)`, borderRadius:8, padding:'14px 16px', fontFamily:crimson, fontSize:13, color: isDark?'#8B7355':'#5C5248', lineHeight:1.6 }}>
-                  ✓ Case File integration active — assessment results will be linked to your open sessions.
-                </div>
-              )}
-            </div>
-          </div>
+          <AssessmentUploadView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            tier={tier}
+            tierLevel={tierLevel}
+            user={user}
+            getToken={getToken}
+          />
         )}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}

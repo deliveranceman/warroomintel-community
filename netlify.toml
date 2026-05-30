@@ -121,3 +121,9 @@
 
 [functions."fringe-articles"]
   timeout = 10
+
+[functions."assessment-upload"]
+  timeout = 30
+
+[functions."assessment-strategy"]
+  timeout = 60

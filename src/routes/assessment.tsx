@@ -32,6 +32,8 @@ const STEPS = [
   { id: 'catD',       label: 'Sexual Struggles',     category: 'D' },
   { id: 'catE',       label: 'Addictions',           category: 'E' },
   { id: 'catFG',      label: 'Background & Health',  category: 'F/G' },
+  { id: 'genealogy',  label: 'Heritage & Bloodline', category: 'H' },
+  { id: 'innerHeal',  label: 'Inner Healing',        category: 'I' },
   { id: 'freetext',   label: 'In Your Own Words',    category: null },
 ]
 
@@ -362,6 +364,147 @@ function StepCatFG({ data, update }: { data: FormData; update: (n: string, v: st
   )
 }
 
+function StepGenealogy({ data, update }: { data: FormData; update: (n: string, v: string | string[]) => void }) {
+  return (
+    <>
+      <div style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, padding: '14px 18px', marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: gold, letterSpacing: '0.1em', marginBottom: 6 }}>WHY THIS MATTERS</div>
+        <div style={{ fontSize: 14, color: textDim, lineHeight: 1.7 }}>
+          Generational iniquity is one of the primary entry points for demonic oppression. Exodus 20:5 shows that patterns of sin and bondage can pass through family lines. Understanding your heritage helps us identify and break bloodline covenants, curses, and familiar spirits that may be operating in your life today.
+        </div>
+      </div>
+
+      <Field>
+        <Label>What is your ethnic and cultural heritage?</Label>
+        <SubLabel>Include nationalities, regions, or cultural backgrounds on both sides of your family as far back as you know (e.g. Irish, West African, Native American, Mexican, Eastern European)</SubLabel>
+        <TextInput name="H - Heritage Background" value={data['H - Heritage Background'] as string || ''} onChange={update} placeholder="e.g. Scottish/Irish on father's side, Nigerian on mother's side..." multiline />
+      </Field>
+
+      <Field>
+        <Label>Are there any religions, spiritual practices, or belief systems in your family history?</Label>
+        <SubLabel>Including generations before you — grandparents, great-grandparents</SubLabel>
+        <CheckGroup name="H - Family Religion" value={data['H - Family Religion'] as string[] || []} onChange={update} options={['Catholicism', 'Freemasonry', 'Mormonism', 'Jehovah\'s Witnesses', 'Islam', 'Buddhism', 'Hinduism', 'Voodoo / Hoodoo', 'Santeria', 'Native American spirit practices', 'Wicca / Witchcraft', 'New Age', 'Eastern Religions', 'Spiritualism / Séances', 'None known', 'Unknown']} />
+      </Field>
+
+      <Field>
+        <Label>Do you know of any occult involvement in your family line?</Label>
+        <SubLabel>Fortune tellers, root workers, curanderos, shamans, witches, hex practitioners in the family</SubLabel>
+        <RadioGroup name="H - Family Occult" value={data['H - Family Occult'] as string || ''} onChange={update} options={['Yes, confirmed', 'Suspected but not confirmed', 'No', 'Unknown']} />
+        <div style={{ marginTop: 10 }}>
+          <TextInput name="H - Family Occult Notes" value={data['H - Family Occult Notes'] as string || ''} onChange={update} placeholder="Describe what you know..." multiline />
+        </div>
+      </Field>
+
+      <Field>
+        <Label>Are there recurring patterns in your family that you've noticed across generations?</Label>
+        <SubLabel>Patterns that repeat — check all that apply</SubLabel>
+        <CheckGroup name="H - Generational Patterns" value={data['H - Generational Patterns'] as string[] || []} onChange={update} options={['Addiction (alcohol, drugs)', 'Mental illness', 'Suicide or early death', 'Divorce and broken marriages', 'Poverty and financial lack', 'Sexual immorality', 'Abuse (physical, sexual, emotional)', 'Abandonment', 'Violence or rage', 'Chronic illness or disease', 'Premature death', 'Fatherlessness', 'Witchcraft or occult involvement', 'Religious legalism or control', 'None that I know of']} />
+      </Field>
+
+      <Field>
+        <Label>Were there any significant covenants, oaths, or pledges made in your family line?</Label>
+        <SubLabel>Fraternal organizations, secret societies, blood oaths, land or business dedications, vows made during hardship</SubLabel>
+        <RadioGroup name="H - Family Covenants" value={data['H - Family Covenants'] as string || ''} onChange={update} options={['Yes', 'Possibly', 'No', 'Unknown']} />
+        <div style={{ marginTop: 10 }}>
+          <TextInput name="H - Family Covenants Notes" value={data['H - Family Covenants Notes'] as string || ''} onChange={update} placeholder="Describe what you know..." multiline />
+        </div>
+      </Field>
+
+      <Field>
+        <Label>Do you know your family's country or region of origin?</Label>
+        <SubLabel>This can help identify territorial spirits and regional principalities that may have legal claim through your bloodline</SubLabel>
+        <TextInput name="H - Country of Origin" value={data['H - Country of Origin'] as string || ''} onChange={update} placeholder="e.g. Louisiana (French Quarter), West Africa (Ghana), Eastern Europe (Romania)..." multiline />
+      </Field>
+
+      <Field>
+        <Label>Have you personally renounced the sins of your ancestors?</Label>
+        <RadioGroup name="H - Ancestral Renunciation" value={data['H - Ancestral Renunciation'] as string || ''} onChange={update} options={['Yes, formally in prayer', 'Yes, informally', 'No, I didn\'t know I should', 'No, don\'t believe it\'s necessary']} />
+      </Field>
+    </>
+  )
+}
+
+function StepInnerHealing({ data, update }: { data: FormData; update: (n: string, v: string | string[]) => void }) {
+  return (
+    <>
+      <div style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, padding: '14px 18px', marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: gold, letterSpacing: '0.1em', marginBottom: 6 }}>INVITATION TO HEALING</div>
+        <div style={{ fontSize: 14, color: textDim, lineHeight: 1.7 }}>
+          Inner healing addresses the wounded places of our soul — where trauma, loss, rejection, or abuse created fractures that can become entry points for demonic oppression. Jesus is the same yesterday, today, and forever, and He can meet you in every broken memory and restore what was stolen.
+        </div>
+      </div>
+
+      <Field>
+        <Label>What is your earliest memory of feeling truly unsafe or afraid?</Label>
+        <SubLabel>This can be physical, emotional, or spiritual. Even if it seems small, it matters.</SubLabel>
+        <TextInput name="I - Earliest Fear Memory" value={data['I - Earliest Fear Memory'] as string || ''} onChange={update} placeholder="Describe the memory and how old you were..." multiline />
+      </Field>
+
+      <Field>
+        <Label>Have you ever experienced a traumatic event that you feel you've never fully recovered from?</Label>
+        <RadioGroup name="I - Unresolved Trauma" value={data['I - Unresolved Trauma'] as string || ''} onChange={update} options={['Yes', 'No', 'Possibly']} />
+        <div style={{ marginTop: 10 }}>
+          <TextInput name="I - Unresolved Trauma Notes" value={data['I - Unresolved Trauma Notes'] as string || ''} onChange={update} placeholder="You don't have to share details — just describe generally what area of life it involved (childhood, marriage, loss, abuse, accident...)" multiline />
+        </div>
+      </Field>
+
+      <Field>
+        <Label>Do you ever feel like part of you is stuck at a younger age emotionally?</Label>
+        <SubLabel>For example — reacting like a child when criticized, feeling helpless in adult situations, shutting down emotionally under pressure</SubLabel>
+        <RadioGroup name="I - Emotional Age" value={data['I - Emotional Age'] as string || ''} onChange={update} options={['Yes, often', 'Sometimes', 'Rarely', 'No']} />
+        <div style={{ marginTop: 10 }}>
+          <TextInput name="I - Emotional Age Notes" value={data['I - Emotional Age Notes'] as string || ''} onChange={update} placeholder="Describe when this tends to happen or how it feels..." multiline />
+        </div>
+      </Field>
+
+      <Field>
+        <Label>Have you ever experienced periods where you felt disconnected from yourself, your body, or reality?</Label>
+        <SubLabel>Feeling like you're watching yourself from outside, memory gaps, emotional numbness, feeling unreal</SubLabel>
+        <CheckGroup name="I - Dissociation" value={data['I - Dissociation'] as string[] || []} onChange={update} options={['Feeling detached from my body', 'Watching myself from outside', 'Memory gaps or blackouts', 'Feeling like the world isn\'t real', 'Emotional numbness', 'Not recognizing myself in the mirror', 'Feeling like different "versions" of myself in different situations', 'None of these']} />
+      </Field>
+
+      <Field>
+        <Label>Are there certain people, places, tones of voice, or situations that trigger an immediate and intense reaction in you?</Label>
+        <SubLabel>Reactions that feel bigger than the situation — rage, shutdown, panic, freezing, fleeing</SubLabel>
+        <RadioGroup name="I - Triggers Present" value={data['I - Triggers Present'] as string || ''} onChange={update} options={['Yes, several', 'Yes, one or two', 'Rarely', 'No']} />
+        <div style={{ marginTop: 10 }}>
+          <TextInput name="I - Trigger Notes" value={data['I - Trigger Notes'] as string || ''} onChange={update} placeholder="Describe what tends to trigger you and how you respond..." multiline />
+        </div>
+      </Field>
+
+      <Field>
+        <Label>Do you struggle with your identity — knowing who you truly are in Christ?</Label>
+        <SubLabel>Feeling defined by what happened to you, what you've done, or what others say about you rather than what God says</SubLabel>
+        <CheckGroup name="I - Identity Struggles" value={data['I - Identity Struggles'] as string[] || []} onChange={update} options={['I don\'t know who I really am', 'I feel defined by my past', 'I wear masks in different relationships', 'I struggle to receive love or affirmation', 'I feel fundamentally flawed or broken', 'I don\'t believe I deserve to be free', 'I feel shame about my identity', 'My gender identity has felt confused', 'None of these']} />
+      </Field>
+
+      <Field>
+        <Label>Has Jesus ever met you in a specific painful memory through prayer or a spiritual experience?</Label>
+        <SubLabel>A moment where healing came, a vision, a sense of His presence in the pain</SubLabel>
+        <RadioGroup name="I - Jesus Met Me" value={data['I - Jesus Met Me'] as string || ''} onChange={update} options={['Yes', 'No', 'I\'ve never tried this approach', 'I\'m open to it']} />
+      </Field>
+
+      <Field>
+        <Label>Is there anyone you have not yet fully forgiven?</Label>
+        <SubLabel>Unforgiveness is one of the primary legal rights that keeps demonic oppression in place</SubLabel>
+        <RadioGroup name="I - Unforgiveness" value={data['I - Unforgiveness'] as string || ''} onChange={update} options={['Yes, several people', 'Yes, one person', 'I\'ve forgiven everyone', 'I\'m working on it']} />
+        <div style={{ marginTop: 10 }}>
+          <TextInput name="I - Unforgiveness Notes" value={data['I - Unforgiveness Notes'] as string || ''} onChange={update} placeholder="You don't need to name them — just describe the relationship (parent, ex-spouse, abuser, church leader...)" multiline />
+        </div>
+      </Field>
+
+      <Field>
+        <Label>Are there vows or agreements you have made from a place of pain?</Label>
+        <SubLabel>Declarations made in hurt — "I will never trust anyone again," "I don't need anyone," "I'll never be like my father," "God doesn't care about me"</SubLabel>
+        <RadioGroup name="I - Inner Vows" value={data['I - Inner Vows'] as string || ''} onChange={update} options={['Yes', 'Possibly', 'No', 'I hadn\'t thought about this']} />
+        <div style={{ marginTop: 10 }}>
+          <TextInput name="I - Inner Vows Notes" value={data['I - Inner Vows Notes'] as string || ''} onChange={update} placeholder="List any vows you're aware of..." multiline />
+        </div>
+      </Field>
+    </>
+  )
+}
+
 function StepFreeText({ data, update }: { data: FormData; update: (n: string, v: string | string[]) => void }) {
   return (
     <>
@@ -440,6 +583,8 @@ function AssessmentPage() {
     <StepCatD data={data} update={update} />,
     <StepCatE data={data} update={update} />,
     <StepCatFG data={data} update={update} />,
+    <StepGenealogy data={data} update={update} />,
+    <StepInnerHealing data={data} update={update} />,
     <StepFreeText data={data} update={update} />,
   ]
 
