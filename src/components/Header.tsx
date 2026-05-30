@@ -512,6 +512,15 @@ export function Header() {
                 <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', color: gold, fontSize: '20px', cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
               </div>
 
+              <a href="/community" onClick={closeAll} style={{
+                display: 'block', padding: '16px 1.5rem',
+                fontFamily: cinzel, fontSize: '14px',
+                letterSpacing: '0.1em', color: gold,
+                textDecoration: 'none',
+                borderBottom: `1px solid ${border}`,
+                fontWeight: 700,
+              }}>⚔ Enter Community</a>
+
               <a href="/#features" onClick={closeAll} style={{
                 display: 'block', fontFamily: cinzel, fontSize: '13px',
                 letterSpacing: '0.1em', color: textDim, textDecoration: 'none',
@@ -642,11 +651,11 @@ export function Header() {
                         display: 'flex', alignItems: 'center', gap: '12px',
                       }}>
                         <UserButton />
-                        <a href="/arsenal" style={{
+                        <a href="/community" style={{
                           fontFamily: 'Cinzel, serif', fontSize: '11px',
                           color: 'var(--gold)', textDecoration: 'none',
                           letterSpacing: '0.1em',
-                        }}>My Arsenal →</a>
+                        }}>My Community →</a>
                       </div>
                     </SignedIn>
                   </>

@@ -5,7 +5,7 @@ import {
   Archive, Sword, Library, Search, Map, Network, Eye,
   Calendar, Antenna, FolderOpen, Settings, ClipboardList,
   MapPin, DoorOpen, Moon, Radio, FolderArchive, GraduationCap,
-  Star, Clapperboard, Shield, BookOpen, FileText,
+  Star, Clapperboard, Shield, BookOpen, FileText, Home, Zap,
 } from 'lucide-react'
 
 interface Props {
@@ -130,9 +130,11 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         @media (max-width: 767px) {
           .wri-shell-sidebar  { display: none !important; }
           .wri-shell-rail     { display: none !important; }
-          .wri-shell-main     { margin-left: 0 !important; margin-right: 0 !important; }
+          .wri-shell-main     { margin-left: 0 !important; margin-right: 0 !important; padding-bottom: 66px; }
           .wri-shell-mobile-bc { display: flex !important; }
         }
+        .wri-sub-bottom-nav { display: none; }
+        @media (max-width: 767px) { .wri-sub-bottom-nav { display: block; } }
       `}</style>
 
       {/* ── LEFT SIDEBAR ── */}
@@ -449,6 +451,86 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           </a>
         ))}
       </div>
+
+      {/* Mobile bottom nav — only renders on mobile via CSS */}
+      <div className="wri-sub-bottom-nav">
+        <SubPageBottomNav activeItem={activeItem} />
+      </div>
     </div>
+  )
+}
+
+function SubPageBottomNav({ activeItem: _activeItem }: { activeItem: string }) {
+  const getActiveTab = () => {
+    if (typeof window === 'undefined') return 'intel'
+    const path = window.location.pathname
+    const search = window.location.search
+    if (path === '/arsenal') return 'arsenal'
+    if (search.includes('section=database')) return 'database'
+    if (search.includes('section=forum')) return 'ops'
+    return 'intel'
+  }
+
+  const active = getActiveTab()
+
+  const tabStyle = (isActive: boolean): React.CSSProperties => ({
+    flex: 1, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', gap: 3,
+    textDecoration: 'none', padding: '8px 0',
+    color: isActive ? G : 'rgba(201,168,76,0.4)',
+    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em',
+  })
+
+  return (
+    <>
+      <nav style={{
+        position: 'fixed',
+        bottom: 0, left: 0, right: 0,
+        height: 66,
+        background: '#0f0c07',
+        borderTop: '1px solid rgba(201,168,76,0.2)',
+        display: 'flex',
+        alignItems: 'center',
+        zIndex: 100,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}>
+        <a href="/community" style={tabStyle(active === 'intel')}>
+          <Home size={20} strokeWidth={1.6} />
+          <span>HOME</span>
+          {active === 'intel' && <div style={{ width: 16, height: 2, background: G, borderRadius: 1 }} />}
+        </a>
+
+        <a href="/community?section=database" style={tabStyle(active === 'database')}>
+          <Library size={20} strokeWidth={1.6} />
+          <span>DATABASE</span>
+          {active === 'database' && <div style={{ width: 16, height: 2, background: G, borderRadius: 1 }} />}
+        </a>
+
+        {/* Center FAB */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <a href="/community" style={{
+            width: 50, height: 50,
+            background: G,
+            borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 20px rgba(201,168,76,0.4)',
+            textDecoration: 'none',
+          }}>
+            <span style={{ fontSize: 20, color: '#1a1305' }}>⚔</span>
+          </a>
+        </div>
+
+        <a href="/community?section=forum" style={tabStyle(active === 'ops')}>
+          <MessageSquare size={20} strokeWidth={1.6} />
+          <span>OPS</span>
+          {active === 'ops' && <div style={{ width: 16, height: 2, background: G, borderRadius: 1 }} />}
+        </a>
+
+        <a href="/community" style={tabStyle(false)}>
+          <Zap size={20} strokeWidth={1.6} />
+          <span>AI</span>
+        </a>
+      </nav>
+    </>
   )
 }
