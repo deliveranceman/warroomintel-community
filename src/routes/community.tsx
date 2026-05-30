@@ -6065,6 +6065,14 @@ function CommunityPage() {
     return window.Notification.permission === 'granted'
   })
   const [unreadWarRoom, setUnreadWarRoom] = useState(0)
+  const [showInstallBanner, setShowInstallBanner] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (typeof navigator === 'undefined') return false
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+    const isStandalone = ('standalone' in window.navigator) && (window.navigator as any).standalone
+    const dismissed = localStorage.getItem('wri-pwa-dismissed')
+    return isIOS && !isStandalone && !dismissed
+  })
 
   // AI Chatbot
   const [chatOpen, setChatOpen]           = useState(false)
@@ -6554,6 +6562,15 @@ function CommunityPage() {
     }
     loadRailEvents()
   }, [isSignedIn])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault()
+      ;(window as any).__pwaInstallPrompt = e
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
 
   async function sendPost() {
     if (!draft.trim() || !streamToken || !apiKey || sending) return
@@ -7860,6 +7877,75 @@ function CommunityPage() {
       >
         🧠
       </button>
+
+      {showInstallBanner && (
+        <div style={{
+          position: 'fixed',
+          bottom: isMobile ? 72 : 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 200,
+          width: isMobile ? 'calc(100% - 32px)' : 420,
+          background: 'linear-gradient(135deg, #1a1408 0%, #0f0c07 100%)',
+          border: '1px solid rgba(201,168,76,0.45)',
+          borderRadius: 12,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+            background: '#C9A84C', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 22,
+          }}>⚔</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontFamily: "'Cinzel',serif", fontSize: 11,
+              color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 4,
+            }}>
+              INSTALL WAR ROOM INTEL
+            </div>
+            <div style={{
+              fontFamily: "'Crimson Pro',serif", fontSize: 13,
+              color: '#c8b99a', lineHeight: 1.5, marginBottom: 8,
+            }}>
+              Tap the <span style={{ color: '#C9A84C', fontWeight: 600 }}>Share</span> button
+              {' '}
+              <span style={{ fontSize: 15 }}>⎋</span>
+              {' '}then{' '}
+              <span style={{ color: '#C9A84C', fontWeight: 600 }}>"Add to Home Screen"</span>
+              {' '}for the full app experience — works offline, no App Store needed.
+            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem('wri-pwa-dismissed', '1')
+                setShowInstallBanner(false)
+              }}
+              style={{
+                background: 'transparent', border: '1px solid rgba(201,168,76,0.3)',
+                borderRadius: 5, padding: '4px 12px',
+                fontFamily: "'Cinzel',serif", fontSize: 9,
+                color: '#6b5e45', letterSpacing: '0.1em', cursor: 'pointer',
+              }}
+            >
+              DISMISS
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.setItem('wri-pwa-dismissed', '1')
+              setShowInstallBanner(false)
+            }}
+            style={{
+              background: 'transparent', border: 'none',
+              color: '#6b5e45', fontSize: 18, cursor: 'pointer',
+              padding: '0 2px', flexShrink: 0, lineHeight: 1,
+            }}
+          >×</button>
+        </div>
+      )}
 
       <BottomNav
         tabs={[
