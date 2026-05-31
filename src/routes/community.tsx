@@ -1454,6 +1454,34 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
   )
 }
 
+// ── MINIMAL MARKDOWN RENDERER ──────────────────────────────
+function renderMd(raw: string): { __html: string } {
+  if (!raw) return { __html: '' }
+  const esc = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const inline = (s: string) => s
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#C9A84C;text-decoration:underline">$1</a>')
+  const lines = esc.split('\n')
+  const out: string[] = []
+  let inList = false, inPara = false
+  const closeList = () => { if (inList) { out.push('</ul>'); inList = false } }
+  const closePara = () => { if (inPara) { out.push('</p>'); inPara = false } }
+  for (const line of lines) {
+    const h3 = line.match(/^### (.+)$/); const h2 = line.match(/^## (.+)$/); const h1 = line.match(/^# (.+)$/)
+    const li = line.match(/^[-*•] (.+)$/)
+    if (h3) { closeList(); closePara(); out.push(`<h4 style="font-family:'Cinzel',serif;font-size:13px;color:#C9A84C;letter-spacing:.06em;margin:16px 0 6px">${inline(h3[1])}</h4>`) }
+    else if (h2) { closeList(); closePara(); out.push(`<h3 style="font-family:'Cinzel',serif;font-size:15px;color:#C9A84C;letter-spacing:.06em;margin:18px 0 8px">${inline(h2[1])}</h3>`) }
+    else if (h1) { closeList(); closePara(); out.push(`<h2 style="font-family:'Cinzel',serif;font-size:17px;color:#C9A84C;letter-spacing:.06em;margin:20px 0 10px">${inline(h1[1])}</h2>`) }
+    else if (li) { closePara(); if (!inList) { out.push('<ul style="padding-left:18px;margin:8px 0">'); inList = true } out.push(`<li style="margin:3px 0">${inline(li[1])}</li>`) }
+    else if (line.trim() === '') { closeList(); closePara() }
+    else { closeList(); if (!inPara) { out.push('<p style="margin:0 0 10px;line-height:1.7">'); inPara = true } else out.push('<br/>'); out.push(inline(line)) }
+  }
+  closeList(); closePara()
+  return { __html: out.join('') }
+}
+
 // ── TRAINING VIEW ──────────────────────────────────────────
 function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
   const isDark = theme !== 'light'
@@ -1481,7 +1509,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
 
   function extractYouTubeId(url: string): string | null {
     if (!url) return null
-    const patterns = [/youtu\.be\/([^?&]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/]
+    const patterns = [/youtu\.be\/([^?&#]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/, /youtube(?:\.com)?\/live\/([^?&#]+)/]
     for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
     return null
   }
@@ -1696,11 +1724,11 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut, padding: 32 }}>
           <div style={{ fontSize: 40 }}>▶</div>
           <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>Select an episode to begin</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>{selectedCourse.description}</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedCourse.description || '')} />
         </div>
       )}
       {selectedEpisode && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflowY: 'auto' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflow: 'hidden' }}>
           {isMobile && <button onClick={() => setSelectedEpisode(null)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 16px', textAlign: 'left' as const, borderBottom: `1px solid ${bdr}` }}>← Episode List</button>}
           <div style={{ background: '#000', width: '100%', aspectRatio: '16/9' as any, position: 'relative' as const }}>
             {extractYouTubeId(selectedEpisode.youtube_url) ? (
@@ -1715,7 +1743,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
             <div>
               <div style={{ fontFamily: cinzel, fontSize: 15, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedEpisode.title}</div>
-              {selectedEpisode.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>{selectedEpisode.description}</div>}
+              {selectedEpisode.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />}
             </div>
             <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
               style={{ flexShrink: 0, padding: '7px 14px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
@@ -1731,10 +1759,10 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
               </button>
             ))}
           </div>
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', minHeight: 0 }}>
             {activeTab === 'notes' && (
               selectedEpisode.notes
-                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{selectedEpisode.notes}</div>
+                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(selectedEpisode.notes)} />
                 : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No notes for this episode yet.</div>
             )}
             {activeTab === 'resources' && (

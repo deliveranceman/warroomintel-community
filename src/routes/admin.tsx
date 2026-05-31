@@ -2274,6 +2274,11 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   const [evtRecordingUrl, setEvtRecordingUrl] = useState('')
   const [evtRecurring, setEvtRecurring]       = useState(false)
   const [evtRecurrenceType, setEvtRecurrenceType] = useState('weekly')
+  const [evtThumbnail, setEvtThumbnail]       = useState('')
+  const [evtRelatedSpirits, setEvtRelatedSpirits] = useState('')
+  const [evtAttachments, setEvtAttachments]   = useState<Array<{label: string; url: string}>>([])
+  const [evtAttachLabel, setEvtAttachLabel]   = useState('')
+  const [evtAttachUrl, setEvtAttachUrl]       = useState('')
 
   async function loadEvents() {
     setEvtLoading(true)
@@ -2299,12 +2304,17 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
       setEvtRecordingUrl(evt.recording_url || '')
       setEvtRecurring(!!evt.recurrence_type)
       setEvtRecurrenceType(evt.recurrence_type || 'weekly')
+      setEvtThumbnail(evt.thumbnail_url || '')
+      setEvtRelatedSpirits((evt.related_spirits || []).join(', '))
+      setEvtAttachments(evt.attachments || [])
     } else {
       setEditingEvt(null)
       setEvtTitle(''); setEvtDesc(''); setEvtDate(''); setEvtDuration('60')
       setEvtType('live_training'); setEvtZoom(''); setEvtZoomTier('free')
       setEvtPublished(false); setEvtMaxAtt('')
       setEvtRecordingUrl(''); setEvtRecurring(false); setEvtRecurrenceType('weekly')
+      setEvtThumbnail(''); setEvtRelatedSpirits(''); setEvtAttachments([])
+      setEvtAttachLabel(''); setEvtAttachUrl('')
     }
     setEvtMsg('')
     setShowEvtForm(true)
@@ -2323,6 +2333,9 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
       max_attendees: evtMaxAtt ? parseInt(evtMaxAtt) : null,
       recording_url: evtRecordingUrl.trim() || null,
       recurrence_type: evtRecurring ? evtRecurrenceType : null,
+      thumbnail_url: evtThumbnail.trim() || null,
+      related_spirits: evtRelatedSpirits.split(',').map((s: string) => s.trim()).filter(Boolean),
+      attachments: evtAttachments,
     }
     const url  = editingEvt ? `/api/events?id=${editingEvt.id}` : '/api/events'
     const method = editingEvt ? 'PATCH' : 'POST'
@@ -3004,6 +3017,50 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                   <div>
                     <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>RECORDING URL</label>
                     <input value={evtRecordingUrl} onChange={e => setEvtRecordingUrl(e.target.value)} style={{ ...inp2 }} placeholder="https://youtube.com/watch?v=..." />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>THUMBNAIL URL</label>
+                    <input value={evtThumbnail} onChange={e => setEvtThumbnail(e.target.value)} style={{ ...inp2 }} placeholder="https://..." />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>RELATED SPIRITS (comma-separated)</label>
+                    <input value={evtRelatedSpirits} onChange={e => setEvtRelatedSpirits(e.target.value)} style={{ ...inp2 }} placeholder="Fear, Jezebel, Divination" />
+                    {evtRelatedSpirits.trim() && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 6 }}>
+                        {evtRelatedSpirits.split(',').map(s => s.trim()).filter(Boolean).map(s => (
+                          <a key={s} href={`/community?section=database&search=${encodeURIComponent(s)}`} target="_blank" rel="noopener noreferrer"
+                            style={{ padding: '2px 8px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR2}`, borderRadius: 4, color: GG, fontSize: 11, fontFamily: cinzel, textDecoration: 'none', letterSpacing: '0.04em' }}>
+                            {s}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>ATTACHMENTS / DOCUMENTS</label>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                      <input value={evtAttachLabel} onChange={e => setEvtAttachLabel(e.target.value)} style={{ ...inp2, flex: 1, marginBottom: 0 }} placeholder="Label (e.g. Session Notes PDF)" />
+                      <input value={evtAttachUrl} onChange={e => setEvtAttachUrl(e.target.value)} style={{ ...inp2, flex: 2, marginBottom: 0 }} placeholder="URL" />
+                      <button onClick={() => {
+                        if (!evtAttachLabel.trim() || !evtAttachUrl.trim()) return
+                        setEvtAttachments(prev => [...prev, { label: evtAttachLabel.trim(), url: evtAttachUrl.trim() }])
+                        setEvtAttachLabel(''); setEvtAttachUrl('')
+                      }} style={{ padding: '7px 12px', background: GG, border: 'none', borderRadius: 4, color: '#0D0B14', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' as const }}>
+                        + Add
+                      </button>
+                    </div>
+                    {evtAttachments.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+                        {evtAttachments.map((att, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(201,168,76,0.04)', border: `1px solid ${BDR2}`, borderRadius: 4, padding: '5px 10px' }}>
+                            <span style={{ fontFamily: cinzel, fontSize: 10, color: GG, flex: 1 }}>{att.label}</span>
+                            <span style={{ fontFamily: crimson, fontSize: 11, color: MUT, flex: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{att.url}</span>
+                            <button onClick={() => setEvtAttachments(prev => prev.filter((_, j) => j !== i))}
+                              style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 14, padding: '0 4px', lineHeight: 1 }}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <input type="checkbox" id="evtPub" checked={evtPublished} onChange={e => setEvtPublished(e.target.checked)} style={{ width: 16, height: 16, accentColor: GG }} />
