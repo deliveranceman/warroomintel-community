@@ -1824,28 +1824,64 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
               const isYtSpam = notes.includes('#Deliverance') || notes.includes('Subscribe for teachings')
               return notes && !isYtSpam
                 ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(notes)} />
-                : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No notes available for this episode.</div>
+                : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>Notes for this episode will be added shortly.</div>
             })()}
-            {activeTab === 'resources' && (
-              attachments.length === 0
-                ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No resources attached to this episode.</div>
-                : <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                    {attachments.map(att => (
-                      <div key={att.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontSize: 20, flexShrink: 0 }}>📄</span>
+            {activeTab === 'resources' && (() => {
+              const TIER_LVL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+              const epTierNum  = TIER_LVL[selectedEpisode.tier?.toLowerCase()] ?? 0
+              const userTierNum = TIER_LVL[userTier?.toLowerCase()] ?? 0
+              const hasResourceAccess = userTierNum >= epTierNum
+              const fileIcon = (att: any) => {
+                const m = (att.mime_type || '').toLowerCase()
+                const t = (att.title || '').toLowerCase()
+                if (m.includes('pdf') || t.endsWith('.pdf')) return '📄'
+                if (m.includes('image') || /\.(png|jpg|jpeg|gif|webp)$/.test(t)) return '🖼️'
+                if (m.includes('word') || /\.(doc|docx)$/.test(t)) return '📝'
+                return '📎'
+              }
+              const isPdf = (att: any) => {
+                const m = (att.mime_type || '').toLowerCase()
+                const t = (att.title || '').toLowerCase()
+                return m.includes('pdf') || t.endsWith('.pdf')
+              }
+              if (!hasResourceAccess) return (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' as const }}>
+                  <div style={{ fontSize: 32 }}>🔒</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>This resource requires {selectedEpisode.tier || 'higher'} access</div>
+                  <button onClick={() => handleUpgrade(selectedEpisode.tier || 'soldier', getToken)}
+                    style={{ padding: '8px 20px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                    Upgrade to {selectedEpisode.tier} →
+                  </button>
+                </div>
+              )
+              if (attachments.length === 0) return (
+                <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No resources attached to this episode yet.</div>
+              )
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  {attachments.map((att: any) => (
+                    <div key={att.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>{fileIcon(att)}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em' }}>{att.title}</div>
+                          <a href={att.file_path} target="_blank" rel="noopener noreferrer"
+                            style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.04em', textDecoration: 'underline', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                            {att.title || 'Download'}
+                          </a>
                           {att.file_size && <div style={{ fontSize: 11, color: mut, marginTop: 2 }}>{att.file_size}</div>}
                         </div>
-                        <button onClick={async () => {
-                          const token = await getToken()
-                          const res = await fetch(`/api/arsenal-resources?id=${att.resource_id || att.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } })
-                          if (res.ok) { const d = await res.json(); if (d.url) window.open(d.url, '_blank') }
-                        }} style={{ padding: '6px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0 }}>↗ View</button>
                       </div>
-                    ))}
-                  </div>
-            )}
+                      {isPdf(att) && (
+                        <button onClick={() => setActiveSection('arsenal')}
+                          style={{ marginTop: 8, background: 'none', border: 'none', color: mut, fontFamily: crimson, fontSize: 12, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          Search in Ministry Library →
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
             {activeTab === 'discussion' && (
               <div>
                 <div style={{ marginBottom: 24 }}>

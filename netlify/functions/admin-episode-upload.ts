@@ -96,9 +96,9 @@ export default async function handler(req: Request) {
   if (type === 'attachment') {
     const { data: att, error: dbError } = await supabase.from('episode_attachments').insert({
       episode_id: episodeId,
-      file_url: fileUrl,
-      file_name: file.name,
-      uploaded_at: new Date().toISOString(),
+      file_path: fileUrl,
+      title: file.name,
+      mime_type: file.type,
     }).select().single()
 
     if (dbError) return new Response(JSON.stringify({ error: dbError.message }), { status: 500, headers })
