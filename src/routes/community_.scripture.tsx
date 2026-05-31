@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 
@@ -69,10 +69,10 @@ const BIBLE_BOOKS = [
 ]
 
 interface Verse { verse: number; text: string }
-interface ConversationMessage { role: 'user' | 'assistant'; content: string }
+interface ConversationEntry { question: string; response: string }
 
 interface AiPanelProps {
-  conversation: ConversationMessage[]
+  thread: ConversationEntry[]
   loadingAI: boolean
   aiError: string | null
   question: string
@@ -80,38 +80,67 @@ interface AiPanelProps {
   useLibrary: boolean
   setUseLibrary: (v: boolean) => void
   onSubmit: () => void
-  convEndRef: React.RefObject<HTMLDivElement | null>
+  threadEndRef: React.RefObject<HTMLDivElement | null>
   questionRef: React.RefObject<HTMLTextAreaElement | null>
+  recentSearches: string[]
+  onRecentClick: (q: string) => void
 }
 
 function AiPanelContent({
-  conversation, loadingAI, aiError,
+  thread, loadingAI, aiError,
   question, setQuestion,
   useLibrary, setUseLibrary,
-  onSubmit, convEndRef, questionRef,
+  onSubmit, threadEndRef, questionRef,
+  recentSearches, onRecentClick,
 }: AiPanelProps) {
   return (
     <>
-      {/* Conversation */}
+      {/* Recent searches chips */}
+      {recentSearches.length > 0 && thread.length === 0 && (
+        <div style={{ padding: '10px 20px 0', flexShrink: 0 }}>
+          <div style={{ fontFamily: mono, fontSize: 9, color: MUT, letterSpacing: '0.1em', marginBottom: 6 }}>RECENT SEARCHES</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+            {recentSearches.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => onRecentClick(s)}
+                style={{
+                  background: SURF2, border: `1px solid ${BDR}`, borderRadius: 20,
+                  color: DIM, fontFamily: crimson, fontSize: 11,
+                  padding: '4px 10px', cursor: 'pointer',
+                  maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
+                }}
+              >
+                {s.length > 40 ? s.slice(0, 40) + '…' : s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Thread */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-        {conversation.length === 0 && (
+        {thread.length === 0 && (
           <div style={{ fontFamily: crimson, fontSize: 15, color: MUT, lineHeight: 1.6, fontStyle: 'italic', marginTop: 8 }}>
             Select a verse to load Dake's notes, or ask a question about this chapter.
           </div>
         )}
-        {conversation.map((msg, i) => (
-          <div key={i} style={{ marginBottom: 16, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            {msg.role === 'user' ? (
+        {thread.map((entry, i) => (
+          <div key={i} style={{ marginBottom: 20 }}>
+            {/* Question */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
               <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, padding: '8px 14px', maxWidth: '85%' }}>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.5 }}>{msg.content}</div>
+                <div style={{ fontFamily: mono, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>YOU</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, lineHeight: 1.5 }}>{entry.question}</div>
               </div>
-            ) : (
-              <div style={{ border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 16px', maxWidth: '92%' }}>
-                <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>
-                  {msg.content}
-                </div>
+            </div>
+            {/* Response */}
+            <div style={{ border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 16px', maxWidth: '92%' }}>
+              <div style={{ fontFamily: mono, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>DAKE</div>
+              <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>
+                {entry.response}
               </div>
-            )}
+            </div>
           </div>
         ))}
         {loadingAI && (
@@ -125,7 +154,7 @@ function AiPanelContent({
             {aiError}
           </div>
         )}
-        <div ref={convEndRef} />
+        <div ref={threadEndRef} />
       </div>
 
       {/* Input */}
@@ -145,7 +174,6 @@ function AiPanelContent({
             lineHeight: 1.5, marginBottom: 8,
           }}
         />
-        {/* Library toggle */}
         <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8, cursor: 'pointer' }}>
           <input
             type="checkbox"
@@ -168,7 +196,7 @@ function AiPanelContent({
             padding: '10px 0', cursor: !question.trim() || loadingAI ? 'not-allowed' : 'pointer',
           }}
         >
-          Ask
+          ASK
         </button>
       </div>
     </>
@@ -192,15 +220,16 @@ function ScripturePage() {
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null)
   const [dakeNote,     setDakeNote]     = useState<string | null>(null)
   const [loadingDake,  setLoadingDake]  = useState(false)
-  const [conversation, setConversation] = useState<ConversationMessage[]>([])
+  const [thread,       setThread]       = useState<ConversationEntry[]>([])
   const [question,     setQuestion]     = useState('')
   const [loadingAI,    setLoadingAI]    = useState(false)
   const [aiError,      setAiError]      = useState<string | null>(null)
   const [isMobile,     setIsMobile]     = useState(false)
-  const [showAIPanel,  setShowAIPanel]  = useState(false)
-  const convEndRef  = useRef<HTMLDivElement>(null)
-  const questionRef = useRef<HTMLTextAreaElement>(null)
-  const [useLibrary, setUseLibrary] = useState(true)
+  const [panelOpen,    setPanelOpen]    = useState(false)
+  const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const threadEndRef  = useRef<HTMLDivElement>(null)
+  const questionRef   = useRef<HTMLTextAreaElement>(null)
+  const [useLibrary,  setUseLibrary]   = useState(true)
 
   const tier      = ((user?.publicMetadata?.tier as string) || 'watchman').toLowerCase()
   const tierLevel = TIER_LEVELS[tier] ?? 0
@@ -215,7 +244,31 @@ function ScripturePage() {
 
   useEffect(() => { loadVerses('Genesis', 1) }, [])
 
-  useEffect(() => { convEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [conversation])
+  useEffect(() => { threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [thread])
+
+  const fetchRecentSearches = useCallback(async () => {
+    try {
+      const token = await getToken()
+      if (!token) return
+      const res = await fetch('/api/ai-history?tool=ask-dake&limit=5', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setRecentSearches((data.history || []).map((h: any) => h.query))
+      }
+    } catch {}
+  }, [getToken])
+
+  function openPanel() {
+    setPanelOpen(true)
+    fetchRecentSearches()
+    setTimeout(() => questionRef.current?.focus(), 100)
+  }
+
+  function closePanel() {
+    setPanelOpen(false)
+  }
 
   async function loadVerses(b: string, c: number) {
     setLoadingVerses(true)
@@ -223,7 +276,6 @@ function ScripturePage() {
     setVerses([])
     setSelectedVerse(null)
     setDakeNote(null)
-    setConversation([])
     try {
       const bookParam = b.toLowerCase().replace(/ /g, '+')
       const res = await fetch(`https://bible-api.com/${bookParam}+${c}?translation=kjv`)
@@ -255,24 +307,17 @@ function ScripturePage() {
     setLoadingDake(true)
     try {
       const url = `${SUPABASE_URL}/rest/v1/bible_notes?book=eq.${encodeURIComponent(book)}&chapter=eq.${chapter}&verse=eq.${verseNum}&select=note`
-      console.log('[Dake] Fetching:', url, { book, chapter, verse: verseNum })
       const res = await fetch(url, {
         headers: {
-          apikey: SUPABASE_ANON,
+          apikey: SUPABASE_ANON!,
           Authorization: `Bearer ${SUPABASE_ANON}`,
         },
       })
-      console.log('[Dake] Response status:', res.status)
       if (res.ok) {
         const data = await res.json()
-        console.log('[Dake] Rows returned:', data?.length, data?.[0] ?? '(no row)')
         setDakeNote(data?.[0]?.note || null)
-      } else {
-        console.error('[Dake] Non-OK response:', res.status, await res.text())
       }
-    } catch (e: any) {
-      console.error('[Dake] Fetch error:', e?.message)
-    }
+    } catch {}
     setLoadingDake(false)
   }
 
@@ -285,8 +330,6 @@ function ScripturePage() {
     const selectedVerseText = selectedVerse
       ? verses.find(v => v.verse === selectedVerse)?.text || ''
       : ''
-    const updated: ConversationMessage[] = [...conversation, { role: 'user', content: q }]
-    setConversation(updated)
     setLoadingAI(true)
     try {
       const token = await getToken()
@@ -298,13 +341,24 @@ function ScripturePage() {
           book,
           chapter,
           verseText: selectedVerseText,
-          conversationHistory: conversation,
+          conversationHistory: thread.flatMap(e => [
+            { role: 'user', content: e.question },
+            { role: 'assistant', content: e.response },
+          ]),
           useLibrary,
         }),
       })
       const data = await res.json()
       if (!res.ok) { setAiError(data.error || 'Analysis failed'); setLoadingAI(false); return }
-      setConversation([...updated, { role: 'assistant', content: data.response }])
+      setThread(prev => [...prev, { question: q, response: data.response }])
+      // Fire-and-forget history record
+      if (token) {
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'ask-dake', query: q, response: data.response, context: { book, chapter, verse: selectedVerse } }),
+        }).catch(() => {})
+      }
     } catch (e: any) {
       setAiError(e.message || 'Network error')
     }
@@ -355,235 +409,293 @@ function ScripturePage() {
     </div>
   )
 
-  // ── LEFT PANEL — verse reader ────────────────────────────────────────────────
-  const leftPanel = (
-    <div style={{
-      flex: isMobile ? 1 : '0 0 60%',
-      display: 'flex',
-      flexDirection: 'column' as const,
-      overflow: 'hidden',
-      borderRight: isMobile ? 'none' : `1px solid ${BDR}`,
-    }}>
-      {/* Page header */}
-      <div style={{ padding: isMobile ? '16px 16px 0' : '24px 32px 0', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FOUNDATION</span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' as const }}>
-          <span style={{ fontFamily: cinzel, fontSize: 20, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>SCRIPTURE</span>
-          <span style={{ fontFamily: mono, fontSize: 10, color: MUT }}>Dake Annotated Reference Bible</span>
-          <div style={{ marginLeft: 'auto', fontFamily: cinzel, fontSize: 8, color: '#7a9e7e', background: 'rgba(122,158,126,0.1)', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>CLASS III · SOLDIER ACCESS</div>
-        </div>
-
-        {/* Navigation bar */}
-        <div style={{
-          background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6,
-          padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
-          flexWrap: 'wrap' as const, marginBottom: 16,
-        }}>
-          <select
-            value={inputBook}
-            onChange={e => setInputBook(e.target.value)}
-            style={{
-              background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
-              color: TXT, fontFamily: cinzel, fontSize: 11, padding: '6px 10px',
-              outline: 'none', cursor: 'pointer', flex: '1 1 140px',
-            }}
-          >
-            {BIBLE_BOOKS.map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
-          <input
-            type="number"
-            value={inputChapter}
-            min={1}
-            max={150}
-            onChange={e => setInputChapter(Math.max(1, parseInt(e.target.value) || 1))}
-            style={{
-              background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
-              color: TXT, fontFamily: cinzel, fontSize: 11, padding: '6px 10px',
-              outline: 'none', width: 64, flexShrink: 0,
-            }}
-          />
-          <button
-            onClick={handleLoad}
-            disabled={loadingVerses}
-            style={{
-              background: loadingVerses ? 'rgba(201,168,76,0.25)' : G,
-              color: '#1a1305', border: 'none', borderRadius: 4,
-              fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-              padding: '8px 18px', cursor: loadingVerses ? 'default' : 'pointer', flexShrink: 0,
-            }}
-          >
-            {loadingVerses ? 'Loading...' : 'Load'}
-          </button>
-        </div>
-      </div>
-
-      {/* Verse area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 12px 100px' : '20px 32px 60px' }}>
-        {loadingVerses && (
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.12em', padding: '48px 0', textAlign: 'center' as const }}>
-            LOADING PASSAGE...
-          </div>
-        )}
-        {versesError && (
-          <div style={{ fontFamily: crimson, fontSize: 15, color: '#e07070', padding: '20px 0' }}>{versesError}</div>
-        )}
-
-        {!loadingVerses && verses.length > 0 && (
-          <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT, letterSpacing: '0.14em', marginBottom: 20 }}>
-            {book.toUpperCase()} · CHAPTER {chapter}
-          </div>
-        )}
-
-        {verses.map(v => (
-          <div key={v.verse}>
-            <div
-              onClick={() => selectVerse(v.verse)}
-              style={{
-                display: 'flex', gap: 12, padding: '8px 10px', borderRadius: 6,
-                cursor: 'pointer',
-                background: selectedVerse === v.verse ? 'rgba(201,168,76,0.08)' : 'transparent',
-                marginBottom: 2,
-                transition: 'background 0.12s',
-              }}
-              onMouseEnter={e => { if (selectedVerse !== v.verse) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
-              onMouseLeave={e => { if (selectedVerse !== v.verse) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-            >
-              <span style={{ fontFamily: mono, fontSize: 11, color: G, flexShrink: 0, width: 32, paddingTop: 3, lineHeight: 1 }}>
-                {v.verse}
-              </span>
-              <span style={{ fontFamily: georgia, fontSize: 16, color: TXT, lineHeight: 1.7 }}>{v.text}</span>
-            </div>
-
-            {selectedVerse === v.verse && (
-              <div style={{ marginLeft: 44, marginBottom: 16 }}>
-                {loadingDake && (
-                  <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em', padding: '12px 0' }}>
-                    LOADING DAKE NOTE...
-                  </div>
-                )}
-                {!loadingDake && dakeNote && (
-                  <div style={{
-                    borderLeft: `3px solid ${G}`,
-                    background: 'rgba(201,168,76,0.04)',
-                    borderRadius: '0 6px 6px 0',
-                    padding: '14px 18px', marginTop: 6,
-                  }}>
-                    <div style={{ fontFamily: mono, fontSize: 9, color: G, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
-                      DAKE'S NOTES
-                    </div>
-                    <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, maxHeight: 300, overflowY: 'auto' as const }}>
-                      {dakeNote}
-                    </div>
-                  </div>
-                )}
-                {!loadingDake && !dakeNote && (
-                  <div style={{ borderLeft: `3px solid ${BDR}`, padding: '10px 16px', marginTop: 6 }}>
-                    <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.08em' }}>
-                      No Dake annotation for this verse.
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile: Ask Dake button */}
-      {isMobile && (
-        <div style={{ padding: '12px 16px', borderTop: `1px solid ${BDR}`, flexShrink: 0 }}>
-          <button
-            onClick={() => setShowAIPanel(true)}
-            style={{
-              width: '100%', background: G, color: '#1a1305', border: 'none', borderRadius: 4,
-              fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
-              padding: '12px 0', cursor: 'pointer',
-            }}
-          >
-            Ask Dake
-          </button>
-        </div>
-      )}
-    </div>
-  )
-
-  // ── RIGHT PANEL — AI chat ────────────────────────────────────────────────────
-  const rightPanel = (
-    <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column' as const, background: SURF, overflow: 'hidden' }}>
-      <div style={{ padding: '20px 24px 12px', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700, letterSpacing: '0.06em', marginBottom: 2 }}>ASK DAKE</div>
-        <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
-      </div>
-      <AiPanelContent
-        conversation={conversation}
-        loadingAI={loadingAI}
-        aiError={aiError}
-        question={question}
-        setQuestion={setQuestion}
-        useLibrary={useLibrary}
-        setUseLibrary={setUseLibrary}
-        onSubmit={askDake}
-        convEndRef={convEndRef}
-        questionRef={questionRef}
-      />
-    </div>
-  )
-
   const scrUserName      = user?.firstName || user?.username || 'Warrior'
   const scrUserTierLabel = tier === 'watchman' || tier === 'free' ? 'WATCHMAN' : tier.toUpperCase()
 
   return (
     <CommunitySidebarShell activeItem="Scripture" userName={scrUserName} userTierLabel={scrUserTierLabel} fillViewport>
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: BG, overflow: 'hidden' }}>
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {leftPanel}
-        {!isMobile && rightPanel}
-      </div>
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideInUp    { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes pulse        { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+      `}</style>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: BG, overflow: 'hidden', position: 'relative' as const }}>
 
-      {/* Mobile bottom sheet */}
-      {isMobile && showAIPanel && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
-          <div
-            onClick={() => setShowAIPanel(false)}
-            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
-          />
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            height: '70vh', background: SURF,
-            borderTop: `2px solid ${G}`, borderRadius: '16px 16px 0 0',
-            display: 'flex', flexDirection: 'column' as const, overflow: 'hidden',
-          }}>
-            <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${BDR}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div>
-                <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>ASK DAKE</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
-              </div>
-              <button
-                onClick={() => setShowAIPanel(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', minWidth: 36, minHeight: 36, justifyContent: 'center' }}
+        {/* Main verse reader — full width */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' }}>
+          {/* Page header */}
+          <div style={{ padding: isMobile ? '16px 16px 0' : '24px 32px 0', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FOUNDATION</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' as const }}>
+              <span style={{ fontFamily: cinzel, fontSize: 20, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>SCRIPTURE</span>
+              <span style={{ fontFamily: mono, fontSize: 10, color: MUT }}>Dake Annotated Reference Bible</span>
+              <div style={{ marginLeft: 'auto', fontFamily: cinzel, fontSize: 8, color: '#7a9e7e', background: 'rgba(122,158,126,0.1)', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>CLASS III · SOLDIER ACCESS</div>
+            </div>
+
+            {/* Navigation bar */}
+            <div style={{
+              background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6,
+              padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
+              flexWrap: 'wrap' as const, marginBottom: 16,
+            }}>
+              <select
+                value={inputBook}
+                onChange={e => setInputBook(e.target.value)}
+                style={{
+                  background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
+                  color: TXT, fontFamily: cinzel, fontSize: 11, padding: '6px 10px',
+                  outline: 'none', cursor: 'pointer', flex: '1 1 140px',
+                }}
               >
-                <X size={20} color={MUT} />
+                {BIBLE_BOOKS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <input
+                type="number"
+                value={inputChapter}
+                min={1}
+                max={150}
+                onChange={e => setInputChapter(Math.max(1, parseInt(e.target.value) || 1))}
+                style={{
+                  background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
+                  color: TXT, fontFamily: cinzel, fontSize: 11, padding: '6px 10px',
+                  outline: 'none', width: 64, flexShrink: 0,
+                }}
+              />
+              <button
+                onClick={handleLoad}
+                disabled={loadingVerses}
+                style={{
+                  background: loadingVerses ? 'rgba(201,168,76,0.25)' : G,
+                  color: '#1a1305', border: 'none', borderRadius: 4,
+                  fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+                  padding: '8px 18px', cursor: loadingVerses ? 'default' : 'pointer', flexShrink: 0,
+                }}
+              >
+                {loadingVerses ? 'Loading...' : 'Load'}
               </button>
             </div>
-            <AiPanelContent
-              conversation={conversation}
-              loadingAI={loadingAI}
-              aiError={aiError}
-              question={question}
-              setQuestion={setQuestion}
-              useLibrary={useLibrary}
-              setUseLibrary={setUseLibrary}
-              onSubmit={askDake}
-              convEndRef={convEndRef}
-              questionRef={questionRef}
-            />
+          </div>
+
+          {/* Verse area */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 12px 100px' : '20px 32px 60px' }}>
+            {loadingVerses && (
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.12em', padding: '48px 0', textAlign: 'center' as const }}>
+                LOADING PASSAGE...
+              </div>
+            )}
+            {versesError && (
+              <div style={{ fontFamily: crimson, fontSize: 15, color: '#e07070', padding: '20px 0' }}>{versesError}</div>
+            )}
+
+            {!loadingVerses && verses.length > 0 && (
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT, letterSpacing: '0.14em', marginBottom: 20 }}>
+                {book.toUpperCase()} · CHAPTER {chapter}
+              </div>
+            )}
+
+            {verses.map(v => (
+              <div key={v.verse}>
+                <div
+                  onClick={() => selectVerse(v.verse)}
+                  style={{
+                    display: 'flex', gap: 12, padding: '8px 10px', borderRadius: 6,
+                    cursor: 'pointer',
+                    background: selectedVerse === v.verse ? 'rgba(201,168,76,0.08)' : 'transparent',
+                    marginBottom: 2,
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => { if (selectedVerse !== v.verse) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
+                  onMouseLeave={e => { if (selectedVerse !== v.verse) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
+                  <span style={{ fontFamily: mono, fontSize: 11, color: G, flexShrink: 0, width: 32, paddingTop: 3, lineHeight: 1 }}>
+                    {v.verse}
+                  </span>
+                  <span style={{ fontFamily: georgia, fontSize: 16, color: TXT, lineHeight: 1.7 }}>{v.text}</span>
+                </div>
+
+                {selectedVerse === v.verse && (
+                  <div style={{ marginLeft: 44, marginBottom: 16 }}>
+                    {loadingDake && (
+                      <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em', padding: '12px 0' }}>
+                        LOADING DAKE NOTE...
+                      </div>
+                    )}
+                    {!loadingDake && dakeNote && (
+                      <div style={{
+                        borderLeft: `3px solid ${G}`,
+                        background: 'rgba(201,168,76,0.04)',
+                        borderRadius: '0 6px 6px 0',
+                        padding: '14px 18px', marginTop: 6,
+                      }}>
+                        <div style={{ fontFamily: mono, fontSize: 9, color: G, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
+                          DAKE'S NOTES
+                        </div>
+                        <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, maxHeight: 300, overflowY: 'auto' as const }}>
+                          {dakeNote}
+                        </div>
+                      </div>
+                    )}
+                    {!loadingDake && !dakeNote && (
+                      <div style={{ borderLeft: `3px solid ${BDR}`, padding: '10px 16px', marginTop: 6 }}>
+                        <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.08em' }}>
+                          No Dake annotation for this verse.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      )}
-    </div>
+
+        {/* ── FLOATING TAB BUTTON (desktop only) ── */}
+        {!isMobile && (
+          <button
+            onClick={panelOpen ? closePanel : openPanel}
+            style={{
+              position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
+              zIndex: 8999,
+              background: panelOpen ? SURF2 : G,
+              color: panelOpen ? G : '#1a1305',
+              border: `1px solid ${G}`,
+              borderRight: 'none',
+              borderRadius: '8px 0 0 8px',
+              padding: '14px 8px',
+              cursor: 'pointer',
+              writingMode: 'vertical-rl' as any,
+              textOrientation: 'mixed' as any,
+              fontFamily: cinzel,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              whiteSpace: 'nowrap' as const,
+            }}
+          >
+            ASK DAKE ✦
+          </button>
+        )}
+
+        {/* ── DESKTOP FLYOUT PANEL ── */}
+        {!isMobile && (
+          <>
+            {/* Backdrop */}
+            {panelOpen && (
+              <div
+                onClick={closePanel}
+                style={{ position: 'fixed', inset: 0, zIndex: 8998, background: 'rgba(0,0,0,0.35)' }}
+              />
+            )}
+            <div style={{
+              position: 'fixed', top: 0, right: 0, bottom: 0, width: 580,
+              background: SURF,
+              borderLeft: `2px solid ${G}`,
+              display: 'flex', flexDirection: 'column' as const,
+              zIndex: 9000,
+              transform: panelOpen ? 'translateX(0)' : 'translateX(100%)',
+              transition: 'transform 0.3s ease',
+              overflow: 'hidden',
+            }}>
+              {/* Panel header */}
+              <div style={{ padding: '20px 24px 12px', borderBottom: `1px solid ${BDR}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700, letterSpacing: '0.06em', marginBottom: 2 }}>ASK DAKE</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
+                </div>
+                <button
+                  onClick={closePanel}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', color: MUT, fontSize: 20, lineHeight: 1, borderRadius: 4 }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <AiPanelContent
+                thread={thread}
+                loadingAI={loadingAI}
+                aiError={aiError}
+                question={question}
+                setQuestion={setQuestion}
+                useLibrary={useLibrary}
+                setUseLibrary={setUseLibrary}
+                onSubmit={askDake}
+                threadEndRef={threadEndRef}
+                questionRef={questionRef}
+                recentSearches={recentSearches}
+                onRecentClick={q => { setQuestion(q); setTimeout(() => questionRef.current?.focus(), 0) }}
+              />
+            </div>
+          </>
+        )}
+
+        {/* ── MOBILE: Ask Dake button + bottom sheet ── */}
+        {isMobile && (
+          <>
+            <div style={{ padding: '12px 16px', borderTop: `1px solid ${BDR}`, flexShrink: 0 }}>
+              <button
+                onClick={openPanel}
+                style={{
+                  width: '100%', background: G, color: '#1a1305', border: 'none', borderRadius: 4,
+                  fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
+                  padding: '12px 0', cursor: 'pointer',
+                }}
+              >
+                ASK DAKE ✦
+              </button>
+            </div>
+
+            {panelOpen && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
+                <div
+                  onClick={closePanel}
+                  style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
+                />
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  height: '75vh', background: SURF,
+                  borderTop: `2px solid ${G}`, borderRadius: '16px 16px 0 0',
+                  display: 'flex', flexDirection: 'column' as const, overflow: 'hidden',
+                  animation: 'slideInUp 0.3s ease',
+                }}>
+                  {/* Drag handle */}
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', flexShrink: 0 }}>
+                    <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(201,168,76,0.3)' }} />
+                  </div>
+                  {/* Header */}
+                  <div style={{ padding: '8px 20px 12px', borderBottom: `1px solid ${BDR}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                    <div>
+                      <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>ASK DAKE</div>
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
+                    </div>
+                    <button
+                      onClick={closePanel}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', minWidth: 36, minHeight: 36, justifyContent: 'center' }}
+                    >
+                      <X size={20} color={MUT} />
+                    </button>
+                  </div>
+                  <AiPanelContent
+                    thread={thread}
+                    loadingAI={loadingAI}
+                    aiError={aiError}
+                    question={question}
+                    setQuestion={setQuestion}
+                    useLibrary={useLibrary}
+                    setUseLibrary={setUseLibrary}
+                    onSubmit={askDake}
+                    threadEndRef={threadEndRef}
+                    questionRef={questionRef}
+                    recentSearches={recentSearches}
+                    onRecentClick={q => { setQuestion(q); setTimeout(() => questionRef.current?.focus(), 0) }}
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </CommunitySidebarShell>
   )
 }
