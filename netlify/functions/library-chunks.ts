@@ -85,7 +85,7 @@ export default async function handler(req: Request) {
   const body = await req.json()
   const { spiritName = '', spiritDescription = '' } = body
 
-  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 
   // Fetch enabled books and active context in parallel
   const [booksResult, contextResult] = await Promise.all([
