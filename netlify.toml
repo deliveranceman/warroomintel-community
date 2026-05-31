@@ -127,3 +127,6 @@
 
 [functions."assessment-strategy"]
   timeout = 60
+
+[functions."scheduled-event-reminders"]
+  schedule = "0 * * * *"

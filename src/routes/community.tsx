@@ -1544,9 +1544,16 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
     setSubmittingComment(false)
   }
 
+  async function deleteComment(id: string) {
+    const token = await getToken()
+    await fetch(`/api/episode-comments?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setComments(prev => prev.filter(c => c.id !== id && c.parent_id !== id))
+  }
+
   const isWatched = (epId: string) => progress.find(p => p.episode_id === epId)?.watched === true
   const watchedCount = episodes.filter(ep => isWatched(ep.id)).length
-  const tierColors: Record<string, string> = { free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+  const tierColors: Record<string, string> = { free: '#9a8c74', watchman: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+  const tierLabel = (tier: string) => ({ free: 'WATCHMAN', watchman: 'WATCHMAN', soldier: 'SOLDIER', commander: 'COMMANDER', general: 'GENERAL' }[tier] || tier.toUpperCase())
 
   // ── COURSE LIST VIEW ──
   if (view === 'list') return (
@@ -1589,7 +1596,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                         </div>
                         {course.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>{course.description}</div>}
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
-                          <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{course.tier}</span>
+                          <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
                           <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
                           {hasAccess && course.watchedCount > 0 && <span style={{ fontSize: 11, color: '#4ade80', fontFamily: crimson }}>{course.watchedCount}/{course.episodeCount} watched</span>}
                         </div>
@@ -1618,7 +1625,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                         {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{course.description}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                        <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{course.tier}</span>
+                        <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
                         {!hasAccess ? <span style={{ fontSize: 14 }}>🔒</span> : <span style={{ fontSize: 12, color: G }}>›</span>}
                       </div>
                     </div>
@@ -1781,7 +1788,12 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                                 <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(comment.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                               </div>
                               <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6, marginBottom: 6 }}>{comment.body}</div>
-                              <button onClick={() => setReplyTo(comment)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>↩ Reply</button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <button onClick={() => setReplyTo(comment)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>↩ Reply</button>
+                                {(comment.user_id === userId || userTier === 'minister') && (
+                                  <button onClick={() => deleteComment(comment.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>✕ Delete</button>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {comments.filter(c => c.parent_id === comment.id).map(reply => (
@@ -1793,6 +1805,9 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
                                   <span style={{ fontFamily: cinzel, fontSize: 10, color: txt, letterSpacing: '0.04em' }}>{reply.user_name}</span>
                                   <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(reply.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                  {(reply.user_id === userId || userTier === 'minister') && (
+                                    <button onClick={() => deleteComment(reply.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>✕ Delete</button>
+                                  )}
                                 </div>
                                 <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6 }}>{reply.body}</div>
                               </div>
@@ -4543,18 +4558,156 @@ function downloadICS(event: any) {
   URL.revokeObjectURL(url)
 }
 
+function useCountdown(targetDate: Date) {
+  const [diff, setDiff] = useState(() => targetDate.getTime() - Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setDiff(targetDate.getTime() - Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [targetDate])
+  if (diff <= 0) return null
+  const totalSec = Math.floor(diff / 1000)
+  const d = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec % 86400) / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  return { d, h, m, s }
+}
+
+function extractYouTubeIdFromUrl(url: string): string | null {
+  if (!url) return null
+  const patterns = [/youtu\.be\/([^?&]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/]
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
+  return null
+}
+
+function EventCard({ event, userTier, isDark, getToken }: { event: any; userTier: string; isDark: boolean; getToken: any }) {
+  const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr   = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt   = isDark ? '#E8D5B0' : '#2D2924'
+  const muted = isDark ? '#8B7355' : '#5C5248'
+
+  const eventDate = new Date(event.event_date)
+  const now = new Date()
+  const msSince = now.getTime() - eventDate.getTime()
+  const isPast   = msSince > (event.duration_minutes || 60) * 60000
+  const isLive   = msSince >= -15 * 60000 && msSince < (event.duration_minutes || 60) * 60000
+  const isUpcoming = !isPast && !isLive
+  const msUntil = eventDate.getTime() - now.getTime()
+  const showJoinLink = msUntil <= 30 * 60 * 1000 // show 30 min before
+
+  const typeColor = EVENT_TYPE_COLORS[event.event_type] || G
+  const typeLabel = EVENT_TYPE_LABELS[event.event_type] || (event.event_type || 'EVENT').replace(/_/g, ' ').toUpperCase()
+  const userLevel = TIER_LEVEL_MAP[userTier?.toLowerCase() || 'free'] ?? 0
+  const requiredLevel = TIER_LEVEL_MAP[event.zoom_link_tier?.toLowerCase() || 'free'] ?? 0
+  const canJoin = userLevel >= requiredLevel
+  const ytId = extractYouTubeIdFromUrl(event.zoom_link || '')
+  const countdown = useCountdown(eventDate)
+
+  const tierLabel = ({ free: 'WATCHMAN', watchman: 'WATCHMAN', soldier: 'SOLDIER', commander: 'COMMANDER', general: 'GENERAL' } as Record<string, string>)[event.zoom_link_tier?.toLowerCase() || 'free'] || 'WATCHMAN'
+
+  return (
+    <div style={{ background: surf, border: `1px solid ${isLive ? 'rgba(239,68,68,0.5)' : bdr}`, borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+      {/* Header strip */}
+      <div style={{ background: isLive ? 'rgba(239,68,68,0.1)' : `${typeColor}12`, borderBottom: `1px solid ${isLive ? 'rgba(239,68,68,0.3)' : `${typeColor}30`}`, padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: isLive ? '#ef4444' : typeColor }}>{typeLabel}</span>
+          {isLive && <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: '#ef4444', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, padding: '1px 6px', animation: 'pulse 1.5s ease-in-out infinite' }}>● LIVE NOW</span>}
+        </div>
+        <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>
+          {eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+        </span>
+      </div>
+
+      {/* Live YouTube embed */}
+      {isLive && ytId && (
+        <div style={{ background: '#000', aspectRatio: '16/9' as any }}>
+          <iframe src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+        </div>
+      )}
+
+      <div style={{ padding: '16px 18px' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 15, color: G, fontWeight: 700, marginBottom: 6 }}>{event.title}</div>
+        {event.description && <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65, marginBottom: 10 }}>{event.description}</div>}
+        {event.duration_minutes && <div style={{ fontFamily: crimson, fontSize: 12, color: muted, marginBottom: 12 }}>⏱ {event.duration_minutes} min{event.max_attendees ? ` · max ${event.max_attendees}` : ''}</div>}
+
+        {/* Countdown for upcoming */}
+        {isUpcoming && countdown && (
+          <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+            {[{ v: countdown.d, l: 'days' }, { v: countdown.h, l: 'hrs' }, { v: countdown.m, l: 'min' }, { v: countdown.s, l: 'sec' }].map(({ v, l }) => (
+              <div key={l} style={{ textAlign: 'center' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 20, color: G, lineHeight: 1 }}>{String(v).padStart(2, '0')}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.1em', marginTop: 2 }}>{l.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tier badge */}
+        {event.zoom_link_tier && event.zoom_link_tier !== 'free' && (
+          <div style={{ marginBottom: 10 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: TIER_COLORS[event.zoom_link_tier] || muted, border: `1px solid ${TIER_COLORS[event.zoom_link_tier] || muted}`, borderRadius: 10, padding: '2px 8px' }}>{tierLabel}+</span>
+          </div>
+        )}
+
+        {/* CTAs */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+          {/* Past: recording */}
+          {isPast && event.recording_url && (
+            extractYouTubeIdFromUrl(event.recording_url)
+              ? null
+              : <a href={event.recording_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>▶ Watch Recording</a>
+          )}
+          {isPast && !event.recording_url && (
+            <span style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.06em' }}>No recording available</span>
+          )}
+
+          {/* Upcoming/live zoom call */}
+          {!isPast && event.zoom_link && canJoin && (
+            showJoinLink || isLive
+              ? <a href={event.zoom_link} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '8px 18px', background: isLive ? 'rgba(239,68,68,0.15)' : 'rgba(201,168,76,0.15)', border: `1px solid ${isLive ? '#ef4444' : G}`, borderRadius: 6, color: isLive ? '#ef4444' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+                  {isLive ? '🔴 Join Live Call' : '🔗 Join Call →'}
+                </a>
+              : <div style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.06em', padding: '8px 0' }}>Join link available 30 min before start</div>
+          )}
+          {!isPast && event.zoom_link && !canJoin && (
+            <div style={{ display: 'inline-block', padding: '8px 14px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em' }}>
+              🔒 {tierLabel}+ required to join
+            </div>
+          )}
+
+          {/* Add to calendar */}
+          {!isPast && (
+            <button onClick={() => downloadICS(event)} style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+              📅 Add to Calendar
+            </button>
+          )}
+        </div>
+
+        {/* Past YouTube recording embed */}
+        {isPast && event.recording_url && extractYouTubeIdFromUrl(event.recording_url) && (
+          <div style={{ marginTop: 14, background: '#000', aspectRatio: '16/9' as any, borderRadius: 6, overflow: 'hidden' }}>
+            <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeIdFromUrl(event.recording_url)}?rel=0&modestbranding=1`} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const TIER_COLORS: Record<string, string> = { watchman: '#9a8c74', free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+
 function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
   theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userTier: string; getToken: any
 }) {
   const isDark = theme !== 'light'
-  const bg      = isDark ? '#0D0B14' : '#FAF8F5'
-  const surf    = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
-  const bdr     = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
-  const txt     = isDark ? '#E8D5B0' : '#2D2924'
-  const muted   = isDark ? '#8B7355' : '#5C5248'
+  const bg    = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr   = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const muted = isDark ? '#8B7355' : '#5C5248'
 
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents]   = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [tab, setTab]         = useState<'upcoming' | 'past'>('upcoming')
 
   useEffect(() => {
     async function load() {
@@ -4568,91 +4721,57 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
   }, [])
 
   const now = new Date()
-  const upcoming = events.filter(e => new Date(e.event_date) >= now)
-  const past = events.filter(e => new Date(e.event_date) < now)
-  const userLevel = TIER_LEVEL_MAP[userTier?.toLowerCase() || 'free'] ?? 0
-
-  function EventCard({ event }: { event: any }) {
-    const eventDate = new Date(event.event_date)
-    const isPast = eventDate < now
-    const typeColor = EVENT_TYPE_COLORS[event.event_type] || G
-    const typeLabel = EVENT_TYPE_LABELS[event.event_type] || event.event_type
-    const requiredLevel = TIER_LEVEL_MAP[event.zoom_link_tier?.toLowerCase() || 'free'] ?? 0
-    const canSeeZoom = userLevel >= requiredLevel
-    return (
-      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14, opacity: isPast ? 0.8 : 1 }}>
-        <div style={{ background: `${typeColor}12`, borderBottom: `1px solid ${typeColor}30`, padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: typeColor }}>{typeLabel}</span>
-          <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>
-            {eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · {eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
-          </span>
-        </div>
-        <div style={{ padding: '16px 18px' }}>
-          <div style={{ fontFamily: cinzel, fontSize: 15, color: G, fontWeight: 700, marginBottom: 6 }}>{event.title}</div>
-          {event.description && <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65, marginBottom: 12 }}>{event.description}</div>}
-          {event.duration_minutes && <div style={{ fontFamily: crimson, fontSize: 12, color: muted, marginBottom: 12 }}>⏱ {event.duration_minutes} minutes{event.max_attendees ? ` · max ${event.max_attendees} attendees` : ''}</div>}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-            {isPast && event.recording_url ? (
-              <a href={event.recording_url} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
-                ▶ Watch Recording
-              </a>
-            ) : !isPast && event.zoom_link && canSeeZoom ? (
-              <a href={event.zoom_link} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
-                🔗 Join
-              </a>
-            ) : !isPast && event.zoom_link && !canSeeZoom ? (
-              <div style={{ display: 'inline-block', padding: '8px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em' }}>
-                🔒 Join link · {(event.zoom_link_tier || 'soldier').toUpperCase()}+ required
-              </div>
-            ) : null}
-            {!isPast && (
-              <button onClick={() => downloadICS(event)}
-                style={{ display: 'inline-block', padding: '8px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
-                📅 Add to Calendar
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const upcoming = events.filter(e => {
+    const end = new Date(new Date(e.event_date).getTime() + (e.duration_minutes || 60) * 60000)
+    return end >= now
+  })
+  const past = events.filter(e => {
+    const end = new Date(new Date(e.event_date).getTime() + (e.duration_minutes || 60) * 60000)
+    return end < now
+  }).reverse()
 
   return (
     <div style={{ flex: 1, overflowY: 'auto' as const, background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
         <div>
           <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>📅 Events</div>
-          <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>War Room Intel live sessions, training calls, and special events</div>
+          <div style={{ fontSize: 12, color: muted, marginTop: 2, fontFamily: crimson }}>Live sessions, training calls, and special gatherings</div>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 20 }}>
+        {(['upcoming', 'past'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: tab === t ? `2px solid ${G}` : '2px solid transparent', color: tab === t ? G : muted, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
+            {t === 'upcoming' ? `Upcoming${upcoming.length ? ` (${upcoming.length})` : ''}` : `Past${past.length ? ` (${past.length})` : ''}`}
+          </button>
+        ))}
       </div>
 
       {loading && (
         <div style={{ textAlign: 'center' as const, padding: '40px', fontFamily: cinzel, fontSize: 11, color: muted, letterSpacing: '0.1em' }}>Loading events...</div>
       )}
 
-      {!loading && upcoming.length === 0 && (
-        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const, marginBottom: 16 }}>
+      {!loading && tab === 'upcoming' && upcoming.length === 0 && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '40px 24px', textAlign: 'center' as const }}>
           <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 8 }}>📅 No upcoming events scheduled</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: muted }}>Check back soon — Group Warfare Prayer · Training Sessions · Q&A Calls</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: muted }}>Check back soon — Warfare Prayer · Training Sessions · Q&A Calls</div>
         </div>
       )}
 
-      {!loading && upcoming.length > 0 && (
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.15em', marginBottom: 14, textTransform: 'uppercase' as const }}>Upcoming Events</div>
-          {upcoming.map(e => <EventCard key={e.id} event={e} />)}
-        </div>
+      {!loading && tab === 'upcoming' && upcoming.map(e => (
+        <EventCard key={e.id} event={e} userTier={userTier} isDark={isDark} getToken={getToken} />
+      ))}
+
+      {!loading && tab === 'past' && past.length === 0 && (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: muted, fontStyle: 'italic', padding: '20px 0' }}>No past events yet.</div>
       )}
 
-      {!loading && past.length > 0 && (
-        <details style={{ marginTop: 24 }}>
-          <summary style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.15em', cursor: 'pointer', marginBottom: 12, textTransform: 'uppercase' as const }}>Past Events ({past.length})</summary>
-          {past.map(e => <EventCard key={e.id} event={e} />)}
-        </details>
-      )}
+      {!loading && tab === 'past' && past.map(e => (
+        <EventCard key={e.id} event={e} userTier={userTier} isDark={isDark} getToken={getToken} />
+      ))}
     </div>
   )
 }
@@ -7261,6 +7380,7 @@ function CommunityPage() {
 
         {/* ── FIELD OPERATIONS ── */}
         {sectionLabel('Field Operations')}
+        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
         {navItem('Session Center', 'session-center', <Sword size={16} strokeWidth={1.6} />)}
         <a href="/community/spiritual-mapping" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
@@ -7269,24 +7389,6 @@ function CommunityPage() {
           <span>Spiritual Mapping</span>
         </a>
         {navItem('Assessment', 'assessment', <ClipboardList size={16} strokeWidth={1.6} />)}
-
-        {/* ── TRAINING (collapsible) ── */}
-        <button onClick={() => setTrainingExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px 6px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#6b5e45' : '#5C5248', textTransform: 'uppercase' as const, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-          <span style={{ flex: 1 }}>Training</span>
-          <span style={{ fontSize: 10, display: 'inline-block', transform: trainingExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
-        </button>
-        {trainingExpanded && (
-          <>
-            {navItem('Courses', 'training', <Clapperboard size={16} strokeWidth={1.6} />)}
-            {([{ label: "General's Table", icon: <Star size={13} strokeWidth={1.6} /> }, { label: 'Protocols', icon: <Sword size={13} strokeWidth={1.6} /> }] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
-                <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
-              </div>
-            ))}
-          </>
-        )}
 
         {/* ── EVENTS ── */}
         {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}

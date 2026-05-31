@@ -100,6 +100,72 @@ export default async function handler(req: Request) {
         </div>
       `,
     }
+  } else if (type === 'event-published') {
+    const { eventTitle, eventDate, eventType, eventDescription, joinLink, tierName } = body || {}
+    const dateStr = eventDate ? new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''
+    const timeStr = eventDate ? new Date(eventDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : ''
+    const typeLabel = { live_training: 'LIVE TRAINING', prayer_call: 'PRAYER CALL', q_and_a: 'Q&A SESSION', deliverance_workshop: 'DELIVERANCE WORKSHOP', group_warfare_prayer: 'GROUP WARFARE PRAYER', generals_table: "GENERAL'S TABLE", youtube_premiere: 'YOUTUBE PREMIERE' }[eventType as string] || (eventType || 'EVENT').toUpperCase()
+    emailPayload = {
+      from: FROM,
+      to,
+      subject: `⚔ New Event: ${eventTitle} — ${dateStr}`,
+      html: `
+        <div style="background:#08060e;color:#F4F0FC;font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:40px 32px;border:1px solid rgba(201,168,76,0.2)">
+          <div style="border-bottom:1px solid rgba(201,168,76,0.3);padding-bottom:20px;margin-bottom:28px">
+            <p style="font-family:serif;font-size:11px;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;margin:0 0 8px">WAR ROOM INTEL</p>
+            <h1 style="font-size:22px;color:#C9A84C;margin:0;letter-spacing:1px">New Event Announced</h1>
+          </div>
+          <div style="display:inline-block;padding:3px 12px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.4);border-radius:4px;font-family:serif;font-size:10px;color:#C9A84C;letter-spacing:2px;margin-bottom:16px">${typeLabel}</div>
+          <h2 style="font-size:20px;color:#f0e8d8;margin:0 0 10px;letter-spacing:0.5px">${eventTitle || ''}</h2>
+          <p style="font-size:14px;color:#8B7355;margin:0 0 20px">📅 ${dateStr} · ${timeStr}</p>
+          ${eventDescription ? `<p style="font-size:15px;line-height:1.8;color:#b9b2a4;margin:0 0 24px">${String(eventDescription).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` : ''}
+          ${tierName ? `<p style="font-size:13px;color:#8B7355;margin:0 0 24px;font-style:italic">This event is exclusive to ${tierName} members and above.</p>` : ''}
+          <p style="text-align:center;margin:28px 0">
+            ${joinLink
+              ? `<a href="${joinLink}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#1a1305;font-family:Georgia,serif;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:1px">JOIN THE CALL →</a>`
+              : `<a href="https://warroomintel.com/community?section=events" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#1a1305;font-family:Georgia,serif;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:1px">WATCH INSIDE PLATFORM →</a>`}
+          </p>
+          <p style="text-align:center;margin:0"><a href="https://warroomintel.com/community?section=events" style="font-size:12px;color:#8B7355">View Event →</a></p>
+          <div style="margin-top:32px;padding-top:20px;border-top:1px solid rgba(201,168,76,0.2)">
+            <p style="font-size:13px;color:#605a4f;margin:0">In His service,<br/>Pastor Justin Payne<br/>War Room Intel</p>
+          </div>
+        </div>
+      `,
+    }
+  } else if (type === 'event-reminder') {
+    const { eventTitle, eventDate, eventId, joinLink } = body || {}
+    const dateStr = eventDate ? new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''
+    const timeStr = eventDate ? new Date(eventDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : ''
+    emailPayload = {
+      from: FROM,
+      to,
+      subject: `⚔ Starting in 1 Hour: ${eventTitle}`,
+      html: `
+        <div style="background:#08060e;color:#F4F0FC;font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:40px 32px;border:1px solid rgba(201,168,76,0.2)">
+          <div style="border-bottom:1px solid rgba(201,168,76,0.3);padding-bottom:20px;margin-bottom:28px">
+            <p style="font-family:serif;font-size:11px;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;margin:0 0 8px">WAR ROOM INTEL</p>
+            <h1 style="font-size:22px;color:#C9A84C;margin:0;letter-spacing:1px">Starting in 1 Hour</h1>
+          </div>
+          <p style="font-size:15px;line-height:1.8;color:#b9b2a4">Your event starts in <strong style="color:#C9A84C">1 hour</strong>. Don't miss it.</p>
+          <h2 style="font-size:20px;color:#f0e8d8;margin:16px 0 8px;letter-spacing:0.5px">${eventTitle || ''}</h2>
+          <p style="font-size:14px;color:#8B7355;margin:0 0 24px">📅 ${dateStr} · ${timeStr}</p>
+          ${joinLink ? `
+          <p style="text-align:center;margin:28px 0">
+            <a href="${joinLink}" style="display:inline-block;padding:14px 32px;background:#C9A84C;color:#1a1305;font-family:Georgia,serif;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:1px">JOIN THE CALL →</a>
+          </p>
+          <p style="text-align:center;font-size:12px;color:#605a4f;margin:0 0 24px">Or copy this link: <span style="color:#C9A84C;font-family:monospace">${joinLink}</span></p>
+          ` : `
+          <p style="text-align:center;margin:28px 0">
+            <a href="https://warroomintel.com/community?section=events" style="display:inline-block;padding:14px 32px;background:#C9A84C;color:#1a1305;font-family:Georgia,serif;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:1px">WATCH INSIDE PLATFORM →</a>
+          </p>
+          `}
+          ${eventId ? `<p style="text-align:center;margin:0"><a href="https://warroomintel.com/api/events-ics?id=${eventId}" style="font-size:11px;color:#8B7355">📅 Download .ics</a></p>` : ''}
+          <div style="margin-top:32px;padding-top:20px;border-top:1px solid rgba(201,168,76,0.2)">
+            <p style="font-size:13px;color:#605a4f;margin:0">In His service,<br/>Pastor Justin Payne<br/>War Room Intel</p>
+          </div>
+        </div>
+      `,
+    }
   } else {
     return new Response(JSON.stringify({ error: 'Unknown email type' }), { status: 400, headers: HEADERS })
   }

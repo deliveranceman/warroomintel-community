@@ -2419,12 +2419,16 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   const [cStatus, setCStatus]   = useState('draft')
   const [cType, setCType]       = useState<'course' | 'protocol' | 'quick-hit'>('course')
 
+  const [thumbnailUploading, setThumbnailUploading] = useState(false)
+
   const [eTitle, setETitle]     = useState('')
   const [eDesc, setEDesc]       = useState('')
   const [eYoutube, setEYoutube] = useState('')
   const [eNotes, setENotes]     = useState('')
   const [eStatus, setEStatus]   = useState('draft')
   const [eSortOrder, setESortOrder] = useState(0)
+  const [eAttachments, setEAttachments] = useState<any[]>([])
+  const [attUploading, setAttUploading] = useState(false)
 
   useEffect(() => { loadCourses() }, [])
 
@@ -2459,9 +2463,10 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
       setEditingEpisode(episode); setETitle(episode.title); setEDesc(episode.description || '')
       setEYoutube(episode.youtube_url || ''); setENotes(episode.notes || '')
       setEStatus(episode.status); setESortOrder(episode.sort_order || 0)
+      loadEpisodeAttachments(episode.id)
     } else {
       setEditingEpisode(null); setETitle(''); setEDesc(''); setEYoutube(''); setENotes('')
-      setEStatus('draft'); setESortOrder(episodes.length)
+      setEStatus('draft'); setESortOrder(episodes.length); setEAttachments([])
     }
     setShowEpisodeForm(true)
   }
@@ -2505,6 +2510,43 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     loadEpisodes(selectedCourse.id)
   }
 
+  async function uploadThumbnail(file: File) {
+    setThumbnailUploading(true)
+    const token = await getToken()
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('type', 'thumbnail')
+    if (editingCourse) fd.append('courseId', editingCourse.id)
+    const res = await fetch('/api/admin-episode-upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
+    if (res.ok) { const d = await res.json(); setCThumbnail(d.url) }
+    setThumbnailUploading(false)
+  }
+
+  async function loadEpisodeAttachments(episodeId: string) {
+    const token = await getToken()
+    const res = await fetch(`/api/episodes?id=${episodeId}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setEAttachments(d.attachments || []) }
+  }
+
+  async function uploadAttachment(file: File) {
+    if (!editingEpisode) return
+    setAttUploading(true)
+    const token = await getToken()
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('type', 'attachment')
+    fd.append('episodeId', editingEpisode.id)
+    const res = await fetch('/api/admin-episode-upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
+    if (res.ok) { const d = await res.json(); setEAttachments(prev => [...prev, { id: d.id, file_url: d.url, file_name: d.fileName }]) }
+    setAttUploading(false)
+  }
+
+  async function deleteAttachment(attachmentId: string) {
+    const token = await getToken()
+    await fetch(`/api/admin-episode-upload?id=${attachmentId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setEAttachments(prev => prev.filter(a => a.id !== attachmentId))
+  }
+
   async function toggleCourseStatus(course: any) {
     const token = await getToken()
     const newStatus = course.status === 'published' ? 'draft' : 'published'
@@ -2528,7 +2570,8 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     loadEpisodes(selectedCourse.id)
   }
 
-  const tierColors: Record<string, string> = { free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+  const tierColors: Record<string, string> = { free: '#9a8c74', watchman: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+  const tierLabel = (tier: string) => ({ free: 'WATCHMAN', watchman: 'WATCHMAN', soldier: 'SOLDIER', commander: 'COMMANDER', general: 'GENERAL' }[tier] || tier.toUpperCase())
   const statusColor = (s: string) => s === 'published' ? '#4ade80' : '#9a8c74'
 
   const modal: React.CSSProperties = {
@@ -2673,7 +2716,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' as const }}>
-                    <span style={{ fontSize: 9, color: tierColors[course.tier] || MUT, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const, border: `1px solid ${tierColors[course.tier] || MUT}`, borderRadius: 10, padding: '1px 7px' }}>{course.tier}</span>
+                    <span style={{ fontSize: 9, color: tierColors[course.tier] || MUT, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || MUT}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
                     <span style={{ fontSize: 9, color: statusColor(course.status), fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>● {course.status}</span>
                     <span style={{ fontSize: 9, color: MUT, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
                     <span style={{ fontSize: 9, color: MUT, fontFamily: cinzel, letterSpacing: '0.06em' }}>
@@ -2767,7 +2810,18 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                 ))}
               </div>
               <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} placeholder="Description" rows={3} style={{ ...inp2, resize: 'vertical' as const }} />
-              <input value={cThumbnail} onChange={e => setCThumbnail(e.target.value)} placeholder="Thumbnail URL (optional)" style={inp2} />
+              <div>
+                {cThumbnail && (
+                  <div style={{ marginBottom: 8, position: 'relative' as const }}>
+                    <img src={cThumbnail} alt="Thumbnail" style={{ width: '100%', maxHeight: 120, objectFit: 'cover' as const, borderRadius: 6, border: `1px solid ${BDR2}` }} />
+                    <button onClick={() => setCThumbnail('')} style={{ position: 'absolute' as const, top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', color: '#fff', width: 22, height: 22, cursor: 'pointer', fontSize: 13, lineHeight: '22px', padding: 0, textAlign: 'center' as const }}>×</button>
+                  </div>
+                )}
+                <label style={{ display: 'block', padding: '8px 12px', background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px dashed ${BDR2}`, borderRadius: 6, color: thumbnailUploading ? MUT : TXT2, fontFamily: crimson, fontSize: 14, cursor: thumbnailUploading ? 'wait' : 'pointer', textAlign: 'center' as const }}>
+                  {thumbnailUploading ? 'Uploading…' : cThumbnail ? '📷 Replace Thumbnail' : '📷 Upload Thumbnail (jpg / png / webp)'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} disabled={thumbnailUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadThumbnail(f) }} />
+                </label>
+              </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <select value={cTier} onChange={e => setCTier(e.target.value)} style={{ ...inp2, flex: 1 }}>
                   <option value="free">Watchman</option>
@@ -2800,6 +2854,26 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
               <input value={eTitle} onChange={e => setETitle(e.target.value)} placeholder="Episode title *" style={inp2} />
               <textarea value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Short description" rows={2} style={{ ...inp2, resize: 'vertical' as const }} />
               <input value={eYoutube} onChange={e => setEYoutube(e.target.value)} placeholder="YouTube URL (unlisted)" style={inp2} />
+              {editingEpisode && (
+                <div style={{ border: `1px solid ${BDR2}`, borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Attachments</div>
+                  {eAttachments.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 10 }}>
+                      {eAttachments.map(att => (
+                        <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '6px 10px' }}>
+                          <span style={{ fontSize: 14, flexShrink: 0 }}>📄</span>
+                          <span style={{ flex: 1, fontFamily: crimson, fontSize: 13, color: TXT2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{att.file_name}</span>
+                          <button onClick={() => deleteAttachment(att.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14, padding: '0 2px', flexShrink: 0 }}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label style={{ display: 'block', padding: '7px 12px', background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px dashed ${BDR2}`, borderRadius: 6, color: attUploading ? MUT : TXT2, fontFamily: crimson, fontSize: 13, cursor: attUploading ? 'wait' : 'pointer', textAlign: 'center' as const }}>
+                    {attUploading ? 'Uploading…' : '📎 Attach PDF or Document'}
+                    <input type="file" accept=".pdf,.doc,.docx,.txt,.pptx,.xlsx" style={{ display: 'none' }} disabled={attUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadAttachment(f) }} />
+                  </label>
+                </div>
+              )}
               <textarea value={eNotes} onChange={e => setENotes(e.target.value)} placeholder="Episode notes / transcript / key points..." rows={5} style={{ ...inp2, resize: 'vertical' as const, lineHeight: 1.6 }} />
               <div style={{ display: 'flex', gap: 10 }}>
                 <select value={eStatus} onChange={e => setEStatus(e.target.value)} style={{ ...inp2, flex: 1 }}>
