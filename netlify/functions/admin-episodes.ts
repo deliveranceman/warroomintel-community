@@ -118,6 +118,16 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ success: true }), { status: 200, headers })
   }
 
+  // GET attachments for an episode (admin, no status filter)
+  if (req.method === 'GET' && id && action === 'attachments') {
+    const { data: attachments } = await supabase
+      .from('episode_attachments')
+      .select('*')
+      .eq('episode_id', id)
+      .order('sort_order', { ascending: true })
+    return new Response(JSON.stringify({ attachments: attachments || [] }), { status: 200, headers })
+  }
+
   // GET episodes for a course
   if (req.method === 'GET' && courseId) {
     const { data: episodes } = await supabase

@@ -94,15 +94,22 @@ export default async function handler(req: Request) {
   const fileUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filePath}`
 
   if (type === 'attachment') {
+    const fileSizeKb = Math.round(file.size / 1024)
+    const fileSizeLabel = fileSizeKb >= 1024
+      ? `${(fileSizeKb / 1024).toFixed(1)} MB`
+      : `${fileSizeKb} KB`
+
     const { data: att, error: dbError } = await supabase.from('episode_attachments').insert({
       episode_id: episodeId,
+      type: 'file',
       file_path: fileUrl,
       title: file.name,
       mime_type: file.type,
+      file_size: fileSizeLabel,
     }).select().single()
 
     if (dbError) return new Response(JSON.stringify({ error: dbError.message }), { status: 500, headers })
-    return new Response(JSON.stringify({ url: fileUrl, id: att.id, fileName: file.name }), { status: 200, headers })
+    return new Response(JSON.stringify({ url: fileUrl, id: att.id, fileName: file.name, fileSize: fileSizeLabel }), { status: 200, headers })
   }
 
   return new Response(JSON.stringify({ url: fileUrl }), { status: 200, headers })

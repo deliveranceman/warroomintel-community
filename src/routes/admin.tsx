@@ -2443,6 +2443,8 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   const [eSortOrder, setESortOrder] = useState(0)
   const [eAttachments, setEAttachments] = useState<any[]>([])
   const [attUploading, setAttUploading] = useState(false)
+  const [attError, setAttError]         = useState<string | null>(null)
+  const attFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadCourses() }, [])
 
@@ -2473,6 +2475,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   }
 
   function openEpisodeForm(episode?: any) {
+    setAttError(null)
     if (episode) {
       setEditingEpisode(episode); setETitle(episode.title); setEDesc(episode.description || '')
       setEYoutube(episode.youtube_url || ''); setEThumbnail(episode.thumbnail_url || '')
@@ -2538,21 +2541,33 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
 
   async function loadEpisodeAttachments(episodeId: string) {
     const token = await getToken()
-    const res = await fetch(`/api/episodes?id=${episodeId}`, { headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetch(`/api/admin-episodes?id=${episodeId}&action=attachments`, { headers: { Authorization: `Bearer ${token}` } })
     if (res.ok) { const d = await res.json(); setEAttachments(d.attachments || []) }
   }
 
   async function uploadAttachment(file: File) {
     if (!editingEpisode) return
     setAttUploading(true)
-    const token = await getToken()
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('type', 'attachment')
-    fd.append('episodeId', editingEpisode.id)
-    const res = await fetch('/api/admin-episode-upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
-    if (res.ok) { const d = await res.json(); setEAttachments(prev => [...prev, { id: d.id, file_url: d.url, file_name: d.fileName }]) }
-    setAttUploading(false)
+    setAttError(null)
+    try {
+      const token = await getToken()
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', 'attachment')
+      fd.append('episodeId', editingEpisode.id)
+      const res = await fetch('/api/admin-episode-upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
+      const data = await res.json()
+      if (!res.ok) {
+        setAttError(data.error || `Upload failed (${res.status})`)
+      } else {
+        setEAttachments(prev => [...prev, { id: data.id, file_path: data.url, title: data.fileName, file_size: data.fileSize }])
+      }
+    } catch (e: any) {
+      setAttError(e.message || 'Upload failed — check your connection')
+    } finally {
+      setAttUploading(false)
+      if (attFileRef.current) attFileRef.current.value = ''
+    }
   }
 
   async function deleteAttachment(attachmentId: string) {
@@ -2883,10 +2898,17 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                       ))}
                     </div>
                   )}
-                  <label style={{ display: 'block', padding: '7px 12px', background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px dashed ${BDR2}`, borderRadius: 6, color: attUploading ? MUT : TXT2, fontFamily: crimson, fontSize: 13, cursor: attUploading ? 'wait' : 'pointer', textAlign: 'center' as const }}>
-                    {attUploading ? 'Uploading…' : '📎 Attach PDF or Document'}
-                    <input type="file" accept=".pdf,.doc,.docx,.txt,.pptx,.xlsx" style={{ display: 'none' }} disabled={attUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadAttachment(f) }} />
+                  <label style={{ display: 'block', padding: '7px 12px', background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px dashed ${attError ? '#ef4444' : BDR2}`, borderRadius: 6, color: attUploading ? MUT : TXT2, fontFamily: crimson, fontSize: 13, cursor: attUploading ? 'wait' : 'pointer', textAlign: 'center' as const }}>
+                    {attUploading ? '⏳ Uploading…' : '📎 Attach PDF or Document'}
+                    <input ref={attFileRef} type="file" accept=".pdf,.doc,.docx,.txt,.pptx,.xlsx" style={{ display: 'none' }} disabled={attUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadAttachment(f) }} />
                   </label>
+                  {attError && (
+                    <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: crimson, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚠</span>
+                      <span style={{ flex: 1 }}>{attError}</span>
+                      <button onClick={() => setAttError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                    </div>
+                  )}
                 </div>
               )}
               <textarea value={eNotes} onChange={e => setENotes(e.target.value)} placeholder="Episode notes / transcript / key points..." rows={5} style={{ ...inp2, resize: 'vertical' as const, lineHeight: 1.6 }} />
