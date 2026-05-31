@@ -21,11 +21,6 @@ const crimson = "'Crimson Pro', serif"
 
 const THEME_CSS = `
 @keyframes pulse { 0%,100% { opacity: 0.4 } 50% { opacity: 0.8 } }
-.prayer-hover-item:hover .prayer-callout {
-  opacity: 1 !important;
-  transform: translateX(0) !important;
-  pointer-events: auto !important;
-}
 .msg-row:hover .msg-actions { opacity: 1 !important; }
 :root {
   --wri-bg: #0e0c09;
@@ -962,7 +957,7 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
     <div
       onMouseEnter={() => onHover?.(msg.id)}
       onMouseLeave={() => onHover?.(null)}
-      style={{ position: 'relative', background: hoveredId === msg.id ? 'rgba(201,168,76,0.06)' : 'var(--bg-2)', border: `1px solid ${hoveredId === msg.id ? 'rgba(201,168,76,0.35)' : 'var(--gold-line)'}`, padding: 20, marginBottom: 12, overflow: 'visible', transition: 'background 0.15s, border-color 0.15s', cursor: 'default' }}
+      style={{ position: 'relative', background: hoveredId === msg.id ? (isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.06)') : V.surf, border: `1px solid ${hoveredId === msg.id ? 'rgba(201,168,76,0.5)' : V.bdr}`, padding: 20, marginBottom: 12, overflow: 'visible', transition: 'background 0.15s, border-color 0.15s', cursor: 'default' }}
     >
       {/* Bracket corners */}
       <div style={{ position: 'absolute', top: -1, left: -1, width: 10, height: 10, borderTop: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />

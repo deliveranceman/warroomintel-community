@@ -46,12 +46,14 @@ async function handleUpgrade(tier: string, getToken: () => Promise<string | null
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ tier }),
     })
-    if (!res.ok) throw new Error('Checkout failed')
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (data.error === 'coming_soon') { alert('Upgrades coming soon — check back shortly.'); return }
+    if (!res.ok) { alert('Upgrades coming soon — check back shortly.'); return }
     if (data.url) window.location.href = data.url
   } catch (err) {
     console.error('Upgrade error:', err)
+    alert('Upgrades coming soon — check back shortly.')
   }
 }
 
