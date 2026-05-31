@@ -1482,6 +1482,21 @@ function renderMd(raw: string): { __html: string } {
   return { __html: out.join('') }
 }
 
+function stripMdPreview(raw: string, maxChars = 120): string {
+  if (!raw) return ''
+  const stripped = raw
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*{1,3}(.+?)\*{1,3}/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*•]\s+/gm, '')
+    .replace(/\n+/g, ' ')
+    .trim()
+  const sentences = stripped.match(/[^.!?]+[.!?]+/g) || []
+  const twoSentences = sentences.slice(0, 2).join(' ').trim()
+  const result = twoSentences || stripped
+  return result.length > maxChars ? result.slice(0, maxChars).trimEnd() + '…' : result
+}
+
 // ── TRAINING VIEW ──────────────────────────────────────────
 function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
   const isDark = theme !== 'light'
@@ -1537,7 +1552,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
     if (res.ok) { const d = await res.json(); setAttachments(d.attachments || []) }
     const cRes = await fetch(`/api/episode-comments?episodeId=${ep.id}`, { headers: { Authorization: `Bearer ${token}` } })
     if (cRes.ok) { const d = await cRes.json(); setComments(d.comments || []) }
-    setSelectedEpisode(ep); setActiveTab('notes'); setView('episode')
+    setSelectedEpisode(ep); setActiveTab('notes')
   }
 
   async function markWatched(episodeId: string, watched: boolean) {
@@ -1617,7 +1632,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                           <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
                           {!hasAccess && <span style={{ fontSize: 14, flexShrink: 0 }}>🔒</span>}
                         </div>
-                        {course.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>{course.description}</div>}
+                        {course.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>{stripMdPreview(course.description)}</div>}
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
                           <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
                           <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
@@ -1645,7 +1660,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                       <span style={{ fontSize: 24, flexShrink: 0 }}>📋</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: 3 }}>{course.title}</div>
-                        {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{course.description}</div>}
+                        {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{stripMdPreview(course.description)}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                         <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
@@ -1673,7 +1688,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                         <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
                         {!hasAccess && <span style={{ fontSize: 12 }}>🔒</span>}
                       </div>
-                      {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{course.description}</div>}
+                      {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{stripMdPreview(course.description)}</div>}
                     </div>
                   )
                 })}
@@ -1760,11 +1775,13 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
             ))}
           </div>
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', minHeight: 0 }}>
-            {activeTab === 'notes' && (
-              selectedEpisode.notes
-                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(selectedEpisode.notes)} />
-                : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No notes for this episode yet.</div>
-            )}
+            {activeTab === 'notes' && (() => {
+              const notes = selectedEpisode.notes || ''
+              const isYtSpam = notes.includes('#Deliverance') || notes.includes('Subscribe for teachings')
+              return notes && !isYtSpam
+                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(notes)} />
+                : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No notes available for this episode.</div>
+            })()}
             {activeTab === 'resources' && (
               attachments.length === 0
                 ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No resources attached to this episode.</div>

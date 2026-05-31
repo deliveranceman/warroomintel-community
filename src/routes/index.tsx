@@ -1170,7 +1170,7 @@ function TacticalFooter() {
 // ── PAGE ─────────────────────────────────────────────────
 function WarRoomHome() {
   return (
-    <div style={{ background: 'var(--bg-0)', minHeight: '100vh' }}>
+    <div style={{ background: 'var(--bg-0)', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
       <style>{pageStyles}</style>
       <TacticalHero />
       <MissionBriefing />
