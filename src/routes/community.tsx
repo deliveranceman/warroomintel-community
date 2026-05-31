@@ -1625,7 +1625,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                       onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
                       onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
                       <div style={{ height: 120, background: 'linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(13,11,20,0.8) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, borderBottom: `1px solid ${bdr}` }}>
-                        {course.thumbnail_url ? <img src={course.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : '📚'}
+                        {course.thumbnail_url ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: '8px 8px 0 0' }} /> : '📚'}
                       </div>
                       <div style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
