@@ -1703,38 +1703,80 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
   // ── COURSE VIEW (episode list) ──
   if (view === 'course' && selectedCourse) return (
     <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row' as const, minHeight: 0, background: bg }}>
-      <div style={{ width: isMobile ? '100%' : 280, flexShrink: 0, borderRight: isMobile ? 'none' : `1px solid ${bdr}`, borderBottom: isMobile ? `1px solid ${bdr}` : 'none', background: isDark ? '#13111e' : '#ede6db', display: 'flex', flexDirection: 'column' as const, maxHeight: isMobile ? 280 : undefined }}>
-        <div style={{ padding: '14px 16px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
-          <button onClick={() => { setView('list'); setSelectedCourse(null) }} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 8 }}>← Back to Training</button>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedCourse.title}</div>
-          {episodes.length > 0 && (
-            <div style={{ fontSize: 11, color: mut, fontFamily: crimson }}>
-              {watchedCount}/{episodes.length} complete
-              <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 6 }}>
-                <div style={{ height: '100%', width: `${episodes.length ? (watchedCount / episodes.length) * 100 : 0}%`, background: G, borderRadius: 2, transition: 'width 0.3s' }} />
+
+      {/* ── DESKTOP: narrow sidebar ── */}
+      {!isMobile && (
+        <div style={{ width: 220, flexShrink: 0, borderRight: `1px solid ${bdr}`, background: isDark ? '#13111e' : '#ede6db', display: 'flex', flexDirection: 'column' as const }}>
+          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
+            <button onClick={() => { setView('list'); setSelectedCourse(null) }} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 8 }}>← Back to Training</button>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: 4, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedCourse.title}</div>
+            {episodes.length > 0 && (
+              <div style={{ fontSize: 11, color: mut, fontFamily: crimson }}>
+                {watchedCount}/{episodes.length} complete
+                <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 6 }}>
+                  <div style={{ height: '100%', width: `${episodes.length ? (watchedCount / episodes.length) * 100 : 0}%`, background: G, borderRadius: 2, transition: 'width 0.3s' }} />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {episodes.map((ep, idx) => {
+              const watched = isWatched(ep.id)
+              const isActive = selectedEpisode?.id === ep.id
+              return (
+                <button key={ep.id} onClick={() => openEpisode(ep)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 12px', background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderBottom: `1px solid ${bdr}`, borderLeft: `3px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', textAlign: 'left' as const }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', border: `1px solid ${watched ? G : bdr}`, background: watched ? 'rgba(201,168,76,0.2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: watched ? G : mut, flexShrink: 0 }}>
+                    {watched ? '✓' : idx + 1}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: isActive ? G : txt, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</div>
+                  </div>
+                </button>
+              )
+            })}
+            {episodes.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center' as const, color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No episodes yet</div>}
+          </div>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {episodes.map((ep, idx) => {
-            const watched = isWatched(ep.id)
-            const isActive = selectedEpisode?.id === ep.id
-            return (
-              <button key={ep.id} onClick={() => openEpisode(ep)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderBottom: `1px solid ${bdr}`, borderLeft: `3px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', textAlign: 'left' as const }}>
-                <div style={{ width: 22, height: 22, borderRadius: '50%', border: `1px solid ${watched ? G : bdr}`, background: watched ? 'rgba(201,168,76,0.2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: watched ? G : mut, flexShrink: 0 }}>
-                  {watched ? '✓' : idx + 1}
+      )}
+
+      {/* ── MOBILE: full-width column layout ── */}
+      {isMobile && (
+        <>
+          {/* Course header */}
+          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${bdr}`, background: isDark ? '#13111e' : '#ede6db', flexShrink: 0 }}>
+            <button onClick={() => { setView('list'); setSelectedCourse(null) }} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 6 }}>← Back to Training</button>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: episodes.length > 0 ? 4 : 0 }}>{selectedCourse.title}</div>
+            {episodes.length > 0 && (
+              <div style={{ fontSize: 10, color: mut, fontFamily: crimson, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{watchedCount}/{episodes.length} complete</span>
+                <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+                  <div style={{ height: '100%', width: `${episodes.length ? (watchedCount / episodes.length) * 100 : 0}%`, background: G, borderRadius: 2, transition: 'width 0.3s' }} />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: isActive ? G : txt, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</div>
-                </div>
-              </button>
-            )
-          })}
-          {episodes.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center' as const, color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No episodes yet</div>}
-        </div>
-      </div>
+              </div>
+            )}
+          </div>
+          {/* Horizontal scrollable episode strip */}
+          <div style={{ overflowX: 'auto', display: 'flex', gap: 0, borderBottom: `1px solid ${bdr}`, background: isDark ? '#13111e' : '#ede6db', flexShrink: 0 }}>
+            {episodes.map((ep, idx) => {
+              const watched = isWatched(ep.id)
+              const isActive = selectedEpisode?.id === ep.id
+              return (
+                <button key={ep.id} onClick={() => openEpisode(ep)}
+                  style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, padding: '10px 12px', background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent', border: 'none', borderBottom: `2px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', flexShrink: 0, minWidth: 72, maxWidth: 100 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', border: `1px solid ${watched ? G : bdr}`, background: watched ? 'rgba(201,168,76,0.2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: watched ? G : mut }}>
+                    {watched ? '✓' : idx + 1}
+                  </div>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: isActive ? G : mut, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 88, textAlign: 'center' as const }}>{ep.title}</div>
+                </button>
+              )
+            })}
+            {episodes.length === 0 && <div style={{ padding: '12px 16px', color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 12 }}>No episodes yet</div>}
+          </div>
+        </>
+      )}
+
+      {/* ── NO EPISODE SELECTED ── */}
       {!selectedEpisode && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut, padding: 32 }}>
           <div style={{ fontSize: 40 }}>▶</div>
@@ -1742,14 +1784,16 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
           <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedCourse.description || '')} />
         </div>
       )}
+
+      {/* ── EPISODE PLAYER ── */}
       {selectedEpisode && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflow: 'hidden' }}>
-          {isMobile && <button onClick={() => setSelectedEpisode(null)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 16px', textAlign: 'left' as const, borderBottom: `1px solid ${bdr}` }}>← Episode List</button>}
-          <div style={{ background: '#000', width: '100%', aspectRatio: '16/9' as any, position: 'relative' as const }}>
+          {/* 16:9 responsive video container */}
+          <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', flexShrink: 0 }}>
             {extractYouTubeId(selectedEpisode.youtube_url) ? (
-              <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+              <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
             ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut }}>
                 <div style={{ fontSize: 48 }}>🎬</div>
                 <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em' }}>Video Coming Soon</div>
               </div>
