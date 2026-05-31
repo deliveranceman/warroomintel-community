@@ -11,7 +11,7 @@ const crimson = "'Crimson Pro', serif"
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 36 }}>
-      <h2 style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px', fontWeight: 700 }}>
+      <h2 style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' as const, margin: '0 0 12px', fontWeight: 700 }}>
         {title}
       </h2>
       <div style={{ fontFamily: crimson, fontSize: 16, lineHeight: 1.85, color: '#c8bfa8' }}>
@@ -28,7 +28,6 @@ function P({ children }: { children: React.ReactNode }) {
 export default function PrivacyPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0D0B14', color: '#e8d5b0' }}>
-      {/* Header */}
       <div style={{ borderBottom: '1px solid rgba(201,168,76,0.15)', padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <a href="/" style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.18em', color: G, textDecoration: 'none' }}>
           ⚔ WAR ROOM INTEL
@@ -38,90 +37,88 @@ export default function PrivacyPage() {
         </a>
       </div>
 
-      {/* Content */}
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 32px 80px' }}>
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontFamily: cinzel, fontSize: 28, color: G, letterSpacing: '0.08em', margin: '0 0 10px', fontWeight: 700 }}>
             Privacy Policy
           </h1>
           <div style={{ fontFamily: crimson, fontSize: 13, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.04em' }}>
-            Staffordtown Church · Last Updated: May 26, 2026
+            Staffordtown Church · Last Updated: May 2026
           </div>
         </div>
 
-        <Section title="1. Who We Are">
-          <P>War Room Intel is operated by Staffordtown Church (Church on Fire), Copperhill, Tennessee 37317. This Privacy Policy explains how we collect, use, and protect your personal information when you use our platform.</P>
+        <Section title="1. Information We Collect">
+          <P><strong style={{ color: '#e8d5b0' }}>Account information:</strong> When you register, we collect your name and email address through Clerk Authentication.</P>
+          <P><strong style={{ color: '#e8d5b0' }}>Payment information:</strong> Billing and payment details for paid memberships are processed exclusively through Stripe. We never store or have access to your full credit card number.</P>
+          <P><strong style={{ color: '#e8d5b0' }}>Platform usage data:</strong> Your activity on the platform — including course progress, AI search history, case file entries, and session notes — is stored in Supabase. This data is used solely to provide platform functionality.</P>
+          <P><strong style={{ color: '#e8d5b0' }}>Ministry case files and session notes:</strong> If you use the Case Files or Session Notes features, that data is stored in Supabase and treated with pastoral confidentiality. It is accessible only to you and authorized ministers.</P>
+          <P><strong style={{ color: '#e8d5b0' }}>User-submitted content:</strong> Testimonies, prayer requests, field reports, forum posts, and other content you voluntarily submit are stored in Supabase and visible to other community members as intended by the feature.</P>
         </Section>
 
-        <Section title="2. Information We Collect">
-          <P><strong style={{ color: '#e8d5b0' }}>Account information:</strong> Name and email address, provided at registration through Clerk Authentication.</P>
-          <P><strong style={{ color: '#e8d5b0' }}>Payment information:</strong> Billing details for paid memberships are processed exclusively through Stripe. We never store, see, or have access to your full credit card number. Stripe's privacy policy governs payment data handling.</P>
-          <P><strong style={{ color: '#e8d5b0' }}>Ministry assessment data:</strong> If you complete a ministry intake assessment, your responses are stored in Airtable for ministry use only. This information is treated with the same confidentiality as pastoral counseling records.</P>
-          <P><strong style={{ color: '#e8d5b0' }}>User-submitted content:</strong> Testimonies, prayer requests, field reports, and other content you voluntarily submit are stored in Supabase and visible to other community members as intended by the feature.</P>
-          <P><strong style={{ color: '#e8d5b0' }}>Usage data:</strong> Standard server logs may record IP addresses, browser type, and pages visited for security and performance monitoring. We do not use these for advertising or profiling.</P>
-        </Section>
-
-        <Section title="3. How We Store Your Data">
-          <P><strong style={{ color: '#e8d5b0' }}>Clerk</strong> handles authentication and stores your name, email, and membership tier/role in secure public metadata. Clerk's infrastructure is SOC 2 compliant.</P>
-          <P><strong style={{ color: '#e8d5b0' }}>Supabase</strong> stores community content: testimonies, field reports, resources, course progress, and ministry library data. No payment information is stored in Supabase.</P>
-          <P><strong style={{ color: '#e8d5b0' }}>Airtable</strong> stores the demon database (which contains no personal user data) and ministry assessment responses. Assessment data is accessible only to ordained ministers and administrators.</P>
-          <P><strong style={{ color: '#e8d5b0' }}>Stripe</strong> stores all payment and billing information. We receive only confirmation of successful payments and subscription status.</P>
-        </Section>
-
-        <Section title="4. How We Use Your Information">
+        <Section title="2. How We Use Information">
+          <P>We use your information exclusively for the following purposes:</P>
           <ul style={{ paddingLeft: 20, margin: '0 0 12px' }}>
-            <li style={{ marginBottom: 8 }}>To provide and improve the War Room Intel platform and its features.</li>
+            <li style={{ marginBottom: 8 }}>To operate and improve the War Room Intel platform and its features.</li>
             <li style={{ marginBottom: 8 }}>To manage your membership and process payments through Stripe.</li>
-            <li style={{ marginBottom: 8 }}>To connect you with ministry resources and trained ministers.</li>
+            <li style={{ marginBottom: 8 }}>To connect you with ministry resources, training, and pastoral support.</li>
             <li style={{ marginBottom: 8 }}>To communicate platform updates, ministry content, and service notifications.</li>
             <li style={{ marginBottom: 8 }}>To maintain the security and integrity of the community.</li>
           </ul>
-          <P>We do not sell your personal data to third parties. We do not display advertising. Your information is used solely for ministry and platform operation purposes.</P>
+          <P><strong style={{ color: '#e8d5b0' }}>We do not sell your personal data to any third party, ever.</strong> Your information is never used for advertising, marketing profiling, or any purpose other than ministry platform operation.</P>
         </Section>
 
-        <Section title="5. Cookies and Session Data">
-          <P>War Room Intel uses session cookies managed by Clerk Authentication to maintain your logged-in session. These are functional cookies required for the platform to operate. We do not use advertising, tracking, or analytics cookies.</P>
-          <P>You may disable cookies in your browser settings, but doing so will prevent you from logging into the platform.</P>
-        </Section>
-
-        <Section title="6. Data Sharing">
-          <P>We do not sell, rent, or trade your personal information. We share data only with the following service providers, each under their own privacy policies:</P>
+        <Section title="3. Third Party Services">
+          <P>War Room Intel uses the following third-party services to operate the platform. Each service is governed by its own privacy policy:</P>
           <ul style={{ paddingLeft: 20, margin: '0 0 12px' }}>
-            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Clerk</strong> — authentication and user identity</li>
-            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Stripe</strong> — payment processing</li>
-            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Supabase</strong> — database and storage</li>
-            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Airtable</strong> — ministry database and assessment storage</li>
-            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Netlify</strong> — platform hosting and serverless functions</li>
-            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Anthropic</strong> — AI research assistant (no personal data is sent to Anthropic — only spirit research queries)</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Clerk</strong> — authentication, user identity, and session management</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Stripe</strong> — payment processing and subscription billing</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Supabase</strong> — database storage for all platform content and user data</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Resend</strong> — transactional email delivery (notifications, receipts)</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Stream Chat</strong> — real-time community messaging and direct messaging</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>YouTube</strong> — embedded training videos (YouTube may set cookies when videos are played)</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Anthropic AI</strong> — AI-powered research tools (Ask Dake, Spirit Network, Symptom/Gateway Investigators). Only ministry research queries are sent to Anthropic — no personally identifiable information is included in AI requests.</li>
           </ul>
         </Section>
 
-        <Section title="7. Assessment Data Confidentiality">
-          <P>Ministry intake assessment responses are treated with pastoral confidentiality. Assessment data is accessed only by ordained ministers and administrators at Staffordtown Church for the purpose of providing ministry. This data is not shared with third parties, used for advertising, or disclosed without your consent except as required by law (e.g., imminent safety concerns).</P>
+        <Section title="4. Data Security">
+          <P>We employ industry-standard security measures to protect your data, including encrypted connections (HTTPS/TLS), secure credential storage through Clerk's SOC 2 compliant infrastructure, Supabase Row Level Security policies ensuring each user can only access their own data, and strict access controls limiting administrative data access to authorized personnel.</P>
+          <P>No internet transmission or electronic storage system is completely secure. While we use commercially reasonable measures to protect your information, we cannot guarantee absolute security.</P>
         </Section>
 
-        <Section title="8. Age Restriction">
-          <P>War Room Intel is not intended for users under the age of 18. We do not knowingly collect personal information from minors. If you believe a minor has registered on the platform, please contact us immediately at <a href="mailto:exorcist@warroomintel.com" style={{ color: G }}>exorcist@warroomintel.com</a>.</P>
+        <Section title="5. Data Retention">
+          <P>Your data is retained for as long as your account is active. If you cancel your membership, your account data remains accessible to you until you request deletion.</P>
+          <P>To request deletion of your account and all associated personal data, email <a href="mailto:exorcist@warroomintel.com" style={{ color: G }}>exorcist@warroomintel.com</a>. We will process deletion requests within 30 days. Some records may be retained as required by law or for legitimate ministry record-keeping (such as pastoral counseling records under applicable Tennessee law).</P>
         </Section>
 
-        <Section title="9. Data Deletion">
-          <P>You may request deletion of your account and associated personal data at any time by emailing <a href="mailto:exorcist@warroomintel.com" style={{ color: G }}>exorcist@warroomintel.com</a>. We will process deletion requests within 30 days. Note that some data may be retained as required by law or for legitimate ministry record-keeping purposes (such as assessment records, which are treated as pastoral counseling records under Tennessee law).</P>
+        <Section title="6. Your Rights">
+          <P>You have the right to:</P>
+          <ul style={{ paddingLeft: 20, margin: '0 0 12px' }}>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Access</strong> — request a copy of the personal data we hold about you</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Correction</strong> — request correction of inaccurate or incomplete information</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Deletion</strong> — request deletion of your account and personal data</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Portability</strong> — request an export of your data in a machine-readable format</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Objection</strong> — object to specific processing of your personal data</li>
+          </ul>
+          <P>To exercise any of these rights, contact us at <a href="mailto:exorcist@warroomintel.com" style={{ color: G }}>exorcist@warroomintel.com</a>.</P>
         </Section>
 
-        <Section title="10. Security">
-          <P>We employ industry-standard security measures to protect your data, including encrypted connections (HTTPS), secure credential storage through Clerk, and access controls limiting data access to authorized personnel. However, no system is completely secure, and we cannot guarantee absolute security of information transmitted over the internet.</P>
+        <Section title="7. Ministry Context">
+          <P>War Room Intel operates within a pastoral ministry context. Information shared in the context of case files, session notes, prayer requests, and ministry assessments is treated with the same principles of pastoral confidentiality that govern counseling records at Staffordtown Church.</P>
+          <P>Ministry data of a sensitive pastoral nature is accessible only to the submitting user and ordained ministers/administrators at Staffordtown Church. This data is never sold, shared with third parties, or used for purposes outside of providing direct ministry support to the individual concerned.</P>
+          <P>Exceptions to confidentiality apply only where required by law, including situations involving imminent risk of harm to self or others.</P>
         </Section>
 
-        <Section title="11. Changes to This Policy">
-          <P>We may update this Privacy Policy from time to time. Material changes will be communicated by email to registered users. Continued use of the platform after changes are posted constitutes your acceptance of the revised policy.</P>
+        <Section title="8. Children">
+          <P>War Room Intel is not intended for users under the age of 18. We do not knowingly collect personal information from minors. If you believe a minor has registered on the platform, please contact us immediately at <a href="mailto:exorcist@warroomintel.com" style={{ color: G }}>exorcist@warroomintel.com</a> and we will promptly delete the account.</P>
         </Section>
 
-        <Section title="12. Jurisdiction">
-          <P>This Privacy Policy is governed by the laws of the State of Tennessee. Any disputes shall be resolved in Polk County, Tennessee.</P>
+        <Section title="9. Changes to Policy">
+          <P>Staffordtown Church reserves the right to update this Privacy Policy at any time. Material changes will be communicated by email to all registered users at least 14 days before taking effect. Minor updates may be made without email notice but will always be posted here with a revised date.</P>
+          <P>Continued use of the platform after changes take effect constitutes acceptance of the revised Privacy Policy.</P>
         </Section>
 
-        <Section title="13. Contact">
-          <P>For privacy questions, data deletion requests, or concerns about your information:</P>
+        <Section title="10. Contact">
+          <P>For privacy questions, data access requests, or concerns about your information:</P>
           <P>
             <strong style={{ color: '#e8d5b0' }}>Staffordtown Church (Church on Fire)</strong><br />
             Copperhill, Tennessee 37317<br />

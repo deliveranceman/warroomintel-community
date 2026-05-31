@@ -7796,8 +7796,8 @@ function CommunityPage() {
           Settings
         </button>
         <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12 }}>
-          <a href="/terms" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? '#3a3428' : '#9a8c74', textDecoration: 'none' }}>TERMS</a>
-          <a href="/privacy" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? '#3a3428' : '#9a8c74', textDecoration: 'none' }}>PRIVACY</a>
+          <a href="/terms" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>TERMS</a>
+          <a href="/privacy" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>PRIVACY</a>
         </div>
       </div>
     </>
