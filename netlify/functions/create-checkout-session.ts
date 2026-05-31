@@ -3,13 +3,16 @@ import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2023-10-16' })
 
+const _pricesJson: Record<string, string> = (() => {
+  try { return JSON.parse(process.env.STRIPE_PRICES || '{}') } catch { return {} }
+})()
 const PRICE_IDS: Record<string, string | undefined> = {
-  soldier:           process.env.STRIPE_SOLDIER_PRICE_ID           || 'price_1TXieT5V5uqVT9SoIrPMKSAc',
-  commander:         process.env.STRIPE_COMMANDER_PRICE_ID         || 'price_1TXifB5V5uqVT9SohnQfGZuC',
-  general:           process.env.STRIPE_GENERAL_PRICE_ID           || 'price_1TXifX5V5uqVT9SogXMp79zb',
-  charter_soldier:   process.env.STRIPE_CHARTER_SOLDIER_PRICE_ID   || 'price_1Tb1mO5V5uqVT9So3ZRRltDC',
-  charter_commander: process.env.STRIPE_CHARTER_COMMANDER_PRICE_ID || 'price_1Tb1ms5V5uqVT9Sodiu1xbrR',
-  founding_general:  process.env.STRIPE_FOUNDING_GENERAL_PRICE_ID,
+  soldier:           _pricesJson.soldier           ?? 'price_1TXieT5V5uqVT9SoIrPMKSAc',
+  commander:         _pricesJson.commander         ?? 'price_1TXifB5V5uqVT9SohnQfGZuC',
+  general:           _pricesJson.general           ?? 'price_1TXifX5V5uqVT9SogXMp79zb',
+  charter_soldier:   _pricesJson.charter_soldier   ?? 'price_1Tb1mO5V5uqVT9So3ZRRltDC',
+  charter_commander: _pricesJson.charter_commander ?? 'price_1Tb1ms5V5uqVT9Sodiu1xbrR',
+  founding_general:  _pricesJson.founding_general  ?? undefined,
 }
 
 const ONE_TIME_TIERS = new Set(['founding_general'])
@@ -58,7 +61,8 @@ export default async function handler(req: Request) {
   if (!tierKey) return new Response(JSON.stringify({ error: 'Missing tier' }), { status: 400, headers })
 
   const priceId = PRICE_IDS[tierKey]
-  if (!priceId) return new Response(JSON.stringify({ error: `Unknown or unconfigured tier: ${tierKey}` }), { status: 400, headers })
+  if (!(tierKey in PRICE_IDS)) return new Response(JSON.stringify({ error: `Unknown tier: ${tierKey}` }), { status: 400, headers })
+  if (!priceId) return new Response(JSON.stringify({ error: 'coming_soon' }), { status: 400, headers })
 
   if (tierKey === 'founding_general') {
     const supabase = getSupabase()
