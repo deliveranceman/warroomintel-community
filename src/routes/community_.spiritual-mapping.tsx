@@ -100,21 +100,23 @@ function SpiritualMappingPage() {
         borderBottom: `1px solid ${BDR}`,
         flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingBottom: 0 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingBottom: 0, gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: MUT }}>FIELD OPERATIONS</div>
-            </div>
-            <div style={{ fontFamily: cinzel, fontSize: 22, color: G, fontWeight: 700, marginTop: 8, letterSpacing: '0.06em' }}>
-              📍 Spiritual Mapping
-            </div>
-            <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 14, marginTop: 2 }}>
-              Global intelligence network for regional intercessory warfare
+              <div style={{ fontFamily: cinzel, fontSize: 22, color: G, fontWeight: 700, marginTop: 8, letterSpacing: '0.06em' }}>
+                📍 Spiritual Mapping
+              </div>
             </div>
           </div>
-          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, textAlign: 'right' }}>
-            <div>{tier.toUpperCase()}</div>
-            <div style={{ color: G, marginTop: 2 }}>{userName}</div>
+          <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic', marginBottom: 4 }}>
+              Global intelligence network for regional intercessory warfare
+            </div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT }}>
+              <span>{tier.toUpperCase()}</span>
+              <span style={{ color: G, marginLeft: 8 }}>{userName}</span>
+            </div>
           </div>
         </div>
 

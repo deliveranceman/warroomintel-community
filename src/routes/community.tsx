@@ -1497,6 +1497,483 @@ function stripMdPreview(raw: string, maxChars = 120): string {
   return result.length > maxChars ? result.slice(0, maxChars).trimEnd() + '…' : result
 }
 
+// ── DAILY DEVOTION VIEW ────────────────────────────────────
+function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#2D2924'
+  const mut  = isDark ? '#9a8c74' : '#5C5248'
+  const GD   = isDark ? '#C9A84C' : '#8B6914'
+  const { getToken } = useAuth()
+
+  const TIER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+  const userLvl = TIER[(userTier || '').toLowerCase()] ?? 0
+
+  const [devotion, setDevotion]   = useState<any>(null)
+  const [loading, setLoading]     = useState(true)
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().slice(0, 10))
+  const [archive, setArchive]     = useState<any[]>([])
+  const [showArchive, setShowArchive] = useState(false)
+
+  function extractYouTubeId(url: string): string | null {
+    if (!url) return null
+    const patterns = [/youtu\.be\/([^?&#]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/, /youtube(?:\.com)?\/live\/([^?&#]+)/]
+    for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
+    return null
+  }
+
+  async function loadDevotion(date: string) {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/daily-devotion?date=${date}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setDevotion(d.devotion) }
+      else setDevotion(null)
+    } catch { setDevotion(null) }
+    setLoading(false)
+  }
+
+  async function loadArchive() {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/daily-devotion?archive=true', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setArchive(d.devotions || []) }
+    } catch {}
+  }
+
+  useEffect(() => { loadDevotion(currentDate) }, [currentDate])
+
+  function prevDay() {
+    const d = new Date(currentDate); d.setDate(d.getDate() - 1); setCurrentDate(d.toISOString().slice(0, 10))
+  }
+  function nextDay() {
+    const today = new Date().toISOString().slice(0, 10)
+    const d = new Date(currentDate); d.setDate(d.getDate() + 1)
+    const next = d.toISOString().slice(0, 10)
+    if (next <= today) setCurrentDate(next)
+  }
+
+  const isToday = currentDate === new Date().toISOString().slice(0, 10)
+  const displayDate = new Date(currentDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
+  function LockedSection({ tierNeeded, children }: { tierNeeded: number; children: React.ReactNode }) {
+    if (userLvl >= tierNeeded) return <>{children}</>
+    const labels = ['', 'Soldier', 'Commander', 'General']
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8, padding: '20px', background: surf, border: `1px solid ${bdr}`, borderRadius: 8, textAlign: 'center' as const, marginBottom: 24 }}>
+        <div style={{ fontSize: 24 }}>🔒</div>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: GD, letterSpacing: '0.08em' }}>{labels[tierNeeded] || 'Higher'} Tier Required</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>Upgrade your membership to access this section</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 36px', minHeight: 0 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row' as const, gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>☀️ Daily Brief</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>{displayDate}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={prevDay} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>← PREV</button>
+          {!isToday && <button onClick={nextDay} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>NEXT →</button>}
+          <button onClick={() => { setShowArchive(s => !s); if (!showArchive) loadArchive() }}
+            style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>
+            ARCHIVE
+          </button>
+        </div>
+      </div>
+
+      {/* Archive panel */}
+      {showArchive && (
+        <div style={{ marginBottom: 24, background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.12em', marginBottom: 10 }}>LAST 30 DAYS</div>
+          {archive.length === 0
+            ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No archive entries found</div>
+            : archive.map(a => (
+              <button key={a.id} onClick={() => { setCurrentDate(a.date); setShowArchive(false) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', borderBottom: `1px solid ${bdr}`, padding: '8px 0', cursor: 'pointer', color: a.date === currentDate ? GD : txt, fontFamily: crimson, fontSize: 14 }}>
+                {new Date(a.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {a.title}
+              </button>
+            ))
+          }
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center' as const, padding: '60px 20px', color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 16 }}>Loading today's brief…</div>
+      ) : !devotion ? (
+        <div style={{ textAlign: 'center' as const, padding: '60px 20px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 48 }}>☀️</div>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: GD, letterSpacing: '0.08em' }}>Today's brief is being prepared</div>
+          <div style={{ fontFamily: crimson, fontSize: 15, color: mut }}>Check back soon. The minister is preparing today's word.</div>
+        </div>
+      ) : (
+        <div style={{ maxWidth: 680 }}>
+          {devotion.title && <div style={{ fontFamily: cinzel, fontSize: 20, color: txt, letterSpacing: '0.05em', marginBottom: 24, fontWeight: 700 }}>{devotion.title}</div>}
+
+          {/* Morning Prayer (watchman+) */}
+          {devotion.morning_prayer && (
+            <LockedSection tierNeeded={0}>
+              <div style={{ borderLeft: `4px solid ${GD}`, paddingLeft: 20, marginBottom: 28, background: 'rgba(201,168,76,0.04)', borderRadius: '0 8px 8px 0', padding: '16px 20px', borderTop: `1px solid ${bdr}`, borderRight: `1px solid ${bdr}`, borderBottom: `1px solid ${bdr}` }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 10 }}>MORNING PRAYER</div>
+                <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.morning_prayer}</div>
+              </div>
+            </LockedSection>
+          )}
+
+          {/* Scripture (soldier+) */}
+          {devotion.scripture && (
+            <LockedSection tierNeeded={1}>
+              <div style={{ textAlign: 'center' as const, marginBottom: 28, padding: '20px' }}>
+                <div style={{ fontFamily: crimson, fontSize: 20, color: GD, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 8 }}>"{devotion.scripture}"</div>
+                {devotion.scripture_reference && <div style={{ fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.1em' }}>— {devotion.scripture_reference}</div>}
+              </div>
+            </LockedSection>
+          )}
+
+          {/* Devotional text (soldier+) */}
+          {devotion.devotional_text && (
+            <LockedSection tierNeeded={1}>
+              <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.85, marginBottom: 28, whiteSpace: 'pre-wrap' as const }}>{devotion.devotional_text}</div>
+            </LockedSection>
+          )}
+
+          {/* Daily video (commander+) */}
+          {devotion.youtube_url && (
+            <LockedSection tierNeeded={2}>
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 10 }}>TODAY'S MESSAGE</div>
+                <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', borderRadius: 8, overflow: 'hidden' }}>
+                  {extractYouTubeId(devotion.youtube_url) && (
+                    <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(devotion.youtube_url)}?rel=0&modestbranding=1`}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                      allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+                  )}
+                </div>
+              </div>
+            </LockedSection>
+          )}
+
+          {/* Evening Prayer (commander+) */}
+          {devotion.evening_prayer && (
+            <LockedSection tierNeeded={2}>
+              <div style={{ borderLeft: '4px solid #3d5a80', paddingLeft: 20, marginBottom: 28, background: 'rgba(61,90,128,0.06)', borderRadius: '0 8px 8px 0', padding: '16px 20px', borderTop: `1px solid rgba(61,90,128,0.2)`, borderRight: `1px solid rgba(61,90,128,0.2)`, borderBottom: `1px solid rgba(61,90,128,0.2)` }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5c7cbf', letterSpacing: '0.18em', marginBottom: 10 }}>EVENING PRAYER</div>
+                <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.evening_prayer}</div>
+              </div>
+            </LockedSection>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── OPS DASHBOARD VIEW ─────────────────────────────────────
+function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId, getToken, setActiveSection }: any) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#2D2924'
+  const mut  = isDark ? '#9a8c74' : '#5C5248'
+  const GD   = isDark ? '#C9A84C' : '#8B6914'
+
+  const [cases, setCases]     = useState<any[]>([])
+  const [events, setEvents]   = useState<any[]>([])
+  const [intel, setIntel]     = useState<any[]>([])
+  const [prayers, setPrayers] = useState<any[]>([])
+  const [brief, setBrief]     = useState<any>(null)
+  const [loaded, setLoaded]   = useState(false)
+
+  useEffect(() => {
+    async function loadAll() {
+      try {
+        const token = await getToken()
+        const h = { Authorization: `Bearer ${token}` }
+        const [casesRes, eventsRes, intelRes, prayerRes, briefRes] = await Promise.allSettled([
+          fetch('/api/field-ops?resource=cases', { headers: h }),
+          fetch('/api/events?upcoming=3', { headers: h }),
+          fetch('/api/ai-history?limit=3', { headers: h }),
+          fetch('/api/prayer-wall?limit=4', { headers: h }),
+          fetch(`/api/daily-devotion?date=${new Date().toISOString().slice(0, 10)}`, { headers: h }),
+        ])
+        if (casesRes.status === 'fulfilled' && casesRes.value.ok) { const d = await casesRes.value.json(); setCases((d.cases || []).slice(0, 3)) }
+        if (eventsRes.status === 'fulfilled' && eventsRes.value.ok) { const d = await eventsRes.value.json(); setEvents((d.events || []).slice(0, 2)) }
+        if (intelRes.status === 'fulfilled' && intelRes.value.ok) { const d = await intelRes.value.json(); setIntel((d.history || []).slice(0, 3)) }
+        if (prayerRes.status === 'fulfilled' && prayerRes.value.ok) { const d = await prayerRes.value.json(); setPrayers((d.prayers || d.items || []).slice(0, 2)) }
+        if (briefRes.status === 'fulfilled' && briefRes.value.ok) { const d = await briefRes.value.json(); setBrief(d.devotion) }
+      } catch {}
+      setLoaded(true)
+    }
+    loadAll()
+  }, [])
+
+  function Widget({ title, icon, children, onViewAll, section }: { title: string; icon: string; children: React.ReactNode; onViewAll?: string; section?: string }) {
+    return (
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.16em' }}>{icon} {title}</div>
+          {section && <button onClick={() => setActiveSection(section)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: 0 }}>VIEW ALL →</button>}
+        </div>
+        <div>{children}</div>
+      </div>
+    )
+  }
+
+  const gridCols = isMobile ? '1fr' : 'repeat(2, 1fr)'
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>⚡ Ops Dashboard</div>
+          {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Minister command center</div>}
+        </div>
+      </div>
+
+      {!loaded ? (
+        <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 15, textAlign: 'center' as const, paddingTop: 48 }}>Loading dashboard…</div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 16, marginBottom: 16 }}>
+
+            {/* Active Cases */}
+            <Widget title="ACTIVE CASES" icon="📁" section="case-files">
+              {cases.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No active cases</div>
+                : cases.map(c => (
+                  <div key={c.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{c.subject_name || c.subject_alias || 'Unnamed'}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{c.primary_issue || c.status}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+
+            {/* Upcoming Events */}
+            <Widget title="UPCOMING EVENTS" icon="📅" section="events">
+              {events.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No upcoming events</div>
+                : events.map(e => (
+                  <div key={e.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{e.title}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{e.event_date ? new Date(e.event_date).toLocaleDateString() : ''} {e.type && `· ${e.type}`}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+
+            {/* Recent AI Searches */}
+            <Widget title="RECENT AI SEARCHES" icon="🔍" section="my-intel">
+              {intel.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No searches yet</div>
+                : intel.map(i => (
+                  <div key={i.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{i.query}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em' }}>{i.tool}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+
+            {/* Prayer Requests */}
+            <Widget title="PRAYER WALL" icon="🙏" section="prayer-wall">
+              {prayers.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No recent prayer requests</div>
+                : prayers.map((p: any) => (
+                  <div key={p.id || p.cid} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{p.user?.name || p.user?.firstName || 'Anonymous'}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.text || p.message || p.body || ''}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+          </div>
+
+          {/* Today's Brief widget — full width */}
+          <Widget title="TODAY'S BRIEF" icon="☀️" section="daily-brief">
+            {!brief
+              ? <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>No brief posted today</div>
+              : <>
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: txt }}>{brief.title}</div>
+                {brief.morning_prayer && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>{brief.morning_prayer.split('\n')[0]}</div>}
+              </>
+            }
+          </Widget>
+
+          {/* Quick Actions */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 10 }}>QUICK ACTIONS</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+              {[
+                { label: '+ New Case File', section: 'case-files' },
+                { label: '+ Session Center', section: 'session-center' },
+                { label: '+ Prayer Request', section: 'prayer-wall' },
+                { label: '+ Field Report', section: 'forum' },
+              ].map(a => (
+                <button key={a.label} onClick={() => setActiveSection(a.section)}
+                  style={{ padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── WAR ROOM BOARD VIEW ────────────────────────────────────
+function WarRoomBoardView({ theme, isMobile, setSidebarOpen, userId, userName, getToken }: any) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#2D2924'
+  const mut  = isDark ? '#9a8c74' : '#5C5248'
+  const GD   = isDark ? '#C9A84C' : '#8B6914'
+
+  const [feedback, setFeedback] = useState<any[]>([])
+  const [tabType, setTabType]   = useState<'feature' | 'bug'>('feature')
+  const [loading, setLoading]   = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [formType, setFormType] = useState<'feature' | 'bug'>('feature')
+  const [title, setTitle]       = useState('')
+  const [desc, setDesc]         = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function loadFeedback() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/platform-feedback?type=${tabType}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setFeedback(d.feedback || []) }
+    } catch {}
+    setLoading(false)
+  }
+
+  useEffect(() => { loadFeedback() }, [tabType])
+
+  async function submit() {
+    if (!title.trim()) return
+    setSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/platform-feedback', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: formType, title: title.trim(), description: desc.trim(), userName }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        if (formType === tabType) setFeedback(prev => [d.feedback, ...prev])
+        setTitle(''); setDesc(''); setShowForm(false)
+      }
+    } catch {}
+    setSubmitting(false)
+  }
+
+  async function toggleUpvote(item: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/platform-feedback?id=${item.id}&action=upvote`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, upvotes: d.upvotes, userUpvoted: d.userUpvoted } : f))
+    }
+  }
+
+  const STATUS_COLORS: Record<string, string> = { open: '#C9A84C', 'in progress': '#4a90d9', done: '#4ade80' }
+  const filtered = feedback.filter(f => f.type === tabType)
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>📋 War Room Board</div>
+        </div>
+        <button onClick={() => setShowForm(s => !s)}
+          style={{ padding: '8px 16px', background: showForm ? 'rgba(201,168,76,0.15)' : surf, border: `1px solid ${GD}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          {showForm ? '× CLOSE' : '+ SUBMIT REQUEST'}
+        </button>
+      </div>
+
+      {/* Submit form */}
+      {showForm && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '20px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            {(['feature', 'bug'] as const).map(t => (
+              <button key={t} onClick={() => setFormType(t)}
+                style={{ padding: '6px 16px', borderRadius: 6, border: `1px solid ${formType === t ? GD : bdr}`, background: formType === t ? 'rgba(201,168,76,0.1)' : 'transparent', color: formType === t ? GD : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                {t === 'feature' ? '✨ Feature' : '🐛 Bug'}
+              </button>
+            ))}
+          </div>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title (required)"
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', marginBottom: 10 }} />
+          <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description (optional)" rows={3}
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, marginBottom: 12 }} />
+          <button onClick={submit} disabled={submitting || !title.trim()}
+            style={{ padding: '8px 20px', background: title.trim() ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${GD}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.5 }}>
+            {submitting ? 'SUBMITTING…' : 'SUBMIT'}
+          </button>
+        </div>
+      )}
+
+      {/* Type tabs */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 16 }}>
+        {(['feature', 'bug'] as const).map(t => (
+          <button key={t} onClick={() => setTabType(t)}
+            style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: tabType === t ? `2px solid ${GD}` : '2px solid transparent', color: tabType === t ? GD : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1 }}>
+            {t === 'feature' ? 'FEATURES' : 'BUGS'}
+          </button>
+        ))}
+      </div>
+
+      {/* Feedback list */}
+      {loading
+        ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>Loading…</div>
+        : filtered.length === 0
+          ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>No {tabType === 'feature' ? 'feature requests' : 'bug reports'} yet. Be the first!</div>
+          : filtered.map(item => (
+            <div key={item.id} style={{ display: 'flex', gap: 14, background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10, alignItems: 'flex-start' }}>
+              {/* Upvote */}
+              <button onClick={() => toggleUpvote(item)}
+                style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3, padding: '6px 10px', borderRadius: 8, border: `1px solid ${item.userUpvoted ? GD : bdr}`, background: item.userUpvoted ? 'rgba(201,168,76,0.12)' : 'transparent', cursor: 'pointer', flexShrink: 0, minWidth: 44 }}>
+                <span style={{ fontSize: 14, color: item.userUpvoted ? GD : mut }}>▲</span>
+                <span style={{ fontFamily: cinzel, fontSize: 13, color: item.userUpvoted ? GD : txt, fontWeight: 700 }}>{item.upvotes || 0}</span>
+              </button>
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.03em', flex: 1 }}>{item.title}</div>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: STATUS_COLORS[item.status] || GD, background: `${STATUS_COLORS[item.status] || GD}18`, border: `1px solid ${STATUS_COLORS[item.status] || GD}40`, borderRadius: 10, padding: '2px 8px', flexShrink: 0, textTransform: 'uppercase' as const }}>{item.status}</span>
+                </div>
+                {item.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>}
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.06em' }}>{item.user_name || 'Anonymous'} · {new Date(item.created_at).toLocaleDateString()}</div>
+              </div>
+            </div>
+          ))
+      }
+    </div>
+  )
+}
+
 // ── TRAINING VIEW ──────────────────────────────────────────
 function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
   const isDark = theme !== 'light'
@@ -7696,18 +8173,17 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || activeSection === 'my-intel') ? 260 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['my-intel','ops-dashboard'].includes(activeSection)) ? 360 : 0, transition: 'max-height 0.2s ease' }}>
+              <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Zap size={14} strokeWidth={1.6} /></span>
+                <span>Ops Dashboard</span>
+              </button>
               <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FolderOpen size={14} strokeWidth={1.6} /></span>
                 <span>Case Files</span>
-              </a>
-              <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
-                <span>Session Notes</span>
               </a>
               <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
@@ -7720,8 +8196,10 @@ function CommunityPage() {
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
+        {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
         {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
         {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
+        {navItem('War Room Board', 'war-room-board', <span style={{ fontSize: 14, lineHeight: 1 }}>📋</span>)}
         {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
 
         {/* ── FOUNDATION ── */}
@@ -8120,7 +8598,10 @@ function CommunityPage() {
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
-        {activeSection === 'my-intel'    && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+        {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+        {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+        {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
+        {activeSection === 'war-room-board' && <WarRoomBoardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} getToken={getToken} />}
         {activeSection === 'forum'       && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} />

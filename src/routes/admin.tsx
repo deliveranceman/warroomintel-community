@@ -6253,10 +6253,139 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
   )
 }
 
+function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.06)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#E8D5B0' : '#2D2924'
+  const mut  = isDark ? '#8B7355' : '#5C5248'
+  const GG   = isDark ? '#C9A84C' : '#8B6914'
+  const inp  = { background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+
+  const [entries, setEntries] = useState<any[]>([])
+  const [selected, setSelected] = useState<any>(null)
+  const [saving, setSaving]   = useState(false)
+  const [msg, setMsg]         = useState('')
+  const [form, setForm]       = useState({
+    date: new Date().toISOString().split('T')[0],
+    title: '',
+    morning_prayer: '',
+    scripture: '',
+    scripture_reference: '',
+    devotional_text: '',
+    evening_prayer: '',
+    youtube_url: '',
+    min_tier: 'watchman',
+    published: false,
+  })
+
+  async function loadEntries() {
+    const token = await getToken()
+    const res = await fetch('/api/daily-devotion?archive=true', { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setEntries(d.devotions || []) }
+  }
+
+  useEffect(() => { loadEntries() }, [])
+
+  function startNew() {
+    setSelected(null)
+    setForm({ date: new Date().toISOString().split('T')[0], title: '', morning_prayer: '', scripture: '', scripture_reference: '', devotional_text: '', evening_prayer: '', youtube_url: '', min_tier: 'watchman', published: false })
+    setMsg('')
+  }
+
+  function loadEntry(e: any) {
+    setSelected(e)
+    setForm({ date: e.date, title: e.title || '', morning_prayer: e.morning_prayer || '', scripture: e.scripture || '', scripture_reference: e.scripture_reference || '', devotional_text: e.devotional_text || '', evening_prayer: e.evening_prayer || '', youtube_url: e.youtube_url || '', min_tier: e.min_tier || 'watchman', published: e.published || false })
+    setMsg('')
+  }
+
+  async function save() {
+    if (!form.date || !form.title) { setMsg('Date and title are required'); return }
+    setSaving(true)
+    setMsg('')
+    try {
+      const token = await getToken()
+      const body = { date: form.date, title: form.title, morningPrayer: form.morning_prayer, scripture: form.scripture, scriptureReference: form.scripture_reference, devotionalText: form.devotional_text, eveningPrayer: form.evening_prayer, youtubeUrl: form.youtube_url, minTier: form.min_tier, published: form.published }
+      const url = selected ? `/api/daily-devotion?id=${selected.id}` : '/api/daily-devotion'
+      const method = selected ? 'PUT' : 'POST'
+      const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (res.ok) { setMsg('Saved ✓'); loadEntries(); if (!selected) { const d = await res.json(); setSelected(d.devotion) } }
+      else { const d = await res.json(); setMsg(d.error || 'Save failed') }
+    } catch { setMsg('Network error') }
+    setSaving(false)
+  }
+
+  async function deleteDevotion(id: string) {
+    if (!confirm('Delete this devotion?')) return
+    const token = await getToken()
+    await fetch(`/api/daily-devotion?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setSelected(null); startNew(); loadEntries()
+  }
+
+  const F = (label: string, key: keyof typeof form, multiline = false, rows = 4) => (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: 'block', fontFamily: "'Cinzel', serif", fontSize: 9, color: GG, letterSpacing: '0.12em', marginBottom: 6 }}>{label}</label>
+      {multiline
+        ? <textarea value={form[key] as string} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} rows={rows} style={{ ...inp, resize: 'vertical' as const }} />
+        : <input value={form[key] as string} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} style={inp} />
+      }
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+      {/* Entry list */}
+      <div style={{ width: 200, flexShrink: 0 }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: GG, letterSpacing: '0.12em', marginBottom: 10 }}>RECENT ENTRIES</div>
+        <button onClick={startNew} style={{ width: '100%', marginBottom: 8, padding: '7px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`, borderRadius: 6, color: GG, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>+ New Entry</button>
+        {entries.map(e => (
+          <button key={e.id} onClick={() => loadEntry(e)}
+            style={{ display: 'block', width: '100%', textAlign: 'left' as const, padding: '8px 12px', background: selected?.id === e.id ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderBottom: `1px solid ${bdr}`, cursor: 'pointer', color: selected?.id === e.id ? GG : txt, fontFamily: "'Crimson Pro', serif", fontSize: 13 }}>
+            {new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {e.title}
+          </button>
+        ))}
+      </div>
+
+      {/* Form */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: GG, letterSpacing: '0.08em' }}>☀️ {selected ? 'Edit Entry' : 'New Daily Brief'}</div>
+          {selected && <button onClick={() => deleteDevotion(selected.id)} style={{ background: 'none', border: '1px solid rgba(255,80,80,0.3)', borderRadius: 4, color: '#e09090', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: '5px 12px' }}>Delete</button>}
+        </div>
+        {F('DATE', 'date')}
+        {F('TITLE', 'title')}
+        {F('MORNING PRAYER', 'morning_prayer', true, 5)}
+        {F('SCRIPTURE TEXT', 'scripture', true, 3)}
+        {F('SCRIPTURE REFERENCE', 'scripture_reference')}
+        {F('DEVOTIONAL TEXT (Markdown)', 'devotional_text', true, 8)}
+        {F('EVENING PRAYER', 'evening_prayer', true, 5)}
+        {F('YOUTUBE URL (optional)', 'youtube_url')}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontFamily: "'Cinzel', serif", fontSize: 9, color: GG, letterSpacing: '0.12em', marginBottom: 6 }}>MIN TIER</label>
+          <select value={form.min_tier} onChange={e => setForm(p => ({ ...p, min_tier: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
+            {['watchman', 'soldier', 'commander', 'general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+          </select>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, cursor: 'pointer' }}>
+          <input type="checkbox" checked={form.published} onChange={e => setForm(p => ({ ...p, published: e.target.checked }))} />
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: GG, letterSpacing: '0.1em' }}>PUBLISHED</span>
+        </label>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={save} disabled={saving}
+            style={{ padding: '10px 24px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${GG}`, borderRadius: 6, color: GG, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'SAVING…' : 'SAVE'}
+          </button>
+          {msg && <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: msg.includes('✓') ? '#4ade80' : '#e09090' }}>{msg}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -6319,9 +6448,10 @@ function AdminPage() {
       { key: 'field-ministry', label: 'Field Ministry'   },
     ]},
     { label: 'COMMUNITY', items: [
-      { key: 'moderation',  label: 'Moderation'  },
-      { key: 'training',    label: 'Training'    },
-      { key: 'admin-chat',  label: 'Admin Chat'  },
+      { key: 'moderation',   label: 'Moderation'   },
+      { key: 'training',     label: 'Training'     },
+      { key: 'daily-brief',  label: 'Daily Brief'  },
+      { key: 'admin-chat',   label: 'Admin Chat'   },
     ]},
     { label: 'OPERATIONS', items: [
       { key: 'spiritual-mapping', label: 'Spiritual Mapping' },
@@ -6430,6 +6560,7 @@ function AdminPage() {
             {tab === 'intel'             && <IntelArchive getToken={getToken} isDark={isDark} />}
             {tab === 'moderation'        && <ModerationPanel getToken={getToken} />}
             {tab === 'training'          && <TrainingManager getToken={getToken} isDark={isDark} />}
+            {tab === 'daily-brief'       && <DailyBriefManager getToken={getToken} isDark={isDark} />}
             {tab === 'field-ministry'    && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
             {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
             {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}

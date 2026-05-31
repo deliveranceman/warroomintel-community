@@ -133,3 +133,9 @@
 
 [functions."ai-history"]
   timeout = 10
+
+[functions."daily-devotion"]
+  timeout = 10
+
+[functions."platform-feedback"]
+  timeout = 10
