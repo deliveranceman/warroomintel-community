@@ -2434,11 +2434,12 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
 
   const [thumbnailUploading, setThumbnailUploading] = useState(false)
 
-  const [eTitle, setETitle]     = useState('')
-  const [eDesc, setEDesc]       = useState('')
-  const [eYoutube, setEYoutube] = useState('')
-  const [eNotes, setENotes]     = useState('')
-  const [eStatus, setEStatus]   = useState('draft')
+  const [eTitle, setETitle]       = useState('')
+  const [eDesc, setEDesc]         = useState('')
+  const [eYoutube, setEYoutube]   = useState('')
+  const [eThumbnail, setEThumbnail] = useState('')
+  const [eNotes, setENotes]       = useState('')
+  const [eStatus, setEStatus]     = useState('draft')
   const [eSortOrder, setESortOrder] = useState(0)
   const [eAttachments, setEAttachments] = useState<any[]>([])
   const [attUploading, setAttUploading] = useState(false)
@@ -2474,12 +2475,12 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   function openEpisodeForm(episode?: any) {
     if (episode) {
       setEditingEpisode(episode); setETitle(episode.title); setEDesc(episode.description || '')
-      setEYoutube(episode.youtube_url || ''); setENotes(episode.notes || '')
-      setEStatus(episode.status); setESortOrder(episode.sort_order || 0)
+      setEYoutube(episode.youtube_url || ''); setEThumbnail(episode.thumbnail_url || '')
+      setENotes(episode.notes || ''); setEStatus(episode.status); setESortOrder(episode.sort_order || 0)
       loadEpisodeAttachments(episode.id)
     } else {
-      setEditingEpisode(null); setETitle(''); setEDesc(''); setEYoutube(''); setENotes('')
-      setEStatus('draft'); setESortOrder(episodes.length); setEAttachments([])
+      setEditingEpisode(null); setETitle(''); setEDesc(''); setEYoutube(''); setEThumbnail('')
+      setENotes(''); setEStatus('draft'); setESortOrder(episodes.length); setEAttachments([])
     }
     setShowEpisodeForm(true)
   }
@@ -2508,7 +2509,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     if (!eTitle.trim() || !selectedCourse) return
     setSaving(true)
     const token = await getToken()
-    const body = { courseId: selectedCourse.id, title: eTitle, description: eDesc, youtubeUrl: eYoutube, notes: eNotes, status: eStatus, sortOrder: eSortOrder }
+    const body = { courseId: selectedCourse.id, title: eTitle, description: eDesc, youtubeUrl: eYoutube, thumbnailUrl: eThumbnail.trim() || null, notes: eNotes, status: eStatus, sortOrder: eSortOrder }
     const res = editingEpisode
       ? await fetch(`/api/admin-episodes?id=${editingEpisode.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
       : await fetch('/api/admin-episodes', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
@@ -2867,6 +2868,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
               <input value={eTitle} onChange={e => setETitle(e.target.value)} placeholder="Episode title *" style={inp2} />
               <textarea value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Short description" rows={2} style={{ ...inp2, resize: 'vertical' as const }} />
               <input value={eYoutube} onChange={e => setEYoutube(e.target.value)} placeholder="YouTube URL (unlisted)" style={inp2} />
+              <input value={eThumbnail} onChange={e => setEThumbnail(e.target.value)} placeholder="Thumbnail URL (optional) — https://... or upload below" style={inp2} />
               {editingEpisode && (
                 <div style={{ border: `1px solid ${BDR2}`, borderRadius: 8, padding: '12px 14px' }}>
                   <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Attachments</div>
@@ -2875,7 +2877,7 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                       {eAttachments.map(att => (
                         <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${BDR2}`, borderRadius: 6, padding: '6px 10px' }}>
                           <span style={{ fontSize: 14, flexShrink: 0 }}>📄</span>
-                          <span style={{ flex: 1, fontFamily: crimson, fontSize: 13, color: TXT2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{att.file_name}</span>
+                          <span style={{ flex: 1, fontFamily: crimson, fontSize: 13, color: TXT2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{att.title || att.file_name}</span>
                           <button onClick={() => deleteAttachment(att.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14, padding: '0 2px', flexShrink: 0 }}>✕</button>
                         </div>
                       ))}
