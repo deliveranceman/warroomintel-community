@@ -1999,6 +1999,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
   const [submittingComment, setSubmittingComment] = useState(false)
   const [loading, setLoading]               = useState(true)
   const [episodeSidebarCollapsed, setEpisodeSidebarCollapsed] = useState(false)
+  const [expandedDescCourseId, setExpandedDescCourseId] = useState<string | null>(null)
 
   function extractYouTubeId(url: string): string | null {
     if (!url) return null
@@ -2110,7 +2111,17 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                           <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
                           {!hasAccess && <span style={{ fontSize: 14, flexShrink: 0 }}>🔒</span>}
                         </div>
-                        {course.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>{stripMdPreview(course.description)}</div>}
+                        {course.description && (isMobile ? (
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>
+                            {expandedDescCourseId === course.id ? course.description : stripMdPreview(course.description)}
+                            {course.description.length > 120 && (
+                              <button onClick={e => { e.stopPropagation(); setExpandedDescCourseId(expandedDescCourseId === course.id ? null : course.id) }}
+                                style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: '0 0 0 4px' }}>
+                                {expandedDescCourseId === course.id ? 'Read less' : 'Read more'}
+                              </button>
+                            )}
+                          </div>
+                        ) : <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>{stripMdPreview(course.description)}</div>)}
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
                           <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
                           <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
@@ -2251,11 +2262,11 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
               const isActive = selectedEpisode?.id === ep.id
               return (
                 <button key={ep.id} onClick={() => openEpisode(ep)}
-                  style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, padding: '10px 12px', background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent', border: 'none', borderBottom: `2px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', flexShrink: 0, minWidth: 72, maxWidth: 100 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', border: `1px solid ${watched ? G : bdr}`, background: watched ? 'rgba(201,168,76,0.2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: watched ? G : mut }}>
+                  style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 3, padding: '0 10px', height: 64, background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent', border: 'none', borderBottom: `2px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', flexShrink: 0, minWidth: 60, maxWidth: 84 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: watched ? 14 : 20, fontWeight: 700, color: watched ? '#4ade80' : G, lineHeight: 1 }}>
                     {watched ? '✓' : idx + 1}
                   </div>
-                  <div style={{ fontFamily: cinzel, fontSize: 8, color: isActive ? G : mut, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 88, textAlign: 'center' as const }}>{ep.title}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 7, color: isActive ? G : mut, letterSpacing: '0.02em', maxWidth: 68, textAlign: 'center' as const, lineHeight: 1.2, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2 as any, WebkitBoxOrient: 'vertical' as any, whiteSpace: 'normal' as const }}>{ep.title}</div>
                 </button>
               )
             })}
@@ -2268,8 +2279,8 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
       {!selectedEpisode && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut, padding: 32 }}>
           <div style={{ fontSize: 40 }}>▶</div>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>Select an episode to begin</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedCourse.description || '')} />
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>{isMobile ? 'Tap an episode above to begin' : 'Select an episode to begin'}</div>
+          {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedCourse.description || '')} />}
         </div>
       )}
 
@@ -2277,7 +2288,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
       {selectedEpisode && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflow: 'hidden' }}>
           {/* 16:9 responsive video container */}
-          <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', flexShrink: 0 }}>
+          <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', flexShrink: 0, width: '100%' }}>
             {extractYouTubeId(selectedEpisode.youtube_url) ? (
               <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
             ) : (
@@ -2287,17 +2298,30 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
               </div>
             )}
           </div>
-          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: 15, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedEpisode.title}</div>
-              {selectedEpisode.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />}
+          {isMobile ? (
+            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', lineHeight: 1.3 }}>{selectedEpisode.title}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: mut, marginTop: 2 }}>{selectedCourse.title}</div>
+              </div>
+              <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
+                style={{ flexShrink: 0, padding: '5px 10px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
+              </button>
             </div>
-            <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
-              style={{ flexShrink: 0, padding: '7px 14px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
-              {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
-            </button>
-          </div>
-          <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, padding: '0 20px' }}>
+          ) : (
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 15, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedEpisode.title}</div>
+                {selectedEpisode.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />}
+              </div>
+              <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
+                style={{ flexShrink: 0, padding: '7px 14px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
+              </button>
+            </div>
+          )}
+          <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, padding: isMobile ? '0 8px' : '0 20px', ...(isMobile && { position: 'sticky' as const, top: 0, zIndex: 100, background: bg }) }}>
             {(['notes', 'resources', 'discussion'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 style={{ padding: '10px 16px', background: 'transparent', border: 'none', borderBottom: activeTab === tab ? `2px solid ${G}` : '2px solid transparent', color: activeTab === tab ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
@@ -2372,15 +2396,46 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
             })()}
             {activeTab === 'discussion' && (
               <div>
-                <div style={{ marginBottom: 24 }}>
-                  {replyTo && <div style={{ fontSize: 11, color: mut, fontFamily: crimson, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>Replying to {replyTo.user_name} <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: mut, cursor: 'pointer', fontSize: 12 }}>×</button></div>}
-                  <textarea value={commentBody} onChange={e => setCommentBody(e.target.value)} placeholder="Share a thought, question, or insight from this teaching..." rows={3}
-                    style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6, marginBottom: 8 }} />
-                  <button onClick={submitComment} disabled={submittingComment || !commentBody.trim()}
-                    style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700, opacity: !commentBody.trim() ? 0.5 : 1 }}>
-                    {submittingComment ? 'Posting...' : 'Post Comment'}
-                  </button>
+                {/* Comment count header */}
+                <div style={{ fontFamily: cinzel, fontSize: isMobile ? 11 : 13, color: txt, letterSpacing: '0.06em', marginBottom: isMobile ? 12 : 16 }}>
+                  {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
                 </div>
+                {isMobile ? (
+                  <div style={{ marginBottom: 20 }}>
+                    {replyTo && (
+                      <div style={{ fontSize: 11, color: mut, fontFamily: crimson, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        ↩ Replying to {replyTo.user_name}
+                        <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: mut, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: G, fontSize: 14 }}>▸</div>
+                      <input
+                        value={commentBody}
+                        onChange={e => setCommentBody(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && commentBody.trim()) { e.preventDefault(); submitComment() } }}
+                        placeholder={replyTo ? `Reply to ${replyTo.user_name}…` : 'Add a comment…'}
+                        style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 20, padding: '8px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', minWidth: 0 }}
+                      />
+                      <button
+                        onClick={submitComment}
+                        disabled={submittingComment || !commentBody.trim()}
+                        style={{ background: 'none', border: 'none', color: commentBody.trim() ? G : mut, fontSize: 22, cursor: commentBody.trim() ? 'pointer' : 'default', flexShrink: 0, padding: '0 2px', opacity: !commentBody.trim() ? 0.4 : 1, lineHeight: 1 }}>
+                        →
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 24 }}>
+                    {replyTo && <div style={{ fontSize: 11, color: mut, fontFamily: crimson, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>Replying to {replyTo.user_name} <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: mut, cursor: 'pointer', fontSize: 12 }}>×</button></div>}
+                    <textarea value={commentBody} onChange={e => setCommentBody(e.target.value)} placeholder="Share a thought, question, or insight from this teaching..." rows={3}
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6, marginBottom: 8 }} />
+                    <button onClick={submitComment} disabled={submittingComment || !commentBody.trim()}
+                      style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700, opacity: !commentBody.trim() ? 0.5 : 1 }}>
+                      {submittingComment ? 'Posting...' : 'Post Comment'}
+                    </button>
+                  </div>
+                )}
                 {comments.length === 0
                   ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No discussion yet — be the first to comment.</div>
                   : <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
