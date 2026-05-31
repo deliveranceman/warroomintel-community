@@ -5102,7 +5102,7 @@ const TOOL_COLORS: Record<string, string> = {
   'ai-assistant': '#a78bfa',
 }
 
-function timeAgo(dateStr: string): string {
+function intelTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'just now'
@@ -5258,7 +5258,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.06em' }}>{timeAgo(entry.created_at)}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.06em' }}>{intelTimeAgo(entry.created_at)}</span>
                   {!entry.saved && (
                     <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.04em' }}>Auto-purges in 90 days</span>
                   )}
