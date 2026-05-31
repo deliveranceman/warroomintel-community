@@ -32,6 +32,10 @@ interface DemonEntry {
 // ── URLS ─────────────────────────────────────────────────
 const SIGNUP_URL    = 'https://accounts.warroomintel.com/sign-up'
 const COMMUNITY_URL = '/community'
+// Fallback static links — used in demo section and footer; real checkout goes through handleUpgrade
+const SOLDIER_URL   = 'https://buy.stripe.com/9B6fZafJ689F1Zrb4XfrW03'
+const COMMANDER_URL = 'https://buy.stripe.com/8x24gsaoMey39rT4GzfrW04'
+const GENERAL_URL   = '/community'
 
 async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
   try {
