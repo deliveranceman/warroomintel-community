@@ -91,7 +91,7 @@ export default async function handler(req: Request) {
 
   if (uploadError) return new Response(JSON.stringify({ error: uploadError.message }), { status: 500, headers })
 
-  const fileUrl = `https://uurfiasxtcvdpkfosofn.supabase.co/storage/v1/object/public/${BUCKET}/${filePath}`
+  const fileUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filePath}`
 
   if (type === 'attachment') {
     const { data: att, error: dbError } = await supabase.from('episode_attachments').insert({
