@@ -5097,7 +5097,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 8 : '12px 20px', position: 'relative' }}>
         <div style={{ position: 'relative', display: 'inline-block', maxHeight: '100%', maxWidth: '100%' }}>
           <img
-            src="/body-map.png"
+            src="/images/WRI_BODYMAP.png"
             alt="Body Map"
             style={{ display: 'block', maxHeight: isMobile ? 'calc(100dvh - 220px)' : 'calc(100dvh - 180px)', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
             draggable={false}
