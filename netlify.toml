@@ -130,3 +130,6 @@
 
 [functions."scheduled-event-reminders"]
   schedule = "0 * * * *"
+
+[functions."ai-history"]
+  timeout = 10

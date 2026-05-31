@@ -3854,6 +3854,17 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
   const [invLoading, setInvLoading] = useState(false)
   const [invResult, setInvResult] = useState<InvestigationResult | null>(null)
   const [invError, setInvError]   = useState('')
+  const [recentSymptomSearches, setRecentSymptomSearches] = useState<string[]>([])
+
+  useEffect(() => {
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/ai-history?tool=symptom-investigator&limit=5', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.history) setRecentSymptomSearches(d.history.map((h: any) => h.query)) })
+        .catch(() => {})
+    })
+  }, [])
 
   const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
   const hasAccess = tierLvl(userTier) >= tierLvl('commander')
@@ -3894,6 +3905,13 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
       }
       const data = await res.json()
       setInvResult(data)
+      if (token) {
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'symptom-investigator', query: invInput, response: data.summary || '', context: { symptoms: invInput } }),
+        }).catch(() => {})
+      }
     } catch (err: any) {
       setInvError(err?.message || 'Investigation failed. Check connection.')
     } finally {
@@ -3919,6 +3937,20 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
             The system will identify probable spirits and suggest a deliverance sequence.
           </p>
         </div>
+
+        {recentSymptomSearches.length > 0 && !invResult && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5a4f3a', letterSpacing: '0.12em', marginBottom: 8 }}>RECENT SEARCHES</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+              {recentSymptomSearches.map((s, i) => (
+                <button key={i} onClick={() => setInvInput(s)}
+                  style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 20, color: '#8B7355', fontFamily: crimson, fontSize: 12, padding: '4px 12px', cursor: 'pointer', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {s.length > 50 ? s.slice(0, 50) + '…' : s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: 24, marginBottom: 24 }}>
           <label style={{ display: 'block', fontSize: 11, color: '#8B7355', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>
@@ -4108,6 +4140,13 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Investigation failed')
       setReport(data)
+      if (token) {
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'gateway-investigator', query: spiritName.trim() || personContext.trim(), response: data.summary || '', context: { gateway: spiritName.trim(), context: personContext.trim() } }),
+        }).catch(() => {})
+      }
     } catch (e: any) { setError(e.message) }
     setLoading(false)
   }
@@ -5043,6 +5082,197 @@ const BM_HOTSPOTS: Record<string, { left: number; top: number; width: number; he
   legs_feet:    { left: 33,  top: 64, width: 34, height: 30 },
   back_spine:   { left: 46,  top: 22, width: 8,  height: 30 },
   skin_body:    { left: 35,  top: 22, width: 30, height: 42 },
+}
+
+// ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
+
+const TOOL_LABELS: Record<string, string> = {
+  'ask-dake': 'Ask Dake',
+  'symptom-investigator': 'Symptoms',
+  'gateway-investigator': 'Gateway',
+  'spirit-network': 'Spirits',
+  'ai-assistant': 'Assistant',
+}
+
+const TOOL_COLORS: Record<string, string> = {
+  'ask-dake': '#C9A84C',
+  'symptom-investigator': '#ef4444',
+  'gateway-investigator': '#8B9DCA',
+  'spirit-network': '#7a9e7e',
+  'ai-assistant': '#a78bfa',
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`
+  const months = Math.floor(days / 30)
+  return `${months} month${months === 1 ? '' : 's'} ago`
+}
+
+function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
+  const [entries,   setEntries]   = useState<any[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [filter,    setFilter]    = useState('all')
+  const [searchQ,   setSearchQ]   = useState('')
+
+  const FILTERS = ['all', 'ask-dake', 'symptom-investigator', 'gateway-investigator', 'spirit-network', 'ai-assistant']
+
+  async function loadHistory(tool?: string) {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      if (!token) return
+      const params = new URLSearchParams({ limit: '50' })
+      if (tool && tool !== 'all') params.set('tool', tool)
+      const res = await fetch(`/api/ai-history?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setEntries(d.history || []) }
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadHistory(filter === 'all' ? undefined : filter) }, [filter])
+
+  async function toggleSaved(id: string, saved: boolean) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`/api/ai-history?id=${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saved: !saved }),
+    }).catch(() => {})
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, saved: !saved } : e))
+  }
+
+  async function deleteEntry(id: string) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`/api/ai-history?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    setEntries(prev => prev.filter(e => e.id !== id))
+  }
+
+  const filtered = entries.filter(e => {
+    if (!searchQ) return true
+    const q = searchQ.toLowerCase()
+    return e.query?.toLowerCase().includes(q) || e.response?.toLowerCase().includes(q)
+  })
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px', background: '#0D0B14', minHeight: 0 }}>
+      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>My Intel</span>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: '0 0 4px', letterSpacing: '0.08em' }}>My Intel</h2>
+          <p style={{ color: '#8B7355', fontSize: 13, margin: 0, fontFamily: crimson }}>Your AI search history across all tools</p>
+        </div>
+
+        {/* Search bar */}
+        <div style={{ marginBottom: 16 }}>
+          <input
+            value={searchQ}
+            onChange={e => setSearchQ(e.target.value)}
+            placeholder="Search across all history..."
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', color: '#E8D5B0', fontFamily: crimson, fontSize: 14, outline: 'none' }}
+          />
+        </div>
+
+        {/* Filter tabs */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+          {FILTERS.map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{
+                padding: '5px 12px', borderRadius: 20,
+                background: filter === f ? 'rgba(201,168,76,0.15)' : 'transparent',
+                border: `1px solid ${filter === f ? G : 'rgba(201,168,76,0.2)'}`,
+                color: filter === f ? G : '#8B7355',
+                fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer',
+                textTransform: 'uppercase' as const,
+              }}>
+              {f === 'all' ? 'ALL' : (TOOL_LABELS[f] || f)}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center' as const, padding: 40, color: '#8B7355', fontFamily: crimson, fontStyle: 'italic' }}>Loading history...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '48px 24px', textAlign: 'center' as const }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em', marginBottom: 6 }}>No Intel Found</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: '#8B7355', fontStyle: 'italic' }}>
+              {searchQ ? 'No results match your search.' : 'Use AI tools to build your history.'}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+            {filtered.map(entry => (
+              <div key={entry.id} style={{ background: 'rgba(201,168,76,0.04)', border: `1px solid ${entry.saved ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}`, borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                  {/* Tool badge */}
+                  <span style={{
+                    fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em',
+                    color: TOOL_COLORS[entry.tool] || G,
+                    background: `${TOOL_COLORS[entry.tool] || G}18`,
+                    border: `1px solid ${TOOL_COLORS[entry.tool] || G}44`,
+                    borderRadius: 10, padding: '2px 8px', flexShrink: 0, marginTop: 2,
+                  }}>
+                    {TOOL_LABELS[entry.tool] || entry.tool}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: crimson, fontSize: 14, color: '#E8D5B0', lineHeight: 1.4, marginBottom: 4 }}>{entry.query}</div>
+                    {entry.response && (
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: '#8B7355', lineHeight: 1.5 }}>
+                        {entry.response.slice(0, 100)}{entry.response.length > 100 ? '…' : ''}
+                      </div>
+                    )}
+                    {entry.context && Object.keys(entry.context).length > 0 && (
+                      <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                        {Object.entries(entry.context).filter(([, v]) => v).map(([k, v]) => (
+                          <span key={k} style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4f3a', letterSpacing: '0.06em' }}>{k}: {String(v)}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button
+                      onClick={() => toggleSaved(entry.id, entry.saved)}
+                      title={entry.saved ? 'Unsave' : 'Save'}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4, opacity: entry.saved ? 1 : 0.35, filter: entry.saved ? 'none' : 'grayscale(1)' }}
+                    >⭐</button>
+                    <button
+                      onClick={() => deleteEntry(entry.id)}
+                      title="Delete"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: '#8B7355', opacity: 0.6 }}
+                    >🗑</button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.06em' }}>{timeAgo(entry.created_at)}</span>
+                  {!entry.saved && (
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.04em' }}>Auto-purges in 90 days</span>
+                  )}
+                  {entry.saved && (
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: '#C9A84C', letterSpacing: '0.04em' }}>⭐ Saved</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // Map left_arm/right_arm clicks back to BODY_REGIONS 'hands_arms'
@@ -6456,7 +6686,16 @@ function CommunityPage() {
         body: JSON.stringify({ message: msg.trim(), history: chatMessages }),
       })
       const data = await res.json()
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.response || 'No response received.' }])
+      const responseText = data.response || 'No response received.'
+      setChatMessages(prev => [...prev, { role: 'assistant', content: responseText }])
+      getToken().then(token => {
+        if (!token) return
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'ai-assistant', query: msg.trim(), response: responseText }),
+        }).catch(() => {})
+      })
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Unable to connect. Please try again.' }])
     } finally {
@@ -7305,7 +7544,7 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: fieldOpsOpen ? 200 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || activeSection === 'my-intel') ? 260 : 0, transition: 'max-height 0.2s ease' }}>
               <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
@@ -7318,6 +7557,11 @@ function CommunityPage() {
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
                 <span>Session Notes</span>
               </a>
+              <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><ClipboardList size={14} strokeWidth={1.6} /></span>
+                <span>My Intel</span>
+              </button>
             </div>
           </>
         )}
@@ -7724,6 +7968,7 @@ function CommunityPage() {
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
+        {activeSection === 'my-intel'    && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'forum'       && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} />

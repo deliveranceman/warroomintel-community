@@ -733,7 +733,17 @@ Be direct and practical. This is for active ministry use.`,
     fetchResources(demon)
     fetchLibraryIntel(demon)
     trackRecentSpirit(demon)
-  }, [fetchResources, fetchLibraryIntel])
+    if (_getToken) {
+      _getToken().then(token => {
+        if (!token) return
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'spirit-network', query: demon.name, context: { spiritName: demon.name, kingdom: demon.kingdom } }),
+        }).catch(() => {})
+      })
+    }
+  }, [fetchResources, fetchLibraryIntel, _getToken])
 
   // Navigate to parent — pops history if parent is in stack, else resets
   const selectParent = useCallback((demon: Demon) => {
@@ -765,7 +775,17 @@ Be direct and practical. This is for active ministry use.`,
     fetchResources(demon)
     fetchLibraryIntel(demon)
     trackRecentSpirit(demon)
-  }, [fetchResources, fetchLibraryIntel])
+    if (_getToken) {
+      _getToken().then(token => {
+        if (!token) return
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'spirit-network', query: demon.name, context: { spiritName: demon.name, kingdom: demon.kingdom } }),
+        }).catch(() => {})
+      })
+    }
+  }, [fetchResources, fetchLibraryIntel, _getToken])
 
   const groupedByKingdom = demons.reduce((acc: Record<string, Demon[]>, d) => {
     const k = d.kingdom || 'Other'; if (!acc[k]) acc[k] = []; acc[k].push(d); return acc
