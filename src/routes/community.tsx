@@ -5159,21 +5159,74 @@ class BodyMapBoundary extends React.Component<{children: React.ReactNode}, {hasE
   }
 }
 
-// Hotspot overlay positions as percentages of image dimensions (1024×1536 PNG)
-// Coordinates derived from BM_SVG 100×100 viewbox, matching body proportions
-const BM_HOTSPOTS: Record<string, { left: number; top: number; width: number; height: number }> = {
-  head_mind:    { left: 41,  top: 1,  width: 18, height: 16 },
-  eyes_vision:  { left: 42,  top: 10, width: 16, height: 7  },
-  throat_voice: { left: 44,  top: 17, width: 12, height: 6  },
-  heart_chest:  { left: 35,  top: 22, width: 30, height: 18 },
-  stomach_gut:  { left: 35,  top: 40, width: 30, height: 12 },
-  reproductive: { left: 33,  top: 52, width: 34, height: 12 },
-  left_arm:     { left: 20,  top: 22, width: 13, height: 26 },
-  right_arm:    { left: 67,  top: 22, width: 13, height: 26 },
-  legs_feet:    { left: 33,  top: 64, width: 34, height: 30 },
-  back_spine:   { left: 46,  top: 22, width: 8,  height: 30 },
-  skin_body:    { left: 35,  top: 22, width: 30, height: 42 },
-}
+// Point hotspots — x/y as % of image (1344×1008, 4 figures side-by-side)
+// Each maps to a BODY_REGIONS id for the API + slide panel
+const BM_POINT_HOTSPOTS: Array<{ id: string; label: string; regionId: string; x: number; y: number }> = [
+  // HEAD & FACE — male front
+  { id: 'crown_m',         label: 'Crown / Top of Head',    regionId: 'head_mind',    x: 17, y: 5  },
+  { id: 'right_eye_m',     label: 'Right Eye',               regionId: 'head_mind',    x: 14, y: 9  },
+  { id: 'left_eye_m',      label: 'Left Eye',                regionId: 'head_mind',    x: 20, y: 9  },
+  { id: 'right_ear_m',     label: 'Right Ear',               regionId: 'head_mind',    x: 11, y: 9  },
+  { id: 'throat_m',        label: 'Throat / Neck',           regionId: 'throat_voice', x: 17, y: 14 },
+  { id: 'back_neck_m',     label: 'Back of Neck',            regionId: 'throat_voice', x: 35, y: 11 },
+  // SHOULDERS
+  { id: 'r_shoulder_f',    label: 'Right Shoulder',          regionId: 'heart_chest',  x: 10, y: 19 },
+  { id: 'l_shoulder_f',    label: 'Left Shoulder',           regionId: 'heart_chest',  x: 24, y: 19 },
+  { id: 'r_shoulder_b',    label: 'Right Shoulder Blade',    regionId: 'back_spine',   x: 30, y: 19 },
+  { id: 'l_shoulder_b',    label: 'Left Shoulder Blade',     regionId: 'back_spine',   x: 42, y: 19 },
+  // CHEST
+  { id: 'upper_sternum',   label: 'Upper Sternum',           regionId: 'heart_chest',  x: 17, y: 21 },
+  { id: 'mid_sternum',     label: 'Mid Sternum',             regionId: 'heart_chest',  x: 17, y: 26 },
+  { id: 'right_chest',     label: 'Right Chest',             regionId: 'heart_chest',  x: 12, y: 26 },
+  { id: 'left_chest',      label: 'Left Chest',              regionId: 'heart_chest',  x: 22, y: 26 },
+  // ARMS & HANDS
+  { id: 'r_upper_arm',     label: 'Right Upper Arm',         regionId: 'hands_arms',   x: 8,  y: 29 },
+  { id: 'l_upper_arm',     label: 'Left Upper Arm',          regionId: 'hands_arms',   x: 26, y: 29 },
+  { id: 'r_elbow',         label: 'Right Elbow',             regionId: 'hands_arms',   x: 7,  y: 36 },
+  { id: 'l_elbow',         label: 'Left Elbow',              regionId: 'hands_arms',   x: 27, y: 36 },
+  { id: 'r_wrist',         label: 'Right Wrist',             regionId: 'hands_arms',   x: 6,  y: 45 },
+  { id: 'l_wrist',         label: 'Left Wrist',              regionId: 'hands_arms',   x: 28, y: 45 },
+  { id: 'r_palm',          label: 'Right Palm',              regionId: 'hands_arms',   x: 5,  y: 49 },
+  { id: 'l_palm',          label: 'Left Palm',               regionId: 'hands_arms',   x: 29, y: 49 },
+  // ABDOMEN
+  { id: 'solar_plexus',    label: 'Solar Plexus',            regionId: 'stomach_gut',  x: 17, y: 31 },
+  { id: 'liver',           label: 'Liver / Right Abdomen',   regionId: 'stomach_gut',  x: 13, y: 33 },
+  { id: 'mid_abdomen',     label: 'Mid Abdomen / Navel',     regionId: 'stomach_gut',  x: 17, y: 36 },
+  { id: 'left_abdomen',    label: 'Left Abdomen',            regionId: 'stomach_gut',  x: 21, y: 33 },
+  { id: 'lower_abdomen',   label: 'Lower Abdomen',           regionId: 'stomach_gut',  x: 17, y: 41 },
+  { id: 'lumbar',          label: 'Mid Back / Lumbar',       regionId: 'back_spine',   x: 36, y: 36 },
+  { id: 'r_kidney',        label: 'Right Kidney',            regionId: 'back_spine',   x: 32, y: 39 },
+  { id: 'l_kidney',        label: 'Left Kidney',             regionId: 'back_spine',   x: 40, y: 39 },
+  { id: 'sacrum',          label: 'Sacrum',                  regionId: 'back_spine',   x: 36, y: 45 },
+  { id: 'buttocks',        label: 'Buttocks',                regionId: 'back_spine',   x: 36, y: 49 },
+  // REPRODUCTIVE / HIP
+  { id: 'groin_m',         label: 'Groin',                   regionId: 'reproductive', x: 17, y: 44 },
+  { id: 'r_hip',           label: 'Right Hip',               regionId: 'reproductive', x: 12, y: 44 },
+  { id: 'l_hip',           label: 'Left Hip',                regionId: 'reproductive', x: 22, y: 44 },
+  // LEGS & FEET
+  { id: 'r_thigh_f',       label: 'Right Thigh',             regionId: 'legs_feet',    x: 14, y: 53 },
+  { id: 'l_thigh_f',       label: 'Left Thigh',              regionId: 'legs_feet',    x: 20, y: 53 },
+  { id: 'r_knee',          label: 'Right Knee',              regionId: 'legs_feet',    x: 14, y: 63 },
+  { id: 'l_knee',          label: 'Left Knee',               regionId: 'legs_feet',    x: 20, y: 63 },
+  { id: 'r_thigh_b',       label: 'Right Thigh Back',        regionId: 'legs_feet',    x: 32, y: 56 },
+  { id: 'l_thigh_b',       label: 'Left Thigh Back',         regionId: 'legs_feet',    x: 40, y: 56 },
+  { id: 'r_calf',          label: 'Right Calf',              regionId: 'legs_feet',    x: 14, y: 73 },
+  { id: 'l_calf',          label: 'Left Calf',               regionId: 'legs_feet',    x: 20, y: 73 },
+  { id: 'r_ankle',         label: 'Right Ankle',             regionId: 'legs_feet',    x: 14, y: 84 },
+  { id: 'l_ankle',         label: 'Left Ankle',              regionId: 'legs_feet',    x: 20, y: 84 },
+  { id: 'r_foot',          label: 'Right Foot',              regionId: 'legs_feet',    x: 13, y: 92 },
+  { id: 'l_foot',          label: 'Left Foot',               regionId: 'legs_feet',    x: 19, y: 92 },
+  // FEMALE FIGURES (right half, ~50-100% x)
+  { id: 'crown_f',         label: 'Crown (female)',          regionId: 'head_mind',    x: 67, y: 5  },
+  { id: 'r_eye_f',         label: 'Right Eye (female)',      regionId: 'head_mind',    x: 64, y: 9  },
+  { id: 'l_eye_f',         label: 'Left Eye (female)',       regionId: 'head_mind',    x: 70, y: 9  },
+  { id: 'throat_f',        label: 'Throat (female)',         regionId: 'throat_voice', x: 67, y: 14 },
+  { id: 'upper_chest_f',   label: 'Upper Chest (female)',    regionId: 'heart_chest',  x: 67, y: 21 },
+  { id: 'solar_plexus_f',  label: 'Solar Plexus (female)',   regionId: 'stomach_gut',  x: 67, y: 31 },
+  { id: 'groin_f',         label: 'Groin (female)',          regionId: 'reproductive', x: 67, y: 44 },
+  { id: 'back_neck_f',     label: 'Back of Neck (female)',   regionId: 'throat_voice', x: 85, y: 11 },
+  { id: 'sacrum_f',        label: 'Sacrum (female)',         regionId: 'back_spine',   x: 86, y: 45 },
+]
 
 // ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
 
@@ -5397,8 +5450,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
     load()
   }, [selectedRegion])
 
-  function handleHotspotClick(hotspotKey: string) {
-    const regionId = HOTSPOT_TO_REGION[hotspotKey] || hotspotKey
+  function handleHotspotClick(regionId: string) {
     const region = BODY_REGIONS.find(r => r.id === regionId) || null
     setSelectedRegion(region)
     setPanelOpen(true)
@@ -5406,6 +5458,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
 
   return (
     <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
+      <style>{`@keyframes bmPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.45); } 60% { box-shadow: 0 0 0 9px rgba(201,168,76,0); } }`}</style>
       {/* Header */}
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {isMobile && (
@@ -5441,41 +5494,48 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
             draggable={false}
             onError={(e) => { console.error('Body map image failed to load', (e.target as HTMLImageElement).src) }}
           />
-          {/* Transparent hotspot overlays — positioned as % of image */}
-          {Object.entries(BM_HOTSPOTS).map(([key, pos]) => {
-            const regionId = HOTSPOT_TO_REGION[key] || key
-            const region   = BODY_REGIONS.find(r => r.id === regionId)
-            const isActive = selectedRegion?.id === regionId && panelOpen
-            const isHov    = hoveredHotspot === key
+          {/* Point hotspot overlays — 28px circles centered at coordinate */}
+          {BM_POINT_HOTSPOTS.map(h => {
+            const isActive = selectedRegion?.id === h.regionId && panelOpen
+            const isHov    = hoveredHotspot === h.id
             return (
               <div
-                key={key}
-                title={region?.label || key}
-                onClick={() => handleHotspotClick(key)}
-                onMouseEnter={() => setHoveredHotspot(key)}
+                key={h.id}
+                title={h.label}
+                onClick={() => handleHotspotClick(h.regionId)}
+                onMouseEnter={() => setHoveredHotspot(h.id)}
                 onMouseLeave={() => setHoveredHotspot(null)}
                 style={{
                   position: 'absolute',
-                  left: `${pos.left}%`, top: `${pos.top}%`,
-                  width: `${pos.width}%`, height: `${pos.height}%`,
-                  borderRadius: 6,
+                  left: `${h.x}%`,
+                  top: `${h.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
                   cursor: 'pointer',
-                  background: isActive ? 'rgba(201,168,76,0.22)' : isHov ? 'rgba(201,168,76,0.12)' : 'transparent',
-                  border: isActive ? '1px solid rgba(201,168,76,0.5)' : isHov ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent',
-                  transition: 'all 0.15s',
+                  background: isActive ? 'rgba(201,168,76,0.28)' : isHov ? 'rgba(201,168,76,0.18)' : 'transparent',
+                  border: isActive ? '2px solid rgba(201,168,76,0.75)' : isHov ? '2px solid rgba(201,168,76,0.55)' : '2px solid rgba(201,168,76,0)',
+                  boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : isHov ? '0 0 14px rgba(201,168,76,0.38)' : 'none',
+                  animation: isHov ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
+                  transition: 'background 0.15s, border 0.15s, box-shadow 0.15s',
                   zIndex: 2,
                 }}
               />
             )
           })}
-          {/* Hovered label tooltip */}
-          {hoveredHotspot && !panelOpen && (
-            <div style={{ position: 'absolute', bottom: -28, left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap',
-              fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
-              background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
-              {(() => { const r = HOTSPOT_TO_REGION[hoveredHotspot] || hoveredHotspot; return BODY_REGIONS.find(b => b.id === r)?.label || r })()}
-            </div>
-          )}
+          {/* Hovered label tooltip — follows the hotspot */}
+          {hoveredHotspot && !panelOpen && (() => {
+            const h = BM_POINT_HOTSPOTS.find(p => p.id === hoveredHotspot)
+            if (!h) return null
+            return (
+              <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 18px)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
+                fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
+                background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
+                {h.label}
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -7710,26 +7770,26 @@ function CommunityPage() {
           </div>
           <div style={{ overflow: 'hidden', maxHeight: archiveOpen ? 250 : 0, transition: 'max-height 0.2s ease' }}>
             <div style={{ paddingLeft: 16 }}>
-              <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <Search size={11} strokeWidth={1.6} />
+              <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <Search size={14} strokeWidth={1.6} />
                 <span>Symptom Investigator</span>
               </button>
-              <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <Map size={11} strokeWidth={1.6} />
+              <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <Map size={14} strokeWidth={1.6} />
                 <span>Body Map</span>
               </button>
-              <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <Network size={11} strokeWidth={1.6} />
+              <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <Network size={14} strokeWidth={1.6} />
                 <span>Spirit Network</span>
               </button>
-              <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <DoorOpen size={11} strokeWidth={1.6} />
+              <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <DoorOpen size={14} strokeWidth={1.6} />
                 <span>Gateway Investigator</span>
               </button>
-              <a href="/community/dream-interpreter" style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid rgba(201,168,76,0.1)', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', boxSizing: 'border-box' as const }}
+              <a href="/community/dream-interpreter" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid rgba(201,168,76,0.1)', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: isDark ? '#9a8874' : '#7a6858', boxSizing: 'border-box' as const }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#6b5e45' : '#5C5248'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}>
-                <Moon size={11} strokeWidth={1.6} />
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#9a8874' : '#7a6858'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}>
+                <Moon size={14} strokeWidth={1.6} />
                 <span>Dream Interpreter</span>
               </a>
             </div>
