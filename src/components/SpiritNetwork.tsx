@@ -804,29 +804,84 @@ Be direct and practical. This is for active ministry use.`,
 
   // ── MOBILE ─────────────────────────────────────────────────────────────────
   if (isMobile) {
+    const mobileTab = selectedSpirit ? mode : 'network'
+    const visibleDemons = searchQuery.length > 1 ? searchResults : demons
+
     return (
-      <div style={{ flex: 1, overflowY: 'auto' as const, background: DARK, padding: 16 }}>
-        <div style={{ marginBottom: 16 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: DARK, overflow: 'hidden' }}>
+        {/* Search bar */}
+        <div style={{ padding: '12px 16px 8px', flexShrink: 0 }}>
           <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
             placeholder={`Search ${demons.length} spirits…`}
             style={{ width: '100%', padding: '10px 14px', background: SURF, border: `1px solid ${MUT}`, borderRadius: 6, color: '#c8b99a', fontFamily: inter, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }} />
-          {searchQuery && searchResults.length > 0 && (
-            <div style={{ background: SURF, border: `1px solid ${MUT}`, borderRadius: 6, marginTop: 4 }}>
-              {searchResults.map(d => (
-                <div key={d.id} onClick={() => searchSelect(d)}
-                  style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', flex: 1 }}>{d.name}</span>
-                  <span style={{ fontFamily: inter, fontSize: 10, color: DIM, background: BDR, padding: '2px 8px', borderRadius: 10 }}>{d.kingdom}</span>
-                </div>
-              ))}
-            </div>
+        </div>
+
+        {/* NETWORK / DOSSIER tabs */}
+        <div style={{ display: 'flex', padding: '0 16px', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
+          {(['network', 'dossier'] as const).map(m => (
+            <button key={m} onClick={() => { if (m === 'dossier' && !selectedSpirit) return; setMode(m) }}
+              style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: mobileTab === m ? `2px solid ${GC}` : '2px solid transparent', color: mobileTab === m ? GC : (m === 'dossier' && !selectedSpirit ? '#2a2035' : DIM), fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: m === 'dossier' && !selectedSpirit ? 'default' : 'pointer', marginBottom: -1 }}>
+              {m.toUpperCase()}
+            </button>
+          ))}
+          {selectedSpirit && (
+            <span style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.06em', alignSelf: 'center', marginLeft: 8, opacity: 0.8, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+              — {selectedSpirit.name}
+            </span>
           )}
         </div>
-        {selectedSpirit ? (
-          <MobileDossier spirit={selectedSpirit} demons={demons} resources={resources} loadingResources={loadingResources}
-            onSelectSpirit={selectSpirit} onBack={() => { setSelectedSpirit(null); setNavStack([]) }} />
-        ) : (
-          <MobileExplorer demons={demons} kingdoms={kingdoms} groupedByKingdom={groupedByKingdom} onSelect={searchSelect} />
+
+        {/* NETWORK tab: card list */}
+        {mobileTab === 'network' && (
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: '12px 16px' }}>
+            {visibleDemons.length === 0 && (
+              <div style={{ fontFamily: inter, fontSize: 13, color: DIM, textAlign: 'center' as const, paddingTop: 40 }}>No spirits found</div>
+            )}
+            {visibleDemons.map(d => {
+              const companions = d.companionSpirits
+                ? String(d.companionSpirits).split(',').map(s => s.trim()).filter(Boolean).slice(0, 3)
+                : []
+              const isActive = selectedSpirit?.id === d.id
+              return (
+                <div key={d.id} onClick={() => { searchSelect(d); setMode('dossier') }}
+                  style={{ marginBottom: 10, padding: '12px 14px', background: isActive ? 'rgba(201,168,76,0.08)' : SURF, border: `1px solid ${isActive ? 'rgba(201,168,76,0.4)' : BDR}`, borderRadius: 8, cursor: 'pointer', borderLeft: `3px solid ${isActive ? GC : 'transparent'}` }}>
+                  {/* Name + kingdom badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: companions.length > 0 || d.parentStrongman ? 6 : 0 }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.04em', flex: 1 }}>{d.name}</span>
+                    {d.kingdom && (
+                      <span style={{ fontFamily: inter, fontSize: 9, color: GC, background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '2px 8px', flexShrink: 0 }}>
+                        {d.kingdom}
+                      </span>
+                    )}
+                  </div>
+                  {/* Parent spirit */}
+                  {d.parentStrongman && (
+                    <div style={{ fontFamily: inter, fontSize: 10, color: DIM, marginBottom: companions.length > 0 ? 5 : 0 }}>
+                      Under: <span style={{ color: '#6a5a4a' }}>{d.parentStrongman}</span>
+                    </div>
+                  )}
+                  {/* Companion chips */}
+                  {companions.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                      {companions.map(name => (
+                        <span key={name} style={{ fontFamily: inter, fontSize: 9, color: '#5a4f3a', background: '#1a1520', border: `1px solid ${BDR}`, borderRadius: 10, padding: '2px 7px' }}>
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* DOSSIER tab */}
+        {mobileTab === 'dossier' && selectedSpirit && (
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: '12px 16px' }}>
+            <MobileDossier spirit={selectedSpirit} demons={demons} resources={resources} loadingResources={loadingResources}
+              onSelectSpirit={d => { selectSpirit(d); setMode('dossier') }} onBack={() => { setSelectedSpirit(null); setNavStack([]); setMode('network') }} />
+          </div>
         )}
       </div>
     )
