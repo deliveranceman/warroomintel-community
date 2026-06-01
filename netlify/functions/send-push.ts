@@ -80,32 +80,34 @@ export default async function handler(req: Request) {
   }
 
   const payloadStr = JSON.stringify({ title, body: msgBody || 'New activity in the War Room', url: url || '/community' })
-  let sent = 0, failed = 0
-  let firstError: string | null = null
 
-  for (const row of rows) {
-    const endpoint = (row.endpoint as string) || (row.subscription as any)?.endpoint
-    try {
-      await webpush.sendNotification(row.subscription as webpush.PushSubscription, payloadStr)
-      sent++
-    } catch (err: any) {
-      failed++
-      firstError = firstError || err.message
-      console.error('[send-push] Push failed:', {
-        message:    err.message,
-        statusCode: err.statusCode,
-        body:       err.body,
-        endpoint:   endpoint?.slice(-30),
-      })
-      // 404 or 410 = subscription expired/unregistered — remove it
-      if (err.statusCode === 404 || err.statusCode === 410) {
-        if (endpoint) {
+  // Send all in parallel — each handles its own 404/410 cleanup so one stale
+  // subscription doesn't block or timeout the whole batch
+  const results = await Promise.allSettled(
+    rows.map(async (row) => {
+      const endpoint = (row.endpoint as string) || (row.subscription as any)?.endpoint
+      try {
+        await webpush.sendNotification(row.subscription as webpush.PushSubscription, payloadStr)
+      } catch (err: any) {
+        console.error('[send-push] Push failed:', {
+          message:    err.message,
+          statusCode: err.statusCode,
+          endpoint:   endpoint?.slice(-30),
+        })
+        if ((err.statusCode === 404 || err.statusCode === 410) && endpoint) {
           await client.from('push_subscriptions').delete().eq('endpoint', endpoint)
           console.log('[send-push] Deleted expired subscription:', endpoint.slice(-30))
         }
+        throw err
       }
-    }
-  }
+    })
+  )
+
+  const sent     = results.filter(r => r.status === 'fulfilled').length
+  const failed   = results.filter(r => r.status === 'rejected').length
+  const firstError = failed > 0
+    ? (results.find(r => r.status === 'rejected') as PromiseRejectedResult).reason?.message
+    : null
 
   // Record in-app notifications for each targeted user
   try {

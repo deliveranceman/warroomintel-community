@@ -125,7 +125,7 @@
   timeout = 10
 
 [functions."send-push"]
-  timeout = 15
+  timeout = 26
   external_node_modules = ["web-push"]
 
 [functions."test-push"]
