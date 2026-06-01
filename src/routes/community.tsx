@@ -1934,7 +1934,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
 
   // ── COURSE LIST VIEW ──
   if (view === 'list') return (
-    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px', paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : undefined }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
         <div>
@@ -2190,7 +2190,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
               </button>
             ))}
           </div>
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', minHeight: 0, paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : 20 }}>
             {activeTab === 'notes' && (() => {
               const notes = selectedEpisode.notes || ''
               const isYtSpam = notes.includes('#Deliverance') || notes.includes('Subscribe for teachings')
@@ -5864,6 +5864,9 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
 }
 
 
+const BM_FIGURES = ['Male Front', 'Male Back', 'Female Front', 'Female Back']
+const BM_FIGURE_RANGES = [[0, 25], [25, 50], [50, 75], [75, 100]]
+
 function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: any) {
   const GC = '#C9A84C'
 
@@ -5872,6 +5875,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
   const [panelOpen,      setPanelOpen]      = useState(false)
   const [manifestations, setManifestations] = useState<any[]>([])
   const [manifLoading,   setManifLoading]   = useState(false)
+  const [figureIndex,    setFigureIndex]    = useState(0)
+  const touchStartX = React.useRef(0)
 
   useEffect(() => {
     if (!selectedHotspot) return
@@ -5910,60 +5915,129 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
         </div>
       </div>
 
-      {/* Image + hotspot overlay */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 8 : '12px 20px', position: 'relative' }}>
-        <div style={{ position: 'relative', display: 'inline-block', maxHeight: '100%', maxWidth: '100%' }}>
-          <img
-            src="/images/WRI_BODYMAP.png?v=3"
-            alt="Spirit Body Map"
-            style={{ display: 'block', maxHeight: isMobile ? 'calc(100dvh - 220px)' : 'calc(100dvh - 180px)', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
-            draggable={false}
-            onError={(e) => { console.error('Body map image failed to load', (e.target as HTMLImageElement).src) }}
-          />
-          {/* Point hotspot overlays — 28px circles centered at coordinate */}
-          {BM_POINT_HOTSPOTS.map(h => {
-            const isActive = selectedHotspot?.id === h.id && panelOpen
-            const isHov    = hoveredHotspot === h.id
-            return (
-              <div
-                key={h.id}
-                title={h.label}
-                onClick={() => handleHotspotClick(h)}
-                onMouseEnter={() => setHoveredHotspot(h.id)}
-                onMouseLeave={() => setHoveredHotspot(null)}
-                style={{
-                  position: 'absolute',
-                  left: `${h.x}%`,
-                  top: `${h.y}%`,
-                  transform: 'translate(-50%, -50%)',
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  background: isActive ? 'rgba(201,168,76,0.28)' : isHov ? 'rgba(201,168,76,0.18)' : 'transparent',
-                  border: isActive ? '2px solid rgba(201,168,76,0.75)' : isHov ? '2px solid rgba(201,168,76,0.55)' : '2px solid rgba(201,168,76,0)',
-                  boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : isHov ? '0 0 14px rgba(201,168,76,0.38)' : 'none',
-                  animation: isHov ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
-                  transition: 'background 0.15s, border 0.15s, box-shadow 0.15s',
-                  zIndex: 2,
-                }}
-              />
-            )
-          })}
-          {/* Hovered label tooltip — follows the hotspot */}
-          {hoveredHotspot && !panelOpen && (() => {
-            const h = BM_POINT_HOTSPOTS.find(p => p.id === hoveredHotspot)
-            if (!h) return null
-            return (
-              <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 18px)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
-                fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
-                background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
-                {h.label}
-              </div>
-            )
-          })()}
+      {/* Mobile: figure selector tabs */}
+      {isMobile && (
+        <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0 }}>
+          {BM_FIGURES.map((fig, i) => (
+            <button key={fig} onClick={() => setFigureIndex(i)}
+              style={{ flex: 1, padding: '8px 4px', background: 'transparent', border: 'none', borderBottom: figureIndex === i ? `2px solid ${GC}` : '2px solid transparent', color: figureIndex === i ? GC : '#4a3f2f', fontFamily: cinzel, fontSize: 7, letterSpacing: '0.05em', cursor: 'pointer', marginBottom: -1 }}>
+              {fig.toUpperCase()}
+            </button>
+          ))}
         </div>
-      </div>
+      )}
+
+      {/* Image + hotspot overlay */}
+      {isMobile ? (
+        // Mobile: clipped single-figure view with swipe
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+          onTouchEnd={e => {
+            const diff = touchStartX.current - e.changedTouches[0].clientX
+            if (diff > 50) setFigureIndex(prev => Math.min(3, prev + 1))
+            else if (diff < -50) setFigureIndex(prev => Math.max(0, prev - 1))
+          }}
+        >
+          {/* Track: 400% wide, shifts to show selected figure */}
+          <div style={{ position: 'absolute', inset: 0, width: '400%', transform: `translateX(-${figureIndex * 25}%)`, transition: 'transform 0.3s ease' }}>
+            <img
+              src="/images/WRI_BODYMAP.png?v=3"
+              alt="Spirit Body Map"
+              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
+              draggable={false}
+            />
+            {/* Hotspot overlays — positioned relative to the 400%-wide track */}
+            {BM_POINT_HOTSPOTS.filter(h => {
+              const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
+              return h.x >= lo && h.x < hi
+            }).map(h => {
+              const isActive = selectedHotspot?.id === h.id && panelOpen
+              return (
+                <div
+                  key={h.id}
+                  title={h.label}
+                  onClick={() => handleHotspotClick(h)}
+                  style={{
+                    position: 'absolute',
+                    left: `${h.x}%`,
+                    top: `${h.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
+                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
+                    boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
+                    zIndex: 2,
+                  }}
+                />
+              )
+            })}
+          </div>
+          {/* Indicator dots */}
+          <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, zIndex: 5, pointerEvents: 'none' }}>
+            {BM_FIGURES.map((_, i) => (
+              <div key={i} style={{ width: i === figureIndex ? 20 : 6, height: 6, borderRadius: 3, background: i === figureIndex ? GC : 'rgba(201,168,76,0.3)', transition: 'all 0.2s' }} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        // Desktop: full 4-figure view
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 20px', position: 'relative' }}>
+          <div style={{ position: 'relative', display: 'inline-block', maxHeight: '100%', maxWidth: '100%' }}>
+            <img
+              src="/images/WRI_BODYMAP.png?v=3"
+              alt="Spirit Body Map"
+              style={{ display: 'block', maxHeight: 'calc(100dvh - 180px)', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
+              draggable={false}
+              onError={(e) => { console.error('Body map image failed to load', (e.target as HTMLImageElement).src) }}
+            />
+            {/* Point hotspot overlays — 28px circles centered at coordinate */}
+            {BM_POINT_HOTSPOTS.map(h => {
+              const isActive = selectedHotspot?.id === h.id && panelOpen
+              const isHov    = hoveredHotspot === h.id
+              return (
+                <div
+                  key={h.id}
+                  title={h.label}
+                  onClick={() => handleHotspotClick(h)}
+                  onMouseEnter={() => setHoveredHotspot(h.id)}
+                  onMouseLeave={() => setHoveredHotspot(null)}
+                  style={{
+                    position: 'absolute',
+                    left: `${h.x}%`,
+                    top: `${h.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.28)' : isHov ? 'rgba(201,168,76,0.18)' : 'transparent',
+                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : isHov ? '2px solid rgba(201,168,76,0.55)' : '2px solid rgba(201,168,76,0)',
+                    boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : isHov ? '0 0 14px rgba(201,168,76,0.38)' : 'none',
+                    animation: isHov ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
+                    transition: 'background 0.15s, border 0.15s, box-shadow 0.15s',
+                    zIndex: 2,
+                  }}
+                />
+              )
+            })}
+            {/* Hovered label tooltip */}
+            {hoveredHotspot && !panelOpen && (() => {
+              const h = BM_POINT_HOTSPOTS.find(p => p.id === hoveredHotspot)
+              if (!h) return null
+              return (
+                <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 18px)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
+                  fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
+                  background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
+                  {h.label}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Slide Panel — from right on desktop, bottom sheet on mobile */}
       {panelOpen && selectedHotspot && (
