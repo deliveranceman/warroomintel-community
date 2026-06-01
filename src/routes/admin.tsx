@@ -85,12 +85,16 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [newCategory, setNewCategory]   = useState('')
 
   const TOPICS = [
-    'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
-    'Freemasonry & Secret Societies', 'Sexual Bondage', 'Fear & Rejection',
-    'Identity & Sonship', 'Inner Healing', 'Witchcraft & Occult',
-    'Marine Kingdom', 'Mind Control', 'Leviathan & Pride', 'Jezebel & Control',
-    'Python & Constriction', 'Deliverance Foundations', 'Aftercare',
-    'Prayer & Intercession', 'Scripture Reference', 'General Ministry',
+    'Spiritual Warfare',
+    'Deliverance Ministry',
+    'Inspirational / Faith',
+    'Prayer & Intercession',
+    'Ministry Training',
+    'Devotional',
+    "Men's Ministry",
+    'Healing & Wholeness',
+    'Generational / Bloodline',
+    'Scripture Study',
   ]
 
   async function fetchResources() {
@@ -192,7 +196,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         fd.append('file', sf.file)
         fd.append('title', sf.filename.replace(/\.[^.]+$/, ''))
         fd.append('tier', sf.tier)
-        fd.append('topic', 'General Ministry')
+        fd.append('topic', 'Spiritual Warfare')
         fd.append('tags', '[]')
         const token = await getToken()
         const res = await fetch('/api/admin-upload', {
@@ -4216,7 +4220,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   // Inline edit state — one card open at a time
   const [editingId,   setEditingId]   = useState<string | null>(null)
-  const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence' }>({ title: '', author: '', notes: '', topic: 'ministry-library', spirit_tags: [], sourceType: 'christian' })
+  const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence' }>({ title: '', author: '', notes: '', topic: 'Spiritual Warfare', spirit_tags: [], sourceType: 'christian' })
   const [editLoading, setEditLoading] = useState(false)
   const [reanalyzeId,     setReanalyzeId]     = useState<string | null>(null)
   const [reanalyzeErrors, setReanalyzeErrors] = useState<Record<string, string>>({})
@@ -4481,7 +4485,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       title:       book.title  || '',
       author:      book.author || '',
       notes:       book.notes  || '',
-      topic:       book.topic  || 'ministry-library',
+      topic:       book.topic  || 'Spiritual Warfare',
       spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
       sourceType:  (book.source_type === 'intelligence' ? 'intelligence' : 'christian') as 'christian' | 'intelligence',
     })
@@ -5038,7 +5042,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                         <div style={{ marginBottom: 8 }}>
                           <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>TOPIC</label>
                           <select value={editForm.topic} onChange={e => setEditForm(p => ({ ...p, topic: e.target.value }))} style={{ ...inp, fontSize: 12, padding: '6px 10px' }}>
-                            {['ministry-library','deliverance','spiritual-warfare','inner-healing','theology','prayer','prophecy','healing'].map(t => (
+                            {['Spiritual Warfare','Deliverance Ministry','Inspirational / Faith','Prayer & Intercession','Ministry Training','Devotional',"Men's Ministry",'Healing & Wholeness','Generational / Bloodline','Scripture Study'].map(t => (
                               <option key={t} value={t}>{t}</option>
                             ))}
                           </select>
