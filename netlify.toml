@@ -124,6 +124,9 @@
 [functions."push-subscribe"]
   timeout = 10
 
+[functions."debug-push"]
+  timeout = 10
+
 [functions."send-push"]
   timeout = 26
   external_node_modules = ["web-push"]

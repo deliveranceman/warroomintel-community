@@ -84,11 +84,7 @@ export function Header() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   useEffect(() => {
     const stored = localStorage.getItem('wri-theme')
-    if (stored === 'dark' || stored === 'light') {
-      setTheme(stored)
-    } else {
-      setTheme(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
-    }
+    setTheme(stored === 'light' ? 'light' : 'dark')
   }, [])
 
   function toggleTheme() {
@@ -150,7 +146,7 @@ export function Header() {
           display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
           gap: 8,
           padding: '0 16px',
-          minHeight: '60px',
+          height: '60px',
           boxSizing: 'border-box',
           width: '100%',
         }}>
@@ -277,10 +273,9 @@ export function Header() {
           {/* Spacer */}
           <div style={{ flex: 1 }} />
 
-          {/* ⌘K button (desktop only) */}
+          {/* ⌘K button */}
           <SignedIn>
             <button
-              className="wr-nav-desktop"
               onClick={openCmd}
               title="Command palette (⌘K)"
               aria-label="Open command palette"
@@ -292,8 +287,9 @@ export function Header() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '5px 10px',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
                 fontFamily: cinzel,
                 fontSize: '10px',
                 letterSpacing: '0.08em',
@@ -307,14 +303,13 @@ export function Header() {
             </button>
           </SignedIn>
 
-          {/* Bell (desktop only) */}
+          {/* Bell */}
           <SignedIn>
             <button
-              className="wr-nav-desktop"
               aria-label="Notifications"
               title="Notifications"
               style={{
-                width: '32px', height: '32px',
+                width: '40px', height: '40px',
                 background: 'none',
                 border: `1px solid ${borderBright}`,
                 borderRadius: '50%',
@@ -375,11 +370,11 @@ export function Header() {
                 </SignInButton>
               </SignedOut>
               <SignedIn>
-                <div style={{ flexShrink: 0 }}>
+                <div style={{ flexShrink: 0, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <UserButton
                     appearance={{
                       elements: {
-                        avatarBox: { width: '36px', height: '36px' },
+                        avatarBox: { width: '36px', height: '36px', borderRadius: '50%' },
                       },
                     }}
                   />
@@ -430,7 +425,7 @@ export function Header() {
             aria-label="Switch theme"
             title="Switch theme"
             style={{
-              width: '32px', height: '32px',
+              width: '40px', height: '40px',
               background: 'none',
               border: `1px solid ${borderBright}`,
               borderRadius: '50%',
@@ -439,7 +434,6 @@ export function Header() {
               fontSize: '14px',
               lineHeight: 1,
               flexShrink: 0,
-              marginLeft: 8,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

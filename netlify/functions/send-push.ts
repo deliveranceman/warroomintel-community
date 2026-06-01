@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 
 const HEADERS = {
+  'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
 }
 
 function sb() {
@@ -28,16 +28,16 @@ async function isMinisterToken(token: string): Promise<boolean> {
 }
 
 export default async function handler(req: Request) {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
+  if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: HEADERS })
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
   }
 
-  // Accept: service key header OR Clerk JWT with minister role
+  // Auth: accept service key (internal) or Clerk minister JWT
   const authHeader = req.headers.get('Authorization') || ''
-  const serviceKey = process.env.SUPABASE_SERVICE_KEY!
   const token = authHeader.replace('Bearer ', '').trim()
-  const isServiceKey = token === serviceKey || authHeader.includes(serviceKey.slice(-12))
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!
+  const isServiceKey = token === serviceKey
   const host = req.headers.get('host') || ''
   const isInternal = host.includes('netlify') || host.includes('localhost')
 
@@ -48,89 +48,133 @@ export default async function handler(req: Request) {
     }
   }
 
+  // Parse request body
   let body: any
   try { body = await req.json() } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS })
   }
 
-  const { userId, title, body: msgBody, url } = body || {}
+  const { title, body: msgBody, url, userId } = body || {}
 
   if (!title) {
     return new Response(JSON.stringify({ error: 'title is required' }), { status: 400, headers: HEADERS })
   }
 
+  console.log('[send-push] Request:', { title, userId: userId || 'all', url })
+
+  // Configure VAPID
   const vapidPub = process.env.VAPID_PUBLIC_KEY
   const vapidPriv = process.env.VAPID_PRIVATE_KEY
-  console.log('[send-push] vapid:', {
-    publicKeyLoaded: !!vapidPub,
-    privateKeyLoaded: !!vapidPriv,
-    publicKeyPrefix: vapidPub ? vapidPub.slice(0, 8) + '…' : 'MISSING',
+  console.log('[send-push] VAPID check:', {
+    publicKeySet: !!vapidPub,
+    privateKeySet: !!vapidPriv,
+    publicKeyLength: vapidPub?.length ?? 0,
+    privateKeyLength: vapidPriv?.length ?? 0,
+    publicKeyPrefix: vapidPub ? vapidPub.slice(0, 12) + '…' : 'MISSING',
+    email: process.env.VAPID_EMAIL || 'NOT SET',
   })
+
   if (!vapidPub || !vapidPriv) {
     return new Response(JSON.stringify({ error: 'VAPID keys not configured' }), { status: 500, headers: HEADERS })
   }
-  webpush.setVapidDetails(
-    `mailto:${process.env.VAPID_EMAIL || 'exorcist@warroomintel.com'}`,
-    vapidPub,
-    vapidPriv,
-  )
 
+  try {
+    webpush.setVapidDetails(
+      `mailto:${process.env.VAPID_EMAIL || 'exorcist@warroomintel.com'}`,
+      vapidPub,
+      vapidPriv,
+    )
+    console.log('[send-push] VAPID configured successfully')
+  } catch (err: any) {
+    console.error('[send-push] VAPID setup failed:', err.message)
+    return new Response(JSON.stringify({ error: 'VAPID config error', detail: err.message }), { status: 500, headers: HEADERS })
+  }
+
+  // Fetch subscriptions
   const client = sb()
-  const query = client.from('push_subscriptions').select('user_id, subscription, endpoint')
-  if (userId) query.eq('user_id', userId)
+  let query = client.from('push_subscriptions').select('id, user_id, endpoint, subscription')
+  if (userId) query = (query as any).eq('user_id', userId)
 
-  const { data: rows, error } = await query
-  if (error) {
-    console.error('[send-push] fetch error:', error.message)
+  const { data: rows, error: dbErr } = await query
+  if (dbErr) {
+    console.error('[send-push] DB error:', dbErr.message)
     return new Response(JSON.stringify({ error: 'Failed to fetch subscriptions' }), { status: 500, headers: HEADERS })
   }
 
+  console.log('[send-push] Subscriptions found:', rows?.length ?? 0)
+
   if (!rows || rows.length === 0) {
-    return new Response(JSON.stringify({ success: true, sent: 0 }), { status: 200, headers: HEADERS })
+    return new Response(JSON.stringify({ sent: 0, failed: 0, total: 0, message: 'No subscriptions found' }), { status: 200, headers: HEADERS })
   }
 
-  const payloadStr = JSON.stringify({ title, body: msgBody || 'New activity in the War Room', url: url || '/community' })
+  const payload = JSON.stringify({
+    title,
+    body: msgBody || 'New activity in the War Room',
+    url: url || '/community',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-72.png',
+  })
 
-  let sent = 0, failed = 0
+  let sent = 0
+  let failed = 0
   const errorDetails: any[] = []
 
-  await Promise.allSettled(
-    rows.map(async (row) => {
-      const pushSub: webpush.PushSubscription =
-        typeof row.subscription === 'string'
-          ? JSON.parse(row.subscription)
-          : row.subscription as webpush.PushSubscription
+  for (const row of rows) {
+    // Parse subscription
+    let pushSub: webpush.PushSubscription
+    try {
+      pushSub = typeof row.subscription === 'string'
+        ? JSON.parse(row.subscription)
+        : row.subscription as webpush.PushSubscription
+    } catch (err) {
+      console.error('[send-push] Failed to parse subscription for row id:', row.id)
+      failed++
+      errorDetails.push({ id: row.id, user_id: row.user_id, error: 'Invalid subscription JSON' })
+      continue
+    }
 
-      const endpoint = (row.endpoint as string) || pushSub.endpoint
-      let endpointHost = '?'
-      try { endpointHost = new URL(endpoint).host } catch {}
+    const endpoint = (row.endpoint as string) || pushSub.endpoint
+    let endpointHost = '?'
+    try { endpointHost = new URL(endpoint).host } catch {}
 
-      try {
-        await webpush.sendNotification(pushSub, payloadStr)
-        sent++
-      } catch (err: any) {
-        failed++
-        const detail = {
-          user_id:      row.user_id,
-          statusCode:   err.statusCode ?? null,
-          body:         err.body ?? err.message,
-          headers:      err.headers ?? null,
-          endpointHost,
-        }
-        console.error('[send-push] Push failed:', detail)
-        errorDetails.push(detail)
-
-        if ((err.statusCode === 404 || err.statusCode === 410) && endpoint) {
-          await client.from('push_subscriptions').delete().eq('endpoint', endpoint)
-          console.log('[send-push] Deleted expired subscription:', endpoint.slice(-40))
-        }
-      }
+    console.log('[send-push] Sending to:', {
+      user_id: row.user_id,
+      endpointHost,
+      hasAuth: !!pushSub.keys?.auth,
+      hasP256dh: !!pushSub.keys?.p256dh,
     })
-  )
 
-  const firstError = errorDetails[0]?.body ?? null
+    try {
+      await webpush.sendNotification(pushSub, payload)
+      console.log('[send-push] Success:', row.user_id)
+      sent++
+    } catch (err: any) {
+      console.error('[send-push] Failed:', {
+        user_id: row.user_id,
+        statusCode: err.statusCode,
+        body: err.body,
+        message: err.message,
+        endpointHost,
+      })
 
-  // Record in-app notifications for each targeted user
+      failed++
+      errorDetails.push({
+        user_id: row.user_id,
+        statusCode: err.statusCode ?? null,
+        body: err.body ?? err.message,
+        headers: err.headers ?? null,
+        endpointHost,
+      })
+
+      // Auto-cleanup expired subscriptions
+      if ((err.statusCode === 404 || err.statusCode === 410) && endpoint) {
+        await client.from('push_subscriptions').delete().eq('endpoint', endpoint)
+        console.log('[send-push] Deleted expired subscription:', endpoint.slice(-40))
+      }
+    }
+  }
+
+  // Record in-app notifications
   try {
     const userIds = userId
       ? [userId]
@@ -145,7 +189,10 @@ export default async function handler(req: Request) {
     console.warn('[send-push] user_notifications insert failed:', e.message)
   }
 
-  return new Response(JSON.stringify({ success: true, sent, failed, ...(firstError ? { error: firstError } : {}), ...(errorDetails.length ? { errorDetails } : {}) }), { status: 200, headers: HEADERS })
+  const result = { sent, failed, total: rows.length, errors: errorDetails }
+  console.log('[send-push] Done:', { sent, failed, total: rows.length })
+
+  return new Response(JSON.stringify(result), { status: 200, headers: HEADERS })
 }
 
 export const config = { path: '/api/send-push' }

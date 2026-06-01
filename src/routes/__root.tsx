@@ -111,8 +111,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        {/* Anti-flash: set data-theme before first paint from localStorage */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('wri-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;})()` }} />
+        {/* Anti-flash: set data-theme before first paint; default to dark */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('wri-theme');document.documentElement.dataset.theme=(t==='light'?'light':'dark');})()` }} />
       </head>
       <body>
         <ClerkProvider
