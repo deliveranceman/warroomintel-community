@@ -6783,10 +6783,102 @@ function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<
   )
 }
 
+// ─── NOTIFICATIONS ADMIN ─────────────────────────────────────────────────────
+function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
+  const [title, setTitle]       = useState('Test Notification')
+  const [body, setBody]         = useState('This is a test push from War Room Intel admin.')
+  const [url, setUrl]           = useState('/community')
+  const [userId, setUserId]     = useState('')
+  const [sending, setSending]   = useState(false)
+  const [result, setResult]     = useState<string | null>(null)
+
+  async function sendTest() {
+    setSending(true)
+    setResult(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title, body, url, userId: userId.trim() || undefined }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setResult(`Sent: ${data.sent} delivered, ${data.failed || 0} failed.`)
+      } else {
+        setResult(`Error: ${data.error}`)
+      }
+    } catch (err: any) {
+      setResult(`Error: ${err.message}`)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const lbl: CSSProperties = { fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: isDark ? '#9a8c74' : '#5C5248', display: 'block', marginBottom: 4 }
+  const inp: CSSProperties = { width: '100%', padding: '8px 10px', background: isDark ? '#13111e' : '#fff', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : '#d4c4b0'}`, borderRadius: 4, color: isDark ? '#e8dcc8' : '#1C1410', fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' }
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: cinzel, fontSize: 16, color: G, letterSpacing: '0.12em', marginBottom: 8 }}>Push Notifications</h2>
+      <p style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#9a8c74' : '#5C5248', marginBottom: 24, lineHeight: 1.6 }}>
+        Send a test push notification to all subscribed users, or target a specific user by Clerk ID.
+        iOS users must have the app added to their home screen to receive pushes.
+      </p>
+
+      <div style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>
+          <label style={lbl}>TITLE</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>BODY</label>
+          <textarea value={body} onChange={e => setBody(e.target.value)} rows={3}
+            style={{ ...inp, resize: 'vertical' as const }} />
+        </div>
+        <div>
+          <label style={lbl}>URL (on click)</label>
+          <input value={url} onChange={e => setUrl(e.target.value)} style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>TARGET USER ID (leave blank for all subscribers)</label>
+          <input value={userId} onChange={e => setUserId(e.target.value)} placeholder="user_..." style={inp} />
+        </div>
+
+        <button
+          onClick={sendTest}
+          disabled={sending || !title}
+          style={{
+            padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em',
+            background: sending ? 'rgba(201,168,76,0.4)' : G, color: '#1a1305',
+            border: 'none', borderRadius: 4, cursor: sending ? 'not-allowed' : 'pointer',
+            alignSelf: 'flex-start',
+          }}
+        >
+          {sending ? 'SENDING...' : 'SEND TEST PUSH'}
+        </button>
+
+        {result && (
+          <div style={{ padding: '8px 12px', background: result.startsWith('Error') ? 'rgba(200,74,74,0.1)' : 'rgba(95,174,111,0.1)', border: `1px solid ${result.startsWith('Error') ? 'rgba(200,74,74,0.3)' : 'rgba(95,174,111,0.3)'}`, borderRadius: 4, fontFamily: crimson, fontSize: 13, color: result.startsWith('Error') ? '#c84a4a' : '#5fae6f' }}>
+            {result}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 32, padding: '12px 16px', background: isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.08)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.25)'}`, borderRadius: 6 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>iOS NOTE</div>
+        <p style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.6, margin: 0 }}>
+          Safari on iOS only supports Web Push when the app is installed as a PWA (Add to Home Screen). Users on iOS who have not installed the app will not receive push notifications. This is an Apple platform restriction.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -6863,9 +6955,10 @@ function AdminPage() {
       { key: 'enrichment',        label: 'Enrichment'        },
     ]},
     { label: 'SYSTEM', items: [
-      { key: 'tracker',         label: 'Tracker'        },
-      { key: 'internal-books',  label: 'Internal Books' },
-      { key: 'suggested-edits', label: '🚩 Flags'       },
+      { key: 'notifications',   label: '🔔 Notifications' },
+      { key: 'tracker',         label: 'Tracker'          },
+      { key: 'internal-books',  label: 'Internal Books'   },
+      { key: 'suggested-edits', label: '🚩 Flags'         },
     ]},
   ] as const
 
@@ -6991,6 +7084,7 @@ function AdminPage() {
                 <TaxonomyReview getToken={getToken} isDark={isDark} />
               </div>
             )}
+            {tab === 'notifications'     && <NotificationsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
             {tab === 'internal-books'    && <InternalBooks getToken={getToken} isDark={isDark} />}
             {tab === 'admin-chat'        && <AdminChat getToken={getToken} isDark={isDark} />}

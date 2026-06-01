@@ -7863,25 +7863,35 @@ function CommunityPage() {
   }, [unreadDMs])
 
   async function enablePushNotifications() {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      console.warn('[push] Notifications or service workers not supported')
+      return
+    }
+    console.log('[push] Requesting permission...')
     const permission = await window.Notification.requestPermission()
+    console.log('[push] Permission result:', permission)
     if (permission !== 'granted') {
       setShowPushBanner(false)
       try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
       return
     }
     try {
+      console.log('[push] Registering service worker...')
       const reg = await navigator.serviceWorker.register('/sw.js')
+      console.log('[push] SW registered, waiting for ready...')
       await navigator.serviceWorker.ready
+      console.log('[push] SW ready, subscribing to push...')
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       })
-      await fetch('/api/push-subscribe', {
+      console.log('[push] Push subscription created:', sub.endpoint.slice(0, 60) + '...')
+      const res = await fetch('/api/push-subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user?.id, subscription: sub.toJSON() }),
       })
+      console.log('[push] Subscribe API response:', res.status)
       setPushSubscribed(true)
       setShowPushBanner(false)
     } catch (err) {
@@ -8662,46 +8672,59 @@ function CommunityPage() {
       <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100dvh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: '100%', paddingBottom: isMobile ? 'calc(120px + env(safe-area-inset-bottom, 0px))' : undefined }}>
 
         {/* Push notification banner */}
-        {showPushBanner && !pushSubscribed && typeof window !== 'undefined' && 'Notification' in window && (
-          <div style={{
-            flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 12, padding: '8px 16px',
-            background: isDark ? 'rgba(201,168,76,0.07)' : 'rgba(201,168,76,0.12)',
-            borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.35)'}`,
-          }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: isDark ? 'var(--t-2)' : V.mut, letterSpacing: '0.04em' }}>
-              Enable notifications for prayer requests and session alerts.
-            </span>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <button
-                onClick={enablePushNotifications}
-                style={{
-                  padding: '4px 12px', fontFamily: 'var(--font-mono)', fontSize: 10,
-                  fontWeight: 600, letterSpacing: '0.08em',
-                  background: 'var(--gold)', color: '#1a1305',
-                  border: 'none', borderRadius: 2, cursor: 'pointer',
-                }}
-              >
-                Enable
-              </button>
-              <button
-                onClick={() => {
-                  setShowPushBanner(false)
-                  try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
-                }}
-                style={{
-                  padding: '4px 10px', fontFamily: 'var(--font-mono)', fontSize: 10,
-                  letterSpacing: '0.05em', color: isDark ? 'var(--t-3)' : V.mut,
-                  background: 'none', border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : V.bdr}`,
-                  borderRadius: 2, cursor: 'pointer',
-                }}
-              >
-                Not Now
-              </button>
+        {showPushBanner && !pushSubscribed && typeof window !== 'undefined' && 'Notification' in window && (() => {
+          const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+          const isStandalone = (window.navigator as any).standalone === true
+          const iosNeedsHomeScreen = isIOS && !isStandalone
+          return (
+            <div style={{
+              flexShrink: 0,
+              padding: '8px 16px',
+              background: isDark ? 'rgba(201,168,76,0.07)' : 'rgba(201,168,76,0.12)',
+              borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.35)'}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: isDark ? 'var(--t-2)' : V.mut, letterSpacing: '0.04em' }}>
+                  Enable notifications for prayer requests and session alerts.
+                </span>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  {!iosNeedsHomeScreen && (
+                    <button
+                      onClick={enablePushNotifications}
+                      style={{
+                        padding: '4px 12px', fontFamily: 'var(--font-mono)', fontSize: 10,
+                        fontWeight: 600, letterSpacing: '0.08em',
+                        background: 'var(--gold)', color: '#1a1305',
+                        border: 'none', borderRadius: 2, cursor: 'pointer',
+                      }}
+                    >
+                      Enable
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowPushBanner(false)
+                      try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
+                    }}
+                    style={{
+                      padding: '4px 10px', fontFamily: 'var(--font-mono)', fontSize: 10,
+                      letterSpacing: '0.05em', color: isDark ? 'var(--t-3)' : V.mut,
+                      background: 'none', border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : V.bdr}`,
+                      borderRadius: 2, cursor: 'pointer',
+                    }}
+                  >
+                    {iosNeedsHomeScreen ? 'Dismiss' : 'Not Now'}
+                  </button>
+                </div>
+              </div>
+              {iosNeedsHomeScreen && (
+                <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 10, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.03em' }}>
+                  iOS: To enable push notifications, tap Share → Add to Home Screen first.
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
         {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}

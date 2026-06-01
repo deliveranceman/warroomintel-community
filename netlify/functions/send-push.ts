@@ -11,19 +11,39 @@ function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 }
 
+async function isMinisterToken(token: string): Promise<boolean> {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return false
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    const userId = payload.sub
+    if (!userId) return false
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    return data?.public_metadata?.role === 'minister'
+  } catch { return false }
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
   }
 
-  // Admin-only: verify General tier via Clerk JWT or service key header
+  // Accept: service key header OR Clerk JWT with minister role
   const authHeader = req.headers.get('Authorization') || ''
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!
-  if (!authHeader.includes(serviceKey.slice(-12))) {
-    // Allow requests from internal Netlify functions (same origin)
-    const host = req.headers.get('host') || ''
-    if (!host.includes('netlify') && !host.includes('localhost') && authHeader !== `Bearer ${serviceKey}`) {
+  const token = authHeader.replace('Bearer ', '').trim()
+  const isServiceKey = token === serviceKey || authHeader.includes(serviceKey.slice(-12))
+  const host = req.headers.get('host') || ''
+  const isInternal = host.includes('netlify') || host.includes('localhost')
+
+  if (!isServiceKey && !isInternal) {
+    const minister = await isMinisterToken(token)
+    if (!minister) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
     }
   }
