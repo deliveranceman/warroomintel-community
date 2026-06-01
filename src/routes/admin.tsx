@@ -1010,9 +1010,19 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
   const [showAdd, setShowAdd] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [spirits, setSpirits] = useState<any[]>([])
 
   const blank = { hotspot_id: 'H01', body_part: '', region: '', manifestation: '', spirit_names: '', notes: '', source: '' }
   const [form, setForm] = useState(blank)
+
+  useEffect(() => {
+    getToken().then(token => {
+      fetch('/api/demons', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => setSpirits(d.demons || []))
+        .catch(() => {})
+    })
+  }, [])
 
   async function load() {
     setLoading(true)
@@ -1126,7 +1136,6 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
               ['Hotspot', 'hotspot_id', 'select'],
               ['Body Part', 'body_part', 'text'],
               ['Region', 'region', 'text'],
-              ['Spirit Names (comma-sep)', 'spirit_names', 'text'],
               ['Source', 'source', 'text'],
             ] as [string, keyof typeof form, string][]).map(([label, key, type]) => (
               <div key={key}>
@@ -1140,6 +1149,16 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                 )}
               </div>
             ))}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>SPIRIT NAMES</label>
+            <SpiritTypeahead
+              mode="multi"
+              value={form.spirit_names}
+              onChange={v => setForm(f => ({ ...f, spirit_names: v }))}
+              demons={spirits}
+              placeholder="Type to search verified spirit names..."
+            />
           </div>
           <div style={{ marginTop: 12 }}>
             <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>MANIFESTATION</label>
