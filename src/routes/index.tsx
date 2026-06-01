@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
-import { useAuth, SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
+import { useAuth, useUser, SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
 
 export const Route = createFileRoute('/')({
@@ -871,7 +871,10 @@ function FieldCommandersSection() {
 // ── PRICING ───────────────────────────────────────────────
 function PricingSection() {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const [foundingCount, setFoundingCount] = useState<number | null>(null)
+  const userTier = (user?.publicMetadata?.tier as string) || ''
+  const isFoundingMember = !!(user?.publicMetadata?.foundingMember) || userTier.startsWith('charter')
   useEffect(() => {
     fetch('/api/founding-general-count')
       .then(r => r.json())
@@ -1029,10 +1032,23 @@ function PricingSection() {
         )
       })()}
 
-      {/* Charter callout */}
-      <TacticalCard style={{ marginTop: 20, textAlign: 'center' as const }}>
-        <MonoTime size={10} color="var(--gold)">⚔ Founding Member Rates Available · Charter Soldier $9/mo · Charter Commander $20/mo · First 100 Only</MonoTime>
-      </TacticalCard>
+      {/* Founding Member recognition — shown only to charter members */}
+      {isFoundingMember && (
+        <TacticalCard style={{ marginTop: 20, background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.4)', textAlign: 'center' as const }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: 'var(--gold)', letterSpacing: '0.12em', marginBottom: 6 }}>⚜ Thank You for Being a Founding Member</div>
+          <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: 'var(--t-2)', margin: 0, lineHeight: 1.6 }}>
+            Your charter rate is locked for life. As a founding member you carry a permanent badge and early access to every new feature we build for the War Room.
+          </p>
+          <a href="/community" style={{ display: 'inline-block', marginTop: 14, padding: '8px 22px', background: 'var(--gold)', color: '#0D0B14', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', borderRadius: 4, textDecoration: 'none' }}>Enter the War Room ⚔</a>
+        </TacticalCard>
+      )}
+
+      {/* Charter callout — shown to non-founders */}
+      {!isFoundingMember && (
+        <TacticalCard style={{ marginTop: 20, textAlign: 'center' as const }}>
+          <MonoTime size={10} color="var(--gold)">⚔ Founding Member Rates Available · Charter Soldier $9/mo · Charter Commander $20/mo · First 100 Only</MonoTime>
+        </TacticalCard>
+      )}
 
       <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'var(--t-4)', fontFamily: reading, fontStyle: 'italic' }}>
         Questions? Email{' '}

@@ -9,9 +9,9 @@ const PRICE_TO_TIER: Record<string, string> = {
   'price_1TXieT5V5uqVT9SoIrPMKSAc': 'soldier',
   'price_1TXifB5V5uqVT9SohnQfGZuC': 'commander',
   'price_1TXifX5V5uqVT9SogXMp79zb': 'general',
-  // Charter (founding member) prices
-  'price_1Tb1mO5V5uqVT9So3ZRRltDC': 'soldier',
-  'price_1Tb1ms5V5uqVT9Sodiu1xbrR': 'commander',
+  // Charter (founding member) prices — stored as charter_* so badge system can distinguish
+  'price_1Tb1mO5V5uqVT9So3ZRRltDC': 'charter_soldier',
+  'price_1Tb1ms5V5uqVT9Sodiu1xbrR': 'charter_commander',
 }
 
 const FOUNDING_GENERAL_PRICE_ID = process.env.STRIPE_FOUNDING_GENERAL_PRICE_ID
@@ -137,8 +137,9 @@ export default async function handler(req: Request) {
 
         const isCharter = resolvedPriceId ? CHARTER_PRICE_IDS.has(resolvedPriceId) : false
 
+        const charterExtra = isCharter ? { foundingMember: true, is_founder: true, charter_date: new Date().toISOString() } : undefined
         if (clerkUserId) {
-          await setClerkTierById(clerkUserId, tier, isCharter ? { foundingMember: true } : undefined)
+          await setClerkTierById(clerkUserId, tier, charterExtra)
           console.log(`✅ Upgraded ${clerkUserId} to ${tier}${isCharter ? ' (charter)' : ''}`)
         } else if (email) {
           await setClerkTier(email, tier, isCharter)

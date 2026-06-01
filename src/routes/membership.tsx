@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useAuth } from '@clerk/tanstack-start'
+import { useAuth, useUser } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/membership')({
   component: MembershipPage,
@@ -37,17 +37,32 @@ const muted = 'var(--muted)'
 
 function MembershipPage() {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const [generalClicked, setGeneralClicked] = useState(false)
+  const userTier = (user?.publicMetadata?.tier as string) || ''
+  const isFoundingMember = !!(user?.publicMetadata?.foundingMember) || userTier.startsWith('charter')
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--deep)', padding: '5rem 2rem 6rem' }}>
 
       {/* Charter / Founding Member Section */}
       <div style={{ maxWidth: '900px', margin: '0 auto 60px' }}>
-        {/* Urgency banner */}
-        <div style={{ textAlign: 'center', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '10px 20px', marginBottom: '28px', fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.12em', color: gold }}>
-          ⚔ Founding Member slots are limited. First 100 only.
-        </div>
+        {/* Founding member recognition */}
+        {isFoundingMember && (
+          <div style={{ textAlign: 'center', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: '8px', padding: '18px 24px', marginBottom: '28px' }}>
+            <div style={{ fontFamily: cinzel, fontSize: '13px', letterSpacing: '0.12em', color: gold, marginBottom: 6 }}>⚜ You Are a Founding Member</div>
+            <p style={{ fontFamily: crimson, fontSize: '15px', color: textDim, margin: 0 }}>
+              Your charter rate is locked for life. Thank you for being part of the first 100.
+            </p>
+            <a href="/community" style={{ display: 'inline-block', marginTop: 12, padding: '8px 20px', background: gold, color: '#0D0B14', fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em', borderRadius: 4, textDecoration: 'none' }}>Enter the War Room ⚔</a>
+          </div>
+        )}
+        {/* Urgency banner — only for non-founders */}
+        {!isFoundingMember && (
+          <div style={{ textAlign: 'center', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '10px 20px', marginBottom: '28px', fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.12em', color: gold }}>
+            ⚔ Founding Member slots are limited. First 100 only.
+          </div>
+        )}
 
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '10px' }}>✦ Charter Membership</p>
