@@ -1834,146 +1834,6 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId, getToken, s
   )
 }
 
-// ── WAR ROOM BOARD VIEW ────────────────────────────────────
-function WarRoomBoardView({ theme, isMobile, setSidebarOpen, userId, userName, getToken }: any) {
-  const isDark = theme !== 'light'
-  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
-  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
-  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
-  const txt  = isDark ? '#f0e8d8' : '#2D2924'
-  const mut  = isDark ? '#9a8c74' : '#5C5248'
-  const GD   = isDark ? '#C9A84C' : '#8B6914'
-
-  const [feedback, setFeedback] = useState<any[]>([])
-  const [tabType, setTabType]   = useState<'feature' | 'bug'>('feature')
-  const [loading, setLoading]   = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [formType, setFormType] = useState<'feature' | 'bug'>('feature')
-  const [title, setTitle]       = useState('')
-  const [desc, setDesc]         = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  async function loadFeedback() {
-    setLoading(true)
-    try {
-      const token = await getToken()
-      const res = await fetch(`/api/platform-feedback?type=${tabType}`, { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) { const d = await res.json(); setFeedback(d.feedback || []) }
-    } catch {}
-    setLoading(false)
-  }
-
-  useEffect(() => { loadFeedback() }, [tabType])
-
-  async function submit() {
-    if (!title.trim()) return
-    setSubmitting(true)
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/platform-feedback', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: formType, title: title.trim(), description: desc.trim(), userName }),
-      })
-      if (res.ok) {
-        const d = await res.json()
-        if (formType === tabType) setFeedback(prev => [d.feedback, ...prev])
-        setTitle(''); setDesc(''); setShowForm(false)
-      }
-    } catch {}
-    setSubmitting(false)
-  }
-
-  async function toggleUpvote(item: any) {
-    const token = await getToken()
-    const res = await fetch(`/api/platform-feedback?id=${item.id}&action=upvote`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok) {
-      const d = await res.json()
-      setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, upvotes: d.upvotes, userUpvoted: d.userUpvoted } : f))
-    }
-  }
-
-  const STATUS_COLORS: Record<string, string> = { open: '#C9A84C', 'in progress': '#4a90d9', done: '#4ade80' }
-  const filtered = feedback.filter(f => f.type === tabType)
-
-  return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
-      {/* Header */}
-      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>📋 War Room Board</div>
-        </div>
-        <button onClick={() => setShowForm(s => !s)}
-          style={{ padding: '8px 16px', background: showForm ? 'rgba(201,168,76,0.15)' : surf, border: `1px solid ${GD}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
-          {showForm ? '× CLOSE' : '+ SUBMIT REQUEST'}
-        </button>
-      </div>
-
-      {/* Submit form */}
-      {showForm && (
-        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '20px', marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-            {(['feature', 'bug'] as const).map(t => (
-              <button key={t} onClick={() => setFormType(t)}
-                style={{ padding: '6px 16px', borderRadius: 6, border: `1px solid ${formType === t ? GD : bdr}`, background: formType === t ? 'rgba(201,168,76,0.1)' : 'transparent', color: formType === t ? GD : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
-                {t === 'feature' ? '✨ Feature' : '🐛 Bug'}
-              </button>
-            ))}
-          </div>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title (required)"
-            style={{ width: '100%', boxSizing: 'border-box' as const, background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', marginBottom: 10 }} />
-          <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description (optional)" rows={3}
-            style={{ width: '100%', boxSizing: 'border-box' as const, background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, marginBottom: 12 }} />
-          <button onClick={submit} disabled={submitting || !title.trim()}
-            style={{ padding: '8px 20px', background: title.trim() ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${GD}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.5 }}>
-            {submitting ? 'SUBMITTING…' : 'SUBMIT'}
-          </button>
-        </div>
-      )}
-
-      {/* Type tabs */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 16 }}>
-        {(['feature', 'bug'] as const).map(t => (
-          <button key={t} onClick={() => setTabType(t)}
-            style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: tabType === t ? `2px solid ${GD}` : '2px solid transparent', color: tabType === t ? GD : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1 }}>
-            {t === 'feature' ? 'FEATURES' : 'BUGS'}
-          </button>
-        ))}
-      </div>
-
-      {/* Feedback list */}
-      {loading
-        ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>Loading…</div>
-        : filtered.length === 0
-          ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>No {tabType === 'feature' ? 'feature requests' : 'bug reports'} yet. Be the first!</div>
-          : filtered.map(item => (
-            <div key={item.id} style={{ display: 'flex', gap: 14, background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10, alignItems: 'flex-start' }}>
-              {/* Upvote */}
-              <button onClick={() => toggleUpvote(item)}
-                style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3, padding: '6px 10px', borderRadius: 8, border: `1px solid ${item.userUpvoted ? GD : bdr}`, background: item.userUpvoted ? 'rgba(201,168,76,0.12)' : 'transparent', cursor: 'pointer', flexShrink: 0, minWidth: 44 }}>
-                <span style={{ fontSize: 14, color: item.userUpvoted ? GD : mut }}>▲</span>
-                <span style={{ fontFamily: cinzel, fontSize: 13, color: item.userUpvoted ? GD : txt, fontWeight: 700 }}>{item.upvotes || 0}</span>
-              </button>
-              {/* Content */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.03em', flex: 1 }}>{item.title}</div>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: STATUS_COLORS[item.status] || GD, background: `${STATUS_COLORS[item.status] || GD}18`, border: `1px solid ${STATUS_COLORS[item.status] || GD}40`, borderRadius: 10, padding: '2px 8px', flexShrink: 0, textTransform: 'uppercase' as const }}>{item.status}</span>
-                </div>
-                {item.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>}
-                <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.06em' }}>{item.user_name || 'Anonymous'} · {new Date(item.created_at).toLocaleDateString()}</div>
-              </div>
-            </div>
-          ))
-      }
-    </div>
-  )
-}
-
 // ── TRAINING VIEW ──────────────────────────────────────────
 function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
   const isDark = theme !== 'light'
@@ -3597,7 +3457,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden', minHeight: 0 }}>
 
       {/* Header + search */}
-      <div style={{ padding: '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0, overflow: 'visible' }}>
+      <div style={{ padding: isMobile ? '12px 12px 10px' : '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0, overflow: 'visible' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
           {isMobile && (
             <button
@@ -3658,7 +3518,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           })}
         </div>
         {/* Biblical rank filter */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', overflowX: 'hidden', marginTop: 8, maxWidth: '100%' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, maxWidth: '100%' }}>
           {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
             <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
               style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
@@ -3873,8 +3733,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             <div onClick={e => e.stopPropagation()}
               style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '85vh' : '85vh', overflowY: 'auto' as const, padding: 28, paddingBottom: 'max(28px, env(safe-area-inset-bottom, 28px))', position: 'relative', boxSizing: 'border-box' as const }}>
 
-              <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FlagButton contentType="intel-archive" contentId={String(entry.id || entry.name)} contentTitle={name} />
+              <div style={{ position: 'absolute', top: 14, right: 14 }}>
                 <button onClick={() => setSelectedEntry(null)}
                   style={{ background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
               </div>
@@ -4159,6 +4018,10 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 </TierGate>
               )}
 
+            </div>
+            {/* Flag this entry — bottom of modal, away from close button */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(201,168,76,0.1)` }}>
+              <FlagButton contentType="intel-archive" contentId={String(entry.id || entry.name)} contentTitle={name} />
             </div>
           </div>
         )
@@ -5489,117 +5352,161 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
   const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
   const text    = isDark ? '#E8D5B0' : '#2D2924'
   const muted   = isDark ? '#8B7355' : '#5C5248'
+  const isMinister = userTier === 'minister'
 
-  const [type, setType]               = useState<'bug' | 'feature'>('feature')
-  const [title, setTitle]             = useState('')
-  const [description, setDescription] = useState('')
-  const [priority, setPriority]       = useState('medium')
-  const [saving, setSaving]           = useState(false)
-  const [success, setSuccess]         = useState(false)
-  const [error, setError]             = useState('')
-  const [allFeedback, setAllFeedback] = useState<any[]>([])
-  const [loadingFeed, setLoadingFeed] = useState(true)
+  const STATUS_COLORS: Record<string, string> = { open: '#C9A84C', 'in progress': '#4a90d9', done: '#4ade80' }
 
-  useEffect(() => {
-    async function loadFeedback() {
-      try {
-        const token = await getToken()
-        const res = await fetch('/api/feedback', { headers: { Authorization: `Bearer ${token}` } })
-        if (res.ok) { const data = await res.json(); setAllFeedback(data.feedback || []) }
-      } catch { } finally { setLoadingFeed(false) }
-    }
-    loadFeedback()
-  }, [success])
+  const [tabType, setTabType]     = useState<'feature' | 'bug'>('feature')
+  const [type, setType]           = useState<'bug' | 'feature'>('feature')
+  const [title, setTitle]         = useState('')
+  const [desc, setDesc]           = useState('')
+  const [showForm, setShowForm]   = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [success, setSuccess]     = useState(false)
+  const [error, setError]         = useState('')
+  const [feedback, setFeedback]   = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
+
+  async function loadFeedback() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/platform-feedback`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setFeedback(d.feedback || []) }
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadFeedback() }, [success])
 
   async function handleSubmit() {
-    if (!title.trim() || !description.trim()) return
+    if (!title.trim()) return
     setSaving(true); setError('')
     try {
       const token = await getToken()
-      const res = await fetch('/api/feedback', {
+      const res = await fetch('/api/platform-feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type, title, description, priority, submitted_by_name: userName, submitted_by_tier: userTier }),
+        body: JSON.stringify({ type, title: title.trim(), description: desc.trim(), userName }),
       })
       if (!res.ok) throw new Error('Submit failed')
-      setSuccess(true); setTitle(''); setDescription('')
-      setTimeout(() => setSuccess(false), 4000)
+      setSuccess(true); setTitle(''); setDesc(''); setShowForm(false)
+      setTimeout(() => setSuccess(false), 3000)
     } catch (e: any) { setError(e.message) } finally { setSaving(false) }
   }
 
+  async function toggleUpvote(item: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/platform-feedback?id=${item.id}&action=upvote`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, upvotes: d.upvotes, userUpvoted: d.userUpvoted } : f))
+    }
+  }
+
+  async function changeStatus(item: any, status: string) {
+    const token = await getToken()
+    const res = await fetch(`/api/platform-feedback?id=${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    })
+    if (res.ok) {
+      setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, status } : f))
+    }
+  }
+
   const inp: React.CSSProperties = { width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 6, padding: '10px 14px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none' }
+  const filtered = feedback.filter(f => f.type === tabType)
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
-          <div>
-            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>? Submit Feedback</div>
-            <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>Report bugs or request new features — all tiers can submit and view</div>
-          </div>
-        </div>
-
-        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 20 }}>Submit Report</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            {(['bug', 'feature'] as const).map(t => (
-              <button key={t} onClick={() => setType(t)} style={{ flex: 1, padding: '8px', borderRadius: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', border: `1px solid ${type === t ? (t === 'bug' ? '#f87171' : G) : border}`, background: type === t ? (t === 'bug' ? 'rgba(248,113,113,0.1)' : 'rgba(201,168,76,0.1)') : 'transparent', color: type === t ? (t === 'bug' ? '#f87171' : G) : muted }}>
-                {t === 'bug' ? '🐛 Bug Report' : '✦ Feature Request'}
-              </button>
-            ))}
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: muted, textTransform: 'uppercase' as const, marginBottom: 6 }}>Priority</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {['low', 'medium', 'high'].map(p => (
-                <button key={p} onClick={() => setPriority(p)} style={{ padding: '4px 14px', borderRadius: 999, cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', border: `1px solid ${priority === p ? G : border}`, background: priority === p ? `${G}15` : 'transparent', color: priority === p ? G : muted }}>
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                </button>
-              ))}
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>? Feedback & Requests</div>
+              <div style={{ fontSize: 12, color: muted, marginTop: 2, fontFamily: crimson }}>Vote on features, report bugs — all tiers can submit</div>
             </div>
           </div>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: muted, textTransform: 'uppercase' as const, marginBottom: 6 }}>Title *</div>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder={type === 'bug' ? 'Brief description of the bug...' : 'What feature would help you?'} style={inp} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: muted, textTransform: '  uppercase' as const, marginBottom: 6 }}>Details *</div>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} placeholder={type === 'bug' ? 'Steps to reproduce, what you expected vs what happened...' : 'Describe how this would work and why it would help ministers...'} style={{ ...inp, resize: 'vertical' as const }} />
-          </div>
-          {success && <div style={{ color: '#4ade80', fontSize: 13, marginBottom: 12, fontFamily: cinzel }}>✓ Submitted — thank you for your feedback!</div>}
-          {error   && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</div>}
-          <button onClick={handleSubmit} disabled={saving || !title.trim() || !description.trim()} style={{ background: saving || !title.trim() || !description.trim() ? 'rgba(201,168,76,0.3)' : G, color: saving || !title.trim() || !description.trim() ? muted : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 28px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Submitting...' : 'Submit Report'}
+          <button onClick={() => setShowForm(s => !s)}
+            style={{ padding: '8px 16px', background: showForm ? 'rgba(201,168,76,0.15)' : surface, border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            {showForm ? '× CLOSE' : '+ SUBMIT REQUEST'}
           </button>
         </div>
 
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 14 }}>Community Reports ({allFeedback.length})</div>
-          {loadingFeed ? (
-            <div style={{ color: muted, fontSize: 13, fontStyle: 'italic' }}>Loading...</div>
-          ) : allFeedback.length === 0 ? (
-            <div style={{ color: muted, fontSize: 13, fontStyle: 'italic', textAlign: 'center' as const, padding: 20 }}>No reports yet. Be the first to submit.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {allFeedback.map((fb: any) => (
-                <div key={fb.id} style={{ background: surface, border: `1px solid ${border}`, borderLeft: `3px solid ${fb.type === 'bug' ? '#f87171' : G}`, borderRadius: 8, padding: '14px 18px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, flexWrap: 'wrap' as const, gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12 }}>{fb.type === 'bug' ? '🐛' : '✦'}</span>
-                      <span style={{ fontFamily: cinzel, fontSize: 12, color: fb.type === 'bug' ? '#f87171' : G }}>{fb.title}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: muted, border: `1px solid ${border}` }}>{fb.priority}</span>
-                      <span style={{ fontSize: 11, color: muted }}>{fb.submitted_by_name}</span>
-                    </div>
-                  </div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.5 }}>{fb.description}</div>
-                </div>
+        {success && <div style={{ color: '#4ade80', fontSize: 13, marginBottom: 12, fontFamily: cinzel }}>✓ Submitted — thank you!</div>}
+        {error   && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</div>}
+
+        {/* Submit form */}
+        {showForm && (
+          <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 10, padding: '20px', marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 16 }}>Submit Request</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {(['feature', 'bug'] as const).map(t => (
+                <button key={t} onClick={() => setType(t)}
+                  style={{ flex: 1, padding: '8px', borderRadius: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', border: `1px solid ${type === t ? (t === 'bug' ? '#f87171' : G) : border}`, background: type === t ? (t === 'bug' ? 'rgba(248,113,113,0.1)' : 'rgba(201,168,76,0.1)') : 'transparent', color: type === t ? (t === 'bug' ? '#f87171' : G) : muted }}>
+                  {t === 'feature' ? '✨ Feature Request' : '🐛 Bug Report'}
+                </button>
               ))}
             </div>
-          )}
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title (required)"
+              style={{ ...inp, marginBottom: 10 }} />
+            <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description (optional)" rows={3}
+              style={{ ...inp, resize: 'vertical' as const, marginBottom: 12 }} />
+            <button onClick={handleSubmit} disabled={saving || !title.trim()}
+              style={{ padding: '8px 20px', background: title.trim() ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.5 }}>
+              {saving ? 'SUBMITTING…' : 'SUBMIT'}
+            </button>
+          </div>
+        )}
+
+        {/* Type tabs */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, marginBottom: 16 }}>
+          {(['feature', 'bug'] as const).map(t => (
+            <button key={t} onClick={() => setTabType(t)}
+              style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: tabType === t ? `2px solid ${G}` : '2px solid transparent', color: tabType === t ? G : muted, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1 }}>
+              {t === 'feature' ? 'FEATURES' : 'BUGS'}
+            </button>
+          ))}
         </div>
+
+        {/* Feedback list */}
+        {loading
+          ? <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>Loading…</div>
+          : filtered.length === 0
+            ? <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>No {tabType === 'feature' ? 'feature requests' : 'bug reports'} yet. Be the first!</div>
+            : filtered.map(item => (
+              <div key={item.id} style={{ display: 'flex', gap: 14, background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10, alignItems: 'flex-start' }}>
+                {/* Upvote */}
+                <button onClick={() => toggleUpvote(item)}
+                  style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3, padding: '6px 10px', borderRadius: 8, border: `1px solid ${item.userUpvoted ? G : border}`, background: item.userUpvoted ? 'rgba(201,168,76,0.12)' : 'transparent', cursor: 'pointer', flexShrink: 0, minWidth: 44 }}>
+                  <span style={{ fontSize: 14, color: item.userUpvoted ? G : muted }}>▲</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 13, color: item.userUpvoted ? G : text, fontWeight: 700 }}>{item.upvotes || 0}</span>
+                </button>
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 13, color: text, letterSpacing: '0.03em', flex: 1 }}>{item.title}</div>
+                    {isMinister ? (
+                      <select value={item.status || 'open'} onChange={e => changeStatus(item, e.target.value)}
+                        style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 6px', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                        {['open', 'in progress', 'done'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    ) : (
+                      <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 8px', flexShrink: 0, textTransform: 'uppercase' as const }}>{item.status || 'open'}</span>
+                    )}
+                  </div>
+                  {item.description && <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>}
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{item.user_name || 'Anonymous'} · {new Date(item.created_at).toLocaleDateString()}</div>
+                </div>
+              </div>
+            ))
+        }
       </div>
     </div>
   )
@@ -8215,7 +8122,7 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['my-intel','ops-dashboard'].includes(activeSection)) ? 360 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center'].includes(activeSection)) ? 360 : 0, transition: 'max-height 0.2s ease' }}>
               <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Zap size={14} strokeWidth={1.6} /></span>
@@ -8227,10 +8134,10 @@ function CommunityPage() {
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FolderOpen size={14} strokeWidth={1.6} /></span>
                 <span>Case Files</span>
               </a>
-              <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><ClipboardList size={14} strokeWidth={1.6} /></span>
-                <span>My Intel</span>
+              <button onClick={() => { setActiveSection('session-center'); if (isMobile) setSidebarOpen(false) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'session-center' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'session-center' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'session-center' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
+                <span>Session Center</span>
               </button>
             </div>
           </>
@@ -8241,18 +8148,11 @@ function CommunityPage() {
         {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
         {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
         {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
-        {navItem('War Room Board', 'war-room-board', <span style={{ fontSize: 14, lineHeight: 1 }}>📋</span>)}
         {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
 
         {/* ── FOUNDATION ── */}
         {sectionLabel('Foundation')}
         {navItem('Arsenal', 'arsenal', <Archive size={16} strokeWidth={1.6} />)}
-        <a href="/community/field-manual" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
-          <span>Field Manual</span>
-        </a>
         <a href="/community/scripture" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
@@ -8337,7 +8237,6 @@ function CommunityPage() {
         {/* ── FIELD OPERATIONS ── */}
         {sectionLabel('Field Operations')}
         {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
-        {navItem('Session Center', 'session-center', <Sword size={16} strokeWidth={1.6} />)}
         <a href="/community/spiritual-mapping" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
@@ -8643,7 +8542,6 @@ function CommunityPage() {
         {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
-        {activeSection === 'war-room-board' && <WarRoomBoardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} getToken={getToken} />}
         {activeSection === 'forum'       && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} />

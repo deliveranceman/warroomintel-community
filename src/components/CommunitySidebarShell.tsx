@@ -5,7 +5,7 @@ import {
   Archive, Sword, Library, Search, Map, Network, Eye,
   Calendar, Antenna, FolderOpen, Settings, ClipboardList,
   MapPin, DoorOpen, Moon, Radio, FolderArchive, GraduationCap,
-  Star, Clapperboard, Shield, BookOpen, FileText, Home, Zap,
+  Star, Clapperboard, Shield, BookOpen, Home, Zap,
 } from 'lucide-react'
 
 interface Props {
@@ -235,7 +235,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
               })}
               <div style={{ overflow: 'hidden', maxHeight: fieldOpsOpen ? 200 : 0, transition: 'max-height 0.2s ease' }}>
                 {navLink('Case Files', '/community/field-ops', <FolderOpen size={14} strokeWidth={1.6} />, ['Field Ops'])}
-                {navLink('Session Notes', '/community/field-ops', <FileText size={14} strokeWidth={1.6} />)}
+                {navLink('Session Center', '/community', <Sword size={14} strokeWidth={1.6} />)}
               </div>
             </>
           )}
@@ -249,7 +249,6 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           {/* ── FOUNDATION ── */}
           {sectionLabel('Foundation')}
           {navLink('Arsenal',      '/arsenal',                 <Archive  size={16} strokeWidth={1.6} />)}
-          {navLink('Field Manual', '/community/field-manual',  <Sword    size={14} strokeWidth={1.6} />)}
           {navLink('Scripture',    '/community/scripture',     <BookOpen size={14} strokeWidth={1.6} />)}
 
           {/* ── INTELLIGENCE (collapsible) ── */}
@@ -303,7 +302,6 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
 
           {/* ── FIELD OPERATIONS ── */}
           {sectionLabel('Field Operations')}
-          {navLink('Session Center',    '/community',                  <Sword        size={16} strokeWidth={1.6} />)}
           {navLink('Spiritual Mapping', '/community/spiritual-mapping', <MapPin      size={14} strokeWidth={1.6} />)}
           {navLink('Assessment',        '/community',                  <ClipboardList size={16} strokeWidth={1.6} />)}
 
