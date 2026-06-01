@@ -184,6 +184,9 @@
 [functions."clerk-webhook"]
   timeout = 15
 
+[functions."admin-fix-user-tier"]
+  timeout = 15
+
 [functions."user-notifications"]
   timeout = 10
 
