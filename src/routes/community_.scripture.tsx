@@ -431,7 +431,7 @@ function ScripturePage() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' as const }}>
               <span style={{ fontFamily: cinzel, fontSize: 20, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>SCRIPTURE</span>
-              <span style={{ fontFamily: mono, fontSize: 10, color: MUT }}>Dake Annotated Reference Bible</span>
+              <span style={{ fontFamily: mono, fontSize: 10, color: MUT }}>KJV Text</span>
               <div style={{ marginLeft: 'auto', fontFamily: cinzel, fontSize: 8, color: '#7a9e7e', background: 'rgba(122,158,126,0.1)', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>CLASS III · SOLDIER ACCESS</div>
             </div>
 
@@ -575,7 +575,7 @@ function ScripturePage() {
               whiteSpace: 'nowrap' as const,
             }}
           >
-            ASK DAKE ✦
+            ASK WRI ✦
           </button>
         )}
 
@@ -602,7 +602,7 @@ function ScripturePage() {
               {/* Panel header */}
               <div style={{ padding: '20px 24px 12px', borderBottom: `1px solid ${BDR}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700, letterSpacing: '0.06em', marginBottom: 2 }}>ASK DAKE</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700, letterSpacing: '0.06em', marginBottom: 2 }}>ASK WRI</div>
                   <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
                 </div>
                 <button
@@ -642,7 +642,7 @@ function ScripturePage() {
                   padding: '12px 0', cursor: 'pointer',
                 }}
               >
-                ASK DAKE ✦
+                ASK WRI ✦
               </button>
             </div>
 
@@ -666,7 +666,7 @@ function ScripturePage() {
                   {/* Header */}
                   <div style={{ padding: '8px 20px 12px', borderBottom: `1px solid ${BDR}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                     <div>
-                      <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>ASK DAKE</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>ASK WRI</div>
                       <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
                     </div>
                     <button

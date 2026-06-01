@@ -24,19 +24,25 @@ const BASE_ID = 'appVXEj2DLPBTJTtD'
 const TABLE_ID = 'tblcP4lgVykzOhLi4'
 const PRIMARY_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 
-// Only long-text fields — select fields (Kingdom, Strongman, Rank, etc.) must be set via Airtable UI
 const FIELD_MAP = {
   name:              PRIMARY_FIELD,
   aka:               'Also Known As',
+  typeRank:          'Type / Rank',
   description:       'Description',
   manifestations:    'Manifestiation',
   scripture:         'Scripture Reference',
   entryPoints:       'Entry Points',
+  source:            'Source / Orgin',
+  kingdom:           'Kingdom',
+  strongman:         'Strongman',
+  rank:              'Rank',
   legalRights:       'Legal Rights',
   symptoms:          'Symptoms',
   companionSpirits:  'Companion Spirits',
   wriNotes:          'WRI Exorcist Notes',
   assignment:        'Assignment',
+  hierarchyCategory: 'Hierarchy Category',
+  parentStrongman:   'Parent Strongman',
 }
 
 const CHEROKEE_ENTRIES = [
