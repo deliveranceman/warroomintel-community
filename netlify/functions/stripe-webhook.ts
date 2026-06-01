@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { StreamClient } from '@stream-io/node-sdk'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -23,6 +24,37 @@ const CHARTER_PRICE_IDS = new Set([
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+}
+
+const STREAM_TIER_CHANNELS: Record<string, string[]> = {
+  soldier:          ['war-room-general', 'field-reports-live'],
+  charter_soldier:  ['war-room-general', 'field-reports-live'],
+  commander:        ['war-room-general', 'field-reports-live', 'commanders-room'],
+  charter_commander:['war-room-general', 'field-reports-live', 'commanders-room'],
+  general:          ['war-room-general', 'field-reports-live', 'commanders-room', 'generals-table'],
+  founding_general: ['war-room-general', 'field-reports-live', 'commanders-room', 'generals-table'],
+}
+
+async function addToStreamChannels(clerkUserId: string, tier: string) {
+  const streamApiKey    = process.env.VITE_STREAM_API_KEY
+  const streamApiSecret = process.env.STREAM_API_SECRET
+  if (!streamApiKey || !streamApiSecret) return
+
+  const channelIds = STREAM_TIER_CHANNELS[tier.toLowerCase()] || ['war-room-general']
+  const streamUserId = clerkUserId.replace(/[^a-zA-Z0-9_-]/g, '_')
+
+  try {
+    const client = new StreamClient(streamApiKey, streamApiSecret)
+    await client.upsertUsers([{ id: streamUserId, role: 'user' }])
+    for (const channelId of channelIds) {
+      await client.chat.channel('messaging', channelId).update({
+        add_members: [{ user_id: streamUserId }],
+      })
+      console.log(`[stripe-webhook] Added ${streamUserId} to ${channelId}`)
+    }
+  } catch (e: any) {
+    console.error('[stripe-webhook] Stream add failed:', e.message)
+  }
 }
 
 async function resolveClerkUserId(email: string): Promise<string | null> {
@@ -140,9 +172,11 @@ export default async function handler(req: Request) {
         const charterExtra = isCharter ? { foundingMember: true, is_founder: true, charter_date: new Date().toISOString() } : undefined
         if (clerkUserId) {
           await setClerkTierById(clerkUserId, tier, charterExtra)
+          await addToStreamChannels(clerkUserId, tier)
           console.log(`✅ Upgraded ${clerkUserId} to ${tier}${isCharter ? ' (charter)' : ''}`)
         } else if (email) {
-          await setClerkTier(email, tier, isCharter)
+          const userId = await setClerkTier(email, tier, isCharter)
+          if (userId) await addToStreamChannels(userId, tier)
           console.log(`✅ Upgraded ${email} to ${tier}${isCharter ? ' (charter)' : ''} (email fallback)`)
         } else {
           console.error('No user identifier in checkout session')
@@ -158,7 +192,8 @@ export default async function handler(req: Request) {
         const customer = await stripe.customers.retrieve(sub.customer as string)
         const email = (customer as Stripe.Customer).email
         if (!email) break
-        await setClerkTier(email, tier)
+        const userId = await setClerkTier(email, tier)
+        if (userId) await addToStreamChannels(userId, tier)
         console.log(`✅ Subscription updated ${email} → ${tier}`)
         break
       }
@@ -174,7 +209,8 @@ export default async function handler(req: Request) {
         const tier = priceId ? PRICE_TO_TIER[priceId] : null
         if (!tier) break
 
-        await setClerkTier(email, tier)
+        const userId = await setClerkTier(email, tier)
+        if (userId) await addToStreamChannels(userId, tier)
         console.log(`✅ Renewed ${email} at ${tier}`)
         break
       }

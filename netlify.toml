@@ -180,3 +180,6 @@
 
 [functions."spirit-merge"]
   timeout = 15
+
+[functions."clerk-webhook"]
+  timeout = 15
