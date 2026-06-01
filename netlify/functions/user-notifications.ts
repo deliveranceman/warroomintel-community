@@ -36,6 +36,7 @@ export default async function handler(req: Request) {
       .from('user_notifications')
       .select('*')
       .eq('user_id', userId)
+      .eq('is_deleted', false)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
@@ -54,12 +55,32 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: HEADERS })
   }
 
-  // DELETE — clear all read notifications
+  // DELETE — soft-delete: ?id=UUID for single, ?all=true for all
   if (req.method === 'DELETE') {
+    const id = url.searchParams.get('id')
+    const all = url.searchParams.get('all')
     const client = sb()
-    const { error } = await client.from('user_notifications').delete().eq('user_id', userId).eq('read', true)
-    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: HEADERS })
+
+    if (all === 'true') {
+      const { error } = await client
+        .from('user_notifications')
+        .update({ is_deleted: true })
+        .eq('user_id', userId)
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: HEADERS })
+    }
+
+    if (id) {
+      const { error } = await client
+        .from('user_notifications')
+        .update({ is_deleted: true })
+        .eq('id', id)
+        .eq('user_id', userId)
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: HEADERS })
+    }
+
+    return new Response(JSON.stringify({ error: 'id or all=true required' }), { status: 400, headers: HEADERS })
   }
 
   return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })

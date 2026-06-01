@@ -8001,6 +8001,8 @@ function CommunityPage() {
   const [unreadWarRoom, setUnreadWarRoom] = useState(0)
   const [unreadNotifs, setUnreadNotifs]   = useState(0)
   const [notifsList, setNotifsList]       = useState<any[]>([])
+  const [deletingNotifs, setDeletingNotifs] = useState(false)
+  const [hoveredNotifId, setHoveredNotifId] = useState<string | null>(null)
   const [showInstallBanner, setShowInstallBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (typeof navigator === 'undefined') return false
@@ -8393,6 +8395,29 @@ function CommunityPage() {
     }
     return () => { document.title = 'War Room Intel' }
   }, [unreadDMs])
+
+  async function deleteOneNotif(id: string) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`/api/user-notifications?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    setNotifsList(prev => prev.filter((n: any) => n.id !== id))
+    setUnreadNotifs(prev => {
+      const wasUnread = notifsList.find((n: any) => n.id === id && !n.read)
+      return wasUnread ? Math.max(0, prev - 1) : prev
+    })
+  }
+
+  async function clearAllNotifs() {
+    if (!confirm('Clear all notifications?')) return
+    setDeletingNotifs(true)
+    const token = await getToken()
+    if (token) {
+      await fetch('/api/user-notifications?all=true', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    }
+    setNotifsList([])
+    setUnreadNotifs(0)
+    setDeletingNotifs(false)
+  }
 
   async function enablePushNotifications() {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
@@ -9645,20 +9670,31 @@ function CommunityPage() {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>RECENT NOTIFICATIONS</span>
-                        {notifsList.some((n: any) => !n.read) && (
-                          <button
-                            onClick={async () => {
-                              const token = await getToken()
-                              if (!token) return
-                              await fetch('/api/user-notifications', { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
-                              setNotifsList(prev => prev.map((n: any) => ({ ...n, read: true })))
-                              setUnreadNotifs(0)
-                            }}
-                            style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: G, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: 0.7 }}
-                          >
-                            MARK ALL READ
-                          </button>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {notifsList.some((n: any) => !n.read) && (
+                            <button
+                              onClick={async () => {
+                                const token = await getToken()
+                                if (!token) return
+                                await fetch('/api/user-notifications', { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
+                                setNotifsList(prev => prev.map((n: any) => ({ ...n, read: true })))
+                                setUnreadNotifs(0)
+                              }}
+                              style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: G, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: 0.7 }}
+                            >
+                              MARK ALL READ
+                            </button>
+                          )}
+                          {notifsList.length > 0 && (
+                            <button
+                              onClick={clearAllNotifs}
+                              disabled={deletingNotifs}
+                              style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: deletingNotifs ? 'rgba(248,113,113,0.4)' : 'rgba(248,113,113,0.7)', background: 'none', border: 'none', cursor: deletingNotifs ? 'default' : 'pointer', padding: 0 }}
+                            >
+                              {deletingNotifs ? 'CLEARING…' : 'CLEAR ALL'}
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {notifsList.length === 0 ? (
@@ -9670,51 +9706,57 @@ function CommunityPage() {
                           {notifsList.slice(0, 20).map((n: any) => {
                             const d = Date.now() - new Date(n.created_at).getTime()
                             const timeAgo = d < 60000 ? 'just now' : d < 3600000 ? `${Math.floor(d / 60000)}m ago` : d < 86400000 ? `${Math.floor(d / 3600000)}h ago` : `${Math.floor(d / 86400000)}d ago`
+                            const isHovered = hoveredNotifId === n.id
                             return (
-                              <TacticalCard
+                              <div
                                 key={n.id}
-                                padding="10px 12px"
-                                onClick={async () => {
-                                  if (!n.read) {
-                                    const token = await getToken()
-                                    if (token) {
-                                      fetch(`/api/user-notifications?id=${n.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
-                                      setNotifsList(prev => prev.map((x: any) => x.id === n.id ? { ...x, read: true } : x))
-                                      setUnreadNotifs(prev => Math.max(0, prev - 1))
-                                    }
-                                  }
-                                  if (n.url) { setActiveRailSection(null); window.location.href = n.url }
-                                }}
-                                style={{ opacity: n.read ? 0.6 : 1, cursor: n.url ? 'pointer' : 'default' }}
+                                style={{ position: 'relative' as const }}
+                                onMouseEnter={() => setHoveredNotifId(n.id)}
+                                onMouseLeave={() => setHoveredNotifId(null)}
                               >
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                                      {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', flexShrink: 0, display: 'inline-block' }} />}
-                                      <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{n.title || 'Notification'}</span>
+                                <TacticalCard
+                                  padding="10px 12px"
+                                  onClick={async () => {
+                                    if (!n.read) {
+                                      const token = await getToken()
+                                      if (token) {
+                                        fetch(`/api/user-notifications?id=${n.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+                                        setNotifsList(prev => prev.map((x: any) => x.id === n.id ? { ...x, read: true } : x))
+                                        setUnreadNotifs(prev => Math.max(0, prev - 1))
+                                      }
+                                    }
+                                    if (n.url) { setActiveRailSection(null); window.location.href = n.url }
+                                  }}
+                                  style={{ opacity: n.read ? 0.6 : 1, cursor: n.url ? 'pointer' : 'default', paddingRight: 28 }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                        {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', flexShrink: 0, display: 'inline-block' }} />}
+                                        <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{n.title || 'Notification'}</span>
+                                      </div>
+                                      {n.body && <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--t-2)', lineHeight: 1.5 }}>{n.body.length > 80 ? n.body.slice(0, 80) + '…' : n.body}</div>}
                                     </div>
-                                    {n.body && <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--t-2)', lineHeight: 1.5 }}>{n.body.length > 80 ? n.body.slice(0, 80) + '…' : n.body}</div>}
+                                    <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
                                   </div>
-                                  <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
-                                </div>
-                              </TacticalCard>
+                                </TacticalCard>
+                                <button
+                                  onClick={e => { e.stopPropagation(); deleteOneNotif(n.id) }}
+                                  style={{
+                                    position: 'absolute' as const, top: 8, right: 8,
+                                    background: 'transparent', border: 'none',
+                                    color: 'rgba(201,168,76,0.7)', fontSize: 14, lineHeight: 1,
+                                    cursor: 'pointer', padding: '0 2px',
+                                    opacity: isHovered ? 1 : 0.5,
+                                    transition: 'opacity 0.15s',
+                                    zIndex: 2,
+                                  }}
+                                  title="Dismiss"
+                                >×</button>
+                              </div>
                             )
                           })}
                         </div>
-                      )}
-
-                      {notifsList.some((n: any) => n.read) && (
-                        <button
-                          onClick={async () => {
-                            const token = await getToken()
-                            if (!token) return
-                            await fetch('/api/user-notifications', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-                            setNotifsList(prev => prev.filter((n: any) => !n.read))
-                          }}
-                          style={{ marginTop: 12, width: '100%', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: 'var(--t-4)', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, padding: '6px 0', cursor: 'pointer' }}
-                        >
-                          CLEAR READ
-                        </button>
                       )}
                     </div>
                   )}
