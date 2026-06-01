@@ -41,6 +41,7 @@ export default async function handler(req: Request) {
   const userTier = userData?.public_metadata?.tier || 'free'
   const userImage = userData?.image_url || ''
   const role = userData?.public_metadata?.role
+  const isFounder = !!(userData?.public_metadata?.foundingMember) || userTier.startsWith('charter')
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
 
@@ -71,6 +72,7 @@ export default async function handler(req: Request) {
         user_name: isAnonymous ? 'Anonymous Warrior' : userName,
         user_tier: userTier,
         user_image: isAnonymous ? '' : userImage,
+        is_founder: !isAnonymous && isFounder,
         title: title.trim(),
         body: body.trim(),
         category: category || 'personal',

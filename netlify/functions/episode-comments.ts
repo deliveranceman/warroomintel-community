@@ -44,6 +44,7 @@ export default async function handler(req: Request) {
   const userName = `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim() || 'Warrior'
   const userTier = (userData?.public_metadata?.tier as string || 'free')
   const userImage = userData?.image_url || ''
+  const isFounder = !!(userData?.public_metadata?.foundingMember) || userTier.startsWith('charter')
 
   // GET comments for episode
   if (req.method === 'GET' && episodeId) {
@@ -72,6 +73,7 @@ export default async function handler(req: Request) {
         user_name: userName,
         user_tier: userTier,
         user_image: userImage,
+        is_founder: isFounder,
         parent_id: parentId || null,
         body: body.trim(),
       })

@@ -936,10 +936,10 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
 }
 
 // ── POST CARD ──────────────────────────────────────────────
-function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, streamToken, apiKey, onReaction }: {
+function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, streamToken, apiKey, onReaction, isFounder }: {
   msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode; isDark?: boolean;
   hoveredId?: string | null; onHover?: (id: string | null) => void;
-  streamToken?: string; apiKey?: string; onReaction?: () => void;
+  streamToken?: string; apiKey?: string; onReaction?: () => void; isFounder?: boolean;
 }) {
   const V = {
     bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
@@ -971,6 +971,7 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <MonoTime size={13}>{msg.user?.name || msg.user?.id || 'Warrior'}</MonoTime>
+            {isFounder && <FoundingBadge />}
             {pinned && <HUDChip>HOST</HUDChip>}
             {isNew && <StatusDot kind="ok" label="New" size={5} />}
             <MonoTime color="var(--t-3)" size={11}>{time}</MonoTime>
@@ -1032,8 +1033,9 @@ interface PrayerViewProps {
   isDark: boolean
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+  founderIds?: Set<string>
 }
-function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen }: PrayerViewProps) {
+function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen, founderIds }: PrayerViewProps) {
   const V = {
     bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
     card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
@@ -1160,6 +1162,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             streamToken={streamToken}
             apiKey={apiKey}
             onReaction={fetchPrayers}
+            isFounder={founderIds?.has(m.user?.id || '')}
             actions={m.user?.id === userId || user?.publicMetadata?.role === 'minister' ? (
               editingPostId === m.id ? (
                 <div>
@@ -1420,7 +1423,10 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, 
                     {t.user_image ? <img src={t.user_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : initial}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{t.user_name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{t.user_name}</div>
+                      {t.is_founder && <FoundingBadge />}
+                    </div>
                     <div style={{ fontSize: 10, color: mut, marginTop: 1 }}>
                       {categoryLabels[t.category] || t.category} · {new Date(t.approved_at || t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
@@ -2308,6 +2314,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                                 <span style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{comment.user_name}</span>
+                                {comment.is_founder && <FoundingBadge />}
                                 <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(comment.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                               </div>
                               <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6, marginBottom: 6 }}>{comment.body}</div>
@@ -2327,6 +2334,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                               <div style={{ flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
                                   <span style={{ fontFamily: cinzel, fontSize: 10, color: txt, letterSpacing: '0.04em' }}>{reply.user_name}</span>
+                                  {reply.is_founder && <FoundingBadge />}
                                   <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(reply.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                                   {(reply.user_id === userId || userTier === 'minister') && (
                                     <button onClick={() => deleteComment(reply.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>✕ Delete</button>
@@ -3202,8 +3210,11 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG }}>{report.spirit_names}</div>
               <ClassBadge level="I" label="FIELD REPORT" />
             </div>
-            <div style={{ fontSize: 11, color: dm, fontFamily: "'JetBrains Mono', monospace", marginBottom: 8 }}>
-              {report.submitted_by_name?.split(' ')[0]}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{ fontSize: 11, color: dm, fontFamily: "'JetBrains Mono', monospace" }}>
+                {report.submitted_by_name?.split(' ')[0]}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}
+              </span>
+              {report.is_founder && <FoundingBadge />}
             </div>
             <div style={{ fontSize: 13, color: txt, lineHeight: 1.6, fontFamily: "'Crimson Pro', serif" }}>{report.manifestations}</div>
             {report.entry_points && <div style={{ fontSize: 12, color: mut, marginTop: 6 }}>Entry points: {report.entry_points}</div>}
@@ -8492,6 +8503,7 @@ function CommunityPage() {
             isDark={theme !== 'light'}
             isMobile={isMobile}
             setSidebarOpen={setSidebarOpen}
+            founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))}
           />
         )}
         {activeSection === 'dms'         && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} onUnreadChange={setUnreadDMs} />}

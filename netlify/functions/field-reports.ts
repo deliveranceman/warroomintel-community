@@ -31,6 +31,8 @@ export default async function handler(req: Request) {
 
   const { userId, userData, meta } = auth
   const isMinister = meta?.role === 'minister'
+  const submitterTier = (meta?.tier as string) || 'free'
+  const isFounder = !!(meta?.foundingMember) || submitterTier.startsWith('charter')
 
   if (req.method === 'GET') {
     let query = supabase.from('field_reports').select('*').order('created_at', { ascending: false })
@@ -51,6 +53,8 @@ export default async function handler(req: Request) {
     const { data, error } = await supabase.from('field_reports').insert({
       submitted_by_id:   userId,
       submitted_by_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Anonymous',
+      submitted_by_tier: submitterTier,
+      is_founder:        isFounder,
       location_city: location_city || null,
       location_state: location_state || null,
       spirit_names, manifestations,
