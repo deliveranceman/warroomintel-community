@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 const cinzel = "'Cinzel', serif"
 const inter  = 'Inter, system-ui, sans-serif'
@@ -494,62 +494,162 @@ Format as a numbered list. Be specific to ${spirit.name}, not generic deliveranc
   )
 }
 
+// ── BUILD ANCESTRY CHAIN ────────────────────────────────────────────────────────
+
+function buildAncestryChain(spirit: Demon, allDemons: Demon[]): Demon[] {
+  const chain: Demon[] = []
+  const visited = new Set<number>()
+  let current: Demon | undefined = spirit
+  visited.add(current.id)
+  while (current?.parentStrongman) {
+    const parent = allDemons.find(d => d.name.toLowerCase() === current!.parentStrongman!.toLowerCase())
+    if (!parent || visited.has(parent.id)) break
+    visited.add(parent.id)
+    chain.unshift(parent)
+    current = parent
+  }
+  return chain
+}
+
 // ── MOBILE DOSSIER ─────────────────────────────────────────────────────────────
 
-function MobileDossier({ spirit, demons, resources, loadingResources, onSelectSpirit, onBack }: {
-  spirit: Demon; demons: Demon[]; resources: any[]; loadingResources: boolean; onSelectSpirit: (d: Demon) => void; onBack: () => void
+function MobileDossier({ spirit, demons, resources, loadingResources, onSelectSpirit, onBack, navChain }: {
+  spirit: Demon; demons: Demon[]; resources: any[]; loadingResources: boolean
+  onSelectSpirit: (d: Demon) => void; onBack: () => void; navChain: Demon[]
 }) {
+  const [prayer, setPrayer] = useState('')
+  const [prayerLoading, setPrayerLoading] = useState(false)
+  const [showPrayer, setShowPrayer] = useState(false)
+
+  useEffect(() => { setShowPrayer(false); setPrayer('') }, [spirit.id])
+
+  async function generatePrayer() {
+    setPrayerLoading(true); setShowPrayer(true)
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `Generate a targeted deliverance prayer for the spirit of ${spirit.name}. Kingdom: ${spirit.kingdom}. Entry points: ${spirit.entryPoints || 'various'}. Write in first person as if the minister is leading the prayer. 3-4 paragraphs, direct and authoritative.`, history: [] }),
+      })
+      const data = await res.json(); setPrayer(data.response || '')
+    } catch { setPrayer('Failed to generate. Please try again.') }
+    finally { setPrayerLoading(false) }
+  }
+
   const companions = spirit.companionSpirits
     ? String(spirit.companionSpirits).split(',').map(s => s.trim()).filter(Boolean)
     : []
 
+  const section = (label: string, content: React.ReactNode) => (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 8 }}>{label}</div>
+      {content}
+    </div>
+  )
+
   return (
     <div>
+      {/* Ancestry chain */}
+      {navChain.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap' as const, alignItems: 'center', gap: 4, marginBottom: 14 }}>
+          {navChain.map(a => (
+            <span key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button onClick={() => onSelectSpirit(a)}
+                style={{ background: 'transparent', border: 'none', color: GC, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', opacity: 0.7, padding: 0, textDecoration: 'underline' }}>
+                {a.name}
+              </button>
+              <span style={{ color: DIM, fontSize: 10 }}>›</span>
+            </span>
+          ))}
+          <span style={{ fontFamily: cinzel, fontSize: 9, color: '#8a7a60' }}>{spirit.name}</span>
+        </div>
+      )}
+
       <button onClick={onBack}
         style={{ background: 'transparent', border: `1px solid ${MUT}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', marginBottom: 16, letterSpacing: '0.08em' }}>
         ← BACK
       </button>
-      <div style={{ fontFamily: cinzel, fontSize: 22, color: GC, letterSpacing: '0.06em', marginBottom: 4 }}>{spirit.name}</div>
-      {spirit.kingdom && <div style={{ fontFamily: inter, fontSize: 11, color: DIM, marginBottom: 12 }}>{spirit.kingdom}</div>}
-      {spirit.description && <div style={{ fontFamily: inter, fontSize: 14, color: '#c8b99a', lineHeight: 1.7, marginBottom: 20 }}>{spirit.description}</div>}
 
-      {companions.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 10 }}>COMPANION SPIRITS</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-            {companions.map(name => {
-              const found = demons.find(d => d.name.toLowerCase() === name.toLowerCase())
-              return (
-                <button key={name} onClick={() => found && onSelectSpirit(found)}
-                  style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${found ? 'rgba(201,168,76,0.5)' : MUT}`, borderRadius: 20, padding: '5px 12px', cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 9, color: found ? GC : DIM }}>
-                  {found ? '⚔ ' : ''}{name}
-                </button>
-              )
-            })}
-          </div>
+      {/* Name + badges */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 22, color: GC, letterSpacing: '0.06em', marginBottom: 4 }}>{spirit.name}</div>
+        {spirit.phonetic && <div style={{ fontFamily: inter, fontSize: 11, color: DIM, fontStyle: 'italic', marginBottom: 2 }}>{spirit.phonetic}</div>}
+        {spirit.aka && <div style={{ fontFamily: inter, fontSize: 11, color: DIM, marginBottom: 6 }}>Also: {spirit.aka}</div>}
+        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+          {spirit.kingdom && <span style={{ fontFamily: cinzel, fontSize: 8, color: GC, border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, padding: '2px 8px', letterSpacing: '0.1em' }}>{spirit.kingdom}</span>}
+          {spirit.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: '#8B0000', border: '1px solid rgba(139,0,0,0.4)', borderRadius: 4, padding: '2px 8px', letterSpacing: '0.1em' }}>{spirit.biblicalRank}</span>}
+          {spirit.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '2px 8px', letterSpacing: '0.08em' }}>GENERATIONAL</span>}
+          {spirit.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 4, padding: '2px 8px', letterSpacing: '0.08em' }}>TERRITORIAL</span>}
+        </div>
+      </div>
+
+      {spirit.description && section('EXECUTIVE SUMMARY',
+        <div style={{ fontFamily: inter, fontSize: 14, color: '#c8b99a', lineHeight: 1.7 }}>{spirit.description}</div>
+      )}
+
+      {(spirit.entryPoints || spirit.legalRights) && section('ENTRY POINTS / LEGAL GROUNDS',
+        <>
+          {spirit.entryPoints && <div style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', lineHeight: 1.7, marginBottom: spirit.legalRights ? 8 : 0 }}>{spirit.entryPoints}</div>}
+          {spirit.legalRights && <div style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>{spirit.legalRights}</div>}
+        </>
+      )}
+
+      {companions.length > 0 && section('COMPANION SPIRITS',
+        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+          {companions.map(name => {
+            const found = demons.find(d => d.name.toLowerCase() === name.toLowerCase())
+            return (
+              <button key={name} onClick={() => found && onSelectSpirit(found)}
+                style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${found ? 'rgba(201,168,76,0.5)' : MUT}`, borderRadius: 20, padding: '5px 12px', cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 9, color: found ? GC : DIM }}>
+                {found ? '⚔ ' : ''}{name}
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {spirit.deliveranceSequence && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 8 }}>DELIVERANCE SEQUENCE</div>
-          <div style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>{spirit.deliveranceSequence}</div>
-        </div>
+      {spirit.deliveranceSequence && section('DELIVERANCE SEQUENCE',
+        <div style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>{spirit.deliveranceSequence}</div>
       )}
 
-      {(resources.length > 0 || loadingResources) && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 8 }}>RESOURCES</div>
-          {loadingResources
-            ? <div style={{ fontFamily: inter, fontSize: 12, color: DIM }}>Loading…</div>
-            : resources.map((r: any) => (
+      {spirit.sessionIndicators && section('SESSION INDICATORS',
+        <div style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>{spirit.sessionIndicators}</div>
+      )}
+
+      {spirit.prayerPoints && section('PRAYER POINTS',
+        <div style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>{spirit.prayerPoints}</div>
+      )}
+
+      {spirit.wriNotes && section('WRI FIELD NOTES',
+        <div style={{ fontFamily: inter, fontSize: 13, color: '#c8b99a', lineHeight: 1.7, background: 'rgba(201,168,76,0.04)', border: `1px solid ${BDR}`, borderLeft: `2px solid ${GC}`, borderRadius: 4, padding: '10px 12px' }}>{spirit.wriNotes}</div>
+      )}
+
+      {(resources.length > 0 || loadingResources) && section('RESOURCES',
+        loadingResources
+          ? <div style={{ fontFamily: inter, fontSize: 12, color: DIM }}>Loading…</div>
+          : <div>{resources.map((r: any) => (
               <div key={r.id} style={{ borderLeft: '2px solid rgba(201,168,76,0.3)', paddingLeft: 10, marginBottom: 8 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 10, color: '#c8b99a' }}>{r.title}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: '#c8b99a', marginBottom: 2 }}>{r.title}</div>
+                {r.file_url && <a href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.08em', textDecoration: 'none' }}>↗ VIEW</a>}
               </div>
-            ))
-          }
-        </div>
+            ))}</div>
       )}
+
+      {/* Generate Prayer */}
+      <div style={{ marginTop: 8, marginBottom: 40 }}>
+        <button onClick={generatePrayer}
+          style={{ width: '100%', padding: '12px 16px', background: 'rgba(201,168,76,0.08)', border: `1px solid ${GC}`, borderRadius: 6, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 10 }}>
+          🙏 GENERATE DELIVERANCE PRAYER
+        </button>
+        {showPrayer && (
+          <div style={{ padding: '14px 16px', background: '#0a0807', border: '1px solid #2a2218', borderTop: `2px solid ${GC}`, borderRadius: 6 }}>
+            {prayerLoading
+              ? <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>GENERATING…</div>
+              : <div style={{ fontFamily: inter, fontSize: 14, color: '#c8b99a', lineHeight: 1.8 }}
+                  dangerouslySetInnerHTML={{ __html: prayer.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C9A84C">$1</strong>').replace(/\n/g, '<br/>') }} />
+            }
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -604,6 +704,7 @@ const KINGDOM_ORDER = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft'
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
 export function SpiritNetwork({ demons, isMobile, getToken: _getToken }: SpiritNetworkProps) {
+  const [mounted,          setMounted]          = useState(false)
   const [selectedSpirit,   setSelectedSpirit]   = useState<Demon | null>(null)
   const [mode,             setMode]             = useState<'network' | 'dossier'>('network')
   const [activeDrawer,     setActiveDrawer]     = useState<'scriptures' | 'gateway' | 'documents' | 'library' | null>(null)
@@ -619,8 +720,12 @@ export function SpiritNetwork({ demons, isMobile, getToken: _getToken }: SpiritN
   const [compareQuery,     setCompareQuery]     = useState('')
   const [comparison,       setComparison]       = useState<{ text: string; spirit1: string; spirit2: string } | null>(null)
   const [comparingLoading, setComparingLoading] = useState(false)
+  const _touchStartX = useRef(0)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
+    if (!mounted) return
     try {
       const stored = JSON.parse(localStorage.getItem('wri_recent_spirits') || '[]')
       setRecentSpirits(stored)
@@ -641,7 +746,7 @@ export function SpiritNetwork({ demons, isMobile, getToken: _getToken }: SpiritN
         }
       }
     } catch {}
-  }, [demons])
+  }, [demons, mounted])
 
   async function runComparison(spirit1: Demon, spirit2: Demon) {
     setComparingLoading(true)
@@ -802,6 +907,12 @@ Be direct and practical. This is for active ministry use.`,
     ? String(selectedSpirit.companionSpirits || '').split(',').map(s => s.trim()).filter(Boolean)
     : []
 
+  // Full ancestry chain from root to selected spirit's parent
+  const navChain = selectedSpirit ? buildAncestryChain(selectedSpirit, demons) : []
+
+  // FIX 3 — prevent hydration mismatch: don't render isMobile-dependent content until after mount
+  if (!mounted) return <div style={{ flex: 1, background: DARK }} />
+
   // ── MOBILE ─────────────────────────────────────────────────────────────────
   if (isMobile) {
     const mobileTab = selectedSpirit ? mode : 'network'
@@ -831,48 +942,127 @@ Be direct and practical. This is for active ministry use.`,
           )}
         </div>
 
-        {/* NETWORK tab: card list */}
+        {/* NETWORK tab: CSS org chart when spirit selected, card list otherwise */}
         {mobileTab === 'network' && (
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: '12px 16px' }}>
-            {visibleDemons.length === 0 && (
-              <div style={{ fontFamily: inter, fontSize: 13, color: DIM, textAlign: 'center' as const, paddingTop: 40 }}>No spirits found</div>
-            )}
-            {visibleDemons.map(d => {
-              const companions = d.companionSpirits
-                ? String(d.companionSpirits).split(',').map(s => s.trim()).filter(Boolean).slice(0, 3)
-                : []
-              const isActive = selectedSpirit?.id === d.id
-              return (
-                <div key={d.id} onClick={() => { searchSelect(d); setMode('dossier') }}
-                  style={{ marginBottom: 10, padding: '12px 14px', background: isActive ? 'rgba(201,168,76,0.08)' : SURF, border: `1px solid ${isActive ? 'rgba(201,168,76,0.4)' : BDR}`, borderRadius: 8, cursor: 'pointer', borderLeft: `3px solid ${isActive ? GC : 'transparent'}` }}>
-                  {/* Name + kingdom badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: companions.length > 0 || d.parentStrongman ? 6 : 0 }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.04em', flex: 1 }}>{d.name}</span>
-                    {d.kingdom && (
-                      <span style={{ fontFamily: inter, fontSize: 9, color: GC, background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '2px 8px', flexShrink: 0 }}>
-                        {d.kingdom}
+            {selectedSpirit ? (
+              // ── CSS vertical org chart ──
+              <div>
+                {/* Ancestry chain breadcrumb */}
+                {navChain.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, alignItems: 'center', gap: 4, marginBottom: 16 }}>
+                    {navChain.map((a, i) => (
+                      <span key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => { selectSpirit(a); setMode('network') }}
+                          style={{ background: 'transparent', border: 'none', color: GC, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', opacity: 0.7, padding: 0, textDecoration: 'underline', letterSpacing: '0.06em' }}>
+                          {a.name}
+                        </button>
+                        <span style={{ color: DIM, fontSize: 10 }}>›</span>
                       </span>
-                    )}
+                    ))}
                   </div>
-                  {/* Parent spirit */}
-                  {d.parentStrongman && (
-                    <div style={{ fontFamily: inter, fontSize: 10, color: DIM, marginBottom: companions.length > 0 ? 5 : 0 }}>
-                      Under: <span style={{ color: '#6a5a4a' }}>{d.parentStrongman}</span>
-                    </div>
-                  )}
-                  {/* Companion chips */}
-                  {companions.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
-                      {companions.map(name => (
-                        <span key={name} style={{ fontFamily: inter, fontSize: 9, color: '#5a4f3a', background: '#1a1520', border: `1px solid ${BDR}`, borderRadius: 10, padding: '2px 7px' }}>
-                          {name}
-                        </span>
-                      ))}
+                )}
+
+                {/* Vertical hierarchy nodes */}
+                <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 0 }}>
+                  {/* Parent node */}
+                  {selectedSpirit.parentStrongman && (() => {
+                    const parent = demons.find(d => d.name.toLowerCase() === (selectedSpirit.parentStrongman || '').toLowerCase())
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center' }}>
+                        <div onClick={() => parent && selectSpirit(parent)}
+                          style={{ padding: '10px 20px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${parent ? 'rgba(201,168,76,0.3)' : MUT}`, borderRadius: 8, cursor: parent ? 'pointer' : 'default', textAlign: 'center' as const, minWidth: 160, maxWidth: 240 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: parent ? GC : DIM, letterSpacing: '0.04em' }}>{selectedSpirit.parentStrongman}</div>
+                          {parent?.kingdom && <div style={{ fontFamily: inter, fontSize: 9, color: DIM, marginTop: 2 }}>{parent.kingdom}</div>}
+                          {parent && <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, marginTop: 4, opacity: 0.6 }}>↑ tap to navigate</div>}
+                        </div>
+                        {/* Connector */}
+                        <div style={{ width: 1, height: 24, background: 'rgba(201,168,76,0.2)' }} />
+                      </div>
+                    )
+                  })()}
+
+                  {/* Selected spirit node */}
+                  <div style={{ padding: '14px 24px', background: 'rgba(201,168,76,0.12)', border: `2px solid ${GC}`, borderRadius: 10, textAlign: 'center' as const, minWidth: 200, maxWidth: 280, position: 'relative' as const }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 15, color: GC, letterSpacing: '0.06em', marginBottom: 4 }}>{selectedSpirit.name}</div>
+                    {selectedSpirit.kingdom && <div style={{ fontFamily: inter, fontSize: 10, color: DIM }}>{selectedSpirit.kingdom}</div>}
+                    {selectedSpirit.biblicalRank && <div style={{ fontFamily: cinzel, fontSize: 8, color: '#8B0000', marginTop: 4, letterSpacing: '0.08em' }}>{selectedSpirit.biblicalRank}</div>}
+                  </div>
+
+                  {/* Companion spirits */}
+                  {companionNames.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center' }}>
+                      <div style={{ width: 1, height: 24, background: 'rgba(201,168,76,0.2)' }} />
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', marginBottom: 10 }}>COMPANION SPIRITS</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, justifyContent: 'center' as const, maxWidth: 300 }}>
+                        {companionNames.slice(0, 8).map(name => {
+                          const found = demons.find(d => d.name.toLowerCase() === name.toLowerCase())
+                          return (
+                            <button key={name} onClick={() => found && selectSpirit(found)}
+                              style={{ padding: '8px 14px', background: found ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${found ? 'rgba(201,168,76,0.35)' : MUT}`, borderRadius: 8, cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 9, color: found ? GC : DIM, letterSpacing: '0.04em' }}>
+                              {name}
+                            </button>
+                          )
+                        })}
+                        {companionNames.length > 8 && (
+                          <span style={{ fontFamily: inter, fontSize: 10, color: DIM, alignSelf: 'center' }}>+{companionNames.length - 8} more</span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
-              )
-            })}
+
+                {/* View dossier button */}
+                <button onClick={() => setMode('dossier')}
+                  style={{ display: 'block', width: '100%', marginTop: 24, padding: '12px 16px', background: 'transparent', border: `1px solid ${GC}`, borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                  VIEW FULL DOSSIER →
+                </button>
+                <button onClick={() => { setSelectedSpirit(null); setNavStack([]) }}
+                  style={{ display: 'block', width: '100%', marginTop: 8, padding: '10px 16px', background: 'transparent', border: `1px solid ${MUT}`, borderRadius: 8, color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  ← BACK TO NETWORK
+                </button>
+              </div>
+            ) : (
+              // ── Spirit card list ──
+              <>
+                {visibleDemons.length === 0 && (
+                  <div style={{ fontFamily: inter, fontSize: 13, color: DIM, textAlign: 'center' as const, paddingTop: 40 }}>No spirits found</div>
+                )}
+                {visibleDemons.map(d => {
+                  const comps = d.companionSpirits
+                    ? String(d.companionSpirits).split(',').map(s => s.trim()).filter(Boolean).slice(0, 3)
+                    : []
+                  const isActive = selectedSpirit?.id === d.id
+                  return (
+                    <div key={d.id} onClick={() => { searchSelect(d); setMode('network') }}
+                      style={{ marginBottom: 10, padding: '12px 14px', background: isActive ? 'rgba(201,168,76,0.08)' : SURF, border: `1px solid ${isActive ? 'rgba(201,168,76,0.4)' : BDR}`, borderRadius: 8, cursor: 'pointer', borderLeft: `3px solid ${isActive ? GC : 'transparent'}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: comps.length > 0 || d.parentStrongman ? 6 : 0 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.04em', flex: 1 }}>{d.name}</span>
+                        {d.kingdom && (
+                          <span style={{ fontFamily: inter, fontSize: 9, color: GC, background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '2px 8px', flexShrink: 0 }}>
+                            {d.kingdom}
+                          </span>
+                        )}
+                      </div>
+                      {d.parentStrongman && (
+                        <div style={{ fontFamily: inter, fontSize: 10, color: DIM, marginBottom: comps.length > 0 ? 5 : 0 }}>
+                          Under: <span style={{ color: '#6a5a4a' }}>{d.parentStrongman}</span>
+                        </div>
+                      )}
+                      {comps.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                          {comps.map(name => (
+                            <span key={name} style={{ fontFamily: inter, fontSize: 9, color: '#5a4f3a', background: '#1a1520', border: `1px solid ${BDR}`, borderRadius: 10, padding: '2px 7px' }}>
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </>
+            )}
           </div>
         )}
 
@@ -880,7 +1070,8 @@ Be direct and practical. This is for active ministry use.`,
         {mobileTab === 'dossier' && selectedSpirit && (
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: '12px 16px' }}>
             <MobileDossier spirit={selectedSpirit} demons={demons} resources={resources} loadingResources={loadingResources}
-              onSelectSpirit={d => { selectSpirit(d); setMode('dossier') }} onBack={() => { setSelectedSpirit(null); setNavStack([]); setMode('network') }} />
+              onSelectSpirit={d => { selectSpirit(d); setMode('dossier') }} onBack={() => { setSelectedSpirit(null); setNavStack([]); setMode('network') }}
+              navChain={navChain} />
           </div>
         )}
       </div>
