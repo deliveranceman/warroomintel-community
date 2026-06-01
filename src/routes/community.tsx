@@ -6186,10 +6186,22 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
   const [sheetOpen,       setSheetOpen]       = useState(false)
   const [manifestations,  setManifestations]  = useState<any[]>([])
   const [manifLoading,    setManifLoading]    = useState(false)
+  const [imgOpacity,      setImgOpacity]      = useState(0)
   const touchStartX = React.useRef(0)
   const touchStartY = React.useRef(0)
 
+  // Preload all 4 figure images on mount so tab switches are instant
+  useEffect(() => {
+    BM_FIGURES.forEach(fig => {
+      const img = new Image()
+      img.src = fig.image
+    })
+  }, [])
+
   const figure = BM_FIGURES[activeFigure]
+
+  // Reset fade-in when figure changes
+  useEffect(() => { setImgOpacity(0) }, [activeFigure])
 
   function closeSheet() {
     setSheetOpen(false)
@@ -6348,38 +6360,51 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
               key={figure.image}
               src={figure.image}
               alt={figure.label}
-              style={{ display: 'block', width: '100%', height: 'auto' }}
+              loading="eager"
               draggable={false}
+              onLoad={() => setImgOpacity(1)}
+              style={{ display: 'block', width: '100%', height: 'auto', minHeight: 300, opacity: imgOpacity, transition: 'opacity 0.3s' }}
             />
-            {/* Hotspots */}
+            {/* Hotspots — outer div is the 40px tap target; inner div is the visible ring */}
             {figure.hotspots.map(h => {
               const isActive = selectedHotspot?.id === h.id && sheetOpen
               const isHov    = hoveredHotspot === h.id
+              const ringSize = isMobile ? 24 : 32
+              const ringBorder = isMobile ? '1.5px' : '2px'
               return (
                 <div
                   key={h.id}
                   title={h.label}
                   onClick={() => handleHotspotClick(h)}
-                  onMouseEnter={() => setHoveredHotspot(h.id)}
-                  onMouseLeave={() => setHoveredHotspot(null)}
+                  onMouseEnter={() => !isMobile && setHoveredHotspot(h.id)}
+                  onMouseLeave={() => !isMobile && setHoveredHotspot(null)}
                   style={{
                     position: 'absolute',
                     left: `${h.x}%`,
                     top: `${h.y}%`,
                     transform: 'translate(-50%, -50%)',
-                    width: isMobile ? 44 : 28,
-                    height: isMobile ? 44 : 28,
-                    borderRadius: '50%',
+                    width: isMobile ? 40 : 36,
+                    height: isMobile ? 40 : 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     cursor: 'pointer',
-                    background: isActive ? 'rgba(201,168,76,0.28)' : isHov ? 'rgba(201,168,76,0.18)' : 'transparent',
-                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : isHov ? '2px solid rgba(201,168,76,0.55)' : '2px solid rgba(201,168,76,0.25)',
-                    boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : isHov ? '0 0 14px rgba(201,168,76,0.38)' : 'none',
-                    animation: isHov && !isMobile ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
-                    transition: 'background 0.15s, border 0.15s, box-shadow 0.15s',
                     zIndex: 2,
                     WebkitTapHighlightColor: 'transparent',
                   }}
-                />
+                >
+                  <div style={{
+                    width: ringSize,
+                    height: ringSize,
+                    borderRadius: '50%',
+                    background: isActive ? 'rgba(201,168,76,0.15)' : isHov ? 'rgba(201,168,76,0.08)' : 'transparent',
+                    border: `${ringBorder} solid ${isActive ? 'rgba(201,168,76,0.9)' : isHov ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.35)'}`,
+                    boxShadow: isActive ? '0 0 8px rgba(201,168,76,0.4)' : isHov ? '0 0 10px rgba(201,168,76,0.3)' : 'none',
+                    animation: isHov && !isMobile ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
+                    transition: 'background 0.15s, border-color 0.15s, box-shadow 0.15s',
+                    flexShrink: 0,
+                  }} />
+                </div>
               )
             })}
             {/* Hovered label tooltip (desktop only) */}
