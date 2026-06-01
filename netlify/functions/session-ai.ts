@@ -77,9 +77,43 @@ function getRegionSuggestions(region: string, allDemonData: any[], activeSpirits
     .map(([name]) => name)
 }
 
+function getTierLevel(tier: string): number {
+  const levels: Record<string, number> = {
+    watchman: 0, free: 0, soldier: 1, charter_soldier: 1,
+    commander: 2, charter_commander: 2, general: 3, founding_general: 3,
+    minister: 4, admin: 4,
+  }
+  return levels[tier] ?? 0
+}
+
+async function resolveSession(token: string): Promise<{ ok: boolean; tier: string }> {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return { ok: false, tier: 'watchman' }
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    const userId = payload.sub
+    if (!userId) return { ok: false, tier: 'watchman' }
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!res.ok) return { ok: false, tier: 'watchman' }
+    const data = await res.json()
+    const tier = (data?.public_metadata?.tier as string) || 'watchman'
+    return { ok: true, tier }
+  } catch { return { ok: false, tier: 'watchman' } }
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: CORS })
+
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
+  const { ok, tier } = await resolveSession(token)
+  if (!ok) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: CORS })
+  if (getTierLevel(tier) < 2) {
+    return new Response(JSON.stringify({ error: 'Commander tier or higher required' }), { status: 403, headers: CORS })
+  }
 
   let body: any
   try { body = await req.json() } catch {

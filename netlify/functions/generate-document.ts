@@ -10,21 +10,31 @@ function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 }
 
-async function resolveUser(token: string): Promise<{ ok: boolean; isMinister: boolean }> {
+function getTierLevel(tier: string): number {
+  const levels: Record<string, number> = {
+    watchman: 0, free: 0, soldier: 1, charter_soldier: 1,
+    commander: 2, charter_commander: 2, general: 3, founding_general: 3,
+    minister: 4, admin: 4,
+  }
+  return levels[tier] ?? 0
+}
+
+async function resolveUser(token: string): Promise<{ ok: boolean; isMinister: boolean; tier: string }> {
   try {
     const parts = token.split('.')
-    if (parts.length !== 3) return { ok: false, isMinister: false }
+    if (parts.length !== 3) return { ok: false, isMinister: false, tier: 'watchman' }
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
-    if (!userId) return { ok: false, isMinister: false }
+    if (!userId) return { ok: false, isMinister: false, tier: 'watchman' }
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return { ok: false, isMinister: false }
+    if (!res.ok) return { ok: false, isMinister: false, tier: 'watchman' }
     const data = await res.json()
     const isMinister = data?.public_metadata?.role === 'minister'
-    return { ok: true, isMinister }
-  } catch { return { ok: false, isMinister: false } }
+    const tier = (data?.public_metadata?.tier as string) || 'watchman'
+    return { ok: true, isMinister, tier }
+  } catch { return { ok: false, isMinister: false, tier: 'watchman' } }
 }
 
 function parseDocumentJson(raw: string): any {
@@ -54,8 +64,11 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const { ok } = await resolveUser(token)
+  const { ok, tier } = await resolveUser(token)
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+  if (getTierLevel(tier) < 1) {
+    return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers })
+  }
 
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers }) }
