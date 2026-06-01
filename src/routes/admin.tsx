@@ -854,63 +854,31 @@ const FIELD_GROUPS = [
 // ─── BODY MAP ADMIN ──────────────────────────────────────────────────────────
 
 const BM_REGION_MAP: Record<string, string> = {
-  'Crown': 'Head', 'Right Eye': 'Head', 'Left Eye': 'Head',
-  'Right Ear / Temple': 'Head', 'Throat / Neck': 'Head', 'Base of Skull / Occiput': 'Head',
-  'Crown (F)': 'Head', 'Right Eye (F)': 'Head', 'Left Eye (F)': 'Head',
-  'Right Ear (F)': 'Head', 'Throat / Neck (F)': 'Head', 'Base of Skull (F)': 'Head',
-  'Upper Sternum': 'Torso', 'Mid Sternum': 'Torso', 'Mid Sternum (F)': 'Torso',
-  'Right Ribcage': 'Torso', 'Left Ribcage': 'Torso',
-  'Solar Plexus': 'Torso', 'Liver / Right Abdomen': 'Torso', 'Navel / Mid Abdomen': 'Torso',
-  'Spleen / Left Abdomen': 'Torso', 'Lower Abdomen': 'Torso',
-  'Solar Plexus (F)': 'Torso', 'Right Abdomen (F)': 'Torso', 'Navel (F)': 'Torso',
-  'Left Abdomen (F)': 'Torso', 'Lower Abdomen (F)': 'Torso',
-  'Right Kidney': 'Torso', 'Left Kidney': 'Torso', 'Right Kidney (F)': 'Torso', 'Left Kidney (F)': 'Torso',
-  'Upper Chest (F)': 'Torso', 'Right Breast': 'Torso', 'Left Breast': 'Torso',
-  'Cervical Spine C1-C3': 'Spine', 'Cervical Spine C4-C7': 'Spine',
-  'Thoracic Spine T1-T4': 'Spine', 'Thoracic Spine T5-T8': 'Spine', 'Thoracic Spine T9-T12': 'Spine',
-  'Lumbar Spine L1-L3': 'Spine', 'Lumbar Spine L4-L5': 'Spine',
-  'Right Shoulder Blade': 'Spine', 'Left Shoulder Blade': 'Spine', 'Sacrum': 'Spine',
-  'Cervical Spine (F)': 'Spine', 'Upper Thoracic Spine (F)': 'Spine', 'Mid Thoracic Spine (F)': 'Spine',
-  'Lower Thoracic Spine (F)': 'Spine', 'Upper Lumbar (F)': 'Spine', 'Lower Lumbar (F)': 'Spine',
-  'Right Shoulder Blade (F)': 'Spine', 'Left Shoulder Blade (F)': 'Spine', 'Sacrum (F)': 'Spine',
-  'Groin / Reproductive': 'Pelvic', 'Right Hip': 'Pelvic', 'Left Hip': 'Pelvic',
-  'Right Gluteal': 'Pelvic', 'Left Gluteal': 'Pelvic', 'AB09': 'Pelvic',
-  'Reproductive (F)': 'Pelvic', 'Right Hip (F)': 'Pelvic', 'Left Hip (F)': 'Pelvic',
-  'Right Gluteal (F)': 'Pelvic', 'Left Gluteal (F)': 'Pelvic',
-  'Right Shoulder': 'Upper Extremities', 'Left Shoulder': 'Upper Extremities',
-  'Right Upper Arm': 'Upper Extremities', 'Left Upper Arm': 'Upper Extremities',
-  'Right Elbow': 'Upper Extremities', 'Left Elbow': 'Upper Extremities',
-  'Right Wrist': 'Upper Extremities', 'Left Wrist': 'Upper Extremities',
-  'Right Palm': 'Upper Extremities', 'Left Palm': 'Upper Extremities',
-  'Right Forearm / Elbow Back': 'Upper Extremities', 'Left Forearm / Elbow Back': 'Upper Extremities',
-  'Right Wrist Back': 'Upper Extremities', 'Left Wrist Back': 'Upper Extremities',
-  'Right Shoulder (F)': 'Upper Extremities', 'Left Shoulder (F)': 'Upper Extremities',
-  'Right Upper Arm (F)': 'Upper Extremities', 'Left Upper Arm (F)': 'Upper Extremities',
-  'Right Elbow (F)': 'Upper Extremities', 'Left Elbow (F)': 'Upper Extremities',
-  'Right Wrist (F)': 'Upper Extremities', 'Left Wrist (F)': 'Upper Extremities',
-  'Right Palm (F)': 'Upper Extremities', 'Left Palm (F)': 'Upper Extremities',
-  'Right Elbow Back (F)': 'Upper Extremities', 'Left Elbow Back (F)': 'Upper Extremities',
-  'Right Wrist Back (F)': 'Upper Extremities', 'Left Wrist Back (F)': 'Upper Extremities',
-  'Right Thigh': 'Lower Extremities', 'Left Thigh': 'Lower Extremities',
-  'Right Knee': 'Lower Extremities', 'Left Knee': 'Lower Extremities',
-  'Right Shin / Calf': 'Lower Extremities', 'Left Shin / Calf': 'Lower Extremities',
-  'Right Ankle': 'Lower Extremities', 'Left Ankle': 'Lower Extremities',
-  'Right Foot': 'Lower Extremities', 'Left Foot': 'Lower Extremities',
-  'Right Thigh Back': 'Lower Extremities', 'Left Thigh Back': 'Lower Extremities',
-  'Right Knee Back': 'Lower Extremities', 'Left Knee Back': 'Lower Extremities',
-  'Right Calf Back': 'Lower Extremities', 'Left Calf Back': 'Lower Extremities',
-  'Right Ankle Back': 'Lower Extremities', 'Left Ankle Back': 'Lower Extremities',
-  'Right Foot Back': 'Lower Extremities', 'Left Foot Back': 'Lower Extremities',
-  'Right Thigh (F)': 'Lower Extremities', 'Left Thigh (F)': 'Lower Extremities',
-  'Right Knee (F)': 'Lower Extremities', 'Left Knee (F)': 'Lower Extremities',
-  'Right Shin (F)': 'Lower Extremities', 'Left Shin (F)': 'Lower Extremities',
-  'Right Ankle (F)': 'Lower Extremities', 'Left Ankle (F)': 'Lower Extremities',
-  'Right Foot (F)': 'Lower Extremities', 'Left Foot (F)': 'Lower Extremities',
-  'Right Thigh Back (F)': 'Lower Extremities', 'Left Thigh Back (F)': 'Lower Extremities',
-  'Right Knee Back (F)': 'Lower Extremities', 'Left Knee Back (F)': 'Lower Extremities',
-  'Right Calf Back (F)': 'Lower Extremities', 'Left Calf Back (F)': 'Lower Extremities',
-  'Right Ankle Back (F)': 'Lower Extremities', 'Left Ankle Back (F)': 'Lower Extremities',
-  'Right Foot Back (F)': 'Lower Extremities', 'Left Foot Back (F)': 'Lower Extremities',
+  // Head
+  'Crown': 'Head', 'Left Temple': 'Head', 'Right Temple': 'Head',
+  'Left Eye': 'Head', 'Right Eye': 'Head', 'Mouth / Jaw': 'Head', 'Throat': 'Head',
+  'Crown / Back of Head': 'Head', 'Neck / Cervical': 'Head',
+  // Torso
+  'Heart / Chest': 'Torso', 'Solar Plexus': 'Torso', 'Abdomen': 'Torso',
+  // Spine
+  'Left Shoulder Blade': 'Spine', 'Right Shoulder Blade': 'Spine',
+  'Upper Back / Thoracic': 'Spine', 'Mid Back / Lumbar': 'Spine', 'Lower Back / Sacral': 'Spine',
+  // Pelvic
+  'Pelvis / Groin': 'Pelvic', 'Pelvis': 'Pelvic', 'Womb / Uterus': 'Pelvic',
+  'Left Hip / Glute': 'Pelvic', 'Right Hip / Glute': 'Pelvic',
+  // Upper Extremities
+  'Left Shoulder': 'Upper Extremities', 'Right Shoulder': 'Upper Extremities',
+  'Left Elbow': 'Upper Extremities', 'Right Elbow': 'Upper Extremities',
+  'Left Wrist': 'Upper Extremities', 'Right Wrist': 'Upper Extremities',
+  'Left Hand': 'Upper Extremities', 'Right Hand': 'Upper Extremities',
+  // Lower Extremities
+  'Left Thigh': 'Lower Extremities', 'Right Thigh': 'Lower Extremities',
+  'Left Knee': 'Lower Extremities', 'Right Knee': 'Lower Extremities',
+  'Left Shin': 'Lower Extremities', 'Right Shin': 'Lower Extremities',
+  'Left Foot': 'Lower Extremities', 'Right Foot': 'Lower Extremities',
+  'Left Hamstring': 'Lower Extremities', 'Right Hamstring': 'Lower Extremities',
+  'Left Knee Back': 'Lower Extremities', 'Right Knee Back': 'Lower Extremities',
+  'Left Heel / Foot': 'Lower Extremities', 'Right Heel / Foot': 'Lower Extremities',
 }
 
 function bmDeriveRegion(name: string): string {
@@ -960,143 +928,119 @@ type BMManifestation = {
   created_at: string
 }
 
-const BM_HOTSPOT_OPTIONS = [
-  // Male Front
-  { id: 'H01',   label: 'Crown' },
-  { id: 'H02',   label: 'Right Eye' },
-  { id: 'H03',   label: 'Left Eye' },
-  { id: 'H04',   label: 'Right Ear / Temple' },
-  { id: 'H05',   label: 'Throat / Neck' },
-  { id: 'S01',   label: 'Right Shoulder' },
-  { id: 'S02',   label: 'Left Shoulder' },
-  { id: 'C01',   label: 'Upper Sternum' },
-  { id: 'C02',   label: 'Mid Sternum' },
-  { id: 'C03',   label: 'Right Ribcage' },
-  { id: 'C04',   label: 'Left Ribcage' },
-  { id: 'A01',   label: 'Right Upper Arm' },
-  { id: 'A02',   label: 'Left Upper Arm' },
-  { id: 'A03',   label: 'Right Elbow' },
-  { id: 'A04',   label: 'Left Elbow' },
-  { id: 'A07',   label: 'Right Wrist' },
-  { id: 'A08',   label: 'Left Wrist' },
-  { id: 'A09',   label: 'Right Palm' },
-  { id: 'A10',   label: 'Left Palm' },
-  { id: 'AB01',  label: 'Solar Plexus' },
-  { id: 'AB02',  label: 'Liver / Right Abdomen' },
-  { id: 'AB03',  label: 'Navel / Mid Abdomen' },
-  { id: 'AB04',  label: 'Spleen / Left Abdomen' },
-  { id: 'AB05',  label: 'Lower Abdomen' },
-  { id: 'R01',   label: 'Groin / Reproductive' },
-  { id: 'R02',   label: 'Right Hip' },
-  { id: 'R03',   label: 'Left Hip' },
-  { id: 'L01',   label: 'Right Thigh' },
-  { id: 'L02',   label: 'Left Thigh' },
-  { id: 'L03',   label: 'Right Knee' },
-  { id: 'L04',   label: 'Left Knee' },
-  { id: 'L07',   label: 'Right Shin / Calf' },
-  { id: 'L08',   label: 'Left Shin / Calf' },
-  { id: 'L09',   label: 'Right Ankle' },
-  { id: 'L10',   label: 'Left Ankle' },
-  { id: 'L11',   label: 'Right Foot' },
-  { id: 'L12',   label: 'Left Foot' },
-  // Male Back
-  { id: 'H06',   label: 'Base of Skull / Occiput' },
-  { id: 'S03',   label: 'Right Shoulder Blade' },
-  { id: 'S04',   label: 'Left Shoulder Blade' },
-  { id: 'SP01',  label: 'Cervical Spine C1-C3' },
-  { id: 'SP02',  label: 'Cervical Spine C4-C7' },
-  { id: 'SP03',  label: 'Thoracic Spine T1-T4' },
-  { id: 'SP04',  label: 'Thoracic Spine T5-T8' },
-  { id: 'SP05',  label: 'Thoracic Spine T9-T12' },
-  { id: 'SP06',  label: 'Lumbar Spine L1-L3' },
-  { id: 'SP07',  label: 'Lumbar Spine L4-L5' },
-  { id: 'AB06',  label: 'Right Kidney' },
-  { id: 'AB07',  label: 'Left Kidney' },
-  { id: 'A05',   label: 'Right Forearm / Elbow Back' },
-  { id: 'A06',   label: 'Left Forearm / Elbow Back' },
-  { id: 'A11',   label: 'Right Wrist Back' },
-  { id: 'A12',   label: 'Left Wrist Back' },
-  { id: 'AB09',  label: 'Sacrum' },
-  { id: 'AB10',  label: 'Right Gluteal' },
-  { id: 'AB11',  label: 'Left Gluteal' },
-  { id: 'L05',   label: 'Right Thigh Back' },
-  { id: 'L06',   label: 'Left Thigh Back' },
-  { id: 'L13',   label: 'Right Knee Back' },
-  { id: 'L14',   label: 'Left Knee Back' },
-  { id: 'L15',   label: 'Right Calf Back' },
-  { id: 'L16',   label: 'Left Calf Back' },
-  { id: 'L17',   label: 'Right Ankle Back' },
-  { id: 'L18',   label: 'Left Ankle Back' },
-  { id: 'L19',   label: 'Right Foot Back' },
-  { id: 'L20',   label: 'Left Foot Back' },
-  // Female Front
-  { id: 'FH01',  label: 'Crown (F)' },
-  { id: 'FH02',  label: 'Right Eye (F)' },
-  { id: 'FH03',  label: 'Left Eye (F)' },
-  { id: 'FH04',  label: 'Right Ear (F)' },
-  { id: 'FH05',  label: 'Throat / Neck (F)' },
-  { id: 'FS01',  label: 'Right Shoulder (F)' },
-  { id: 'FS02',  label: 'Left Shoulder (F)' },
-  { id: 'FC01',  label: 'Upper Chest (F)' },
-  { id: 'FC02',  label: 'Right Breast' },
-  { id: 'FC03',  label: 'Left Breast' },
-  { id: 'FC04',  label: 'Mid Sternum (F)' },
-  { id: 'FA01',  label: 'Right Upper Arm (F)' },
-  { id: 'FA02',  label: 'Left Upper Arm (F)' },
-  { id: 'FA03',  label: 'Right Elbow (F)' },
-  { id: 'FA04',  label: 'Left Elbow (F)' },
-  { id: 'FA05',  label: 'Right Wrist (F)' },
-  { id: 'FA06',  label: 'Left Wrist (F)' },
-  { id: 'FA07',  label: 'Right Palm (F)' },
-  { id: 'FA08',  label: 'Left Palm (F)' },
-  { id: 'FAB01', label: 'Solar Plexus (F)' },
-  { id: 'FAB02', label: 'Right Abdomen (F)' },
-  { id: 'FAB03', label: 'Navel (F)' },
-  { id: 'FAB04', label: 'Left Abdomen (F)' },
-  { id: 'FAB05', label: 'Lower Abdomen (F)' },
-  { id: 'FR01',  label: 'Reproductive (F)' },
-  { id: 'FR02',  label: 'Right Hip (F)' },
-  { id: 'FR03',  label: 'Left Hip (F)' },
-  { id: 'FL01',  label: 'Right Thigh (F)' },
-  { id: 'FL02',  label: 'Left Thigh (F)' },
-  { id: 'FL03',  label: 'Right Knee (F)' },
-  { id: 'FL04',  label: 'Left Knee (F)' },
-  { id: 'FL05',  label: 'Right Shin (F)' },
-  { id: 'FL06',  label: 'Left Shin (F)' },
-  { id: 'FL07',  label: 'Right Ankle (F)' },
-  { id: 'FL08',  label: 'Left Ankle (F)' },
-  { id: 'FL09',  label: 'Right Foot (F)' },
-  { id: 'FL10',  label: 'Left Foot (F)' },
-  // Female Back
-  { id: 'FH06',  label: 'Base of Skull (F)' },
-  { id: 'FS03',  label: 'Right Shoulder Blade (F)' },
-  { id: 'FS04',  label: 'Left Shoulder Blade (F)' },
-  { id: 'FSP01', label: 'Cervical Spine (F)' },
-  { id: 'FSP02', label: 'Upper Thoracic Spine (F)' },
-  { id: 'FSP03', label: 'Mid Thoracic Spine (F)' },
-  { id: 'FSP04', label: 'Lower Thoracic Spine (F)' },
-  { id: 'FSP05', label: 'Upper Lumbar (F)' },
-  { id: 'FSP06', label: 'Lower Lumbar (F)' },
-  { id: 'FAB06', label: 'Right Kidney (F)' },
-  { id: 'FAB07', label: 'Left Kidney (F)' },
-  { id: 'FA09',  label: 'Right Elbow Back (F)' },
-  { id: 'FA10',  label: 'Left Elbow Back (F)' },
-  { id: 'FA11',  label: 'Right Wrist Back (F)' },
-  { id: 'FA12',  label: 'Left Wrist Back (F)' },
-  { id: 'FAB09', label: 'Sacrum (F)' },
-  { id: 'FAB10', label: 'Right Gluteal (F)' },
-  { id: 'FAB11', label: 'Left Gluteal (F)' },
-  { id: 'FL11',  label: 'Right Thigh Back (F)' },
-  { id: 'FL12',  label: 'Left Thigh Back (F)' },
-  { id: 'FL13',  label: 'Right Knee Back (F)' },
-  { id: 'FL14',  label: 'Left Knee Back (F)' },
-  { id: 'FL15',  label: 'Right Calf Back (F)' },
-  { id: 'FL16',  label: 'Left Calf Back (F)' },
-  { id: 'FL17',  label: 'Right Ankle Back (F)' },
-  { id: 'FL18',  label: 'Left Ankle Back (F)' },
-  { id: 'FL19',  label: 'Right Foot Back (F)' },
-  { id: 'FL20',  label: 'Left Foot Back (F)' },
+const BM_HOTSPOT_GROUPS = [
+  {
+    label: 'Male Front',
+    hotspots: [
+      { id: 'mf-crown',          label: 'Crown' },
+      { id: 'mf-left-temple',    label: 'Left Temple' },
+      { id: 'mf-right-temple',   label: 'Right Temple' },
+      { id: 'mf-left-eye',       label: 'Left Eye' },
+      { id: 'mf-right-eye',      label: 'Right Eye' },
+      { id: 'mf-mouth',          label: 'Mouth / Jaw' },
+      { id: 'mf-throat',         label: 'Throat' },
+      { id: 'mf-heart',          label: 'Heart / Chest' },
+      { id: 'mf-left-shoulder',  label: 'Left Shoulder' },
+      { id: 'mf-right-shoulder', label: 'Right Shoulder' },
+      { id: 'mf-left-elbow',     label: 'Left Elbow' },
+      { id: 'mf-right-elbow',    label: 'Right Elbow' },
+      { id: 'mf-solar-plexus',   label: 'Solar Plexus' },
+      { id: 'mf-abdomen',        label: 'Abdomen' },
+      { id: 'mf-left-wrist',     label: 'Left Wrist' },
+      { id: 'mf-right-wrist',    label: 'Right Wrist' },
+      { id: 'mf-pelvis',         label: 'Pelvis / Groin' },
+      { id: 'mf-left-hand',      label: 'Left Hand' },
+      { id: 'mf-right-hand',     label: 'Right Hand' },
+      { id: 'mf-left-thigh',     label: 'Left Thigh' },
+      { id: 'mf-right-thigh',    label: 'Right Thigh' },
+      { id: 'mf-left-knee',      label: 'Left Knee' },
+      { id: 'mf-right-knee',     label: 'Right Knee' },
+      { id: 'mf-left-shin',      label: 'Left Shin' },
+      { id: 'mf-right-shin',     label: 'Right Shin' },
+      { id: 'mf-left-foot',      label: 'Left Foot' },
+      { id: 'mf-right-foot',     label: 'Right Foot' },
+    ],
+  },
+  {
+    label: 'Male Back',
+    hotspots: [
+      { id: 'mb-crown',           label: 'Crown / Back of Head' },
+      { id: 'mb-neck',            label: 'Neck / Cervical' },
+      { id: 'mb-left-shoulder',   label: 'Left Shoulder Blade' },
+      { id: 'mb-right-shoulder',  label: 'Right Shoulder Blade' },
+      { id: 'mb-upper-back',      label: 'Upper Back / Thoracic' },
+      { id: 'mb-left-elbow',      label: 'Left Elbow' },
+      { id: 'mb-right-elbow',     label: 'Right Elbow' },
+      { id: 'mb-mid-back',        label: 'Mid Back / Lumbar' },
+      { id: 'mb-lower-back',      label: 'Lower Back / Sacral' },
+      { id: 'mb-left-hip',        label: 'Left Hip / Glute' },
+      { id: 'mb-right-hip',       label: 'Right Hip / Glute' },
+      { id: 'mb-left-hamstring',  label: 'Left Hamstring' },
+      { id: 'mb-right-hamstring', label: 'Right Hamstring' },
+      { id: 'mb-left-knee-back',  label: 'Left Knee Back' },
+      { id: 'mb-right-knee-back', label: 'Right Knee Back' },
+      { id: 'mb-left-heel',       label: 'Left Heel / Foot' },
+      { id: 'mb-right-heel',      label: 'Right Heel / Foot' },
+    ],
+  },
+  {
+    label: 'Female Front',
+    hotspots: [
+      { id: 'ff-crown',          label: 'Crown' },
+      { id: 'ff-left-temple',    label: 'Left Temple' },
+      { id: 'ff-right-temple',   label: 'Right Temple' },
+      { id: 'ff-left-eye',       label: 'Left Eye' },
+      { id: 'ff-right-eye',      label: 'Right Eye' },
+      { id: 'ff-mouth',          label: 'Mouth / Jaw' },
+      { id: 'ff-throat',         label: 'Throat' },
+      { id: 'ff-heart',          label: 'Heart / Chest' },
+      { id: 'ff-left-shoulder',  label: 'Left Shoulder' },
+      { id: 'ff-right-shoulder', label: 'Right Shoulder' },
+      { id: 'ff-left-elbow',     label: 'Left Elbow' },
+      { id: 'ff-right-elbow',    label: 'Right Elbow' },
+      { id: 'ff-solar-plexus',   label: 'Solar Plexus' },
+      { id: 'ff-abdomen',        label: 'Abdomen' },
+      { id: 'ff-womb',           label: 'Womb / Uterus' },
+      { id: 'ff-left-wrist',     label: 'Left Wrist' },
+      { id: 'ff-right-wrist',    label: 'Right Wrist' },
+      { id: 'ff-pelvis',         label: 'Pelvis' },
+      { id: 'ff-left-hand',      label: 'Left Hand' },
+      { id: 'ff-right-hand',     label: 'Right Hand' },
+      { id: 'ff-left-thigh',     label: 'Left Thigh' },
+      { id: 'ff-right-thigh',    label: 'Right Thigh' },
+      { id: 'ff-left-knee',      label: 'Left Knee' },
+      { id: 'ff-right-knee',     label: 'Right Knee' },
+      { id: 'ff-left-shin',      label: 'Left Shin' },
+      { id: 'ff-right-shin',     label: 'Right Shin' },
+      { id: 'ff-left-foot',      label: 'Left Foot' },
+      { id: 'ff-right-foot',     label: 'Right Foot' },
+    ],
+  },
+  {
+    label: 'Female Back',
+    hotspots: [
+      { id: 'fb-crown',           label: 'Crown / Back of Head' },
+      { id: 'fb-neck',            label: 'Neck / Cervical' },
+      { id: 'fb-left-shoulder',   label: 'Left Shoulder Blade' },
+      { id: 'fb-right-shoulder',  label: 'Right Shoulder Blade' },
+      { id: 'fb-upper-back',      label: 'Upper Back / Thoracic' },
+      { id: 'fb-left-elbow',      label: 'Left Elbow' },
+      { id: 'fb-right-elbow',     label: 'Right Elbow' },
+      { id: 'fb-mid-back',        label: 'Mid Back / Lumbar' },
+      { id: 'fb-lower-back',      label: 'Lower Back / Sacral' },
+      { id: 'fb-left-hip',        label: 'Left Hip / Glute' },
+      { id: 'fb-right-hip',       label: 'Right Hip / Glute' },
+      { id: 'fb-left-hamstring',  label: 'Left Hamstring' },
+      { id: 'fb-right-hamstring', label: 'Right Hamstring' },
+      { id: 'fb-left-knee-back',  label: 'Left Knee Back' },
+      { id: 'fb-right-knee-back', label: 'Right Knee Back' },
+      { id: 'fb-left-heel',       label: 'Left Heel / Foot' },
+      { id: 'fb-right-heel',      label: 'Right Heel / Foot' },
+    ],
+  },
 ]
+
+const BM_HOTSPOT_OPTIONS = BM_HOTSPOT_GROUPS.flatMap(g => g.hotspots)
 
 function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
   const [rows, setRows] = useState<BMManifestation[]>([])
@@ -1109,7 +1053,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
   const allSpirits = useRef<any[]>([])
 
   // Form fields
-  const [hotspotId, setHotspotId] = useState('H01')
+  const [hotspotId, setHotspotId] = useState('mf-crown')
   const [bodyPart, setBodyPart] = useState('')
   const [region, setRegion] = useState('')
   const [manifestation, setManifestation] = useState('')
@@ -1132,7 +1076,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
   }, [])
 
   function resetForm() {
-    setHotspotId('H01')
+    setHotspotId('mf-crown')
     setBodyPart('')
     setRegion('')
     setManifestation('')
@@ -1280,7 +1224,11 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
           <select value={filterHotspot} onChange={e => setFilterHotspot(e.target.value)}
             style={{ ...inp, width: 'auto', paddingRight: 28 }}>
             <option value="all">All Hotspots</option>
-            {BM_HOTSPOT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+            {BM_HOTSPOT_GROUPS.map(g => (
+              <optgroup key={g.label} label={`— ${g.label} —`}>
+                {g.hotspots.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </optgroup>
+            ))}
           </select>
           <button onClick={() => { setShowAdd(true); setEditingId(null); resetForm() }}
             style={{ padding: '8px 18px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
@@ -1300,7 +1248,11 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
             <div>
               <label style={lbl}>HOTSPOT</label>
               <select value={hotspotId} onChange={e => handleHotspotChange(e.target.value)} style={inp}>
-                {BM_HOTSPOT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                {BM_HOTSPOT_GROUPS.map(g => (
+                  <optgroup key={g.label} label={`— ${g.label} —`}>
+                    {g.hotspots.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </div>
             <div>
