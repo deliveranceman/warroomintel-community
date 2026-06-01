@@ -885,25 +885,25 @@ function PricingSection() {
   const tiers = [
     {
       name: 'Watchman', cls: 'IV' as const, price: '$0', period: 'forever', badge: null,
-      features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', 'Demon database — name, type, kingdom, function', 'Watchman protocol PDFs'],
+      features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', 'Demon database — name, type, kingdom, function', 'Watchman protocol PDFs', '5 AI asks/day (Ask Dake, Bible AI)'],
       locked: ['Full database fields', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
       btn: 'Join as Watchman', tier: null, featured: false, isSignup: true,
     },
     {
       name: 'Soldier', cls: 'III' as const, price: '$19', period: '/month', badge: null,
-      features: ['Everything in Watchman', 'Full database access', 'Scripture & entry point fields', 'Manifestations, Strongman, Rank fields', 'Soldier protocol PDFs', 'Monthly group prayer call'],
+      features: ['Everything in Watchman', 'Full database access', 'Scripture & entry point fields', 'Manifestations, Strongman, Rank fields', 'Soldier protocol PDFs', 'Monthly group prayer call', '20 AI asks/day + Gateway & Dream Interpreter'],
       locked: ['Commander fields', 'Bi-weekly calls'],
       btn: 'Start Free Trial', tier: 'soldier', featured: false, isSignup: false,
     },
     {
       name: 'Commander', cls: 'II' as const, price: '$39', period: '/month', badge: 'Most Popular',
-      features: ['Everything in Soldier', 'All database fields unlocked', 'Full protocol PDF library', 'Personal assessment response', 'Entry Points, Legal Rights, Protocol fields', 'Bi-weekly group call'],
+      features: ['Everything in Soldier', 'All database fields unlocked', 'Full protocol PDF library', 'Personal assessment response', 'Entry Points, Legal Rights, Protocol fields', 'Bi-weekly group call', '50 AI asks/day + Symptom Investigator + Session AI'],
       locked: ['Weekly intimate calls'],
       btn: 'Join Commander', tier: 'commander', featured: true, isSignup: false,
     },
     {
       name: "General's Table", cls: 'I' as const, price: '$97', period: '/month', badge: null,
-      features: ["Everything in Commander", 'Leadership PDF library', 'Weekly intimate group call', 'Direct ministry access', 'Symptoms, Companion Spirits, Exorcist Notes', 'Ministry certification track', 'Priority assessment response'],
+      features: ["Everything in Commander", 'Leadership PDF library', 'Weekly intimate group call', 'Direct ministry access', 'Symptoms, Companion Spirits, Exorcist Notes', 'Ministry certification track', 'Priority assessment response', 'Unlimited AI across all tools'],
       locked: [],
       btn: "Join General's Table", tier: 'general', featured: false, isSignup: false,
     },

@@ -69,6 +69,50 @@ function FoundingBadge() {
   )
 }
 
+// ── AI USAGE PILL ──────────────────────────────────────────
+let _usageCache: { data: any; ts: number } | null = null
+let _usageFetch: Promise<any> | null = null
+
+function AIUsagePill({ feature, getToken, style }: { feature: string; getToken: () => Promise<string | null>; style?: React.CSSProperties }) {
+  const [info, setInfo] = React.useState<{ used: number; limit: number } | null>(null)
+
+  React.useEffect(() => {
+    const load = async () => {
+      if (_usageCache && Date.now() - _usageCache.ts < 60000) {
+        const f = _usageCache.data?.features?.find((x: any) => x.feature === feature)
+        if (f) setInfo({ used: f.used, limit: f.limit })
+        return
+      }
+      if (!_usageFetch) {
+        _usageFetch = getToken().then(token => {
+          if (!token) return null
+          return fetch('/api/ai-usage', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null)
+        }).then(d => {
+          _usageFetch = null
+          if (d) { _usageCache = { data: d, ts: Date.now() } }
+          return d
+        }).catch(() => { _usageFetch = null; return null })
+      }
+      const d = await _usageFetch
+      if (d) {
+        const f = d.features?.find((x: any) => x.feature === feature)
+        if (f) setInfo({ used: f.used, limit: f.limit })
+      }
+    }
+    load()
+  }, [feature])
+
+  if (!info) return null
+  if (info.limit === -1) return null
+  const pct = info.limit > 0 ? info.used / info.limit : 1
+  const color = pct >= 1 ? '#c84a4a' : pct >= 0.75 ? '#e2a73c' : 'rgba(201,168,76,0.5)'
+  return (
+    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color, background: `${color}18`, border: `1px solid ${color}40`, borderRadius: 3, padding: '1px 5px', ...style }}>
+      {info.used}/{info.limit} today
+    </span>
+  )
+}
+
 // ── STREAM HELPER ──────────────────────────────────────────
 function streamFetch(path: string, method: string, token: string, apiKey: string, body?: object) {
   return fetch(`https://chat.stream-io-api.com${path}?api_key=${apiKey}`, {
@@ -4395,12 +4439,13 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
         headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
         body: JSON.stringify({ symptoms: invInput }),
       })
-      if (!res.ok) {
-        const errBody = await res.text()
-        console.error('Investigate failed:', res.status, errBody)
-        throw new Error(`Investigation failed: ${res.status}`)
-      }
       const data = await res.json()
+      if (res.status === 429) { _usageCache = null; throw new Error(data.error || 'Daily limit reached. Upgrade to continue.') }
+      if (!res.ok) {
+        console.error('Investigate failed:', res.status, data)
+        throw new Error(data.error || `Investigation failed: ${res.status}`)
+      }
+      _usageCache = null
       setInvResult(data)
       if (token) {
         fetch('/api/ai-history', {
@@ -4428,7 +4473,10 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
 
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ fontSize: 11, color: G, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚔ War Room Intel</div>
-          <h1 style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: isMobile ? 22 : 28, fontWeight: 700, marginBottom: 8 }}>Symptom Investigator</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
+            <h1 style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: isMobile ? 22 : 28, fontWeight: 700, margin: 0 }}>Symptom Investigator</h1>
+            <AIUsagePill feature="symptom_investigator" getToken={getToken} />
+          </div>
           <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.6, fontFamily: crimson }}>
             Describe what you are observing — symptoms, manifestations, dreams, emotional patterns, physical reactions.
             The system will identify probable spirits and suggest a deliverance sequence.
@@ -4635,7 +4683,9 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
         body: JSON.stringify({ spiritName: spiritName.trim(), personContext: personContext.trim() }),
       })
       const data = await res.json()
+      if (res.status === 429) { _usageCache = null; throw new Error(data.error || 'Daily limit reached. Upgrade to continue.') }
       if (!res.ok) throw new Error(data.error || 'Investigation failed')
+      _usageCache = null
       setReport(data)
       if (token) {
         fetch('/api/ai-history', {
@@ -4658,9 +4708,12 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
         )}
 
         <div style={{ marginBottom: 28 }}>
-          <h1 style={{ fontFamily: cinzel, color: isDark ? '#E8D5B0' : '#2D2924', fontSize: isMobile ? 20 : 26, fontWeight: 700, marginBottom: 6, letterSpacing: '0.06em' }}>
-            🚪 Gateway Investigator
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <h1 style={{ fontFamily: cinzel, color: isDark ? '#E8D5B0' : '#2D2924', fontSize: isMobile ? 20 : 26, fontWeight: 700, letterSpacing: '0.06em', margin: 0 }}>
+              🚪 Gateway Investigator
+            </h1>
+            <AIUsagePill feature="gateway" getToken={getToken} />
+          </div>
           <p style={{ fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 14, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
             Enter a spirit name, a cultural exposure, or both. Get a full intelligence report on gateways, entry points, and session questions.
           </p>
@@ -5719,8 +5772,25 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
   const [loading,   setLoading]   = useState(true)
   const [filter,    setFilter]    = useState('all')
   const [searchQ,   setSearchQ]   = useState('')
+  const [aiUsage,   setAIUsage]   = useState<{ tier: string; features: any[] } | null>(null)
+
+  useEffect(() => {
+    getToken().then((token: string | null) => {
+      if (!token) return
+      fetch('/api/ai-usage', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.features) setAIUsage(d) })
+        .catch(() => {})
+    })
+  }, [])
 
   const FILTERS = ['all', 'ask-dake', 'symptom-investigator', 'gateway-investigator', 'spirit-network', 'ai-assistant']
+
+  const AI_FEATURE_LABELS: Record<string, string> = {
+    ask_dake: 'Ask Dake', ai_assistant: 'AI Assistant', bible_ask: 'Bible Study',
+    symptom_investigator: 'Symptom Inv.', gateway: 'Gateway Inv.',
+    dream: 'Dream Interp.', document: 'Documents', session_ai: 'Session AI', assessment: 'Assessment',
+  }
 
   async function loadHistory(tool?: string) {
     setLoading(true)
@@ -5774,6 +5844,47 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
           <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: '0 0 4px', letterSpacing: '0.08em' }}>My Intel</h2>
           <p style={{ color: '#8B7355', fontSize: 13, margin: 0, fontFamily: crimson }}>Your AI search history across all tools</p>
         </div>
+
+        {/* AI Usage Today widget */}
+        {aiUsage && (
+          <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '16px 18px', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>AI USAGE TODAY</span>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4f3a', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{aiUsage.tier}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '8px 16px' }}>
+              {aiUsage.features.filter((f: any) => f.limit !== 0).map((f: any) => {
+                const label = AI_FEATURE_LABELS[f.feature] || f.feature
+                const isUnlimited = f.limit === -1
+                const pct = isUnlimited ? 0 : f.limit > 0 ? f.used / f.limit : 1
+                const barColor = pct >= 1 ? '#c84a4a' : pct >= 0.75 ? '#e2a73c' : G
+                return (
+                  <div key={f.feature}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span style={{ fontFamily: crimson, fontSize: 11, color: '#9a8c74' }}>{label}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, color: isUnlimited ? '#5fae6f' : pct >= 1 ? '#c84a4a' : '#9a8c74', letterSpacing: '0.04em' }}>
+                        {isUnlimited ? '∞' : `${f.used}/${f.limit}`}
+                      </span>
+                    </div>
+                    {!isUnlimited && (
+                      <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, pct * 100)}%`, background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {aiUsage.features.some((f: any) => f.limit > 0 && f.used >= f.limit) && (
+              <div style={{ marginTop: 12, padding: '6px 10px', background: 'rgba(200,74,74,0.08)', border: '1px solid rgba(200,74,74,0.2)', borderRadius: 6 }}>
+                <span style={{ fontFamily: crimson, fontSize: 12, color: '#c84a4a' }}>
+                  Some AI tools have reached their daily limit.{' '}
+                  <a href="/membership" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>Upgrade</a> for more calls.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search bar */}
         <div style={{ marginBottom: 16 }}>
@@ -7556,22 +7667,28 @@ function CommunityPage() {
     }
 
     try {
+      const token = await getToken()
       const res = await fetch('/api/ai-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg.trim(), history: chatMessages }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: msg.trim(), history: chatMessages, feature: 'ask_dake' }),
       })
       const data = await res.json()
-      const responseText = data.response || 'No response received.'
-      setChatMessages(prev => [...prev, { role: 'assistant', content: responseText }])
-      getToken().then(token => {
-        if (!token) return
-        fetch('/api/ai-history', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tool: 'ai-assistant', query: msg.trim(), response: responseText }),
-        }).catch(() => {})
-      })
+      if (res.status === 429) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `**Limit Reached** — ${data.error || 'Daily AI limit reached.'} [Upgrade your membership](/membership) to continue.` }])
+        _usageCache = null
+      } else {
+        const responseText = data.response || 'No response received.'
+        setChatMessages(prev => [...prev, { role: 'assistant', content: responseText }])
+        _usageCache = null
+        if (token) {
+          fetch('/api/ai-history', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tool: 'ai-assistant', query: msg.trim(), response: responseText }),
+          }).catch(() => {})
+        }
+      }
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Unable to connect. Please try again.' }])
     } finally {
@@ -9238,7 +9355,10 @@ function CommunityPage() {
           boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
         }}>
           <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
-            <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>⚔ WAR ROOM AI</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>⚔ WAR ROOM AI</span>
+              <AIUsagePill feature="ask_dake" getToken={getToken} />
+            </div>
             <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>

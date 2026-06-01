@@ -6783,6 +6783,99 @@ function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<
   )
 }
 
+// ─── AI USAGE ADMIN ──────────────────────────────────────────────────────────
+function AIUsageAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]   = useState('')
+
+  useEffect(() => {
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/ai-usage', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { setData(d); setLoading(false) })
+        .catch(e => { setError(e.message); setLoading(false) })
+    })
+  }, [])
+
+  const txt  = isDark ? TXT  : '#1C1410'
+  const dim  = isDark ? DIM  : '#5C5248'
+  const surf = isDark ? SURF : '#FFFFFF'
+  const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
+
+  if (loading) return <div style={{ color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', padding: 32 }}>LOADING...</div>
+  if (error)   return <div style={{ color: '#c84a4a', fontFamily: crimson, fontSize: 14, padding: 20 }}>Error: {error}</div>
+  if (!data)   return null
+
+  const { thisMonth, lastMonth, byDay = [], recentCalls = [] } = data
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: cinzel, fontSize: 16, color: G, letterSpacing: '0.12em', marginBottom: 8 }}>AI Usage Dashboard</h2>
+      <p style={{ fontFamily: crimson, fontSize: 14, color: dim, marginBottom: 28 }}>
+        Token consumption and call volume across all AI endpoints.
+      </p>
+
+      {/* Summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
+        {[
+          { label: 'THIS MONTH — CALLS', value: thisMonth?.calls ?? 0 },
+          { label: 'THIS MONTH — INPUT TOKENS', value: (thisMonth?.inputTokens ?? 0).toLocaleString() },
+          { label: 'THIS MONTH — OUTPUT TOKENS', value: (thisMonth?.outputTokens ?? 0).toLocaleString() },
+          { label: 'THIS MONTH — EST. COST', value: `$${(thisMonth?.estimatedCost ?? 0).toFixed(4)}` },
+          { label: 'LAST MONTH — CALLS', value: lastMonth?.calls ?? 0 },
+          { label: 'LAST MONTH — EST. COST', value: `$${(lastMonth?.estimatedCost ?? 0).toFixed(4)}` },
+        ].map(card => (
+          <div key={card.label} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>{card.label}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 20, color: txt, fontWeight: 700 }}>{card.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Calls by day (last 30) */}
+      {byDay.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>CALLS PER DAY (LAST 30 DAYS)</div>
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 80 }}>
+              {byDay.slice(-30).map((d: any) => {
+                const maxCalls = Math.max(...byDay.map((x: any) => x.calls), 1)
+                const h = Math.max(4, Math.round((d.calls / maxCalls) * 72))
+                return (
+                  <div key={d.date} title={`${d.date}: ${d.calls} calls`} style={{ flex: 1, height: h, background: 'rgba(201,168,76,0.4)', borderRadius: '2px 2px 0 0', minWidth: 2 }} />
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 7, color: dim }}>{byDay[0]?.date || ''}</span>
+              <span style={{ fontFamily: cinzel, fontSize: 7, color: dim }}>{byDay[byDay.length - 1]?.date || ''}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent calls */}
+      {recentCalls.length > 0 && (
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>RECENT CALLS</div>
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
+            {recentCalls.map((c: any, i: number) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px', gap: 12, padding: '10px 16px', borderBottom: i < recentCalls.length - 1 ? `1px solid ${bdr}` : 'none', alignItems: 'center' }}>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: txt }}>{c.spirit_name || '—'}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: dim, letterSpacing: '0.06em' }}>{c.call_type}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: dim }}>{new Date(c.called_at).toLocaleDateString()}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: G }}>${c.estimatedCost.toFixed(4)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── NOTIFICATIONS ADMIN ─────────────────────────────────────────────────────
 function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
   const [title, setTitle]       = useState('Test Notification')
@@ -6878,7 +6971,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -6951,6 +7044,7 @@ function AdminPage() {
       { key: 'lib-intel',         label: 'Library Intel'     },
       { key: 'ai-command',        label: 'AI Command'        },
       { key: 'ai-context',        label: '🧠 AI Context'     },
+      { key: 'ai-usage-admin',    label: '📊 AI Usage'       },
       { key: 'taxonomy',          label: 'Taxonomy'          },
       { key: 'enrichment',        label: 'Enrichment'        },
     ]},
@@ -7085,6 +7179,7 @@ function AdminPage() {
               </div>
             )}
             {tab === 'notifications'     && <NotificationsAdmin getToken={getToken} isDark={isDark} />}
+            {tab === 'ai-usage-admin'   && <AIUsageAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
             {tab === 'internal-books'    && <InternalBooks getToken={getToken} isDark={isDark} />}
             {tab === 'admin-chat'        && <AdminChat getToken={getToken} isDark={isDark} />}
