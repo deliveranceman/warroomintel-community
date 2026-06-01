@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { generateSuggestions } from './scheduled-content-suggestions'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -56,8 +57,8 @@ export default async function handler(req: Request) {
     week_of: weekOf,
     content_type: s.content_type,
     title: s.title,
-    summary: s.summary,
-    full_draft: s.full_draft || null,
+    summary: cleanAIOutput(s.summary || ''),
+    full_draft: s.full_draft ? cleanAIOutput(s.full_draft) : null,
     suggested_tier: s.suggested_tier || 'watchman',
     status: 'pending',
     created_by: 'ai-agent',

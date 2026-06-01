@@ -1,5 +1,6 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -190,7 +191,7 @@ export default async function handler(req: Request) {
     const prompt = `Write an expulsion prayer for the spirit of ${spiritName}. Entry points/legal grounds: ${entryPoints || 'not specified'}. Session context: ${sessionContext || 'standard deliverance session'}. Address the spirit directly with biblical authority. Close with a blessing filling prayer.`
 
     try {
-      const prayer = await claudeCall('claude-haiku-4-5-20251001', system, prompt, 500)
+      const prayer = cleanAIOutput(await claudeCall('claude-haiku-4-5-20251001', system, prompt, 500))
       return new Response(JSON.stringify({ prayer }), { status: 200, headers: CORS })
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })
@@ -209,7 +210,7 @@ Suggest the most tactically sound next action for the minister. Respond in 2-3 s
 
     try {
       const text = await claudeCall('claude-haiku-4-5-20251001', system, prompt, 300)
-      const suggestion = text.trim()
+      const suggestion = cleanAIOutput(text.trim())
       const sourceMatch = suggestion.match(/(Win Worley|Frank Hammond|Pigs in the Parlor|[A-Z][a-z]+ \d+:\d+)/)
       return new Response(JSON.stringify({
         suggestion,
@@ -299,7 +300,7 @@ Duration: ${Math.round((session.total_elapsed_seconds || 0) / 60)} minutes
 Write a structured session report with sections: Summary, Team Present, Pre-Session Status, Spirits Addressed, Breakthroughs, Areas Needing Follow-Up, Aftercare Recommendations.`
 
     try {
-      const report = await claudeCall('claude-sonnet-4-20250514', system, prompt, 1500)
+      const report = cleanAIOutput(await claudeCall('claude-sonnet-4-20250514', system, prompt, 1500))
       return new Response(JSON.stringify({ report }), { status: 200, headers: CORS })
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })

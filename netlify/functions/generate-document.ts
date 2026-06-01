@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -167,6 +168,9 @@ Write each section with pastoral authority, biblical grounding, and practical mi
 
     const document = parseDocumentJson(rawText)
     if (!document) throw new Error('Failed to parse document JSON from AI response')
+    if (document?.sections) {
+      document.sections = document.sections.map((s: any) => ({ ...s, content: cleanAIOutput(s.content || '') }))
+    }
 
     return new Response(JSON.stringify({ success: true, document }), { status: 200, headers })
   } catch (e: any) {

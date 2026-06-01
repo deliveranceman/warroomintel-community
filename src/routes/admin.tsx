@@ -4354,6 +4354,17 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   return (
     <div style={{ color: LTXT, fontFamily: crimson }}>
 
+      {/* ══ SERMON LIBRARY BANNER ══════════════════════════════════════════════ */}
+      <div style={{ background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: '14px 18px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <span style={{ color: LG, fontSize: 18, flexShrink: 0 }}>⚔</span>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: LG, marginBottom: 5 }}>SERMON LIBRARY — DAILY BRIEF SOURCE MATERIAL</div>
+          <div style={{ fontSize: 13, color: LTXT, lineHeight: 1.6 }}>
+            Upload your sermons, teaching notes, and ministry resources below. The AI Daily Brief generator draws from these documents when crafting devotionals — the more content you add, the more your Daily Briefs will sound like your own voice and theology. PDFs and Word documents are supported.
+          </div>
+        </div>
+      </div>
+
       {/* ══ AI KNOWLEDGE BASE ══════════════════════════════════════════════════ */}
       <div style={{ marginBottom: 40 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: kbExpanded ? 12 : 0 }}>

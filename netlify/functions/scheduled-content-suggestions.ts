@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
@@ -107,8 +108,8 @@ export default async function handler() {
     week_of: weekOf,
     content_type: s.content_type,
     title: s.title,
-    summary: s.summary,
-    full_draft: s.full_draft || null,
+    summary: cleanAIOutput(s.summary || ''),
+    full_draft: s.full_draft ? cleanAIOutput(s.full_draft) : null,
     suggested_tier: s.suggested_tier || 'watchman',
     status: 'pending',
     created_by: 'ai-agent',

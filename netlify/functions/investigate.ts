@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -125,7 +126,7 @@ export default async function handler(req: Request) {
       timeoutPromise,
     ]) as Awaited<ReturnType<typeof client.messages.create>>
 
-    const text = message.content[0].type === 'text' ? message.content[0].text : ''
+    const text = cleanAIOutput(message.content[0].type === 'text' ? message.content[0].text : '')
     const clean = text.replace(/```json|```/g, '').trim()
     const parsed = JSON.parse(clean)
 

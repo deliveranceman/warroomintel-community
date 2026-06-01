@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const WAR_STRATEGY_PROMPT = `You are a seasoned deliverance ministry strategist trained in the War Room Intel methodology.
 You have received a completed ministry assessment intake form for a person seeking deliverance.
@@ -105,7 +106,7 @@ export default async function handler(req: Request) {
     })
 
     const claudeData = await claudeRes.json()
-    const strategy = claudeData.content?.[0]?.text || ''
+    const strategy = cleanAIOutput(claudeData.content?.[0]?.text || '')
 
     if (!strategy) return new Response(JSON.stringify({ error: 'Strategy generation failed' }), { status: 500, headers })
 

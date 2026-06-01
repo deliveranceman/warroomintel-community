@@ -1,5 +1,6 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage, type AIFeature } from '../lib/ai-rate-limit'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -230,7 +231,7 @@ export default async function handler(req: Request) {
   }
 
   const data = await res.json()
-  const response = data.content?.[0]?.text || ''
+  const response = cleanAIOutput(data.content?.[0]?.text || '')
   return new Response(JSON.stringify({ response }), { status: 200, headers: CORS })
 }
 

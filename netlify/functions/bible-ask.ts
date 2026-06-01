@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
@@ -104,7 +105,7 @@ Keep responses focused — typically 2-4 paragraphs.${libraryContext ? `\n\nRele
 
   if (!res.ok) throw new Error(`Claude error ${res.status}`)
   const data = await res.json()
-  return (data.content?.[0]?.text || '').trim()
+  return cleanAIOutput((data.content?.[0]?.text || '').trim())
 }
 
 export default async function handler(req: Request) {

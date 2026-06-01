@@ -1,8 +1,36 @@
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+}
+
+async function getRelevantSermonContext(supabase: any, topic?: string): Promise<string> {
+  try {
+    const searchTerms = topic ||
+      ['deliverance', 'spiritual warfare', 'freedom',
+       'authority', 'healing', 'generational', 'prayer'][
+        Math.floor(Math.random() * 7)
+      ]
+
+    const { data } = await supabase
+      .from('library_chunks')
+      .select('content, book_title, chunk_index')
+      .ilike('content', `%${searchTerms}%`)
+      .limit(5)
+      .order('created_at', { ascending: false })
+
+    if (!data || data.length === 0) return ''
+
+    const context = data
+      .map((c: any) => `[From: ${c.book_title}]\n${c.content}`)
+      .join('\n\n---\n\n')
+
+    return `\n\nSOURCE MATERIAL FROM PASTOR JUSTIN'S SERMONS:\n${context}\n\nUse the above sermon content as the primary source and inspiration for the devotional. Draw from the language, illustrations, and theological points found in these excerpts. The devotional should feel like it came from these teachings.`
+  } catch {
+    return ''
+  }
 }
 
 async function buildDailyBrief(date: string): Promise<{
@@ -25,6 +53,8 @@ async function buildDailyBrief(date: string): Promise<{
   const dayOfWeek = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })
   const fullDate  = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
+  const sermonContext = await getRelevantSermonContext(client)
+
   const prompt = `Generate a complete War Room Intel Daily Brief for ${dayOfWeek}, ${fullDate}.
 
 This is for serious ministers and students of spiritual warfare. Ground every section in scripture.
@@ -37,7 +67,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
   "scripture_reference": "Book Chapter:Verse format (e.g. Ephesians 6:10-12)",
   "devotional_text": "A substantive devotional message (400-600 words, grounded in deliverance ministry principles, practical application)",
   "evening_prayer": "An evening prayer of declaration and thanksgiving (1-2 paragraphs)"
-}`
+}` + sermonContext
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -62,7 +92,16 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
 
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('No JSON in response')
-  return JSON.parse(jsonMatch[0])
+  const parsed = JSON.parse(jsonMatch[0])
+
+  return {
+    title: parsed.title,
+    morning_prayer: cleanAIOutput(parsed.morning_prayer || ''),
+    scripture: parsed.scripture,
+    scripture_reference: parsed.scripture_reference,
+    devotional_text: cleanAIOutput(parsed.devotional_text || ''),
+    evening_prayer: cleanAIOutput(parsed.evening_prayer || ''),
+  }
 }
 
 export { buildDailyBrief }

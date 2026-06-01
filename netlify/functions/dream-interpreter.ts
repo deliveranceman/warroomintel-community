@@ -1,5 +1,6 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
+import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -100,7 +101,7 @@ Rules:
 
   if (!res.ok) throw new Error(`Claude error ${res.status}`)
   const data = await res.json()
-  const rawText = (data.content?.[0]?.text || '').trim()
+  const rawText = cleanAIOutput((data.content?.[0]?.text || '').trim())
 
   let result: any = null
 
