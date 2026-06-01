@@ -8,6 +8,8 @@ CREATE TABLE body_map_manifestations (
   spirit_airtable_ids TEXT[] DEFAULT '{}',
   notes TEXT,
   source TEXT,
+  gender TEXT DEFAULT 'both',
+  view TEXT DEFAULT 'front',
   created_at TIMESTAMP DEFAULT NOW(),
   created_by TEXT
 );

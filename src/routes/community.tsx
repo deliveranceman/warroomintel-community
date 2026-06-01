@@ -5607,72 +5607,6 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userN
 
 // ── BODY MAP VIEW ──────────────────────────────────────────
 
-const BODY_REGIONS = [
-  { id: 'head_mind',    label: 'Head & Mind',    icon: '🧠',
-    keywords: ['head','mind','thoughts','confusion','memory','mental','migraine','dreams','nightmare','brain','cognitive','psychic','telepathy','clairvoyance','voices','hallucination'] },
-  { id: 'eyes_vision',  label: 'Eyes & Vision',  icon: '👁️',
-    keywords: ['eyes','vision','sight','blindness','discernment','images','seeing','third eye','divination','visions','occult sight'] },
-  { id: 'throat_voice', label: 'Throat & Voice', icon: '🗣️',
-    keywords: ['throat','voice','choking','coughing','gagging','speech','tongue','words','curse','speaking','mute','silence'] },
-  { id: 'heart_chest',  label: 'Heart & Chest',  icon: '❤️',
-    keywords: ['heart','chest','grief','fear','anxiety','rejection','sorrow','heaviness','burden','love','hate','bitterness','unforgiveness','despair','hopeless','depression'] },
-  { id: 'stomach_gut',  label: 'Stomach & Gut',  icon: '🫁',
-    keywords: ['stomach','gut','belly','nausea','vomiting','appetite','hunger','eating','gluttony','food','digestive','bowel','anger','nervous'] },
-  { id: 'reproductive', label: 'Reproductive',   icon: '⚕️',
-    keywords: ['sexual','lust','perversion','reproductive','womb','fertility','barrenness','incubus','succubus','fornication','adultery','pornography','soul tie','intimacy'] },
-  { id: 'hands_arms',   label: 'Hands & Arms',   icon: '🙌',
-    keywords: ['hands','arms','violence','control','work','touch','witchcraft','self-harm','cutting','hitting','compulsion'] },
-  { id: 'legs_feet',    label: 'Legs & Feet',    icon: '🦶',
-    keywords: ['legs','feet','walking','running','restless','path','direction','grounded','earthbound','territorial','wandering'] },
-  { id: 'back_spine',   label: 'Back & Spine',   icon: '🦴',
-    keywords: ['back','spine','backbone','burden','weight','oppression','leviathan','python','twisting','pressure','crushed'] },
-  { id: 'skin_body',    label: 'Skin & Body',    icon: '🫀',
-    keywords: ['skin','rash','burning','cold','heat','shaking','trembling','infirmity','sickness','disease','pain','affliction'] },
-]
-
-const BM_SVG: Record<string, {x:number;y:number;w:number;h:number;e?:boolean}> = {
-  head_mind:    {x:41,y:1, w:18,h:16,e:true},
-  eyes_vision:  {x:41,y:11,w:18,h:6},
-  throat_voice: {x:44,y:17,w:12,h:6},
-  heart_chest:  {x:35,y:22,w:30,h:18},
-  stomach_gut:  {x:35,y:40,w:30,h:12},
-  reproductive: {x:33,y:52,w:34,h:12},
-  hands_arms:   {x:20,y:22,w:13,h:26},
-  legs_feet:    {x:33,y:64,w:34,h:28},
-  back_spine:   {x:47,y:22,w:6, h:30},
-  skin_body:    {x:35,y:22,w:30,h:42},
-}
-
-type BRegion = typeof BODY_REGIONS[0]
-
-function bmMatch(region: BRegion | null, demons: any[]) {
-  if (!region || !demons?.length) return []
-  return demons.map(demon => {
-    let score = 0
-    const matched: string[] = []
-    region.keywords.forEach(kw => {
-      const k = kw.toLowerCase()
-      const chk = (v: any, w: number) => {
-        if (!v) return
-        if (String(v).toLowerCase().includes(k)) { score += w; if (!matched.includes(kw)) matched.push(kw) }
-      }
-      chk(demon.battlefield || demon.primaryBattlefield, 5)
-      chk(demon.sessionIndicators, 4)
-      chk(demon.symptoms, 3)
-      chk(demon.manifestation || demon.manifestations, 2)
-      chk(demon.description, 1)
-      chk(demon.legalRights || demon.legalGrounds, 1)
-      chk(demon.entryPoints, 1)
-      chk(demon.name, 1)
-    })
-    const confidence: 'Strong Match' | 'Moderate Match' | 'Light Match' =
-      score >= 8 ? 'Strong Match' : score >= 4 ? 'Moderate Match' : 'Light Match'
-    return { ...demon, searchScore: score, matchedKeywords: matched, confidence }
-  })
-  .filter(d => d.searchScore > 0)
-  .sort((a, b) => b.searchScore - a.searchScore)
-  .slice(0, 10)
-}
 
 class BodyMapBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
   constructor(props: any) { super(props); this.state = { hasError: false } }
@@ -5692,72 +5626,143 @@ class BodyMapBoundary extends React.Component<{children: React.ReactNode}, {hasE
 }
 
 // Point hotspots — x/y as % of image (1344×1008, 4 figures side-by-side)
-// Each maps to a BODY_REGIONS id for the API + slide panel
-const BM_POINT_HOTSPOTS: Array<{ id: string; label: string; regionId: string; x: number; y: number }> = [
-  // HEAD & FACE — male front
-  { id: 'crown_m',         label: 'Crown / Top of Head',    regionId: 'head_mind',    x: 17, y: 5  },
-  { id: 'right_eye_m',     label: 'Right Eye',               regionId: 'head_mind',    x: 14, y: 9  },
-  { id: 'left_eye_m',      label: 'Left Eye',                regionId: 'head_mind',    x: 20, y: 9  },
-  { id: 'right_ear_m',     label: 'Right Ear',               regionId: 'head_mind',    x: 11, y: 9  },
-  { id: 'throat_m',        label: 'Throat / Neck',           regionId: 'throat_voice', x: 17, y: 14 },
-  { id: 'back_neck_m',     label: 'Back of Neck',            regionId: 'throat_voice', x: 35, y: 11 },
-  // SHOULDERS
-  { id: 'r_shoulder_f',    label: 'Right Shoulder',          regionId: 'heart_chest',  x: 10, y: 19 },
-  { id: 'l_shoulder_f',    label: 'Left Shoulder',           regionId: 'heart_chest',  x: 24, y: 19 },
-  { id: 'r_shoulder_b',    label: 'Right Shoulder Blade',    regionId: 'back_spine',   x: 30, y: 19 },
-  { id: 'l_shoulder_b',    label: 'Left Shoulder Blade',     regionId: 'back_spine',   x: 42, y: 19 },
-  // CHEST
-  { id: 'upper_sternum',   label: 'Upper Sternum',           regionId: 'heart_chest',  x: 17, y: 21 },
-  { id: 'mid_sternum',     label: 'Mid Sternum',             regionId: 'heart_chest',  x: 17, y: 26 },
-  { id: 'right_chest',     label: 'Right Chest',             regionId: 'heart_chest',  x: 12, y: 26 },
-  { id: 'left_chest',      label: 'Left Chest',              regionId: 'heart_chest',  x: 22, y: 26 },
-  // ARMS & HANDS
-  { id: 'r_upper_arm',     label: 'Right Upper Arm',         regionId: 'hands_arms',   x: 8,  y: 29 },
-  { id: 'l_upper_arm',     label: 'Left Upper Arm',          regionId: 'hands_arms',   x: 26, y: 29 },
-  { id: 'r_elbow',         label: 'Right Elbow',             regionId: 'hands_arms',   x: 7,  y: 36 },
-  { id: 'l_elbow',         label: 'Left Elbow',              regionId: 'hands_arms',   x: 27, y: 36 },
-  { id: 'r_wrist',         label: 'Right Wrist',             regionId: 'hands_arms',   x: 6,  y: 45 },
-  { id: 'l_wrist',         label: 'Left Wrist',              regionId: 'hands_arms',   x: 28, y: 45 },
-  { id: 'r_palm',          label: 'Right Palm',              regionId: 'hands_arms',   x: 5,  y: 49 },
-  { id: 'l_palm',          label: 'Left Palm',               regionId: 'hands_arms',   x: 29, y: 49 },
-  // ABDOMEN
-  { id: 'solar_plexus',    label: 'Solar Plexus',            regionId: 'stomach_gut',  x: 17, y: 31 },
-  { id: 'liver',           label: 'Liver / Right Abdomen',   regionId: 'stomach_gut',  x: 13, y: 33 },
-  { id: 'mid_abdomen',     label: 'Mid Abdomen / Navel',     regionId: 'stomach_gut',  x: 17, y: 36 },
-  { id: 'left_abdomen',    label: 'Left Abdomen',            regionId: 'stomach_gut',  x: 21, y: 33 },
-  { id: 'lower_abdomen',   label: 'Lower Abdomen',           regionId: 'stomach_gut',  x: 17, y: 41 },
-  { id: 'lumbar',          label: 'Mid Back / Lumbar',       regionId: 'back_spine',   x: 36, y: 36 },
-  { id: 'r_kidney',        label: 'Right Kidney',            regionId: 'back_spine',   x: 32, y: 39 },
-  { id: 'l_kidney',        label: 'Left Kidney',             regionId: 'back_spine',   x: 40, y: 39 },
-  { id: 'sacrum',          label: 'Sacrum',                  regionId: 'back_spine',   x: 36, y: 45 },
-  { id: 'buttocks',        label: 'Buttocks',                regionId: 'back_spine',   x: 36, y: 49 },
-  // REPRODUCTIVE / HIP
-  { id: 'groin_m',         label: 'Groin',                   regionId: 'reproductive', x: 17, y: 44 },
-  { id: 'r_hip',           label: 'Right Hip',               regionId: 'reproductive', x: 12, y: 44 },
-  { id: 'l_hip',           label: 'Left Hip',                regionId: 'reproductive', x: 22, y: 44 },
-  // LEGS & FEET
-  { id: 'r_thigh_f',       label: 'Right Thigh',             regionId: 'legs_feet',    x: 14, y: 53 },
-  { id: 'l_thigh_f',       label: 'Left Thigh',              regionId: 'legs_feet',    x: 20, y: 53 },
-  { id: 'r_knee',          label: 'Right Knee',              regionId: 'legs_feet',    x: 14, y: 63 },
-  { id: 'l_knee',          label: 'Left Knee',               regionId: 'legs_feet',    x: 20, y: 63 },
-  { id: 'r_thigh_b',       label: 'Right Thigh Back',        regionId: 'legs_feet',    x: 32, y: 56 },
-  { id: 'l_thigh_b',       label: 'Left Thigh Back',         regionId: 'legs_feet',    x: 40, y: 56 },
-  { id: 'r_calf',          label: 'Right Calf',              regionId: 'legs_feet',    x: 14, y: 73 },
-  { id: 'l_calf',          label: 'Left Calf',               regionId: 'legs_feet',    x: 20, y: 73 },
-  { id: 'r_ankle',         label: 'Right Ankle',             regionId: 'legs_feet',    x: 14, y: 84 },
-  { id: 'l_ankle',         label: 'Left Ankle',              regionId: 'legs_feet',    x: 20, y: 84 },
-  { id: 'r_foot',          label: 'Right Foot',              regionId: 'legs_feet',    x: 13, y: 92 },
-  { id: 'l_foot',          label: 'Left Foot',               regionId: 'legs_feet',    x: 19, y: 92 },
-  // FEMALE FIGURES (right half, ~50-100% x)
-  { id: 'crown_f',         label: 'Crown (female)',          regionId: 'head_mind',    x: 67, y: 5  },
-  { id: 'r_eye_f',         label: 'Right Eye (female)',      regionId: 'head_mind',    x: 64, y: 9  },
-  { id: 'l_eye_f',         label: 'Left Eye (female)',       regionId: 'head_mind',    x: 70, y: 9  },
-  { id: 'throat_f',        label: 'Throat (female)',         regionId: 'throat_voice', x: 67, y: 14 },
-  { id: 'upper_chest_f',   label: 'Upper Chest (female)',    regionId: 'heart_chest',  x: 67, y: 21 },
-  { id: 'solar_plexus_f',  label: 'Solar Plexus (female)',   regionId: 'stomach_gut',  x: 67, y: 31 },
-  { id: 'groin_f',         label: 'Groin (female)',          regionId: 'reproductive', x: 67, y: 44 },
-  { id: 'back_neck_f',     label: 'Back of Neck (female)',   regionId: 'throat_voice', x: 85, y: 11 },
-  { id: 'sacrum_f',        label: 'Sacrum (female)',         regionId: 'back_spine',   x: 86, y: 45 },
+// Male Front 0-25% | Male Back 25-50% | Female Front 50-75% | Female Back 75-100%
+const BM_POINT_HOTSPOTS: Array<{ id: string; label: string; x: number; y: number }> = [
+  // ── MALE FRONT ──────────────────────────────────────────────────────────────
+  { id: 'H01',   label: 'Crown',                     x: 17, y: 4  },
+  { id: 'H02',   label: 'Right Eye',                 x: 14, y: 8  },
+  { id: 'H03',   label: 'Left Eye',                  x: 20, y: 8  },
+  { id: 'H04',   label: 'Right Ear / Temple',        x: 11, y: 9  },
+  { id: 'H05',   label: 'Throat / Neck',             x: 17, y: 13 },
+  { id: 'S01',   label: 'Right Shoulder',            x: 10, y: 18 },
+  { id: 'S02',   label: 'Left Shoulder',             x: 24, y: 18 },
+  { id: 'C01',   label: 'Upper Sternum',             x: 17, y: 22 },
+  { id: 'C02',   label: 'Mid Sternum',               x: 17, y: 27 },
+  { id: 'C03',   label: 'Right Ribcage',             x: 12, y: 27 },
+  { id: 'C04',   label: 'Left Ribcage',              x: 22, y: 27 },
+  { id: 'A01',   label: 'Right Upper Arm',           x: 8,  y: 28 },
+  { id: 'A02',   label: 'Left Upper Arm',            x: 26, y: 28 },
+  { id: 'A03',   label: 'Right Elbow',               x: 7,  y: 36 },
+  { id: 'A04',   label: 'Left Elbow',                x: 27, y: 36 },
+  { id: 'A07',   label: 'Right Wrist',               x: 6,  y: 44 },
+  { id: 'A08',   label: 'Left Wrist',                x: 28, y: 44 },
+  { id: 'A09',   label: 'Right Palm',                x: 5,  y: 48 },
+  { id: 'A10',   label: 'Left Palm',                 x: 29, y: 48 },
+  { id: 'AB01',  label: 'Solar Plexus',              x: 17, y: 31 },
+  { id: 'AB02',  label: 'Liver / Right Abdomen',     x: 13, y: 33 },
+  { id: 'AB03',  label: 'Navel / Mid Abdomen',       x: 17, y: 37 },
+  { id: 'AB04',  label: 'Spleen / Left Abdomen',     x: 21, y: 33 },
+  { id: 'AB05',  label: 'Lower Abdomen',             x: 17, y: 42 },
+  { id: 'R01',   label: 'Groin / Reproductive',      x: 17, y: 45 },
+  { id: 'R02',   label: 'Right Hip',                 x: 12, y: 44 },
+  { id: 'R03',   label: 'Left Hip',                  x: 22, y: 44 },
+  { id: 'L01',   label: 'Right Thigh',               x: 14, y: 53 },
+  { id: 'L02',   label: 'Left Thigh',                x: 20, y: 53 },
+  { id: 'L03',   label: 'Right Knee',                x: 14, y: 63 },
+  { id: 'L04',   label: 'Left Knee',                 x: 20, y: 63 },
+  { id: 'L07',   label: 'Right Shin / Calf',         x: 14, y: 73 },
+  { id: 'L08',   label: 'Left Shin / Calf',          x: 20, y: 73 },
+  { id: 'L09',   label: 'Right Ankle',               x: 14, y: 84 },
+  { id: 'L10',   label: 'Left Ankle',                x: 20, y: 84 },
+  { id: 'L11',   label: 'Right Foot',                x: 13, y: 92 },
+  { id: 'L12',   label: 'Left Foot',                 x: 19, y: 92 },
+  // ── MALE BACK ───────────────────────────────────────────────────────────────
+  { id: 'H06',   label: 'Base of Skull / Occiput',   x: 36, y: 11 },
+  { id: 'S03',   label: 'Right Shoulder Blade',      x: 30, y: 18 },
+  { id: 'S04',   label: 'Left Shoulder Blade',       x: 42, y: 18 },
+  { id: 'SP01',  label: 'Cervical Spine C1-C3',      x: 36, y: 14 },
+  { id: 'SP02',  label: 'Cervical Spine C4-C7',      x: 36, y: 17 },
+  { id: 'SP03',  label: 'Thoracic Spine T1-T4',      x: 36, y: 22 },
+  { id: 'SP04',  label: 'Thoracic Spine T5-T8',      x: 36, y: 27 },
+  { id: 'SP05',  label: 'Thoracic Spine T9-T12',     x: 36, y: 31 },
+  { id: 'SP06',  label: 'Lumbar Spine L1-L3',        x: 36, y: 36 },
+  { id: 'SP07',  label: 'Lumbar Spine L4-L5',        x: 36, y: 39 },
+  { id: 'AB06',  label: 'Right Kidney',              x: 32, y: 37 },
+  { id: 'AB07',  label: 'Left Kidney',               x: 40, y: 37 },
+  { id: 'A05',   label: 'Right Forearm / Elbow Back',x: 29, y: 36 },
+  { id: 'A06',   label: 'Left Forearm / Elbow Back', x: 43, y: 36 },
+  { id: 'A11',   label: 'Right Wrist Back',          x: 29, y: 44 },
+  { id: 'A12',   label: 'Left Wrist Back',           x: 43, y: 44 },
+  { id: 'AB09',  label: 'Sacrum',                    x: 36, y: 44 },
+  { id: 'AB10',  label: 'Right Gluteal',             x: 33, y: 49 },
+  { id: 'AB11',  label: 'Left Gluteal',              x: 39, y: 49 },
+  { id: 'L05',   label: 'Right Thigh Back',          x: 32, y: 55 },
+  { id: 'L06',   label: 'Left Thigh Back',           x: 40, y: 55 },
+  { id: 'L13',   label: 'Right Knee Back',           x: 32, y: 63 },
+  { id: 'L14',   label: 'Left Knee Back',            x: 40, y: 63 },
+  { id: 'L15',   label: 'Right Calf Back',           x: 32, y: 73 },
+  { id: 'L16',   label: 'Left Calf Back',            x: 40, y: 73 },
+  { id: 'L17',   label: 'Right Ankle Back',          x: 32, y: 84 },
+  { id: 'L18',   label: 'Left Ankle Back',           x: 40, y: 84 },
+  { id: 'L19',   label: 'Right Foot Back',           x: 31, y: 92 },
+  { id: 'L20',   label: 'Left Foot Back',            x: 39, y: 92 },
+  // ── FEMALE FRONT ────────────────────────────────────────────────────────────
+  { id: 'FH01',  label: 'Crown (F)',                 x: 62, y: 4  },
+  { id: 'FH02',  label: 'Right Eye (F)',             x: 59, y: 8  },
+  { id: 'FH03',  label: 'Left Eye (F)',              x: 65, y: 8  },
+  { id: 'FH04',  label: 'Right Ear (F)',             x: 56, y: 9  },
+  { id: 'FH05',  label: 'Throat / Neck (F)',         x: 62, y: 13 },
+  { id: 'FS01',  label: 'Right Shoulder (F)',        x: 54, y: 18 },
+  { id: 'FS02',  label: 'Left Shoulder (F)',         x: 69, y: 18 },
+  { id: 'FC01',  label: 'Upper Chest (F)',           x: 62, y: 22 },
+  { id: 'FC02',  label: 'Right Breast',              x: 58, y: 26 },
+  { id: 'FC03',  label: 'Left Breast',               x: 66, y: 26 },
+  { id: 'FC04',  label: 'Mid Sternum (F)',           x: 62, y: 27 },
+  { id: 'FA01',  label: 'Right Upper Arm (F)',       x: 52, y: 28 },
+  { id: 'FA02',  label: 'Left Upper Arm (F)',        x: 71, y: 28 },
+  { id: 'FA03',  label: 'Right Elbow (F)',           x: 51, y: 36 },
+  { id: 'FA04',  label: 'Left Elbow (F)',            x: 72, y: 36 },
+  { id: 'FA05',  label: 'Right Wrist (F)',           x: 50, y: 44 },
+  { id: 'FA06',  label: 'Left Wrist (F)',            x: 73, y: 44 },
+  { id: 'FA07',  label: 'Right Palm (F)',            x: 49, y: 48 },
+  { id: 'FA08',  label: 'Left Palm (F)',             x: 74, y: 48 },
+  { id: 'FAB01', label: 'Solar Plexus (F)',          x: 62, y: 31 },
+  { id: 'FAB02', label: 'Right Abdomen (F)',         x: 58, y: 33 },
+  { id: 'FAB03', label: 'Navel (F)',                 x: 62, y: 37 },
+  { id: 'FAB04', label: 'Left Abdomen (F)',          x: 66, y: 33 },
+  { id: 'FAB05', label: 'Lower Abdomen (F)',         x: 62, y: 42 },
+  { id: 'FR01',  label: 'Reproductive (F)',          x: 62, y: 45 },
+  { id: 'FR02',  label: 'Right Hip (F)',             x: 57, y: 44 },
+  { id: 'FR03',  label: 'Left Hip (F)',              x: 67, y: 44 },
+  { id: 'FL01',  label: 'Right Thigh (F)',           x: 59, y: 53 },
+  { id: 'FL02',  label: 'Left Thigh (F)',            x: 65, y: 53 },
+  { id: 'FL03',  label: 'Right Knee (F)',            x: 59, y: 63 },
+  { id: 'FL04',  label: 'Left Knee (F)',             x: 65, y: 63 },
+  { id: 'FL05',  label: 'Right Shin (F)',            x: 59, y: 73 },
+  { id: 'FL06',  label: 'Left Shin (F)',             x: 65, y: 73 },
+  { id: 'FL07',  label: 'Right Ankle (F)',           x: 59, y: 84 },
+  { id: 'FL08',  label: 'Left Ankle (F)',            x: 65, y: 84 },
+  { id: 'FL09',  label: 'Right Foot (F)',            x: 58, y: 92 },
+  { id: 'FL10',  label: 'Left Foot (F)',             x: 64, y: 92 },
+  // ── FEMALE BACK ─────────────────────────────────────────────────────────────
+  { id: 'FH06',  label: 'Base of Skull (F)',         x: 86, y: 11 },
+  { id: 'FS03',  label: 'Right Shoulder Blade (F)',  x: 80, y: 18 },
+  { id: 'FS04',  label: 'Left Shoulder Blade (F)',   x: 91, y: 18 },
+  { id: 'FSP01', label: 'Cervical Spine (F)',        x: 86, y: 14 },
+  { id: 'FSP02', label: 'Upper Thoracic Spine (F)',  x: 86, y: 19 },
+  { id: 'FSP03', label: 'Mid Thoracic Spine (F)',    x: 86, y: 25 },
+  { id: 'FSP04', label: 'Lower Thoracic Spine (F)',  x: 86, y: 30 },
+  { id: 'FSP05', label: 'Upper Lumbar (F)',          x: 86, y: 35 },
+  { id: 'FSP06', label: 'Lower Lumbar (F)',          x: 86, y: 39 },
+  { id: 'FAB06', label: 'Right Kidney (F)',          x: 82, y: 37 },
+  { id: 'FAB07', label: 'Left Kidney (F)',           x: 90, y: 37 },
+  { id: 'FA09',  label: 'Right Elbow Back (F)',      x: 79, y: 36 },
+  { id: 'FA10',  label: 'Left Elbow Back (F)',       x: 93, y: 36 },
+  { id: 'FA11',  label: 'Right Wrist Back (F)',      x: 79, y: 44 },
+  { id: 'FA12',  label: 'Left Wrist Back (F)',       x: 93, y: 44 },
+  { id: 'FAB09', label: 'Sacrum (F)',                x: 86, y: 44 },
+  { id: 'FAB10', label: 'Right Gluteal (F)',         x: 83, y: 49 },
+  { id: 'FAB11', label: 'Left Gluteal (F)',          x: 89, y: 49 },
+  { id: 'FL11',  label: 'Right Thigh Back (F)',      x: 82, y: 55 },
+  { id: 'FL12',  label: 'Left Thigh Back (F)',       x: 90, y: 55 },
+  { id: 'FL13',  label: 'Right Knee Back (F)',       x: 82, y: 63 },
+  { id: 'FL14',  label: 'Left Knee Back (F)',        x: 90, y: 63 },
+  { id: 'FL15',  label: 'Right Calf Back (F)',       x: 82, y: 73 },
+  { id: 'FL16',  label: 'Left Calf Back (F)',        x: 90, y: 73 },
+  { id: 'FL17',  label: 'Right Ankle Back (F)',      x: 82, y: 84 },
+  { id: 'FL18',  label: 'Left Ankle Back (F)',       x: 90, y: 84 },
+  { id: 'FL19',  label: 'Right Foot Back (F)',       x: 81, y: 92 },
+  { id: 'FL20',  label: 'Left Foot Back (F)',        x: 89, y: 92 },
 ]
 
 // ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
@@ -5951,27 +5956,24 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
   )
 }
 
-// Map left_arm/right_arm clicks back to BODY_REGIONS 'hands_arms'
-const HOTSPOT_TO_REGION: Record<string, string> = { left_arm: 'hands_arms', right_arm: 'hands_arms' }
 
 function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: any) {
   const GC = '#C9A84C'
 
-  const [selectedRegion, setSelectedRegion] = useState<BRegion | null>(null)
+  const [selectedHotspot, setSelectedHotspot] = useState<{id: string, label: string} | null>(null)
   const [hoveredHotspot, setHoveredHotspot] = useState<string | null>(null)
   const [panelOpen,      setPanelOpen]      = useState(false)
   const [manifestations, setManifestations] = useState<any[]>([])
   const [manifLoading,   setManifLoading]   = useState(false)
-  const [addedToSession, setAddedToSession] = useState<string[]>([])
 
   useEffect(() => {
-    if (!selectedRegion) return
+    if (!selectedHotspot) return
     setManifestations([])
     setManifLoading(true)
     const load = async () => {
       try {
         const token = await getToken()
-        const res = await fetch(`/api/body-map?hotspot_id=${selectedRegion.id}`, {
+        const res = await fetch(`/api/body-map?hotspot_id=${selectedHotspot.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         const d = await res.json()
@@ -5980,11 +5982,10 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
       finally { setManifLoading(false) }
     }
     load()
-  }, [selectedRegion])
+  }, [selectedHotspot])
 
-  function handleHotspotClick(regionId: string) {
-    const region = BODY_REGIONS.find(r => r.id === regionId) || null
-    setSelectedRegion(region)
+  function handleHotspotClick(hotspot: {id: string, label: string}) {
+    setSelectedHotspot(hotspot)
     setPanelOpen(true)
   }
 
@@ -6002,20 +6003,6 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
         </div>
       </div>
 
-      {/* Region tab strip */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '10px 16px', borderBottom: '1px solid #1e1a0e', scrollbarWidth: 'none', flexShrink: 0 }}>
-        {BODY_REGIONS.map(region => (
-          <button key={region.id} onClick={() => { setSelectedRegion(region); setPanelOpen(true) }}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, flexShrink: 0, cursor: 'pointer', whiteSpace: 'nowrap',
-              border: `1px solid ${selectedRegion?.id === region.id && panelOpen ? GC : '#2a2218'}`,
-              background: selectedRegion?.id === region.id && panelOpen ? 'rgba(201,168,76,0.1)' : 'transparent',
-              color: selectedRegion?.id === region.id && panelOpen ? GC : '#6b5e45',
-              fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em' }}>
-            <span>{region.icon}</span><span>{region.label}</span>
-          </button>
-        ))}
-      </div>
-
       {/* Image + hotspot overlay */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 8 : '12px 20px', position: 'relative' }}>
         <div style={{ position: 'relative', display: 'inline-block', maxHeight: '100%', maxWidth: '100%' }}>
@@ -6028,13 +6015,13 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
           />
           {/* Point hotspot overlays — 28px circles centered at coordinate */}
           {BM_POINT_HOTSPOTS.map(h => {
-            const isActive = selectedRegion?.id === h.regionId && panelOpen
+            const isActive = selectedHotspot?.id === h.id && panelOpen
             const isHov    = hoveredHotspot === h.id
             return (
               <div
                 key={h.id}
                 title={h.label}
-                onClick={() => handleHotspotClick(h.regionId)}
+                onClick={() => handleHotspotClick(h)}
                 onMouseEnter={() => setHoveredHotspot(h.id)}
                 onMouseLeave={() => setHoveredHotspot(null)}
                 style={{
@@ -6072,7 +6059,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
       </div>
 
       {/* Slide Panel — from right on desktop, bottom sheet on mobile */}
-      {panelOpen && selectedRegion && (
+      {panelOpen && selectedHotspot && (
         <>
           {/* Backdrop */}
           <div onClick={() => setPanelOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.4)' }} />
@@ -6092,7 +6079,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
             <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: cinzel, fontSize: 16, color: GC, letterSpacing: '0.08em', marginBottom: 2 }}>
-                  {selectedRegion.icon} {selectedRegion.label}
+                  {selectedHotspot.label}
                 </div>
                 <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', letterSpacing: '0.06em' }}>
                   {manifLoading ? 'LOADING...' : `${manifestations.length} MANIFESTATION${manifestations.length !== 1 ? 'S' : ''}`}
