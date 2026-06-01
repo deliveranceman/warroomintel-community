@@ -108,11 +108,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark">
       <head>
         <HeadContent />
-        {/* Anti-flash: set data-theme before first paint; default to dark */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('wri-theme');document.documentElement.dataset.theme=(t==='light'?'light':'dark');})()` }} />
+        {/* Apply stored light preference before first paint; dark is server default */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){if(localStorage.getItem('wri-theme')==='light')document.documentElement.dataset.theme='light';})()` }} />
       </head>
       <body>
         <ClerkProvider

@@ -451,7 +451,8 @@ export function Header() {
             onClick={() => setMenuOpen(o => !o)}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              padding: '4px 6px', flexDirection: 'column', gap: 2,
+              width: '40px', height: '40px',
+              flexDirection: 'column', gap: 2,
               alignItems: 'center', justifyContent: 'center',
               flexShrink: 0, color: gold,
             }}
