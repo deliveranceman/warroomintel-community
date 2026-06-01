@@ -50,7 +50,7 @@
     display: flex;
   }
   .wri-bottom-nav-spacer {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -81,7 +81,7 @@ img, video, canvas, svg {
   .wri-shell-main {
     overflow-x: hidden !important;
     max-width: 100% !important;
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 

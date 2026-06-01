@@ -121,7 +121,7 @@ function SpiritualMappingPage() {
         </div>
 
         {/* Tab nav */}
-        <div style={{ display: 'flex', gap: 0, marginTop: 4 }}>
+        <div style={{ display: 'flex', gap: 0, marginTop: 4, overflowX: 'auto', flexShrink: 0, WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any }}>
           {TABS.map(tab => {
             const locked = userLevel < tab.minTier
             const active = activeTab === tab.id
