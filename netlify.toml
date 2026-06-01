@@ -165,3 +165,6 @@
 
 [functions."content-suggestions"]
   timeout = 15
+
+[functions."spirit-merge"]
+  timeout = 15

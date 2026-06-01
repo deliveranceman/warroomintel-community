@@ -1295,10 +1295,17 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates' | 'body-map'>('database')
 
   // Duplicate Finder
-  const [dupeGroups, setDupeGroups] = useState<Array<{ key: string; entries: any[] }>>([])
+  const [dupeGroups, setDupeGroups] = useState<Array<{ key: string; type: 'exact' | 'near' | 'fuzzy'; entries: any[] }>>([])
   const [dupeScanned, setDupeScanned] = useState(false)
   const [dupeResolving, setDupeResolving] = useState<string | null>(null)
   const [dupeLog, setDupeLog] = useState<string[]>([])
+  const [mergeTarget, setMergeTarget] = useState<{ groupKey: string; a: any; b: any } | null>(null)
+  const [mergeChoices, setMergeChoices] = useState<Record<string, 'a' | 'b'>>({})
+  const [merging, setMerging] = useState(false)
+  const [mergeMsg, setMergeMsg] = useState('')
+  const [dupeSearch, setDupeSearch] = useState('')
+  const [searchMergeA, setSearchMergeA] = useState<any | null>(null)
+  const [bulkResolving, setBulkResolving] = useState(false)
 
   function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
     setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), status, editing: false } }))
@@ -1324,19 +1331,77 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     finally { setDLoading(false) }
   }
 
+  function normalizeSpiritName(n: string): string {
+    return n.toLowerCase().trim()
+      .replace(/^spirit of /i, '').replace(/^spirit /i, '').replace(/ spirit$/i, '')
+      .replace(/^the /i, '').trim()
+  }
+  function editDistance(a: string, b: string): number {
+    const m = a.length, n = b.length
+    const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+      Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0))
+    for (let i = 1; i <= m; i++)
+      for (let j = 1; j <= n; j++)
+        dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+    return dp[m][n]
+  }
+  function nameSimilarity(a: string, b: string): number {
+    const mx = Math.max(a.length, b.length)
+    return mx === 0 ? 1 : 1 - editDistance(a, b) / mx
+  }
   function scanDupes() {
-    const groups: Record<string, any[]> = {}
+    const result: Array<{ key: string; type: 'exact' | 'near' | 'fuzzy'; entries: any[] }> = []
+    const usedIds = new Set<string>()
+    // Pass 1: exact
+    const exactMap: Record<string, any[]> = {}
     for (const d of demons) {
       const key = (d.name || '').toLowerCase().trim()
       if (!key) continue
-      if (!groups[key]) groups[key] = []
-      groups[key].push(d)
+      if (!exactMap[key]) exactMap[key] = []
+      exactMap[key].push(d)
     }
-    setDupeGroups(
-      Object.entries(groups)
-        .filter(([, g]) => g.length > 1)
-        .map(([key, entries]) => ({ key, entries }))
-    )
+    for (const [key, entries] of Object.entries(exactMap)) {
+      if (entries.length > 1) {
+        result.push({ key, type: 'exact', entries })
+        entries.forEach(d => usedIds.add(d.airtableId))
+      }
+    }
+    // Pass 2: near (normalized name match)
+    const normMap: Record<string, any[]> = {}
+    for (const d of demons) {
+      if (usedIds.has(d.airtableId)) continue
+      const key = normalizeSpiritName(d.name || '')
+      if (!key) continue
+      if (!normMap[key]) normMap[key] = []
+      normMap[key].push(d)
+    }
+    for (const [key, entries] of Object.entries(normMap)) {
+      if (entries.length > 1) {
+        const rawNames = [...new Set(entries.map(d => (d.name || '').toLowerCase().trim()))]
+        if (rawNames.length > 1) {
+          result.push({ key, type: 'near', entries })
+          entries.forEach(d => usedIds.add(d.airtableId))
+        }
+      }
+    }
+    // Pass 3: fuzzy (similarity >= 0.75)
+    const remaining = demons.filter(d => !usedIds.has(d.airtableId))
+    const seen = new Set<string>()
+    for (let i = 0; i < remaining.length; i++) {
+      for (let j = i + 1; j < remaining.length; j++) {
+        const na = normalizeSpiritName(remaining[i].name || '')
+        const nb = normalizeSpiritName(remaining[j].name || '')
+        if (!na || !nb || na === nb) continue
+        if (nameSimilarity(na, nb) >= 0.75) {
+          const pKey = [remaining[i].airtableId, remaining[j].airtableId].sort().join('|')
+          if (!seen.has(pKey)) {
+            seen.add(pKey)
+            result.push({ key: pKey, type: 'fuzzy', entries: [remaining[i], remaining[j]] })
+          }
+        }
+      }
+    }
+    setDupeGroups(result)
     setDupeScanned(true)
   }
 
@@ -1371,6 +1436,122 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setDupeLog(prev => [...prev, `Deleted duplicate "${d.name}"`])
     setDupeResolving(null)
     fetchDemons()
+  }
+
+  const MERGE_FIELDS = [
+    { key: 'name', label: 'Name' }, { key: 'aka', label: 'Also Known As' },
+    { key: 'kingdom', label: 'Kingdom' }, { key: 'biblicalRank', label: 'Biblical Rank' },
+    { key: 'hierarchyCategory', label: 'Category' }, { key: 'description', label: 'Description' },
+    { key: 'manifestation', label: 'Manifestations' }, { key: 'entryPoints', label: 'Entry Points' },
+    { key: 'legalRights', label: 'Legal Rights' }, { key: 'symptoms', label: 'Symptoms' },
+    { key: 'deliveranceSequence', label: 'Deliv. Sequence' },
+    { key: 'counterScriptures', label: 'Counter Scriptures' },
+    { key: 'prayerPoints', label: 'Prayer Points' },
+    { key: 'companionSpirits', label: 'Companions' },
+    { key: 'wriNotes', label: 'WRI Notes' }, { key: 'operationalNotes', label: 'Ops Notes' },
+    { key: 'sessionIndicators', label: 'Session Indicators' },
+    { key: 'primaryBattlefield', label: 'Battlefield' }, { key: 'assignment', label: 'Assignment' },
+  ]
+
+  function openMerge(groupKey: string, a: any, b: any) {
+    const choices: Record<string, 'a' | 'b'> = {}
+    for (const f of MERGE_FIELDS) {
+      const va = String(a[f.key] || '').trim()
+      const vb = String(b[f.key] || '').trim()
+      choices[f.key] = (!va && vb) ? 'b' : 'a'
+    }
+    setMergeChoices(choices)
+    setMergeTarget({ groupKey, a, b })
+    setMergeMsg('')
+    setSearchMergeA(null)
+  }
+
+  async function executeMerge() {
+    if (!mergeTarget) return
+    setMerging(true); setMergeMsg('')
+    const mergedFields: Record<string, any> = {}
+    for (const f of MERGE_FIELDS) {
+      const val = mergeChoices[f.key] === 'b'
+        ? String(mergeTarget.b[f.key] || '').trim()
+        : String(mergeTarget.a[f.key] || '').trim()
+      if (val) mergedFields[f.key] = val
+    }
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ keepId: mergeTarget.a.airtableId, deleteId: mergeTarget.b.airtableId, mergedFields }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        const key = mergeTarget.groupKey
+        setDupeLog(prev => [...prev, `Merged "${mergeTarget.a.name}" + "${mergeTarget.b.name}" — kept A, deleted B`])
+        setDupeGroups(prev => prev.filter(g => g.key !== key))
+        setMergeTarget(null)
+        fetchDemons()
+      } else {
+        setMergeMsg(`Error: ${data.error}`)
+      }
+    } catch (e: any) {
+      setMergeMsg(`Error: ${e.message}`)
+    }
+    setMerging(false)
+  }
+
+  async function bulkAutoResolve() {
+    const exactGroups = dupeGroups.filter(g => g.type === 'exact')
+    if (!exactGroups.length) return
+    if (!confirm(`Auto-resolve ${exactGroups.length} exact duplicate group(s)? Fields from deleted records will be merged into the kept records.`)) return
+    setBulkResolving(true)
+    const token = await getToken()
+    let resolved = 0
+    for (const group of exactGroups) {
+      if (group.entries.length < 2) continue
+      const richIdx = group.entries.reduce((best, _e, i, arr) => {
+        const count = Object.values(arr[i]).filter(v => v && v !== '').length
+        const bestCount = Object.values(arr[best]).filter(v => v && v !== '').length
+        return count > bestCount ? i : best
+      }, 0)
+      const keeper = group.entries[richIdx]
+      const others = group.entries.filter((_, i) => i !== richIdx)
+      for (const other of others) {
+        const mf: Record<string, any> = {}
+        for (const f of MERGE_FIELDS) {
+          const vk = String(keeper[f.key] || '').trim()
+          const vo = String(other[f.key] || '').trim()
+          if (vk || vo) mf[f.key] = vk || vo
+        }
+        try {
+          await fetch('/api/spirit-merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ keepId: keeper.airtableId, deleteId: other.airtableId, mergedFields: mf }),
+          })
+          resolved++
+        } catch {}
+      }
+    }
+    setDupeLog(prev => [...prev, `Auto-resolved ${resolved} exact duplicate(s)`])
+    setDupeGroups(prev => prev.filter(g => g.type !== 'exact'))
+    setBulkResolving(false)
+    fetchDemons()
+  }
+
+  function exportDuplicateCSV() {
+    const rows = ['Type,Name A,ID A,Name B,ID B']
+    for (const g of dupeGroups) {
+      for (let i = 0; i < g.entries.length - 1; i++) {
+        for (let j = i + 1; j < g.entries.length; j++) {
+          const a = g.entries[i], b = g.entries[j]
+          rows.push(`${g.type},"${(a.name||'').replace(/"/g,'""')}",${a.airtableId},"${(b.name||'').replace(/"/g,'""')}",${b.airtableId}`)
+        }
+      }
+    }
+    const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }))
+    const link = document.createElement('a')
+    link.href = url; link.download = 'duplicate-spirits.csv'; link.click()
+    URL.revokeObjectURL(url)
   }
 
   async function handleAIBackfill() {
@@ -2106,25 +2287,187 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         <div>
           <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 6 }}>DUPLICATE FINDER</div>
           <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 20, lineHeight: 1.6 }}>
-            Scans loaded spirits for entries with identical names (case-insensitive). Resolve each group with Keep or Delete.
+            Finds exact, near, and fuzzy-matched duplicate spirits. Merge any pair with full field-level control.
           </div>
 
           {dLoading ? (
             <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em' }}>Loading spirit database...</div>
+          ) : mergeTarget ? (
+
+            /* ── MERGE PANEL ──────────────────────────────────────────────────── */
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 16 }}>
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em' }}>
+                    MERGE: {mergeTarget.a.name} ↔ {mergeTarget.b.name}
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginTop: 4 }}>
+                    A: {mergeTarget.a.airtableId} · {mergeTarget.a.createdTime ? new Date(mergeTarget.a.createdTime).toLocaleDateString() : '—'}
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    B: {mergeTarget.b.airtableId} · {mergeTarget.b.createdTime ? new Date(mergeTarget.b.createdTime).toLocaleDateString() : '—'}
+                  </div>
+                </div>
+                <button onClick={() => setMergeTarget(null)}
+                  style={{ padding: '6px 16px', background: 'none', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+                  CANCEL MERGE
+                </button>
+              </div>
+
+              {/* Column headers */}
+              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '8px 12px', background: SURF2, borderBottom: `1px solid ${BDR}`, marginBottom: 2 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.08em' }}>FIELD</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.08em' }}>RECORD A — KEEP</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.08em' }}>RECORD B — DELETE</div>
+              </div>
+
+              {/* Field rows */}
+              <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, overflow: 'hidden', marginBottom: 20 }}>
+                {MERGE_FIELDS.map(f => {
+                  const va = String(mergeTarget.a[f.key] || '').trim()
+                  const vb = String(mergeTarget.b[f.key] || '').trim()
+                  if (!va && !vb) return null
+                  const isConflict = !!va && !!vb && va !== vb
+                  const isIdentical = va === vb && !!va
+                  const choice = mergeChoices[f.key] || 'a'
+                  const trunc = (s: string) => s.length > 110 ? s.slice(0, 110) + '…' : s
+                  return (
+                    <div key={f.key} style={{
+                      display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8,
+                      padding: '8px 12px', borderBottom: `1px solid ${BDR}`,
+                      background: isConflict ? 'rgba(201,168,76,0.04)' : 'transparent',
+                      borderLeft: isConflict ? `2px solid ${G}` : '2px solid transparent',
+                    }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: isConflict ? G : DIM, letterSpacing: '0.06em', paddingTop: 3, lineHeight: 1.5 }}>
+                        {f.label}
+                        {isConflict && <span style={{ display: 'block', color: G, marginTop: 1, fontSize: 7 }}>⚠ CHOOSE</span>}
+                        {isIdentical && <span style={{ display: 'block', color: '#4ade80', marginTop: 1, fontSize: 7 }}>✓ SAME</span>}
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: isIdentical ? 'default' : 'pointer', opacity: !va ? 0.4 : 1 }}>
+                        <input type="radio" name={`m-${f.key}`}
+                          checked={choice === 'a'}
+                          onChange={() => { if (!isIdentical) setMergeChoices(p => ({ ...p, [f.key]: 'a' })) }}
+                          style={{ marginTop: 3, flexShrink: 0, accentColor: G }} />
+                        <span style={{ fontFamily: crimson, fontSize: 13, color: va ? TXT : DIM, fontStyle: va ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
+                          {va ? trunc(va) : '(empty)'}
+                        </span>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: isIdentical ? 'default' : 'pointer', opacity: !vb ? 0.4 : 1 }}>
+                        <input type="radio" name={`m-${f.key}`}
+                          checked={choice === 'b'}
+                          onChange={() => { if (!isIdentical) setMergeChoices(p => ({ ...p, [f.key]: 'b' })) }}
+                          style={{ marginTop: 3, flexShrink: 0, accentColor: G }} />
+                        <span style={{ fontFamily: crimson, fontSize: 13, color: vb ? TXT : DIM, fontStyle: vb ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
+                          {vb ? trunc(vb) : '(empty)'}
+                        </span>
+                      </label>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {mergeMsg && (
+                <div style={{ marginBottom: 14, padding: '10px 14px', background: mergeMsg.startsWith('Error') ? 'rgba(239,68,68,0.08)' : 'rgba(74,222,128,0.06)', border: `1px solid ${mergeMsg.startsWith('Error') ? 'rgba(239,68,68,0.3)' : 'rgba(74,222,128,0.2)'}`, borderRadius: 4, fontFamily: crimson, fontSize: 13, color: mergeMsg.startsWith('Error') ? '#f87171' : '#80e090' }}>
+                  {mergeMsg}
+                </div>
+              )}
+
+              <button onClick={executeMerge} disabled={merging}
+                style={{ padding: '10px 28px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: merging ? 'default' : 'pointer', opacity: merging ? 0.6 : 1, fontWeight: 700 }}>
+                {merging ? 'MERGING...' : '⚔ EXECUTE MERGE — KEEP A, DELETE B'}
+              </button>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic', marginTop: 8 }}>
+                Record A will be updated with chosen fields. Record B will be permanently deleted.
+              </div>
+            </div>
+
           ) : (
+
+            /* ── MAIN VIEW ────────────────────────────────────────────────────── */
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
+              {/* Action bar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const }}>
                 <button onClick={scanDupes}
                   style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
-                  🔍 Scan {demons.length} Spirits for Duplicates
+                  🔍 Scan {demons.length} Spirits
                 </button>
+                {dupeScanned && dupeGroups.filter(g => g.type === 'exact').length > 0 && (
+                  <button onClick={bulkAutoResolve} disabled={bulkResolving}
+                    style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: bulkResolving ? 'default' : 'pointer', opacity: bulkResolving ? 0.6 : 1 }}>
+                    {bulkResolving ? 'RESOLVING...' : `⚡ AUTO-RESOLVE ${dupeGroups.filter(g => g.type === 'exact').length} EXACT`}
+                  </button>
+                )}
+                {dupeScanned && dupeGroups.length > 0 && (
+                  <button onClick={exportDuplicateCSV}
+                    style={{ padding: '8px 16px', background: 'none', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    📥 EXPORT CSV
+                  </button>
+                )}
                 {dupeScanned && (
                   <span style={{ fontFamily: cinzel, fontSize: 10, color: dupeGroups.length === 0 ? '#4ade80' : G, letterSpacing: '0.08em' }}>
-                    {dupeGroups.length === 0 ? '✓ No duplicates found' : `${dupeGroups.length} duplicate group${dupeGroups.length !== 1 ? 's' : ''} found`}
+                    {dupeGroups.length === 0 ? '✓ No duplicates found'
+                      : `${dupeGroups.filter(g => g.type === 'exact').length} exact · ${dupeGroups.filter(g => g.type === 'near').length} near · ${dupeGroups.filter(g => g.type === 'fuzzy').length} fuzzy`}
                   </span>
                 )}
               </div>
 
+              {/* Similar name search */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', marginBottom: 8 }}>SEARCH SIMILAR NAMES</div>
+                <input
+                  value={dupeSearch} onChange={e => { setDupeSearch(e.target.value); setSearchMergeA(null) }}
+                  placeholder="Type a spirit name to find similar entries..."
+                  style={{ width: '100%', maxWidth: 420, boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none' }}
+                />
+                {dupeSearch.trim().length >= 2 && (() => {
+                  const q = normalizeSpiritName(dupeSearch.trim())
+                  const results = demons
+                    .filter(d => {
+                      const dn = normalizeSpiritName(d.name || '')
+                      return dn.includes(q) || q.includes(dn) || nameSimilarity(q, dn) >= 0.55
+                    })
+                    .sort((a, b) => nameSimilarity(q, normalizeSpiritName(b.name || '')) - nameSimilarity(q, normalizeSpiritName(a.name || '')))
+                    .slice(0, 10)
+                  if (results.length < 2) return <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic', marginTop: 6 }}>No similar spirits found.</div>
+                  return (
+                    <div style={{ marginTop: 8, background: SURF, border: `1px solid ${BDR}`, borderRadius: 6, overflow: 'hidden' }}>
+                      {searchMergeA && (
+                        <div style={{ padding: '8px 12px', background: 'rgba(201,168,76,0.08)', borderBottom: `1px solid ${BDR}`, fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em' }}>
+                          A SELECTED: {searchMergeA.name} — now click another spirit to open merge panel
+                        </div>
+                      )}
+                      {results.map((d, i) => {
+                        const isSelA = searchMergeA?.airtableId === d.airtableId
+                        return (
+                          <div key={d.airtableId} style={{ padding: '9px 12px', borderBottom: i < results.length - 1 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: isSelA ? 'rgba(201,168,76,0.06)' : 'transparent' }}>
+                            <div>
+                              <span style={{ fontFamily: crimson, fontSize: 14, color: TXT }}>{d.name}</span>
+                              {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, marginLeft: 8, border: `1px solid ${BDR}`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.05em' }}>{d.biblicalRank}</span>}
+                            </div>
+                            {isSelA ? (
+                              <button onClick={() => setSearchMergeA(null)}
+                                style={{ padding: '4px 10px', background: 'none', border: `1px solid ${BDR}`, borderRadius: 3, color: DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer' }}>
+                                DESELECT
+                              </button>
+                            ) : searchMergeA ? (
+                              <button onClick={() => openMerge(`search-${searchMergeA.airtableId}-${d.airtableId}`, searchMergeA, d)}
+                                style={{ padding: '4px 12px', background: G, border: 'none', borderRadius: 3, color: BG, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700 }}>
+                                ⚔ MERGE WITH A
+                              </button>
+                            ) : (
+                              <button onClick={() => setSearchMergeA(d)}
+                                style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 3, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer' }}>
+                                SELECT AS A
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* Resolved log */}
               {dupeLog.length > 0 && (
                 <div style={{ marginBottom: 20, padding: '12px 16px', background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 6 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.1em', marginBottom: 8 }}>
@@ -2136,42 +2479,68 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 </div>
               )}
 
-              {dupeGroups.map(group => (
-                <div key={group.key} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, marginBottom: 16, overflow: 'hidden', opacity: dupeResolving === group.key ? 0.5 : 1 }}>
-                  <div style={{ padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em' }}>{group.entries[0].name}</span>
-                    <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.06em' }}>{group.entries.length} ENTRIES</span>
-                    {dupeResolving === group.key && <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em' }}>RESOLVING...</span>}
-                  </div>
-                  {group.entries.map((d, idx) => (
-                    <div key={d.airtableId || idx} style={{ padding: '12px 16px', borderBottom: idx < group.entries.length - 1 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 5 }}>
-                          {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.biblicalRank}</span>}
-                          {d.hierarchyCategory && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.hierarchyCategory}</span>}
-                          {d.kingdom && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.kingdom}</span>}
-                        </div>
-                        <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, lineHeight: 1.5, maxHeight: 48, overflow: 'hidden' }}>
-                          {d.operationalNotes ? d.operationalNotes.slice(0, 140) + (d.operationalNotes.length > 140 ? '…' : '') : <em>No notes</em>}
-                        </div>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.3)', letterSpacing: '0.06em', marginTop: 4 }}>
-                          {d.createdTime ? `Added ${new Date(d.createdTime).toLocaleDateString()}` : 'No date'} · {d.airtableId}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, flexShrink: 0 }}>
-                        <button onClick={() => handleKeepEntry(group, idx)} disabled={!!dupeResolving}
-                          style={{ padding: '5px 12px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 4, color: '#4ade80', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: dupeResolving ? 'default' : 'pointer', whiteSpace: 'nowrap' as const }}>
-                          KEEP THIS
-                        </button>
-                        <button onClick={() => handleDeleteEntry(group, idx)} disabled={!!dupeResolving}
-                          style={{ padding: '5px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: dupeResolving ? 'default' : 'pointer', whiteSpace: 'nowrap' as const }}>
-                          DELETE THIS
-                        </button>
-                      </div>
+              {/* Group sections — exact / near / fuzzy */}
+              {(['exact', 'near', 'fuzzy'] as const).map(type => {
+                const groups = dupeGroups.filter(g => g.type === type)
+                if (!groups.length) return null
+                const LABELS = { exact: 'CONFIRMED DUPLICATES', near: 'LIKELY DUPLICATES', fuzzy: 'POSSIBLE DUPLICATES — REVIEW' }
+                const DESCS  = { exact: 'Same name (case-insensitive)', near: 'Same after removing "Spirit of / Spirit / The" prefix/suffix', fuzzy: 'Names are 75%+ similar by character similarity' }
+                const COLORS = { exact: '#f87171', near: G, fuzzy: '#94a3b8' }
+                return (
+                  <div key={type} style={{ marginBottom: 28 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: COLORS[type], letterSpacing: '0.1em' }}>{LABELS[type]}</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.06em' }}>{groups.length} GROUP{groups.length !== 1 ? 'S' : ''}</div>
                     </div>
-                  ))}
-                </div>
-              ))}
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic', marginBottom: 12 }}>{DESCS[type]}</div>
+                    {groups.map(group => (
+                      <div key={group.key} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, marginBottom: 12, overflow: 'hidden', opacity: dupeResolving === group.key ? 0.5 : 1 }}>
+                        <div style={{ padding: '8px 14px', background: 'rgba(201,168,76,0.04)', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontFamily: cinzel, fontSize: 10, color: COLORS[type], letterSpacing: '0.08em' }}>
+                              {group.entries.map(e => e.name).join(' / ')}
+                            </span>
+                            <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{group.entries.length} ENTRIES</span>
+                            {dupeResolving === group.key && <span style={{ fontFamily: cinzel, fontSize: 8, color: G }}>RESOLVING...</span>}
+                          </div>
+                          {group.entries.length === 2 && (
+                            <button onClick={() => openMerge(group.key, group.entries[0], group.entries[1])}
+                              style={{ padding: '5px 14px', background: G, border: 'none', borderRadius: 4, color: BG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
+                              ⚔ MERGE
+                            </button>
+                          )}
+                        </div>
+                        {group.entries.map((d, idx) => (
+                          <div key={d.airtableId || idx} style={{ padding: '10px 14px', borderBottom: idx < group.entries.length - 1 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, marginBottom: 3 }}>{d.name}</div>
+                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const, marginBottom: 4 }}>
+                                {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.biblicalRank}</span>}
+                                {d.kingdom && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.kingdom}</span>}
+                              </div>
+                              <div style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.3)', letterSpacing: '0.06em' }}>
+                                {d.createdTime ? new Date(d.createdTime).toLocaleDateString() : 'No date'} · {d.airtableId}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5, flexShrink: 0 }}>
+                              {group.entries.length > 2 && group.entries.filter((_, j) => j !== idx).map((other, oj) => (
+                                <button key={oj} onClick={() => openMerge(group.key, d, other)}
+                                  style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 3, color: G, fontFamily: cinzel, fontSize: 7, letterSpacing: '0.05em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                                  MERGE ↔ {other.name.slice(0, 18)}{other.name.length > 18 ? '…' : ''}
+                                </button>
+                              ))}
+                              <button onClick={() => handleDeleteEntry(group, idx)} disabled={!!dupeResolving}
+                                style={{ padding: '4px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: '#f87171', fontFamily: cinzel, fontSize: 7, letterSpacing: '0.05em', cursor: dupeResolving ? 'default' : 'pointer', whiteSpace: 'nowrap' as const }}>
+                                DELETE THIS
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
             </>
           )}
         </div>
