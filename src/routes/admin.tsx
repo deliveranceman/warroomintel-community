@@ -7342,6 +7342,13 @@ function AIUsageAdmin({ getToken, isDark }: { getToken: (opts?: { template?: str
 }
 
 // ─── NOTIFICATIONS ADMIN ─────────────────────────────────────────────────────
+const PUSH_TIER_COLORS: Record<string, string> = {
+  minister: '#ef4444', general: '#C9A84C', founding_general: '#C9A84C',
+  commander: '#8B9DCA', charter_commander: '#8B9DCA',
+  soldier: '#7a9e7e', charter_soldier: '#7a9e7e',
+  watchman: '#9a8c74', free: '#6a6080',
+}
+
 function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
   const [title, setTitle]         = useState('Test Notification')
   const [body, setBody]           = useState('This is a test push from War Room Intel admin.')
@@ -7351,6 +7358,55 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   const [result, setResult]       = useState<string | null>(null)
   const [subCount, setSubCount]   = useState<number | null>(null)
   const [countLoading, setCountLoading] = useState(true)
+
+  const [userQuery,     setUserQuery]    = useState('')
+  const [userResults,   setUserResults]  = useState<any[]>([])
+  const [selectedUser,  setSelectedUser] = useState<any | null>(null)
+  const [userSearching, setUserSearching] = useState(false)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setUserResults([])
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  function handleUserQuery(q: string) {
+    setUserQuery(q)
+    if (selectedUser) { setSelectedUser(null); setUserId('') }
+    if (!q.trim() || q.trim().length < 2) { setUserResults([]); return }
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(async () => {
+      setUserSearching(true)
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/admin-user-search?q=${encodeURIComponent(q.trim())}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) setUserResults((await res.json()).users || [])
+      } catch {}
+      finally { setUserSearching(false) }
+    }, 300)
+  }
+
+  function selectUser(u: any) {
+    setSelectedUser(u)
+    setUserId(u.id)
+    setUserQuery([u.firstName, u.lastName].filter(Boolean).join(' ') || u.email)
+    setUserResults([])
+  }
+
+  function clearUser() {
+    setSelectedUser(null)
+    setUserId('')
+    setUserQuery('')
+    setUserResults([])
+  }
 
   useEffect(() => {
     async function fetchCount() {
@@ -7468,10 +7524,76 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
           <label style={lbl}>URL (on click)</label>
           <input value={url} onChange={e => setUrl(e.target.value)} style={inp} />
         </div>
-        <div>
-          <label style={lbl}>TARGET USER ID (leave blank for all subscribers)</label>
-          <input value={userId} onChange={e => setUserId(e.target.value)} placeholder="user_..." style={inp} />
+        <div ref={dropdownRef} style={{ position: 'relative' as const }}>
+          <label style={lbl}>TARGET USER (leave blank to send to all subscribers)</label>
+          <div style={{ position: 'relative' as const }}>
+            <input
+              value={userQuery}
+              onChange={e => handleUserQuery(e.target.value)}
+              placeholder="Search by name or email..."
+              style={inp}
+              autoComplete="off"
+            />
+            {userSearching && (
+              <div style={{ position: 'absolute' as const, right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: isDark ? '#9a8c74' : '#5C5248', fontFamily: cinzel, letterSpacing: '0.05em' }}>
+                searching...
+              </div>
+            )}
+          </div>
+
+          {userResults.length > 0 && (
+            <div style={{
+              position: 'absolute' as const, top: '100%', left: 0, right: 0, zIndex: 30,
+              background: isDark ? '#13111e' : '#fff',
+              border: `1px solid ${isDark ? 'rgba(201,168,76,0.3)' : '#d4c4b0'}`,
+              borderRadius: 4, boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+              marginTop: 2, maxHeight: 260, overflowY: 'auto' as const,
+            }}>
+              {userResults.map((u, i) => {
+                const tc = PUSH_TIER_COLORS[u.role === 'minister' ? 'minister' : u.tier] || '#9a8c74'
+                const tierLabel = u.role === 'minister' ? 'MINISTER' : u.tier.toUpperCase()
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => selectUser(u)}
+                    style={{
+                      padding: '9px 14px', cursor: 'pointer',
+                      borderBottom: i < userResults.length - 1 ? `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f0e8e0'}` : 'none',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      background: 'transparent',
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = isDark ? 'rgba(201,168,76,0.07)' : 'rgba(201,168,76,0.06)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? '#e8dcc8' : '#1C1410', marginBottom: 1 }}>
+                        {[u.firstName, u.lastName].filter(Boolean).join(' ') || '—'}
+                      </div>
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? '#9a8c74' : '#5C5248', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                        {u.email}
+                      </div>
+                    </div>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: tc, border: `1px solid ${tc}55`, padding: '2px 8px', borderRadius: 10, flexShrink: 0 }}>
+                      {tierLabel}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
+
+        {selectedUser && (
+          <div style={{ padding: '8px 12px', background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.08)', border: 'none', borderLeft: `3px solid ${PUSH_TIER_COLORS[selectedUser.role === 'minister' ? 'minister' : selectedUser.tier] || '#9a8c74'}`, borderRadius: '0 4px 4px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#e8dcc8' : '#1C1410', minWidth: 0 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em', marginRight: 6 }}>SENDING TO</span>
+              {[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ')}
+              <span style={{ color: isDark ? '#9a8c74' : '#5C5248', marginLeft: 6 }}>({selectedUser.email})</span>
+            </div>
+            <button onClick={clearUser} title="Clear" style={{ background: 'none', border: 'none', color: isDark ? '#9a8c74' : '#5C5248', cursor: 'pointer', fontSize: 18, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
+          </div>
+        )}
 
         <button
           onClick={sendTest}
@@ -7483,7 +7605,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
             alignSelf: 'flex-start',
           }}
         >
-          {sending ? 'SENDING...' : 'SEND PUSH'}
+          {sending ? 'SENDING...' : selectedUser ? `SEND TO ${[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ').toUpperCase() || 'USER'}` : 'SEND TO ALL'}
         </button>
 
         {result && (

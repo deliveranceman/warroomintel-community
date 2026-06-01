@@ -175,5 +175,8 @@
 [functions."content-suggestions"]
   timeout = 15
 
+[functions."admin-user-search"]
+  timeout = 10
+
 [functions."spirit-merge"]
   timeout = 15
