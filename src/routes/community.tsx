@@ -6214,7 +6214,23 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
   const [manifestations, setManifestations] = useState<any[]>([])
   const [manifLoading,   setManifLoading]   = useState(false)
   const [figureIndex,    setFigureIndex]    = useState(0)
+  const [stageH,         setStageH]         = useState(0)
   const touchStartX = React.useRef(0)
+  const spriteRef   = React.useRef<HTMLImageElement>(null)
+
+  const measureSprite = React.useCallback(() => {
+    const el = spriteRef.current
+    if (!el || !el.naturalWidth || !el.naturalHeight) return
+    const cw = el.parentElement?.offsetWidth ?? window.innerWidth
+    // Sprite is 4 figures wide; one figure aspect = naturalHeight / (naturalWidth/4)
+    const scale = cw / (el.naturalWidth / 4)
+    setStageH(Math.round(el.naturalHeight * scale))
+  }, [])
+
+  React.useEffect(() => {
+    window.addEventListener('resize', measureSprite)
+    return () => window.removeEventListener('resize', measureSprite)
+  }, [measureSprite])
 
   useEffect(() => {
     if (!selectedHotspot) return
@@ -6267,10 +6283,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
 
       {/* Image + hotspot overlay */}
       {isMobile ? (
-        // Mobile: tab-driven single figure — no carousel transform, no translateX
-        // Only the active figure is shown; hotspots are inside the same clipping container
         <div
-          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' as any,
+          style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any,
             paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}
           onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
           onTouchEnd={e => {
@@ -6279,112 +6293,90 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
             else if (diff < -50) setFigureIndex(prev => Math.max(0, prev - 1))
           }}
         >
-          {/* Dev-only debug bar */}
           {import.meta.env.DEV && (
-            <div style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.12)', fontFamily: 'monospace', fontSize: 10, color: '#C9A84C', letterSpacing: '0.04em', flexShrink: 0 }}>
-              idx={figureIndex} · fig="{BM_FIGURES[figureIndex]}" · vw={typeof window !== 'undefined' ? window.innerWidth : '?'}px
+            <div style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.12)', fontFamily: 'monospace', fontSize: 10, color: '#C9A84C', letterSpacing: '0.04em' }}>
+              idx={figureIndex} · fig="{BM_FIGURES[figureIndex]}" · stageH={stageH}px · vw={typeof window !== 'undefined' ? window.innerWidth : '?'}px
             </div>
           )}
 
-          {/* body-map-stage: clipping wrapper — no overflow-x, no 100vw */}
+          {/* Stage: explicit pixel height clips the sprite reliably on iOS Safari */}
           <div
-            className="body-map-stage"
             style={{
-              width: '100%',
-              maxWidth: '100%',
-              overflowX: 'hidden',
               position: 'relative',
-              // isolation creates a new stacking context, fixes iOS overflow:hidden on abs children
-              isolation: 'isolate',
+              width: '100%',
+              overflow: 'hidden',
+              ...(stageH > 0 ? { height: stageH } : { aspectRatio: '1 / 1.7' }),
             }}
           >
-            {/* body-image-wrap: single relative container for image + hotspots */}
-            <div
-              className="body-image-wrap"
+            {/* Single <img> — no key, no remount. Shifted left by figureIndex widths. */}
+            <img
+              ref={spriteRef}
+              onLoad={measureSprite}
+              src="/images/WRI_BODYMAP.png?v=3"
+              alt={BM_FIGURES[figureIndex]}
               style={{
-                position: 'relative',
-                width: '100%',
+                position: 'absolute',
+                top: 0,
+                left: `-${figureIndex * 100}%`,
+                width: '400%',
                 height: 'auto',
+                pointerEvents: 'none',
+                userSelect: 'none',
               }}
-            >
-              {/*
-                Sprite is 4 figures wide. Show only the active figure by:
-                  - rendering at width: 400% (4× the container width)
-                  - marginLeft: -(figureIndex * 100%) shifts left by one figure per step
-                  - No transform: marginLeft is reliable on iOS Safari / PWA
-                marginLeft % is relative to the containing block (body-image-wrap = 100% of viewport content area).
-                At figureIndex=0: margin=0, at figureIndex=1: margin=-W, etc.
-              */}
-              <img
-                src="/images/WRI_BODYMAP.png?v=3"
-                alt={BM_FIGURES[figureIndex]}
-                key={`bm-img-${figureIndex}`}
-                style={{
-                  display: 'block',
-                  width: '400%',
-                  height: 'auto',
-                  maxHeight: 'calc(100dvh - 260px)',
-                  marginLeft: `-${figureIndex * 100}%`,
-                  pointerEvents: 'none',
-                  userSelect: 'none',
-                }}
-                draggable={false}
-              />
+              draggable={false}
+            />
 
-              {/* Hotspots — absolute inside body-image-wrap, same coordinate space as the image */}
-              {BM_POINT_HOTSPOTS.filter(h => {
-                const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
-                return h.x >= lo && h.x < hi
-              }).map(h => {
-                const isActive = selectedHotspot?.id === h.id && panelOpen
-                // Convert full-image x% → per-figure x% (0–100 within the visible container width)
-                const visX = ((h.x - figureIndex * 25) / 25) * 100
-                return (
-                  <div
-                    key={h.id}
-                    title={h.label}
-                    onClick={() => handleHotspotClick(h)}
-                    style={{
-                      position: 'absolute',
-                      left: `${visX}%`,
-                      top: `${h.y}%`,
-                      transform: 'translate(-50%, -50%)',
-                      width: 44, height: 44,
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
-                      border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
-                      boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
-                      zIndex: 2,
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                  />
-                )
-              })}
+            {/* Hotspots — only rendered after stageH is measured so % positions are accurate */}
+            {stageH > 0 && BM_POINT_HOTSPOTS.filter(h => {
+              const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
+              return h.x >= lo && h.x < hi
+            }).map(h => {
+              const isActive = selectedHotspot?.id === h.id && panelOpen
+              const visX = ((h.x - figureIndex * 25) / 25) * 100
+              return (
+                <div
+                  key={h.id}
+                  title={h.label}
+                  onClick={() => handleHotspotClick(h)}
+                  style={{
+                    position: 'absolute',
+                    left: `${visX}%`,
+                    top: `${h.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    width: 44, height: 44,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
+                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
+                    boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
+                    zIndex: 2,
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                />
+              )
+            })}
 
-              {/* Left arrow */}
-              {figureIndex > 0 && (
-                <button
-                  onClick={() => setFigureIndex(prev => Math.max(0, prev - 1))}
-                  style={{ position: 'absolute', left: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: '1px solid rgba(201,168,76,0.3)', color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
-                  ‹
-                </button>
-              )}
-              {/* Right arrow */}
-              {figureIndex < 3 && (
-                <button
-                  onClick={() => setFigureIndex(prev => Math.min(3, prev + 1))}
-                  style={{ position: 'absolute', right: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: '1px solid rgba(201,168,76,0.3)', color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
-                  ›
-                </button>
-              )}
+            {/* Nav arrows */}
+            {figureIndex > 0 && (
+              <button
+                onClick={() => setFigureIndex(prev => Math.max(0, prev - 1))}
+                style={{ position: 'absolute', left: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: '1px solid rgba(201,168,76,0.3)', color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
+                ‹
+              </button>
+            )}
+            {figureIndex < 3 && (
+              <button
+                onClick={() => setFigureIndex(prev => Math.min(3, prev + 1))}
+                style={{ position: 'absolute', right: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: '1px solid rgba(201,168,76,0.3)', color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
+                ›
+              </button>
+            )}
 
-              {/* Indicator dots */}
-              <div style={{ position: 'absolute', top: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, zIndex: 5, pointerEvents: 'none' }}>
-                {BM_FIGURES.map((_, i) => (
-                  <div key={i} style={{ width: i === figureIndex ? 20 : 6, height: 6, borderRadius: 3, background: i === figureIndex ? GC : 'rgba(201,168,76,0.3)', transition: 'width 0.2s' }} />
-                ))}
-              </div>
+            {/* Progress dots */}
+            <div style={{ position: 'absolute', top: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, zIndex: 5, pointerEvents: 'none' }}>
+              {BM_FIGURES.map((_, i) => (
+                <div key={i} style={{ width: i === figureIndex ? 20 : 6, height: 6, borderRadius: 3, background: i === figureIndex ? GC : 'rgba(201,168,76,0.3)', transition: 'width 0.2s' }} />
+              ))}
             </div>
           </div>
         </div>
