@@ -66,7 +66,7 @@ export default async function handler(req: Request) {
   )
 
   const client = sb()
-  const query = client.from('push_subscriptions').select('user_id, subscription')
+  const query = client.from('push_subscriptions').select('user_id, subscription, endpoint')
   if (userId) query.eq('user_id', userId)
 
   const { data: rows, error } = await query
@@ -80,24 +80,31 @@ export default async function handler(req: Request) {
   }
 
   const payloadStr = JSON.stringify({ title, body: msgBody || 'New activity in the War Room', url: url || '/community' })
+  let sent = 0, failed = 0
   let firstError: string | null = null
 
-  const results = await Promise.allSettled(
-    rows.map(row => webpush.sendNotification(row.subscription as webpush.PushSubscription, payloadStr))
-  )
-
-  const sent = results.filter(r => r.status === 'fulfilled').length
-  const failed = results.filter(r => r.status === 'rejected').length
-
-  if (failed > 0) {
-    const firstRejected = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined
-    firstError = firstRejected?.reason?.message || String(firstRejected?.reason || 'Unknown error')
-    console.error('[send-push] Push failed:', {
-      message:    firstError,
-      statusCode: firstRejected?.reason?.statusCode,
-      headers:    firstRejected?.reason?.headers,
-      body:       firstRejected?.reason?.body,
-    })
+  for (const row of rows) {
+    const endpoint = (row.endpoint as string) || (row.subscription as any)?.endpoint
+    try {
+      await webpush.sendNotification(row.subscription as webpush.PushSubscription, payloadStr)
+      sent++
+    } catch (err: any) {
+      failed++
+      firstError = firstError || err.message
+      console.error('[send-push] Push failed:', {
+        message:    err.message,
+        statusCode: err.statusCode,
+        body:       err.body,
+        endpoint:   endpoint?.slice(-30),
+      })
+      // 404 or 410 = subscription expired/unregistered — remove it
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        if (endpoint) {
+          await client.from('push_subscriptions').delete().eq('endpoint', endpoint)
+          console.log('[send-push] Deleted expired subscription:', endpoint.slice(-30))
+        }
+      }
+    }
   }
 
   // Record in-app notifications for each targeted user

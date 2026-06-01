@@ -263,12 +263,19 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
     setPushInfo(prev => prev ? { ...prev, permission: p } : null)
   }
 
-  async function pushSubscribe() {
+  async function pushSubscribe(force = false) {
     setPushWorking(true)
     setPushMsg(null)
     try {
       const reg = await navigator.serviceWorker.register('/sw.js')
       await navigator.serviceWorker.ready
+
+      // Force-refresh: unsubscribe existing before getting a new endpoint
+      if (force) {
+        const existing = await reg.pushManager.getSubscription()
+        if (existing) await existing.unsubscribe()
+      }
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -281,7 +288,7 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
       })
       if (!res.ok) throw new Error('Failed to save subscription')
       setPushInfo(prev => prev ? { ...prev, swRegistered: true, subscribed: true } : null)
-      setPushMsg('Subscribed successfully.')
+      setPushMsg(force ? 'Subscription refreshed — new endpoint saved.' : 'Subscribed successfully.')
     } catch (e: any) {
       setPushMsg(`Subscribe failed: ${e.message}`)
     } finally { setPushWorking(false) }
@@ -460,9 +467,15 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
                 </button>
               )}
               {pushInfo && pushInfo.permission === 'granted' && !pushInfo.subscribed && (
-                <button onClick={pushSubscribe} disabled={pushWorking}
+                <button onClick={() => pushSubscribe(false)} disabled={pushWorking}
                   style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: '#C9A84C', cursor: 'pointer' }}>
                   {pushWorking ? 'Subscribing...' : 'Subscribe'}
+                </button>
+              )}
+              {pushInfo && pushInfo.permission === 'granted' && (
+                <button onClick={() => pushSubscribe(true)} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: '#9a8874', cursor: 'pointer' }}>
+                  {pushWorking ? 'Refreshing...' : 'Refresh Subscription'}
                 </button>
               )}
               {pushInfo?.subscribed && (

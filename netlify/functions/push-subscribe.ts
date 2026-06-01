@@ -24,9 +24,17 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: 'userId and subscription required' }), { status: 400, headers: HEADERS })
     }
 
+    const endpoint = subscription.endpoint || (typeof subscription === 'string' ? JSON.parse(subscription).endpoint : null)
+    if (!endpoint) {
+      return new Response(JSON.stringify({ error: 'Subscription missing endpoint' }), { status: 400, headers: HEADERS })
+    }
+
     const { error } = await sb()
       .from('push_subscriptions')
-      .upsert({ user_id: userId, subscription }, { onConflict: 'user_id' })
+      .upsert(
+        { user_id: userId, endpoint, subscription },
+        { onConflict: 'endpoint' }
+      )
 
     if (error) {
       console.error('[push-subscribe] upsert error:', error.message)
