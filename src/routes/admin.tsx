@@ -7845,7 +7845,7 @@ function AdminPage() {
   }
 
   const SIDEBAR_GROUPS = [
-    { label: 'OVERVIEW', items: [
+    { label: 'DASHBOARD', items: [
       { key: 'dashboard', label: '⚡ Dashboard' },
     ]},
     { label: 'CONTENT', items: [
@@ -7857,25 +7857,27 @@ function AdminPage() {
       { key: 'field-ministry',      label: 'Field Ministry'   },
     ]},
     { label: 'COMMUNITY', items: [
-      { key: 'moderation',   label: 'Moderation'   },
-      { key: 'training',     label: 'Training'     },
-      { key: 'daily-brief',  label: 'Daily Brief'  },
-      { key: 'admin-chat',   label: 'Admin Chat'   },
+      { key: 'moderation',  label: 'Moderation'  },
+      { key: 'training',    label: 'Training'    },
+      { key: 'daily-brief', label: 'Daily Brief' },
     ]},
     { label: 'OPERATIONS', items: [
       { key: 'spiritual-mapping', label: 'Spiritual Mapping' },
-      { key: 'lib-intel',         label: 'Library Intel'     },
-      { key: 'ai-command',        label: 'AI Command'        },
-      { key: 'ai-context',        label: '🧠 AI Context'     },
-      { key: 'ai-usage-admin',    label: '📊 AI Usage'       },
-      { key: 'taxonomy',          label: 'Taxonomy'          },
-      { key: 'enrichment',        label: 'Enrichment'        },
+      { key: 'tracker',           label: 'Tracker'           },
+      { key: 'notifications',     label: '🔔 Notifications'  },
+      { key: 'admin-chat',        label: 'Admin Chat'        },
     ]},
-    { label: 'SYSTEM', items: [
-      { key: 'notifications',   label: '🔔 Notifications' },
-      { key: 'tracker',         label: 'Tracker'          },
-      { key: 'internal-books',  label: 'Internal Books'   },
-      { key: 'suggested-edits', label: '🚩 Flags'         },
+    { label: 'INTELLIGENCE', items: [
+      { key: 'lib-intel',      label: 'Library Intel'  },
+      { key: 'ai-command',     label: 'AI Command'     },
+      { key: 'ai-context',     label: '🧠 AI Context'  },
+      { key: 'ai-usage-admin', label: '📊 AI Usage'    },
+    ]},
+    { label: 'TOOLS', items: [
+      { key: 'taxonomy',        label: 'Taxonomy'       },
+      { key: 'enrichment',      label: 'Enrichment'     },
+      { key: 'internal-books',  label: 'Internal Books' },
+      { key: 'suggested-edits', label: '🚩 Flags'       },
     ]},
   ] as const
 

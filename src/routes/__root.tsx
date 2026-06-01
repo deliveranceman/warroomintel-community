@@ -10,6 +10,7 @@ const BARE_ROUTES = ['/join']
 
 // Pages that have their own sidebar/shell — suppress the public marketing header and AI assistant
 const COMMUNITY_SHELL_ROUTES = [
+  '/admin',
   '/arsenal',
   '/community',
   '/community/field-manual',
