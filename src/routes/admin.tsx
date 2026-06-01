@@ -7343,14 +7343,60 @@ function AIUsageAdmin({ getToken, isDark }: { getToken: (opts?: { template?: str
 
 // ─── NOTIFICATIONS ADMIN ─────────────────────────────────────────────────────
 function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
-  const [title, setTitle]       = useState('Test Notification')
-  const [body, setBody]         = useState('This is a test push from War Room Intel admin.')
-  const [url, setUrl]           = useState('/community')
-  const [userId, setUserId]     = useState('')
-  const [sending, setSending]   = useState(false)
-  const [result, setResult]     = useState<string | null>(null)
+  const [title, setTitle]         = useState('Test Notification')
+  const [body, setBody]           = useState('This is a test push from War Room Intel admin.')
+  const [url, setUrl]             = useState('/community')
+  const [userId, setUserId]       = useState('')
+  const [sending, setSending]     = useState(false)
+  const [result, setResult]       = useState<string | null>(null)
+  const [subCount, setSubCount]   = useState<number | null>(null)
+  const [countLoading, setCountLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchCount() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/test-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ dryRun: true }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setSubCount(data.total ?? 0)
+        }
+      } catch {}
+      finally { setCountLoading(false) }
+    }
+    fetchCount()
+  }, [])
+
+  async function sendTestAll() {
+    setSending(true)
+    setResult(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/test-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSubCount(data.total ?? subCount)
+        setResult(`Sent to ${data.sent} of ${data.total} device(s). Failed: ${data.failed || 0}.${data.errors?.length ? ' Errors: ' + data.errors.slice(0, 2).join('; ') : ''}`)
+      } else {
+        setResult(`Error: ${data.error}`)
+      }
+    } catch (err: any) {
+      setResult(`Error: ${err.message}`)
+    } finally {
+      setSending(false)
+    }
+  }
 
   async function sendTest() {
+    if (!title) return
     setSending(true)
     setResult(null)
     try {
@@ -7378,13 +7424,37 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
 
   return (
     <div>
-      <h2 style={{ fontFamily: cinzel, fontSize: 16, color: G, letterSpacing: '0.12em', marginBottom: 8 }}>Push Notifications</h2>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 8 }}>
+        <h2 style={{ fontFamily: cinzel, fontSize: 16, color: G, letterSpacing: '0.12em', margin: 0 }}>Push Notifications</h2>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? '#9a8c74' : '#5C5248', letterSpacing: '0.08em' }}>
+          {countLoading ? 'Loading...' : `${subCount ?? 0} subscriber${subCount === 1 ? '' : 's'}`}
+        </div>
+      </div>
       <p style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#9a8c74' : '#5C5248', marginBottom: 24, lineHeight: 1.6 }}>
-        Send a test push notification to all subscribed users, or target a specific user by Clerk ID.
+        Send a push notification to all subscribed users, or target a specific user by Clerk ID.
         iOS users must have the app added to their home screen to receive pushes.
       </p>
 
+      {/* Quick test — sends to all immediately */}
+      <div style={{ marginBottom: 28, padding: '14px 16px', background: isDark ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.08)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 6 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>QUICK TEST — SEND TO ALL SUBSCRIBERS</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const }}>
+          <button
+            onClick={sendTestAll}
+            disabled={sending || subCount === 0}
+            style={{ padding: '9px 20px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', background: sending ? 'rgba(201,168,76,0.3)' : G, color: '#1a1305', border: 'none', borderRadius: 4, cursor: (sending || subCount === 0) ? 'not-allowed' : 'pointer' }}
+          >
+            {sending ? 'SENDING...' : `SEND TEST PUSH (${subCount ?? '?'} devices)`}
+          </button>
+          {subCount === 0 && !countLoading && (
+            <span style={{ fontFamily: crimson, fontSize: 13, color: '#c84a4a', fontStyle: 'italic' }}>No subscribers — users need to enable notifications in the app</span>
+          )}
+        </div>
+      </div>
+
+      {/* Custom message sender */}
       <div style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? '#9a8c74' : '#5C5248', letterSpacing: '0.1em' }}>CUSTOM MESSAGE</div>
         <div>
           <label style={lbl}>TITLE</label>
           <input value={title} onChange={e => setTitle(e.target.value)} style={inp} />
@@ -7413,7 +7483,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
             alignSelf: 'flex-start',
           }}
         >
-          {sending ? 'SENDING...' : 'SEND TEST PUSH'}
+          {sending ? 'SENDING...' : 'SEND PUSH'}
         </button>
 
         {result && (

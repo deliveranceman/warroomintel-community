@@ -126,6 +126,15 @@
 
 [functions."send-push"]
   timeout = 15
+  external_node_modules = ["web-push"]
+
+[functions."test-push"]
+  timeout = 30
+  external_node_modules = ["web-push"]
+
+[functions."test-push-single"]
+  timeout = 15
+  external_node_modules = ["web-push"]
 
 [functions."fringe-articles"]
   timeout = 10

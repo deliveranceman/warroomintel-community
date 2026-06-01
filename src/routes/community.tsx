@@ -233,6 +233,76 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
   const [saved,   setSaved]   = useState(false)
   const [saveErr, setSaveErr] = useState('')
 
+  const userRole = (user?.publicMetadata?.role as string) || 'member'
+  const isMinisterOrAdmin = userRole === 'minister' || userRole === 'admin'
+
+  const [pushInfo, setPushInfo] = useState<{ browserSupport: boolean; permission: string; swRegistered: boolean; subscribed: boolean } | null>(null)
+  const [pushWorking, setPushWorking] = useState(false)
+  const [pushMsg, setPushMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isMinisterOrAdmin || typeof window === 'undefined') return
+    ;(async () => {
+      const browserSupport = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window
+      const permission = browserSupport ? Notification.permission : 'unsupported'
+      let swRegistered = false, subscribed = false
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        swRegistered = regs.length > 0
+        if (swRegistered) {
+          const sub = await regs[0].pushManager.getSubscription()
+          subscribed = !!sub
+        }
+      } catch {}
+      setPushInfo({ browserSupport, permission, swRegistered, subscribed })
+    })()
+  }, [isMinisterOrAdmin])
+
+  async function pushRequestPermission() {
+    const p = await window.Notification.requestPermission()
+    setPushInfo(prev => prev ? { ...prev, permission: p } : null)
+  }
+
+  async function pushSubscribe() {
+    setPushWorking(true)
+    setPushMsg(null)
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+      const token = await getToken()
+      const res = await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, subscription: sub.toJSON() }),
+      })
+      if (!res.ok) throw new Error('Failed to save subscription')
+      setPushInfo(prev => prev ? { ...prev, swRegistered: true, subscribed: true } : null)
+      setPushMsg('Subscribed successfully.')
+    } catch (e: any) {
+      setPushMsg(`Subscribe failed: ${e.message}`)
+    } finally { setPushWorking(false) }
+  }
+
+  async function pushSendTestToMe() {
+    setPushWorking(true)
+    setPushMsg(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/test-push-single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      setPushMsg(res.ok ? 'Test notification sent — check your device.' : `Error: ${data.error}`)
+    } catch (e: any) {
+      setPushMsg(`Error: ${e.message}`)
+    } finally { setPushWorking(false) }
+  }
+
   const bg   = isDark ? '#0D0B14' : '#ffffff'
   const surf = isDark ? 'rgba(255,255,255,0.04)' : '#FFFFFF'
   const text = isDark ? '#f0ece0' : '#2D2924'
@@ -360,6 +430,55 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
             Change Password →
           </a>
         </div>
+
+        {/* Push Debug — minister/admin only */}
+        {isMinisterOrAdmin && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${bdr}` }}>
+            <div style={{ fontFamily: mc, fontSize: 9, letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: 12 }}>Push Notification Status</div>
+            {!pushInfo ? (
+              <div style={{ fontSize: 12, color: dim, fontFamily: cr }}>Checking...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 12 }}>
+                {([
+                  ['Browser support', pushInfo.browserSupport ? '✓ Yes' : '✗ No'],
+                  ['Permission', pushInfo.permission],
+                  ['Service worker', pushInfo.swRegistered ? '✓ Registered' : '✗ Not registered'],
+                  ['Subscription', pushInfo.subscribed ? '✓ Active' : '✗ None'],
+                ] as [string, string][]).map(([label, value]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontFamily: cr }}>
+                    <span style={{ color: dim }}>{label}</span>
+                    <span style={{ color: value.startsWith('✓') ? '#5fae6f' : value.startsWith('✗') ? '#c84a4a' : '#C9A84C' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+              {pushInfo && pushInfo.permission !== 'granted' && (
+                <button onClick={pushRequestPermission} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: '#C9A84C', cursor: 'pointer' }}>
+                  Request Permission
+                </button>
+              )}
+              {pushInfo && pushInfo.permission === 'granted' && !pushInfo.subscribed && (
+                <button onClick={pushSubscribe} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: '#C9A84C', cursor: 'pointer' }}>
+                  {pushWorking ? 'Subscribing...' : 'Subscribe'}
+                </button>
+              )}
+              {pushInfo?.subscribed && (
+                <button onClick={pushSendTestToMe} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, color: '#C9A84C', cursor: 'pointer' }}>
+                  {pushWorking ? 'Sending...' : 'Send Test to My Device'}
+                </button>
+              )}
+            </div>
+            {pushMsg && (
+              <div style={{ marginTop: 8, fontSize: 12, fontFamily: cr, color: pushMsg.startsWith('Error') || pushMsg.startsWith('Subscribe failed') ? '#c84a4a' : '#5fae6f' }}>
+                {pushMsg}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
