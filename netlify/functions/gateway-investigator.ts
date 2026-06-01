@@ -1,3 +1,5 @@
+import { getMinistryContext } from '../lib/getMinistryContext'
+
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN!
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
@@ -113,6 +115,9 @@ Rules:
 - Session questions must reference specific things the person may have been exposed to
 - Return ONLY the JSON. Nothing else.`
 
+  const ministryContext = await getMinistryContext()
+  const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${systemPrompt}` : systemPrompt
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -123,7 +128,7 @@ Rules:
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2000,
-      system: systemPrompt,
+      system: effectiveSystem,
       messages: [{ role: 'user', content: userPrompt }],
     }),
     signal: AbortSignal.timeout(25000),

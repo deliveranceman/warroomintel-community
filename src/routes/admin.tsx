@@ -6506,10 +6506,287 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
   )
 }
 
+// ─── MINISTRY CONTEXT MANAGER ──────────────────────────────────────────────────
+function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<string | null>; isDark: boolean }) {
+  const G    = '#C9A84C'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#E8D5B0' : '#2D2924'
+  const mut  = isDark ? '#8B7355' : '#5C5248'
+
+  const [versions, setVersions]       = useState<any[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [showEditor, setShowEditor]   = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [showDanger, setShowDanger]   = useState(false)
+  const [dangerInput, setDangerInput] = useState('')
+  const [editorLabel, setEditorLabel] = useState('')
+  const [editorNotes, setEditorNotes] = useState('')
+  const [editorText, setEditorText]   = useState('')
+  const [editorActivate, setEditorActivate] = useState(true)
+  const [saving, setSaving]           = useState(false)
+  const [toast, setToast]             = useState('')
+  const [previewVersion, setPreviewVersion] = useState<any | null>(null)
+  const [confirmActivate, setConfirmActivate] = useState<any | null>(null)
+
+  const active = versions.find(v => v.is_active)
+
+  function showToast(msg: string) {
+    setToast(msg); setTimeout(() => setToast(''), 4000)
+  }
+
+  async function load() {
+    setLoading(true)
+    const token = await getToken()
+    const res = await fetch('/api/ministry-context?admin=true', { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setVersions(d.versions || []) }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  function openEditor(prefill?: any) {
+    setEditorLabel(prefill ? `v${(versions[0]?.version || 0) + 1} — ` : '')
+    setEditorNotes('')
+    setEditorText(prefill?.context_text || active?.context_text || '')
+    setEditorActivate(true)
+    setShowEditor(true)
+  }
+
+  async function saveVersion() {
+    if (!editorLabel.trim() || !editorText.trim()) return
+    if (editorActivate && !confirm(`Activate this version? This will update the AI context across all platform tools immediately.`)) return
+    setSaving(true)
+    const token = await getToken()
+    const res = await fetch('/api/ministry-context', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: editorLabel, context_text: editorText, notes: editorNotes, activate: editorActivate }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      showToast(editorActivate ? `✓ AI context updated — all tools now using v${d.version}` : `✓ Draft saved as v${d.version}`)
+      setShowEditor(false); await load()
+    }
+    setSaving(false)
+  }
+
+  async function activateVersion(v: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/ministry-context?id=${v.id}&action=activate`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { showToast(`✓ Activated v${v.version}`); setConfirmActivate(null); await load() }
+  }
+
+  async function disableAll() {
+    if (dangerInput !== 'DISABLE') return
+    const token = await getToken()
+    for (const v of versions.filter(v => v.is_active)) {
+      await fetch(`/api/ministry-context?id=${v.id}`, {
+        method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: false }),
+      })
+    }
+    showToast('AI context disabled — tools using default Claude behavior'); setShowDanger(false); setDangerInput(''); await load()
+  }
+
+  const STATUS_BADGE = (isActive: boolean) => (
+    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.12em', padding: '2px 8px', borderRadius: 10,
+      background: isActive ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+      border: `1px solid ${isActive ? G : 'rgba(255,255,255,0.1)'}`,
+      color: isActive ? G : mut }}>
+      {isActive ? 'ACTIVE' : 'INACTIVE'}
+    </span>
+  )
+
+  if (loading) return <div style={{ color: mut, fontFamily: "'Crimson Pro', serif", fontStyle: 'italic', padding: 40, textAlign: 'center' }}>Loading…</div>
+
+  return (
+    <div style={{ background: bg, minHeight: '100%' }}>
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 20, background: 'rgba(201,168,76,0.9)', color: '#060408', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', padding: '10px 18px', borderRadius: 6, zIndex: 1000 }}>
+          {toast}
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap' as const, gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: G, letterSpacing: '0.08em', fontWeight: 700 }}>🧠 Ministry AI Context</div>
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: mut, marginTop: 4 }}>Control the ministry framing injected into all AI tools</div>
+        </div>
+        <button onClick={() => openEditor(active)}
+          style={{ padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          + NEW VERSION
+        </button>
+      </div>
+
+      {/* Active version card */}
+      {active ? (
+        <div style={{ background: surf, border: `2px solid ${G}`, borderRadius: 10, padding: '20px 24px', marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' as const }}>
+            {STATUS_BADGE(true)}
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: txt, letterSpacing: '0.04em', flex: 1 }}>{active.label}</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut, letterSpacing: '0.06em' }}>
+              {active.created_at ? new Date(active.created_at).toLocaleDateString() : ''}
+            </div>
+          </div>
+          {active.notes && <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: mut, marginBottom: 14, fontStyle: 'italic' }}>{active.notes}</div>}
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.04)', borderRadius: 6, padding: '14px 16px', maxHeight: 320, overflowY: 'auto' as const, border: `1px solid ${bdr}` }}>
+            {active.context_text}
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            <button onClick={() => openEditor(active)}
+              style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>
+              EDIT & SAVE AS NEW VERSION
+            </button>
+            <button onClick={() => navigator.clipboard.writeText(active.context_text).then(() => showToast('Copied!'))}
+              style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, color: mut, fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>
+              COPY TEXT
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '24px', marginBottom: 24, textAlign: 'center' as const }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: mut, marginBottom: 12 }}>No active ministry context</div>
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: mut, marginBottom: 16 }}>AI tools are using default Claude behavior</div>
+          <button onClick={() => openEditor()} style={{ padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            + CREATE FIRST VERSION
+          </button>
+        </div>
+      )}
+
+      {/* Version history */}
+      {versions.length > 1 && (
+        <div style={{ marginBottom: 24 }}>
+          <button onClick={() => setShowHistory(h => !h)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: surf, border: `1px solid ${bdr}`, borderRadius: 8, cursor: 'pointer', color: txt, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.08em' }}>
+            <span>Version History ({versions.length - 1} older)</span>
+            <span>{showHistory ? '▲' : '▼'}</span>
+          </button>
+          {showHistory && (
+            <div style={{ marginTop: 8 }}>
+              {versions.filter(v => !v.is_active).map(v => (
+                <div key={v.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 18px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' as const }}>
+                    {STATUS_BADGE(false)}
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: txt, flex: 1 }}>{v.label}</span>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut }}>{v.created_at ? new Date(v.created_at).toLocaleDateString() : ''}</span>
+                  </div>
+                  {v.notes && <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: mut, marginBottom: 8, fontStyle: 'italic' }}>{v.notes}</div>}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setConfirmActivate(v)}
+                      style={{ padding: '5px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid ${G}`, borderRadius: 4, color: G, fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                      RESTORE THIS VERSION
+                    </button>
+                    <button onClick={() => setPreviewVersion(v)}
+                      style={{ padding: '5px 12px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: mut, fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                      PREVIEW
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Danger zone */}
+      <div style={{ marginBottom: 40 }}>
+        <button onClick={() => setShowDanger(d => !d)}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(248,113,113,0.05)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 6, cursor: 'pointer', color: '#f87171', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em' }}>
+          <span>DANGER ZONE</span>
+          <span>{showDanger ? '▲' : '▼'}</span>
+        </button>
+        {showDanger && (
+          <div style={{ background: 'rgba(248,113,113,0.04)', border: '1px solid rgba(248,113,113,0.15)', borderTop: 'none', borderRadius: '0 0 6px 6px', padding: '16px 18px' }}>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: '#f87171', marginBottom: 12 }}>
+              This removes the ministry context from all AI tools. The AI will still work but without WRI ministry framing.
+            </div>
+            <input value={dangerInput} onChange={e => setDangerInput(e.target.value)} placeholder='Type "DISABLE" to confirm'
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '8px 12px', color: '#f87171', fontFamily: "'Crimson Pro', serif", fontSize: 13, outline: 'none', marginBottom: 10 }} />
+            <button onClick={disableAll} disabled={dangerInput !== 'DISABLE'}
+              style={{ padding: '7px 16px', background: dangerInput === 'DISABLE' ? 'rgba(248,113,113,0.15)' : 'transparent', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 4, color: '#f87171', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: dangerInput === 'DISABLE' ? 'pointer' : 'not-allowed', opacity: dangerInput === 'DISABLE' ? 1 : 0.4 }}>
+              DISABLE AI CONTEXT
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Editor modal */}
+      {showEditor && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowEditor(false) }}>
+          <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${bdr}`, borderRadius: 12, padding: '24px', width: '100%', maxWidth: 720, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>NEW VERSION</div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>LABEL</label>
+              <input value={editorLabel} onChange={e => setEditorLabel(e.target.value)} placeholder="e.g. v2 — Updated tone June 2026"
+                style={{ width: '100%', boxSizing: 'border-box' as const, background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '9px 12px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none' }} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>NOTES</label>
+              <input value={editorNotes} onChange={e => setEditorNotes(e.target.value)} placeholder="Reason for change"
+                style={{ width: '100%', boxSizing: 'border-box' as const, background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '9px 12px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>CONTEXT TEXT</label>
+              <textarea value={editorText} onChange={e => setEditorText(e.target.value)} rows={18}
+                style={{ width: '100%', boxSizing: 'border-box' as const, background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 12px', color: txt, fontFamily: 'monospace', fontSize: 12, lineHeight: 1.6, outline: 'none', resize: 'vertical' as const, minHeight: 400 }} />
+            </div>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: "'Crimson Pro', serif", fontSize: 13, color: txt }}>
+                <input type="checkbox" checked={editorActivate} onChange={e => setEditorActivate(e.target.checked)} />
+                Activate immediately
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={saveVersion} disabled={saving || !editorLabel.trim() || !editorText.trim()}
+                style={{ padding: '9px 20px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                {saving ? 'SAVING…' : 'SAVE VERSION'}
+              </button>
+              <button onClick={() => setShowEditor(false)}
+                style={{ padding: '9px 20px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview modal */}
+      {previewVersion && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setPreviewVersion(null) }}>
+          <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${bdr}`, borderRadius: 12, padding: '24px', width: '100%', maxWidth: 680, maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: G, marginBottom: 16 }}>{previewVersion.label}</div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{previewVersion.context_text}</div>
+            <button onClick={() => setPreviewVersion(null)} style={{ marginTop: 20, padding: '7px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: mut, fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>CLOSE</button>
+          </div>
+        </div>
+      )}
+
+      {/* Activate confirm modal */}
+      {confirmActivate && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${bdr}`, borderRadius: 10, padding: '24px', maxWidth: 400 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G, marginBottom: 12 }}>Activate v{confirmActivate.version}?</div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: mut, marginBottom: 20 }}>This will replace the current active context and update all AI tools immediately.</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => activateVersion(confirmActivate)} style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>ACTIVATE NOW</button>
+              <button onClick={() => setConfirmActivate(null)} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, color: mut, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>CANCEL</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -6581,6 +6858,7 @@ function AdminPage() {
       { key: 'spiritual-mapping', label: 'Spiritual Mapping' },
       { key: 'lib-intel',         label: 'Library Intel'     },
       { key: 'ai-command',        label: 'AI Command'        },
+      { key: 'ai-context',        label: '🧠 AI Context'     },
       { key: 'taxonomy',          label: 'Taxonomy'          },
       { key: 'enrichment',        label: 'Enrichment'        },
     ]},
@@ -6701,6 +6979,7 @@ function AdminPage() {
               </div>
             )}
             {tab === 'ai-command'        && <AICommandManager getToken={getToken} isDark={isDark} />}
+            {tab === 'ai-context'        && <MinistryContextManager getToken={getToken} isDark={isDark} />}
             {tab === 'taxonomy'          && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>

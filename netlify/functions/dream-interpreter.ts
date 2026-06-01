@@ -1,3 +1,5 @@
+import { getMinistryContext } from '../lib/getMinistryContext'
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -76,6 +78,9 @@ Rules:
 - Each section must have 2-5 specific, actionable items
 - Return ONLY the JSON. Nothing else.`
 
+  const ministryContext = await getMinistryContext()
+  const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${systemPrompt}` : systemPrompt
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -86,7 +91,7 @@ Rules:
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      system: systemPrompt,
+      system: effectiveSystem,
       messages: [{ role: 'user', content: userPrompt }],
     }),
     signal: AbortSignal.timeout(25000),

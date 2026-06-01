@@ -1,3 +1,5 @@
+import { getMinistryContext } from '../lib/getMinistryContext'
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -8,6 +10,8 @@ const ANTHROPIC_KEY = () => process.env.ANTHROPIC_API_KEY!
 const OPENAI_KEY    = () => process.env.OPENAI_API_KEY!
 
 async function claudeCall(model: string, system: string, userMsg: string, maxTokens = 800) {
+  const ministryCtx = await getMinistryContext()
+  system = ministryCtx ? `${ministryCtx}\n\n---\n\n${system}` : system
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {

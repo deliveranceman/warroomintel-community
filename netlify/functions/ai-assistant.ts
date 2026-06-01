@@ -1,3 +1,5 @@
+import { getMinistryContext } from '../lib/getMinistryContext'
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -172,6 +174,9 @@ export default async function handler(req: Request) {
     { role: 'user', content: enrichedMessage },
   ]
 
+  const ministryContext = await getMinistryContext()
+  const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -182,7 +187,7 @@ export default async function handler(req: Request) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      system: effectiveSystem,
       messages,
     }),
     signal: AbortSignal.timeout(45000),

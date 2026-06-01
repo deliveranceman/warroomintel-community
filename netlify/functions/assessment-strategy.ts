@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getMinistryContext } from '../lib/getMinistryContext'
 
 const WAR_STRATEGY_PROMPT = `You are a seasoned deliverance ministry strategist trained in the War Room Intel methodology.
 You have received a completed ministry assessment intake form for a person seeking deliverance.
@@ -49,6 +50,9 @@ export default async function handler(req: Request) {
   if (!assessmentText) return new Response(JSON.stringify({ error: 'No assessment text' }), { status: 400, headers })
 
   try {
+    const ministryContext = await getMinistryContext()
+    const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${WAR_STRATEGY_PROMPT}` : WAR_STRATEGY_PROMPT
+
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -59,7 +63,7 @@ export default async function handler(req: Request) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
-        system: WAR_STRATEGY_PROMPT,
+        system: effectiveSystem,
         messages: [{
           role: 'user',
           content: `Here is the completed ministry assessment:\n\n${assessmentText}\n\nGenerate the personalized war strategy now.`,

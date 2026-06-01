@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getMinistryContext } from '../lib/getMinistryContext'
 
 function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
@@ -81,6 +82,9 @@ Keep responses focused — typically 2-4 paragraphs.${libraryContext ? `\n\nRele
     { role: 'user' as const, content: `${contextLine}\n\n${question}` },
   ]
 
+  const ministryContext = await getMinistryContext()
+  const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${systemPrompt}` : systemPrompt
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -91,7 +95,7 @@ Keep responses focused — typically 2-4 paragraphs.${libraryContext ? `\n\nRele
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
-      system: systemPrompt,
+      system: effectiveSystem,
       messages,
     }),
     signal: AbortSignal.timeout(25000),
