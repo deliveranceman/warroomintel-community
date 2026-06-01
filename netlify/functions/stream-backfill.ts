@@ -5,11 +5,18 @@ const HEADERS = {
   'Content-Type': 'application/json',
 }
 
+const TIER_LEVEL: Record<string, number> = {
+  watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4,
+}
+
+function tierNum(tier: string): number {
+  return TIER_LEVEL[(tier || '').toLowerCase()] ?? 0
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
-  // Admin-only via INTERNAL_API_KEY header
   const internalKey = process.env.INTERNAL_API_KEY
   const provided    = req.headers.get('x-internal-api-key') || req.headers.get('Authorization')?.replace('Bearer ', '')
   if (!internalKey || provided !== internalKey) {
@@ -25,9 +32,26 @@ export default async function handler(req: Request) {
   }
 
   const client = new StreamClient(streamApiKey, streamApiSecret)
+
+  // Ensure all tier-gated channels exist
+  const channels = [
+    { id: 'war-room-general',    name: 'War Room Community',  minTier: 0 },
+    { id: 'field-reports-live',  name: 'Field Reports Live',  minTier: 1 },
+    { id: 'commanders-room',     name: 'Commanders Room',     minTier: 2 },
+    { id: 'generals-table',      name: "General's Table",     minTier: 3 },
+  ]
+
+  for (const ch of channels) {
+    try {
+      const channel = client.chat.channel('messaging', ch.id)
+      await channel.create({ created_by_id: 'admin', name: ch.name })
+    } catch { /* channel may already exist */ }
+  }
+
   let offset = 0
   const limit = 100
   let added = 0
+  let skipped = 0
   let errors = 0
 
   while (true) {
@@ -42,10 +66,17 @@ export default async function handler(req: Request) {
     for (const u of users) {
       const streamUserId = u.id.replace(/[^a-zA-Z0-9_-]/g, '_')
       const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Warrior'
+      const tier = (u.public_metadata?.tier as string) || 'watchman'
+      const level = tierNum(tier)
+
       try {
         await client.upsertUsers([{ id: streamUserId, name, role: 'user' }])
-        const channel = client.chat.channel('messaging', 'war-room-general')
-        await channel.addMembers([{ user_id: streamUserId }])
+
+        const memberChannels = channels.filter(ch => level >= ch.minTier)
+        for (const ch of memberChannels) {
+          const channel = client.chat.channel('messaging', ch.id)
+          await channel.addMembers([{ user_id: streamUserId }])
+        }
         added++
       } catch (err: any) {
         console.error(`[stream-backfill] Failed for ${u.id}:`, err.message)
@@ -57,8 +88,8 @@ export default async function handler(req: Request) {
     offset += limit
   }
 
-  console.log(`[stream-backfill] Done. Added: ${added}, Errors: ${errors}`)
-  return new Response(JSON.stringify({ success: true, added, errors }), { status: 200, headers: HEADERS })
+  console.log(`[stream-backfill] Done. Added: ${added}, Skipped: ${skipped}, Errors: ${errors}`)
+  return new Response(JSON.stringify({ success: true, added, skipped, errors }), { status: 200, headers: HEADERS })
 }
 
 export const config = { path: '/api/stream-backfill' }

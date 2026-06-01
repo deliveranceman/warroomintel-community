@@ -7545,6 +7545,143 @@ function DocumentCreatorView({ isMobile, setSidebarOpen, getToken }: any) {
   )
 }
 
+function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, posts, draft, setDraft, sending, sendPost, fetchPosts, bottomRef, setSidebarOpen }: {
+  isMobile: boolean; isDark: boolean; streamToken: string; apiKey: string
+  user: any; initials: string; posts: StreamMsg[]; draft: string
+  setDraft: (v: string) => void; sending: boolean
+  sendPost: () => void; fetchPosts: () => void
+  bottomRef: React.RefObject<HTMLDivElement>; setSidebarOpen: (v: boolean) => void
+}) {
+  const G2 = isDark ? '#C9A84C' : '#8B6914'
+  const V2 = {
+    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)',
+    surf: isDark ? '#1a1714' : '#FFFFFF',
+    bg:   isDark ? '#0D0B14' : '#FAF8F5',
+    txt:  isDark ? '#f0e8d8' : '#2D2924',
+    mut:  isDark ? '#9a8c74' : '#5C5248',
+  }
+
+  const [editingId,    setEditingId]    = useState<string | null>(null)
+  const [editText,     setEditText]     = useState('')
+  const [showComposer, setShowComposer] = useState(false)
+  const [hoveredPostId, setHoveredPostId] = useState<string | null>(null)
+
+  const PINNED: StreamMsg = {
+    id: 'pinned',
+    text: 'Welcome to War Room Intel. If you are fighting for your own freedom or walking others into theirs, you are in the right place. Start by introducing yourself below.',
+    user: { id: 'host', name: 'Pastor Justin Payne' },
+    created_at: new Date().toISOString(),
+  }
+
+  async function handleDeletePost(messageId: string) {
+    if (!confirm('Delete this post?')) return
+    try {
+      await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
+      await fetchPosts()
+    } catch (err) { console.error('Delete failed:', err) }
+  }
+
+  async function handleEditPost(messageId: string) {
+    try {
+      await streamFetch(`/messages/${messageId}`, 'PUT', streamToken, apiKey, { message: { text: editText } })
+      setEditingId(null)
+      await fetchPosts()
+    } catch (err) { console.error('Edit failed:', err) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V2.bdr}`, background: V2.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        {isMobile && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G2, fontSize: '20px', flexShrink: 0 }}
+            aria-label="Open navigation"
+          >☰</button>
+        )}
+        <span style={{ fontFamily: cinzel, fontSize: 14, color: G2, letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Community</span>
+        <button onClick={() => setShowComposer(true)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G2, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
+      </div>
+
+      {showComposer && (
+        <div onClick={() => setShowComposer(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: V2.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 12, width: '100%', maxWidth: 480, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V2.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G2, flexShrink: 0, overflow: 'hidden' }}>
+                {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+              </div>
+              <span style={{ fontFamily: cinzel, fontSize: 12, color: G2, letterSpacing: '0.08em' }}>New Post</span>
+              <button onClick={() => setShowComposer(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: V2.mut, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) { sendPost(); setShowComposer(false) } }}
+              placeholder="Share something with the War Room..."
+              rows={5}
+              style={{ width: '100%', boxSizing: 'border-box', background: V2.bg, border: `1px solid ${V2.bdr}`, borderRadius: 8, padding: '12px 14px', color: V2.txt, fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'none' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+              <button onClick={() => setShowComposer(false)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: V2.mut, background: 'transparent', border: `1px solid ${V2.bdr}`, borderRadius: 3, padding: '6px 14px', cursor: 'pointer' }}>Cancel</button>
+              <button
+                onClick={() => { sendPost(); setShowComposer(false) }}
+                disabled={sending || !draft.trim()}
+                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: sending || !draft.trim() ? 'rgba(201,168,76,0.3)' : G2, border: 'none', borderRadius: 3, padding: '6px 16px', cursor: sending || !draft.trim() ? 'default' : 'pointer' }}>
+                {sending ? '...' : 'Post ⚔'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
+        <PostCard msg={PINNED} pinned isDark={isDark} streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} hoveredId={hoveredPostId} onHover={setHoveredPostId} />
+        {posts.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map(msg => (
+          <PostCard key={msg.id} msg={msg} isDark={isDark}
+            streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts}
+            hoveredId={hoveredPostId} onHover={setHoveredPostId}
+            actions={msg.user?.id === user?.id || user?.publicMetadata?.role === 'minister' ? (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {editingId === msg.id ? (
+                  <>
+                    <textarea
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      rows={2}
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '6px', padding: '6px 10px', color: V2.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' as const }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
+                      <button onClick={() => handleEditPost(msg.id)} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '4px', color: G2, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Save</button>
+                      <button onClick={() => setEditingId(null)} style={{ background: 'none', border: '1px solid rgba(201,168,76,0.15)', borderRadius: '4px', color: V2.mut, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setEditingId(msg.id); setEditText(msg.text || '') }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V2.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G2}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V2.mut}
+                    >✏ Edit</button>
+                    <button
+                      onClick={() => handleDeletePost(msg.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V2.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V2.mut}
+                    >🗑 Delete</button>
+                  </>
+                )}
+              </div>
+            ) : undefined}
+          />
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  )
+}
+
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
@@ -8291,123 +8428,7 @@ function CommunityPage() {
     </button>
   ) : null
 
-  const PINNED: StreamMsg = {
-    id: 'pinned',
-    text: 'Welcome to War Room Intel. If you are fighting for your own freedom or walking others into theirs, you are in the right place. Start by introducing yourself below.',
-    user: { id: 'host', name: 'Pastor Justin Payne' },
-    created_at: new Date().toISOString(),
-  }
-
   // ── VIEWS ──────────────────────────────────────────────────
-  const WarRoomView = () => {
-    const [editingId,    setEditingId]    = useState<string | null>(null)
-    const [editText,     setEditText]     = useState('')
-    const [showComposer, setShowComposer] = useState(false)
-    const [hoveredPostId, setHoveredPostId] = useState<string | null>(null)
-
-    async function handleDeletePost(messageId: string) {
-      if (!confirm('Delete this post?')) return
-      try {
-        await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
-        await fetchPosts()
-      } catch (err) { console.error('Delete failed:', err) }
-    }
-
-    async function handleEditPost(messageId: string) {
-      try {
-        await streamFetch(`/messages/${messageId}`, 'PUT', streamToken, apiKey, { message: { text: editText } })
-        setEditingId(null)
-        await fetchPosts()
-      } catch (err) { console.error('Edit failed:', err) }
-    }
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          <Hamburger />
-          <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Community</span>
-          <button onClick={() => setShowComposer(true)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
-        </div>
-
-        {/* Composer modal */}
-        {showComposer && (
-          <div onClick={() => setShowComposer(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: V.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 12, width: '100%', maxWidth: 480, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, flexShrink: 0, overflow: 'hidden' }}>
-                  {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
-                </div>
-                <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em' }}>New Post</span>
-                <button onClick={() => setShowComposer(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: V.mut, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
-              </div>
-              <textarea
-                autoFocus
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) { sendPost(); setShowComposer(false) } }}
-                placeholder="Share something with the War Room..."
-                rows={5}
-                style={{ width: '100%', boxSizing: 'border-box', background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '12px 14px', color: V.txt, fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'none' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
-                <button onClick={() => setShowComposer(false)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: V.mut, background: 'transparent', border: `1px solid ${V.bdr}`, borderRadius: 3, padding: '6px 14px', cursor: 'pointer' }}>Cancel</button>
-                <button
-                  onClick={() => { sendPost(); setShowComposer(false) }}
-                  disabled={sending || !draft.trim()}
-                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: sending || !draft.trim() ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 3, padding: '6px 16px', cursor: sending || !draft.trim() ? 'default' : 'pointer' }}>
-                  {sending ? '...' : 'Post ⚔'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
-          <PostCard msg={PINNED} pinned isDark={isDark} streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} hoveredId={hoveredPostId} onHover={setHoveredPostId} />
-          {posts.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map(msg => (
-            <PostCard key={msg.id} msg={msg} isDark={isDark}
-              streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts}
-              hoveredId={hoveredPostId} onHover={setHoveredPostId}
-              actions={msg.user?.id === user?.id || user?.publicMetadata?.role === 'minister' ? (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {editingId === msg.id ? (
-                    <>
-                      <textarea
-                        value={editText}
-                        onChange={e => setEditText(e.target.value)}
-                        rows={2}
-                        style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '6px', padding: '6px 10px', color: V.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' as const }}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
-                        <button onClick={() => handleEditPost(msg.id)} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '4px', color: G, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Save</button>
-                        <button onClick={() => setEditingId(null)} style={{ background: 'none', border: '1px solid rgba(201,168,76,0.15)', borderRadius: '4px', color: V.mut, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Cancel</button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => { setEditingId(msg.id); setEditText(msg.text || '') }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
-                      >✏ Edit</button>
-                      <button
-                        onClick={() => handleDeletePost(msg.id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
-                      >🗑 Delete</button>
-                    </>
-                  )}
-                </div>
-              ) : undefined}
-            />
-          ))}
-          <div ref={bottomRef} />
-        </div>
-      </div>
-    )
-  }
 
   const PlaceholderView = ({ title, icon }: { title: string; icon: string }) => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -8847,7 +8868,7 @@ function CommunityPage() {
 
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
         {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
-        {activeSection === 'war-room'      && <WarRoomView />}
+        {activeSection === 'war-room'      && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'war-room-chat' && (
           <WarRoomChatView
             streamToken={streamToken}
