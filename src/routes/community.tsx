@@ -6060,43 +6060,47 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
             else if (diff < -50) setFigureIndex(prev => Math.max(0, prev - 1))
           }}
         >
-          {/* Track: 400% wide, shifts to show selected figure */}
-          <div style={{ position: 'absolute', inset: 0, width: '400%', transform: `translateX(-${figureIndex * 25}%)`, transition: 'transform 0.3s ease' }}>
-            <img
-              src="/images/WRI_BODYMAP.png?v=3"
-              alt="Spirit Body Map"
-              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
-              draggable={false}
-            />
-            {/* Hotspot overlays — positioned relative to the 400%-wide track */}
-            {BM_POINT_HOTSPOTS.filter(h => {
-              const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
-              return h.x >= lo && h.x < hi
-            }).map(h => {
-              const isActive = selectedHotspot?.id === h.id && panelOpen
-              return (
-                <div
-                  key={h.id}
-                  title={h.label}
-                  onClick={() => handleHotspotClick(h)}
-                  style={{
-                    position: 'absolute',
-                    left: `${h.x}%`,
-                    top: `${h.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
-                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
-                    boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
-                    zIndex: 2,
-                  }}
-                />
-              )
-            })}
-          </div>
+          {/* Image: 400% wide, shifted to show selected figure — no objectFit so no pillarboxing */}
+          <img
+            src="/images/WRI_BODYMAP.png?v=3"
+            alt="Spirit Body Map"
+            style={{
+              position: 'absolute', top: 0, left: 0,
+              display: 'block', width: '400%', height: '100%',
+              transform: `translateX(-${figureIndex * 25}%)`,
+              transition: 'transform 0.3s ease',
+            }}
+            draggable={false}
+          />
+          {/* Hotspot overlays — x converted to per-figure % of visible container */}
+          {BM_POINT_HOTSPOTS.filter(h => {
+            const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
+            return h.x >= lo && h.x < hi
+          }).map(h => {
+            const isActive = selectedHotspot?.id === h.id && panelOpen
+            const visX = (h.x - figureIndex * 25) / 25 * 100
+            return (
+              <div
+                key={h.id}
+                title={h.label}
+                onClick={() => handleHotspotClick(h)}
+                style={{
+                  position: 'absolute',
+                  left: `${visX}%`,
+                  top: `${h.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
+                  border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
+                  boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
+                  zIndex: 2,
+                }}
+              />
+            )
+          })}
           {/* Left arrow */}
           {figureIndex > 0 && (
             <button
