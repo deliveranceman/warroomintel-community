@@ -354,7 +354,12 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
       setPushMsg(force ? 'Subscription refreshed — new endpoint saved.' : 'Subscribed successfully.')
     } catch (e: any) {
       console.error('[push-debug] subscribe failed:', e.message)
-      setPushMsg(`Subscribe failed: ${e.message}`)
+      const hint = /denied|not allowed/i.test(e.message)
+        ? 'Permission denied — check browser notification settings.'
+        : /vapid|unauthorized|401|403/i.test(e.message)
+        ? 'VAPID key mismatch — use Refresh Subscription to get a new endpoint.'
+        : e.message
+      setPushMsg(`Subscribe failed: ${hint}`)
     } finally { setPushWorking(false) }
   }
 

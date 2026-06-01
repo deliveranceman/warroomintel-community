@@ -24,15 +24,20 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: 'userId and subscription required' }), { status: 400, headers: HEADERS })
     }
 
-    const endpoint = subscription.endpoint || (typeof subscription === 'string' ? JSON.parse(subscription).endpoint : null)
+    // Parse if stored as string
+    const sub = typeof subscription === 'string' ? JSON.parse(subscription) : subscription
+    const endpoint = sub.endpoint
     if (!endpoint) {
       return new Response(JSON.stringify({ error: 'Subscription missing endpoint' }), { status: 400, headers: HEADERS })
+    }
+    if (!sub.keys?.auth || !sub.keys?.p256dh) {
+      return new Response(JSON.stringify({ error: 'Subscription missing keys.auth or keys.p256dh — subscription is incomplete' }), { status: 400, headers: HEADERS })
     }
 
     const { error } = await sb()
       .from('push_subscriptions')
       .upsert(
-        { user_id: userId, endpoint, subscription, updated_at: new Date().toISOString() },
+        { user_id: userId, endpoint, subscription: sub, updated_at: new Date().toISOString() },
         { onConflict: 'endpoint' }
       )
 

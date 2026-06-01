@@ -40,7 +40,9 @@ export default async function handler(req: Request) {
   try { body = await req.json() } catch {}
   const { dryRun } = body
 
-  const { data: rows, error } = await sb().from('push_subscriptions').select('user_id, subscription')
+  const { data: rows, error } = await sb()
+    .from('push_subscriptions')
+    .select('user_id, subscription, endpoint')
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
 
   const total = rows?.length || 0
@@ -65,25 +67,47 @@ export default async function handler(req: Request) {
     url: '/community',
   })
 
-  const results = await Promise.allSettled(
-    rows!.map(r => webpush.sendNotification(r.subscription as webpush.PushSubscription, payload))
+  const client = sb()
+  let sent = 0, failed = 0
+  const errorDetails: any[] = []
+
+  await Promise.allSettled(
+    rows!.map(async (row) => {
+      // Safely parse subscription whether stored as string or object
+      const pushSub: webpush.PushSubscription =
+        typeof row.subscription === 'string'
+          ? JSON.parse(row.subscription)
+          : row.subscription as webpush.PushSubscription
+
+      const endpoint = (row.endpoint as string) || pushSub.endpoint
+      let endpointHost = '?'
+      try { endpointHost = new URL(endpoint).host } catch {}
+
+      try {
+        await webpush.sendNotification(pushSub, payload)
+        sent++
+      } catch (err: any) {
+        failed++
+        const detail = {
+          user_id:      row.user_id,
+          statusCode:   err.statusCode ?? null,
+          body:         err.body ?? err.message,
+          headers:      err.headers ?? null,
+          endpointHost,
+        }
+        console.error('[test-push] Failed:', detail)
+        errorDetails.push(detail)
+
+        if ((err.statusCode === 404 || err.statusCode === 410) && endpoint) {
+          await client.from('push_subscriptions').delete().eq('endpoint', endpoint)
+          console.log('[test-push] Deleted expired subscription:', endpoint.slice(-40))
+        }
+      }
+    })
   )
 
-  const errors: string[] = []
-  let sent = 0, failed = 0
-  results.forEach((r, i) => {
-    if (r.status === 'fulfilled') {
-      sent++
-    } else {
-      failed++
-      const msg = (r as PromiseRejectedResult).reason?.message || 'unknown'
-      errors.push(`${rows![i].user_id}: ${msg}`)
-      console.warn('[test-push] failed for', rows![i].user_id, msg)
-    }
-  })
-
   console.log(`[test-push] sent=${sent} failed=${failed} total=${total}`)
-  return new Response(JSON.stringify({ sent, failed, total, errors }), { status: 200, headers: HEADERS })
+  return new Response(JSON.stringify({ sent, failed, total, errors: errorDetails }), { status: 200, headers: HEADERS })
 }
 
 export const config = { path: '/api/test-push' }
