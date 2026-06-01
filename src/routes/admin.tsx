@@ -74,7 +74,8 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [arsenalEditForm, setArsenalEditForm] = useState<any>({})
   const [stagedFiles, setStagedFiles]   = useState<{
     id: number; file: File; filename: string; sizeLabel: string; tier: string;
-    status: 'pending'|'uploading'|'done'|'error'|'duplicate'; errorMsg?: string
+    status: 'pending'|'uploading'|'done'|'error'|'duplicate'; errorMsg?: string;
+    topic?: string; description?: string; spirit_tags?: string[]; aiStatus?: 'idle'|'loading'|'done'|'error';
   }[]>([])
   const [listExpanded, setListExpanded] = useState(true)
   const [bulkUploading, setBulkUploading] = useState(false)
@@ -184,6 +185,34 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     setStagedFiles(prev => prev.filter(sf => sf.id !== id))
   }
 
+  async function handleArsenalAutofill(sfId: number) {
+    const sf = stagedFiles.find(x => x.id === sfId)
+    if (!sf) return
+    setStagedFiles(prev => prev.map(x => x.id === sfId ? { ...x, aiStatus: 'loading' as const } : x))
+    try {
+      const fd = new FormData()
+      fd.append('file', sf.file)
+      const token = await getToken()
+      const res = await fetch('/api/arsenal-autofill', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      })
+      if (!res.ok) throw new Error('autofill failed')
+      const data = await res.json()
+      setStagedFiles(prev => prev.map(x => x.id === sfId ? {
+        ...x,
+        aiStatus: 'done' as const,
+        topic: data.category || x.topic,
+        description: data.description || x.description,
+        spirit_tags: data.spirit_tags || x.spirit_tags || [],
+        tier: data.tier && ['watchman','soldier','commander','general'].includes(data.tier) ? data.tier : x.tier,
+      } : x))
+    } catch {
+      setStagedFiles(prev => prev.map(x => x.id === sfId ? { ...x, aiStatus: 'error' as const } : x))
+    }
+  }
+
   async function handleBulkUpload() {
     const pending = stagedFiles.filter(sf => sf.status === 'pending')
     if (!pending.length || bulkUploading) return
@@ -196,7 +225,9 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         fd.append('file', sf.file)
         fd.append('title', sf.filename.replace(/\.[^.]+$/, ''))
         fd.append('tier', sf.tier)
-        fd.append('topic', 'Spiritual Warfare')
+        fd.append('topic', sf.topic || 'Spiritual Warfare')
+        fd.append('description', sf.description || '')
+        fd.append('spirit_tags', JSON.stringify(sf.spirit_tags || []))
         fd.append('tags', '[]')
         const token = await getToken()
         const res = await fetch('/api/admin-upload', {
@@ -303,20 +334,47 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sf.filename}</div>
                         <div style={{ fontFamily: crimson, fontSize: 11, color: DIM }}>{sf.sizeLabel}</div>
+                        {sf.topic && <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em' }}>{sf.topic}</div>}
+                        {sf.description && <div style={{ fontFamily: crimson, fontSize: 11, color: DIM, fontStyle: 'italic' as const, marginTop: 2, maxWidth: 340, whiteSpace: 'normal' as const }}>{sf.description}</div>}
+                        {sf.spirit_tags && sf.spirit_tags.length > 0 && (
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 3 }}>
+                            {sf.spirit_tags.map(tag => (
+                              <span key={tag} style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 10, padding: '1px 6px' }}>{tag}</span>
+                            ))}
+                          </div>
+                        )}
                         {sf.status === 'duplicate' && <div style={{ fontFamily: crimson, fontSize: 11, color: '#f59e0b', fontStyle: 'italic' as const }}>Already exists in library</div>}
                         {sf.status === 'error' && sf.errorMsg && <div style={{ fontFamily: crimson, fontSize: 11, color: '#f87171', fontStyle: 'italic' as const }}>{sf.errorMsg}</div>}
                       </div>
                       {(sf.status === 'pending' || sf.status === 'duplicate') && (
-                        <select
-                          value={sf.tier}
-                          onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, tier: e.target.value } : x))}
-                          style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '3px 6px', color: TXT, fontFamily: cinzel, fontSize: 9, outline: 'none' }}
-                        >
-                          <option value="free">Watchman</option>
-                          <option value="soldier">Soldier</option>
-                          <option value="commander">Commander</option>
-                          <option value="general">General</option>
-                        </select>
+                        <>
+                          <button
+                            onClick={() => handleArsenalAutofill(sf.id)}
+                            disabled={sf.aiStatus === 'loading'}
+                            title="AI Autofill — category, description, spirit tags"
+                            style={{
+                              background: sf.aiStatus === 'done' ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+                              border: `1px solid ${sf.aiStatus === 'done' ? 'rgba(201,168,76,0.5)' : sf.aiStatus === 'error' ? 'rgba(248,113,113,0.4)' : 'rgba(201,168,76,0.2)'}`,
+                              borderRadius: 4, padding: '3px 7px',
+                              color: sf.aiStatus === 'loading' ? DIM : sf.aiStatus === 'error' ? '#f87171' : G,
+                              fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em',
+                              cursor: sf.aiStatus === 'loading' ? 'wait' : 'pointer',
+                              whiteSpace: 'nowrap' as const, flexShrink: 0,
+                            }}
+                          >
+                            {sf.aiStatus === 'loading' ? '…' : sf.aiStatus === 'done' ? '✦ Filled' : sf.aiStatus === 'error' ? '✦ Retry' : '✦ AI'}
+                          </button>
+                          <select
+                            value={sf.tier}
+                            onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, tier: e.target.value } : x))}
+                            style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '3px 6px', color: TXT, fontFamily: cinzel, fontSize: 9, outline: 'none' }}
+                          >
+                            <option value="watchman">Watchman</option>
+                            <option value="soldier">Soldier</option>
+                            <option value="commander">Commander</option>
+                            <option value="general">General</option>
+                          </select>
+                        </>
                       )}
                       <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: sc, border: `1px solid ${sc}44`, borderRadius: 10, padding: '2px 8px', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
                         {statusLabels[sf.status] || sf.status}

@@ -90,9 +90,11 @@ export default async function handler(req: Request) {
   const description = (formData.get('description') as string || '').trim()
   const tier        = (formData.get('tier') as string) || 'Free'
   const topic       = (formData.get('topic') as string) || (formData.get('category') as string) || 'General Ministry'
-  const tagsRaw     = formData.get('tags') as string
-  const tags        = tagsRaw ? JSON.parse(tagsRaw) : []
-  const aiAnalyze   = formData.get('aiAnalyze') === 'true'
+  const tagsRaw       = formData.get('tags') as string
+  const tags          = tagsRaw ? JSON.parse(tagsRaw) : []
+  const spiritTagsRaw = formData.get('spirit_tags') as string
+  const spirit_tags   = spiritTagsRaw ? JSON.parse(spiritTagsRaw) : []
+  const aiAnalyze     = formData.get('aiAnalyze') === 'true'
 
   if (aiAnalyze) {
     if (!file) {
@@ -206,6 +208,7 @@ Respond with valid JSON only.`
       tier,
       topic,
       tags: tags.length > 0 ? tags : [],
+      spirit_tags: spirit_tags.length > 0 ? spirit_tags : [],
       file_path: filePath,
       file_type: file.type,
       file_size: file.size,
