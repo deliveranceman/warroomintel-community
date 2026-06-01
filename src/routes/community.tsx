@@ -7329,7 +7329,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, 
 }
 
 // ── MAIN PAGE ──────────────────────────────────────────────
-const VAPID_PUBLIC_KEY = 'BBD2uBk5oFcPJN7Ao_FVIZ1ZFzuNNbmZlhqFU7T46uWm1EadCzJNK1hsjK51KvN0l62SKiWd8b_6eM4mM4Jq8qk'
+const VAPID_PUBLIC_KEY = 'BPAAV1ApSJ1FEz_Au2FvVk4LSEN6Gw3rGS1z0G7-BOOXNaEaAPL0kZw2Q73vWoudVkkI1SxPs0BqWCHgQgY5Fi0'
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
