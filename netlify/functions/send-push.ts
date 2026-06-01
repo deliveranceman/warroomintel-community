@@ -80,9 +80,9 @@ export default async function handler(req: Request) {
 
   try {
     webpush.setVapidDetails(
-      `mailto:${process.env.VAPID_EMAIL || 'exorcist@warroomintel.com'}`,
-      vapidPub,
-      vapidPriv,
+      "mailto:exorcist@warroomintel.com",
+      process.env.VAPID_PUBLIC_KEY!,
+      process.env.VAPID_PRIVATE_KEY!
     )
     console.log('[send-push] VAPID configured successfully')
   } catch (err: any) {
@@ -149,6 +149,9 @@ export default async function handler(req: Request) {
       console.log('[send-push] Success:', row.user_id)
       sent++
     } catch (err: any) {
+      console.error('[send-push] FULL ERROR:', JSON.stringify(err, null, 2))
+      console.error('[send-push] statusCode:', err.statusCode)
+      console.error('[send-push] body:', err.body)
       console.error('[send-push] Failed:', {
         user_id: row.user_id,
         statusCode: err.statusCode,
