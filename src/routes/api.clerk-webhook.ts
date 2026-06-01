@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { StreamClient } from '@stream-io/node-sdk'
 
 const CLERK_SECRET_KEY    = process.env.CLERK_SECRET_KEY
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -49,6 +50,7 @@ export const Route = createFileRoute('/api/clerk-webhook')({
             return Response.json({ received: true })
           }
 
+          // 1. Set Clerk tier to Watchman
           try {
             const res = await fetch(`https://api.clerk.com/v1/users/${userId}/metadata`, {
               method: 'PATCH',
@@ -67,6 +69,29 @@ export const Route = createFileRoute('/api/clerk-webhook')({
             }
           } catch (err: any) {
             console.error(`[clerk-webhook] Error patching user:`, err.message)
+          }
+
+          // 2. Add user to war-room-general Stream channel
+          const streamApiKey    = process.env.VITE_STREAM_API_KEY
+          const streamApiSecret = process.env.STREAM_API_SECRET
+          if (streamApiKey && streamApiSecret) {
+            try {
+              const streamUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_')
+              const client = new StreamClient(streamApiKey, streamApiSecret)
+
+              // Upsert user in Stream
+              const firstName = data?.first_name || ''
+              const lastName  = data?.last_name || ''
+              const name = `${firstName} ${lastName}`.trim() || 'Warrior'
+              await client.upsertUsers([{ id: streamUserId, name, role: 'user' }])
+
+              // Add to war-room-general
+              const channel = client.chat.channel('messaging', 'war-room-general')
+              await channel.addMembers([{ user_id: streamUserId }])
+              console.log(`[clerk-webhook] Added ${streamUserId} to war-room-general`)
+            } catch (err: any) {
+              console.error(`[clerk-webhook] Stream join failed for ${userId}:`, err.message)
+            }
           }
         }
 
