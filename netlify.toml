@@ -150,3 +150,12 @@
 
 [functions."platform-feedback"]
   timeout = 10
+
+[functions."scheduled-content-suggestions"]
+  schedule = "0 12 * * 1"
+
+[functions."generate-content-suggestions"]
+  timeout = 30
+
+[functions."content-suggestions"]
+  timeout = 15

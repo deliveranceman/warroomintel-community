@@ -6968,10 +6968,297 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   )
 }
 
+// ─── ContentSuggestions ──────────────────────────────────────────────────────
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  weekly_intel: 'Weekly Intel', arsenal_pdf: 'Arsenal PDF',
+  daily_brief: 'Daily Brief', field_manual: 'Field Manual', youtube_outline: 'YouTube',
+}
+const CONTENT_TYPE_ICONS: Record<string, string> = {
+  weekly_intel: '📡', arsenal_pdf: '📄', daily_brief: '☀️', field_manual: '⚔', youtube_outline: '🎥',
+}
+const TIER_BADGE_COLORS: Record<string, string> = {
+  watchman: '#6a6080', soldier: '#5C7CBF', commander: '#7C5CBF', general: '#C9A84C',
+}
+
+function ContentSuggestions({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.06)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#E8D5B0' : '#2D2924'
+  const mut  = isDark ? '#8B7355' : '#5C5248'
+  const GG   = isDark ? '#C9A84C' : '#8B6914'
+  const inp: React.CSSProperties = { background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 12px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [loading, setLoading]         = useState(false)
+  const [generating, setGenerating]   = useState(false)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter]   = useState<string>('all')
+  const [msg, setMsg]                 = useState('')
+  const [editingId, setEditingId]     = useState<string | null>(null)
+  const [editForm, setEditForm]       = useState<Record<string, any>>({})
+  const [schedulePicker, setSchedulePicker] = useState<{ id: string; title: string } | null>(null)
+  const [scheduleTime, setScheduleTime]     = useState('')
+  const [topicInput, setTopicInput]   = useState('')
+  const [pendingCount, setPendingCount] = useState(0)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const params = new URLSearchParams()
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (typeFilter   !== 'all') params.set('content_type', typeFilter)
+      const res = await fetch(`/api/content-suggestions?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        setSuggestions(d.suggestions || [])
+        setPendingCount((d.suggestions || []).filter((s: any) => s.status === 'pending').length)
+      }
+    } finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [statusFilter, typeFilter])
+
+  async function generate() {
+    setGenerating(true); setMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/generate-content-suggestions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: topicInput.trim() || undefined }),
+      })
+      const d = await res.json()
+      if (res.ok) { setMsg(`Generated ${d.count} suggestions`); setTopicInput(''); load() }
+      else setMsg(d.error || 'Generation failed')
+    } catch { setMsg('Network error') }
+    setGenerating(false)
+  }
+
+  async function patchSuggestion(id: string, action: string, extra: Record<string, any> = {}) {
+    const token = await getToken()
+    const res = await fetch(`/api/content-suggestions?id=${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...extra }),
+    })
+    const d = await res.json()
+    if (res.ok) { load(); setEditingId(null); setSchedulePicker(null); setMsg('') }
+    else setMsg(d.error || 'Action failed')
+  }
+
+  function startEdit(s: any) {
+    setEditingId(s.id)
+    setEditForm({ title: s.title, summary: s.summary, full_draft: s.full_draft || '', notes: s.notes || '' })
+    setMsg('')
+  }
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending: '#a07040', approved: '#4a8a4a', rejected: '#8a3232', published: '#4a6a9a',
+  }
+
+  const displayed = suggestions.filter(s =>
+    (statusFilter === 'all' || s.status === statusFilter) &&
+    (typeFilter   === 'all' || s.content_type === typeFilter)
+  )
+  const published = displayed.filter(s => s.status === 'published').slice(0, 10)
+  const active    = displayed.filter(s => s.status !== 'published')
+
+  return (
+    <div>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12, marginBottom: 20 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 18, color: GG, letterSpacing: '0.08em', marginBottom: 4 }}>✦ AI Content Suggestions</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>Week of {new Date().toISOString().slice(0, 10)}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
+          <input value={topicInput} onChange={e => setTopicInput(e.target.value)} placeholder="Bias topic (optional)..."
+            style={{ ...inp, width: 200, padding: '7px 10px', fontSize: 13 }} />
+          <button onClick={generate} disabled={generating}
+            style={{ padding: '8px 18px', background: generating ? 'rgba(201,168,76,0.15)' : GG, color: generating ? GG : '#0D0B14', border: `1px solid ${GG}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: generating ? 'wait' : 'pointer', opacity: generating ? 0.7 : 1, flexShrink: 0 }}>
+            {generating ? '⚡ GENERATING...' : '⚡ GENERATE NOW'}
+          </button>
+        </div>
+      </div>
+
+      {msg && <div style={{ marginBottom: 14, padding: '8px 14px', background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: crimson, fontSize: 13, color: GG }}>{msg}</div>}
+
+      {/* Status filter */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: `1px solid ${bdr}`, overflowX: 'auto' as const }}>
+        {(['all', 'pending', 'approved', 'published', 'rejected'] as const).map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: statusFilter === s ? `2px solid ${GG}` : '2px solid transparent', color: statusFilter === s ? GG : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+            {s.toUpperCase()}{s === 'pending' && pendingCount > 0 ? ` (${pendingCount})` : ''}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 4, padding: '4px 10px', color: txt, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>
+          <option value="all">All Types</option>
+          {Object.entries(CONTENT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+
+      {loading && <div style={{ fontFamily: cinzel, fontSize: 10, color: GG, letterSpacing: '0.1em', padding: '20px 0' }}>LOADING...</div>}
+
+      {/* Active suggestion cards */}
+      {active.map(s => (
+        <div key={s.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '18px 20px', marginBottom: 14 }}>
+          {editingId === s.id ? (
+            // Inline editor
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 10, color: CONTENT_TYPE_ICONS[s.content_type] ? GG : mut, letterSpacing: '0.08em' }}>
+                  {CONTENT_TYPE_ICONS[s.content_type]} {CONTENT_TYPE_LABELS[s.content_type] || s.content_type}
+                </span>
+                <button onClick={() => setEditingId(null)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 16 }}>×</button>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>TITLE</label>
+                <input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} style={inp} />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>SUMMARY</label>
+                <textarea value={editForm.summary} onChange={e => setEditForm(p => ({ ...p, summary: e.target.value }))} rows={3} style={{ ...inp, resize: 'vertical' as const }} />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>FULL DRAFT (MARKDOWN)</label>
+                <textarea value={editForm.full_draft} onChange={e => setEditForm(p => ({ ...p, full_draft: e.target.value }))} rows={10} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 12 }} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>NOTES</label>
+                <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => patchSuggestion(s.id, 'approve', { ...editForm })}
+                  style={{ padding: '8px 18px', background: 'rgba(74,138,74,0.15)', border: '1px solid rgba(74,138,74,0.5)', borderRadius: 6, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  Save and Approve
+                </button>
+                <button onClick={() => setEditingId(null)}
+                  style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Card header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' as const }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 9, color: GG, background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '2px 8px', letterSpacing: '0.06em' }}>
+                      {CONTENT_TYPE_ICONS[s.content_type]} {(CONTENT_TYPE_LABELS[s.content_type] || s.content_type).toUpperCase()}
+                    </span>
+                    <span style={{ fontFamily: cinzel, fontSize: 9, color: '#fff', background: TIER_BADGE_COLORS[s.suggested_tier] || '#6a6080', borderRadius: 10, padding: '2px 8px', letterSpacing: '0.06em' }}>
+                      {(s.suggested_tier || 'watchman').toUpperCase()}
+                    </span>
+                    <span style={{ fontFamily: cinzel, fontSize: 9, color: STATUS_COLORS[s.status] || GG, letterSpacing: '0.06em', marginLeft: 'auto' }}>
+                      {s.status === 'pending' ? 'Suggested by AI' : s.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: cinzel, fontSize: 15, color: GG, letterSpacing: '0.04em', marginBottom: 6 }}>{s.title}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6 }}>{s.summary}</div>
+                  {s.status === 'approved' && s.scheduled_for && (
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.08em', marginTop: 8 }}>
+                      APPROVED — Scheduled: {new Date(s.scheduled_for).toLocaleString()}
+                    </div>
+                  )}
+                  {s.status === 'approved' && !s.scheduled_for && (
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.08em', marginTop: 8 }}>APPROVED</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Schedule picker inline */}
+              {schedulePicker?.id === s.id && (
+                <div style={{ marginBottom: 12, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: `1px solid ${bdr}`, borderRadius: 6 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 8 }}>SCHEDULE FOR</div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                    <input type="datetime-local" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
+                      style={{ ...inp, width: 'auto', fontSize: 12, padding: '6px 10px' }} />
+                    <button onClick={() => patchSuggestion(s.id, 'approve', { scheduled_for: scheduleTime || null })}
+                      style={{ padding: '6px 14px', background: 'rgba(74,138,74,0.15)', border: '1px solid rgba(74,138,74,0.5)', borderRadius: 6, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                      Confirm
+                    </button>
+                    <button onClick={() => patchSuggestion(s.id, 'approve', {})}
+                      style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                      Publish Now
+                    </button>
+                    <button onClick={() => setSchedulePicker(null)}
+                      style={{ background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 14 }}>×</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginTop: 12 }}>
+                {s.status === 'pending' && (
+                  <button onClick={() => { setSchedulePicker({ id: s.id, title: s.title }); setScheduleTime('') }}
+                    style={{ padding: '7px 16px', background: 'rgba(74,138,74,0.12)', border: '1px solid rgba(74,138,74,0.4)', borderRadius: 6, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    Approve and Schedule
+                  </button>
+                )}
+                {s.status === 'approved' && (
+                  <button onClick={() => patchSuggestion(s.id, 'publish')}
+                    style={{ padding: '7px 16px', background: 'rgba(74,110,154,0.15)', border: '1px solid rgba(74,110,154,0.5)', borderRadius: 6, color: '#60a5fa', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    Publish Now
+                  </button>
+                )}
+                <button onClick={() => startEdit(s)}
+                  style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  Edit
+                </button>
+                {s.status === 'pending' && (
+                  <button onClick={() => patchSuggestion(s.id, 'reject')}
+                    style={{ padding: '7px 14px', background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, color: '#f87171', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    Reject
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+
+      {!loading && active.length === 0 && (
+        <div style={{ padding: '32px 0', textAlign: 'center' as const, color: mut, fontFamily: crimson, fontSize: 14 }}>
+          No suggestions found. Click Generate Now to create this week's suggestions.
+        </div>
+      )}
+
+      {/* Published history */}
+      {published.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.12em', marginBottom: 12 }}>PUBLISHED HISTORY</div>
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
+            {published.map((s, i) => (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: i < published.length - 1 ? `1px solid ${bdr}` : 'none' }}>
+                <span style={{ fontFamily: cinzel, fontSize: 10, color: '#60a5fa', flexShrink: 0 }}>
+                  {CONTENT_TYPE_ICONS[s.content_type]}
+                </span>
+                <span style={{ fontFamily: crimson, fontSize: 13, color: txt, flex: 1 }}>{s.title}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, flexShrink: 0 }}>
+                  {CONTENT_TYPE_LABELS[s.content_type] || s.content_type}
+                </span>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, flexShrink: 0 }}>
+                  {s.published_at ? new Date(s.published_at).toLocaleDateString() : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -7027,11 +7314,12 @@ function AdminPage() {
       { key: 'dashboard', label: '⚡ Dashboard' },
     ]},
     { label: 'CONTENT', items: [
-      { key: 'intel',          label: 'Intel Archive'    },
-      { key: 'library',        label: 'Ministry Library' },
-      { key: 'arsenal',        label: 'Arsenal'          },
-      { key: 'documents',      label: 'Documents'        },
-      { key: 'field-ministry', label: 'Field Ministry'   },
+      { key: 'content-suggestions', label: '✦ Content AI'     },
+      { key: 'intel',               label: 'Intel Archive'    },
+      { key: 'library',             label: 'Ministry Library' },
+      { key: 'arsenal',             label: 'Arsenal'          },
+      { key: 'documents',           label: 'Documents'        },
+      { key: 'field-ministry',      label: 'Field Ministry'   },
     ]},
     { label: 'COMMUNITY', items: [
       { key: 'moderation',   label: 'Moderation'   },
@@ -7178,6 +7466,7 @@ function AdminPage() {
                 <TaxonomyReview getToken={getToken} isDark={isDark} />
               </div>
             )}
+            {tab === 'content-suggestions' && <ContentSuggestions getToken={getToken} isDark={isDark} />}
             {tab === 'notifications'     && <NotificationsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'ai-usage-admin'   && <AIUsageAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
