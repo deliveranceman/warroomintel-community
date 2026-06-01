@@ -151,6 +151,12 @@
 [functions."platform-feedback"]
   timeout = 10
 
+[functions."scheduled-daily-brief"]
+  schedule = "0 11 * * *"
+
+[functions."generate-daily-brief"]
+  timeout = 30
+
 [functions."scheduled-content-suggestions"]
   schedule = "0 12 * * 1"
 

@@ -90,15 +90,36 @@ export default async function handler(req: Request) {
 
   // GET — public reads (published only via RLS, service key bypasses for admin)
   if (req.method === 'GET') {
-    // Archive — last 30 days
-    if (archive === 'true') {
-      const since = new Date(); since.setDate(since.getDate() - 30)
+    // Drafts — unpublished entries for admin review (requires auth + minister)
+    if (url.searchParams.get('drafts') === 'true') {
+      const draftToken = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+      if (!draftToken) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+      const draftAuth = await resolveUser(draftToken)
+      if (!draftAuth || draftAuth.userData?.public_metadata?.role !== 'minister') {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+      }
       const { data } = await supabase
         .from('daily_devotions')
-        .select('id, date, title, published')
-        .eq('published', true)
+        .select('*')
+        .eq('published', false)
+        .order('date', { ascending: false })
+        .limit(20)
+      return new Response(JSON.stringify({ drafts: data || [] }), { status: 200, headers })
+    }
+
+    // Archive — last 30 days (admin gets all, public gets published only)
+    if (archive === 'true') {
+      const archiveToken = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+      const archiveAuth  = archiveToken ? await resolveUser(archiveToken) : null
+      const isAdminCall  = archiveAuth?.userData?.public_metadata?.role === 'minister'
+      const since = new Date(); since.setDate(since.getDate() - 30)
+      let query = supabase
+        .from('daily_devotions')
+        .select('id, date, title, published, created_by')
         .gte('date', since.toISOString().slice(0, 10))
         .order('date', { ascending: false })
+      if (!isAdminCall) query = query.eq('published', true)
+      const { data } = await query
       return new Response(JSON.stringify({ devotions: data || [] }), { status: 200, headers })
     }
 

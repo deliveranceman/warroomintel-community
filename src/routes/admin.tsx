@@ -1238,6 +1238,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [postSaving, setPostSaving]     = useState(false)
   const [postMsg, setPostMsg]           = useState('')
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [intelGenerating, setIntelGenerating] = useState(false)
 
   // Links
   const [links, setLinks]           = useState<any[]>([])
@@ -1670,6 +1671,25 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     }
   }
 
+  async function generateIntelBrief() {
+    setIntelGenerating(true); setPostMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/generate-content-suggestions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: 'weekly intelligence briefing for deliverance ministers' }),
+      })
+      const d = await res.json()
+      if (res.ok && d.suggestions?.length > 0) {
+        const suggestion = d.suggestions.find((s: any) => s.content_type === 'weekly_intel') || d.suggestions[0]
+        setPostMsg('AI draft ready below')
+        if (suggestion) { setPostTitle(suggestion.title || ''); setPostBody(suggestion.summary || '') }
+      } else { setPostMsg(d.error || 'Generation failed') }
+    } catch { setPostMsg('Network error') }
+    setIntelGenerating(false)
+  }
+
   async function savePost() {
     if (!postTitle.trim() || !postBody.trim()) return
     setPostSaving(true); setPostMsg('')
@@ -1975,16 +1995,24 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
       {/* Post Briefing form */}
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 10, flexWrap: 'wrap' as const }}>
           <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>
             {editingPostId ? '✏ Edit Briefing' : '📡 Post Briefing'}
           </div>
-          {editingPostId && (
-            <button onClick={() => { setEditingPostId(null); setPostTitle(''); setPostBody(''); setPostSc(''); setPostType('briefing'); setPostMsg('') }}
-              style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>
-              ✕ Cancel Edit
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {!editingPostId && (
+              <button onClick={generateIntelBrief} disabled={intelGenerating}
+                style={{ padding: '5px 14px', background: intelGenerating ? 'transparent' : 'rgba(201,168,76,0.1)', border: `1px solid ${intelGenerating ? BDR : G}`, borderRadius: 5, color: intelGenerating ? DIM : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: intelGenerating ? 'wait' : 'pointer', opacity: intelGenerating ? 0.6 : 1 }}>
+                {intelGenerating ? 'GENERATING...' : '⚡ GENERATE INTEL BRIEF'}
+              </button>
+            )}
+            {editingPostId && (
+              <button onClick={() => { setEditingPostId(null); setPostTitle(''); setPostBody(''); setPostSc(''); setPostType('briefing'); setPostMsg('') }}
+                style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>
+                ✕ Cancel Edit
+              </button>
+            )}
+          </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 14 }}>
           <div>
@@ -6387,8 +6415,10 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
   const inp  = { background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const }
 
   const [entries, setEntries] = useState<any[]>([])
+  const [drafts, setDrafts]   = useState<any[]>([])
   const [selected, setSelected] = useState<any>(null)
   const [saving, setSaving]   = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [msg, setMsg]         = useState('')
   const [form, setForm]       = useState({
     date: new Date().toISOString().split('T')[0],
@@ -6405,8 +6435,28 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
 
   async function loadEntries() {
     const token = await getToken()
-    const res = await fetch('/api/daily-devotion?archive=true', { headers: { Authorization: `Bearer ${token}` } })
-    if (res.ok) { const d = await res.json(); setEntries(d.devotions || []) }
+    const [archiveRes, draftsRes] = await Promise.all([
+      fetch('/api/daily-devotion?archive=true', { headers: { Authorization: `Bearer ${token}` } }),
+      fetch('/api/daily-devotion?drafts=true',   { headers: { Authorization: `Bearer ${token}` } }),
+    ])
+    if (archiveRes.ok) { const d = await archiveRes.json(); setEntries(d.devotions || []) }
+    if (draftsRes.ok)  { const d = await draftsRes.json();  setDrafts(d.drafts   || []) }
+  }
+
+  async function generateDraft() {
+    setGenerating(true); setMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/generate-daily-brief', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: new Date().toISOString().slice(0, 10) }),
+      })
+      const d = await res.json()
+      if (res.ok) { setMsg('AI draft generated — review it in DRAFT QUEUE below'); loadEntries() }
+      else setMsg(d.error || 'Generation failed')
+    } catch { setMsg('Network error') }
+    setGenerating(false)
   }
 
   useEffect(() => { loadEntries() }, [])
@@ -6457,11 +6507,45 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
   )
 
   return (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+    <div>
+      {/* DRAFT QUEUE — AI-generated unpublished drafts */}
+      {drafts.length > 0 && (
+        <div style={{ marginBottom: 28, padding: '18px 20px', background: 'rgba(201,168,76,0.05)', border: `1px solid ${bdr}`, borderRadius: 10 }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.14em', marginBottom: 12 }}>AI DRAFT QUEUE ({drafts.length})</div>
+          {drafts.map(d => (
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${bdr}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: GG }}>{d.title}</div>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut, marginTop: 2 }}>
+                  {new Date(d.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  {d.created_by === 'ai-agent' && <span style={{ marginLeft: 8, opacity: 0.6 }}>AI</span>}
+                </div>
+              </div>
+              <button onClick={() => loadEntry(d)}
+                style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${bdr}`, borderRadius: 6, color: GG, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+                Review and Edit
+              </button>
+              <button onClick={async () => {
+                const token = await getToken()
+                await fetch(`/api/daily-devotion?id=${d.id}`, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ date: d.date, title: d.title, morningPrayer: d.morning_prayer, scripture: d.scripture, scriptureReference: d.scripture_reference, devotionalText: d.devotional_text, eveningPrayer: d.evening_prayer, youtubeUrl: d.youtube_url || '', minTier: d.min_tier || 'watchman', published: true }) })
+                loadEntries(); setMsg('Published ✓')
+              }} style={{ padding: '6px 14px', background: 'rgba(74,138,74,0.12)', border: '1px solid rgba(74,138,74,0.4)', borderRadius: 6, color: '#4ade80', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+                Approve and Publish
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
       {/* Entry list */}
       <div style={{ width: 200, flexShrink: 0 }}>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: GG, letterSpacing: '0.12em', marginBottom: 10 }}>RECENT ENTRIES</div>
         <button onClick={startNew} style={{ width: '100%', marginBottom: 8, padding: '7px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`, borderRadius: 6, color: GG, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>+ New Entry</button>
+        <button onClick={generateDraft} disabled={generating}
+          style={{ width: '100%', marginBottom: 12, padding: '7px 12px', background: generating ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: `1px solid ${generating ? 'rgba(201,168,76,0.2)' : GG}`, borderRadius: 6, color: generating ? mut : GG, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: generating ? 'wait' : 'pointer', opacity: generating ? 0.6 : 1 }}>
+          {generating ? 'GENERATING...' : '⚡ AI GENERATE'}
+        </button>
         {entries.map(e => (
           <button key={e.id} onClick={() => loadEntry(e)}
             style={{ display: 'block', width: '100%', textAlign: 'left' as const, padding: '8px 12px', background: selected?.id === e.id ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderBottom: `1px solid ${bdr}`, cursor: 'pointer', color: selected?.id === e.id ? GG : txt, fontFamily: "'Crimson Pro', serif", fontSize: 13 }}>
@@ -6501,6 +6585,7 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
           </button>
           {msg && <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: msg.includes('✓') ? '#4ade80' : '#e09090' }}>{msg}</span>}
         </div>
+      </div>
       </div>
     </div>
   )
