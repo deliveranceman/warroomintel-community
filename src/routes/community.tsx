@@ -236,7 +236,7 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
   const userRole = (user?.publicMetadata?.role as string) || 'member'
   const isMinisterOrAdmin = userRole === 'minister' || userRole === 'admin'
 
-  const [pushInfo, setPushInfo] = useState<{ browserSupport: boolean; permission: string; swRegistered: boolean; subscribed: boolean } | null>(null)
+  const [pushInfo, setPushInfo] = useState<{ browserSupport: boolean; permission: string; swRegistered: boolean; subscribed: boolean; endpointHost?: string; lastRefreshed?: string } | null>(null)
   const [pushWorking, setPushWorking] = useState(false)
   const [pushMsg, setPushMsg] = useState<string | null>(null)
 
@@ -265,17 +265,29 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
 
         const existingSub = await reg.pushManager.getSubscription()
         subscribed = !!existingSub
-        console.log('[push-debug] existing subscription:', existingSub ? existingSub.endpoint.slice(-40) : 'none')
+        let endpointHost: string | undefined
+        let lastRefreshed: string | undefined
+        if (existingSub) {
+          try { endpointHost = new URL(existingSub.endpoint).host } catch {}
+          console.log('[push-debug] existing subscription host:', endpointHost, 'endpoint tail:', existingSub.endpoint.slice(-40))
+        } else {
+          console.log('[push-debug] no existing subscription')
+        }
 
         // If permission is already granted and a subscription exists, refresh updated_at in DB
         if (permission === 'granted' && existingSub && user?.id) {
-          fetch('/api/push-subscribe', {
+          const refreshRes = await fetch('/api/push-subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: user.id, subscription: existingSub.toJSON() }),
-          }).then(() => console.log('[push-debug] subscription refreshed in DB'))
-            .catch(e => console.warn('[push-debug] refresh failed:', e.message))
+          }).catch(e => { console.warn('[push-debug] refresh failed:', e.message); return null })
+          if (refreshRes?.ok) {
+            lastRefreshed = new Date().toLocaleTimeString()
+            console.log('[push-debug] subscription refreshed in DB at', lastRefreshed)
+          }
         }
+        setPushInfo({ browserSupport, permission, swRegistered, subscribed, endpointHost, lastRefreshed })
+        return
       } catch (e: any) {
         console.warn('[push-debug] SW/subscription check failed:', e.message)
       }
@@ -516,10 +528,13 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 12 }}>
                 {([
-                  ['Browser support', pushInfo.browserSupport ? '✓ Yes' : '✗ No'],
-                  ['Permission', pushInfo.permission],
-                  ['Service worker', pushInfo.swRegistered ? '✓ Registered' : '✗ Not registered'],
-                  ['Subscription', pushInfo.subscribed ? '✓ Active' : '✗ None'],
+                  ['Browser support',  pushInfo.browserSupport ? '✓ Yes' : '✗ No'],
+                  ['Permission',       pushInfo.permission],
+                  ['Service worker',   pushInfo.swRegistered ? '✓ Registered' : '✗ Not registered'],
+                  ['Subscription',     pushInfo.subscribed ? '✓ Active' : '✗ None'],
+                  ['Push service',     pushInfo.endpointHost || (pushInfo.subscribed ? '?' : '—')],
+                  ['VAPID client key', VAPID_PUBLIC_KEY.slice(0, 8) + '…'],
+                  ['Last DB refresh',  pushInfo.lastRefreshed || '—'],
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontFamily: cr }}>
                     <span style={{ color: dim }}>{label}</span>

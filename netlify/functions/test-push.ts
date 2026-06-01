@@ -55,10 +55,17 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'VAPID keys not configured', total }), { status: 500, headers: HEADERS })
   }
 
+  const vapidPub = process.env.VAPID_PUBLIC_KEY
+  const vapidPriv = process.env.VAPID_PRIVATE_KEY
+  console.log('[test-push] vapid:', {
+    publicKeyLoaded: !!vapidPub,
+    privateKeyLoaded: !!vapidPriv,
+    publicKeyPrefix: vapidPub ? vapidPub.slice(0, 8) + '…' : 'MISSING',
+  })
   webpush.setVapidDetails(
     `mailto:${process.env.VAPID_EMAIL || 'exorcist@warroomintel.com'}`,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY,
+    vapidPub!,
+    vapidPriv!,
   )
 
   const payload = JSON.stringify({

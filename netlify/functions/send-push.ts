@@ -59,10 +59,20 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'title is required' }), { status: 400, headers: HEADERS })
   }
 
+  const vapidPub = process.env.VAPID_PUBLIC_KEY
+  const vapidPriv = process.env.VAPID_PRIVATE_KEY
+  console.log('[send-push] vapid:', {
+    publicKeyLoaded: !!vapidPub,
+    privateKeyLoaded: !!vapidPriv,
+    publicKeyPrefix: vapidPub ? vapidPub.slice(0, 8) + '…' : 'MISSING',
+  })
+  if (!vapidPub || !vapidPriv) {
+    return new Response(JSON.stringify({ error: 'VAPID keys not configured' }), { status: 500, headers: HEADERS })
+  }
   webpush.setVapidDetails(
     `mailto:${process.env.VAPID_EMAIL || 'exorcist@warroomintel.com'}`,
-    process.env.VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
+    vapidPub,
+    vapidPriv,
   )
 
   const client = sb()

@@ -7471,7 +7471,11 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
       const data = await res.json()
       if (res.ok) {
         setSubCount(data.total ?? subCount)
-        setResult(`Sent to ${data.sent} of ${data.total} device(s). Failed: ${data.failed || 0}.${data.errors?.length ? ' Errors: ' + data.errors.slice(0, 2).join('; ') : ''}`)
+        const errSummary = (data.errors as any[] | undefined)?.slice(0, 3).map((e: any) => {
+          if (typeof e === 'string') return e
+          return [e.endpointHost, e.statusCode != null ? `HTTP ${e.statusCode}` : null, e.body || e.message].filter(Boolean).join(' ')
+        }).join(' | ') || ''
+        setResult(`Sent to ${data.sent} of ${data.total} device(s). Failed: ${data.failed || 0}.${errSummary ? ' ' + errSummary : ''}`)
       } else {
         setResult(`Error: ${data.error}`)
       }
@@ -7496,7 +7500,11 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
       const data = await res.json()
       if (res.ok) {
         const base = `Sent: ${data.sent} delivered, ${data.failed || 0} failed.`
-        setResult(data.error ? `${base} — Error: ${data.error}` : base)
+        const errDetail = (data.errorDetails as any[] | undefined)?.[0]
+        const errStr = errDetail
+          ? ` [${errDetail.endpointHost} HTTP ${errDetail.statusCode ?? '?'}: ${String(errDetail.body || '').slice(0, 120)}]`
+          : data.error ? ` — ${data.error}` : ''
+        setResult(base + errStr)
       } else {
         setResult(`Error: ${data.error}`)
       }
