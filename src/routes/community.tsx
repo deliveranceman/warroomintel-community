@@ -243,20 +243,46 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
   useEffect(() => {
     if (!isMinisterOrAdmin || typeof window === 'undefined') return
     ;(async () => {
-      const browserSupport = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window
+      const browserSupport =
+        'Notification' in window &&
+        'serviceWorker' in navigator &&
+        'PushManager' in window
       const permission = browserSupport ? Notification.permission : 'unsupported'
+      console.log('[push-debug] browserSupport:', browserSupport, 'permission:', permission)
+
       let swRegistered = false, subscribed = false
+      if (!browserSupport) {
+        setPushInfo({ browserSupport, permission, swRegistered, subscribed })
+        return
+      }
+
       try {
-        const regs = await navigator.serviceWorker.getRegistrations()
-        swRegistered = regs.length > 0
-        if (swRegistered) {
-          const sub = await regs[0].pushManager.getSubscription()
-          subscribed = !!sub
+        // Wait for the active service worker instead of just checking registrations
+        const reg = await navigator.serviceWorker.register('/sw.js')
+        await navigator.serviceWorker.ready
+        swRegistered = true
+        console.log('[push-debug] service worker ready')
+
+        const existingSub = await reg.pushManager.getSubscription()
+        subscribed = !!existingSub
+        console.log('[push-debug] existing subscription:', existingSub ? existingSub.endpoint.slice(-40) : 'none')
+
+        // If permission is already granted and a subscription exists, refresh updated_at in DB
+        if (permission === 'granted' && existingSub && user?.id) {
+          fetch('/api/push-subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, subscription: existingSub.toJSON() }),
+          }).then(() => console.log('[push-debug] subscription refreshed in DB'))
+            .catch(e => console.warn('[push-debug] refresh failed:', e.message))
         }
-      } catch {}
+      } catch (e: any) {
+        console.warn('[push-debug] SW/subscription check failed:', e.message)
+      }
+
       setPushInfo({ browserSupport, permission, swRegistered, subscribed })
     })()
-  }, [isMinisterOrAdmin])
+  }, [isMinisterOrAdmin, user?.id])
 
   async function pushRequestPermission() {
     const p = await window.Notification.requestPermission()
@@ -264,32 +290,70 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
   }
 
   async function pushSubscribe(force = false) {
+    // iOS: push requires standalone (home-screen) PWA — check before proceeding
+    if (typeof window !== 'undefined') {
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+      const isStandalone = (navigator as any).standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches
+      if (isIOS && !isStandalone) {
+        setPushMsg('On iOS, add this app to your Home Screen first to enable push notifications.')
+        return
+      }
+    }
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushMsg('Push notifications are not supported in this browser.')
+      return
+    }
+
     setPushWorking(true)
     setPushMsg(null)
     try {
       const reg = await navigator.serviceWorker.register('/sw.js')
       await navigator.serviceWorker.ready
+      console.log('[push-debug] SW ready for subscribe, force:', force)
 
-      // Force-refresh: unsubscribe existing before getting a new endpoint
       if (force) {
+        // Force refresh: unsubscribe existing to get a new endpoint
         const existing = await reg.pushManager.getSubscription()
-        if (existing) await existing.unsubscribe()
+        if (existing) {
+          await existing.unsubscribe()
+          console.log('[push-debug] unsubscribed existing endpoint')
+        }
+      } else {
+        // Non-forced: if an active subscription already exists, just re-save it (refresh updated_at)
+        const existing = await reg.pushManager.getSubscription()
+        if (existing) {
+          console.log('[push-debug] existing subscription found, posting to DB:', existing.endpoint.slice(-40))
+          const res = await fetch('/api/push-subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user?.id, subscription: existing.toJSON() }),
+          })
+          if (!res.ok) throw new Error('Failed to save subscription')
+          setPushInfo(prev => prev ? { ...prev, swRegistered: true, subscribed: true } : null)
+          setPushMsg('Subscription active and refreshed.')
+          return
+        }
       }
 
+      console.log('[push-debug] calling pushManager.subscribe()')
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       })
-      const token = await getToken()
+      console.log('[push-debug] new subscription endpoint:', sub.endpoint.slice(-40))
+
       const res = await fetch('/api/push-subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user?.id, subscription: sub.toJSON() }),
       })
       if (!res.ok) throw new Error('Failed to save subscription')
+      console.log('[push-debug] subscription posted successfully')
       setPushInfo(prev => prev ? { ...prev, swRegistered: true, subscribed: true } : null)
       setPushMsg(force ? 'Subscription refreshed — new endpoint saved.' : 'Subscribed successfully.')
     } catch (e: any) {
+      console.error('[push-debug] subscribe failed:', e.message)
       setPushMsg(`Subscribe failed: ${e.message}`)
     } finally { setPushWorking(false) }
   }

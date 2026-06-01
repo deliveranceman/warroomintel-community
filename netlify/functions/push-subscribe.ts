@@ -32,7 +32,7 @@ export default async function handler(req: Request) {
     const { error } = await sb()
       .from('push_subscriptions')
       .upsert(
-        { user_id: userId, endpoint, subscription },
+        { user_id: userId, endpoint, subscription, updated_at: new Date().toISOString() },
         { onConflict: 'endpoint' }
       )
 
