@@ -1,4 +1,5 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
+import { checkAndIncrementUsage, getUpgradeMessage, type AIFeature } from '../lib/ai-rate-limit'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -101,18 +102,49 @@ FORMATTING:
   Keep responses focused and usable during an active session.
   If lengthy, put the most actionable information first.`
 
+async function resolveAIUser(token: string): Promise<{ userId: string; tier: string } | null> {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    const userId = payload.sub
+    if (!userId) return null
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const tier = (data?.public_metadata?.tier as string) || 'watchman'
+    return { userId, tier }
+  } catch { return null }
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: CORS })
+
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+  const authUser = token ? await resolveAIUser(token) : null
+  const userId = authUser?.userId || 'anonymous'
+  const tier = authUser?.tier || 'watchman'
 
   let body: any
   try { body = await req.json() } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: CORS })
   }
 
-  const { message, history = [] } = body || {}
+  const { message, history = [], feature: featureParam } = body || {}
   if (!message?.trim()) {
     return new Response(JSON.stringify({ error: 'message required' }), { status: 400, headers: CORS })
+  }
+
+  // Rate limit — skip for anonymous (no token)
+  if (authUser) {
+    const feature = (featureParam === 'ai_assistant' ? 'ai_assistant' : 'ask_dake') as AIFeature
+    const usage = await checkAndIncrementUsage(userId, tier, feature)
+    if (!usage.allowed) {
+      return new Response(JSON.stringify({ error: getUpgradeMessage(tier, feature), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: CORS })
+    }
   }
 
   const baseUrl = process.env.URL || 'https://warroomintel.com'

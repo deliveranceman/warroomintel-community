@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -66,29 +67,40 @@ export default async function handler(req: Request) {
   const jsonHeaders = { 'Content-Type': 'application/json' }
 
   try {
-    // FIX 1 — JWT decode approach; frontend tokens are JWTs not session tokens
+    // Resolve JWT and tier for rate limiting
     const authHeader = req.headers.get('Authorization')
     const sessionToken = authHeader?.replace('Bearer ', '').trim()
 
     let userId = 'anonymous'
-    if (sessionToken) {
+    let tier = 'watchman'
+    if (sessionToken && sessionToken.split('.').length === 3) {
       try {
-        const parts = sessionToken.split('.')
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-          userId = payload.sub || 'anonymous'
+        const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64url').toString())
+        userId = payload.sub || 'anonymous'
+        if (userId !== 'anonymous') {
+          const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+            headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+          })
+          if (clerkRes.ok) {
+            const clerkData = await clerkRes.json()
+            tier = (clerkData?.public_metadata?.tier as string) || 'watchman'
+          }
         }
-      } catch (e) {
-        console.warn('JWT decode failed:', e)
-      }
+      } catch (e) { console.warn('JWT/Clerk resolve failed:', e) }
     }
-    console.log('Investigate request userId:', userId)
-    // Don't block unauthenticated — rate limiting handles abuse
 
-    // Rate limit by IP
+    // IP-based fallback rate limit
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
     if (!checkRateLimit(ip)) {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in a minute.' }), { status: 429, headers: jsonHeaders })
+    }
+
+    // Tier-based daily limit
+    if (userId !== 'anonymous') {
+      const usage = await checkAndIncrementUsage(userId, tier, 'symptom_investigator')
+      if (!usage.allowed) {
+        return new Response(JSON.stringify({ error: getUpgradeMessage(tier, 'symptom_investigator'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: jsonHeaders })
+      }
     }
 
     const { symptoms } = await req.json()

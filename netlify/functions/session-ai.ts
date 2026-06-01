@@ -1,4 +1,5 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -86,21 +87,21 @@ function getTierLevel(tier: string): number {
   return levels[tier] ?? 0
 }
 
-async function resolveSession(token: string): Promise<{ ok: boolean; tier: string }> {
+async function resolveSession(token: string): Promise<{ ok: boolean; tier: string; userId: string }> {
   try {
     const parts = token.split('.')
-    if (parts.length !== 3) return { ok: false, tier: 'watchman' }
+    if (parts.length !== 3) return { ok: false, tier: 'watchman', userId: '' }
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
-    if (!userId) return { ok: false, tier: 'watchman' }
+    if (!userId) return { ok: false, tier: 'watchman', userId: '' }
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return { ok: false, tier: 'watchman' }
+    if (!res.ok) return { ok: false, tier: 'watchman', userId: '' }
     const data = await res.json()
     const tier = (data?.public_metadata?.tier as string) || 'watchman'
-    return { ok: true, tier }
-  } catch { return { ok: false, tier: 'watchman' } }
+    return { ok: true, tier, userId }
+  } catch { return { ok: false, tier: 'watchman', userId: '' } }
 }
 
 export default async function handler(req: Request) {
@@ -109,10 +110,15 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-  const { ok, tier } = await resolveSession(token)
+  const { ok, tier, userId } = await resolveSession(token)
   if (!ok) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: CORS })
   if (getTierLevel(tier) < 2) {
     return new Response(JSON.stringify({ error: 'Commander tier or higher required' }), { status: 403, headers: CORS })
+  }
+
+  const usage = await checkAndIncrementUsage(userId, tier, 'session_ai')
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(tier, 'session_ai'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: CORS })
   }
 
   let body: any

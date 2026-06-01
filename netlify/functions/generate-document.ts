@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -19,22 +20,22 @@ function getTierLevel(tier: string): number {
   return levels[tier] ?? 0
 }
 
-async function resolveUser(token: string): Promise<{ ok: boolean; isMinister: boolean; tier: string }> {
+async function resolveUser(token: string): Promise<{ ok: boolean; isMinister: boolean; tier: string; userId: string }> {
   try {
     const parts = token.split('.')
-    if (parts.length !== 3) return { ok: false, isMinister: false, tier: 'watchman' }
+    if (parts.length !== 3) return { ok: false, isMinister: false, tier: 'watchman', userId: '' }
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
-    if (!userId) return { ok: false, isMinister: false, tier: 'watchman' }
+    if (!userId) return { ok: false, isMinister: false, tier: 'watchman', userId: '' }
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return { ok: false, isMinister: false, tier: 'watchman' }
+    if (!res.ok) return { ok: false, isMinister: false, tier: 'watchman', userId: '' }
     const data = await res.json()
     const isMinister = data?.public_metadata?.role === 'minister'
     const tier = (data?.public_metadata?.tier as string) || 'watchman'
-    return { ok: true, isMinister, tier }
-  } catch { return { ok: false, isMinister: false, tier: 'watchman' } }
+    return { ok: true, isMinister, tier, userId }
+  } catch { return { ok: false, isMinister: false, tier: 'watchman', userId: '' } }
 }
 
 function parseDocumentJson(raw: string): any {
@@ -64,10 +65,15 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const { ok, tier } = await resolveUser(token)
+  const { ok, tier, userId } = await resolveUser(token)
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
   if (getTierLevel(tier) < 1) {
     return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers })
+  }
+
+  const usage = await checkAndIncrementUsage(userId, tier, 'document')
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(tier, 'document'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers })
   }
 
   let body: any

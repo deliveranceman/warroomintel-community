@@ -1,4 +1,5 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN!
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
@@ -11,23 +12,23 @@ const headers = {
   'Content-Type': 'application/json',
 }
 
-async function resolveUser(token: string): Promise<{ ok: boolean; tier: string }> {
+async function resolveUser(token: string): Promise<{ ok: boolean; tier: string; userId: string }> {
   try {
-    if (!token || token.split('.').length !== 3) return { ok: false, tier: '' }
+    if (!token || token.split('.').length !== 3) return { ok: false, tier: '', userId: '' }
     const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
     const userId = payload.sub
-    if (!userId) return { ok: false, tier: '' }
+    if (!userId) return { ok: false, tier: '', userId: '' }
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return { ok: false, tier: '' }
+    if (!res.ok) return { ok: false, tier: '', userId: '' }
     const data = await res.json()
     const role = data?.public_metadata?.role
     const tier = data?.public_metadata?.tier || ''
     const tierLevel = (t: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
     const hasAccess = role === 'minister' || tierLevel(tier) >= 1
-    return { ok: hasAccess, tier }
-  } catch { return { ok: false, tier: '' } }
+    return { ok: hasAccess, tier, userId }
+  } catch { return { ok: false, tier: '', userId: '' } }
 }
 
 async function fetchSpiritContext(spiritName: string): Promise<string> {
@@ -200,6 +201,11 @@ export default async function handler(req: Request) {
 
   const auth = await resolveUser(token)
   if (!auth.ok) return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers })
+
+  const usage = await checkAndIncrementUsage(auth.userId, auth.tier || 'watchman', 'gateway')
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(auth.tier || 'watchman', 'gateway'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers })
+  }
 
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers }) }

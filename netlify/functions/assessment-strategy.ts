@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { getMinistryContext } from '../lib/getMinistryContext'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 
 const WAR_STRATEGY_PROMPT = `You are a seasoned deliverance ministry strategist trained in the War Room Intel methodology.
 You have received a completed ministry assessment intake form for a person seeking deliverance.
@@ -40,9 +41,41 @@ Any pastoral observations, cautions, or special considerations for the ministry 
 
 Format with clear section headers. Be specific and tactical, not generic. Reference the actual assessment content in your analysis.`
 
+async function resolveUser(token: string): Promise<{ userId: string; tier: string } | null> {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    const userId = payload.sub
+    if (!userId) return null
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const tier = (data?.public_metadata?.tier as string) || 'watchman'
+    return { userId, tier }
+  } catch { return null }
+}
+
 export default async function handler(req: Request) {
-  const headers = { 'Content-Type': 'application/json' }
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers })
+
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  const authUser = await resolveUser(token)
+  if (!authUser) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers })
+
+  const usage = await checkAndIncrementUsage(authUser.userId, authUser.tier, 'assessment')
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(authUser.tier, 'assessment'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers })
+  }
 
   const body = await req.json()
   const { assessmentText, anonymizeAndLog } = body
