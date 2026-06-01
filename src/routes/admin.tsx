@@ -852,6 +852,102 @@ const FIELD_GROUPS = [
 ]
 
 // ─── BODY MAP ADMIN ──────────────────────────────────────────────────────────
+
+const BM_REGION_MAP: Record<string, string> = {
+  'Crown': 'Head', 'Right Eye': 'Head', 'Left Eye': 'Head',
+  'Right Ear / Temple': 'Head', 'Throat / Neck': 'Head', 'Base of Skull / Occiput': 'Head',
+  'Crown (F)': 'Head', 'Right Eye (F)': 'Head', 'Left Eye (F)': 'Head',
+  'Right Ear (F)': 'Head', 'Throat / Neck (F)': 'Head', 'Base of Skull (F)': 'Head',
+  'Upper Sternum': 'Torso', 'Mid Sternum': 'Torso', 'Mid Sternum (F)': 'Torso',
+  'Right Ribcage': 'Torso', 'Left Ribcage': 'Torso',
+  'Solar Plexus': 'Torso', 'Liver / Right Abdomen': 'Torso', 'Navel / Mid Abdomen': 'Torso',
+  'Spleen / Left Abdomen': 'Torso', 'Lower Abdomen': 'Torso',
+  'Solar Plexus (F)': 'Torso', 'Right Abdomen (F)': 'Torso', 'Navel (F)': 'Torso',
+  'Left Abdomen (F)': 'Torso', 'Lower Abdomen (F)': 'Torso',
+  'Right Kidney': 'Torso', 'Left Kidney': 'Torso', 'Right Kidney (F)': 'Torso', 'Left Kidney (F)': 'Torso',
+  'Upper Chest (F)': 'Torso', 'Right Breast': 'Torso', 'Left Breast': 'Torso',
+  'Cervical Spine C1-C3': 'Spine', 'Cervical Spine C4-C7': 'Spine',
+  'Thoracic Spine T1-T4': 'Spine', 'Thoracic Spine T5-T8': 'Spine', 'Thoracic Spine T9-T12': 'Spine',
+  'Lumbar Spine L1-L3': 'Spine', 'Lumbar Spine L4-L5': 'Spine',
+  'Right Shoulder Blade': 'Spine', 'Left Shoulder Blade': 'Spine', 'Sacrum': 'Spine',
+  'Cervical Spine (F)': 'Spine', 'Upper Thoracic Spine (F)': 'Spine', 'Mid Thoracic Spine (F)': 'Spine',
+  'Lower Thoracic Spine (F)': 'Spine', 'Upper Lumbar (F)': 'Spine', 'Lower Lumbar (F)': 'Spine',
+  'Right Shoulder Blade (F)': 'Spine', 'Left Shoulder Blade (F)': 'Spine', 'Sacrum (F)': 'Spine',
+  'Groin / Reproductive': 'Pelvic', 'Right Hip': 'Pelvic', 'Left Hip': 'Pelvic',
+  'Right Gluteal': 'Pelvic', 'Left Gluteal': 'Pelvic', 'AB09': 'Pelvic',
+  'Reproductive (F)': 'Pelvic', 'Right Hip (F)': 'Pelvic', 'Left Hip (F)': 'Pelvic',
+  'Right Gluteal (F)': 'Pelvic', 'Left Gluteal (F)': 'Pelvic',
+  'Right Shoulder': 'Upper Extremities', 'Left Shoulder': 'Upper Extremities',
+  'Right Upper Arm': 'Upper Extremities', 'Left Upper Arm': 'Upper Extremities',
+  'Right Elbow': 'Upper Extremities', 'Left Elbow': 'Upper Extremities',
+  'Right Wrist': 'Upper Extremities', 'Left Wrist': 'Upper Extremities',
+  'Right Palm': 'Upper Extremities', 'Left Palm': 'Upper Extremities',
+  'Right Forearm / Elbow Back': 'Upper Extremities', 'Left Forearm / Elbow Back': 'Upper Extremities',
+  'Right Wrist Back': 'Upper Extremities', 'Left Wrist Back': 'Upper Extremities',
+  'Right Shoulder (F)': 'Upper Extremities', 'Left Shoulder (F)': 'Upper Extremities',
+  'Right Upper Arm (F)': 'Upper Extremities', 'Left Upper Arm (F)': 'Upper Extremities',
+  'Right Elbow (F)': 'Upper Extremities', 'Left Elbow (F)': 'Upper Extremities',
+  'Right Wrist (F)': 'Upper Extremities', 'Left Wrist (F)': 'Upper Extremities',
+  'Right Palm (F)': 'Upper Extremities', 'Left Palm (F)': 'Upper Extremities',
+  'Right Elbow Back (F)': 'Upper Extremities', 'Left Elbow Back (F)': 'Upper Extremities',
+  'Right Wrist Back (F)': 'Upper Extremities', 'Left Wrist Back (F)': 'Upper Extremities',
+  'Right Thigh': 'Lower Extremities', 'Left Thigh': 'Lower Extremities',
+  'Right Knee': 'Lower Extremities', 'Left Knee': 'Lower Extremities',
+  'Right Shin / Calf': 'Lower Extremities', 'Left Shin / Calf': 'Lower Extremities',
+  'Right Ankle': 'Lower Extremities', 'Left Ankle': 'Lower Extremities',
+  'Right Foot': 'Lower Extremities', 'Left Foot': 'Lower Extremities',
+  'Right Thigh Back': 'Lower Extremities', 'Left Thigh Back': 'Lower Extremities',
+  'Right Knee Back': 'Lower Extremities', 'Left Knee Back': 'Lower Extremities',
+  'Right Calf Back': 'Lower Extremities', 'Left Calf Back': 'Lower Extremities',
+  'Right Ankle Back': 'Lower Extremities', 'Left Ankle Back': 'Lower Extremities',
+  'Right Foot Back': 'Lower Extremities', 'Left Foot Back': 'Lower Extremities',
+  'Right Thigh (F)': 'Lower Extremities', 'Left Thigh (F)': 'Lower Extremities',
+  'Right Knee (F)': 'Lower Extremities', 'Left Knee (F)': 'Lower Extremities',
+  'Right Shin (F)': 'Lower Extremities', 'Left Shin (F)': 'Lower Extremities',
+  'Right Ankle (F)': 'Lower Extremities', 'Left Ankle (F)': 'Lower Extremities',
+  'Right Foot (F)': 'Lower Extremities', 'Left Foot (F)': 'Lower Extremities',
+  'Right Thigh Back (F)': 'Lower Extremities', 'Left Thigh Back (F)': 'Lower Extremities',
+  'Right Knee Back (F)': 'Lower Extremities', 'Left Knee Back (F)': 'Lower Extremities',
+  'Right Calf Back (F)': 'Lower Extremities', 'Left Calf Back (F)': 'Lower Extremities',
+  'Right Ankle Back (F)': 'Lower Extremities', 'Left Ankle Back (F)': 'Lower Extremities',
+  'Right Foot Back (F)': 'Lower Extremities', 'Left Foot Back (F)': 'Lower Extremities',
+}
+
+function bmDeriveRegion(name: string): string {
+  const n = name.toLowerCase()
+  if (n.includes('eye') || n.includes('ear') || n.includes('nose') || n.includes('mouth') ||
+      n.includes('jaw') || n.includes('temple') || n.includes('forehead') || n.includes('crown') ||
+      n.includes('head') || n.includes('throat') || n.includes('neck') || n.includes('skull') ||
+      n.includes('occiput')) return 'Head'
+  if (n.includes('spine') || n.includes('shoulder blade') || n.includes('sacrum') ||
+      n.includes('lumbar') || n.includes('thoracic') || n.includes('cervical')) return 'Spine'
+  if (n.includes('chest') || n.includes('lung') || n.includes('solar') || n.includes('stomach') ||
+      n.includes('abdomen') || n.includes('navel') || n.includes('rib') || n.includes('sternum') ||
+      n.includes('kidney') || n.includes('breast')) return 'Torso'
+  if (n.includes('pelvis') || n.includes('womb') || n.includes('groin') || n.includes('hip') ||
+      n.includes('gluteal') || n.includes('reproductive')) return 'Pelvic'
+  if (n.includes('shoulder') || n.includes('elbow') || n.includes('forearm') || n.includes('wrist') ||
+      n.includes('hand') || n.includes('palm') || n.includes('upper arm')) return 'Upper Extremities'
+  if (n.includes('knee') || n.includes('thigh') || n.includes('calf') || n.includes('ankle') ||
+      n.includes('foot') || n.includes('feet') || n.includes('shin')) return 'Lower Extremities'
+  return ''
+}
+
+const BM_SOURCES = [
+  '', 'Dake Annotated Bible', 'Win Worley',
+  'Frank Hammond - Pigs in the Parlor', 'Derek Prince', 'Rebecca Brown',
+  'John Eckhardt', 'Clinical Session Observation', 'Justin Payne - Pastoral Notes',
+  'Scripture Reference', 'Custom...',
+]
+
+const BM_REGIONS = ['', 'Head', 'Torso', 'Spine', 'Pelvic', 'Upper Extremities', 'Lower Extremities']
+
+const BM_MANIFESTATION_PRESETS = [
+  'Burning sensation', 'Pressure', 'Pain', 'Numbness', 'Tingling',
+  'Tightness', 'Heaviness', 'Nausea', 'Throbbing', 'Cold sensation',
+  'Heat', 'Trembling', 'Weakness', 'Stabbing pain', 'Crawling sensation',
+]
+
 type BMManifestation = {
   id: string
   hotspot_id: string
@@ -1010,19 +1106,77 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
   const [showAdd, setShowAdd] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [spirits, setSpirits] = useState<any[]>([])
+  const allSpirits = useRef<any[]>([])
 
-  const blank = { hotspot_id: 'H01', body_part: '', region: '', manifestation: '', spirit_names: '', notes: '', source: '' }
-  const [form, setForm] = useState(blank)
+  // Form fields
+  const [hotspotId, setHotspotId] = useState('H01')
+  const [bodyPart, setBodyPart] = useState('')
+  const [region, setRegion] = useState('')
+  const [manifestation, setManifestation] = useState('')
+  const [notes, setNotes] = useState('')
+  const [selectedSpirits, setSelectedSpirits] = useState<string[]>([])
+  const [spiritInput, setSpiritInput] = useState('')
+  const [spiritSuggestions, setSpiritSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [sourceSelect, setSourceSelect] = useState('')
+  const [sourceCustom, setSourceCustom] = useState('')
+  const [autoFilled, setAutoFilled] = useState(false)
 
   useEffect(() => {
     getToken().then(token => {
       fetch('/api/demons', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
-        .then(d => setSpirits(d.demons || []))
+        .then(d => { allSpirits.current = (d.demons || []).sort((a: any, b: any) => a.name.localeCompare(b.name)) })
         .catch(() => {})
     })
   }, [])
+
+  function resetForm() {
+    setHotspotId('H01')
+    setBodyPart('')
+    setRegion('')
+    setManifestation('')
+    setNotes('')
+    setSelectedSpirits([])
+    setSpiritInput('')
+    setSpiritSuggestions([])
+    setShowSuggestions(false)
+    setSourceSelect('')
+    setSourceCustom('')
+    setAutoFilled(false)
+  }
+
+  function handleHotspotChange(id: string) {
+    setHotspotId(id)
+    const hotspot = BM_HOTSPOT_OPTIONS.find(o => o.id === id)
+    if (hotspot) {
+      setBodyPart(hotspot.label)
+      setRegion(BM_REGION_MAP[hotspot.label] || bmDeriveRegion(hotspot.label))
+      setAutoFilled(true)
+    }
+  }
+
+  function handleSpiritInput(val: string) {
+    setSpiritInput(val)
+    if (!val.trim()) { setShowSuggestions(false); return }
+    const q = val.toLowerCase()
+    const matches = allSpirits.current
+      .map((s: any) => s.name as string)
+      .filter(n => n.toLowerCase().includes(q) && !selectedSpirits.includes(n))
+      .slice(0, 10)
+    setSpiritSuggestions(matches)
+    setShowSuggestions(matches.length > 0)
+  }
+
+  function selectSpirit(name: string) {
+    setSelectedSpirits(prev => [...prev, name])
+    setSpiritInput('')
+    setShowSuggestions(false)
+  }
+
+  function removeSpirit(name: string) {
+    setSelectedSpirits(prev => prev.filter(s => s !== name))
+  }
 
   async function load() {
     setLoading(true)
@@ -1045,14 +1199,15 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
     setError(null)
     try {
       const token = await getToken()
+      const source = sourceSelect === 'Custom...' ? sourceCustom : sourceSelect
       const payload = {
-        hotspot_id: form.hotspot_id,
-        body_part: form.body_part,
-        region: form.region,
-        manifestation: form.manifestation,
-        spirit_names: form.spirit_names.split(',').map(s => s.trim()).filter(Boolean),
-        notes: form.notes || null,
-        source: form.source || null,
+        hotspot_id: hotspotId,
+        body_part: bodyPart,
+        region,
+        manifestation,
+        spirit_names: selectedSpirits,
+        notes: notes || null,
+        source: source || null,
       }
       const isEdit = !!editingId
       const res = await fetch(`/api/body-map${isEdit ? `?id=${editingId}` : ''}`, {
@@ -1064,7 +1219,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
       if (!res.ok) throw new Error(j.error)
       setShowAdd(false)
       setEditingId(null)
-      setForm(blank)
+      resetForm()
       await load()
     } catch (e: any) { setError(e.message) }
     finally { setSaving(false) }
@@ -1084,41 +1239,50 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
 
   function startEdit(row: BMManifestation) {
     setEditingId(row.id)
-    setForm({
-      hotspot_id: row.hotspot_id,
-      body_part: row.body_part,
-      region: row.region,
-      manifestation: row.manifestation,
-      spirit_names: (row.spirit_names || []).join(', '),
-      notes: row.notes || '',
-      source: row.source || '',
-    })
+    setHotspotId(row.hotspot_id)
+    setBodyPart(row.body_part)
+    setRegion(row.region)
+    setManifestation(row.manifestation)
+    setNotes(row.notes || '')
+    setSelectedSpirits(row.spirit_names || [])
+    setSpiritInput('')
+    setSpiritSuggestions([])
+    setShowSuggestions(false)
+    setAutoFilled(false)
+    const presetList = BM_SOURCES.slice(1, -1)
+    const src = row.source || ''
+    if (!src) { setSourceSelect(''); setSourceCustom('') }
+    else if (presetList.includes(src)) { setSourceSelect(src); setSourceCustom('') }
+    else { setSourceSelect('Custom...'); setSourceCustom(src) }
     setShowAdd(true)
   }
 
-  const inp: React.CSSProperties = {
+  const inp: CSSProperties = {
     width: '100%', background: isDark ? '#0D0B14' : '#fff',
     border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.3)'}`,
     borderRadius: 4, padding: '7px 10px', color: isDark ? '#e8ddc8' : '#1a1208',
-    fontFamily: crimson, fontSize: 14, boxSizing: 'border-box' as const,
+    fontFamily: crimson, fontSize: 14, boxSizing: 'border-box',
   }
+  const lbl: CSSProperties = { fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }
+  const autoBadge = <span style={{ marginLeft: 6, padding: '1px 5px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 3, fontSize: 8, color: G, letterSpacing: '0.05em' }}>auto</span>
+  const canSave = manifestation.trim() && bodyPart.trim() && region.trim()
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap' as const, gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>BODY MAP MANIFESTATIONS</div>
           <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic' }}>
-            {rows.length} entr{rows.length !== 1 ? 'ies' : 'y'} — link spirits to body regions
+            {rows.length} entr{rows.length !== 1 ? 'ies' : 'y'} - link spirits to body regions
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={filterHotspot} onChange={e => setFilterHotspot(e.target.value)}
             style={{ ...inp, width: 'auto', paddingRight: 28 }}>
             <option value="all">All Hotspots</option>
             {BM_HOTSPOT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
-          <button onClick={() => { setShowAdd(true); setEditingId(null); setForm(blank) }}
+          <button onClick={() => { setShowAdd(true); setEditingId(null); resetForm() }}
             style={{ padding: '8px 18px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
             + ADD ENTRY
           </button>
@@ -1127,55 +1291,112 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
 
       {error && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '10px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
-      {/* Add / Edit Form */}
       {showAdd && (
         <div style={{ background: isDark ? 'rgba(201,168,76,0.04)' : '#fffdf5', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.2)'}`, borderRadius: 8, padding: '20px 24px', marginBottom: 24 }}>
           <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>{editingId ? 'EDIT ENTRY' : 'NEW ENTRY'}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-            {([
-              ['Hotspot', 'hotspot_id', 'select'],
-              ['Body Part', 'body_part', 'text'],
-              ['Region', 'region', 'text'],
-              ['Source', 'source', 'text'],
-            ] as [string, keyof typeof form, string][]).map(([label, key, type]) => (
-              <div key={key}>
-                <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>{label}</label>
-                {type === 'select' ? (
-                  <select value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inp}>
-                    {BM_HOTSPOT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  </select>
-                ) : (
-                  <input type="text" value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inp} />
-                )}
+
+          {/* Hotspot / Body Part / Region */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={lbl}>HOTSPOT</label>
+              <select value={hotspotId} onChange={e => handleHotspotChange(e.target.value)} style={inp}>
+                {BM_HOTSPOT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>BODY PART {autoFilled && autoBadge}</label>
+              <input type="text" value={bodyPart} onChange={e => { setBodyPart(e.target.value); setAutoFilled(false) }} style={inp} placeholder="e.g. Crown" />
+            </div>
+            <div>
+              <label style={lbl}>REGION {autoFilled && region && autoBadge}</label>
+              <select value={region} onChange={e => { setRegion(e.target.value); setAutoFilled(false) }} style={inp}>
+                {BM_REGIONS.map(r => <option key={r} value={r}>{r || '-- select --'}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Spirit Names */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>SPIRIT NAMES</label>
+            {selectedSpirits.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {selectedSpirits.map(name => (
+                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 20, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em' }}>
+                    {name}
+                    <button onMouseDown={e => { e.preventDefault(); removeSpirit(name) }}
+                      style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', padding: 0, fontSize: 11, lineHeight: 1 }}>x</button>
+                  </span>
+                ))}
               </div>
-            ))}
+            )}
+            <div style={{ position: 'relative' }}>
+              <input type="text" value={spiritInput}
+                onChange={e => handleSpiritInput(e.target.value)}
+                onFocus={() => { if (spiritInput.trim() && spiritSuggestions.length > 0) setShowSuggestions(true) }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Type to search verified spirit names..."
+                style={inp}
+              />
+              {showSuggestions && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#1a1714', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, marginTop: 2, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+                  {spiritSuggestions.map(name => (
+                    <div key={name}
+                      onMouseDown={e => { e.preventDefault(); selectSpirit(name) }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.1)'; (e.currentTarget as HTMLDivElement).style.color = G }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = DIM }}
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.06em' }}>
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{ marginTop: 12 }}>
-            <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>SPIRIT NAMES</label>
-            <SpiritTypeahead
-              mode="multi"
-              value={form.spirit_names}
-              onChange={v => setForm(f => ({ ...f, spirit_names: v }))}
-              demons={spirits}
-              placeholder="Type to search verified spirit names..."
-            />
+
+          {/* Manifestation with presets */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>MANIFESTATION</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {BM_MANIFESTATION_PRESETS.map(p => (
+                <button key={p}
+                  type="button"
+                  onMouseDown={e => { e.preventDefault(); setManifestation(prev => prev.trim() ? `${prev.trim()}, ${p}` : p) }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(201,168,76,0.7)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(201,168,76,0.3)' }}
+                  style={{ padding: '3px 8px', background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: 'pointer' }}>
+                  {p}
+                </button>
+              ))}
+            </div>
+            <textarea value={manifestation} onChange={e => setManifestation(e.target.value)}
+              rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="Describe the physical or emotional manifestation..." />
           </div>
-          <div style={{ marginTop: 12 }}>
-            <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>MANIFESTATION</label>
-            <textarea value={form.manifestation} onChange={e => setForm(f => ({ ...f, manifestation: e.target.value }))}
-              rows={3} style={{ ...inp, resize: 'vertical' as const }} />
+
+          {/* Source */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>SOURCE</label>
+            <select value={sourceSelect} onChange={e => setSourceSelect(e.target.value)} style={inp}>
+              {BM_SOURCES.map(s => <option key={s} value={s}>{s || '-- select source --'}</option>)}
+            </select>
+            {sourceSelect === 'Custom...' && (
+              <input type="text" value={sourceCustom} onChange={e => setSourceCustom(e.target.value)}
+                placeholder="Enter custom source..." style={{ ...inp, marginTop: 8 }} />
+            )}
           </div>
-          <div style={{ marginTop: 12 }}>
-            <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>NOTES</label>
-            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+
+          {/* Notes */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={lbl}>NOTES</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)}
+              rows={2} style={{ ...inp, resize: 'vertical' }} />
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button onClick={save} disabled={saving || !form.manifestation.trim()}
-              style={{ padding: '8px 22px', background: saving || !form.manifestation.trim() ? DIM : G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: saving ? 'wait' : 'pointer', fontWeight: 700 }}>
-              {saving ? 'Saving…' : editingId ? 'Update' : 'Add'}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={save} disabled={saving || !canSave}
+              style={{ padding: '8px 22px', background: saving || !canSave ? DIM : G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: saving ? 'wait' : 'pointer', fontWeight: 700 }}>
+              {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
             </button>
-            <button onClick={() => { setShowAdd(false); setEditingId(null); setForm(blank) }}
+            <button onClick={() => { setShowAdd(false); setEditingId(null); resetForm() }}
               style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
               Cancel
             </button>
@@ -1183,30 +1404,29 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
         </div>
       )}
 
-      {/* Table */}
       {loading ? (
-        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '40px 0', textAlign: 'center' as const }}>Loading…</div>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '40px 0', textAlign: 'center' }}>Loading...</div>
       ) : rows.length === 0 ? (
-        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '40px 0', textAlign: 'center' as const }}>No entries yet — add the first one above.</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '40px 0', textAlign: 'center' }}>No entries yet - add the first one above.</div>
       ) : (
-        <div style={{ overflowX: 'auto' as const }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontFamily: crimson, fontSize: 13 }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: crimson, fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.2)'}` }}>
                 {['Hotspot', 'Manifestation', 'Spirits', 'Source', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left' as const, padding: '6px 10px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM, fontWeight: 600, whiteSpace: 'nowrap' as const }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM, fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'}` }}>
-                  <td style={{ padding: '8px 10px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+                  <td style={{ padding: '8px 10px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {BM_HOTSPOT_OPTIONS.find(o => o.id === row.hotspot_id)?.label ?? row.hotspot_id}
                   </td>
                   <td style={{ padding: '8px 10px', color: isDark ? '#e8ddc8' : '#1a1208', maxWidth: 320, lineHeight: 1.4 }}>{row.manifestation}</td>
                   <td style={{ padding: '8px 10px', maxWidth: 200 }}>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {(row.spirit_names || []).map(s => (
                         <a key={s} href={`/community?section=database&search=${encodeURIComponent(s)}`}
                           style={{ padding: '2px 8px', background: isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 4, color: G, fontSize: 11, fontFamily: cinzel, letterSpacing: '0.05em', textDecoration: 'none' }}>
@@ -1215,8 +1435,8 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                       ))}
                     </div>
                   </td>
-                  <td style={{ padding: '8px 10px', color: DIM, fontSize: 12 }}>{row.source || '—'}</td>
-                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' as const }}>
+                  <td style={{ padding: '8px 10px', color: DIM, fontSize: 12 }}>{row.source || '--'}</td>
+                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                     <button onClick={() => startEdit(row)}
                       style={{ background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: '4px 10px', marginRight: 6 }}>
                       Edit

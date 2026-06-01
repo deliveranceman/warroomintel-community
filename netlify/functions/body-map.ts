@@ -84,8 +84,11 @@ export default async function handler(req: Request) {
   if (req.method === 'PUT') {
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers: CORS })
     const body = await req.json()
-    const { manifestation, spirit_names, spirit_airtable_ids, notes, source } = body
+    const { hotspot_id, body_part, region, manifestation, spirit_names, spirit_airtable_ids, notes, source } = body
     const { data, error } = await sb().from('body_map_manifestations').update({
+      ...(hotspot_id !== undefined && { hotspot_id }),
+      ...(body_part !== undefined && { body_part }),
+      ...(region !== undefined && { region }),
       ...(manifestation !== undefined && { manifestation }),
       ...(spirit_names !== undefined && { spirit_names }),
       ...(spirit_airtable_ids !== undefined && { spirit_airtable_ids }),
