@@ -18,8 +18,21 @@ export default async function handler(req: Request) {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
   const internalKey = process.env.INTERNAL_API_KEY
-  const provided    = req.headers.get('x-internal-api-key') || req.headers.get('Authorization')?.replace('Bearer ', '')
-  if (!internalKey || provided !== internalKey) {
+  console.log('INTERNAL_API_KEY set:', !!internalKey)
+  console.log('Key value length:', internalKey?.length)
+
+  if (!internalKey) {
+    return new Response(JSON.stringify({ error: 'INTERNAL_API_KEY not configured' }), { status: 401, headers: HEADERS })
+  }
+
+  // Accept both x-internal-key and x-internal-api-key header names
+  const receivedKey = req.headers.get('x-internal-key') || req.headers.get('x-internal-api-key') || req.headers.get('X-Internal-Key') || req.headers.get('Authorization')?.replace('Bearer ', '') || ''
+  const expectedKey = internalKey
+  console.log('Received key length:', receivedKey.length)
+  console.log('Expected key length:', expectedKey.length)
+  console.log('Keys match:', receivedKey === expectedKey)
+
+  if (receivedKey !== expectedKey) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
   }
 
