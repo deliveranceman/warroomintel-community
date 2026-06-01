@@ -7475,6 +7475,11 @@ function CommunityPage() {
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
   const [unreadDMs, setUnreadDMs]         = useState(0)
+  const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null)
+  const [termsTab, setTermsTab] = useState<'terms' | 'privacy'>('terms')
+  const [termsChecked, setTermsChecked] = useState(false)
+  const [termsSubmitting, setTermsSubmitting] = useState(false)
+
   const [showPushBanner, setShowPushBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (!('Notification' in window)) return false
@@ -7748,6 +7753,13 @@ function CommunityPage() {
       }).then(() => localStorage.setItem(key, String(Date.now()))).catch(() => {})
     })
   }, [user?.id])
+
+  // Sync terms acceptance from Clerk metadata
+  useEffect(() => {
+    if (!user?.id) return
+    const accepted = !!(user.publicMetadata?.terms_accepted)
+    setTermsAccepted(accepted)
+  }, [user?.id, user?.publicMetadata?.terms_accepted])
 
   // Fetch Stream token — upserts user in Stream then returns a valid token
   useEffect(() => {
@@ -9293,6 +9305,78 @@ function CommunityPage() {
       >
         🧠
       </button>
+
+      {/* Terms acceptance modal — blocks access until accepted */}
+      {termsAccepted === false && user?.id && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: '#0f0c07', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 12, maxWidth: 560, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.8)' }}>
+            {/* Header */}
+            <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid rgba(201,168,76,0.12)', textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>⚔</div>
+              <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>Welcome to War Room Intel</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: '#9a8c74' }}>Before you begin, please review and accept our terms</div>
+            </div>
+            {/* Tab switcher (mobile-friendly) */}
+            <div style={{ display: 'flex', borderBottom: '1px solid rgba(201,168,76,0.12)', flexShrink: 0 }}>
+              {(['terms', 'privacy'] as const).map(tab => (
+                <button key={tab} onClick={() => setTermsTab(tab)}
+                  style={{ flex: 1, padding: '10px', background: termsTab === tab ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: termsTab === tab ? `2px solid ${G}` : '2px solid transparent', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: termsTab === tab ? G : '#6a5f4f', cursor: 'pointer' }}>
+                  {tab === 'terms' ? 'TERMS OF SERVICE' : 'PRIVACY POLICY'}
+                </button>
+              ))}
+            </div>
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', maxHeight: 260 }}>
+              {termsTab === 'terms' ? (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>
+                  <p>War Room Intel is a ministry platform for deliverance and spiritual warfare education. By accessing this platform you agree to use it solely for lawful, ministry-aligned purposes.</p>
+                  <p>You agree not to: share login credentials, redistribute proprietary content, use AI tools for harm, or misrepresent ministry materials.</p>
+                  <p>Content on this platform is intended for spiritual edification and deliverance ministry education. It does not constitute medical, psychological, or legal advice.</p>
+                  <p>We reserve the right to remove access for violations of these terms. Subscriptions are non-refundable after access is granted.</p>
+                  <p>These terms may be updated from time to time. Continued use constitutes acceptance of updated terms.</p>
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Terms of Service →</a>
+                </div>
+              ) : (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>
+                  <p>We collect your name, email, and usage data to provide and improve this ministry platform. We do not sell your data.</p>
+                  <p>Account data is stored securely via Clerk (authentication) and Supabase (content). Payment data is processed by Stripe and never stored on our servers.</p>
+                  <p>Push notification subscriptions are stored locally and in our database only to deliver ministry alerts you have opted into.</p>
+                  <p>You may request deletion of your data at any time by contacting exorcist@warroomintel.com.</p>
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Privacy Policy →</a>
+                </div>
+              )}
+            </div>
+            {/* Acceptance */}
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(201,168,76,0.12)', background: '#09070F' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
+                <input type="checkbox" checked={termsChecked} onChange={e => setTermsChecked(e.target.checked)}
+                  style={{ marginTop: 3, accentColor: G, width: 16, height: 16, flexShrink: 0 }} />
+                <span style={{ fontFamily: crimson, fontSize: 14, color: '#c8b99a', lineHeight: 1.5 }}>
+                  I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Privacy Policy</a>
+                </span>
+              </label>
+              <button
+                disabled={!termsChecked || termsSubmitting}
+                onClick={async () => {
+                  if (!termsChecked || termsSubmitting) return
+                  setTermsSubmitting(true)
+                  try {
+                    const token = await getToken()
+                    const res = await fetch('/api/accept-terms', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    })
+                    if (res.ok) setTermsAccepted(true)
+                  } catch { /* fail silently — user can retry */ }
+                  setTermsSubmitting(false)
+                }}
+                style={{ width: '100%', padding: '12px', background: termsChecked ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: termsChecked ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: termsChecked ? 'pointer' : 'default', opacity: termsSubmitting ? 0.7 : 1 }}>
+                {termsSubmitting ? 'SAVING...' : 'CONTINUE TO WAR ROOM →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showInstallBanner && (
         <div style={{
