@@ -10,20 +10,21 @@ function sb() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 }
 
-async function resolveMinister(token: string): Promise<boolean> {
+async function resolveUser(token: string): Promise<{ ok: boolean; isMinister: boolean }> {
   try {
     const parts = token.split('.')
-    if (parts.length !== 3) return false
+    if (parts.length !== 3) return { ok: false, isMinister: false }
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
-    if (!userId) return false
+    if (!userId) return { ok: false, isMinister: false }
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return false
+    if (!res.ok) return { ok: false, isMinister: false }
     const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
+    const isMinister = data?.public_metadata?.role === 'minister'
+    return { ok: true, isMinister }
+  } catch { return { ok: false, isMinister: false } }
 }
 
 function parseDocumentJson(raw: string): any {
@@ -53,7 +54,7 @@ export default async function handler(req: Request) {
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const ok = await resolveMinister(token)
+  const { ok } = await resolveUser(token)
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
 
   let body: any

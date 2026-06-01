@@ -7242,6 +7242,198 @@ function AssessmentUploadView({ theme, isMobile, setSidebarOpen, tier, tierLevel
   )
 }
 
+// ── DOCUMENT CREATOR ──────────────────────────────────────────────────────────
+const COMM_DOC_TEMPLATES = [
+  {
+    id: 'session-prep',
+    name: 'Session Preparation Sheet',
+    icon: '⚔️',
+    description: 'Pre-session checklist, prayer, discernment notes, and intercession focus',
+    sections: [
+      { id: 'purpose', label: 'Session Purpose & Goals', instruction: 'Summarize the spiritual goals for this session based on the subject provided' },
+      { id: 'pre-prayer', label: 'Pre-Session Prayer & Authority', instruction: 'Opening declarations of authority, binding prayers, team covering' },
+      { id: 'discernment', label: 'Discernment Notes', instruction: 'Known strongholds, spirits likely present, areas to watch based on subject' },
+      { id: 'checklist', label: 'Session Checklist', instruction: 'Step-by-step preparation checklist for the minister and team' },
+      { id: 'intercession', label: 'Intercession Focus', instruction: 'Specific prayer targets and scripture-based declarations for the session' },
+    ],
+  },
+  {
+    id: 'deliverance-protocol',
+    name: 'Deliverance Protocol',
+    icon: '🗡️',
+    description: 'Step-by-step protocol for addressing a specific spirit or stronghold',
+    sections: [
+      { id: 'overview', label: 'Spirit Overview', instruction: 'Rank, domain, manifestations, and how this spirit gains entry' },
+      { id: 'legal-rights', label: 'Legal Rights to Break', instruction: 'Sins, vows, trauma, and generational ties that give this spirit legal access' },
+      { id: 'renunciation', label: 'Renunciation Script', instruction: 'Word-for-word renunciation the subject should pray aloud' },
+      { id: 'expulsion', label: 'Expulsion Command', instruction: 'Direct command to the spirit, invoking blood of Jesus and authority of Christ' },
+      { id: 'fill-up', label: 'Fill-Up & Aftercare', instruction: 'Holy Spirit invitation, declarations of freedom, ongoing protection steps' },
+    ],
+  },
+  {
+    id: 'field-report-doc',
+    name: 'Field Report',
+    icon: '📋',
+    description: 'Intelligence report documenting a deliverance session for the ministry record',
+    sections: [
+      { id: 'session-summary', label: 'Session Summary', instruction: 'Date, location, team members, subject alias, duration, and general outcome' },
+      { id: 'spirits-addressed', label: 'Spirits Addressed', instruction: 'List of spirits encountered, rank, and response during session' },
+      { id: 'breakthroughs', label: 'Breakthroughs', instruction: 'Specific victories, deliverances, and moments of freedom documented' },
+      { id: 'unfinished', label: 'Unfinished Business', instruction: 'Areas needing follow-up, spirits not fully expelled, inner healing needed' },
+      { id: 'aftercare', label: 'Aftercare Recommendations', instruction: 'Specific instructions for the subject post-session, mentor notes' },
+    ],
+  },
+  {
+    id: 'intercession-brief',
+    name: 'Intercession Brief',
+    icon: '🙏',
+    description: 'Intelligence-style intercession document for a person, region, or situation',
+    sections: [
+      { id: 'target', label: 'Intercession Target', instruction: 'Description of the person, region, or situation requiring intercession' },
+      { id: 'spiritual-landscape', label: 'Spiritual Landscape', instruction: 'Principalities, powers, and spiritual climate over this target' },
+      { id: 'prayer-points', label: 'Strategic Prayer Points', instruction: '5-7 specific scripture-based prayer points for this target' },
+      { id: 'declarations', label: 'Warfare Declarations', instruction: 'Bold, authoritative declarations to make over this target in Jesus name' },
+      { id: 'watch-points', label: 'Watch Points', instruction: 'Signs and confirmations to look for as intercession takes effect' },
+    ],
+  },
+  {
+    id: 'teaching-outline',
+    name: 'Teaching Outline',
+    icon: '📖',
+    description: 'Ministry teaching outline on a spiritual warfare or deliverance topic',
+    sections: [
+      { id: 'intro', label: 'Introduction & Hook', instruction: 'Opening illustration or question that draws the audience into the topic' },
+      { id: 'scriptural-foundation', label: 'Scriptural Foundation', instruction: '3-5 key scriptures with context and application for this teaching' },
+      { id: 'main-points', label: 'Main Teaching Points', instruction: '3-4 clear main points with sub-points, illustrations, and ministry application' },
+      { id: 'practical', label: 'Practical Application', instruction: 'Specific takeaways — what should the listener DO with this teaching' },
+      { id: 'altar-call', label: 'Ministry Response', instruction: 'Closing prayer, altar call, or activation exercise for the audience' },
+    ],
+  },
+]
+
+function DocumentCreatorView({ isMobile, setSidebarOpen, getToken }: any) {
+  const GC = '#C9A84C'
+  const [selectedIdx, setSelectedIdx] = useState(0)
+  const [subject, setSubject] = useState('')
+  const [instructions, setInstructions] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+  const [doc, setDoc] = useState<any>(null)
+
+  const template = COMM_DOC_TEMPLATES[selectedIdx]
+
+  async function generate() {
+    if (!subject.trim()) { setError('Please enter a subject'); return }
+    setGenerating(true); setError(''); setDoc(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/generate-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          templateId: template.id,
+          templateName: template.name,
+          sections: template.sections,
+          subject: subject.trim(),
+          specialInstructions: instructions.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+      setDoc(data.document)
+    } catch (e: any) { setError(e.message || 'Generation failed') }
+    setGenerating(false)
+  }
+
+  return (
+    <div style={{ height: '100%', overflowY: 'auto', background: '#0D0B14' }}>
+      <div style={{ padding: isMobile ? '16px 16px' : '24px 28px', maxWidth: 800, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, flexShrink: 0 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+          )}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: GC, letterSpacing: '0.1em' }}>DOCUMENT CREATOR</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: '#6a5f4f', marginTop: 2 }}>AI-generated ministry documents with WRI context</div>
+          </div>
+        </div>
+
+        {/* Template selector */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: 8, marginBottom: 24 }}>
+          {COMM_DOC_TEMPLATES.map((t, i) => (
+            <button key={t.id} onClick={() => { setSelectedIdx(i); setDoc(null); setError('') }}
+              style={{ padding: '10px 8px', background: selectedIdx === i ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.02)', border: `1px solid ${selectedIdx === i ? GC : 'rgba(201,168,76,0.15)'}`, borderRadius: 8, cursor: 'pointer', textAlign: 'center' as const, transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: selectedIdx === i ? GC : '#6a5f4f', letterSpacing: '0.06em', lineHeight: 1.3 }}>{t.name.toUpperCase()}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Selected template description */}
+        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.08em', marginBottom: 4 }}>{template.name}</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: '#9a8c74' }}>{template.description}</div>
+        </div>
+
+        {/* Input fields */}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6a5f4f', letterSpacing: '0.1em', marginBottom: 6 }}>SUBJECT / TOPIC *</div>
+            <input
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder={template.id === 'session-prep' ? 'e.g. John Doe — Session 2' : template.id === 'deliverance-protocol' ? 'e.g. Spirit of Fear' : template.id === 'teaching-outline' ? 'e.g. Generational Curses' : 'Enter subject or topic'}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', color: '#f0e8d8', fontFamily: crimson, fontSize: 14, outline: 'none' }}
+            />
+          </div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6a5f4f', letterSpacing: '0.1em', marginBottom: 6 }}>SPECIAL INSTRUCTIONS (optional)</div>
+            <textarea
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              rows={2}
+              placeholder="Any context, focus, or specific details to include..."
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', color: '#f0e8d8', fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const }}
+            />
+          </div>
+        </div>
+
+        {error && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 12 }}>{error}</div>}
+
+        <button onClick={generate} disabled={generating || !subject.trim()}
+          style={{ padding: '11px 28px', background: generating ? 'rgba(201,168,76,0.15)' : GC, border: 'none', borderRadius: 6, color: generating ? GC : '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: generating ? 'default' : 'pointer', opacity: !subject.trim() ? 0.5 : 1, marginBottom: 28 }}>
+          {generating ? '⟳ GENERATING...' : `✦ GENERATE ${template.name.toUpperCase()}`}
+        </button>
+
+        {/* Generated document */}
+        {doc && (
+          <div style={{ border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, overflow: 'hidden', marginBottom: 40 }}>
+            <div style={{ background: 'rgba(201,168,76,0.08)', borderBottom: '1px solid rgba(201,168,76,0.15)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.08em' }}>{doc.title}</div>
+                {doc.subtitle && <div style={{ fontFamily: crimson, fontSize: 12, color: '#6a5f4f', marginTop: 2 }}>{doc.subtitle}</div>}
+              </div>
+              <button onClick={() => window.print()}
+                style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${GC}`, borderRadius: 4, color: GC, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                ⎙ PRINT
+              </button>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              {(doc.sections || []).map((s: any) => (
+                <div key={s.id} style={{ marginBottom: 24 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.1em', marginBottom: 8, borderBottom: '1px solid rgba(201,168,76,0.12)', paddingBottom: 6 }}>{s.label}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 15, color: '#d8d0c0', lineHeight: 1.75, whiteSpace: 'pre-wrap' as const }}>{s.content}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
@@ -8223,7 +8415,7 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center'].includes(activeSection)) ? 360 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator'].includes(activeSection)) ? 360 : 0, transition: 'max-height 0.2s ease' }}>
               <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Zap size={14} strokeWidth={1.6} /></span>
@@ -8239,6 +8431,11 @@ function CommunityPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'session-center' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'session-center' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'session-center' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
                 <span>Session Center</span>
+              </button>
+              <button onClick={() => { setActiveSection('document-creator'); if (isMobile) setSidebarOpen(false) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'document-creator' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'document-creator' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'document-creator' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
+                <span>Document Creator</span>
               </button>
             </div>
           </>
@@ -8623,6 +8820,7 @@ function CommunityPage() {
             setActiveSection={setActiveSection}
           />
         )}
+        {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'session-center' && (
           <SessionCenterView
             theme={theme}
