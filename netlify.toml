@@ -183,3 +183,9 @@
 
 [functions."clerk-webhook"]
   timeout = 15
+
+[functions."user-notifications"]
+  timeout = 10
+
+[functions."stream-backfill"]
+  timeout = 60

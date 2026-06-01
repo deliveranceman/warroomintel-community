@@ -2365,6 +2365,37 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 })}
               </div>
 
+              {/* Merge preview */}
+              {(() => {
+                const previewFields = MERGE_FIELDS.filter(f => {
+                  const va = String(mergeTarget.a[f.key] || '').trim()
+                  const vb = String(mergeTarget.b[f.key] || '').trim()
+                  return !!(mergeChoices[f.key] === 'b' ? vb : va)
+                })
+                if (previewFields.length === 0) return null
+                return (
+                  <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 6 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', marginBottom: 10 }}>MERGED RECORD PREVIEW</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '6px 20px' }}>
+                      {previewFields.slice(0, 6).map(f => {
+                        const val = mergeChoices[f.key] === 'b'
+                          ? String(mergeTarget.b[f.key] || '').trim()
+                          : String(mergeTarget.a[f.key] || '').trim()
+                        return (
+                          <div key={f.key} style={{ minWidth: 160 }}>
+                            <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.06em' }}>{f.label}: </span>
+                            <span style={{ fontFamily: crimson, fontSize: 13, color: TXT }}>{val.length > 60 ? val.slice(0, 60) + '…' : val}</span>
+                          </div>
+                        )
+                      })}
+                      {previewFields.length > 6 && (
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>+{previewFields.length - 6} more fields</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {mergeMsg && (
                 <div style={{ marginBottom: 14, padding: '10px 14px', background: mergeMsg.startsWith('Error') ? 'rgba(239,68,68,0.08)' : 'rgba(74,222,128,0.06)', border: `1px solid ${mergeMsg.startsWith('Error') ? 'rgba(239,68,68,0.3)' : 'rgba(74,222,128,0.2)'}`, borderRadius: 4, fontFamily: crimson, fontSize: 13, color: mergeMsg.startsWith('Error') ? '#f87171' : '#80e090' }}>
                   {mergeMsg}
@@ -7464,7 +7495,8 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
       })
       const data = await res.json()
       if (res.ok) {
-        setResult(`Sent: ${data.sent} delivered, ${data.failed || 0} failed.`)
+        const base = `Sent: ${data.sent} delivered, ${data.failed || 0} failed.`
+        setResult(data.error ? `${base} — Error: ${data.error}` : base)
       } else {
         setResult(`Error: ${data.error}`)
       }

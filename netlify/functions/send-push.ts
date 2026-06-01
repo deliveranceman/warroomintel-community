@@ -79,16 +79,43 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ success: true, sent: 0 }), { status: 200, headers: HEADERS })
   }
 
-  const payload = JSON.stringify({ title, body: msgBody || 'New activity in the War Room', url: url || '/community' })
+  const payloadStr = JSON.stringify({ title, body: msgBody || 'New activity in the War Room', url: url || '/community' })
+  let firstError: string | null = null
+
   const results = await Promise.allSettled(
-    rows.map(row => webpush.sendNotification(row.subscription as webpush.PushSubscription, payload))
+    rows.map(row => webpush.sendNotification(row.subscription as webpush.PushSubscription, payloadStr))
   )
 
   const sent = results.filter(r => r.status === 'fulfilled').length
   const failed = results.filter(r => r.status === 'rejected').length
-  if (failed > 0) console.warn(`[send-push] ${failed} failed out of ${rows.length}`)
 
-  return new Response(JSON.stringify({ success: true, sent, failed }), { status: 200, headers: HEADERS })
+  if (failed > 0) {
+    const firstRejected = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined
+    firstError = firstRejected?.reason?.message || String(firstRejected?.reason || 'Unknown error')
+    console.error('[send-push] Push failed:', {
+      message:    firstError,
+      statusCode: firstRejected?.reason?.statusCode,
+      headers:    firstRejected?.reason?.headers,
+      body:       firstRejected?.reason?.body,
+    })
+  }
+
+  // Record in-app notifications for each targeted user
+  try {
+    const userIds = userId
+      ? [userId]
+      : [...new Set((rows as any[]).map((r: any) => r.user_id).filter(Boolean))]
+
+    if (userIds.length > 0) {
+      await client.from('user_notifications').insert(
+        userIds.map((uid: string) => ({ user_id: uid, title, body: msgBody || null, url: url || '/community' }))
+      )
+    }
+  } catch (e: any) {
+    console.warn('[send-push] user_notifications insert failed:', e.message)
+  }
+
+  return new Response(JSON.stringify({ success: true, sent, failed, ...(firstError ? { error: firstError } : {}) }), { status: 200, headers: HEADERS })
 }
 
 export const config = { path: '/api/send-push' }

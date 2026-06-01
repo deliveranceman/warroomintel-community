@@ -1,5 +1,5 @@
 import { Webhook } from 'svix'
-import { StreamClient } from '@stream-io/node-sdk'
+import { StreamChat } from 'stream-chat'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,14 +22,13 @@ const STREAM_CHANNELS = [
   { id: 'generals-table',     name: "General's Table",     minTier: 3 },
 ]
 
-async function addUserToStreamChannels(client: StreamClient, streamUserId: string, tier: string) {
+async function addUserToStreamChannels(client: StreamChat, streamUserId: string, tier: string) {
   const level = tierNum(tier)
   const eligible = STREAM_CHANNELS.filter(ch => level >= ch.minTier)
   for (const ch of eligible) {
     try {
-      await client.chat.channel('messaging', ch.id).update({
-        add_members: [{ user_id: streamUserId }],
-      })
+      const channel = client.channel('messaging', ch.id)
+      await channel.addMembers([streamUserId])
       console.log(`[clerk-webhook] Added ${streamUserId} to ${ch.id}`)
     } catch (e: any) {
       console.error(`[clerk-webhook] Failed to add ${streamUserId} to ${ch.id}:`, e.message)
@@ -73,7 +72,7 @@ export default async function handler(req: Request) {
   const { type, data } = event
   console.log('[clerk-webhook] Event:', type)
 
-  const streamApiKey    = process.env.VITE_STREAM_API_KEY
+  const streamApiKey    = process.env.VITE_STREAM_API_KEY || process.env.STREAM_API_KEY
   const streamApiSecret = process.env.STREAM_API_SECRET
 
   try {
@@ -95,13 +94,13 @@ export default async function handler(req: Request) {
       console.log(`[clerk-webhook] Set tier=watchman for ${id}`)
 
       if (streamApiKey && streamApiSecret) {
-        const client = new StreamClient(streamApiKey, streamApiSecret)
+        const client = new StreamChat(streamApiKey, streamApiSecret)
         const streamUserId = id.replace(/[^a-zA-Z0-9_-]/g, '_')
 
-        // 2. Upsert user in Stream
-        await client.upsertUsers([{ id: streamUserId, name, role: 'user' }])
+        // 2. Upsert user in Stream — required before addMembers
+        await client.upsertUser({ id: streamUserId, name, role: 'user' })
 
-        // 3. Add to eligible channels (watchman → war-room-general only)
+        // 3. Add to war-room-general (all tiers)
         await addUserToStreamChannels(client, streamUserId, tier)
         console.log(`[clerk-webhook] Stream setup complete for ${streamUserId}`)
       }
@@ -113,13 +112,13 @@ export default async function handler(req: Request) {
       const tier = (public_metadata?.tier as string) || 'watchman'
 
       if (streamApiKey && streamApiSecret) {
-        const client = new StreamClient(streamApiKey, streamApiSecret)
+        const client = new StreamChat(streamApiKey, streamApiSecret)
         const streamUserId = id.replace(/[^a-zA-Z0-9_-]/g, '_')
         const firstName = data.first_name || ''
         const lastName  = data.last_name  || ''
         const name = `${firstName} ${lastName}`.trim() || 'Warrior'
 
-        await client.upsertUsers([{ id: streamUserId, name, role: 'user' }])
+        await client.upsertUser({ id: streamUserId, name, role: 'user' })
         await addUserToStreamChannels(client, streamUserId, tier)
         console.log(`[clerk-webhook] Updated Stream membership for ${streamUserId} at tier=${tier}`)
       }

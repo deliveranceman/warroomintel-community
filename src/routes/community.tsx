@@ -5,7 +5,7 @@ import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { FlagButton } from '@/components/FlagButton'
-import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen, Zap } from 'lucide-react'
+import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen, Zap, Bell } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -7866,6 +7866,8 @@ function CommunityPage() {
     return window.Notification.permission === 'granted'
   })
   const [unreadWarRoom, setUnreadWarRoom] = useState(0)
+  const [unreadNotifs, setUnreadNotifs]   = useState(0)
+  const [notifsList, setNotifsList]       = useState<any[]>([])
   const [showInstallBanner, setShowInstallBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (typeof navigator === 'undefined') return false
@@ -8174,6 +8176,22 @@ function CommunityPage() {
       })
   }, [user?.id])
 
+  // Fetch unread notification count on mount and every 2 minutes
+  useEffect(() => {
+    if (!user?.id) return
+    const fetchNotifCount = async () => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const res = await fetch('/api/user-notifications', { headers: { Authorization: `Bearer ${token}` } })
+        if (res.ok) { const d = await res.json(); setUnreadNotifs(d.unread || 0) }
+      } catch {}
+    }
+    fetchNotifCount()
+    const t = setInterval(fetchNotifCount, 120000)
+    return () => clearInterval(t)
+  }, [user?.id])
+
   // Refresh Stream token every 25 minutes (tokens expire at 1hr, refresh well before that)
   useEffect(() => {
     if (!user?.id) return
@@ -8286,6 +8304,17 @@ function CommunityPage() {
       navigator.serviceWorker.register('/sw.js').catch(() => {})
     }
   }, [])
+
+  useEffect(() => {
+    if (activeRailSection !== 'notifs' || !user?.id) return
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/user-notifications', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { if (d.notifications) { setNotifsList(d.notifications); setUnreadNotifs(d.unread || 0) } })
+        .catch(() => {})
+    })
+  }, [activeRailSection, user?.id])
 
   useEffect(() => {
     if (!activeRailSection) return
@@ -9190,13 +9219,14 @@ function CommunityPage() {
         const hasMessages = unreadDMs > 0
         const hasOnline   = onlineCount > 1
 
-        const RAIL_ICONS: Array<{ id: string; icon: React.ReactNode; label: string; dot: boolean }> = [
+        const RAIL_ICONS: Array<{ id: string; icon: React.ReactNode; label: string; dot: boolean; count?: number }> = [
           { id: 'prayer',   icon: <Heart size={18} strokeWidth={1.6} />,         label: 'Prayer Wall',          dot: hasPrayers },
           { id: 'messages', icon: <MessageSquare size={18} strokeWidth={1.6} />, label: 'Recent Messages',      dot: hasMessages },
           { id: 'calls',    icon: <Calendar size={18} strokeWidth={1.6} />,      label: 'Upcoming Calls',       dot: false },
           { id: 'warriors', icon: <Users size={18} strokeWidth={1.6} />,         label: 'Warriors Online',      dot: hasOnline },
           { id: 'arsenal',  icon: <Archive size={18} strokeWidth={1.6} />,       label: 'Latest Arsenal Drops', dot: false },
           { id: 'archive',  icon: <BookOpen size={18} strokeWidth={1.6} />,      label: 'New to Intel Archive', dot: false },
+          { id: 'notifs',   icon: <Bell size={18} strokeWidth={1.6} />,          label: 'Notifications',        dot: unreadNotifs > 0, count: unreadNotifs > 0 ? unreadNotifs : undefined },
         ]
 
         return (
@@ -9224,9 +9254,14 @@ function CommunityPage() {
                   onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t-3)' } }}
                 >
                   {icon}
-                  {dot && (
+                  {dot && !RAIL_ICONS.find(r => r.id === id)?.count && (
                     <span style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 4px var(--gold)' }} />
                   )}
+                  {RAIL_ICONS.find(r => r.id === id)?.count ? (
+                    <span style={{ position: 'absolute', top: 7, right: 7, minWidth: 15, height: 15, borderRadius: 8, background: '#ef4444', color: '#fff', fontSize: 9, fontFamily: "'Cinzel', serif", display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', fontWeight: 700, lineHeight: 1 }}>
+                      {(RAIL_ICONS.find(r => r.id === id)?.count ?? 0) > 99 ? '99+' : RAIL_ICONS.find(r => r.id === id)?.count}
+                    </span>
+                  ) : null}
                 </button>
               )
             })}
@@ -9469,6 +9504,85 @@ function CommunityPage() {
                           ))
                         )}
                       </div>
+                    </div>
+                  )}
+
+                  {/* ── NOTIFICATIONS ── */}
+                  {activeRailSection === 'notifs' && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>RECENT NOTIFICATIONS</span>
+                        {notifsList.some((n: any) => !n.read) && (
+                          <button
+                            onClick={async () => {
+                              const token = await getToken()
+                              if (!token) return
+                              await fetch('/api/user-notifications', { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
+                              setNotifsList(prev => prev.map((n: any) => ({ ...n, read: true })))
+                              setUnreadNotifs(0)
+                            }}
+                            style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: G, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: 0.7 }}
+                          >
+                            MARK ALL READ
+                          </button>
+                        )}
+                      </div>
+
+                      {notifsList.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--t-4)', fontFamily: crimson, fontSize: 14, fontStyle: 'italic' }}>
+                          No notifications yet
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                          {notifsList.slice(0, 20).map((n: any) => {
+                            const d = Date.now() - new Date(n.created_at).getTime()
+                            const timeAgo = d < 60000 ? 'just now' : d < 3600000 ? `${Math.floor(d / 60000)}m ago` : d < 86400000 ? `${Math.floor(d / 3600000)}h ago` : `${Math.floor(d / 86400000)}d ago`
+                            return (
+                              <TacticalCard
+                                key={n.id}
+                                padding="10px 12px"
+                                onClick={async () => {
+                                  if (!n.read) {
+                                    const token = await getToken()
+                                    if (token) {
+                                      fetch(`/api/user-notifications?id=${n.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+                                      setNotifsList(prev => prev.map((x: any) => x.id === n.id ? { ...x, read: true } : x))
+                                      setUnreadNotifs(prev => Math.max(0, prev - 1))
+                                    }
+                                  }
+                                  if (n.url) { setActiveRailSection(null); window.location.href = n.url }
+                                }}
+                                style={{ opacity: n.read ? 0.6 : 1, cursor: n.url ? 'pointer' : 'default' }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                      {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', flexShrink: 0, display: 'inline-block' }} />}
+                                      <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{n.title || 'Notification'}</span>
+                                    </div>
+                                    {n.body && <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--t-2)', lineHeight: 1.5 }}>{n.body.length > 80 ? n.body.slice(0, 80) + '…' : n.body}</div>}
+                                  </div>
+                                  <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
+                                </div>
+                              </TacticalCard>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {notifsList.some((n: any) => n.read) && (
+                        <button
+                          onClick={async () => {
+                            const token = await getToken()
+                            if (!token) return
+                            await fetch('/api/user-notifications', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+                            setNotifsList(prev => prev.filter((n: any) => !n.read))
+                          }}
+                          style={{ marginTop: 12, width: '100%', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: 'var(--t-4)', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, padding: '6px 0', cursor: 'pointer' }}
+                        >
+                          CLEAR READ
+                        </button>
+                      )}
                     </div>
                   )}
 
