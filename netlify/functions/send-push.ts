@@ -80,7 +80,7 @@ export default async function handler(req: Request) {
 
   try {
     webpush.setVapidDetails(
-      "mailto:exorcist@warroomintel.com",
+      `mailto:${process.env.VAPID_EMAIL}`,
       process.env.VAPID_PUBLIC_KEY!,
       process.env.VAPID_PRIVATE_KEY!
     )
@@ -149,16 +149,9 @@ export default async function handler(req: Request) {
       console.log('[send-push] Success:', row.user_id)
       sent++
     } catch (err: any) {
-      console.error('[send-push] FULL ERROR:', JSON.stringify(err, null, 2))
       console.error('[send-push] statusCode:', err.statusCode)
       console.error('[send-push] body:', err.body)
-      console.error('[send-push] Failed:', {
-        user_id: row.user_id,
-        statusCode: err.statusCode,
-        body: err.body,
-        message: err.message,
-        endpointHost,
-      })
+      console.error('[send-push] headers:', JSON.stringify(err.headers))
 
       failed++
       errorDetails.push({
@@ -169,10 +162,9 @@ export default async function handler(req: Request) {
         endpointHost,
       })
 
-      // Auto-cleanup expired subscriptions
-      if ((err.statusCode === 404 || err.statusCode === 410) && endpoint) {
-        await client.from('push_subscriptions').delete().eq('endpoint', endpoint)
-        console.log('[send-push] Deleted expired subscription:', endpoint.slice(-40))
+      if (err.statusCode === 410) {
+        await client.from('push_subscriptions').delete().eq('endpoint', pushSub.endpoint)
+        console.log('[send-push] Deleted expired subscription:', pushSub.endpoint.slice(-40))
       }
     }
   }
