@@ -1156,7 +1156,10 @@ function TacticalFooter() {
               churchonfire.com
             </a>
             <div style={{ display: 'flex', gap: 14 }}>
-              {[{ l: 'YouTube', h: 'https://www.youtube.com/@war_room_intel' }, { l: 'Facebook', h: 'https://facebook.com/warroomintel' }].map(({ l, h }) => (
+              {[
+                { l: '🎥 YouTube', h: 'https://www.youtube.com/@war_room_intel' },
+                { l: '📘 Facebook', h: 'https://www.facebook.com/warroomintel' },
+              ].map(({ l, h }) => (
                 <a key={l} href={h} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: G, textDecoration: 'none', fontFamily: reading, transition: 'opacity 0.2s' }}
                   onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
                   onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>

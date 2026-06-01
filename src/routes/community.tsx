@@ -8711,9 +8711,11 @@ function CommunityPage() {
           <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Settings size={14} strokeWidth={1.6} /></span>
           Settings
         </button>
-        <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12 }}>
+        <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12, alignItems: 'center' }}>
           <a href="/terms" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>TERMS</a>
           <a href="/privacy" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>PRIVACY</a>
+          <a href="https://www.youtube.com/@war_room_intel" target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>🎥</a>
+          <a href="https://www.facebook.com/warroomintel" target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>📘</a>
         </div>
       </div>
     </>
