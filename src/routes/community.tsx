@@ -6170,8 +6170,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
 
       {/* Image + hotspot overlay */}
       {isMobile ? (
-        // Mobile: clipped single-figure view with swipe + arrows
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}
+        // Mobile: scrollable image area — header/tabs stay pinned, image scrolls
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
           onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
           onTouchEnd={e => {
             const diff = touchStartX.current - e.changedTouches[0].clientX
@@ -6179,68 +6179,72 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
             else if (diff < -50) setFigureIndex(prev => Math.max(0, prev - 1))
           }}
         >
-          {/* Image: 400% wide, shifted to show selected figure — no objectFit so no pillarboxing */}
-          <img
-            src="/images/WRI_BODYMAP.png?v=3"
-            alt="Spirit Body Map"
-            style={{
-              position: 'absolute', top: 0, left: 0,
-              display: 'block', width: '400%', height: '100%',
-              transform: `translateX(-${figureIndex * 25}%)`,
-              transition: 'transform 0.3s ease',
-            }}
-            draggable={false}
-          />
-          {/* Hotspot overlays — x converted to per-figure % of visible container */}
-          {BM_POINT_HOTSPOTS.filter(h => {
-            const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
-            return h.x >= lo && h.x < hi
-          }).map(h => {
-            const isActive = selectedHotspot?.id === h.id && panelOpen
-            const visX = (h.x - figureIndex * 25) / 25 * 100
-            return (
-              <div
-                key={h.id}
-                title={h.label}
-                onClick={() => handleHotspotClick(h)}
-                style={{
-                  position: 'absolute',
-                  left: `${visX}%`,
-                  top: `${h.y}%`,
-                  transform: 'translate(-50%, -50%)',
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
-                  border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
-                  boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
-                  zIndex: 2,
-                }}
-              />
-            )
-          })}
-          {/* Left arrow */}
-          {figureIndex > 0 && (
-            <button
-              onClick={() => setFigureIndex(prev => Math.max(0, prev - 1))}
-              style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: `1px solid rgba(201,168,76,0.3)`, color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
-              ‹
-            </button>
-          )}
-          {/* Right arrow */}
-          {figureIndex < 3 && (
-            <button
-              onClick={() => setFigureIndex(prev => Math.min(3, prev + 1))}
-              style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: `1px solid rgba(201,168,76,0.3)`, color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
-              ›
-            </button>
-          )}
-          {/* Indicator dots */}
-          <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, zIndex: 5, pointerEvents: 'none' }}>
-            {BM_FIGURES.map((_, i) => (
-              <div key={i} style={{ width: i === figureIndex ? 20 : 6, height: 6, borderRadius: 3, background: i === figureIndex ? GC : 'rgba(201,168,76,0.3)', transition: 'all 0.2s' }} />
-            ))}
+          {/* Image container: natural height from image, clips overflow to one figure width */}
+          <div style={{ width: '100%', overflow: 'hidden', position: 'relative' }}>
+            {/* Image: 400% wide, height:auto preserves aspect ratio, translate to show current figure */}
+            <img
+              src="/images/WRI_BODYMAP.png?v=3"
+              alt="Spirit Body Map"
+              style={{
+                width: '400%',
+                height: 'auto',
+                display: 'block',
+                transform: `translateX(-${figureIndex * 25}%)`,
+                transition: 'transform 0.3s ease',
+                pointerEvents: 'none',
+              }}
+              draggable={false}
+            />
+            {/* Hotspots — x converted from full-image % to per-figure %, y unchanged */}
+            {BM_POINT_HOTSPOTS.filter(h => {
+              const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
+              return h.x >= lo && h.x < hi
+            }).map(h => {
+              const isActive = selectedHotspot?.id === h.id && panelOpen
+              const visX = ((h.x - figureIndex * 25) / 25) * 100
+              return (
+                <div
+                  key={h.id}
+                  title={h.label}
+                  onClick={() => handleHotspotClick(h)}
+                  style={{
+                    position: 'absolute',
+                    left: `${visX}%`,
+                    top: `${h.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    width: 44, height: 44,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
+                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
+                    boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
+                    zIndex: 2,
+                  }}
+                />
+              )
+            })}
+            {/* Left arrow — at ~25% from top so visible without scrolling */}
+            {figureIndex > 0 && (
+              <button
+                onClick={() => setFigureIndex(prev => Math.max(0, prev - 1))}
+                style={{ position: 'absolute', left: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: `1px solid rgba(201,168,76,0.3)`, color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
+                ‹
+              </button>
+            )}
+            {/* Right arrow */}
+            {figureIndex < 3 && (
+              <button
+                onClick={() => setFigureIndex(prev => Math.min(3, prev + 1))}
+                style={{ position: 'absolute', right: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: `1px solid rgba(201,168,76,0.3)`, color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
+                ›
+              </button>
+            )}
+            {/* Indicator dots */}
+            <div style={{ position: 'absolute', top: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, zIndex: 5, pointerEvents: 'none' }}>
+              {BM_FIGURES.map((_, i) => (
+                <div key={i} style={{ width: i === figureIndex ? 20 : 6, height: 6, borderRadius: 3, background: i === figureIndex ? GC : 'rgba(201,168,76,0.3)', transition: 'all 0.2s' }} />
+              ))}
+            </div>
           </div>
         </div>
       ) : (
@@ -6304,9 +6308,9 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
       {panelOpen && selectedHotspot && (
         <>
           {/* Backdrop */}
-          <div onClick={() => setPanelOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.4)' }} />
+          <div onClick={() => setPanelOpen(false)} style={{ position: isMobile ? 'fixed' : 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.4)' }} />
           <div style={{
-            position: 'absolute',
+            position: isMobile ? 'fixed' : 'absolute',
             ...(isMobile
               ? { left: 0, right: 0, bottom: 0, height: '70%', borderRadius: '12px 12px 0 0' }
               : { top: 0, right: 0, width: '420px', height: '100%', borderRadius: 0 }),
@@ -8698,7 +8702,7 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator'].includes(activeSection)) ? 360 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator','my-intel'].includes(activeSection)) ? 420 : 0, transition: 'max-height 0.2s ease' }}>
               <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Zap size={14} strokeWidth={1.6} /></span>
@@ -8720,6 +8724,11 @@ function CommunityPage() {
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
                 <span>Document Creator</span>
               </button>
+              <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><span style={{ fontSize: 13, lineHeight: 1 }}>🧠</span></span>
+                <span>My Intel</span>
+              </button>
             </div>
           </>
         )}
@@ -8730,6 +8739,8 @@ function CommunityPage() {
         {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
         {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
         {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
+        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
+        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
 
         {/* ── FOUNDATION ── */}
         {sectionLabel('Foundation')}
@@ -8814,20 +8825,6 @@ function CommunityPage() {
             </div>
           )}
         </div>
-
-        {/* ── FIELD OPERATIONS ── */}
-        {sectionLabel('Field Operations')}
-        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
-        <a href="/community/spiritual-mapping" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><MapPin size={14} strokeWidth={1.6} /></span>
-          <span>Spiritual Mapping</span>
-        </a>
-        {navItem('Assessment', 'assessment', <ClipboardList size={16} strokeWidth={1.6} />)}
-
-        {/* ── EVENTS ── */}
-        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
 
         {/* ── ADMIN (minister only) ── */}
         {(user?.publicMetadata?.role as string) === 'minister' && (
