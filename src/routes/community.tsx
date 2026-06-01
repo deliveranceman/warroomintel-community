@@ -5812,144 +5812,119 @@ class BodyMapBoundary extends React.Component<{children: React.ReactNode}, {hasE
   }
 }
 
-// Point hotspots — x/y as % of image (1344×1008, 4 figures side-by-side)
-// Male Front 0-25% | Male Back 25-50% | Female Front 50-75% | Female Back 75-100%
-const BM_POINT_HOTSPOTS: Array<{ id: string; label: string; x: number; y: number }> = [
-  // ── MALE FRONT ──────────────────────────────────────────────────────────────
-  { id: 'H01',   label: 'Crown',                     x: 17, y: 4  },
-  { id: 'H02',   label: 'Right Eye',                 x: 14, y: 8  },
-  { id: 'H03',   label: 'Left Eye',                  x: 20, y: 8  },
-  { id: 'H04',   label: 'Right Ear / Temple',        x: 11, y: 9  },
-  { id: 'H05',   label: 'Throat / Neck',             x: 17, y: 13 },
-  { id: 'S01',   label: 'Right Shoulder',            x: 10, y: 18 },
-  { id: 'S02',   label: 'Left Shoulder',             x: 24, y: 18 },
-  { id: 'C01',   label: 'Upper Sternum',             x: 17, y: 22 },
-  { id: 'C02',   label: 'Mid Sternum',               x: 17, y: 27 },
-  { id: 'C03',   label: 'Right Ribcage',             x: 12, y: 27 },
-  { id: 'C04',   label: 'Left Ribcage',              x: 22, y: 27 },
-  { id: 'A01',   label: 'Right Upper Arm',           x: 8,  y: 28 },
-  { id: 'A02',   label: 'Left Upper Arm',            x: 26, y: 28 },
-  { id: 'A03',   label: 'Right Elbow',               x: 7,  y: 36 },
-  { id: 'A04',   label: 'Left Elbow',                x: 27, y: 36 },
-  { id: 'A07',   label: 'Right Wrist',               x: 6,  y: 44 },
-  { id: 'A08',   label: 'Left Wrist',                x: 28, y: 44 },
-  { id: 'A09',   label: 'Right Palm',                x: 5,  y: 48 },
-  { id: 'A10',   label: 'Left Palm',                 x: 29, y: 48 },
-  { id: 'AB01',  label: 'Solar Plexus',              x: 17, y: 31 },
-  { id: 'AB02',  label: 'Liver / Right Abdomen',     x: 13, y: 33 },
-  { id: 'AB03',  label: 'Navel / Mid Abdomen',       x: 17, y: 37 },
-  { id: 'AB04',  label: 'Spleen / Left Abdomen',     x: 21, y: 33 },
-  { id: 'AB05',  label: 'Lower Abdomen',             x: 17, y: 42 },
-  { id: 'R01',   label: 'Groin / Reproductive',      x: 17, y: 45 },
-  { id: 'R02',   label: 'Right Hip',                 x: 12, y: 44 },
-  { id: 'R03',   label: 'Left Hip',                  x: 22, y: 44 },
-  { id: 'L01',   label: 'Right Thigh',               x: 14, y: 53 },
-  { id: 'L02',   label: 'Left Thigh',                x: 20, y: 53 },
-  { id: 'L03',   label: 'Right Knee',                x: 14, y: 63 },
-  { id: 'L04',   label: 'Left Knee',                 x: 20, y: 63 },
-  { id: 'L07',   label: 'Right Shin / Calf',         x: 14, y: 73 },
-  { id: 'L08',   label: 'Left Shin / Calf',          x: 20, y: 73 },
-  { id: 'L09',   label: 'Right Ankle',               x: 14, y: 84 },
-  { id: 'L10',   label: 'Left Ankle',                x: 20, y: 84 },
-  { id: 'L11',   label: 'Right Foot',                x: 13, y: 92 },
-  { id: 'L12',   label: 'Left Foot',                 x: 19, y: 92 },
-  // ── MALE BACK ───────────────────────────────────────────────────────────────
-  { id: 'H06',   label: 'Base of Skull / Occiput',   x: 36, y: 11 },
-  { id: 'S03',   label: 'Right Shoulder Blade',      x: 30, y: 18 },
-  { id: 'S04',   label: 'Left Shoulder Blade',       x: 42, y: 18 },
-  { id: 'SP01',  label: 'Cervical Spine C1-C3',      x: 36, y: 14 },
-  { id: 'SP02',  label: 'Cervical Spine C4-C7',      x: 36, y: 17 },
-  { id: 'SP03',  label: 'Thoracic Spine T1-T4',      x: 36, y: 22 },
-  { id: 'SP04',  label: 'Thoracic Spine T5-T8',      x: 36, y: 27 },
-  { id: 'SP05',  label: 'Thoracic Spine T9-T12',     x: 36, y: 31 },
-  { id: 'SP06',  label: 'Lumbar Spine L1-L3',        x: 36, y: 36 },
-  { id: 'SP07',  label: 'Lumbar Spine L4-L5',        x: 36, y: 39 },
-  { id: 'AB06',  label: 'Right Kidney',              x: 32, y: 37 },
-  { id: 'AB07',  label: 'Left Kidney',               x: 40, y: 37 },
-  { id: 'A05',   label: 'Right Forearm / Elbow Back',x: 29, y: 36 },
-  { id: 'A06',   label: 'Left Forearm / Elbow Back', x: 43, y: 36 },
-  { id: 'A11',   label: 'Right Wrist Back',          x: 29, y: 44 },
-  { id: 'A12',   label: 'Left Wrist Back',           x: 43, y: 44 },
-  { id: 'AB09',  label: 'Sacrum',                    x: 36, y: 44 },
-  { id: 'AB10',  label: 'Right Gluteal',             x: 33, y: 49 },
-  { id: 'AB11',  label: 'Left Gluteal',              x: 39, y: 49 },
-  { id: 'L05',   label: 'Right Thigh Back',          x: 32, y: 55 },
-  { id: 'L06',   label: 'Left Thigh Back',           x: 40, y: 55 },
-  { id: 'L13',   label: 'Right Knee Back',           x: 32, y: 63 },
-  { id: 'L14',   label: 'Left Knee Back',            x: 40, y: 63 },
-  { id: 'L15',   label: 'Right Calf Back',           x: 32, y: 73 },
-  { id: 'L16',   label: 'Left Calf Back',            x: 40, y: 73 },
-  { id: 'L17',   label: 'Right Ankle Back',          x: 32, y: 84 },
-  { id: 'L18',   label: 'Left Ankle Back',           x: 40, y: 84 },
-  { id: 'L19',   label: 'Right Foot Back',           x: 31, y: 92 },
-  { id: 'L20',   label: 'Left Foot Back',            x: 39, y: 92 },
-  // ── FEMALE FRONT ────────────────────────────────────────────────────────────
-  { id: 'FH01',  label: 'Crown (F)',                 x: 62, y: 4  },
-  { id: 'FH02',  label: 'Right Eye (F)',             x: 59, y: 8  },
-  { id: 'FH03',  label: 'Left Eye (F)',              x: 65, y: 8  },
-  { id: 'FH04',  label: 'Right Ear (F)',             x: 56, y: 9  },
-  { id: 'FH05',  label: 'Throat / Neck (F)',         x: 62, y: 13 },
-  { id: 'FS01',  label: 'Right Shoulder (F)',        x: 54, y: 18 },
-  { id: 'FS02',  label: 'Left Shoulder (F)',         x: 69, y: 18 },
-  { id: 'FC01',  label: 'Upper Chest (F)',           x: 62, y: 22 },
-  { id: 'FC02',  label: 'Right Breast',              x: 58, y: 26 },
-  { id: 'FC03',  label: 'Left Breast',               x: 66, y: 26 },
-  { id: 'FC04',  label: 'Mid Sternum (F)',           x: 62, y: 27 },
-  { id: 'FA01',  label: 'Right Upper Arm (F)',       x: 52, y: 28 },
-  { id: 'FA02',  label: 'Left Upper Arm (F)',        x: 71, y: 28 },
-  { id: 'FA03',  label: 'Right Elbow (F)',           x: 51, y: 36 },
-  { id: 'FA04',  label: 'Left Elbow (F)',            x: 72, y: 36 },
-  { id: 'FA05',  label: 'Right Wrist (F)',           x: 50, y: 44 },
-  { id: 'FA06',  label: 'Left Wrist (F)',            x: 73, y: 44 },
-  { id: 'FA07',  label: 'Right Palm (F)',            x: 49, y: 48 },
-  { id: 'FA08',  label: 'Left Palm (F)',             x: 74, y: 48 },
-  { id: 'FAB01', label: 'Solar Plexus (F)',          x: 62, y: 31 },
-  { id: 'FAB02', label: 'Right Abdomen (F)',         x: 58, y: 33 },
-  { id: 'FAB03', label: 'Navel (F)',                 x: 62, y: 37 },
-  { id: 'FAB04', label: 'Left Abdomen (F)',          x: 66, y: 33 },
-  { id: 'FAB05', label: 'Lower Abdomen (F)',         x: 62, y: 42 },
-  { id: 'FR01',  label: 'Reproductive (F)',          x: 62, y: 45 },
-  { id: 'FR02',  label: 'Right Hip (F)',             x: 57, y: 44 },
-  { id: 'FR03',  label: 'Left Hip (F)',              x: 67, y: 44 },
-  { id: 'FL01',  label: 'Right Thigh (F)',           x: 59, y: 53 },
-  { id: 'FL02',  label: 'Left Thigh (F)',            x: 65, y: 53 },
-  { id: 'FL03',  label: 'Right Knee (F)',            x: 59, y: 63 },
-  { id: 'FL04',  label: 'Left Knee (F)',             x: 65, y: 63 },
-  { id: 'FL05',  label: 'Right Shin (F)',            x: 59, y: 73 },
-  { id: 'FL06',  label: 'Left Shin (F)',             x: 65, y: 73 },
-  { id: 'FL07',  label: 'Right Ankle (F)',           x: 59, y: 84 },
-  { id: 'FL08',  label: 'Left Ankle (F)',            x: 65, y: 84 },
-  { id: 'FL09',  label: 'Right Foot (F)',            x: 58, y: 92 },
-  { id: 'FL10',  label: 'Left Foot (F)',             x: 64, y: 92 },
-  // ── FEMALE BACK ─────────────────────────────────────────────────────────────
-  { id: 'FH06',  label: 'Base of Skull (F)',         x: 86, y: 11 },
-  { id: 'FS03',  label: 'Right Shoulder Blade (F)',  x: 80, y: 18 },
-  { id: 'FS04',  label: 'Left Shoulder Blade (F)',   x: 91, y: 18 },
-  { id: 'FSP01', label: 'Cervical Spine (F)',        x: 86, y: 14 },
-  { id: 'FSP02', label: 'Upper Thoracic Spine (F)',  x: 86, y: 19 },
-  { id: 'FSP03', label: 'Mid Thoracic Spine (F)',    x: 86, y: 25 },
-  { id: 'FSP04', label: 'Lower Thoracic Spine (F)',  x: 86, y: 30 },
-  { id: 'FSP05', label: 'Upper Lumbar (F)',          x: 86, y: 35 },
-  { id: 'FSP06', label: 'Lower Lumbar (F)',          x: 86, y: 39 },
-  { id: 'FAB06', label: 'Right Kidney (F)',          x: 82, y: 37 },
-  { id: 'FAB07', label: 'Left Kidney (F)',           x: 90, y: 37 },
-  { id: 'FA09',  label: 'Right Elbow Back (F)',      x: 79, y: 36 },
-  { id: 'FA10',  label: 'Left Elbow Back (F)',       x: 93, y: 36 },
-  { id: 'FA11',  label: 'Right Wrist Back (F)',      x: 79, y: 44 },
-  { id: 'FA12',  label: 'Left Wrist Back (F)',       x: 93, y: 44 },
-  { id: 'FAB09', label: 'Sacrum (F)',                x: 86, y: 44 },
-  { id: 'FAB10', label: 'Right Gluteal (F)',         x: 83, y: 49 },
-  { id: 'FAB11', label: 'Left Gluteal (F)',          x: 89, y: 49 },
-  { id: 'FL11',  label: 'Right Thigh Back (F)',      x: 82, y: 55 },
-  { id: 'FL12',  label: 'Left Thigh Back (F)',       x: 90, y: 55 },
-  { id: 'FL13',  label: 'Right Knee Back (F)',       x: 82, y: 63 },
-  { id: 'FL14',  label: 'Left Knee Back (F)',        x: 90, y: 63 },
-  { id: 'FL15',  label: 'Right Calf Back (F)',       x: 82, y: 73 },
-  { id: 'FL16',  label: 'Left Calf Back (F)',        x: 90, y: 73 },
-  { id: 'FL17',  label: 'Right Ankle Back (F)',      x: 82, y: 84 },
-  { id: 'FL18',  label: 'Left Ankle Back (F)',       x: 90, y: 84 },
-  { id: 'FL19',  label: 'Right Foot Back (F)',       x: 81, y: 92 },
-  { id: 'FL20',  label: 'Left Foot Back (F)',        x: 89, y: 92 },
+type BMHotspot = { id: string; label: string; x: number; y: number }
+type BMFigure  = { key: string; label: string; image: string; hotspots: BMHotspot[] }
+
+const BM_FIGURES: BMFigure[] = [
+  {
+    key: 'male-front', label: 'Male Front', image: '/images/WRI_BODY_MALE_FRONT.png',
+    hotspots: [
+      { id: 'mf-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
+      { id: 'mf-left-temple',    label: 'Left Temple',       x: 43.0, y: 6.0  },
+      { id: 'mf-right-temple',   label: 'Right Temple',      x: 58.0, y: 6.0  },
+      { id: 'mf-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.0  },
+      { id: 'mf-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.0  },
+      { id: 'mf-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 11.5 },
+      { id: 'mf-throat',         label: 'Throat',            x: 50.5, y: 15.0 },
+      { id: 'mf-heart',          label: 'Heart / Chest',     x: 50.5, y: 23.5 },
+      { id: 'mf-left-shoulder',  label: 'Left Shoulder',     x: 36.0, y: 21.0 },
+      { id: 'mf-right-shoulder', label: 'Right Shoulder',    x: 65.5, y: 21.0 },
+      { id: 'mf-left-elbow',     label: 'Left Elbow',        x: 29.0, y: 34.0 },
+      { id: 'mf-right-elbow',    label: 'Right Elbow',       x: 72.0, y: 34.0 },
+      { id: 'mf-solar-plexus',   label: 'Solar Plexus',      x: 50.5, y: 30.0 },
+      { id: 'mf-abdomen',        label: 'Abdomen',           x: 50.5, y: 36.5 },
+      { id: 'mf-left-wrist',     label: 'Left Wrist',        x: 24.5, y: 44.5 },
+      { id: 'mf-right-wrist',    label: 'Right Wrist',       x: 76.5, y: 44.5 },
+      { id: 'mf-pelvis',         label: 'Pelvis / Groin',    x: 50.5, y: 44.0 },
+      { id: 'mf-left-hand',      label: 'Left Hand',         x: 21.0, y: 50.0 },
+      { id: 'mf-right-hand',     label: 'Right Hand',        x: 80.5, y: 50.0 },
+      { id: 'mf-left-thigh',     label: 'Left Thigh',        x: 42.5, y: 57.0 },
+      { id: 'mf-right-thigh',    label: 'Right Thigh',       x: 58.5, y: 57.0 },
+      { id: 'mf-left-knee',      label: 'Left Knee',         x: 42.5, y: 68.5 },
+      { id: 'mf-right-knee',     label: 'Right Knee',        x: 58.5, y: 68.5 },
+      { id: 'mf-left-shin',      label: 'Left Shin',         x: 42.0, y: 78.0 },
+      { id: 'mf-right-shin',     label: 'Right Shin',        x: 59.0, y: 78.0 },
+      { id: 'mf-left-foot',      label: 'Left Foot',         x: 41.5, y: 91.0 },
+      { id: 'mf-right-foot',     label: 'Right Foot',        x: 59.5, y: 91.0 },
+    ],
+  },
+  {
+    key: 'male-back', label: 'Male Back', image: '/images/WRI_BODY_MALE_BACK.png',
+    hotspots: [
+      { id: 'mb-crown',           label: 'Crown / Back of Head',  x: 50.5, y: 4.0  },
+      { id: 'mb-neck',            label: 'Neck / Cervical',       x: 50.5, y: 10.0 },
+      { id: 'mb-left-shoulder',   label: 'Left Shoulder Blade',   x: 36.5, y: 18.5 },
+      { id: 'mb-right-shoulder',  label: 'Right Shoulder Blade',  x: 64.0, y: 18.5 },
+      { id: 'mb-upper-back',      label: 'Upper Back / Thoracic', x: 50.5, y: 22.0 },
+      { id: 'mb-left-elbow',      label: 'Left Elbow',            x: 29.5, y: 33.5 },
+      { id: 'mb-right-elbow',     label: 'Right Elbow',           x: 71.0, y: 33.5 },
+      { id: 'mb-mid-back',        label: 'Mid Back / Lumbar',     x: 50.5, y: 33.0 },
+      { id: 'mb-lower-back',      label: 'Lower Back / Sacral',   x: 50.5, y: 41.5 },
+      { id: 'mb-left-hip',        label: 'Left Hip / Glute',      x: 40.0, y: 47.5 },
+      { id: 'mb-right-hip',       label: 'Right Hip / Glute',     x: 61.5, y: 47.5 },
+      { id: 'mb-left-hamstring',  label: 'Left Hamstring',        x: 41.5, y: 57.5 },
+      { id: 'mb-right-hamstring', label: 'Right Hamstring',       x: 59.5, y: 57.5 },
+      { id: 'mb-left-knee-back',  label: 'Left Knee (Back)',      x: 41.5, y: 68.0 },
+      { id: 'mb-right-knee-back', label: 'Right Knee (Back)',     x: 59.5, y: 68.0 },
+      { id: 'mb-left-heel',       label: 'Left Heel / Foot',      x: 41.0, y: 92.5 },
+      { id: 'mb-right-heel',      label: 'Right Heel / Foot',     x: 60.0, y: 92.5 },
+    ],
+  },
+  {
+    key: 'female-front', label: 'Female Front', image: '/images/WRI_BODY_FEMALE_FRONT.png',
+    hotspots: [
+      { id: 'ff-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
+      { id: 'ff-left-temple',    label: 'Left Temple',       x: 43.0, y: 6.5  },
+      { id: 'ff-right-temple',   label: 'Right Temple',      x: 58.0, y: 6.5  },
+      { id: 'ff-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.5  },
+      { id: 'ff-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.5  },
+      { id: 'ff-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 12.0 },
+      { id: 'ff-throat',         label: 'Throat',            x: 50.5, y: 15.5 },
+      { id: 'ff-heart',          label: 'Heart / Chest',     x: 50.5, y: 24.5 },
+      { id: 'ff-left-shoulder',  label: 'Left Shoulder',     x: 36.5, y: 22.0 },
+      { id: 'ff-right-shoulder', label: 'Right Shoulder',    x: 64.5, y: 22.0 },
+      { id: 'ff-left-elbow',     label: 'Left Elbow',        x: 28.5, y: 34.5 },
+      { id: 'ff-right-elbow',    label: 'Right Elbow',       x: 72.5, y: 34.5 },
+      { id: 'ff-solar-plexus',   label: 'Solar Plexus',      x: 50.5, y: 31.0 },
+      { id: 'ff-abdomen',        label: 'Abdomen',           x: 50.5, y: 37.5 },
+      { id: 'ff-womb',           label: 'Womb / Uterus',     x: 50.5, y: 43.0 },
+      { id: 'ff-left-wrist',     label: 'Left Wrist',        x: 23.5, y: 45.5 },
+      { id: 'ff-right-wrist',    label: 'Right Wrist',       x: 77.5, y: 45.5 },
+      { id: 'ff-pelvis',         label: 'Pelvis',            x: 50.5, y: 46.5 },
+      { id: 'ff-left-hand',      label: 'Left Hand',         x: 20.0, y: 51.5 },
+      { id: 'ff-right-hand',     label: 'Right Hand',        x: 81.0, y: 51.5 },
+      { id: 'ff-left-thigh',     label: 'Left Thigh',        x: 43.0, y: 58.0 },
+      { id: 'ff-right-thigh',    label: 'Right Thigh',       x: 58.0, y: 58.0 },
+      { id: 'ff-left-knee',      label: 'Left Knee',         x: 43.0, y: 69.5 },
+      { id: 'ff-right-knee',     label: 'Right Knee',        x: 58.0, y: 69.5 },
+      { id: 'ff-left-shin',      label: 'Left Shin',         x: 42.5, y: 79.0 },
+      { id: 'ff-right-shin',     label: 'Right Shin',        x: 58.5, y: 79.0 },
+      { id: 'ff-left-foot',      label: 'Left Foot',         x: 42.0, y: 92.0 },
+      { id: 'ff-right-foot',     label: 'Right Foot',        x: 59.0, y: 92.0 },
+    ],
+  },
+  {
+    key: 'female-back', label: 'Female Back', image: '/images/WRI_BODY_FEMALE_BACK.png',
+    hotspots: [
+      { id: 'fb-crown',           label: 'Crown / Back of Head',  x: 50.5, y: 3.5  },
+      { id: 'fb-neck',            label: 'Neck / Cervical',       x: 50.5, y: 9.5  },
+      { id: 'fb-left-shoulder',   label: 'Left Shoulder Blade',   x: 36.5, y: 18.0 },
+      { id: 'fb-right-shoulder',  label: 'Right Shoulder Blade',  x: 64.5, y: 18.0 },
+      { id: 'fb-upper-back',      label: 'Upper Back / Thoracic', x: 50.5, y: 22.5 },
+      { id: 'fb-left-elbow',      label: 'Left Elbow',            x: 28.0, y: 34.0 },
+      { id: 'fb-right-elbow',     label: 'Right Elbow',           x: 73.0, y: 34.0 },
+      { id: 'fb-mid-back',        label: 'Mid Back / Lumbar',     x: 50.5, y: 33.5 },
+      { id: 'fb-lower-back',      label: 'Lower Back / Sacral',   x: 50.5, y: 41.0 },
+      { id: 'fb-left-hip',        label: 'Left Hip / Glute',      x: 40.5, y: 47.0 },
+      { id: 'fb-right-hip',       label: 'Right Hip / Glute',     x: 60.5, y: 47.0 },
+      { id: 'fb-left-hamstring',  label: 'Left Hamstring',        x: 42.0, y: 57.5 },
+      { id: 'fb-right-hamstring', label: 'Right Hamstring',       x: 59.0, y: 57.5 },
+      { id: 'fb-left-knee-back',  label: 'Left Knee (Back)',      x: 42.0, y: 68.5 },
+      { id: 'fb-right-knee-back', label: 'Right Knee (Back)',     x: 59.0, y: 68.5 },
+      { id: 'fb-left-heel',       label: 'Left Heel / Foot',      x: 41.5, y: 91.5 },
+      { id: 'fb-right-heel',      label: 'Right Heel / Foot',     x: 59.5, y: 91.5 },
+    ],
+  },
 ]
 
 // ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
@@ -6202,35 +6177,30 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
 }
 
 
-const BM_FIGURES = ['Male Front', 'Male Back', 'Female Front', 'Female Back']
-const BM_FIGURE_RANGES = [[0, 25], [25, 50], [50, 75], [75, 100]]
-
 function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: any) {
   const GC = '#C9A84C'
 
-  const [selectedHotspot, setSelectedHotspot] = useState<{id: string, label: string} | null>(null)
-  const [hoveredHotspot, setHoveredHotspot] = useState<string | null>(null)
-  const [panelOpen,      setPanelOpen]      = useState(false)
-  const [manifestations, setManifestations] = useState<any[]>([])
-  const [manifLoading,   setManifLoading]   = useState(false)
-  const [figureIndex,    setFigureIndex]    = useState(0)
-  const [stageH,         setStageH]         = useState(0)
+  const [activeFigure,   setActiveFigure]   = useState(0)
+  const [selectedHotspot, setSelectedHotspot] = useState<BMHotspot | null>(null)
+  const [hoveredHotspot,  setHoveredHotspot]  = useState<string | null>(null)
+  const [sheetOpen,       setSheetOpen]       = useState(false)
+  const [manifestations,  setManifestations]  = useState<any[]>([])
+  const [manifLoading,    setManifLoading]    = useState(false)
   const touchStartX = React.useRef(0)
-  const spriteRef   = React.useRef<HTMLImageElement>(null)
+  const touchStartY = React.useRef(0)
 
-  const measureSprite = React.useCallback(() => {
-    const el = spriteRef.current
-    if (!el || !el.naturalWidth || !el.naturalHeight) return
-    const cw = el.parentElement?.offsetWidth ?? window.innerWidth
-    // Sprite is 4 figures wide; one figure aspect = naturalHeight / (naturalWidth/4)
-    const scale = cw / (el.naturalWidth / 4)
-    setStageH(Math.round(el.naturalHeight * scale))
-  }, [])
+  const figure = BM_FIGURES[activeFigure]
 
-  React.useEffect(() => {
-    window.addEventListener('resize', measureSprite)
-    return () => window.removeEventListener('resize', measureSprite)
-  }, [measureSprite])
+  function closeSheet() {
+    setSheetOpen(false)
+    setSelectedHotspot(null)
+    setManifestations([])
+  }
+
+  function handleHotspotClick(h: BMHotspot) {
+    setSelectedHotspot(h)
+    setSheetOpen(true)
+  }
 
   useEffect(() => {
     if (!selectedHotspot) return
@@ -6250,14 +6220,83 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
     load()
   }, [selectedHotspot])
 
-  function handleHotspotClick(hotspot: {id: string, label: string}) {
-    setSelectedHotspot(hotspot)
-    setPanelOpen(true)
-  }
+  const panelContent = (
+    <>
+      {/* Drag handle (mobile) */}
+      {isMobile && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px', flexShrink: 0 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#3a3020' }} />
+        </div>
+      )}
+      {/* Panel header */}
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 15, color: GC, letterSpacing: '0.08em', marginBottom: 2 }}>
+            {selectedHotspot?.label}
+          </div>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', letterSpacing: '0.06em' }}>
+            {manifLoading ? 'LOADING...' : `${manifestations.length} MANIFESTATION${manifestations.length !== 1 ? 'S' : ''}`}
+          </div>
+        </div>
+        <button onClick={closeSheet} style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: '4px 8px' }}>×</button>
+      </div>
+      {/* Panel body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', WebkitOverflowScrolling: 'touch' as any }}>
+        {manifLoading && (
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.12em', padding: '32px 0', textAlign: 'center' }}>LOADING MANIFESTATIONS...</div>
+        )}
+        {!manifLoading && manifestations.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: '#4a3f2f', fontStyle: 'italic', marginBottom: 12 }}>No manifestations documented for this region yet.</div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#3a3020', letterSpacing: '0.1em' }}>Admins can add entries in the Admin panel under Body Map</div>
+          </div>
+        )}
+        {manifestations.map((m: any) => (
+          <div key={m.id} style={{ marginBottom: 16, padding: '14px 16px', background: '#09070F', border: '1px solid #1e1a0e', borderLeft: `3px solid ${GC}`, borderRadius: 6 }}>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8b99a', lineHeight: 1.6, marginBottom: m.spirit_names?.length ? 10 : 0 }}>
+              {m.manifestation}
+            </div>
+            {m.spirit_names?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: m.notes ? 8 : 0 }}>
+                {m.spirit_names.map((name: string) => (
+                  <a
+                    key={name}
+                    href={`/community?section=database&search=${encodeURIComponent(name)}`}
+                    style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.06em',
+                      background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)',
+                      borderRadius: 3, padding: '2px 8px', textDecoration: 'none', cursor: 'pointer' }}
+                  >
+                    {name}
+                  </a>
+                ))}
+              </div>
+            )}
+            {m.notes && (
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#6b5e45', fontStyle: 'italic', lineHeight: 1.5 }}>
+                {m.notes}
+              </div>
+            )}
+            {m.source && (
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.06em', marginTop: 6 }}>SOURCE: {m.source}</div>
+            )}
+          </div>
+        ))}
+        {!manifLoading && (
+          <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(139,50,50,0.04)', border: '1px solid #2a1a1a', borderRadius: 6 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a2a2a', letterSpacing: '0.1em', marginBottom: 3 }}>DISCLAIMER</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3030', lineHeight: 1.5, fontStyle: 'italic' }}>
+              For pastoral discernment and prayer preparation only. Physical or mental health symptoms should be evaluated by qualified professionals.
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
 
   return (
     <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
       <style>{`@keyframes bmPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.45); } 60% { box-shadow: 0 0 0 9px rgba(201,168,76,0); } }`}</style>
+
       {/* Header */}
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {isMobile && (
@@ -6269,131 +6308,52 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
         </div>
       </div>
 
-      {/* Mobile: figure selector tabs */}
-      {isMobile && (
-        <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0 }}>
-          {BM_FIGURES.map((fig, i) => (
-            <button key={fig} onClick={() => setFigureIndex(i)}
-              style={{ flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', borderBottom: figureIndex === i ? `2px solid ${GC}` : '2px solid transparent', color: figureIndex === i ? GC : '#6a5f4f', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1 }}>
-              {fig.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Figure selector tabs — all screen sizes */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0 }}>
+        {BM_FIGURES.map((fig, i) => (
+          <button key={fig.key} onClick={() => { setActiveFigure(i); closeSheet() }}
+            style={{ flex: 1, padding: '10px 4px', background: 'transparent', border: 'none',
+              borderBottom: activeFigure === i ? `2px solid ${GC}` : '2px solid transparent',
+              color: activeFigure === i ? GC : '#6a5f4f', fontFamily: cinzel,
+              fontSize: isMobile ? 8 : 10, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1 }}>
+            {fig.label.toUpperCase()}
+          </button>
+        ))}
+      </div>
 
-      {/* Image + hotspot overlay */}
-      {isMobile ? (
+      {/* Main area: image + hotspots, with optional side panel on desktop */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', position: 'relative' }}>
+
+        {/* Scrollable image column */}
         <div
           style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any,
-            paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}
-          onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+            paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20 }}
+          onTouchStart={e => {
+            touchStartX.current = e.touches[0].clientX
+            touchStartY.current = e.touches[0].clientY
+          }}
           onTouchEnd={e => {
-            const diff = touchStartX.current - e.changedTouches[0].clientX
-            if (diff > 50) setFigureIndex(prev => Math.min(3, prev + 1))
-            else if (diff < -50) setFigureIndex(prev => Math.max(0, prev - 1))
+            const dx = touchStartX.current - e.changedTouches[0].clientX
+            const dy = Math.abs(touchStartY.current - e.changedTouches[0].clientY)
+            if (Math.abs(dx) > 50 && Math.abs(dx) > dy) {
+              if (dx > 0) setActiveFigure(prev => Math.min(BM_FIGURES.length - 1, prev + 1))
+              else        setActiveFigure(prev => Math.max(0, prev - 1))
+              closeSheet()
+            }
           }}
         >
-          {import.meta.env.DEV && (
-            <div style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.12)', fontFamily: 'monospace', fontSize: 10, color: '#C9A84C', letterSpacing: '0.04em' }}>
-              idx={figureIndex} · fig="{BM_FIGURES[figureIndex]}" · stageH={stageH}px · vw={typeof window !== 'undefined' ? window.innerWidth : '?'}px
-            </div>
-          )}
-
-          {/* Stage: explicit pixel height clips the sprite reliably on iOS Safari */}
-          <div
-            style={{
-              position: 'relative',
-              width: '100%',
-              overflow: 'hidden',
-              ...(stageH > 0 ? { height: stageH } : { aspectRatio: '1 / 1.7' }),
-            }}
-          >
-            {/* Single <img> — no key, no remount. Shifted left by figureIndex widths. */}
+          {/* Image + hotspot overlay */}
+          <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
             <img
-              ref={spriteRef}
-              onLoad={measureSprite}
-              src="/images/WRI_BODYMAP.png?v=3"
-              alt={BM_FIGURES[figureIndex]}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: `-${figureIndex * 100}%`,
-                width: '400%',
-                height: 'auto',
-                pointerEvents: 'none',
-                userSelect: 'none',
-              }}
+              key={figure.image}
+              src={figure.image}
+              alt={figure.label}
+              style={{ display: 'block', width: '100%', height: 'auto' }}
               draggable={false}
             />
-
-            {/* Hotspots — only rendered after stageH is measured so % positions are accurate */}
-            {stageH > 0 && BM_POINT_HOTSPOTS.filter(h => {
-              const [lo, hi] = BM_FIGURE_RANGES[figureIndex]
-              return h.x >= lo && h.x < hi
-            }).map(h => {
-              const isActive = selectedHotspot?.id === h.id && panelOpen
-              const visX = ((h.x - figureIndex * 25) / 25) * 100
-              return (
-                <div
-                  key={h.id}
-                  title={h.label}
-                  onClick={() => handleHotspotClick(h)}
-                  style={{
-                    position: 'absolute',
-                    left: `${visX}%`,
-                    top: `${h.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                    width: 44, height: 44,
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
-                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : '2px solid rgba(201,168,76,0.25)',
-                    boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : 'none',
-                    zIndex: 2,
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                />
-              )
-            })}
-
-            {/* Nav arrows */}
-            {figureIndex > 0 && (
-              <button
-                onClick={() => setFigureIndex(prev => Math.max(0, prev - 1))}
-                style={{ position: 'absolute', left: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: '1px solid rgba(201,168,76,0.3)', color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
-                ‹
-              </button>
-            )}
-            {figureIndex < 3 && (
-              <button
-                onClick={() => setFigureIndex(prev => Math.min(3, prev + 1))}
-                style={{ position: 'absolute', right: 6, top: '25%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: '1px solid rgba(201,168,76,0.3)', color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
-                ›
-              </button>
-            )}
-
-            {/* Progress dots */}
-            <div style={{ position: 'absolute', top: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, zIndex: 5, pointerEvents: 'none' }}>
-              {BM_FIGURES.map((_, i) => (
-                <div key={i} style={{ width: i === figureIndex ? 20 : 6, height: 6, borderRadius: 3, background: i === figureIndex ? GC : 'rgba(201,168,76,0.3)', transition: 'width 0.2s' }} />
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Desktop: full 4-figure view
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 20px', position: 'relative' }}>
-          <div style={{ position: 'relative', display: 'inline-block', maxHeight: '100%', maxWidth: '100%' }}>
-            <img
-              src="/images/WRI_BODYMAP.png?v=3"
-              alt="Spirit Body Map"
-              style={{ display: 'block', maxHeight: 'calc(100dvh - 180px)', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
-              draggable={false}
-              onError={(e) => { console.error('Body map image failed to load', (e.target as HTMLImageElement).src) }}
-            />
-            {/* Point hotspot overlays — 28px circles centered at coordinate */}
-            {BM_POINT_HOTSPOTS.map(h => {
-              const isActive = selectedHotspot?.id === h.id && panelOpen
+            {/* Hotspots */}
+            {figure.hotspots.map(h => {
+              const isActive = selectedHotspot?.id === h.id && sheetOpen
               const isHov    = hoveredHotspot === h.id
               return (
                 <div
@@ -6407,23 +6367,24 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
                     left: `${h.x}%`,
                     top: `${h.y}%`,
                     transform: 'translate(-50%, -50%)',
-                    width: 28,
-                    height: 28,
+                    width: isMobile ? 44 : 28,
+                    height: isMobile ? 44 : 28,
                     borderRadius: '50%',
                     cursor: 'pointer',
                     background: isActive ? 'rgba(201,168,76,0.28)' : isHov ? 'rgba(201,168,76,0.18)' : 'transparent',
-                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : isHov ? '2px solid rgba(201,168,76,0.55)' : '2px solid rgba(201,168,76,0)',
+                    border: isActive ? '2px solid rgba(201,168,76,0.75)' : isHov ? '2px solid rgba(201,168,76,0.55)' : '2px solid rgba(201,168,76,0.25)',
                     boxShadow: isActive ? '0 0 10px rgba(201,168,76,0.45)' : isHov ? '0 0 14px rgba(201,168,76,0.38)' : 'none',
-                    animation: isHov ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
+                    animation: isHov && !isMobile ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
                     transition: 'background 0.15s, border 0.15s, box-shadow 0.15s',
                     zIndex: 2,
+                    WebkitTapHighlightColor: 'transparent',
                   }}
                 />
               )
             })}
-            {/* Hovered label tooltip */}
-            {hoveredHotspot && !panelOpen && (() => {
-              const h = BM_POINT_HOTSPOTS.find(p => p.id === hoveredHotspot)
+            {/* Hovered label tooltip (desktop only) */}
+            {!isMobile && hoveredHotspot && !sheetOpen && (() => {
+              const h = figure.hotspots.find(p => p.id === hoveredHotspot)
               if (!h) return null
               return (
                 <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 18px)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
@@ -6435,92 +6396,30 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
             })()}
           </div>
         </div>
-      )}
 
-      {/* Slide Panel — from right on desktop, bottom sheet on mobile */}
-      {panelOpen && selectedHotspot && (
-        <>
-          {/* Backdrop */}
-          <div onClick={() => setPanelOpen(false)} style={{ position: isMobile ? 'fixed' : 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.4)' }} />
+        {/* Desktop side panel — slides in from right within the main area */}
+        {!isMobile && sheetOpen && selectedHotspot && (
           <div style={{
-            position: isMobile ? 'fixed' : 'absolute',
-            ...(isMobile
-              ? { left: 0, right: 0, bottom: 0, height: '70%', borderRadius: '12px 12px 0 0' }
-              : { top: 0, right: 0, width: '420px', height: '100%', borderRadius: 0 }),
-            background: '#0f0c07',
-            borderLeft: isMobile ? 'none' : '1px solid #2a2218',
-            borderTop: isMobile ? '1px solid #2a2218' : 'none',
-            display: 'flex', flexDirection: 'column',
-            zIndex: 30, overflow: 'hidden',
-            boxShadow: '-8px 0 32px rgba(0,0,0,0.5)',
+            width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column',
+            background: '#0f0c07', borderLeft: '1px solid #2a2218', overflow: 'hidden',
           }}>
-            {/* Panel header */}
-            <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div>
-                <div style={{ fontFamily: cinzel, fontSize: 16, color: GC, letterSpacing: '0.08em', marginBottom: 2 }}>
-                  {selectedHotspot.label}
-                </div>
-                <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', letterSpacing: '0.06em' }}>
-                  {manifLoading ? 'LOADING...' : `${manifestations.length} MANIFESTATION${manifestations.length !== 1 ? 'S' : ''}`}
-                </div>
-              </div>
-              <button onClick={() => setPanelOpen(false)} style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4 }}>×</button>
-            </div>
+            {panelContent}
+          </div>
+        )}
+      </div>
 
-            {/* Panel content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-              {manifLoading && (
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.12em', padding: '32px 0', textAlign: 'center' }}>LOADING MANIFESTATIONS...</div>
-              )}
-
-              {!manifLoading && manifestations.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '32px 20px' }}>
-                  <div style={{ fontFamily: crimson, fontSize: 15, color: '#4a3f2f', fontStyle: 'italic', marginBottom: 12 }}>No manifestations documented for this region yet.</div>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: '#3a3020', letterSpacing: '0.1em' }}>Admins can add entries in the Admin panel → Intel Archive → Body Map</div>
-                </div>
-              )}
-
-              {manifestations.map((m: any) => (
-                <div key={m.id} style={{ marginBottom: 16, padding: '14px 16px', background: '#09070F', border: '1px solid #1e1a0e', borderLeft: `3px solid ${GC}`, borderRadius: 6 }}>
-                  <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8b99a', lineHeight: 1.6, marginBottom: m.spirit_names?.length ? 10 : 0 }}>
-                    {m.manifestation}
-                  </div>
-                  {m.spirit_names?.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: m.notes ? 8 : 0 }}>
-                      {m.spirit_names.map((name: string) => (
-                        <a
-                          key={name}
-                          href={`/community?section=database&search=${encodeURIComponent(name)}`}
-                          style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.06em',
-                            background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)',
-                            borderRadius: 3, padding: '2px 8px', textDecoration: 'none',
-                            cursor: 'pointer' }}
-                        >
-                          {name}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                  {m.notes && (
-                    <div style={{ fontFamily: crimson, fontSize: 13, color: '#6b5e45', fontStyle: 'italic', lineHeight: 1.5 }}>
-                      {m.notes}
-                    </div>
-                  )}
-                  {m.source && (
-                    <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.06em', marginTop: 6 }}>SOURCE: {m.source}</div>
-                  )}
-                </div>
-              ))}
-
-              {!manifLoading && (
-                <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(139,50,50,0.04)', border: '1px solid #2a1a1a', borderRadius: 6 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a2a2a', letterSpacing: '0.1em', marginBottom: 3 }}>DISCLAIMER</div>
-                  <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3030', lineHeight: 1.5, fontStyle: 'italic' }}>
-                    For pastoral discernment and prayer preparation only. Physical or mental health symptoms should be evaluated by qualified professionals.
-                  </div>
-                </div>
-              )}
-            </div>
+      {/* Mobile bottom sheet */}
+      {isMobile && sheetOpen && selectedHotspot && (
+        <>
+          <div onClick={closeSheet} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.4)' }} />
+          <div style={{
+            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50,
+            maxHeight: '60dvh', display: 'flex', flexDirection: 'column',
+            background: '#0f0c07', borderTop: '1px solid #2a2218',
+            borderRadius: '14px 14px 0 0', boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
+            overflow: 'hidden',
+          }}>
+            {panelContent}
           </div>
         </>
       )}
