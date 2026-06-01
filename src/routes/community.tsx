@@ -5931,7 +5931,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
         <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0 }}>
           {BM_FIGURES.map((fig, i) => (
             <button key={fig} onClick={() => setFigureIndex(i)}
-              style={{ flex: 1, padding: '8px 4px', background: 'transparent', border: 'none', borderBottom: figureIndex === i ? `2px solid ${GC}` : '2px solid transparent', color: figureIndex === i ? GC : '#4a3f2f', fontFamily: cinzel, fontSize: 7, letterSpacing: '0.05em', cursor: 'pointer', marginBottom: -1 }}>
+              style={{ flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', borderBottom: figureIndex === i ? `2px solid ${GC}` : '2px solid transparent', color: figureIndex === i ? GC : '#6a5f4f', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1 }}>
               {fig.toUpperCase()}
             </button>
           ))}
@@ -5940,7 +5940,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
 
       {/* Image + hotspot overlay */}
       {isMobile ? (
-        // Mobile: clipped single-figure view with swipe
+        // Mobile: clipped single-figure view with swipe + arrows
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}
           onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
           onTouchEnd={e => {
@@ -5973,8 +5973,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
                     left: `${h.x}%`,
                     top: `${h.y}%`,
                     transform: 'translate(-50%, -50%)',
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: '50%',
                     cursor: 'pointer',
                     background: isActive ? 'rgba(201,168,76,0.28)' : 'transparent',
@@ -5986,6 +5986,22 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
               )
             })}
           </div>
+          {/* Left arrow */}
+          {figureIndex > 0 && (
+            <button
+              onClick={() => setFigureIndex(prev => Math.max(0, prev - 1))}
+              style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: `1px solid rgba(201,168,76,0.3)`, color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
+              ‹
+            </button>
+          )}
+          {/* Right arrow */}
+          {figureIndex < 3 && (
+            <button
+              onClick={() => setFigureIndex(prev => Math.min(3, prev + 1))}
+              style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, borderRadius: '50%', background: 'rgba(9,7,15,0.75)', border: `1px solid rgba(201,168,76,0.3)`, color: GC, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 6, lineHeight: 1, padding: 0 }}>
+              ›
+            </button>
+          )}
           {/* Indicator dots */}
           <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, zIndex: 5, pointerEvents: 'none' }}>
             {BM_FIGURES.map((_, i) => (
