@@ -4401,7 +4401,10 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [massEditTopic, setMassEditTopic]       = useState('')
   const [massApplying, setMassApplying]         = useState(false)
   const isMinister = userTier === 'minister'
-  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory]     = useState<string | null>(null)
+  const [expandedId, setExpandedId]             = useState<string | null>(null)
+  const [arsenalSort, setArsenalSort]           = useState<'newest'|'az'|'tier'>('newest')
+  const [showCategorySheet, setShowCategorySheet] = useState(false)
 
   const ARSENAL_TOPICS = [
     'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
@@ -4515,6 +4518,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     Commander: 'rgba(251,146,60,0.9)',
     General:   'rgba(167,139,250,0.9)',
   }
+  const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
 
   const categoryCounts = ARSENAL_TOPICS.reduce((acc, topic) => {
     acc[topic] = arsenalItems.filter(i => i.topic === topic || i.category === topic).length
@@ -4533,7 +4537,13 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
 
   const recent = [...arsenalItems]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 4)
+    .slice(0, 6)
+
+  const sortedItems = [...filtered].sort((a, b) => {
+    if (arsenalSort === 'az')   return (a.title || '').localeCompare(b.title || '')
+    if (arsenalSort === 'tier') return (TIER_ORDER[(b.tier || '').toLowerCase()] ?? 0) - (TIER_ORDER[(a.tier || '').toLowerCase()] ?? 0)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
 
   const ResourceCard = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
     const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
@@ -4587,9 +4597,57 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     )
   }
 
+  const ResourceRow = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
+    const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
+    const tc         = TIER_COLORS[resource.tier] || G
+    const isExp      = expandedId === resource.id
+    const tierLabel  = (resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier
+    return (
+      <div
+        style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '10px 14px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+        onClick={() => setExpandedId(isExp ? null : resource.id)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onToggle && (
+            <input type="checkbox" checked={!!isSelected} onChange={e => { e.stopPropagation(); onToggle(resource.id) }}
+              style={{ accentColor: G, width: 14, height: 14, cursor: 'pointer', flexShrink: 0 }} />
+          )}
+          <span style={{ fontSize: 15, flexShrink: 0 }}>{FILE_ICONS[resource.file_type] || '📄'}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: hasAccess ? '#f0e8d8' : muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+              {cleanArsenalTitle(resource.title || '')}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 7, padding: '2px 7px', borderRadius: 20, background: `${tc}18`, color: tc, border: `1px solid ${tc}35`, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{tierLabel}</span>
+            {hasAccess
+              ? resource.file_url
+                ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
+                : null
+              : <button onClick={e => { e.stopPropagation(); handleUpgrade(resource.tier, getToken) }}
+                  style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
+            }
+          </div>
+        </div>
+        {isExp && (resource.description || resource.topic) && (
+          <div style={{ paddingTop: 8, paddingLeft: onToggle ? 58 : 42 }}>
+            {resource.description && (
+              <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.55)', lineHeight: 1.5, fontStyle: 'italic', marginBottom: resource.topic ? 4 : 0 }}>{resource.description}</div>
+            )}
+            {resource.topic && (
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{resource.topic}</span>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '12px' : '24px 32px', minHeight: 0 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {isMobile && (
             <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
@@ -4600,16 +4658,19 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       </div>
 
       {/* Global search */}
-      <input
-        value={query}
-        onChange={e => {
-          setQuery(e.target.value)
-          if (e.target.value) setActiveCategory('__search__')
-          else setActiveCategory(null)
-        }}
-        placeholder="Search all arsenal resources..."
-        style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '12px 16px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none', marginBottom: 16 }}
-      />
+      <div style={{ position: 'relative', marginBottom: 20 }}>
+        <input
+          value={query}
+          onChange={e => {
+            setQuery(e.target.value)
+            if (e.target.value) setActiveCategory('__search__')
+            else setActiveCategory(null)
+          }}
+          placeholder="Search sermons, teachings, topics..."
+          style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '12px 16px 12px 42px', color: text, fontSize: 13, fontFamily: crimson, outline: 'none' }}
+        />
+        <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.35, fontSize: 15, pointerEvents: 'none' }}>🔍</span>
+      </div>
 
       {arsenalLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: cinzel, fontSize: 13 }}>Loading arsenal...</div>
@@ -4617,98 +4678,142 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{arsenalError}</div>
       ) : activeCategory === null ? (
         <>
-          {/* Mobile: horizontal scrolling category pills */}
-          {isMobile ? (
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, marginBottom: 16 }}>
-              {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
-                <button key={topic} onClick={() => setActiveCategory(topic)}
-                  style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(201,168,76,0.2)', background: 'transparent', color: 'rgba(240,232,216,0.6)', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
-                  {ARSENAL_CATEGORY_ICONS[topic] || '📁'} {topic} ({categoryCounts[topic]})
-                </button>
-              ))}
-            </div>
-          ) : (
-            /* Desktop: category grid */
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, padding: '4px 0 16px' }}>
+          {/* Mobile: Browse Topics button */}
+          {isMobile && (
+            <button onClick={() => setShowCategorySheet(true)}
+              style={{ width: '100%', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 8, padding: '12px 16px', color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.07em', cursor: 'pointer', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>📚 Browse by Topic</span>
+              <span style={{ opacity: 0.45, fontSize: 10 }}>{ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).length} categories →</span>
+            </button>
+          )}
+
+          {/* Desktop: compact category grid */}
+          {!isMobile && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 24 }}>
               {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
                 <div key={topic} onClick={() => setActiveCategory(topic)}
-                  style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '20px 16px', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.4)'; e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.15)'; e.currentTarget.style.background = 'rgba(201,168,76,0.04)' }}>
-                  <div style={{ fontSize: 26, marginBottom: 8 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</div>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>{topic}</div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: 'rgba(240,232,216,0.45)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</div>
+                  style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 8, padding: '14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, transition: 'border-color 0.15s, background 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.35)'; e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.12)'; e.currentTarget.style.background = 'rgba(201,168,76,0.04)' }}>
+                  <span style={{ fontSize: 20 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', lineHeight: 1.3 }}>{topic}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.4)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Recently added below grid */}
+          {/* Recently added */}
           {recent.length > 0 && (
-            <div style={{ marginTop: isMobile ? 8 : 24 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>Recently Added</div>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-                {recent.map(r => <ResourceCard key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 10 }}>Recently Added</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {recent.map(r => <ResourceRow key={r.id} resource={r} />)}
               </div>
             </div>
           )}
         </>
       ) : (
-        /* Category or search results view */
-        <div style={{ paddingBottom: isMinister && selectedArsenalIds.size > 0 ? 72 : 0 }}>
-          {/* Filter bar header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' as const }}>
-            <button
-              onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
-              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, padding: '6px 12px', color: G, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em', flexShrink: 0 }}>
-              ← All Categories
-            </button>
-            {activeCategory !== '__search__' && (
-              <span style={{ fontFamily: cinzel, fontSize: 12, color: G, flexShrink: 0 }}>
-                {ARSENAL_CATEGORY_ICONS[activeCategory] || '📁'} {activeCategory}
-              </span>
+        /* Category / search results view */
+        <div style={{ display: isMobile ? 'block' : 'flex', gap: 20 }}>
+
+          {/* Desktop sidebar */}
+          {!isMobile && activeCategory !== '__search__' && (
+            <div style={{ width: 188, flexShrink: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.4)', letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>Browse by Topic</div>
+              {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+                <div key={topic}
+                  onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
+                  style={{ padding: '7px 10px', borderRadius: 5, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: activeCategory === topic ? 'rgba(201,168,76,0.1)' : 'transparent', borderLeft: `2px solid ${activeCategory === topic ? 'rgba(201,168,76,0.6)' : 'transparent'}`, marginBottom: 1 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: activeCategory === topic ? G : 'rgba(240,232,216,0.42)', letterSpacing: '0.04em', lineHeight: 1.35 }}>{topic}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 10, color: 'rgba(240,232,216,0.22)', flexShrink: 0, marginLeft: 4 }}>{categoryCounts[topic] || 0}</span>
+                </div>
+              ))}
+              <div onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
+                style={{ marginTop: 10, padding: '7px 10px', borderRadius: 5, cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.38)', letterSpacing: '0.06em' }}>
+                ← All Categories
+              </div>
+            </div>
+          )}
+
+          {/* Main content */}
+          <div style={{ flex: 1, minWidth: 0, paddingBottom: isMinister && selectedArsenalIds.size > 0 ? 72 : 0 }}>
+
+            {/* Mobile: category pills */}
+            {isMobile && activeCategory !== '__search__' && (
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' as any, WebkitOverflowScrolling: 'touch' as any, paddingBottom: 6, marginBottom: 12 }}>
+                <button onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
+                  style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: '1px solid rgba(201,168,76,0.22)', background: 'transparent', color: 'rgba(201,168,76,0.45)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.05em' }}>
+                  ← All
+                </button>
+                {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+                  <button key={topic}
+                    onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
+                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: `1px solid rgba(201,168,76,${activeCategory === topic ? '0.6' : '0.18'})`, background: activeCategory === topic ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === topic ? G : 'rgba(240,232,216,0.48)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>
+                    {topic}
+                  </button>
+                ))}
+              </div>
             )}
-            <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.45)', flexShrink: 0 }}>
-              {filtered.length} resource{filtered.length !== 1 ? 's' : ''}
-            </span>
+
+            {/* Search mode back */}
+            {activeCategory === '__search__' && (
+              <button onClick={() => { setActiveCategory(null); setQuery('') }}
+                style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.28)', borderRadius: 4, padding: '5px 12px', color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', marginBottom: 12 }}>
+                ← All Categories
+              </button>
+            )}
+
+            {/* Count + sort bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' as const }}>
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.06em' }}>
+                {activeCategory !== '__search__'
+                  ? `${ARSENAL_CATEGORY_ICONS[activeCategory!] || ''} ${activeCategory}`
+                  : `"${query}"`}
+              </span>
+              <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.3)' }}>
+                · {sortedItems.length} resource{sortedItems.length !== 1 ? 's' : ''}
+              </span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>SORT</span>
+                <select value={arsenalSort} onChange={e => setArsenalSort(e.target.value as any)}
+                  style={{ background: isDark ? '#0D0B14' : '#fff', border: `1px solid rgba(201,168,76,0.18)`, borderRadius: 4, padding: '3px 7px', color: muted, fontFamily: cinzel, fontSize: 8, outline: 'none', cursor: 'pointer' }}>
+                  <option value="newest">Newest</option>
+                  <option value="az">A → Z</option>
+                  <option value="tier">By Tier</option>
+                </select>
+              </div>
+            </div>
+
             {/* Tier filter pills */}
-            <div style={{ display: 'flex', gap: 5, marginLeft: 'auto', flexWrap: 'wrap' as const }}>
+            <div style={{ display: 'flex', gap: 5, marginBottom: 12, flexWrap: 'wrap' as const }}>
               {['All', 'Watchman', 'Soldier', 'Commander', 'General'].map(tier => (
                 <button key={tier} onClick={() => setTierFilter(tier)}
-                  style={{ padding: '4px 10px', borderRadius: 20, border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.6' : '0.2'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: tierFilter === tier ? G : 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+                  style={{ padding: '3px 10px', borderRadius: 20, border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.55' : '0.18'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.13)' : 'transparent', color: tierFilter === tier ? G : 'rgba(201,168,76,0.42)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em' }}>
                   {tier}
                 </button>
               ))}
             </div>
+
+            {/* Minister select all */}
+            {isMinister && sortedItems.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                <button onClick={() => setSelectedArsenalIds(new Set(sortedItems.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '3px 8px', fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Select All ({sortedItems.length})</button>
+                {selectedArsenalIds.size > 0 && <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '3px 8px', fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Deselect All</button>}
+              </div>
+            )}
+
+            {/* Resource list */}
+            {sortedItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
+                No resources found. Try different filters.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {sortedItems.map(r => <ResourceRow key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
+              </div>
+            )}
           </div>
-
-          {/* In-category search (only when inside a real category, not global search) */}
-          {activeCategory !== '__search__' && (
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder={`Search in ${activeCategory}...`}
-              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 6, padding: '7px 14px', fontSize: 12, color: '#f0e8d8', fontFamily: crimson, width: isMobile ? '100%' : 240, outline: 'none', marginBottom: 16, boxSizing: 'border-box' as const }}
-            />
-          )}
-
-          {/* Minister select all */}
-          {isMinister && filtered.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-              <button onClick={() => setSelectedArsenalIds(new Set(filtered.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Select All ({filtered.length})</button>
-              {selectedArsenalIds.size > 0 && <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Deselect All</button>}
-            </div>
-          )}
-
-          {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
-              No resources found. Try different search terms or filters.
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-              {filtered.map(r => <ResourceCard key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
-            </div>
-          )}
         </div>
       )}
 
@@ -4752,6 +4857,30 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mobile bottom sheet — category picker */}
+      {showCategorySheet && (
+        <>
+          <div onClick={() => setShowCategorySheet(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 10000 }} />
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10001, background: '#13111e', border: '1px solid rgba(201,168,76,0.18)', borderRadius: '16px 16px 0 0', paddingBottom: 40, maxHeight: '72vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 20px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+              <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.55)', textTransform: 'uppercase' as const }}>Browse by Topic</span>
+              <button onClick={() => setShowCategorySheet(false)} style={{ background: 'none', border: 'none', color: muted, fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 0 }}>✕</button>
+            </div>
+            {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+              <div key={topic}
+                onClick={() => { setActiveCategory(topic); setShowCategorySheet(false); setTierFilter('All'); setExpandedId(null) }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, color: '#f0e8d8', letterSpacing: '0.04em' }}>{topic}</span>
+                </span>
+                <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.32)' }}>{categoryCounts[topic]}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
