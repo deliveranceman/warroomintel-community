@@ -5030,7 +5030,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           if (match) { duplicates.push({ file: f, match }); return false }
           return true
         })
-        .slice(0, 10 - prev.length)
+        .slice(0, 50 - prev.length)
         .map(f => ({
           id: crypto.randomUUID(),
           file: f,
