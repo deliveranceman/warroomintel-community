@@ -18,21 +18,23 @@ function decodeJwt(token: string): any {
   } catch { return null }
 }
 
-function getAuth(req: Request): { userId: string | null; role: string | null; tier: string | null } {
+function getUserId(req: Request): string | null {
   const header = req.headers.get('authorization') || ''
-  if (!header.startsWith('Bearer ')) return { userId: null, role: null, tier: null }
+  if (!header.startsWith('Bearer ')) return null
   const payload = decodeJwt(header.slice(7))
-  if (!payload) return { userId: null, role: null, tier: null }
-  return {
-    userId: payload.sub || null,
-    role: payload.public_metadata?.role || null,
-    tier: payload.public_metadata?.tier || null,
-  }
+  return payload?.sub || null
 }
 
-function isAdmin(role: string | null, tier: string | null): boolean {
-  return role === 'admin' || role === 'minister' ||
-    ({ general: true, minister: true } as Record<string, boolean>)[tier?.toLowerCase() ?? ''] === true
+async function checkIsMinister(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    const role = data?.public_metadata?.role
+    return role === 'minister' || role === 'admin'
+  } catch { return false }
 }
 
 export default async function handler(req: Request) {
@@ -44,7 +46,7 @@ export default async function handler(req: Request) {
 
   // ── GET ─────────────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
-    const { userId } = getAuth(req)
+    const userId = getUserId(req)
     if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
 
     let query = sb().from('body_map_manifestations').select('*')
@@ -56,10 +58,11 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ manifestations: data || [] }), { status: 200, headers: CORS })
   }
 
-  // ── WRITES — admin only ──────────────────────────────────────────────────────
-  const { userId, role, tier } = getAuth(req)
+  // ── WRITES — minister only ───────────────────────────────────────────────────
+  const userId = getUserId(req)
   if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-  if (!isAdmin(role, tier)) return new Response(JSON.stringify({ error: 'Forbidden — admin required' }), { status: 403, headers: CORS })
+  const ok = await checkIsMinister(userId)
+  if (!ok) return new Response(JSON.stringify({ error: 'Forbidden — minister role required' }), { status: 403, headers: CORS })
 
   // ── POST ─────────────────────────────────────────────────────────────────────
   if (req.method === 'POST') {

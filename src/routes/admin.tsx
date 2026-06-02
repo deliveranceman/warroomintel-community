@@ -1123,6 +1123,9 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
   const [sourceSelect, setSourceSelect] = useState('')
   const [sourceCustom, setSourceCustom] = useState('')
   const [autoFilled, setAutoFilled] = useState(false)
+  const [customChip, setCustomChip] = useState('')
+  const [aiLoadingManif, setAiLoadingManif] = useState(false)
+  const [aiLoadingNotes, setAiLoadingNotes] = useState(false)
 
   useEffect(() => {
     getToken().then(token => {
@@ -1146,6 +1149,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
     setSourceSelect('')
     setSourceCustom('')
     setAutoFilled(false)
+    setCustomChip('')
   }
 
   function handleHotspotChange(id: string) {
@@ -1377,9 +1381,66 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                   {p}
                 </button>
               ))}
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={customChip}
+                  onChange={e => setCustomChip(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.key === 'Enter' || e.key === ',') && customChip.trim()) {
+                      e.preventDefault()
+                      const chip = customChip.trim().replace(/,$/, '')
+                      if (chip) setManifestation(prev => prev.trim() ? `${prev.trim()}, ${chip}` : chip)
+                      setCustomChip('')
+                    }
+                  }}
+                  placeholder="Custom..."
+                  style={{ ...inp, width: 100, padding: '3px 8px', fontSize: 9 }}
+                />
+                {customChip.trim() && (
+                  <button
+                    type="button"
+                    onMouseDown={e => {
+                      e.preventDefault()
+                      const chip = customChip.trim()
+                      if (chip) setManifestation(prev => prev.trim() ? `${prev.trim()}, ${chip}` : chip)
+                      setCustomChip('')
+                    }}
+                    style={{ padding: '3px 8px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                    + Add
+                  </button>
+                )}
+              </div>
             </div>
-            <textarea value={manifestation} onChange={e => setManifestation(e.target.value)}
-              rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="Describe the physical or emotional manifestation..." />
+            <div style={{ position: 'relative' }}>
+              <textarea value={manifestation} onChange={e => setManifestation(e.target.value)}
+                rows={3} style={{ ...inp, resize: 'vertical', paddingRight: 110 }} placeholder="Describe the physical or emotional manifestation..." />
+              <button
+                type="button"
+                disabled={aiLoadingManif}
+                onMouseDown={async e => {
+                  e.preventDefault()
+                  if (aiLoadingManif) return
+                  setAiLoadingManif(true)
+                  try {
+                    const token = await getToken()
+                    const hotspotLabel = BM_HOTSPOT_OPTIONS.find(o => o.id === hotspotId)?.label || hotspotId
+                    const spiritContext = selectedSpirits.length > 0 ? `Spirits: ${selectedSpirits.join(', ')}. ` : ''
+                    const prompt = `You are a deliverance ministry assistant. Generate a concise list of physical and emotional manifestations for the body location "${hotspotLabel}" (${bodyPart}${region ? `, ${region}` : ''}). ${spiritContext}${manifestation ? `Existing: "${manifestation}". Expand or improve this.` : 'List common manifestations seen in deliverance ministry for this area.'} Return only the manifestations as a comma-separated list, no preamble.`
+                    const res = await fetch('/api/ai-assistant', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ message: prompt, history: [] }),
+                    })
+                    const data = await res.json()
+                    if (data.response) setManifestation(data.response.trim())
+                  } catch {}
+                  setAiLoadingManif(false)
+                }}
+                style={{ position: 'absolute', top: 6, right: 6, padding: '3px 8px', background: aiLoadingManif ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: aiLoadingManif ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                {aiLoadingManif ? '...' : '✦ AI Complete'}
+              </button>
+            </div>
           </div>
 
           {/* Source */}
@@ -1397,8 +1458,36 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
           {/* Notes */}
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>NOTES</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)}
-              rows={2} style={{ ...inp, resize: 'vertical' }} />
+            <div style={{ position: 'relative' }}>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                rows={2} style={{ ...inp, resize: 'vertical', paddingRight: 110 }} />
+              <button
+                type="button"
+                disabled={aiLoadingNotes}
+                onMouseDown={async e => {
+                  e.preventDefault()
+                  if (aiLoadingNotes) return
+                  setAiLoadingNotes(true)
+                  try {
+                    const token = await getToken()
+                    const hotspotLabel = BM_HOTSPOT_OPTIONS.find(o => o.id === hotspotId)?.label || hotspotId
+                    const spiritContext = selectedSpirits.length > 0 ? `Spirits involved: ${selectedSpirits.join(', ')}. ` : ''
+                    const manifContext = manifestation ? `Manifestations: "${manifestation}". ` : ''
+                    const prompt = `You are a deliverance ministry assistant. Write brief minister notes for the body location "${hotspotLabel}" (${bodyPart}${region ? `, ${region}` : ''}). ${spiritContext}${manifContext}${notes ? `Existing notes: "${notes}". Expand or improve.` : 'Include prayer approach, scriptural basis, and what to watch for during deliverance.'} Be concise and practical. Return only the notes text, no preamble.`
+                    const res = await fetch('/api/ai-assistant', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ message: prompt, history: [] }),
+                    })
+                    const data = await res.json()
+                    if (data.response) setNotes(data.response.trim())
+                  } catch {}
+                  setAiLoadingNotes(false)
+                }}
+                style={{ position: 'absolute', top: 6, right: 6, padding: '3px 8px', background: aiLoadingNotes ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: aiLoadingNotes ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                {aiLoadingNotes ? '...' : '✦ AI Complete'}
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
