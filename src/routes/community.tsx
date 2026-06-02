@@ -4368,6 +4368,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   )
 }
 
+function cleanArsenalTitle(title: string): string {
+  return title
+    .replace(/_arsenal(\.pdf|\.docx)?$/i, '')
+    .replace(/\.(pdf|docx)$/i, '')
+    .trim()
+}
+
 // ── ARSENAL VIEW ──────────────────────────────────────────
 function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
@@ -4382,13 +4389,20 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
 
   // ARSENAL ONLY — reads from resources table via /api/arsenal-resources (source_type='arsenal')
   // DO NOT merge this state with any library state — these are separate features with separate DB rows
-  const [arsenalItems, setArsenalItems]     = useState<any[]>([])
-  const [arsenalLoading, setArsenalLoading] = useState(true)
-  const [arsenalError, setArsenalError]     = useState('')
-  const [query, setQuery]           = useState('')
-  const [tierFilter, setTierFilter] = useState('All')
-  const [topicFilter, setTopicFilter] = useState('')
-  const [tagFilter, setTagFilter]   = useState('')
+  const [arsenalItems, setArsenalItems]         = useState<any[]>([])
+  const [arsenalLoading, setArsenalLoading]     = useState(true)
+  const [arsenalError, setArsenalError]         = useState('')
+  const [query, setQuery]                       = useState('')
+  const [tierFilter, setTierFilter]             = useState('All')
+  const [topicFilter, setTopicFilter]           = useState('')
+  const [tagFilter, setTagFilter]               = useState('')
+  const [selectedArsenalIds, setSelectedArsenalIds] = useState<Set<string>>(new Set())
+  const [showMassDeleteConfirm, setShowMassDeleteConfirm] = useState(false)
+  const [massDeleting, setMassDeleting]         = useState(false)
+  const [massEditTier, setMassEditTier]         = useState('')
+  const [massEditTopic, setMassEditTopic]       = useState('')
+  const [massApplying, setMassApplying]         = useState(false)
+  const isMinister = userTier === 'minister'
 
   const ARSENAL_TOPICS = [
     'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
@@ -4427,6 +4441,49 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     load()
   }, [])
 
+  async function handleMassDelete() {
+    setMassDeleting(true)
+    try {
+      const token = await getToken()
+      const ids = Array.from(selectedArsenalIds).join(',')
+      await fetch(`/api/admin-resources?ids=${encodeURIComponent(ids)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setArsenalItems(prev => prev.filter(i => !selectedArsenalIds.has(i.id)))
+      setSelectedArsenalIds(new Set())
+      setShowMassDeleteConfirm(false)
+    } catch { /* silent */ }
+    setMassDeleting(false)
+  }
+
+  async function handleMassEdit() {
+    if (!massEditTier && !massEditTopic) return
+    setMassApplying(true)
+    try {
+      const token = await getToken()
+      const body: any = { ids: [...selectedArsenalIds] }
+      if (massEditTier)  body.tier  = massEditTier
+      if (massEditTopic) body.topic = massEditTopic
+      const res = await fetch('/api/admin-resources', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setArsenalItems(prev => prev.map(r =>
+          selectedArsenalIds.has(r.id)
+            ? { ...r, ...(massEditTier ? { tier: massEditTier } : {}), ...(massEditTopic ? { topic: massEditTopic } : {}) }
+            : r
+        ))
+        setSelectedArsenalIds(new Set())
+        setMassEditTier('')
+        setMassEditTopic('')
+      }
+    } catch { /* silent */ }
+    setMassApplying(false)
+  }
+
   const FILE_ICONS: Record<string, string> = {
     'application/pdf': '📄',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '📝',
@@ -4456,19 +4513,27 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 4)
 
-  const ResourceCard = ({ resource }: { resource: any }) => {
+  const ResourceCard = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
     const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
     const icon   = FILE_ICONS[resource.file_type] || '📄'
     const sizeMB = resource.file_size ? (resource.file_size / 1024 / 1024).toFixed(1) : null
     const tc     = TIER_COLORS[resource.tier] || G
 
     return (
-      <div style={{ background: surface, border: `1px solid ${hasAccess ? border : 'rgba(201,168,76,0.25)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '16px 18px', opacity: hasAccess ? 1 : 0.9 }}>
+      <div style={{ position: 'relative', background: surface, border: `1px solid ${isSelected ? 'rgba(201,168,76,0.6)' : hasAccess ? border : 'rgba(201,168,76,0.25)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: onToggle ? '16px 18px 16px 36px' : '16px 18px', opacity: hasAccess ? 1 : 0.9 }}>
+        {onToggle && (
+          <input
+            type="checkbox"
+            checked={!!isSelected}
+            onChange={e => { e.stopPropagation(); onToggle(resource.id) }}
+            style={{ position: 'absolute', top: 12, left: 12, accentColor: '#C9A84C', width: 16, height: 16, cursor: 'pointer', zIndex: 10 }}
+          />
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <span style={{ fontSize: 16 }}>{icon}</span>
-              <span style={{ fontFamily: cinzel, fontSize: 13, color: hasAccess ? G : muted, fontWeight: 600 }}>{resource.title}</span>
+              <span style={{ fontFamily: cinzel, fontSize: 13, color: hasAccess ? G : muted, fontWeight: 600 }}>{cleanArsenalTitle(resource.title || '')}</span>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, alignItems: 'center' }}>
               <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${tc}20`, color: tc, border: `1px solid ${tc}40`, letterSpacing: '0.06em' }}>{(resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier}</span>
@@ -4556,17 +4621,25 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         </div>
       </div>
 
+      {/* Minister-only: Select All / Deselect All controls */}
+      {isMinister && arsenalItems.length > 0 && !arsenalLoading && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+          <button onClick={() => setSelectedArsenalIds(new Set(arsenalItems.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Select All ({arsenalItems.length})</button>
+          {selectedArsenalIds.size > 0 && <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Deselect All</button>}
+        </div>
+      )}
+
       {arsenalLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: cinzel, fontSize: 13 }}>Loading arsenal...</div>
       ) : arsenalError ? (
         <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{arsenalError}</div>
       ) : (
-        <>
+        <div style={{ paddingBottom: isMinister && selectedArsenalIds.size > 0 ? 72 : 0 }}>
           {!query && tierFilter === 'All' && !topicFilter && !tagFilter && recent.length > 0 && (
             <div style={{ marginBottom: 32 }}>
               <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>Recently Added</div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-                {recent.map(r => <ResourceCard key={r.id} resource={r} />)}
+                {recent.map(r => <ResourceCard key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
               </div>
             </div>
           )}
@@ -4580,11 +4653,53 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-                {filtered.map(r => <ResourceCard key={r.id} resource={r} />)}
+                {filtered.map(r => <ResourceCard key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
               </div>
             )}
           </div>
-        </>
+        </div>
+      )}
+
+      {/* Minister floating action bar */}
+      {isMinister && selectedArsenalIds.size > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1A1626', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', flexWrap: 'wrap' as const, maxWidth: '90vw' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>{selectedArsenalIds.size} SELECTED</span>
+          <button onClick={() => setSelectedArsenalIds(new Set(arsenalItems.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 10px', fontFamily: cinzel, fontSize: 9, color: muted, cursor: 'pointer' }}>Select All</button>
+          <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 10px', fontFamily: cinzel, fontSize: 9, color: muted, cursor: 'pointer' }}>Deselect All</button>
+          <select value={massEditTier} onChange={e => setMassEditTier(e.target.value)} style={{ background: '#0D0B14', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTier ? '#E8D5B0' : '#8B7355', fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+            <option value=''>Tier...</option>
+            {['watchman','soldier','commander','general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+          </select>
+          <select value={massEditTopic} onChange={e => setMassEditTopic(e.target.value)} style={{ background: '#0D0B14', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTopic ? '#E8D5B0' : '#8B7355', fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+            <option value=''>Topic...</option>
+            {ARSENAL_TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          {(massEditTier || massEditTopic) && (
+            <button onClick={handleMassEdit} disabled={massApplying} style={{ background: massApplying ? 'rgba(201,168,76,0.2)' : G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: massApplying ? 'not-allowed' : 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>
+              {massApplying ? '…' : '⊕ Apply'}
+            </button>
+          )}
+          <button onClick={() => setShowMassDeleteConfirm(true)} style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>🗑 Delete</button>
+          <button onClick={() => { setSelectedArsenalIds(new Set()); setMassEditTier(''); setMassEditTopic('') }} style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '6px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: muted }}>✕</button>
+        </div>
+      )}
+
+      {/* Mass delete confirmation modal */}
+      {showMassDeleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1A1626', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 12, padding: 32, maxWidth: 400, width: '90%', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 15, color: '#f87171', marginBottom: 12, letterSpacing: '0.1em' }}>⚠ DELETE {selectedArsenalIds.size} ARSENAL ITEM{selectedArsenalIds.size !== 1 ? 'S' : ''}?</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: '#8B7355', marginBottom: 24, lineHeight: 1.6 }}>
+              This permanently deletes {selectedArsenalIds.size} file{selectedArsenalIds.size !== 1 ? 's' : ''} from Arsenal and storage. This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={handleMassDelete} disabled={massDeleting} style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 6, padding: '10px 24px', color: '#f87171', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: massDeleting ? 'wait' : 'pointer', fontWeight: 700 }}>
+                {massDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+              <button onClick={() => setShowMassDeleteConfirm(false)} style={{ background: 'transparent', border: `1px solid ${G}`, borderRadius: 6, padding: '10px 24px', color: G, fontFamily: cinzel, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
