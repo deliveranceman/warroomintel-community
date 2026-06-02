@@ -97,7 +97,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   }
 
   const sectionLabel = (label: string) => (
-    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: '#7a6d58' }}>
+    <div style={{ padding: '12px 16px 4px 16px', fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em', color: '#7a6d58' }}>
       {label}
     </div>
   )
@@ -112,7 +112,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         textAlign: 'left', boxSizing: 'border-box',
       }}
     >
-      <span style={{ flex: 1, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: '#7a6d58', textTransform: 'uppercase' as const }}>{label}</span>
+      <span style={{ flex: 1, fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em', color: '#7a6d58', textTransform: 'uppercase' as const }}>{label}</span>
       <span style={{ fontSize: 12, color: '#7a6d58', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
     </button>
   )
@@ -312,7 +312,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
               padding: '10px 16px 6px', boxSizing: 'border-box',
               background: 'transparent', border: 'none', cursor: 'pointer',
-              fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em',
+              fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em',
               color: '#7a6d58', textTransform: 'uppercase' as const,
               textAlign: 'left' as const,
             }}
@@ -476,7 +476,7 @@ function SubPageBottomNav({ activeItem: _activeItem }: { activeItem: string }) {
     alignItems: 'center', justifyContent: 'center', gap: 3,
     textDecoration: 'none', padding: '8px 0',
     color: isActive ? G : 'rgba(201,168,76,0.4)',
-    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em',
+    fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.06em',
   })
 
   return (
@@ -484,7 +484,7 @@ function SubPageBottomNav({ activeItem: _activeItem }: { activeItem: string }) {
       <nav style={{
         position: 'fixed',
         bottom: 0, left: 0, right: 0,
-        height: 66,
+        height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))',
         background: '#0f0c07',
         borderTop: '1px solid rgba(201,168,76,0.2)',
         display: 'flex',

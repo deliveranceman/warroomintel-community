@@ -111,8 +111,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" data-theme="dark">
       <head>
         <HeadContent />
-        {/* Apply stored light preference before first paint; dark is server default */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){if(localStorage.getItem('wri-theme')==='light')document.documentElement.dataset.theme='light';})()` }} />
+        {/* Force dark theme — WRI is always dark */}
+        <script dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme='dark'` }} />
       </head>
       <body>
         <ClerkProvider

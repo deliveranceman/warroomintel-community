@@ -9370,7 +9370,7 @@ function CommunityPage() {
       </div>
 
       {/* ── CENTER ── */}
-      <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100dvh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: '100%', paddingBottom: isMobile ? 'calc(120px + env(safe-area-inset-bottom, 0px))' : undefined }}>
+      <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100dvh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: '100%', paddingBottom: isMobile ? 'calc(var(--bottom-nav-h) + var(--safe-bottom) + 8px)' : undefined }}>
 
         {/* Push notification banner */}
         {showPushBanner && !pushSubscribed && typeof window !== 'undefined' && 'Notification' in window && (() => {

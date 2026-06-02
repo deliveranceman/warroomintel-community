@@ -381,12 +381,12 @@ Format as a numbered list. Be specific to ${spirit.name}, not generic deliveranc
         {companions.length > 0 && (
           <section style={{ marginBottom: 32 }}>
             <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 14 }}>COMPANION SPIRITS</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8, width: '100%', maxWidth: '100%' }}>
               {companions.map(name => {
                 const found = demons.find(d => d.name.toLowerCase() === name.toLowerCase())
                 return (
                   <button key={name} onClick={() => found && onSelectSpirit(found)}
-                    style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${found ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.18)'}`, borderRadius: 20, padding: '6px 14px', cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', color: found ? GC : DIM }}
+                    style={{ minWidth: 0, background: 'rgba(201,168,76,0.06)', border: `1px solid ${found ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.18)'}`, borderRadius: 20, padding: '6px 14px', cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', color: found ? GC : DIM }}
                     onMouseEnter={e => { if (found) e.currentTarget.style.background = 'rgba(201,168,76,0.14)' }}
                     onMouseLeave={e => { if (found) e.currentTarget.style.background = 'rgba(201,168,76,0.06)' }}>
                     {found ? '⚔ ' : ''}{name}
@@ -594,12 +594,12 @@ function MobileDossier({ spirit, demons, resources, loadingResources, onSelectSp
       )}
 
       {companions.length > 0 && section('COMPANION SPIRITS',
-        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6, width: '100%', maxWidth: '100%' }}>
           {companions.map(name => {
             const found = demons.find(d => d.name.toLowerCase() === name.toLowerCase())
             return (
               <button key={name} onClick={() => found && onSelectSpirit(found)}
-                style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${found ? 'rgba(201,168,76,0.5)' : MUT}`, borderRadius: 20, padding: '5px 12px', cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 9, color: found ? GC : DIM }}>
+                style={{ minWidth: 0, background: 'rgba(201,168,76,0.06)', border: `1px solid ${found ? 'rgba(201,168,76,0.5)' : MUT}`, borderRadius: 20, padding: '5px 12px', cursor: found ? 'pointer' : 'default', fontFamily: cinzel, fontSize: 9, color: found ? GC : DIM }}>
                 {found ? '⚔ ' : ''}{name}
               </button>
             )
