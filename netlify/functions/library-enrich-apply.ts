@@ -69,23 +69,71 @@ export default async function handler(req: Request) {
   }
 
   if (action === 'reject') {
-    await supabase
+    const { error: rejectErr } = await supabase
       .from('library_enrichment_suggestions')
       .update({ status: 'rejected' })
       .eq('id', suggestionId)
-
+    if (rejectErr) {
+      console.error('[ENRICH-APPLY] reject failed:', rejectErr.message)
+      return new Response(JSON.stringify({ error: `Reject failed: ${rejectErr.message}` }), { status: 500, headers: CORS })
+    }
+    // Also record in enrichment_rejected for future generation exclusion
+    await supabase.from('enrichment_rejected').insert({
+      spirit_name: suggestion.spirit_name,
+      source_book: suggestion.book_title || null,
+    }).catch(() => {})
     return new Response(JSON.stringify({ success: true, action: 'rejected', spiritName: suggestion.spirit_name }), { status: 200, headers: CORS })
   }
 
+  if (action === 'patch_fields') {
+    const { fields } = body
+    if (!fields || typeof fields !== 'object') {
+      return new Response(JSON.stringify({ error: 'fields object required' }), { status: 400, headers: CORS })
+    }
+    const { error: patchErr } = await supabase
+      .from('library_enrichment_suggestions')
+      .update({ proposed_fields: fields })
+      .eq('id', suggestionId)
+    if (patchErr) return new Response(JSON.stringify({ error: patchErr.message }), { status: 500, headers: CORS })
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS })
+  }
+
+  if (action === 'ai_fill_field') {
+    const { fieldName, currentValue, spiritName, bookTitle } = body
+    if (!fieldName) return new Response(JSON.stringify({ error: 'fieldName required' }), { status: 400, headers: CORS })
+    if (!process.env.ANTHROPIC_API_KEY) return new Response(JSON.stringify({ error: 'AI not configured' }), { status: 500, headers: CORS })
+
+    const prompt = `You are assisting a deliverance ministry database. Improve or complete this field for the spirit/demon "${spiritName}" from the book "${bookTitle}".
+
+Field: ${fieldName}
+Current value: ${currentValue || '(empty)'}
+
+Rewrite this field with accurate, specific deliverance ministry content. Be concise and professional. Return only the improved field text — no labels, no preamble.`
+
+    try {
+      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
+      })
+      const aiData = await aiRes.json()
+      const value = aiData.content?.[0]?.text?.trim() || ''
+      return new Response(JSON.stringify({ success: true, value }), { status: 200, headers: CORS })
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })
+    }
+  }
+
   if (action !== 'approve') {
-    return new Response(JSON.stringify({ error: 'action must be approve or reject' }), { status: 400, headers: CORS })
+    return new Response(JSON.stringify({ error: 'action must be approve, reject, patch_fields, or ai_fill_field' }), { status: 400, headers: CORS })
   }
 
   if (!AIRTABLE_TOKEN) {
     return new Response(JSON.stringify({ error: 'AIRTABLE_TOKEN not configured' }), { status: 500, headers: CORS })
   }
 
-  const proposedFields: Record<string, string> = suggestion.proposed_fields || {}
+  // Accept caller-supplied field overrides (e.g. after AI-fill edits)
+  const proposedFields: Record<string, string> = body.proposedFields || suggestion.proposed_fields || {}
 
   try {
     if (suggestion.action === 'enrich' && suggestion.existing_record_id) {

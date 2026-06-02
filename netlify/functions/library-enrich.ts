@@ -327,23 +327,38 @@ Return ONLY this JSON (no markdown, start with {):
     .eq('resource_id', resourceId)
     .eq('status', 'pending')
 
+  // Exclude spirits already rejected for this resource (either via suggestions or enrichment_rejected)
+  const { data: rejectedRows } = await supabase
+    .from('library_enrichment_suggestions')
+    .select('spirit_name')
+    .eq('resource_id', resourceId)
+    .eq('status', 'rejected')
+  const { data: enrichmentRejected } = await supabase
+    .from('enrichment_rejected')
+    .select('spirit_name')
+  const rejectedNames = new Set<string>([
+    ...(rejectedRows || []).map((r: any) => (r.spirit_name || '').toLowerCase().trim()),
+    ...(enrichmentRejected || []).map((r: any) => (r.spirit_name || '').toLowerCase().trim()),
+  ])
+  const filteredSuggestions = suggestions.filter(s => !rejectedNames.has((s.spirit_name || '').toLowerCase().trim()))
+
   let savedCount = 0
-  if (suggestions.length > 0) {
+  if (filteredSuggestions.length > 0) {
     const { error: saveErr } = await supabase
       .from('library_enrichment_suggestions')
-      .insert(suggestions)
+      .insert(filteredSuggestions)
 
     if (saveErr) {
       console.error('[ENRICH] Save failed:', saveErr.message)
     } else {
-      savedCount = suggestions.length
-      console.log('[ENRICH] Saved', savedCount, 'suggestions')
+      savedCount = filteredSuggestions.length
+      console.log('[ENRICH] Saved', savedCount, 'suggestions (filtered', suggestions.length - filteredSuggestions.length, 'previously rejected)')
     }
   }
 
   const timeUsed    = Date.now() - start
-  const enrichCount = suggestions.filter(s => s.action === 'enrich').length
-  const addCount    = suggestions.filter(s => s.action === 'add').length
+  const enrichCount = filteredSuggestions.filter(s => s.action === 'enrich').length
+  const addCount    = filteredSuggestions.filter(s => s.action === 'add').length
 
   return new Response(JSON.stringify({
     success:              true,

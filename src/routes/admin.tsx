@@ -1559,6 +1559,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [dupeSearch, setDupeSearch] = useState('')
   const [searchMergeA, setSearchMergeA] = useState<any | null>(null)
   const [bulkResolving, setBulkResolving] = useState(false)
+  const [resolvedPairs, setResolvedPairs] = useState<Set<string>>(new Set())
 
   function setDecision(key: string, status: 'accepted' | 'skipped' | 'pending') {
     setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), status, editing: false } }))
@@ -1602,7 +1603,22 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     const mx = Math.max(a.length, b.length)
     return mx === 0 ? 1 : 1 - editDistance(a, b) / mx
   }
-  function scanDupes() {
+  function makePairKey(a: string, b: string): string {
+    return [a.toLowerCase().trim(), b.toLowerCase().trim()].sort().join('|||')
+  }
+
+  async function recordDupeResolution(nameA: string, nameB: string, resolution: string) {
+    const token = await getToken()
+    if (!token) return
+    await fetch('/api/duplicate-resolutions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spirit_name_a: nameA, spirit_name_b: nameB, resolution }),
+    }).catch(() => {})
+    setResolvedPairs(prev => new Set([...prev, makePairKey(nameA, nameB)]))
+  }
+
+  function scanDupes(knownResolved?: Set<string>) {
     const result: Array<{ key: string; type: 'exact' | 'near' | 'fuzzy'; entries: any[] }> = []
     const usedIds = new Set<string>()
     // Pass 1: exact
@@ -1654,7 +1670,19 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         }
       }
     }
-    setDupeGroups(result)
+    // Filter out pairs that have already been resolved
+    const resolved = knownResolved || resolvedPairs
+    const filtered = result.filter(group => {
+      if (resolved.size === 0) return true
+      for (let i = 0; i < group.entries.length; i++) {
+        for (let j = i + 1; j < group.entries.length; j++) {
+          const key = makePairKey(group.entries[i].name || '', group.entries[j].name || '')
+          if (!resolved.has(key)) return true
+        }
+      }
+      return false
+    })
+    setDupeGroups(filtered)
     setDupeScanned(true)
   }
 
@@ -1669,6 +1697,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     }
     setDupeGroups(prev => prev.filter(g => g.key !== group.key))
     setDupeLog(prev => [...prev, `Kept "${group.entries[keepIdx].name}" — deleted ${toDelete.length} duplicate${toDelete.length !== 1 ? 's' : ''}`])
+    for (const d of toDelete) {
+      recordDupeResolution(group.entries[keepIdx].name || '', d.name || '', 'kept_one')
+    }
     setDupeResolving(null)
     fetchDemons()
   }
@@ -1687,6 +1718,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       setDupeGroups(prev => prev.map(g => g.key === group.key ? { ...g, entries: remaining } : g))
     }
     setDupeLog(prev => [...prev, `Deleted duplicate "${d.name}"`])
+    const keeper = group.entries.find((_: any, i: number) => i !== delIdx)
+    if (keeper) recordDupeResolution(keeper.name || '', d.name || '', 'deleted')
     setDupeResolving(null)
     fetchDemons()
   }
@@ -1740,6 +1773,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       if (res.ok) {
         const key = mergeTarget.groupKey
         setDupeLog(prev => [...prev, `Merged "${mergeTarget.a.name}" + "${mergeTarget.b.name}" — kept A, deleted B`])
+        recordDupeResolution(mergeTarget.a.name || '', mergeTarget.b.name || '', 'merged')
         setDupeGroups(prev => prev.filter(g => g.key !== key))
         setMergeTarget(null)
         fetchDemons()
@@ -2670,7 +2704,19 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             <>
               {/* Action bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const }}>
-                <button onClick={scanDupes}
+                <button onClick={async () => {
+                    const token = await getToken()
+                    let pairs = resolvedPairs
+                    if (token) {
+                      const res = await fetch('/api/duplicate-resolutions', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+                      if (res?.ok) {
+                        const data = await res.json().catch(() => ({}))
+                        pairs = new Set<string>((data.resolutions || []).map((r: any) => makePairKey(r.spirit_name_a, r.spirit_name_b)))
+                        setResolvedPairs(pairs)
+                      }
+                    }
+                    scanDupes(pairs)
+                  }}
                   style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
                   🔍 Scan {demons.length} Spirits
                 </button>
@@ -2787,12 +2833,31 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                             <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{group.entries.length} ENTRIES</span>
                             {dupeResolving === group.key && <span style={{ fontFamily: cinzel, fontSize: 8, color: G }}>RESOLVING...</span>}
                           </div>
-                          {group.entries.length === 2 && (
-                            <button onClick={() => openMerge(group.key, group.entries[0], group.entries[1])}
-                              style={{ padding: '5px 14px', background: G, border: 'none', borderRadius: 4, color: BG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
-                              ⚔ MERGE
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {group.entries.length === 2 && (
+                              <button onClick={() => openMerge(group.key, group.entries[0], group.entries[1])}
+                                style={{ padding: '5px 14px', background: G, border: 'none', borderRadius: 4, color: BG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
+                                ⚔ MERGE
+                              </button>
+                            )}
+                            <button
+                              onClick={async () => {
+                                setDupeResolving(group.key)
+                                const names = group.entries.map((e: any) => e.name || '')
+                                for (let i = 0; i < names.length; i++) {
+                                  for (let j = i + 1; j < names.length; j++) {
+                                    await recordDupeResolution(names[i], names[j], 'not_duplicate')
+                                  }
+                                }
+                                setDupeGroups(prev => prev.filter(g => g.key !== group.key))
+                                setDupeLog(prev => [...prev, `Skipped "${group.entries.map((e: any) => e.name).join(' / ')}" — marked not a duplicate`])
+                                setDupeResolving(null)
+                              }}
+                              disabled={!!dupeResolving}
+                              style={{ padding: '5px 12px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: dupeResolving ? 'default' : 'pointer' }}>
+                              Skip
                             </button>
-                          )}
+                          </div>
                         </div>
                         {group.entries.map((d, idx) => (
                           <div key={d.airtableId || idx} style={{ padding: '10px 14px', borderBottom: idx < group.entries.length - 1 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -6398,6 +6463,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [addingSpirit, setAddingSpirit] = useState<any | null>(null)
   const [addSuccess, setAddSuccess] = useState<string | null>(null)
   const [selectedGaps, setSelectedGaps] = useState<number[]>([])
+  const [dismissingGap, setDismissingGap] = useState<Set<string>>(new Set())
   const [bulkAdding, setBulkAdding]     = useState(false)
   const [bulkProgress, setBulkProgress] = useState('')
   const [bulkComplete, setBulkComplete] = useState<{ succeeded: number; failed: number; duplicates: number; total: number; newDbTotal: number } | null>(null)
@@ -6427,6 +6493,16 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     }
   }
 
+  async function dismissGapItems(items: { name: string; source?: string }[]) {
+    const token = await getToken()
+    if (!token) return
+    await fetch('/api/gap-analysis-dismissed', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items.map(i => ({ spirit_name: i.name, source_book: i.source || null })) }),
+    }).catch(() => {})
+  }
+
   async function runGapAnalysis() {
     setGapLoading(true)
     setGapStatus('Analyzing your library... this may take 30–60 seconds')
@@ -6439,22 +6515,32 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       console.log('[FRONTEND] gap-analysis token present:', !!token, 'length:', token?.length)
       const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
       if (token) reqHeaders['Authorization'] = `Bearer ${token}`
-      const res = await fetch('/api/library-intelligence', {
-        method: 'POST',
-        headers: reqHeaders,
-        body: JSON.stringify({ tool: 'gap-analysis' }),
-      })
+
+      // Fetch dismissed names in parallel with the analysis
+      const [res, dismissedRes] = await Promise.all([
+        fetch('/api/library-intelligence', {
+          method: 'POST',
+          headers: reqHeaders,
+          body: JSON.stringify({ tool: 'gap-analysis' }),
+        }),
+        fetch('/api/gap-analysis-dismissed', { headers: reqHeaders }),
+      ])
+
       const data = await res.json()
       if (!res.ok) { setGapError(data.error || 'Analysis failed'); return }
+
+      const dismissedData = await dismissedRes.json().catch(() => ({}))
+      const dismissedNames = new Set<string>((dismissedData.dismissed || []).map((d: any) => (d.spirit_name || '').toLowerCase().trim()))
 
       // Client-side dedup — fetch fresh Airtable names as belt-and-suspenders
       const { names, total } = await fetchDemonNames()
       setExistingSpiritNames(names)
       setExistingSpiritTotal(total)
 
-      const genuinelyNew = (data.gaps || []).filter((g: any) =>
-        !names.has((g.name || '').toLowerCase().trim())
-      )
+      const genuinelyNew = (data.gaps || []).filter((g: any) => {
+        const nl = (g.name || '').toLowerCase().trim()
+        return !names.has(nl) && !dismissedNames.has(nl)
+      })
       setGapResults(genuinelyNew)
       setGapSummary(data.summary || '')
       setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: total, bookCount: data.bookCount || 0 })
@@ -6659,8 +6745,9 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
           setAddSuccess(`${spiritName} added — database now has ~${(gapMeta?.spiritCount ?? 0) + 1} spirits`)
         }
         setAddingSpirit(null)
-        // Remove from gap results regardless — either added or already there
+        // Remove from gap results and permanently dismiss
         setGapResults((prev: any[]) => prev.filter((r: any) => (r.name || r.spirit_name) !== spiritName))
+        dismissGapItems([{ name: spiritName, source: spirit.source || '' }])
         setTimeout(() => setAddSuccess(null), 5000)
       }
     } catch {}
@@ -6741,7 +6828,12 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
                     {bulkAdding ? 'ADDING...' : `+ ADD ${selectedGaps.length} TO DATABASE`}
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      const items = selectedGaps.map(i => ({
+                        name: gapResults[i].name || gapResults[i].spirit_name || '',
+                        source: gapResults[i].source || gapResults[i].source_document || '',
+                      })).filter(x => x.name)
+                      await dismissGapItems(items)
                       setGapResults((prev: any[]) => prev.filter((_: any, i: number) => !selectedGaps.includes(i)))
                       setSelectedGaps([])
                     }}
@@ -6804,9 +6896,22 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
                           Already in DB
                         </span>
                       ) : (
-                        <button onClick={() => handleAddWithAI(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
-                          + Add to DB
-                        </button>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button onClick={() => handleAddWithAI(r)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: '#0D0B14', background: G2, border: 'none', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                            + Add to DB
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const name = r.name || r.spirit_name || ''
+                              setDismissingGap(prev => new Set([...prev, name]))
+                              await dismissGapItems([{ name, source: r.source || r.source_document || '' }])
+                              setGapResults((prev: any[]) => prev.filter((x: any) => (x.name || x.spirit_name) !== name))
+                              setDismissingGap(prev => { const s = new Set(prev); s.delete(name); return s })
+                            }}
+                            style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color: mut2, background: 'transparent', border: `1px solid ${bdr2}`, borderRadius: 4, padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                            {dismissingGap.has(r.name || r.spirit_name || '') ? '…' : 'Dismiss'}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -9499,6 +9604,9 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   const [loading, setLoading]         = useState(true)
   const [filter, setFilter]           = useState<'all' | 'enrich' | 'add' | 'high'>('all')
   const [applying, setApplying]       = useState<Record<string, boolean>>({})
+  const [cardErrors, setCardErrors]   = useState<Record<string, string>>({})
+  const [editedFields, setEditedFields] = useState<Record<string, Record<string, string>>>({})
+  const [aiFillingField, setAiFillingField] = useState<Record<string, boolean>>({})
 
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
@@ -9522,18 +9630,60 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     setLoading(false)
   }
 
+  async function handleAIFillField(sugId: string, fieldName: string, spiritName: string, bookTitle: string) {
+    const key = `${sugId}:${fieldName}`
+    setAiFillingField(prev => ({ ...prev, [key]: true }))
+    try {
+      const token = await getToken()
+      const sug = suggestions.find(s => s.id === sugId)
+      const currentValue = editedFields[sugId]?.[fieldName] ?? sug?.proposed_fields?.[fieldName] ?? ''
+      const res = await fetch('/api/library-enrich-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ suggestionId: sugId, action: 'ai_fill_field', fieldName, currentValue, spiritName, bookTitle }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.value) {
+          setEditedFields(prev => ({ ...prev, [sugId]: { ...(prev[sugId] || {}), [fieldName]: data.value } }))
+        }
+      }
+    } catch {}
+    setAiFillingField(prev => { const n = { ...prev }; delete n[key]; return n })
+  }
+
   async function handleApply(id: string, action: 'approve' | 'reject') {
+    setCardErrors(prev => { const n = { ...prev }; delete n[id]; return n })
+    // Optimistic remove for reject
+    if (action === 'reject') setSuggestions(prev => prev.filter(s => s.id !== id))
     setApplying(prev => ({ ...prev, [id]: true }))
     try {
       const token = await getToken()
-      const res   = await fetch('/api/library-enrich-apply', {
+      const sug = suggestions.find(s => s.id === id)
+      const localEdits = editedFields[id] || {}
+      const body: any = { suggestionId: id, action }
+      if (action === 'approve' && Object.keys(localEdits).length > 0 && sug) {
+        body.proposedFields = { ...(sug.proposed_fields || {}), ...localEdits }
+      }
+      const res = await fetch('/api/library-enrich-apply', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ suggestionId: id, action }),
+        body:    JSON.stringify(body),
       })
       if (res.ok) {
         setSuggestions(prev => prev.filter(s => s.id !== id))
+      } else {
+        const data = await res.json().catch(() => ({}))
+        const errMsg = data.error || 'Action failed'
+        if (action === 'reject') {
+          // Undo optimistic remove — reload
+          await loadSuggestions()
+        }
+        setCardErrors(prev => ({ ...prev, [id]: errMsg }))
       }
+    } catch (e: any) {
+      if (action === 'reject') await loadSuggestions()
+      setCardErrors(prev => ({ ...prev, [id]: e.message || 'Network error' }))
     } finally {
       setApplying(prev => { const n = { ...prev }; delete n[id]; return n })
     }
@@ -9657,15 +9807,40 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
             </div>
           )}
 
-          {/* Proposed fields */}
-          {Object.entries(s.proposed_fields || {}).map(([field, value]: [string, any]) => (
-            <div key={field} style={{ marginBottom: 6 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#6b5e45', letterSpacing: '0.08em' }}>{field}: </span>
-              <span style={{ fontFamily: crimson, fontSize: 13, color: '#8a7a60' }}>
-                {String(value).slice(0, 150)}{String(value).length > 150 ? '...' : ''}
-              </span>
+          {/* Inline error */}
+          {cardErrors[s.id] && (
+            <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, fontFamily: crimson, fontSize: 12, color: '#f87171' }}>
+              ⚠ {cardErrors[s.id]}
             </div>
-          ))}
+          )}
+
+          {/* Proposed fields — editable with AI fill */}
+          {Object.entries(s.proposed_fields || {}).map(([field, value]: [string, any]) => {
+            const aiKey = `${s.id}:${field}`
+            const currentVal = editedFields[s.id]?.[field] ?? String(value)
+            const isDirty = editedFields[s.id]?.[field] !== undefined
+            return (
+              <div key={field} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: isDirty ? gold : '#6b5e45', letterSpacing: '0.08em' }}>
+                    {field}{isDirty ? ' ✎' : ''}
+                  </span>
+                  <button
+                    onClick={() => handleAIFillField(s.id, field, s.spirit_name, s.book_title)}
+                    disabled={aiFillingField[aiKey]}
+                    style={{ background: 'transparent', border: `1px solid ${aiFillingField[aiKey] ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 3, padding: '2px 8px', fontSize: 8, color: aiFillingField[aiKey] ? dim : gold, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                    {aiFillingField[aiKey] ? '…' : '✦ AI'}
+                  </button>
+                </div>
+                <textarea
+                  value={currentVal}
+                  onChange={e => setEditedFields(prev => ({ ...prev, [s.id]: { ...(prev[s.id] || {}), [field]: e.target.value } }))}
+                  rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box' as const, background: isDirty ? 'rgba(201,168,76,0.04)' : 'transparent', border: `1px solid ${isDirty ? 'rgba(201,168,76,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 3, padding: '5px 8px', color: '#8a7a60', fontFamily: crimson, fontSize: 12, resize: 'vertical' as const, outline: 'none' }}
+                />
+              </div>
+            )
+          })}
         </div>
       ))}
     </div>
