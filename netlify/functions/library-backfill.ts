@@ -206,6 +206,15 @@ export default async function handler(req: Request) {
   const log: string[] = []
   const errorDetails: { filename: string; error: string; code?: string }[] = []
 
+  // Download helper with 25s timeout — Supabase SDK doesn't expose AbortSignal so use Promise.race
+  const dlWithTimeout = (path: string) =>
+    Promise.race([
+      client.storage.from(BUCKET).download(path),
+      new Promise<{ data: null; error: { message: string; name: string } }>(resolve =>
+        setTimeout(() => resolve({ data: null, error: { message: 'Download timeout after 25s', name: 'AbortError' } }), 25000)
+      ),
+    ])
+
   // ── Step 1: Load all existing resources rows ────────────────────────────────
   const { data: existingRows, error: rowsErr } = await client
     .from('resources')
@@ -270,16 +279,18 @@ export default async function handler(req: Request) {
 
     console.log(`[BACKFILL] Processing existing row: ${row.title} — ${row.file_path}`)
     try {
-      const { data: blob, error: dlErr } = await client.storage.from(BUCKET).download(row.file_path)
+      const { data: blob, error: dlErr } = await dlWithTimeout(row.file_path)
       if (dlErr || !blob) {
         const msg = dlErr?.message || 'Unknown download error'
+        const code = (dlErr as any)?.name === 'AbortError' ? 'TIMEOUT' : 'DOWNLOAD_FAILED'
         console.error(`[BACKFILL] Download failed: ${row.file_path}`, msg)
-        log.push(`error (download failed): ${row.title}`)
-        errorDetails.push({ filename: row.file_path, error: `Download failed: ${msg}`, code: 'DOWNLOAD_FAILED' })
+        log.push(`error (${code.toLowerCase()}): ${row.title}`)
+        errorDetails.push({ filename: row.file_path, error: msg, code })
         errors++
         continue
       }
-      const text = await extractText(await blob.arrayBuffer(), row.file_path)
+      const buf  = await blob.arrayBuffer()
+      const text = await extractText(buf, row.file_path)
       if (!text || text.length < 50) {
         log.push(`skip (no text extracted): ${row.title}`)
         skippedNoText++
@@ -321,16 +332,20 @@ export default async function handler(req: Request) {
 
     console.log(`[BACKFILL] Storage-only file (no DB row): ${filePath}`)
     try {
-      const { data: blob, error: dlErr } = await client.storage.from(BUCKET).download(filePath)
+      const { data: blob, error: dlErr } = await dlWithTimeout(filePath)
       if (dlErr || !blob) {
         const msg = dlErr?.message || 'Unknown download error'
+        const code = (dlErr as any)?.name === 'AbortError' ? 'TIMEOUT' : 'DOWNLOAD_FAILED'
         console.error(`[BACKFILL] Download failed: ${filePath}`, msg)
-        log.push(`error (download): ${filePath}`)
-        errorDetails.push({ filename: filePath, error: `Download failed: ${msg}`, code: 'DOWNLOAD_FAILED' })
+        log.push(`error (${code.toLowerCase()}): ${filePath}`)
+        errorDetails.push({ filename: filePath, error: msg, code })
         errors++
         continue
       }
-      const text = await extractText(await blob.arrayBuffer(), filePath)
+      // Capture buffer once — used for both text extraction and file_size
+      const buf      = await blob.arrayBuffer()
+      const fileSize = buf.byteLength
+      const text     = await extractText(buf, filePath)
       if (!text || text.length < 50) {
         log.push(`skip (no text extracted): ${filePath}`)
         skippedNoText++
@@ -341,8 +356,9 @@ export default async function handler(req: Request) {
         title,
         file_path: filePath,
         file_type: filePath.toLowerCase().endsWith('.pdf') ? 'pdf' : 'txt',
+        file_size: fileSize || 0,
         topic: 'ministry-library',
-        // source_type MUST be set — arsenal-resources.ts includes source_type IS NULL rows
+        // source_type MUST be set — arsenal-resources.ts filter only includes source_type='arsenal'
         source_type: 'library',
         extracted_text: text,
         active: true,
