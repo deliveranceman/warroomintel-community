@@ -4380,13 +4380,15 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const text    = isDark ? '#E8D5B0' : '#2D2924'
   const muted   = isDark ? '#8B7355' : '#5C5248'
 
-  const [resources, setResources]   = useState<any[]>([])
-  const [loading, setLoading]       = useState(true)
+  // ARSENAL ONLY — reads from resources table via /api/arsenal-resources (source_type='arsenal')
+  // DO NOT merge this state with any library state — these are separate features with separate DB rows
+  const [arsenalItems, setArsenalItems]     = useState<any[]>([])
+  const [arsenalLoading, setArsenalLoading] = useState(true)
+  const [arsenalError, setArsenalError]     = useState('')
   const [query, setQuery]           = useState('')
   const [tierFilter, setTierFilter] = useState('All')
   const [topicFilter, setTopicFilter] = useState('')
   const [tagFilter, setTagFilter]   = useState('')
-  const [error, setError]           = useState('')
 
   const ARSENAL_TOPICS = [
     'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
@@ -4406,20 +4408,20 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
 
   useEffect(() => {
     async function load() {
+      // ARSENAL ONLY — fetches from /api/arsenal-resources → resources table WHERE source_type='arsenal'
+      // DO NOT change this to /api/admin-library — that is the Ministry Library endpoint
       try {
         const token = await getToken()
-        // ⚠️ ARSENAL ONLY — fetches from /api/arsenal-resources → arsenal Supabase rows (source_type='arsenal' or null)
-        // DO NOT change this to /api/admin-library — that is the Ministry Library endpoint
         const res = await fetch('/api/arsenal-resources', {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (!res.ok) throw new Error('Failed to load')
         const data = await res.json()
-        setResources(data.resources || [])
+        setArsenalItems(data.resources || [])
       } catch {
-        setError('Could not load resources')
+        setArsenalError('Could not load resources')
       } finally {
-        setLoading(false)
+        setArsenalLoading(false)
       }
     }
     load()
@@ -4439,7 +4441,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     Free: '#4ade80', Soldier: '#C9A84C', Commander: '#38bdf8', General: '#f87171',
   }
 
-  const filtered = resources.filter(r => {
+  const filtered = arsenalItems.filter(r => {
     const matchSearch = !query ||
       r.title?.toLowerCase().includes(query.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(query.toLowerCase()) ||
@@ -4450,7 +4452,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     return matchSearch && matchTier && matchTopic && matchTag
   })
 
-  const recent = [...resources]
+  const recent = [...arsenalItems]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 4)
 
@@ -4554,10 +4556,10 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         </div>
       </div>
 
-      {loading ? (
+      {arsenalLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: cinzel, fontSize: 13 }}>Loading arsenal...</div>
-      ) : error ? (
-        <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{error}</div>
+      ) : arsenalError ? (
+        <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{arsenalError}</div>
       ) : (
         <>
           {!query && tierFilter === 'All' && !topicFilter && !tagFilter && recent.length > 0 && (
@@ -4570,7 +4572,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
           )}
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>
-              {query || tierFilter !== 'All' || topicFilter || tagFilter ? `${filtered.length} Results` : `All Resources (${resources.length})`}
+              {query || tierFilter !== 'All' || topicFilter || tagFilter ? `${filtered.length} Results` : `All Resources (${arsenalItems.length})`}
             </div>
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
@@ -6175,7 +6177,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
 }
 
 
-function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: any) {
+function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isAdmin }: any) {
   const GC = '#C9A84C'
 
   const [activeFigure,   setActiveFigure]   = useState(0)
@@ -6185,6 +6187,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
   const [manifestations,  setManifestations]  = useState<any[]>([])
   const [manifLoading,    setManifLoading]    = useState(false)
   const [imgOpacity,      setImgOpacity]      = useState(0)
+  const [debugMode,       setDebugMode]       = useState(false)
+  const [debugClick,      setDebugClick]      = useState<{x: number; y: number} | null>(null)
   const touchStartX = React.useRef(0)
   const touchStartY = React.useRef(0)
 
@@ -6319,7 +6323,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
       </div>
 
       {/* Figure selector tabs — all screen sizes */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0 }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0, alignItems: 'stretch' }}>
         {BM_FIGURES.map((fig, i) => (
           <button key={fig.key} onClick={() => { setActiveFigure(i); closeSheet() }}
             style={{ flex: 1, padding: '10px 4px', background: 'transparent', border: 'none',
@@ -6329,6 +6333,15 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
             {fig.label.toUpperCase()}
           </button>
         ))}
+        {isAdmin && (
+          <button onClick={() => { setDebugMode(d => !d); setDebugClick(null) }}
+            style={{ padding: '10px 12px', background: debugMode ? 'rgba(201,168,76,0.15)' : 'transparent',
+              border: 'none', borderBottom: debugMode ? `2px solid ${GC}` : '2px solid transparent',
+              color: debugMode ? GC : '#4a3f2f', fontFamily: cinzel, fontSize: 8,
+              letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            ⊕ DEBUG
+          </button>
+        )}
       </div>
 
       {/* Main area: image + hotspots, with optional side panel on desktop */}
@@ -6353,7 +6366,15 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
           }}
         >
           {/* Image + hotspot overlay */}
-          <div style={{ position: 'relative', width: '100%', lineHeight: 0 }}>
+          <div
+            style={{ position: 'relative', width: '100%', lineHeight: 0, cursor: debugMode ? 'crosshair' : 'default' }}
+            onClick={debugMode ? (e => {
+              const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+              const x = Math.round(((e.clientX - rect.left) / rect.width) * 100 * 10) / 10
+              const y = Math.round(((e.clientY - rect.top) / rect.height) * 100 * 10) / 10
+              setDebugClick({ x, y })
+            }) : undefined}
+          >
             <img
               key={figure.image}
               src={figure.image}
@@ -6393,8 +6414,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
                     width: '65%',
                     height: '65%',
                     borderRadius: '50%',
-                    background: isActive ? 'rgba(201,168,76,0.15)' : isHov ? 'rgba(201,168,76,0.08)' : 'transparent',
-                    border: `1.5px solid ${isActive ? 'rgba(201,168,76,0.9)' : isHov ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.0)'}`,
+                    background: isActive ? 'rgba(201,168,76,0.15)' : isHov ? 'rgba(201,168,76,0.08)' : debugMode ? 'rgba(201,168,76,0.04)' : 'transparent',
+                    border: `1.5px solid ${isActive ? 'rgba(201,168,76,0.9)' : isHov ? 'rgba(201,168,76,0.5)' : debugMode ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.0)'}`,
                     boxShadow: isActive ? '0 0 8px rgba(201,168,76,0.4)' : isHov ? '0 0 10px rgba(201,168,76,0.3)' : 'none',
                     animation: isHov && !isMobile ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
                     transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
@@ -6414,6 +6435,20 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
                 </div>
               )
             })()}
+            {/* Debug coordinate label */}
+            {debugMode && debugClick && (
+              <div
+                onClick={e => { e.stopPropagation(); setDebugClick(null) }}
+                style={{
+                  position: 'absolute', left: `${debugClick.x}%`, top: `${debugClick.y}%`,
+                  transform: 'translate(-50%, -120%)', zIndex: 20, pointerEvents: 'auto', cursor: 'pointer',
+                  background: '#0D0B14', border: `1px solid ${GC}`, borderRadius: 4,
+                  padding: '4px 10px', whiteSpace: 'nowrap', fontFamily: cinzel, fontSize: 9,
+                  color: GC, letterSpacing: '0.08em', boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                }}>
+                x: {debugClick.x}% · y: {debugClick.y}%
+              </div>
+            )}
           </div>
         </div>
 
@@ -9181,7 +9216,7 @@ function CommunityPage() {
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'body-map' && (
           tierLevel >= 2
-            ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} /></BodyMapBoundary>
+            ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary>
             : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
                 <div style={{ textAlign:'center', maxWidth:480 }}>
                   <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>

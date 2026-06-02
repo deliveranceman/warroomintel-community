@@ -56,6 +56,8 @@ export default async function handler(req: Request) {
     const { data, error } = await supabase
       .from('resources')
       .select('*')
+      // Arsenal only — exclude Ministry Library rows (source_type='christian'/'intelligence')
+      .or('source_type.is.null,source_type.eq.arsenal')
       .order('created_at', { ascending: false })
 
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 })
