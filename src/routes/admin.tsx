@@ -113,6 +113,9 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [massDelConfirm, setMassDelConfirm] = useState(false)
   const [massApplying, setMassApplying]     = useState(false)
   const justAddedRef = useRef<number[]>([])
+  const [filterSearch, setFilterSearch]     = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterTier, setFilterTier]         = useState('')
 
   const TOPICS = [
     'Spiritual Warfare',
@@ -349,6 +352,21 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     await fetchResources()
   }
 
+  const displayedItems = resources.filter((item: any) => {
+    if (filterCategory && item.topic !== filterCategory) return false
+    if (filterTier) {
+      const t = (item.tier || '').toLowerCase()
+      const f = filterTier.toLowerCase()
+      if (f === 'watchman') { if (t !== 'watchman' && t !== 'free') return false }
+      else if (t !== f) return false
+    }
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase()
+      return (item.title || '').toLowerCase().includes(q) || (item.description || '').toLowerCase().includes(q)
+    }
+    return true
+  })
+
   return (
     <div>
       {/* ── BULK UPLOAD ── */}
@@ -532,26 +550,71 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       </div>
 
       {/* Resource List */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>
-          📂 Resources ({resources.length})
+          📂 Resources
+          {!resLoading && (
+            <span style={{ color: DIM, fontSize: 10 }}>
+              {filterSearch || filterCategory || filterTier
+                ? ` — ${displayedItems.length} of ${resources.length}`
+                : ` (${resources.length})`}
+            </span>
+          )}
         </div>
         {resources.length > 0 && (
           <button
-            onClick={() => setSelectedIds(selectedIds.size === resources.length ? new Set() : new Set(resources.map((r: any) => r.id)))}
+            onClick={() => setSelectedIds(selectedIds.size === displayedItems.length ? new Set() : new Set(displayedItems.map((r: any) => r.id)))}
             style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
           >
-            {selectedIds.size === resources.length ? 'Deselect All' : 'Select All'}
+            {selectedIds.size === displayedItems.length && displayedItems.length > 0 ? 'Deselect All' : 'Select All'}
           </button>
         )}
       </div>
+
+      {/* ── Filter bar ── */}
+      <div style={{ marginBottom: 14 }}>
+        {/* Search */}
+        <input
+          value={filterSearch}
+          onChange={e => setFilterSearch(e.target.value)}
+          placeholder="Search titles and descriptions..."
+          style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 8 }}
+        />
+        {/* Category pills */}
+        <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' as any, WebkitOverflowScrolling: 'touch' as any, paddingBottom: 4, marginBottom: 6 }}>
+          {['', ...TOPICS].map(t => (
+            <button key={t || '__all__'} onClick={() => setFilterCategory(t)}
+              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 999, border: `1px solid ${filterCategory === t ? G : 'rgba(201,168,76,0.2)'}`, background: filterCategory === t ? 'rgba(201,168,76,0.15)' : 'transparent', color: filterCategory === t ? G : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+              {t || 'All Topics'}
+            </button>
+          ))}
+        </div>
+        {/* Tier pills */}
+        <div style={{ display: 'flex', gap: 5 }}>
+          {[['', 'All'], ['watchman', 'Watchman'], ['soldier', 'Soldier'], ['commander', 'Commander'], ['general', 'General']].map(([val, label]) => (
+            <button key={val} onClick={() => setFilterTier(val)}
+              style={{ padding: '3px 10px', borderRadius: 999, border: `1px solid ${filterTier === val ? G : 'rgba(201,168,76,0.2)'}`, background: filterTier === val ? 'rgba(201,168,76,0.15)' : 'transparent', color: filterTier === val ? G : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
+              {label}
+            </button>
+          ))}
+          {(filterSearch || filterCategory || filterTier) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCategory(''); setFilterTier('') }}
+              style={{ padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: '#f87171', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', marginLeft: 4 }}>
+              ✕ Clear
+            </button>
+          )}
+        </div>
+      </div>
+
       {resLoading ? (
         <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '20px 0' }}>Loading...</div>
       ) : resources.length === 0 ? (
         <div style={{ fontFamily: crimson, fontSize: 15, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>No resources uploaded yet.</div>
+      ) : displayedItems.length === 0 ? (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>No resources match the current filters.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: selectedIds.size > 0 ? 72 : 0 }}>
-          {resources.map((r: any) => (
+          {displayedItems.map((r: any) => (
             <Fragment key={r.id}>
             <div style={{ background: SURF, border: `1px solid ${selectedIds.has(r.id) ? 'rgba(201,168,76,0.6)' : highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? '#C9A84C' : (TIER_COLORS[r.tier] || DIM)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
               <input
