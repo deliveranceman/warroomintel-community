@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
@@ -7864,6 +7864,8 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') return 'dark'
@@ -9776,31 +9778,33 @@ function CommunityPage() {
           </div>
         </div>
       )}
-      <button
-        onClick={() => setChatOpen(o => !o)}
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 1000,
-          width: 48,
-          height: 48,
-          borderRadius: '50%',
-          background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
-          border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
-          color: G,
-          fontSize: 22,
-          cursor: 'pointer',
-          display: isMobile ? 'none' : 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-          transition: 'all 0.15s',
-        }}
-        title="War Room AI"
-      >
-        🧠
-      </button>
+      {!isAdminPage && (
+        <button
+          onClick={() => setChatOpen(o => !o)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 1000,
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
+            border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
+            color: G,
+            fontSize: 22,
+            cursor: 'pointer',
+            display: isMobile ? 'none' : 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            transition: 'all 0.15s',
+          }}
+          title="War Room AI"
+        >
+          🧠
+        </button>
+      )}
 
       {/* Terms acceptance modal — blocks access until accepted */}
       {termsAccepted === false && user?.id && (

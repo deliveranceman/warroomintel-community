@@ -66,8 +66,8 @@ export default async function handler(req: Request) {
   const limit = 100
   let added = 0
   let skipped = 0
-  let errors = 0
-  const errorDetails: any[] = []
+  const errorList: { userId: string; channel: string; reason: string; code?: number }[] = []
+  const skippedList: { userId: string; reason: string }[] = []
 
   while (true) {
     const res = await fetch(`https://api.clerk.com/v1/users?limit=${limit}&offset=${offset}`, {
@@ -98,40 +98,49 @@ export default async function handler(req: Request) {
       console.error('[stream-backfill] upsertUsers batch failed:', e.message)
     }
 
-    // Add each user to their eligible channels
+    // Add each user to their eligible channels — track per-channel errors
     for (const u of users) {
       const streamUserId = u.id.replace(/[^a-zA-Z0-9_-]/g, '_')
-      const tier  = (u.public_metadata?.tier as string) || 'watchman'
+      const rawTier = u.public_metadata?.tier as string | undefined
+      // Default users with no tier to watchman — they get war-room-general, not counted as errors
+      const tier  = rawTier || 'watchman'
       const level = tierNum(tier)
 
-      try {
-        const memberChannels = CHANNELS.filter(ch => level >= ch.minTier)
-        for (const ch of memberChannels) {
+      if (!rawTier) {
+        skipped++
+        skippedList.push({ userId: u.id, reason: 'no tier set — defaulted to watchman' })
+      }
+
+      const memberChannels = CHANNELS.filter(ch => level >= ch.minTier)
+      let userFullyAdded = true
+
+      for (const ch of memberChannels) {
+        try {
           const channel = serverClient.channel('messaging', ch.id)
           await channel.addMembers([streamUserId])
+        } catch (err: any) {
+          userFullyAdded = false
+          const detail = {
+            userId:  u.id,
+            channel: ch.id,
+            reason:  err.message || String(err),
+            code:    err.response?.status ?? err.status ?? err.code ?? undefined,
+          }
+          console.error('[stream-backfill] Failed:', JSON.stringify(detail))
+          errorList.push(detail)
         }
-        added++
-      } catch (err: any) {
-        errors++
-        const errDetail = {
-          userId:         u.id,
-          streamUserId,
-          message:        err.message,
-          status:         err.response?.status || err.status,
-          data:           JSON.stringify(err.response?.data || err.body || {}).slice(0, 200),
-          code:           err.code,
-        }
-        console.error('[stream-backfill] Failed for', u.id, ':', JSON.stringify(errDetail))
-        errorDetails.push(errDetail)
       }
+
+      if (userFullyAdded) added++
     }
 
     if (users.length < limit) break
     offset += limit
   }
 
+  const errors = errorList.length
   console.log(`[stream-backfill] Done. Added: ${added}, Skipped: ${skipped}, Errors: ${errors}`)
-  return new Response(JSON.stringify({ success: true, added, skipped, errors, errorDetails }), { status: 200, headers: HEADERS })
+  return new Response(JSON.stringify({ success: true, added, skipped, errors, errorList, skippedList }), { status: 200, headers: HEADERS })
 }
 
 export const config = { path: '/api/stream-backfill' }

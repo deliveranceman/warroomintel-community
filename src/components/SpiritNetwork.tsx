@@ -1012,6 +1012,31 @@ Be direct and practical. This is for active ministry use.`,
                   )}
                 </div>
 
+                {/* Subordinate Spirits — mobile */}
+                {(() => {
+                  const children = demons.filter(d =>
+                    d.parentStrongman?.toLowerCase() === selectedSpirit.name.toLowerCase() && d.id !== selectedSpirit.id
+                  )
+                  if (children.length === 0) return null
+                  return (
+                    <div style={{ marginTop: 20 }}>
+                      <div style={{ width: 1, height: 20, background: 'rgba(201,168,76,0.2)', margin: '0 auto' }} />
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', marginBottom: 10, textAlign: 'center' as const }}>
+                        SUBORDINATE SPIRITS ({children.length})
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, justifyContent: 'center' as const }}>
+                        {children.map(child => (
+                          <button key={child.id} onClick={() => selectSpirit(child)}
+                            style={{ padding: '8px 14px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.04em', textAlign: 'left' as const }}>
+                            <div>{child.name}</div>
+                            {child.kingdom && <div style={{ fontFamily: inter, fontSize: 8, color: DIM, marginTop: 2 }}>{child.kingdom}</div>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* View dossier button */}
                 <button onClick={() => setMode('dossier')}
                   style={{ display: 'block', width: '100%', marginTop: 24, padding: '12px 16px', background: 'transparent', border: `1px solid ${GC}`, borderRadius: 8, color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
@@ -1209,19 +1234,23 @@ Be direct and practical. This is for active ministry use.`,
                   </div>
                 )}
 
-                {/* Breadcrumb — always visible when a spirit is selected */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' as const }}>
-                  {navStack.map((d, i) => (
-                    <span key={`${d.id}-${i}`}>
-                      <span onClick={e => { e.stopPropagation(); navigateToHistory(i, d) }}
-                        style={{ fontFamily: inter, fontSize: 11, color: GC, cursor: 'pointer', textDecoration: 'underline', opacity: 0.7 }}>
-                        {d.name}
+                {/* Ancestry breadcrumb — walks up parentStrongman chain from root to current */}
+                {navChain.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12, flexWrap: 'wrap' as const }}>
+                    {navChain.map(a => (
+                      <span key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span onClick={e => { e.stopPropagation(); selectSpirit(a) }}
+                          style={{ fontFamily: cinzel, fontSize: 10, color: GC, cursor: 'pointer', opacity: 0.5, letterSpacing: '0.06em' }}
+                          onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                          onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}>
+                          {a.name}
+                        </span>
+                        <span style={{ color: MUT, fontSize: 10 }}>→</span>
                       </span>
-                      <span style={{ color: MUT, margin: '0 4px', fontSize: 10 }}>→</span>
-                    </span>
-                  ))}
-                  <span style={{ fontFamily: inter, fontSize: 11, color: '#8a7a60' }}>{selectedSpirit.name}</span>
-                </div>
+                    ))}
+                    <span style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.06em' }}>{selectedSpirit.name}</span>
+                  </div>
+                )}
 
                 {/* SVG Org Chart */}
                 <OrgChartSVG
@@ -1260,6 +1289,33 @@ Be direct and practical. This is for active ministry use.`,
                     </div>
                   </div>
                 )}
+
+                {/* Subordinate Spirits — spirits who report to this one */}
+                {(() => {
+                  const children = demons.filter(d =>
+                    d.parentStrongman?.toLowerCase() === selectedSpirit.name.toLowerCase() && d.id !== selectedSpirit.id
+                  )
+                  if (children.length === 0) return null
+                  return (
+                    <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${BDR}` }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.14em', marginBottom: 12 }}>
+                        SUBORDINATE SPIRITS ({children.length})
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+                        {children.map(child => (
+                          <button key={child.id} onClick={e => { e.stopPropagation(); selectSpirit(child) }}
+                            style={{ background: 'rgba(201,168,76,0.04)', border: `1px solid ${BDR}`, borderLeft: `2px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '10px 12px', cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.12s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.09)'; e.currentTarget.style.borderLeftColor = GC }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.04)'; e.currentTarget.style.borderLeftColor = 'rgba(201,168,76,0.3)' }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.05em', marginBottom: 3 }}>{child.name}</div>
+                            {child.kingdom && <div style={{ fontFamily: inter, fontSize: 9, color: DIM }}>{child.kingdom}</div>}
+                            {child.biblicalRank && <div style={{ fontFamily: cinzel, fontSize: 8, color: '#6b5e45', letterSpacing: '0.04em', marginTop: 2 }}>{child.biblicalRank}</div>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             ) : (
               <EmptyCanvas onSelectSpirit={searchSelect} demons={demons} recentSpirits={recentSpirits} />
