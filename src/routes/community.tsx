@@ -5820,8 +5820,6 @@ const BM_FIGURES: BMFigure[] = [
     key: 'male-front', label: 'Male Front', image: '/images/WRI_BODY_MALE_FRONT.png',
     hotspots: [
       { id: 'mf-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
-      { id: 'mf-left-temple',    label: 'Left Temple',       x: 43.0, y: 6.0  },
-      { id: 'mf-right-temple',   label: 'Right Temple',      x: 58.0, y: 6.0  },
       { id: 'mf-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.0  },
       { id: 'mf-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.0  },
       { id: 'mf-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 11.5 },
@@ -5874,8 +5872,6 @@ const BM_FIGURES: BMFigure[] = [
     key: 'female-front', label: 'Female Front', image: '/images/WRI_BODY_FEMALE_FRONT.png',
     hotspots: [
       { id: 'ff-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
-      { id: 'ff-left-temple',    label: 'Left Temple',       x: 43.0, y: 6.5  },
-      { id: 'ff-right-temple',   label: 'Right Temple',      x: 58.0, y: 6.5  },
       { id: 'ff-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.5  },
       { id: 'ff-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.5  },
       { id: 'ff-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 12.0 },
@@ -6355,7 +6351,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
           }}
         >
           {/* Image + hotspot overlay */}
-          <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+          <div style={{ position: 'relative', width: '100%', lineHeight: 0 }}>
             <img
               key={figure.image}
               src={figure.image}
@@ -6363,14 +6359,12 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
               loading="eager"
               draggable={false}
               onLoad={() => setImgOpacity(1)}
-              style={{ display: 'block', width: '100%', height: 'auto', minHeight: 300, opacity: imgOpacity, transition: 'opacity 0.3s' }}
+              style={{ display: 'block', width: '100%', height: 'auto', opacity: imgOpacity, transition: 'opacity 0.3s' }}
             />
-            {/* Hotspots — outer div is the 40px tap target; inner div is the visible ring */}
+            {/* Hotspots — outer div is 4% of container width (scales with image); inner ring is 65% of that */}
             {figure.hotspots.map(h => {
               const isActive = selectedHotspot?.id === h.id && sheetOpen
               const isHov    = hoveredHotspot === h.id
-              const ringSize = isMobile ? 24 : 32
-              const ringBorder = isMobile ? '1.5px' : '2px'
               return (
                 <div
                   key={h.id}
@@ -6383,26 +6377,25 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
                     left: `${h.x}%`,
                     top: `${h.y}%`,
                     transform: 'translate(-50%, -50%)',
-                    width: isMobile ? 40 : 36,
-                    height: isMobile ? 40 : 36,
+                    width: '4%',
+                    height: '4%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    zIndex: 2,
+                    zIndex: 10,
                     WebkitTapHighlightColor: 'transparent',
                   }}
                 >
                   <div style={{
-                    width: ringSize,
-                    height: ringSize,
+                    width: '65%',
+                    height: '65%',
                     borderRadius: '50%',
                     background: isActive ? 'rgba(201,168,76,0.15)' : isHov ? 'rgba(201,168,76,0.08)' : 'transparent',
-                    border: `${ringBorder} solid ${isActive ? 'rgba(201,168,76,0.9)' : isHov ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.35)'}`,
+                    border: `1.5px solid ${isActive ? 'rgba(201,168,76,0.9)' : isHov ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.0)'}`,
                     boxShadow: isActive ? '0 0 8px rgba(201,168,76,0.4)' : isHov ? '0 0 10px rgba(201,168,76,0.3)' : 'none',
                     animation: isHov && !isMobile ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
-                    transition: 'background 0.15s, border-color 0.15s, box-shadow 0.15s',
-                    flexShrink: 0,
+                    transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
                   }} />
                 </div>
               )
@@ -6412,7 +6405,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken }: a
               const h = figure.hotspots.find(p => p.id === hoveredHotspot)
               if (!h) return null
               return (
-                <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 18px)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
+                <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 2.5%)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
                   fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
                   background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
                   {h.label}
