@@ -4394,8 +4394,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [arsenalError, setArsenalError]         = useState('')
   const [query, setQuery]                       = useState('')
   const [tierFilter, setTierFilter]             = useState('All')
-  const [topicFilter, setTopicFilter]           = useState('')
-  const [tagFilter, setTagFilter]               = useState('')
   const [selectedArsenalIds, setSelectedArsenalIds] = useState<Set<string>>(new Set())
   const [showMassDeleteConfirm, setShowMassDeleteConfirm] = useState(false)
   const [massDeleting, setMassDeleting]         = useState(false)
@@ -4403,6 +4401,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [massEditTopic, setMassEditTopic]       = useState('')
   const [massApplying, setMassApplying]         = useState(false)
   const isMinister = userTier === 'minister'
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
 
   const ARSENAL_TOPICS = [
     'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
@@ -4412,11 +4411,28 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     'Python & Constriction', 'Deliverance Foundations', 'Aftercare',
     'Prayer & Intercession', 'Scripture Reference', 'General Ministry',
   ]
-  const ARSENAL_TAGS = [
-    'Renunciation Prayer', 'Worksheet', 'Teaching', 'Protocol', 'Session Tool',
-    'Scripture Reference', 'Aftercare', 'Assessment Tool', 'Quick Reference',
-    'Leader Guide', 'Self-Deliverance', 'Group Exercise',
-  ]
+  const ARSENAL_CATEGORY_ICONS: Record<string, string> = {
+    'Soul Ties':                      '🔗',
+    'Generational Curses':            '🧬',
+    'Forgiveness':                    '✦',
+    'Ungodly Vows':                   '⛓',
+    'Freemasonry & Secret Societies': '🔺',
+    'Sexual Bondage':                 '🔒',
+    'Fear & Rejection':               '🛡',
+    'Identity & Sonship':             '👑',
+    'Inner Healing':                  '✚',
+    'Witchcraft & Occult':            '⚡',
+    'Marine Kingdom':                 '🌊',
+    'Mind Control':                   '👁',
+    'Leviathan & Pride':              '🐍',
+    'Jezebel & Control':              '🔥',
+    'Python & Constriction':          '⛓',
+    'Deliverance Foundations':        '⚔',
+    'Aftercare':                      '📖',
+    'Prayer & Intercession':          '🙏',
+    'Scripture Reference':            '📜',
+    'General Ministry':               '📋',
+  }
 
   const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
 
@@ -4492,11 +4508,18 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     'image/jpeg': '🖼️',
   }
 
-  const TIERS      = ['All', 'Watchman', 'Soldier', 'Commander', 'General']
-
   const TIER_COLORS: Record<string, string> = {
-    Free: '#4ade80', Soldier: '#C9A84C', Commander: '#38bdf8', General: '#f87171',
+    Free:      'rgba(148,163,184,0.85)',
+    Watchman:  'rgba(148,163,184,0.85)',
+    Soldier:   'rgba(201,168,76,0.9)',
+    Commander: 'rgba(251,146,60,0.9)',
+    General:   'rgba(167,139,250,0.9)',
   }
+
+  const categoryCounts = ARSENAL_TOPICS.reduce((acc, topic) => {
+    acc[topic] = arsenalItems.filter(i => i.topic === topic || i.category === topic).length
+    return acc
+  }, {} as Record<string, number>)
 
   const filtered = arsenalItems.filter(r => {
     const matchSearch = !query ||
@@ -4504,9 +4527,8 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       (r.description || '').toLowerCase().includes(query.toLowerCase()) ||
       (Array.isArray(r.tags) ? r.tags.some((t: string) => t.toLowerCase().includes(query.toLowerCase())) : false)
     const matchTier  = tierFilter === 'All' || (tierFilter === 'Watchman' ? (r.tier === 'Free' || r.tier === 'free' || r.tier === 'Watchman') : r.tier === tierFilter)
-    const matchTopic = !topicFilter || r.topic === topicFilter || r.category === topicFilter
-    const matchTag   = !tagFilter || (Array.isArray(r.tags) ? r.tags.includes(tagFilter) : String(r.tags || '').includes(tagFilter))
-    return matchSearch && matchTier && matchTopic && matchTag
+    const matchTopic = !activeCategory || activeCategory === '__search__' || r.topic === activeCategory || r.category === activeCategory
+    return matchSearch && matchTier && matchTopic
   })
 
   const recent = [...arsenalItems]
@@ -4577,86 +4599,116 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         {!isMobile && <div style={{ fontSize: 12, color: muted, textAlign: 'right' as const }}>Ministry resources, protocols, and teaching documents</div>}
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search resources, tags, descriptions..."
-          style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '12px 16px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none' }}
-        />
-      </div>
-
-      {/* Tier filter */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, marginBottom: 10, paddingBottom: 2 }}>
-        {TIERS.map(t => (
-          <button key={t} onClick={() => setTierFilter(t)} style={{ flexShrink: 0, padding: '4px 12px', borderRadius: 999, fontSize: 11, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, border: `1px solid ${tierFilter === t ? G : border}`, background: tierFilter === t ? G : 'transparent', color: tierFilter === t ? '#0D0B14' : muted }}>
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* Topic filter */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Topic</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, paddingBottom: 4 }}>
-          {['All', ...ARSENAL_TOPICS].map(t => (
-            <button key={t} onClick={() => setTopicFilter(t === 'All' ? '' : t)}
-              style={{ flexShrink: 0, padding: '4px 12px', background: (topicFilter === t || (t === 'All' && !topicFilter)) ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${(topicFilter === t || (t === 'All' && !topicFilter)) ? G : border}`, borderRadius: 20, color: (topicFilter === t || (t === 'All' && !topicFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Function tag filter */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 9, fontFamily: cinzel, color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Function</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, paddingBottom: 4 }}>
-          {['All', ...ARSENAL_TAGS].map(t => (
-            <button key={t} onClick={() => setTagFilter(t === 'All' ? '' : t)}
-              style={{ flexShrink: 0, padding: '4px 12px', background: (tagFilter === t || (t === 'All' && !tagFilter)) ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${(tagFilter === t || (t === 'All' && !tagFilter)) ? G : border}`, borderRadius: 20, color: (tagFilter === t || (t === 'All' && !tagFilter)) ? G : muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Minister-only: Select All / Deselect All controls */}
-      {isMinister && arsenalItems.length > 0 && !arsenalLoading && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-          <button onClick={() => setSelectedArsenalIds(new Set(arsenalItems.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Select All ({arsenalItems.length})</button>
-          {selectedArsenalIds.size > 0 && <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Deselect All</button>}
-        </div>
-      )}
+      {/* Global search */}
+      <input
+        value={query}
+        onChange={e => {
+          setQuery(e.target.value)
+          if (e.target.value) setActiveCategory('__search__')
+          else setActiveCategory(null)
+        }}
+        placeholder="Search all arsenal resources..."
+        style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '12px 16px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none', marginBottom: 16 }}
+      />
 
       {arsenalLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: cinzel, fontSize: 13 }}>Loading arsenal...</div>
       ) : arsenalError ? (
         <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{arsenalError}</div>
-      ) : (
-        <div style={{ paddingBottom: isMinister && selectedArsenalIds.size > 0 ? 72 : 0 }}>
-          {!query && tierFilter === 'All' && !topicFilter && !tagFilter && recent.length > 0 && (
-            <div style={{ marginBottom: 32 }}>
+      ) : activeCategory === null ? (
+        <>
+          {/* Mobile: horizontal scrolling category pills */}
+          {isMobile ? (
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, marginBottom: 16 }}>
+              {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+                <button key={topic} onClick={() => setActiveCategory(topic)}
+                  style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(201,168,76,0.2)', background: 'transparent', color: 'rgba(240,232,216,0.6)', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+                  {ARSENAL_CATEGORY_ICONS[topic] || '📁'} {topic} ({categoryCounts[topic]})
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* Desktop: category grid */
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, padding: '4px 0 16px' }}>
+              {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+                <div key={topic} onClick={() => setActiveCategory(topic)}
+                  style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '20px 16px', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.4)'; e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.15)'; e.currentTarget.style.background = 'rgba(201,168,76,0.04)' }}>
+                  <div style={{ fontSize: 26, marginBottom: 8 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>{topic}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: 'rgba(240,232,216,0.45)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Recently added below grid */}
+          {recent.length > 0 && (
+            <div style={{ marginTop: isMobile ? 8 : 24 }}>
               <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>Recently Added</div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                 {recent.map(r => <ResourceCard key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
               </div>
             </div>
           )}
-          <div>
-            <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 12 }}>
-              {query || tierFilter !== 'All' || topicFilter || tagFilter ? `${filtered.length} Results` : `All Resources (${arsenalItems.length})`}
-            </div>
-            {filtered.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
-                No resources found. Try different search terms or filters.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-                {filtered.map(r => <ResourceCard key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
-              </div>
+        </>
+      ) : (
+        /* Category or search results view */
+        <div style={{ paddingBottom: isMinister && selectedArsenalIds.size > 0 ? 72 : 0 }}>
+          {/* Filter bar header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' as const }}>
+            <button
+              onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, padding: '6px 12px', color: G, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em', flexShrink: 0 }}>
+              ← All Categories
+            </button>
+            {activeCategory !== '__search__' && (
+              <span style={{ fontFamily: cinzel, fontSize: 12, color: G, flexShrink: 0 }}>
+                {ARSENAL_CATEGORY_ICONS[activeCategory] || '📁'} {activeCategory}
+              </span>
             )}
+            <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.45)', flexShrink: 0 }}>
+              {filtered.length} resource{filtered.length !== 1 ? 's' : ''}
+            </span>
+            {/* Tier filter pills */}
+            <div style={{ display: 'flex', gap: 5, marginLeft: 'auto', flexWrap: 'wrap' as const }}>
+              {['All', 'Watchman', 'Soldier', 'Commander', 'General'].map(tier => (
+                <button key={tier} onClick={() => setTierFilter(tier)}
+                  style={{ padding: '4px 10px', borderRadius: 20, border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.6' : '0.2'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: tierFilter === tier ? G : 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+                  {tier}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* In-category search (only when inside a real category, not global search) */}
+          {activeCategory !== '__search__' && (
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={`Search in ${activeCategory}...`}
+              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 6, padding: '7px 14px', fontSize: 12, color: '#f0e8d8', fontFamily: crimson, width: isMobile ? '100%' : 240, outline: 'none', marginBottom: 16, boxSizing: 'border-box' as const }}
+            />
+          )}
+
+          {/* Minister select all */}
+          {isMinister && filtered.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+              <button onClick={() => setSelectedArsenalIds(new Set(filtered.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Select All ({filtered.length})</button>
+              {selectedArsenalIds.size > 0 && <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '4px 10px', fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Deselect All</button>}
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
+              No resources found. Try different search terms or filters.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+              {filtered.map(r => <ResourceCard key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
+            </div>
+          )}
         </div>
       )}
 
