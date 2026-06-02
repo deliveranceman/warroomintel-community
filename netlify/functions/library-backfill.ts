@@ -201,8 +201,10 @@ export default async function handler(req: Request) {
   let processed      = 0
   let skipped        = 0
   let skippedFormat  = 0
+  let skippedNoText  = 0
   let errors         = 0
   const log: string[] = []
+  const errorDetails: { filename: string; error: string; code?: string }[] = []
 
   // ── Step 1: Load all existing resources rows ────────────────────────────────
   const { data: existingRows, error: rowsErr } = await client
@@ -254,6 +256,7 @@ export default async function handler(req: Request) {
     }
     if (!row.file_path) {
       log.push(`skip (no file_path): ${row.title}`)
+      errorDetails.push({ filename: row.title, error: 'No file_path in database record', code: 'NO_PATH' })
       errors++
       continue
     }
@@ -269,15 +272,17 @@ export default async function handler(req: Request) {
     try {
       const { data: blob, error: dlErr } = await client.storage.from(BUCKET).download(row.file_path)
       if (dlErr || !blob) {
-        console.error(`[BACKFILL] Download failed: ${row.file_path}`, dlErr?.message)
+        const msg = dlErr?.message || 'Unknown download error'
+        console.error(`[BACKFILL] Download failed: ${row.file_path}`, msg)
         log.push(`error (download failed): ${row.title}`)
+        errorDetails.push({ filename: row.file_path, error: `Download failed: ${msg}`, code: 'DOWNLOAD_FAILED' })
         errors++
         continue
       }
       const text = await extractText(await blob.arrayBuffer(), row.file_path)
       if (!text || text.length < 50) {
-        log.push(`skip (no text): ${row.title}`)
-        errors++
+        log.push(`skip (no text extracted): ${row.title}`)
+        skippedNoText++
         continue
       }
       const { error: updateErr } = await client
@@ -286,6 +291,7 @@ export default async function handler(req: Request) {
         .eq('id', row.id)
       if (updateErr) {
         log.push(`error (update): ${row.title} — ${updateErr.message}`)
+        errorDetails.push({ filename: row.file_path, error: `DB update failed: ${updateErr.message}`, code: 'UPDATE_FAILED' })
         errors++
       } else {
         log.push(`ok (${text.length} chars): ${row.title}`)
@@ -297,6 +303,7 @@ export default async function handler(req: Request) {
     } catch (e: any) {
       console.error('[BACKFILL] Failed on:', row.title, { error: e.message, stack: e.stack?.slice(0, 200) })
       log.push(`error (exception): ${row.title} — ${e?.message}`)
+      errorDetails.push({ filename: row.file_path || row.title, error: `Exception: ${e?.message}`, code: 'EXCEPTION' })
       errors++
     }
   }
@@ -316,15 +323,17 @@ export default async function handler(req: Request) {
     try {
       const { data: blob, error: dlErr } = await client.storage.from(BUCKET).download(filePath)
       if (dlErr || !blob) {
-        console.error(`[BACKFILL] Download failed: ${filePath}`, dlErr?.message)
+        const msg = dlErr?.message || 'Unknown download error'
+        console.error(`[BACKFILL] Download failed: ${filePath}`, msg)
         log.push(`error (download): ${filePath}`)
+        errorDetails.push({ filename: filePath, error: `Download failed: ${msg}`, code: 'DOWNLOAD_FAILED' })
         errors++
         continue
       }
       const text = await extractText(await blob.arrayBuffer(), filePath)
       if (!text || text.length < 50) {
-        log.push(`skip (no text): ${filePath}`)
-        errors++
+        log.push(`skip (no text extracted): ${filePath}`)
+        skippedNoText++
         continue
       }
       const title = titleFromPath(filePath)
@@ -341,6 +350,7 @@ export default async function handler(req: Request) {
       }).select('id').single()
       if (insertErr) {
         log.push(`error (insert): ${filePath} — ${insertErr.message}`)
+        errorDetails.push({ filename: filePath, error: `DB insert failed: ${insertErr.message}`, code: 'INSERT_FAILED' })
         errors++
       } else {
         log.push(`ok (new row, ${text.length} chars): ${title}`)
@@ -354,15 +364,16 @@ export default async function handler(req: Request) {
     } catch (e: any) {
       console.error('[BACKFILL] Failed on:', filePath, { error: e.message, stack: e.stack?.slice(0, 200) })
       log.push(`error (exception): ${filePath} — ${e?.message}`)
+      errorDetails.push({ filename: filePath, error: `Exception: ${e?.message}`, code: 'EXCEPTION' })
       errors++
     }
   }
 
-  const message = `Reindex complete: ${processed} books indexed, ${skippedFormat} skipped (unsupported format), ${skipped} already indexed${errors ? `, ${errors} errors` : ''}.`
+  const message = `Reindex complete: ${processed} indexed, ${skipped} already done, ${skippedFormat} unsupported format, ${skippedNoText} no text extracted${errors ? `, ${errors} errors` : ''}.`
   console.log(`[BACKFILL] ${message}`)
 
   return new Response(
-    JSON.stringify({ processed, skipped, skippedFormat, errors, message, log }),
+    JSON.stringify({ processed, skipped, skippedFormat, skippedNoText, errors, message, log, errorDetails }),
     { status: 200, headers: CORS },
   )
 }

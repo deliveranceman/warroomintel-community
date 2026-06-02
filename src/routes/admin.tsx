@@ -6786,6 +6786,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   // Reindex state
   const [reindexing, setReindexing] = useState(false)
   const [reindexResult, setReindexResult] = useState<string>('')
+  const [reindexErrors, setReindexErrors] = useState<{ filename: string; error: string; code?: string }[]>([])
 
   async function fetchDemonNames(): Promise<{ names: Set<string>; total: number }> {
     try {
@@ -6880,6 +6881,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   async function runReindex() {
     setReindexing(true)
     setReindexResult('')
+    setReindexErrors([])
     try {
       const token = await getToken()
       const res = await fetch('/api/library-backfill', {
@@ -6891,6 +6893,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       try { data = text ? JSON.parse(text) : {} } catch { data = { error: text } }
       if (!res.ok) { setReindexResult(`Error: ${data.error || data.errorMessage || `Request failed ${res.status}`}`); return }
       setReindexResult(data.message || `Reindex complete: ${data.processed} books indexed, ${data.skippedFormat ?? data.skippedNonPdf ?? 0} skipped (unsupported format), ${data.skipped ?? 0} already indexed${data.errors ? `, ${data.errors} errors` : ''}.`)
+      if (data.errorDetails && data.errorDetails.length > 0) setReindexErrors(data.errorDetails)
     } catch (e: any) { setReindexResult(`Error: ${e.message}`) }
     setReindexing(false)
   }
@@ -7081,6 +7084,26 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         </button>
         {reindexResult && <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: reindexResult.startsWith('Error') ? '#e09090' : '#80e090' }}>{reindexResult}</span>}
       </div>
+
+      {/* ── Reindex Error Details ── */}
+      {reindexErrors.length > 0 && (
+        <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 8, padding: '14px 18px', marginBottom: 24 }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#e09090', letterSpacing: '0.12em', marginBottom: 10 }}>
+            REINDEX ERRORS — {reindexErrors.length} FILE{reindexErrors.length !== 1 ? 'S' : ''} FAILED
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, maxHeight: 300, overflowY: 'auto' as const }}>
+            {reindexErrors.map((e, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', borderBottom: i < reindexErrors.length - 1 ? '1px solid rgba(248,113,113,0.12)' : 'none' }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: '#e09090', letterSpacing: '0.06em', flexShrink: 0, marginTop: 2 }}>{e.code || 'ERR'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: dim2, wordBreak: 'break-all' as const }}>{e.filename}</div>
+                  <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: '#e09090', marginTop: 2 }}>{e.error}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Tool 1: Spirit Gap Analysis ── */}
       <div style={{ background: surf2, border: `1px solid ${bdr2}`, borderRadius: 10, padding: '24px', marginBottom: 24 }}>
