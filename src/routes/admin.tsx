@@ -2045,6 +2045,15 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setFieldDecisions(prev => ({ ...prev, [key]: { ...(prev[key] || {}), value: val } }))
   }
 
+  useEffect(() => {
+    const prefill = localStorage.getItem('wri_add_spirit_prefill')
+    if (prefill) {
+      localStorage.removeItem('wri_add_spirit_prefill')
+      setNewFields(prev => ({ ...prev, [INTEL_NAME_F]: prefill }))
+      setShowNew(true)
+    }
+  }, [])
+
   async function fetchDemons() {
     setDLoading(true)
     try {

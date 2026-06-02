@@ -3536,7 +3536,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                       <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{r.category} · {r.tier}</div>
                     </div>
                     <button
-                      onClick={() => setActiveSection('arsenal')}
+                      onClick={() => { if (r.file_url) { window.open(r.file_url, '_blank') } else { setActiveSection('arsenal') } }}
                       style={{ fontSize: 9, color: GG, background: 'transparent', border: `1px solid ${GG}`, borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
                     >VIEW</button>
                   </div>
@@ -3559,11 +3559,17 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                       padding: '10px 14px',
                       borderBottom: i < recentDemons.length - 1 ? `1px solid ${bdr}` : 'none',
                       cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
                     }}
-                    onClick={() => setActiveSection('database')}
+                    onClick={() => { localStorage.setItem('wri_jump_to_spirit', d.name); setActiveSection('database') }}
                   >
-                    <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{d.name}</div>
-                    <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.biblicalRank || ''}</div>
+                    <div>
+                      <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{d.name}</div>
+                      <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.biblicalRank || ''}</div>
+                    </div>
+                    <span style={{ fontSize: 10, color: GG, flexShrink: 0, marginLeft: 8 }}>→</span>
                   </div>
                 ))}
               </div>
@@ -3617,6 +3623,26 @@ const HIERARCHY_CATEGORIES = [
   'All', 'Fear / Rejection', 'Marine Kingdom', 'Occult / Witchcraft',
   'Freemasonry', 'Perversion', 'Death / Destruction', 'Religious', 'General Oppression',
 ]
+
+const STOP_WORDS = new Set([
+  'and','the','with','through','by','of','in','a','an','all','its','their','this','that',
+  'these','those','maintains','control','operates','functions','works','also','known','as',
+  'or','but','for','on','at','to','from','into','over','under','both','often','may','can',
+])
+
+function parseSpiritNames(text: string): string[] {
+  if (!text) return []
+  let raw = text
+  const subMatch = raw.match(/[Ss]ubordinates?[:\s]+(.+)/s)
+  if (subMatch) raw = subMatch[1]
+  raw = raw.replace(/[Bb]oss[:\s]+[^.]+\.\s*/g, '')
+  const parts = raw.split(/[,;]|\band\b/)
+  return parts
+    .map(p => p.trim().replace(/^[-•*\d.]+\s*/, '').replace(/[.!?]$/, '').trim())
+    .filter(p => p.length > 1 && p.length <= 40)
+    .filter(p => !STOP_WORDS.has(p.toLowerCase()))
+    .filter((p, i, arr) => arr.indexOf(p) === i)
+}
 
 function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [] }: {
   theme: string
@@ -3998,6 +4024,37 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           return <>{parts}</>
         }
 
+        const SpiritPill = ({ name }: { name: string }) => {
+          const matched = (demonsProp as any[]).find(d => d.name?.toLowerCase() === name.toLowerCase())
+          if (matched) {
+            return (
+              <span
+                onClick={() => setSelectedEntry(matched)}
+                style={{ display: 'inline-block', background: `rgba(201,168,76,0.12)`, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: G, cursor: 'pointer', transition: 'background 0.15s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.22)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.12)' }}
+                title={`Open dossier: ${matched.name}`}
+              >{name}</span>
+            )
+          }
+          if (userTier !== 'minister') {
+            return (
+              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.1)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: mut }}>
+                {name}
+              </span>
+            )
+          }
+          return (
+            <span
+              onClick={() => { localStorage.setItem('wri_add_spirit_prefill', name); window.open('/admin', '_blank') }}
+              style={{ display: 'inline-block', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.1)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: mut, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.4)'; (e.currentTarget as HTMLElement).style.color = G }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.color = mut }}
+              title={`Add "${name}" to Intel Archive`}
+            >{name} <span style={{ fontSize: 10, opacity: 0.7 }}>✚</span></span>
+          )
+        }
+
         return (
           <div onClick={() => setSelectedEntry(null)}
             style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? 8 : 20, paddingTop: isMobile ? 20 : undefined, backdropFilter: 'blur(4px)' }}>
@@ -4182,9 +4239,12 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   {entry.clusterSpirits && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cluster Spirits</div>
-                      <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>
-                        {linkifySpirits(String(entry.clusterSpirits))}
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const }}>
+                        {parseSpiritNames(String(entry.clusterSpirits)).map((n, i) => <SpiritPill key={i} name={n} />)}
                       </div>
+                      {parseSpiritNames(String(entry.clusterSpirits)).length === 0 && (
+                        <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>{linkifySpirits(String(entry.clusterSpirits))}</div>
+                      )}
                     </div>
                   )}
                   <FieldBlock label="Transmission Vectors" value={entry.transmissionVectors} />
@@ -4280,8 +4340,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   {entry.relatedSpirits && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Related Spirits</div>
-                      <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>
-                        {linkifySpirits(String(entry.relatedSpirits))}
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const }}>
+                        {String(entry.relatedSpirits).split(/[,;]/).map(s => s.trim()).filter(Boolean).map((n, i) => <SpiritPill key={i} name={n} />)}
                       </div>
                     </div>
                   )}
