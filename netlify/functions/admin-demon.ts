@@ -112,8 +112,22 @@ export default async function handler(req: Request) {
     const { id, fields } = body
     if (!id || !fields) return new Response(JSON.stringify({ error: 'id and fields required' }), { status: 400 })
 
+    // Coerce array fields to newline-joined strings before mapping.
+    // AI enrichment can return these as arrays; Airtable long-text fields expect a string.
+    // culturalPresence is intentionally excluded — it is a Multiple Select and must stay as an array.
+    const ARRAY_TO_STRING_FIELDS = [
+      'prayerPoints', 'deliveranceSequence', 'entryPoints',
+      'manifestations', 'counterScriptures', 'aftercareNotes', 'clusterSpirits',
+    ]
+    const normalised = { ...fields }
+    for (const key of ARRAY_TO_STRING_FIELDS) {
+      if (Array.isArray(normalised[key])) {
+        normalised[key] = (normalised[key] as string[]).join('\n\n')
+      }
+    }
+
     // Map camelCase AI fields to exact Airtable field names
-    const airtableFields: Record<string, any> = { ...fields }
+    const airtableFields: Record<string, any> = { ...normalised }
     const camelToAirtable: Record<string, string> = {
       name: '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE',
       aka: 'Also Known As',
