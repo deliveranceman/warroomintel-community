@@ -342,6 +342,8 @@ export default async function handler(req: Request) {
         file_path: filePath,
         file_type: filePath.toLowerCase().endsWith('.pdf') ? 'pdf' : 'txt',
         topic: 'ministry-library',
+        // source_type MUST be set — arsenal-resources.ts includes source_type IS NULL rows
+        source_type: 'library',
         extracted_text: text,
         active: true,
         ai_generated: true,

@@ -77,15 +77,15 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ url: signedData.signedUrl }), { status: 200, headers })
   }
 
-  // ⚠️ ARSENAL ONLY — queries resources table WHERE source_type = 'arsenal' OR source_type IS NULL (legacy)
-  // DO NOT remove the source_type filter — Library items have source_type='christian'/'intelligence' and must never appear here
-  // The old neq('topic','ministry-library') filter was fragile; AI re-tagging could overwrite the topic and let Library items bleed through
+  // ⚠️ ARSENAL ONLY — source_type = 'arsenal' EXCLUSIVELY
+  // All arsenal rows in DB have source_type='arsenal' (set by admin-upload.ts or fixed via migration 2026-06-01)
+  // Library rows have source_type='christian'/'intelligence'/'library'
+  // NULL fallback was removed — it was the root cause of library data bleeding into Arsenal
   let query = supabase
     .from('resources')
     .select('id, title, description, tier, category, topic, tags, file_path, file_type, file_size, source_type, created_at')
     .in('tier', allowedTiers)
-    .or('source_type.is.null,source_type.eq.arsenal')
-    .not('file_path', 'like', 'user_%')
+    .eq('source_type', 'arsenal')
     .not('tier', 'is', null)
 
   if (searchParam) {
