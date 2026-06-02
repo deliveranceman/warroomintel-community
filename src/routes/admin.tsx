@@ -2364,38 +2364,52 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
       try {
         const token = await getToken()
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 25000)
+        const allFields: Record<string, any> = {}
 
-        const res = await fetch('/api/ai-spirit-enhance-background', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name: spirit.name, existing: spirit }),
-          signal: controller.signal,
-        })
-        clearTimeout(timer)
+        // Call the enhance endpoint once per field group — mirrors the individual AI button (FIELD_GROUPS × 3 calls)
+        // Image URLs are fetched automatically inside ai-spirit-enhance.ts via Wikipedia if available
+        for (const group of FIELD_GROUPS) {
+          try {
+            const controller = new AbortController()
+            const timer = setTimeout(() => controller.abort(), 25000)
 
-        if (res.ok) {
-          const data = await res.json()
-          if (data.fields && Object.keys(data.fields).length > 0) {
-            const saveToken = await getToken()
-            const saveRes = await fetch('/api/admin-demon', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${saveToken}` },
-              body: JSON.stringify({ id: spirit.airtableId, fields: data.fields }),
+            const res = await fetch('/api/ai-spirit-enhance-background', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ name: spirit.name, existing: spirit, fields: group }),
+              signal: controller.signal,
             })
-            if (saveRes.ok) updated++
-            else failed++
-          } else {
-            skipped++
+            clearTimeout(timer)
+
+            if (res.ok) {
+              const data = await res.json()
+              if (data.fields && Object.keys(data.fields).length > 0) {
+                Object.assign(allFields, data.fields)
+              }
+            }
+          } catch (groupErr: any) {
+            if (groupErr.name === 'AbortError') {
+              console.warn(`[batch-enrich] Group timeout on spirit: ${spirit.name}`)
+            }
+            // Continue to next group even if this one fails
           }
+        }
+
+        if (Object.keys(allFields).length > 0) {
+          // Auto-save all returned fields — no review panel in batch mode
+          const saveToken = await getToken()
+          const saveRes = await fetch('/api/admin-demon', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${saveToken}` },
+            body: JSON.stringify({ id: spirit.airtableId, fields: allFields }),
+          })
+          if (saveRes.ok) updated++
+          else failed++
         } else {
-          failed++
+          skipped++
         }
       } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.warn(`[batch-enrich] Timeout on spirit: ${spirit.name}`)
-        }
+        console.warn(`[batch-enrich] Error on spirit: ${spirit.name}`, err.message)
         failed++
       }
 
@@ -2451,9 +2465,10 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                  quickFilter === 'missing-notes' ? (!d.operationalNotes   || String(d.operationalNotes).trim()   === '') :
                  quickFilter === 'recent'        ? (d.createdTime ? (Date.now() - new Date(d.createdTime).getTime() < 30*24*60*60*1000) : false) : true)
     .filter(d => !needsEnrichFilter || (
-      (d.confidence_score == null || d.confidence_score < 75) ||
-      !d.notes || String(d.notes).trim() === '' ||
-      !d.description || String(d.description).trim() === ''
+      !d.description         || String(d.description).trim()         === '' ||
+      !d.sessionIndicators   || String(d.sessionIndicators).trim()   === '' ||
+      !d.etymologyNotes      || String(d.etymologyNotes).trim()      === '' ||
+      !d.deliveranceSequence || String(d.deliveranceSequence).trim() === ''
     ))
     .filter(d => !search || d.name.toLowerCase().includes(search.toLowerCase()))
     .filter(d => !filterCat || d.hierarchyCategory === filterCat)
