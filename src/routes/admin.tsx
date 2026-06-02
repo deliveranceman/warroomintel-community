@@ -2009,6 +2009,15 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [backfillProgress, setBackfillProgress] = useState('')
   const [backfillResults, setBackfillResults]   = useState<{ totalUpdated: number; totalSkipped: number; totalFailed: number; complete: boolean } | null>(null)
 
+  // Selection + batch enrich state
+  const [selectedSpirits, setSelectedSpirits]     = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll]                 = useState(false)
+  const [needsEnrichFilter, setNeedsEnrichFilter] = useState(false)
+  const [enrichProgress, setEnrichProgress]       = useState<{
+    current: number; total: number; currentName: string; done: boolean;
+    updated: number; failed: number; skipped: number
+  } | null>(null)
+
   // Sub-section navigation
   const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates' | 'body-map'>('database')
 
@@ -2341,6 +2350,68 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     }
   }
 
+  async function handleEnrichSelected() {
+    const ids = Array.from(selectedSpirits)
+    setEnrichProgress({ current: 0, total: ids.length, currentName: '', done: false, updated: 0, failed: 0, skipped: 0 })
+
+    let updated = 0, failed = 0, skipped = 0
+
+    for (let i = 0; i < ids.length; i++) {
+      const spirit = demons.find(s => s.airtableId === ids[i])
+      if (!spirit) continue
+
+      setEnrichProgress(p => p ? { ...p, current: i + 1, currentName: spirit.name ?? '' } : p)
+
+      try {
+        const token = await getToken()
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 25000)
+
+        const res = await fetch('/api/ai-spirit-enhance-background', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: spirit.name, existing: spirit }),
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.fields && Object.keys(data.fields).length > 0) {
+            const saveToken = await getToken()
+            const saveRes = await fetch('/api/admin-demon', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${saveToken}` },
+              body: JSON.stringify({ id: spirit.airtableId, fields: data.fields }),
+            })
+            if (saveRes.ok) updated++
+            else failed++
+          } else {
+            skipped++
+          }
+        } else {
+          failed++
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.warn(`[batch-enrich] Timeout on spirit: ${spirit.name}`)
+        }
+        failed++
+      }
+
+      setEnrichProgress(p => p ? { ...p, updated, failed, skipped } : p)
+
+      if (i < ids.length - 1) {
+        await new Promise(r => setTimeout(r, 3000))
+      }
+    }
+
+    setEnrichProgress(p => p ? { ...p, done: true } : p)
+    await fetchDemons()
+    setSelectedSpirits(new Set())
+    setSelectAll(false)
+  }
+
   async function fetchPosts() {
     try {
       const res = await fetch('/api/intel-posts')
@@ -2379,6 +2450,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                  quickFilter === 'missing-sc'    ? (!d.counterScriptures  || String(d.counterScriptures).trim()  === '') :
                  quickFilter === 'missing-notes' ? (!d.operationalNotes   || String(d.operationalNotes).trim()   === '') :
                  quickFilter === 'recent'        ? (d.createdTime ? (Date.now() - new Date(d.createdTime).getTime() < 30*24*60*60*1000) : false) : true)
+    .filter(d => !needsEnrichFilter || (
+      (d.confidence_score == null || d.confidence_score < 75) ||
+      !d.notes || String(d.notes).trim() === '' ||
+      !d.description || String(d.description).trim() === ''
+    ))
     .filter(d => !search || d.name.toLowerCase().includes(search.toLowerCase()))
     .filter(d => !filterCat || d.hierarchyCategory === filterCat)
     .sort((a, b) => {
@@ -2791,6 +2867,36 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         </div>
       )}
 
+      {/* Batch enrich progress panel */}
+      {enrichProgress && (
+        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>
+            {enrichProgress.done ? 'ENRICHMENT COMPLETE' : `ENRICHING — ${enrichProgress.current} / ${enrichProgress.total}`}
+          </div>
+          {!enrichProgress.done && (
+            <>
+              <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 4, height: 6, marginBottom: 12 }}>
+                <div style={{ width: `${enrichProgress.total ? (enrichProgress.current / enrichProgress.total) * 100 : 0}%`, height: '100%', background: G, borderRadius: 4, transition: 'width 0.4s ease' }} />
+              </div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#b8a98a', marginBottom: 8 }}>
+                Processing: <strong>{enrichProgress.currentName}</strong>
+              </div>
+            </>
+          )}
+          <div style={{ display: 'flex', gap: 20, fontSize: 12, fontFamily: cinzel, letterSpacing: '0.08em' }}>
+            <span style={{ color: '#4CAF7D' }}>✓ {enrichProgress.updated} updated</span>
+            <span style={{ color: '#b8a98a' }}>↷ {enrichProgress.skipped} skipped</span>
+            <span style={{ color: '#D4524A' }}>✗ {enrichProgress.failed} failed</span>
+          </div>
+          {enrichProgress.done && (
+            <button onClick={() => setEnrichProgress(null)}
+              style={{ marginTop: 12, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: DIM, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              Dismiss
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Table toolbar */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' as const }}>
         <button
@@ -2806,6 +2912,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           {HIER_CATS.map(c => <option key={c}>{c}</option>)}
         </select>
         <button onClick={exportCSV} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, padding: '7px 14px', color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>↓ CSV</button>
+        <button
+          onClick={() => { setNeedsEnrichFilter(f => !f); setPage(0) }}
+          style={{ background: needsEnrichFilter ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${needsEnrichFilter ? G : BDR}`, borderRadius: 5, padding: '7px 14px', color: needsEnrichFilter ? G : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>
+          🧠 Needs Enrichment{needsEnrichFilter ? ' ✕' : ''}
+        </button>
         {quickFilter !== 'all' && (
           <button onClick={() => setQuickFilter('all')} style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 999, padding: '3px 12px', color: G, fontSize: 11, fontFamily: cinzel, cursor: 'pointer', flexShrink: 0 }}>
             ✕ {quickFilter === 'missing-seq' ? 'Missing Sequence' : quickFilter === 'missing-sc' ? 'Missing Scriptures' : quickFilter === 'missing-notes' ? 'Missing Notes' : 'Recent Additions'}
@@ -2836,6 +2947,17 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: adHeaderBg }}>
+                <th style={{ ...thS, cursor: 'default', width: 36, color: isDark ? DIM : '#5C5248' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    onChange={e => {
+                      setSelectAll(e.target.checked)
+                      setSelectedSpirits(e.target.checked ? new Set(paginated.map((s: any) => s.airtableId)) : new Set())
+                    }}
+                    style={{ accentColor: G, width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                </th>
                 <th style={{ ...thS, color: isDark ? DIM : '#5C5248' }} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
                 <th style={{ ...thS, color: isDark ? DIM : '#5C5248' }} onClick={() => handleSort('biblicalRank')}>Biblical Rank{sortInd('biblicalRank')}</th>
                 <th style={{ ...thS, color: isDark ? DIM : '#5C5248' }} onClick={() => handleSort('hierarchyCategory')}>Category{sortInd('hierarchyCategory')}</th>
@@ -2846,12 +2968,26 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             </thead>
             <tbody>
               {dLoading ? (
-                <tr><td colSpan={6} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>Loading spirits...</td></tr>
+                <tr><td colSpan={7} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>Loading spirits...</td></tr>
               ) : paginated.length === 0 ? (
-                <tr><td colSpan={6} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>{quickFilter !== 'all' ? 'No spirits found with this filter. Try clearing the filter.' : 'No spirits found.'}</td></tr>
-              ) : paginated.map(d => (
+                <tr><td colSpan={7} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>{quickFilter !== 'all' ? 'No spirits found with this filter. Try clearing the filter.' : 'No spirits found.'}</td></tr>
+              ) : paginated.map((d: any) => (
                 <Fragment key={d.airtableId || d.id}>
                   <tr style={{ background: editingId === d.airtableId ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
+                    <td style={{ ...tdS, width: 36 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedSpirits.has(d.airtableId)}
+                        onChange={e => {
+                          setSelectedSpirits(prev => {
+                            const next = new Set(prev)
+                            e.target.checked ? next.add(d.airtableId) : next.delete(d.airtableId)
+                            return next
+                          })
+                        }}
+                        style={{ accentColor: G, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
+                      />
+                    </td>
                     <td style={{ ...tdS, fontFamily: cinzel, fontSize: 11, maxWidth: 160, wordBreak: 'break-word' as const }}>{d.name}</td>
                     <td style={{ ...tdS, color: DIM, maxWidth: 110, fontSize: 12 }}>{d.biblicalRank || ''}</td>
                     <td style={{ ...tdS }}>
@@ -2892,7 +3028,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   </tr>
                   {editingId === d.airtableId && (
                     <tr>
-                      <td colSpan={6} style={{ padding: '4px 12px 16px' }}>
+                      <td colSpan={7} style={{ padding: '4px 12px 16px' }}>
                         <SpiritEditForm
                           fields={editFields}
                           setField={(name, val) => setEditFields(prev => ({ ...prev, [name]: val }))}
@@ -2927,6 +3063,24 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           </div>
         )}
       </div>
+
+      {/* Floating selection action bar */}
+      {selectedSpirits.size > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1508', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16, zIndex: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em' }}>
+            {selectedSpirits.size} SELECTED
+          </span>
+          <button onClick={handleEnrichSelected}
+            disabled={!!enrichProgress && !enrichProgress.done}
+            style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: G, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', opacity: (enrichProgress && !enrichProgress.done) ? 0.5 : 1 }}>
+            🧠 ENRICH SELECTED ({selectedSpirits.size})
+          </button>
+          <button onClick={() => { setSelectedSpirits(new Set()); setSelectAll(false) }}
+            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: '#b8a98a', letterSpacing: '0.08em' }}>
+            CLEAR
+          </button>
+        </div>
+      )}
 
       {/* Post Briefing form */}
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>

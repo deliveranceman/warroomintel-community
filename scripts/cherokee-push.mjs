@@ -28,21 +28,18 @@ const HEADERS = { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'applicati
 const FIELD_MAP = {
   name:             PRIMARY,
   aka:              'Also Known As',
-  typeRank:         'Type / Rank',
   description:      'Description',
   manifestations:   'Manifestiation',
   scripture:        'Scripture Reference',
   entryPoints:      'Entry Points',
-  source:           'Source / Orgin',
-  kingdom:          'Kingdom',
-  strongman:        'Strongman',
-  rank:             'Rank',
+  // source / typeRank / rank / kingdom omitted — Single Select fields; values must be pre-existing options
   legalRights:      'Legal Rights',
   symptoms:         'Symptoms',
   companionSpirits: 'Companion Spirits',
   wriNotes:         'WRI Exorcist Notes',
   assignment:       'Assignment',
   hierarchyCategory:'Hierarchy Category',
+  strongman:        'Strongman',
   parentStrongman:  'Parent Strongman',
 };
 
