@@ -604,6 +604,7 @@ function blankSpiritFields(): Record<string, string> {
     'Etymology Notes': '', 'Archaeology Notes': '', 'Scripture Context': '',
     'Resistance Signature': '', 'Institutional Expression': '', 'Prayer Points': '',
     'Legal Rights Framework': '',
+    'Equivalent Spirits': '',
     'Is Generational': 'false', 'Is Territorial': 'false',
   }
 }
@@ -638,6 +639,7 @@ function demonToSpiritFields(d: any): Record<string, string> {
     'Institutional Expression': d.institutionalExpression || '',
     'Prayer Points': d.prayerPoints || '',
     'Legal Rights Framework': d.legalRightsFramework || '',
+    'Equivalent Spirits': d.equivalentSpirits || '',
     'Is Generational': String(d.isGenerational || false),
     'Is Territorial': String(d.isTerritorial || false),
   }
@@ -728,7 +730,7 @@ function SpiritTypeahead({ value, onChange, demons, mode, placeholder }: {
   )
 }
 
-function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demons = [] }: {
+function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demons = [], getToken }: {
   fields: Record<string, string>
   setField: (name: string, val: string) => void
   onSave: () => void
@@ -736,7 +738,12 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
   saving: boolean
   msg: string
   demons?: any[]
+  getToken?: () => Promise<string | null>
 }) {
+  const [loadingEquivalents, setLoadingEquivalents] = useState(false)
+  const [equivalentSuggestions, setEquivalentSuggestions] = useState<any[]>([])
+  const [equivalentSummary, setEquivalentSummary] = useState('')
+  const [showEquivalentSuggestions, setShowEquivalentSuggestions] = useState(false)
   const i: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', background: '#0a0813',
     border: `1px solid ${BDR}`, borderRadius: 6, padding: '9px 11px',
@@ -752,6 +759,39 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
     <textarea value={f(name)} onChange={e => setField(name, e.target.value)} rows={rows}
       style={{ ...i, resize: 'vertical' as const }} />
   )
+
+  async function lookupEquivalents() {
+    if (!getToken) return
+    setLoadingEquivalents(true)
+    setShowEquivalentSuggestions(false)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-equivalents', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spiritName: f(INTEL_NAME_F),
+          kingdom: f('Kingdom'),
+          description: f('Description'),
+          aka: f('Also Known As'),
+        }),
+      })
+      const data = await res.json()
+      if (data.equivalents?.length > 0) {
+        setEquivalentSuggestions(data.equivalents)
+        setEquivalentSummary(data.summary || '')
+        setShowEquivalentSuggestions(true)
+      } else {
+        setEquivalentSuggestions([])
+        setEquivalentSummary('No cross-cultural equivalents found with sufficient confidence.')
+        setShowEquivalentSuggestions(true)
+      }
+    } catch (err) {
+      console.error('[lookupEquivalents]', err)
+    } finally {
+      setLoadingEquivalents(false)
+    }
+  }
   return (
     <div style={{ background: '#09080f', border: `1px solid ${BDR}`, borderRadius: 8, padding: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -887,6 +927,76 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>🙏 Ministry Application</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Prayer Points</label>{ta('Prayer Points', 3)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Aftercare Notes</label>{ta('Aftercare Notes', 3)}</div>
+
+        {/* Cross-Cultural Equivalents Section */}
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>🌐 Cross-Cultural Equivalents</div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <label style={{ ...l, marginBottom: 0 }}>EQUIVALENT SPIRITS</label>
+            {getToken && (
+              <button
+                onClick={lookupEquivalents}
+                disabled={loadingEquivalents}
+                style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '3px 10px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.08em', opacity: loadingEquivalents ? 0.5 : 1 }}>
+                {loadingEquivalents ? 'Looking up...' : '✦ AI Lookup'}
+              </button>
+            )}
+          </div>
+
+          {showEquivalentSuggestions && (
+            <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: 12, marginBottom: 8 }}>
+              {equivalentSummary && (
+                <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.7)', fontStyle: 'italic', marginBottom: 10 }}>
+                  {equivalentSummary}
+                </div>
+              )}
+              {equivalentSuggestions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                  {equivalentSuggestions.map((eq, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 4, padding: '6px 10px' }}>
+                      <div>
+                        <span style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{eq.name}</span>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.5)', marginLeft: 8 }}>({eq.tradition})</span>
+                        {eq.notes && (
+                          <div style={{ fontFamily: crimson, fontSize: 11, color: 'rgba(240,232,216,0.5)', fontStyle: 'italic', marginTop: 2 }}>
+                            {eq.notes}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.4)' }}>{eq.confidence}/10</span>
+                        <button
+                          onClick={() => {
+                            const line = eq.tradition ? `${eq.name} (${eq.tradition})` : eq.name
+                            setField('Equivalent Spirits', f('Equivalent Spirits').trim() ? `${f('Equivalent Spirits').trim()}\n${line}` : line)
+                          }}
+                          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, padding: '3px 8px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+                          + ADD
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  const allLines = equivalentSuggestions.map(eq => eq.tradition ? `${eq.name} (${eq.tradition})` : eq.name).join('\n')
+                  setField('Equivalent Spirits', f('Equivalent Spirits').trim() ? `${f('Equivalent Spirits').trim()}\n${allLines}` : allLines)
+                  setShowEquivalentSuggestions(false)
+                }}
+                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, padding: '5px 12px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.08em', width: '100%' }}>
+                + ADD ALL TO FIELD
+              </button>
+            </div>
+          )}
+
+          <textarea value={f('Equivalent Spirits')} onChange={e => setField('Equivalent Spirits', e.target.value)}
+            rows={4} placeholder={'One equivalent per line, e.g.:\nAshtoreth (Canaanite)\nVenus (Roman)\nIshtar (Babylonian)'}
+            style={{ ...i, resize: 'vertical' as const }} />
+          <div style={{ fontSize: 10, color: DIM, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
+            One equivalent per line. Include tradition in parentheses.
+          </div>
+        </div>
       </div>
       {msg && <div style={{ fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 12 }}>{msg}</div>}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
@@ -2449,6 +2559,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             saving={newSaving}
             msg={newMsg}
             demons={demons}
+            getToken={getToken}
           />
         </div>
       )}
@@ -2524,6 +2635,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           saving={editSaving}
                           msg={editMsg}
                           demons={demons}
+                          getToken={getToken}
                         />
                       </td>
                     </tr>
@@ -9696,6 +9808,8 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   const [cardErrors, setCardErrors]   = useState<Record<string, string>>({})
   const [editedFields, setEditedFields] = useState<Record<string, Record<string, string>>>({})
   const [aiFillingField, setAiFillingField] = useState<Record<string, boolean>>({})
+  const [enrichEquivalents, setEnrichEquivalents] = useState<Record<string, any>>({})
+  const [enrichEquivLoading, setEnrichEquivLoading] = useState<Record<string, boolean>>({})
 
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
@@ -9739,6 +9853,24 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
       }
     } catch {}
     setAiFillingField(prev => { const n = { ...prev }; delete n[key]; return n })
+  }
+
+  async function fetchEnrichEquivalents(spiritName: string, kingdom: string, description: string) {
+    setEnrichEquivLoading(prev => ({ ...prev, [spiritName]: true }))
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-equivalents', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spiritName, kingdom, description }),
+      })
+      const data = await res.json()
+      setEnrichEquivalents(prev => ({ ...prev, [spiritName]: data }))
+    } catch (err) {
+      console.error('[enrichEquivalents]', err)
+    } finally {
+      setEnrichEquivLoading(prev => ({ ...prev, [spiritName]: false }))
+    }
   }
 
   async function handleApply(id: string, action: 'approve' | 'reject') {
@@ -9872,7 +10004,13 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
                 CONFIDENCE: {s.confidence}/10
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => fetchEnrichEquivalents(s.spirit_name, s.kingdom || '', s.description || '')}
+                disabled={enrichEquivLoading[s.spirit_name]}
+                style={{ padding: '4px 10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, color: gold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', opacity: enrichEquivLoading[s.spirit_name] ? 0.5 : 1 }}>
+                {enrichEquivLoading[s.spirit_name] ? 'Looking up...' : '✦ Find Equivalents'}
+              </button>
               <button onClick={() => handleApply(s.id, 'approve')} disabled={applying[s.id]}
                 style={{ padding: '6px 14px', background: 'rgba(58,106,58,0.15)', border: '1px solid #3a6a3a', borderRadius: 4, color: '#5a8a5a', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: applying[s.id] ? 'not-allowed' : 'pointer' }}>
                 {applying[s.id] ? '⏳' : '✓ APPROVE'}
@@ -9930,6 +10068,66 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
               </div>
             )
           })}
+
+          {/* Equivalent spirits panel */}
+          {enrichEquivalents[s.spirit_name] && (() => {
+            const eqData = enrichEquivalents[s.spirit_name]
+            const eqList: any[] = eqData.equivalents || []
+            const eqSummary: string = eqData.summary || ''
+            const eqKey = 'Equivalent Spirits'
+            const currentEq = editedFields[s.id]?.[eqKey] ?? ''
+            return (
+              <div style={{ marginTop: 10, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 5, padding: 10 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: gold, letterSpacing: '0.1em', marginBottom: 6 }}>🌐 CROSS-CULTURAL EQUIVALENTS</div>
+                {eqSummary && <div style={{ fontFamily: crimson, fontSize: 12, color: '#6b5e45', fontStyle: 'italic', marginBottom: 8 }}>{eqSummary}</div>}
+                {eqList.length === 0 ? (
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: dim }}>No equivalents found with sufficient confidence.</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 8 }}>
+                      {eqList.map((eq: any, idx: number) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 4, padding: '4px 8px' }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 10, color: gold }}>{eq.name}</span>
+                          <span style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.45)' }}>({eq.tradition})</span>
+                          <span style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.35)' }}>{eq.confidence}/10</span>
+                          <button
+                            onClick={() => {
+                              const line = eq.tradition ? `${eq.name} (${eq.tradition})` : eq.name
+                              const updated = currentEq.trim() ? `${currentEq.trim()}\n${line}` : line
+                              setEditedFields(prev => ({ ...prev, [s.id]: { ...(prev[s.id] || {}), [eqKey]: updated } }))
+                            }}
+                            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 3, padding: '1px 6px', fontSize: 8, color: gold, fontFamily: cinzel, cursor: 'pointer' }}>
+                            + ADD
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const allLines = eqList.map((eq: any) => eq.tradition ? `${eq.name} (${eq.tradition})` : eq.name).join('\n')
+                        const updated = currentEq.trim() ? `${currentEq.trim()}\n${allLines}` : allLines
+                        setEditedFields(prev => ({ ...prev, [s.id]: { ...(prev[s.id] || {}), [eqKey]: updated } }))
+                        setEnrichEquivalents(prev => { const n = { ...prev }; delete n[s.spirit_name]; return n })
+                      }}
+                      style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, padding: '4px 10px', fontSize: 8, color: gold, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.08em', width: '100%' }}>
+                      + ADD ALL TO EQUIVALENT SPIRITS FIELD
+                    </button>
+                    {currentEq && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: '#6b5e45', letterSpacing: '0.08em', marginBottom: 3 }}>{eqKey} ✎</div>
+                        <textarea
+                          value={currentEq}
+                          onChange={e => setEditedFields(prev => ({ ...prev, [s.id]: { ...(prev[s.id] || {}), [eqKey]: e.target.value } }))}
+                          rows={3}
+                          style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 3, padding: '5px 8px', color: '#8a7a60', fontFamily: crimson, fontSize: 12, resize: 'vertical' as const, outline: 'none' }}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })()}
         </div>
       ))}
     </div>

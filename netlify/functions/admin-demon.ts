@@ -90,6 +90,7 @@ export default async function handler(req: Request) {
       subKingdom: data.fields['Sub-Kingdom'] || '',
       culturalPresence: Array.isArray(data.fields['Cultural Presence']) ? data.fields['Cultural Presence'] : [],
       sessionTriggerQuestions: data.fields['Session Trigger Questions'] || '',
+      equivalentSpirits: data.fields['Equivalent Spirits'] || '',
     }
     return new Response(JSON.stringify({ record: mapped }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
@@ -158,6 +159,7 @@ export default async function handler(req: Request) {
       culturalPresence: 'Cultural Presence',
       sessionTriggerQuestions: 'Session Trigger Questions',
       region: 'Region', // TODO: Create 'Region' field in Airtable
+      equivalentSpirits: 'Equivalent Spirits',
     }
     for (const [camel, airtable] of Object.entries(camelToAirtable)) {
       if (camel in airtableFields) {
