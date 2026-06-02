@@ -17,10 +17,11 @@ if (existsSync(envPath)) {
   }
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://uurfiasxtcvdpkfosofn.supabase.co'
+const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 
+if (!SUPABASE_URL) { console.error('ERROR: SUPABASE_URL not set'); process.exit(1) }
 if (!SUPABASE_KEY) { console.error('ERROR: SUPABASE_SERVICE_KEY not set'); process.exit(1) }
 if (!ANTHROPIC_KEY) { console.error('ERROR: ANTHROPIC_API_KEY not set'); process.exit(1) }
 

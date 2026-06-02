@@ -80,7 +80,7 @@ async function main() {
   }
 
   console.log('\nDone. Run any missing SQL at:');
-  console.log('https://supabase.com/dashboard/project/uurfiasxtcvdpkfosofn/sql');
+  console.log(`https://supabase.com/dashboard/project/${process.env.SUPABASE_PROJECT_ID || '<project-id>'}/sql`);
 }
 
 main();
