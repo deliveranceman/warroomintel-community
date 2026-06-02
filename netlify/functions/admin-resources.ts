@@ -56,8 +56,7 @@ export default async function handler(req: Request) {
     const { data, error } = await supabase
       .from('resources')
       .select('*')
-      // Arsenal only — exclude Ministry Library rows (source_type='christian'/'intelligence')
-      .or('source_type.is.null,source_type.eq.arsenal')
+      .eq('source_type', 'arsenal')
       .order('created_at', { ascending: false })
 
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 })
@@ -70,15 +69,30 @@ export default async function handler(req: Request) {
   if (req.method === 'PATCH') {
     let body: any
     try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 }) }
+
+    // Bulk update — { ids: string[], tier?, topic? }
+    if (Array.isArray(body?.ids)) {
+      const { ids, tier, topic } = body
+      if (!ids.length) return new Response(JSON.stringify({ error: 'ids required' }), { status: 400 })
+      const updates: Record<string, any> = {}
+      if (tier  !== undefined && tier)  updates.tier  = tier
+      if (topic !== undefined && topic) updates.topic = topic
+      if (!Object.keys(updates).length) return new Response(JSON.stringify({ error: 'no updates provided' }), { status: 400 })
+      const { error } = await supabase.from('resources').update(updates).in('id', ids)
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ success: true, updated: ids.length }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+
+    // Single update
     const { id, title, tier, topic, notes, tags, spirit_tags } = body || {}
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 })
 
     const updates: Record<string, any> = {}
-    if (title      !== undefined) updates.title      = title
-    if (tier       !== undefined) updates.tier        = tier
-    if (topic      !== undefined) updates.topic       = topic
-    if (notes      !== undefined) updates.notes       = notes
-    if (tags       !== undefined) updates.tags        = Array.isArray(tags) ? tags : []
+    if (title       !== undefined) updates.title       = title
+    if (tier        !== undefined) updates.tier        = tier
+    if (topic       !== undefined) updates.topic       = topic
+    if (notes       !== undefined) updates.notes       = notes
+    if (tags        !== undefined) updates.tags        = Array.isArray(tags) ? tags : []
     if (spirit_tags !== undefined) updates.spirit_tags = Array.isArray(spirit_tags) ? spirit_tags : []
 
     const { data: row, error } = await supabase
@@ -94,10 +108,24 @@ export default async function handler(req: Request) {
 
   if (req.method === 'DELETE') {
     const url = new URL(req.url)
-    const id  = url.searchParams.get('id')
+    const idsParam = url.searchParams.get('ids')
+    const id       = url.searchParams.get('id')
+
+    // Bulk delete — ?ids=id1,id2,id3
+    if (idsParam) {
+      const ids = idsParam.split(',').filter(Boolean)
+      if (!ids.length) return new Response(JSON.stringify({ error: 'ids required' }), { status: 400 })
+      const { data: rows } = await supabase.from('resources').select('file_path').in('id', ids)
+      const paths = (rows || []).map((r: any) => r.file_path).filter(Boolean)
+      if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
+      const { error } = await supabase.from('resources').delete().in('id', ids)
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ success: true, deleted: ids.length }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+
+    // Single delete
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 })
 
-    // Get file path before deleting row
     const { data: row, error: fetchErr } = await supabase
       .from('resources')
       .select('file_path')
@@ -106,10 +134,8 @@ export default async function handler(req: Request) {
 
     if (fetchErr || !row) return new Response(JSON.stringify({ error: 'Resource not found' }), { status: 404 })
 
-    // Delete from storage
     await supabase.storage.from(BUCKET).remove([row.file_path])
 
-    // Delete row
     const { error: deleteErr } = await supabase.from('resources').delete().eq('id', id)
     if (deleteErr) return new Response(JSON.stringify({ error: deleteErr.message }), { status: 500 })
 

@@ -96,18 +96,29 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [customCategories, setCustomCategories] = useState<string[]>([])
   const [newCategory, setNewCategory]   = useState('')
   const [highlightedResourceId, setHighlightedResourceId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set())
+  const [massEditTier, setMassEditTier]     = useState('')
+  const [massEditTopic, setMassEditTopic]   = useState('')
+  const [massDelConfirm, setMassDelConfirm] = useState(false)
+  const [massApplying, setMassApplying]     = useState(false)
+  const justAddedRef = useRef<number[]>([])
 
   const TOPICS = [
     'Spiritual Warfare',
     'Deliverance Ministry',
     'Inspirational / Faith',
-    'Prayer & Intercession',
+    'Prayer and Intercession',
     'Ministry Training',
     'Devotional',
-    "Men's Ministry",
-    'Healing & Wholeness',
+    'Healing and Wholeness',
     'Generational / Bloodline',
     'Scripture Study',
+    "Men's Ministry",
+    'Freemasonry & Secret Societies',
+    'Marine Kingdom',
+    'Jezebel Spirit',
+    'Python Spirit',
+    'Witchcraft',
   ]
 
   async function fetchResources() {
@@ -149,6 +160,61 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     const updated = customCategories.filter(c => c !== cat)
     setCustomCategories(updated)
     localStorage.setItem('wri-custom-categories', JSON.stringify(updated))
+  }
+
+  // Auto-autofill: fire when new files are staged
+  useEffect(() => {
+    if (justAddedRef.current.length === 0) return
+    const toProcess = [...justAddedRef.current]
+    justAddedRef.current = []
+    for (const id of toProcess) handleArsenalAutofill(id)
+  }, [stagedFiles.length])
+
+  async function handleMassEdit() {
+    if (!selectedIds.size || massApplying) return
+    if (!massEditTier && !massEditTopic) return
+    setMassApplying(true)
+    try {
+      const token = await getToken()
+      const body: any = { ids: [...selectedIds] }
+      if (massEditTier)  body.tier  = massEditTier
+      if (massEditTopic) body.topic = massEditTopic
+      const res = await fetch('/api/admin-resources', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setResources(prev => prev.map(r =>
+          selectedIds.has(r.id)
+            ? { ...r, ...(massEditTier ? { tier: massEditTier } : {}), ...(massEditTopic ? { topic: massEditTopic } : {}) }
+            : r
+        ))
+        setSelectedIds(new Set())
+        setMassEditTier('')
+        setMassEditTopic('')
+      }
+    } catch { /* silent */ }
+    setMassApplying(false)
+  }
+
+  async function handleMassDelete() {
+    if (!selectedIds.size || massApplying) return
+    setMassApplying(true)
+    try {
+      const ids = [...selectedIds].join(',')
+      const token = await getToken()
+      const res = await fetch(`/api/admin-resources?ids=${encodeURIComponent(ids)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        setResources(prev => prev.filter(r => !selectedIds.has(r.id)))
+        setSelectedIds(new Set())
+      }
+    } catch { /* silent */ }
+    setMassApplying(false)
+    setMassDelConfirm(false)
   }
 
   async function handleDelete(id: string) {
@@ -195,6 +261,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       }
     })
     setStagedFiles(prev => [...prev, ...mapped])
+    justAddedRef.current = mapped.map(x => x.id)
     if (stagedFiles.length + mapped.length > 5) setListExpanded(false)
   }
 
@@ -240,7 +307,8 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       try {
         const fd = new FormData()
         fd.append('file', sf.file)
-        fd.append('title', sf.filename.replace(/\.[^.]+$/, ''))
+        const cleanedTitle = (sf.filename.replace(/\.[^.]+$/, '').replace(/_arsenal$/i, '').replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim()) || sf.filename
+        fd.append('title', cleanedTitle)
         fd.append('tier', sf.tier)
         fd.append('topic', sf.topic || 'Spiritual Warfare')
         fd.append('description', sf.description || '')
@@ -453,21 +521,37 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       </div>
 
       {/* Resource List */}
-      <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 14 }}>
-        📂 Resources ({resources.length})
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>
+          📂 Resources ({resources.length})
+        </div>
+        {resources.length > 0 && (
+          <button
+            onClick={() => setSelectedIds(selectedIds.size === resources.length ? new Set() : new Set(resources.map((r: any) => r.id)))}
+            style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          >
+            {selectedIds.size === resources.length ? 'Deselect All' : 'Select All'}
+          </button>
+        )}
       </div>
       {resLoading ? (
         <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '20px 0' }}>Loading...</div>
       ) : resources.length === 0 ? (
         <div style={{ fontFamily: crimson, fontSize: 15, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>No resources uploaded yet.</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: selectedIds.size > 0 ? 72 : 0 }}>
           {resources.map((r: any) => (
             <Fragment key={r.id}>
-            <div style={{ background: SURF, border: `1px solid ${highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? '#C9A84C' : (TIER_COLORS[r.tier] || DIM)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
+            <div style={{ background: SURF, border: `1px solid ${selectedIds.has(r.id) ? 'rgba(201,168,76,0.6)' : highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? '#C9A84C' : (TIER_COLORS[r.tier] || DIM)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
+              <input
+                type="checkbox"
+                checked={selectedIds.has(r.id)}
+                onChange={e => setSelectedIds(prev => { const s = new Set(prev); e.target.checked ? s.add(r.id) : s.delete(r.id); return s })}
+                style={{ flexShrink: 0, accentColor: '#C9A84C', width: 14, height: 14, cursor: 'pointer' }}
+              />
               <span style={{ fontSize: 20, flexShrink: 0 }}>{FILE_ICONS[r.file_type?.split('/').pop() || ''] || '📎'}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 3 }}>{r.title}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 3 }}>{r.title?.replace(/_arsenal$/i, '') ?? r.title}</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <span style={{ fontFamily: cinzel, fontSize: 8, color: TIER_COLORS[r.tier], border: `1px solid ${TIER_COLORS[r.tier]}44`, padding: '1px 7px', borderRadius: 10 }}>{r.tier}</span>
                   <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{r.topic || r.category}</span>
@@ -527,7 +611,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                   <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>DESCRIPTION</label>
                   <textarea value={arsenalEditForm.notes} onChange={e => setArsenalEditForm((f: any) => ({ ...f, notes: e.target.value }))} rows={2} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <button onClick={async () => {
                     const token = await getToken()
                     const res = await fetch('/api/admin-resources', {
@@ -541,11 +625,76 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     } else { const d = await res.json().catch(() => ({})); alert(d.error || 'Save failed') }
                   }} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 18px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>Save</button>
                   <button onClick={() => setArsenalEditId(null)} style={{ background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10 }}>Cancel</button>
+                  <button onClick={async () => {
+                    const token = await getToken()
+                    setArsenalEditForm((f: any) => ({ ...f, _aiLoading: true }))
+                    try {
+                      const res = await fetch(`/api/arsenal-autofill?id=${r.id}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        setArsenalEditForm((f: any) => ({
+                          ...f,
+                          _aiLoading: false,
+                          title:       data.title       || f.title,
+                          topic:       data.category    || f.topic,
+                          notes:       data.description || f.notes,
+                          spirit_tags: data.spirit_tags?.length ? data.spirit_tags : f.spirit_tags,
+                          tier:        data.tier && ['watchman','soldier','commander','general'].includes(data.tier) ? data.tier : f.tier,
+                        }))
+                      } else { setArsenalEditForm((f: any) => ({ ...f, _aiLoading: false })) }
+                    } catch { setArsenalEditForm((f: any) => ({ ...f, _aiLoading: false })) }
+                  }} style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4, padding: '6px 14px', cursor: arsenalEditForm._aiLoading ? 'wait' : 'pointer', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em', opacity: arsenalEditForm._aiLoading ? 0.6 : 1 }}>
+                    {arsenalEditForm._aiLoading ? '…' : '✦ AI Autofill'}
+                  </button>
                 </div>
               </div>
             )}
             </Fragment>
           ))}
+        </div>
+      )}
+
+      {/* Floating mass-edit/delete bar */}
+      {selectedIds.size > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1A1626', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', flexWrap: 'wrap' as const, maxWidth: '90vw' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>{selectedIds.size} selected</span>
+          <select value={massEditTier} onChange={e => setMassEditTier(e.target.value)} style={{ background: '#0D0B14', border: `1px solid ${BDR}`, borderRadius: 4, padding: '5px 8px', color: massEditTier ? TXT : DIM, fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+            <option value=''>Tier...</option>
+            {['watchman','soldier','commander','general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+          </select>
+          <select value={massEditTopic} onChange={e => setMassEditTopic(e.target.value)} style={{ background: '#0D0B14', border: `1px solid ${BDR}`, borderRadius: 4, padding: '5px 8px', color: massEditTopic ? TXT : DIM, fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+            <option value=''>Topic...</option>
+            {TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <button
+            onClick={handleMassEdit}
+            disabled={massApplying || (!massEditTier && !massEditTopic)}
+            style={{ background: (massApplying || (!massEditTier && !massEditTopic)) ? 'rgba(201,168,76,0.2)' : G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: (massApplying || (!massEditTier && !massEditTopic)) ? 'not-allowed' : 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
+          >{massApplying ? '…' : '⊕ Apply'}</button>
+          <button
+            onClick={() => setMassDelConfirm(true)}
+            disabled={massApplying}
+            style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 4, padding: '6px 14px', cursor: massApplying ? 'not-allowed' : 'pointer', fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
+          >🗑 Delete</button>
+          <button onClick={() => { setSelectedIds(new Set()); setMassEditTier(''); setMassEditTopic('') }} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: DIM }}>✕</button>
+        </div>
+      )}
+
+      {/* Mass delete confirmation modal */}
+      {massDelConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1A1626', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 10, padding: 28, maxWidth: 380, width: '90%', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: '#f87171', marginBottom: 10, letterSpacing: '0.1em' }}>DELETE {selectedIds.size} RESOURCE{selectedIds.size !== 1 ? 'S' : ''}?</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, marginBottom: 20 }}>This will permanently delete the files and records. This cannot be undone.</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button onClick={handleMassDelete} disabled={massApplying} style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 6, padding: '8px 20px', color: '#f87171', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: massApplying ? 'wait' : 'pointer', fontWeight: 700 }}>
+                {massApplying ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+              <button onClick={() => setMassDelConfirm(false)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 20px', color: DIM, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
 
