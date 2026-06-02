@@ -2368,7 +2368,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
         // Call the enhance endpoint once per field group — mirrors the individual AI button (FIELD_GROUPS × 3 calls)
         // Image URLs are fetched automatically inside ai-spirit-enhance.ts via Wikipedia if available
-        for (const group of FIELD_GROUPS) {
+        for (let gi = 0; gi < FIELD_GROUPS.length; gi++) {
+          const group = FIELD_GROUPS[gi]
           try {
             const controller = new AbortController()
             const timer = setTimeout(() => controller.abort(), 25000)
@@ -2382,14 +2383,28 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             clearTimeout(timer)
 
             if (res.ok) {
-              const data = await res.json()
-              if (data.fields && Object.keys(data.fields).length > 0) {
-                Object.assign(allFields, data.fields)
+              const text = await res.text()
+              if (!text || text.trim() === '') {
+                console.warn(`[batch-enrich] Group ${gi + 1} empty body for: ${spirit.name}`)
+                continue
               }
+              let d: any
+              try { d = JSON.parse(text) } catch {
+                console.warn(`[batch-enrich] Group ${gi + 1} non-JSON for: ${spirit.name}`)
+                continue
+              }
+              if (d.fields && Object.keys(d.fields).length > 0) {
+                Object.assign(allFields, d.fields)
+                console.log(`[batch-enrich] Group ${gi + 1} fields:`, Object.keys(d.fields))
+              }
+            } else {
+              console.warn(`[batch-enrich] Group ${gi + 1} HTTP ${res.status} for: ${spirit.name}`)
             }
           } catch (groupErr: any) {
             if (groupErr.name === 'AbortError') {
-              console.warn(`[batch-enrich] Group timeout on spirit: ${spirit.name}`)
+              console.warn(`[batch-enrich] Group ${gi + 1} timeout for: ${spirit.name}`)
+            } else {
+              console.warn(`[batch-enrich] Group ${gi + 1} error for: ${spirit.name}`, groupErr.message)
             }
             // Continue to next group even if this one fails
           }
