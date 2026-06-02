@@ -185,6 +185,23 @@ Respond with valid JSON only.`
   }
 
   const supabase  = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+  // Duplicate filename check
+  const { data: existingFiles } = await supabase
+    .from('resources')
+    .select('id, title, filename')
+    .ilike('file_path', `%${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}%`)
+    .neq('topic', 'ministry-library')
+    .limit(1)
+  if (existingFiles && existingFiles.length > 0) {
+    return new Response(JSON.stringify({
+      error: 'duplicate',
+      message: 'A file with this filename already exists',
+      existingId: existingFiles[0].id,
+      existingTitle: existingFiles[0].title,
+    }), { status: 409, headers: { 'Content-Type': 'application/json' } })
+  }
+
   const ext       = file.name.split('.').pop() || ''
   const safeName  = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
   const filePath  = `${tier.toLowerCase()}/${safeName}`

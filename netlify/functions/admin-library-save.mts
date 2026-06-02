@@ -98,6 +98,24 @@ export default async function handler(req: Request) {
 
   const sb = makeSupabase()
 
+  // Duplicate filename check before inserting
+  if (resolvedFilename) {
+    const { data: existing } = await sb
+      .from('resources')
+      .select('id, title, filename')
+      .eq('topic', 'ministry-library')
+      .ilike('filename', resolvedFilename)
+      .limit(1)
+    if (existing && existing.length > 0) {
+      return Response.json({
+        error: 'duplicate',
+        message: 'A file with this filename already exists',
+        existingId: existing[0].id,
+        existingTitle: existing[0].title,
+      }, { status: 409 })
+    }
+  }
+
   console.log('[LIBRARY-UPLOAD] Writing to Supabase resources table...', { title: title.trim(), fileType, file_path })
 
   const { data: row, error } = await sb

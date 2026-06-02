@@ -56,6 +56,16 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function isSimilarTitle(a: string, b: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '').trim()
+  const na = norm(a)
+  const nb = norm(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  if (na.includes(nb) || nb.includes(na)) return true
+  return false
+}
+
 // ─── SHARED AUTH ─────────────────────────────────────────────────────────────
 async function authFetch(url: string, getToken: () => Promise<string | null>, opts: RequestInit = {}) {
   const token = await getToken()
@@ -76,6 +86,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     id: number; file: File; filename: string; sizeLabel: string; tier: string;
     status: 'pending'|'uploading'|'done'|'error'|'duplicate'; errorMsg?: string;
     topic?: string; description?: string; spirit_tags?: string[]; aiStatus?: 'idle'|'loading'|'done'|'error';
+    duplicateMatch?: any;
   }[]>([])
   const [listExpanded, setListExpanded] = useState(true)
   const [bulkUploading, setBulkUploading] = useState(false)
@@ -84,6 +95,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [showCatManager, setShowCatManager] = useState(false)
   const [customCategories, setCustomCategories] = useState<string[]>([])
   const [newCategory, setNewCategory]   = useState('')
+  const [highlightedResourceId, setHighlightedResourceId] = useState<string | null>(null)
 
   const TOPICS = [
     'Spiritual Warfare',
@@ -156,11 +168,12 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     return 'soldier'
   }
 
-  function checkDuplicate(file: File): boolean {
-    return resources.some(r =>
+  function findDuplicateResource(file: File): any | null {
+    return resources.find(r =>
       r.file_path?.split('/').pop() === file.name ||
-      r.title?.toLowerCase() === file.name.replace(/\.[^/.]+$/, '').toLowerCase()
-    )
+      r.title?.toLowerCase() === file.name.replace(/\.[^/.]+$/, '').toLowerCase() ||
+      isSimilarTitle(r.title || '', file.name)
+    ) || null
   }
 
   function addStagedFiles(files: File[]) {
@@ -169,14 +182,18 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       .slice(0, Math.max(0, 20 - stagedFiles.length))
     if (!allowed.length) return
     const now = Date.now()
-    const mapped = allowed.map((f, i) => ({
-      id: now + i,
-      file: f,
-      filename: f.name,
-      sizeLabel: fmtBytes(f.size),
-      tier: detectTier(f.name),
-      status: (checkDuplicate(f) ? 'duplicate' : 'pending') as 'pending'|'uploading'|'done'|'error'|'duplicate',
-    }))
+    const mapped = allowed.map((f, i) => {
+      const match = findDuplicateResource(f)
+      return {
+        id: now + i,
+        file: f,
+        filename: f.name,
+        sizeLabel: fmtBytes(f.size),
+        tier: detectTier(f.name),
+        status: (match ? 'duplicate' : 'pending') as 'pending'|'uploading'|'done'|'error'|'duplicate',
+        duplicateMatch: match || undefined,
+      }
+    })
     setStagedFiles(prev => [...prev, ...mapped])
     if (stagedFiles.length + mapped.length > 5) setListExpanded(false)
   }
@@ -240,7 +257,10 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
           setUploadProgress(p => ({ ...p, done: p.done + 1 }))
         } else {
           const d = await res.json().catch(() => ({}))
-          setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'error' as const, errorMsg: d.error || 'Upload failed' } : x))
+          const errMsg = res.status === 409
+            ? `Duplicate: "${d.existingTitle || 'file already exists'}"`
+            : d.error || 'Upload failed'
+          setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'error' as const, errorMsg: errMsg } : x))
         }
       } catch (e: any) {
         setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'error' as const, errorMsg: e.message } : x))
@@ -343,7 +363,30 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                             ))}
                           </div>
                         )}
-                        {sf.status === 'duplicate' && <div style={{ fontFamily: crimson, fontSize: 11, color: '#f59e0b', fontStyle: 'italic' as const }}>Already exists in library</div>}
+                        {sf.status === 'duplicate' && (
+                          <div>
+                            <div style={{ fontFamily: crimson, fontSize: 11, color: '#f59e0b', fontStyle: 'italic' as const, marginBottom: 4 }}>
+                              ⚠ Already exists{sf.duplicateMatch?.title ? ` as "${sf.duplicateMatch.title}"` : ''}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                              <button
+                                onClick={() => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'pending' as const } : x))}
+                                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4, padding: '3px 8px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                                ↑ Upload Anyway
+                              </button>
+                              {sf.duplicateMatch?.id && (
+                                <button
+                                  onClick={() => {
+                                    setHighlightedResourceId(sf.duplicateMatch!.id)
+                                    setTimeout(() => setHighlightedResourceId(null), 3000)
+                                  }}
+                                  style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, padding: '3px 8px', fontSize: 9, color: 'rgba(201,168,76,0.6)', fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                                  → View Existing
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         {sf.status === 'error' && sf.errorMsg && <div style={{ fontFamily: crimson, fontSize: 11, color: '#f87171', fontStyle: 'italic' as const }}>{sf.errorMsg}</div>}
                       </div>
                       {(sf.status === 'pending' || sf.status === 'duplicate') && (
@@ -421,7 +464,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {resources.map((r: any) => (
             <Fragment key={r.id}>
-            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${TIER_COLORS[r.tier] || DIM}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: SURF, border: `1px solid ${highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? '#C9A84C' : (TIER_COLORS[r.tier] || DIM)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
               <span style={{ fontSize: 20, flexShrink: 0 }}>{FILE_ICONS[r.file_type?.split('/').pop() || ''] || '📎'}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 3 }}>{r.title}</div>
@@ -4759,6 +4802,8 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     errorMsg?: string; aiGenerated: boolean
   }
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
+  const [duplicateWarnings, setDuplicateWarnings] = useState<{file: File, match: any}[]>([])
+  const [highlightedBookId, setHighlightedBookId] = useState<string | null>(null)
   const [dragOverAi, setDragOverAi]   = useState(false)
   const [dragOverPdf, setDragOverPdf] = useState(false)
   const [uploadingAll, setUploadingAll] = useState(false)
@@ -4799,6 +4844,14 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setBooksLoading(false)
   }
 
+  function findDuplicateBook(file: File): any | null {
+    const cleanFilename = file.name.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]/g, '')
+    return books.find(b => {
+      const existingFilename = (b.filename || b.file_path || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+      return existingFilename.includes(cleanFilename) || cleanFilename.includes(existingFilename) || isSimilarTitle(b.title || '', file.name)
+    }) || null
+  }
+
   function addFiles(files: FileList | File[], pdfOnly = false) {
     const valid = Array.from(files).filter(f => {
       const name = f.name.toLowerCase()
@@ -4807,16 +4860,20 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         : (name.endsWith('.txt') || name.endsWith('.docx'))
       return okType && f.size <= 50 * 1024 * 1024
     })
+    const duplicates: {file: File, match: any}[] = []
     setStagedFiles(prev => {
       const existing = new Set(prev.map(s => s.file.name + s.file.size))
       const fresh = valid
-        .filter(f => !existing.has(f.name + f.size))
+        .filter(f => {
+          if (existing.has(f.name + f.size)) return false
+          const match = findDuplicateBook(f)
+          if (match) { duplicates.push({ file: f, match }); return false }
+          return true
+        })
         .slice(0, 10 - prev.length)
         .map(f => ({
           id: crypto.randomUUID(),
           file: f,
-          // Strip extension → strip ALL leading numeric doc-ID blocks → normalise separators
-          // e.g. "355225898-32149476-Principles-Of-Mass-Deliverance.txt" → "Principles Of Mass Deliverance"
           title: f.name.replace(/\.[^/.]+$/, '').replace(/^(\d+[-_\s]*)+/, '').replace(/[-_]/g, ' ').trim(),
           author: '', notes: '', spirit_tags: [], sourceType: 'christian' as const,
           status: 'pending' as const,
@@ -4824,6 +4881,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         }))
       return [...prev, ...fresh]
     })
+    if (duplicates.length > 0) {
+      setDuplicateWarnings(prev => [...prev, ...duplicates])
+    }
   }
 
   function updateStaged(id: string, patch: Partial<{ title: string; author: string; notes: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence'; status: StagedFile['status']; errorMsg: string; aiGenerated: boolean }>) {
@@ -4946,6 +5006,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           }),
         })
         const saveData = await saveRes.json()
+        if (saveRes.status === 409) {
+          updateStaged(sf.id, { status: 'error', errorMsg: `Duplicate: "${saveData.existingTitle || 'file already exists'}"` })
+          continue
+        }
         if (!saveData.success) { updateStaged(sf.id, { status: 'error', errorMsg: saveData.error || 'Save failed' }); continue }
         updateStaged(sf.id, { status: 'done' })
         if (saveData.book) setBooks(prev => [saveData.book, ...prev])
@@ -5323,6 +5387,47 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
         </div>
 
+        {/* ── DUPLICATE WARNINGS ── */}
+        {duplicateWarnings.map((dw, idx) => (
+          <div key={idx} style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: 16, marginBottom: 10 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: 'rgba(248,113,113,0.9)', letterSpacing: '0.08em', marginBottom: 8 }}>⚠ POSSIBLE DUPLICATE DETECTED</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: LTXT, marginBottom: 12 }}>
+              "{dw.file.name}" may already exist as "{dw.match.title || dw.match.filename || 'Unknown'}"
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+              <button
+                onClick={() => setDuplicateWarnings(prev => prev.filter((_, i) => i !== idx))}
+                style={{ background: 'transparent', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 4, padding: '6px 14px', fontSize: 10, color: 'rgba(248,113,113,0.8)', fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                ✕ Cancel Upload
+              </button>
+              <button
+                onClick={() => {
+                  setDuplicateWarnings(prev => prev.filter((_, i) => i !== idx))
+                  setStagedFiles(prev => [...prev, {
+                    id: crypto.randomUUID(),
+                    file: dw.file,
+                    title: dw.file.name.replace(/\.[^/.]+$/, '').replace(/^(\d+[-_\s]*)+/, '').replace(/[-_]/g, ' ').trim(),
+                    author: '', notes: '', spirit_tags: [], sourceType: 'christian' as const,
+                    status: 'pending' as const,
+                    aiGenerated: false,
+                  }])
+                }}
+                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 10, color: LG, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                ↑ Upload Anyway (New Version)
+              </button>
+              <button
+                onClick={() => {
+                  setDuplicateWarnings(prev => prev.filter((_, i) => i !== idx))
+                  setHighlightedBookId(dw.match.id)
+                  setTimeout(() => setHighlightedBookId(null), 3000)
+                }}
+                style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, padding: '6px 14px', fontSize: 10, color: 'rgba(201,168,76,0.6)', fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                → View Existing Entry
+              </button>
+            </div>
+          </div>
+        ))}
+
         {/* ── STAGING TABLE ── */}
         {stagedFiles.length > 0 && (
           <div style={{ marginBottom: 20 }}>
@@ -5644,7 +5749,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {filteredBooks.map(book => (
-                <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div key={book.id} style={{ background: LSURF, border: `1px solid ${highlightedBookId === book.id ? 'rgba(201,168,76,0.8)' : 'rgba(201,168,76,0.22)'}`, borderLeft: `3px solid ${highlightedBookId === book.id ? '#C9A84C' : 'rgba(201,168,76,0.4)'}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, transition: 'border-color 0.4s, background 0.4s', boxShadow: highlightedBookId === book.id ? '0 0 0 2px rgba(201,168,76,0.2)' : 'none' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
                     {book.author && book.author !== 'Unknown' && (
