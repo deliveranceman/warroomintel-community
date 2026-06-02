@@ -4408,6 +4408,8 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     async function load() {
       try {
         const token = await getToken()
+        // ⚠️ ARSENAL ONLY — fetches from /api/arsenal-resources → arsenal Supabase rows (source_type='arsenal' or null)
+        // DO NOT change this to /api/admin-library — that is the Ministry Library endpoint
         const res = await fetch('/api/arsenal-resources', {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -7953,6 +7955,8 @@ function CommunityPage() {
     if (isLibraryCmd) {
       try {
         const token = await getToken()
+        // ⚠️ MINISTRY LIBRARY ONLY — fetches from /api/admin-library → resources Supabase table (source_type='christian'/'intelligence')
+        // DO NOT change this to /api/arsenal-resources — that is the Arsenal endpoint
         const res = await fetch('/api/admin-library', {
           headers: { Authorization: `Bearer ${token}` },
         })

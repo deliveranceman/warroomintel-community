@@ -48,8 +48,7 @@ Return ONLY a JSON array of exactly 5 objects:
     "content_type": "weekly_intel" | "arsenal_pdf" | "daily_brief" | "field_manual" | "youtube_outline",
     "title": "Compelling title (10 words max)",
     "summary": "2-3 sentence description of what this content covers and why it matters to ministers",
-    "suggested_tier": "watchman" | "soldier" | "commander" | "general",
-    "full_draft": "Complete draft content — for daily_brief include all sections (morning prayer, scripture, devotional text, evening prayer), for arsenal_pdf include full outline with section headers and key points, for weekly_intel include the full briefing, for youtube_outline include the full script outline with timestamps, for field_manual include the full article"
+    "suggested_tier": "watchman" | "soldier" | "commander" | "general"
   }
 ]
 
@@ -69,12 +68,12 @@ Return ONLY valid JSON. No markdown, no explanation.`
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8000,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
       system: ministryContext,
       messages: [{ role: 'user', content: prompt }],
     }),
-    signal: AbortSignal.timeout(55000),
+    signal: AbortSignal.timeout(25000),
   })
 
   if (!res.ok) throw new Error(`Claude API error: ${res.status}`)

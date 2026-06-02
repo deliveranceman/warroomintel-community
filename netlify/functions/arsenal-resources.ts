@@ -77,12 +77,14 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ url: signedData.signedUrl }), { status: 200, headers })
   }
 
+  // ⚠️ ARSENAL ONLY — queries resources table WHERE source_type = 'arsenal' OR source_type IS NULL (legacy)
+  // DO NOT remove the source_type filter — Library items have source_type='christian'/'intelligence' and must never appear here
+  // The old neq('topic','ministry-library') filter was fragile; AI re-tagging could overwrite the topic and let Library items bleed through
   let query = supabase
     .from('resources')
     .select('id, title, description, tier, category, topic, tags, file_path, file_type, file_size, source_type, created_at')
     .in('tier', allowedTiers)
-    .neq('topic', 'ministry-library')
-    .or('source_type.is.null,source_type.neq.intelligence')
+    .or('source_type.is.null,source_type.eq.arsenal')
     .not('file_path', 'like', 'user_%')
     .not('tier', 'is', null)
 

@@ -229,6 +229,8 @@ Respond with valid JSON only.`
       file_path: filePath,
       file_type: file.type,
       file_size: file.size,
+      // ⚠️ ARSENAL marker — arsenal-resources.ts filters on source_type to separate Arsenal from Ministry Library
+      source_type: 'arsenal',
     })
     .select()
     .single()
