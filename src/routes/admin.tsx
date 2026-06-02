@@ -47,6 +47,17 @@ function markdownToHtml(md: string): string {
 }
 
 function fileExt(name: string) { return name.split('.').pop()?.toLowerCase() || '' }
+function getMimeType(filename: string, fallback?: string): string {
+  switch (fileExt(filename)) {
+    case 'pdf':  return 'application/pdf'
+    case 'txt':  return 'text/plain'
+    case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    case 'doc':  return 'application/msword'
+    case 'xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    case 'xls':  return 'application/vnd.ms-excel'
+    default:     return fallback || 'application/octet-stream'
+  }
+}
 function fmtBytes(b: number) {
   if (b < 1024) return `${b} B`
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
@@ -5128,7 +5139,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       try {
         const storageRes = await fetch(signedUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': sf.file.type || 'application/octet-stream' },
+          headers: { 'Content-Type': getMimeType(sf.file.name, sf.file.type || undefined) },
           body: sf.file,
         })
         if (!storageRes.ok) { updateStaged(sf.id, { status: 'error', errorMsg: `Storage upload failed: ${storageRes.status}` }); continue }
@@ -5151,7 +5162,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             file_size: sf.file.size,
             file_path: filePath,
             ai_generated: sf.aiGenerated,
-            file_type: sf.file.name.endsWith('.pdf') ? 'pdf' : 'txt',
+            file_type: fileExt(sf.file.name) || 'txt',
           }),
         })
         const saveData = await saveRes.json()
