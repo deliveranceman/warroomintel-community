@@ -5429,6 +5429,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [dragOverPdf, setDragOverPdf] = useState(false)
   const [uploadingAll, setUploadingAll] = useState(false)
   const [uploadError, setUploadError]   = useState<string | null>(null)
+  const [pdfUploadError, setPdfUploadError] = useState<string | null>(null)
   const [bookSearch, setBookSearch]     = useState('')
   const [quickTagId, setQuickTagId]     = useState<string | null>(null)
   const [kbExpanded, setKbExpanded]     = useState(false)
@@ -5476,26 +5477,24 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   }
 
   const handleLibraryDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    console.log('[PDF-drop] fired', e.dataTransfer?.files?.length)
     e.preventDefault()
     e.stopPropagation()
-    console.log('[library-drop] drop event fired')
     const files = Array.from(e.dataTransfer.files)
-    console.log('[library-drop] files:', files.map(f => f.name))
     if (files.length === 0) return
     addLibraryFiles(files, true)
   }
 
   const handleLibraryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('[library-select] change event fired')
+    console.log('[PDF-select] fired', e.target?.files?.length)
     const files = Array.from(e.target.files || [])
-    console.log('[library-select] files:', files.map(f => f.name))
     if (files.length === 0) return
     addLibraryFiles(files, true)
     e.target.value = ''
   }
 
   function addLibraryFiles(files: FileList | File[], pdfOnly = false) {
-    console.log('[library-add] processing', Array.from(files).length, 'files, pdfOnly:', pdfOnly)
+    console.log('[PDF-add] files:', Array.from(files).length, 'pdfOnly:', pdfOnly)
     const valid = Array.from(files).filter(f => {
       const name = f.name.toLowerCase()
       const okType = pdfOnly
@@ -5597,14 +5596,16 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   }
 
   async function handleUploadAll() {
+    console.log('[PDF-upload] starting, files:', stagedFiles.filter(f => f.status === 'pending').length)
     const token = await getToken()
-    console.log('[handleUploadAll] token present:', !!token)
+    console.log('[PDF-upload] token:', token ? 'ok' : 'NULL')
     if (!token) {
-      setUploadError('Authentication token unavailable — please refresh and try again.')
+      const msg = 'Authentication token unavailable — please refresh and try again.'
+      setUploadError(msg)
+      setPdfUploadError(msg)
       return
     }
     const pending = stagedFiles.filter(f => f.status === 'pending')
-    console.log('[handleUploadAll] pending files:', pending.length)
     if (!pending.length) return
     setUploadingAll(true)
     for (const sf of pending) {
@@ -5613,43 +5614,57 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       updateStaged(sf.id, { status: 'uploading' })
       let signedUrl = '', filePath = ''
       try {
+        console.log('[PDF-upload] calling:', '/api/admin-library-url')
         const urlRes = await fetch('/api/admin-library-url', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: sf.file.name, contentType: sf.file.type || 'application/octet-stream' }),
         })
-        console.log('[handleUploadAll] signed URL response status:', urlRes.status, 'for', sf.file.name)
+        console.log('[PDF-upload] response:', urlRes.status)
         const urlData = await urlRes.json()
         if (!urlRes.ok) {
           console.error('[handleUploadAll] signed URL error:', urlData.error, 'for', sf.file.name)
-          updateStaged(sf.id, { status: 'error', errorMsg: urlData.error || 'Failed to get upload URL' }); continue
+          const msg = urlData.error || 'Failed to get upload URL'
+          updateStaged(sf.id, { status: 'error', errorMsg: msg })
+          setPdfUploadError(msg)
+          continue
         }
         signedUrl = urlData.signedUrl
         filePath = urlData.filePath
         console.log('[handleUploadAll] got signed URL, filePath:', filePath)
-      } catch (e: any) {
-        console.error('[handleUploadAll] signed URL fetch threw:', e, 'for', sf.file.name)
-        updateStaged(sf.id, { status: 'error', errorMsg: e.message }); continue
+      } catch (err: any) {
+        console.error('[PDF-upload] error:', err)
+        updateStaged(sf.id, { status: 'error', errorMsg: err.message || 'Upload failed — check console' })
+        setPdfUploadError(err.message || 'Upload failed — check console')
+        continue
       }
 
       // Step 2 — PUT to Supabase
       try {
         const contentType = getMimeType(sf.file.name, sf.file.type || undefined)
-        console.log('[handleUploadAll] PUT to storage, contentType:', contentType)
+        console.log('[PDF-upload] calling:', signedUrl)
         const storageRes = await fetch(signedUrl, {
           method: 'PUT',
           headers: { 'Content-Type': contentType },
           body: sf.file,
         })
-        console.log('[handleUploadAll] storage PUT response status:', storageRes.status, 'for', sf.file.name)
-        if (!storageRes.ok) { updateStaged(sf.id, { status: 'error', errorMsg: `Storage upload failed: ${storageRes.status}` }); continue }
-      } catch (e: any) {
-        console.error('[handleUploadAll] storage PUT threw:', e, 'for', sf.file.name)
-        updateStaged(sf.id, { status: 'error', errorMsg: e.message }); continue
+        console.log('[PDF-upload] response:', storageRes.status)
+        if (!storageRes.ok) {
+          const msg = `Storage upload failed: ${storageRes.status}`
+          updateStaged(sf.id, { status: 'error', errorMsg: msg })
+          setPdfUploadError(msg)
+          continue
+        }
+      } catch (err: any) {
+        console.error('[PDF-upload] error:', err)
+        updateStaged(sf.id, { status: 'error', errorMsg: err.message || 'Upload failed — check console' })
+        setPdfUploadError(err.message || 'Upload failed — check console')
+        continue
       }
 
       // Step 3 — save metadata
       try {
+        console.log('[PDF-upload] calling:', '/api/admin-library-save')
         const saveRes = await fetch('/api/admin-library-save', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -5666,7 +5681,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             file_type: fileExt(sf.file.name) || 'txt',
           }),
         })
-        console.log('[handleUploadAll] save metadata response status:', saveRes.status, 'for', sf.file.name)
+        console.log('[PDF-upload] response:', saveRes.status)
         const saveData = await saveRes.json()
         if (saveRes.status === 409) {
           updateStaged(sf.id, { status: 'error', errorMsg: `Duplicate: "${saveData.existingTitle || 'file already exists'}"` })
@@ -5674,17 +5689,22 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         }
         if (!saveData.success) {
           console.error('[handleUploadAll] save failed:', saveData.error, 'for', sf.file.name)
-          updateStaged(sf.id, { status: 'error', errorMsg: saveData.error || 'Save failed' }); continue
+          const msg = saveData.error || 'Save failed'
+          updateStaged(sf.id, { status: 'error', errorMsg: msg })
+          setPdfUploadError(msg)
+          continue
         }
         console.log('[handleUploadAll] done for', sf.file.name)
         updateStaged(sf.id, { status: 'done' })
         if (saveData.book) setBooks(prev => [saveData.book, ...prev])
-      } catch (e: any) {
-        console.error('[handleUploadAll] save metadata threw:', e, 'for', sf.file.name)
-        updateStaged(sf.id, { status: 'error', errorMsg: e.message })
+      } catch (err: any) {
+        console.error('[PDF-upload] error:', err)
+        updateStaged(sf.id, { status: 'error', errorMsg: err.message || 'Upload failed — check console' })
+        setPdfUploadError(err.message || 'Upload failed — check console')
       }
     }
     setUploadingAll(false)
+    loadBooks()
   }
 
 
@@ -6380,10 +6400,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         </div>
 
         {/* Upload error banner (PDF section) */}
-        {uploadError && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
-            <span style={{ fontFamily: crimson, fontSize: 13, color: 'rgba(248,113,113,0.95)', flex: 1 }}>⚠ {uploadError}</span>
-            <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', color: 'rgba(248,113,113,0.8)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>
+        {pdfUploadError && (
+          <div style={{ background: 'rgba(212,82,74,0.15)', border: '1px solid rgba(212,82,74,0.4)', borderRadius: 6, padding: '10px 14px', marginBottom: 12, fontFamily: "'Crimson Pro',serif", fontSize: 13, color: '#D4524A', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>⚠ {pdfUploadError}</span>
+            <button onClick={() => setPdfUploadError(null)} style={{ background: 'none', border: 'none', color: '#D4524A', cursor: 'pointer', fontSize: 16 }}>✕</button>
           </div>
         )}
 
@@ -6407,6 +6427,59 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 3 }}>Drop PDF files — minister reading library</div>
           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
         </div>
+
+        {/* Staged PDF files — upload queue visible regardless of KB section state */}
+        {(() => {
+          const pdfStaged = stagedFiles.filter(sf => {
+            const n = sf.file.name.toLowerCase()
+            return n.endsWith('.pdf') || sf.file.type === 'application/pdf' || sf.file.type === 'application/x-pdf'
+          })
+          if (pdfStaged.length === 0) return null
+          const pendingCount = pdfStaged.filter(f => f.status === 'pending').length
+          return (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 12 }}>
+                {pdfStaged.map(sf => (
+                  <div key={sf.id} style={{ background: LSURF, border: `1px solid ${sf.status === 'error' ? 'rgba(248,113,113,0.4)' : sf.status === 'done' ? 'rgba(34,197,94,0.3)' : LBDR}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>📄</span>
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 8 }}>
+                      <input
+                        value={sf.title}
+                        onChange={e => updateStaged(sf.id, { title: e.target.value })}
+                        style={{ ...inp, fontSize: 12, padding: '5px 10px', flex: 2 }}
+                        placeholder="Title"
+                        disabled={sf.status !== 'pending'}
+                      />
+                      <input
+                        value={sf.author}
+                        onChange={e => updateStaged(sf.id, { author: e.target.value })}
+                        style={{ ...inp, fontSize: 12, padding: '5px 10px', flex: 1 }}
+                        placeholder="Author"
+                        disabled={sf.status !== 'pending'}
+                      />
+                    </div>
+                    <div style={{ flexShrink: 0, minWidth: 80, textAlign: 'right' as const }}>
+                      {sf.status === 'done' && <span style={{ color: '#22c55e', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>✓ DONE</span>}
+                      {sf.status === 'uploading' && <span style={{ color: LG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>Uploading…</span>}
+                      {sf.status === 'error' && <span style={{ color: '#f87171', fontFamily: crimson, fontSize: 11 }} title={sf.errorMsg}>✕ {sf.errorMsg?.slice(0, 30)}</span>}
+                      {sf.status === 'pending' && (
+                        <button onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== sf.id))}
+                          style={{ background: 'none', border: 'none', color: LMUT, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>✕</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleUploadAll}
+                disabled={uploadingAll || pendingCount === 0}
+                style={{ padding: '9px 20px', background: 'transparent', border: `1px solid ${LG}`, borderRadius: 6, color: LG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: uploadingAll || pendingCount === 0 ? 'not-allowed' : 'pointer', opacity: uploadingAll || pendingCount === 0 ? 0.5 : 1 }}
+              >
+                {uploadingAll ? 'Uploading…' : `Upload ${pendingCount} PDF${pendingCount !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          )
+        })()}
 
         {/* PDF book list */}
         {booksLoading ? (
