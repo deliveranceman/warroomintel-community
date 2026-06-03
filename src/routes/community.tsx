@@ -3672,6 +3672,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   const [activeProtocolSection, setActiveProtocolSection] = useState(0)
   const [checkedGrounds, setCheckedGrounds] = useState<Record<string, boolean>>({})
   const [invFromInvestigator, setInvFromInvestigator] = useState<any>(null)
+  const [protocolMode, setProtocolMode] = useState<'spirit' | 'manifestation'>('spirit')
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -4414,12 +4415,62 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     <TierLock tierName="Commander" />
                   ) : !protocolResult ? (
                     <div>
-                      <div style={{ marginBottom: 20 }}>
+                      <div style={{ marginBottom: 16 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>⚔ PROTOCOL ENGINE</div>
                         <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6 }}>
-                          Generate a complete deliverance session protocol for {entry.name} — including legal ground checklist, renunciation prayers, command prayers, and aftercare.
+                          Generate a complete deliverance session protocol — legal ground checklist, renunciation prayers, command prayers, and aftercare.
                         </div>
                       </div>
+
+                      {/* Mode selector */}
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+                        <button onClick={() => setProtocolMode('spirit')}
+                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'spirit' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'spirit' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'spirit' ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                          ⚔ SPIRIT NAME
+                        </button>
+                        <button onClick={() => setProtocolMode('manifestation')}
+                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'manifestation' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'manifestation' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'manifestation' ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                          👁 MANIFESTATION
+                        </button>
+                      </div>
+
+                      {/* Spirit mode: show name + cluster option */}
+                      {protocolMode === 'spirit' && (
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6 }}>
+                            {entry.name}
+                            {entry.biblicalRank && <span style={{ color: mut, fontFamily: cinzel, fontSize: 8, marginLeft: 8 }}>— {entry.biblicalRank}</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.06em' }}>
+                              <input type="checkbox" checked={includeCluster} onChange={e => setIncludeCluster(e.target.checked)}
+                                style={{ accentColor: G, width: 14, height: 14 }} />
+                              Include cluster spirits
+                            </label>
+                          </div>
+                          {includeCluster && parseSpiritNames(entry.clusterSpirits || entry.subordinates || '').length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 14 }}>
+                              {parseSpiritNames(entry.clusterSpirits || entry.subordinates || '').slice(0, 5).map((n: string, i: number) => (
+                                <span key={i} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 10, background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`, color: mut }}>{n}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Manifestation mode: textarea input */}
+                      {protocolMode === 'manifestation' && (
+                        <div style={{ marginBottom: 16 }}>
+                          <textarea
+                            value={manifestationInput}
+                            onChange={e => setManifestationInput(e.target.value)}
+                            placeholder="Describe what you are observing — physical manifestations, behavioral patterns, emotional responses, words spoken during session..."
+                            rows={4}
+                            style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.04)', border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px', fontFamily: crimson, fontSize: 14, color: txt, resize: 'vertical' as const, boxSizing: 'border-box' as const, outline: 'none' }}
+                          />
+                        </div>
+                      )}
+
                       {invFromInvestigator && (
                         <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
                           <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', marginBottom: 6 }}>LINKED FROM SYMPTOM INVESTIGATOR</div>
@@ -4428,35 +4479,34 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                           </div>
                         </div>
                       )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.06em' }}>
-                          <input type="checkbox" checked={includeCluster} onChange={e => setIncludeCluster(e.target.checked)}
-                            style={{ accentColor: G, width: 14, height: 14 }} />
-                          Include cluster spirits
-                        </label>
-                      </div>
                       {protocolError && (
                         <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 6, padding: '10px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 16 }}>
                           {protocolError}
                         </div>
                       )}
-                      <button onClick={() => handleGenerateProtocol('spirit')} disabled={protocolLoading}
+                      <button onClick={() => handleGenerateProtocol(protocolMode)} disabled={protocolLoading}
                         style={{ width: '100%', padding: '14px', background: protocolLoading ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', cursor: protocolLoading ? 'not-allowed' : 'pointer', textTransform: 'uppercase' as const }}>
                         {protocolLoading ? '⏳ GENERATING PROTOCOL...' : '⚔ GENERATE SESSION PROTOCOL'}
                       </button>
                     </div>
                   ) : (
                     <div>
-                      {/* Protocol header + regenerate */}
+                      {/* Protocol header + print + regenerate */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                         <div>
                           <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>⚔ SESSION PROTOCOL</div>
                           <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>{entry.name}</div>
                         </div>
-                        <button onClick={() => { setProtocolResult(null); setInvFromInvestigator(null) }}
-                          style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
-                          ↺ REGENERATE
-                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => window.print()}
+                            style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: G + '99', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
+                            🖨 PRINT
+                          </button>
+                          <button onClick={() => { setProtocolResult(null); setInvFromInvestigator(null); setCheckedGrounds({}) }}
+                            style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
+                            ↺ REGENERATE
+                          </button>
+                        </div>
                       </div>
 
                       {/* Section nav pills */}
