@@ -10673,6 +10673,11 @@ function CommunityPage() {
             padding: 0,
             cursor: 'pointer',
             display: 'flex',
+            width: isMobile ? 56 : 72,
+            height: isMobile ? 56 : 72,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            boxShadow: '0 0 20px 6px rgba(255, 180, 50, 0.4)',
           }}
           title="Ask SOL"
         >
@@ -10680,10 +10685,7 @@ function CommunityPage() {
             src="/images/sol/sol-icon.png"
             width={isMobile ? 56 : 72}
             height={isMobile ? 56 : 72}
-            style={{
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 0 16px rgba(201,168,76,0.7))',
-            }}
+            style={{ objectFit: 'contain' }}
             alt="Ask SOL"
           />
         </button>
