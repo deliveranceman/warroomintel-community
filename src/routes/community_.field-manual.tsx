@@ -671,7 +671,7 @@ function TierGate({ tier }: { tier: string }) {
       <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, lineHeight: 1.6, marginBottom: 24, maxWidth: 360, margin: '0 auto 24px' }}>
         This content is available to {tier.charAt(0).toUpperCase() + tier.slice(1)} tier members and above. Upgrade your membership to unlock full access.
       </div>
-      <a href="/#pricing" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: BG, background: G, padding: '12px 28px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+      <a href="https://warroomintel.com/pricing" target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: BG, background: G, padding: '12px 28px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
         UPGRADE MEMBERSHIP
       </a>
     </div>

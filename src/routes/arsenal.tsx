@@ -321,7 +321,7 @@ function ArsenalPage() {
   const filtered = resources.filter(r => {
     if (showRecent && recentIds.has(r.id)) return false
     if (activeTab !== 'All' && r.tier !== activeTab) return false
-    if (activeCategory !== 'All' && r.category !== activeCategory) return false
+    if (activeCategory !== 'All' && r.category !== activeCategory && (r as any).topic !== activeCategory) return false
     if (!(QUICK_FILTER_MAP[activeQuickFilter]?.(r) ?? true)) return false
     if (search) {
       const q = search.toLowerCase()

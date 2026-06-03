@@ -1,38 +1,45 @@
-const G = '#C9A84C'
-
 interface SolIconProps {
   size?: number
-  color?: string
   className?: string
+  showLabel?: boolean
+  variant?: 'icon' | 'hero' | 'banner'
 }
 
-export function SolIcon({ size = 20, color = G, className }: SolIconProps) {
+const G = '#C9A84C'
+const cinzel = "'Cinzel', serif"
+
+export function SolIcon({ size = 20, className = '', showLabel = false, variant = 'icon' }: SolIconProps) {
+  const imageSrc = variant === 'hero'
+    ? '/images/sol/sol-hero.png'
+    : variant === 'banner'
+    ? '/images/sol/sol-banner.png'
+    : '/images/sol/sol-icon.png'
+
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-label="SOL"
-    >
-      {/* Eye of discernment */}
-      <ellipse cx="12" cy="12" rx="9" ry="5.5" />
-      <circle cx="12" cy="12" r="2.5" fill={color} stroke="none" />
-      {/* Ray points — sentinel crown */}
-      <line x1="12" y1="2" x2="12" y2="4.5" />
-      <line x1="19.07" y1="4.93" x2="17.36" y2="6.64" />
-      <line x1="22" y1="12" x2="19.5" y2="12" />
-      <line x1="19.07" y1="19.07" x2="17.36" y2="17.36" />
-      <line x1="12" y1="22" x2="12" y2="19.5" />
-      <line x1="4.93" y1="19.07" x2="6.64" y2="17.36" />
-      <line x1="2" y1="12" x2="4.5" y2="12" />
-      <line x1="4.93" y1="4.93" x2="6.64" y2="6.64" />
-    </svg>
+    <div className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: showLabel ? '8px' : '0' }}>
+      <img
+        src={imageSrc}
+        alt="SOL"
+        width={size}
+        height={size}
+        style={{
+          objectFit: 'contain',
+          filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.4))',
+          display: 'block',
+        }}
+      />
+      {showLabel && (
+        <span style={{
+          fontFamily: cinzel,
+          fontSize: '11px',
+          letterSpacing: '0.15em',
+          color: G,
+          fontWeight: 600,
+        }}>
+          ASK SOL
+        </span>
+      )}
+    </div>
   )
 }
 

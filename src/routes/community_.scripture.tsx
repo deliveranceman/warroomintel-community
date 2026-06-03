@@ -3,6 +3,7 @@ import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
+import { SolIcon } from '@/components/SolIcon'
 
 const MobileSubpageNav = () => (
   <>
@@ -122,7 +123,7 @@ function AiPanelContent({
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
         {thread.length === 0 && (
           <div style={{ fontFamily: crimson, fontSize: 15, color: MUT, lineHeight: 1.6, fontStyle: 'italic', marginTop: 8 }}>
-            Select a verse to load Dake's notes, or ask a question about this chapter.
+            Select a verse to load annotation notes, or ask a question about this chapter.
           </div>
         )}
         {thread.map((entry, i) => (
@@ -136,7 +137,7 @@ function AiPanelContent({
             </div>
             {/* Response */}
             <div style={{ border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 16px', maxWidth: '92%' }}>
-              <div style={{ fontFamily: mono, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>DAKE</div>
+              <div style={{ fontFamily: mono, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>SOL</div>
               <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>
                 {entry.response}
               </div>
@@ -164,7 +165,7 @@ function AiPanelContent({
           value={question}
           onChange={e => setQuestion(e.target.value)}
           rows={2}
-          placeholder="Ask about this passage, a spirit mentioned, Greek/Hebrew meaning, warfare application..."
+          placeholder="Ask about this passage, Greek/Hebrew meaning, warfare application, ministry context..."
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit() } }}
           style={{
             width: '100%', boxSizing: 'border-box' as const,
@@ -250,7 +251,7 @@ function ScripturePage() {
     try {
       const token = await getToken()
       if (!token) return
-      const res = await fetch('/api/ai-history?tool=ask-dake&limit=5', {
+      const res = await fetch('/api/ai-history?tool=ask-sol&limit=5', {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
@@ -356,7 +357,7 @@ function ScripturePage() {
         fetch('/api/ai-history', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tool: 'ask-dake', query: q, response: data.response, context: { book, chapter, verse: selectedVerse } }),
+          body: JSON.stringify({ tool: 'ask-sol', query: q, response: data.response, context: { book, chapter, verse: selectedVerse } }),
         }).catch(() => {})
       }
     } catch (e: any) {
@@ -399,7 +400,7 @@ function ScripturePage() {
         <p style={{ fontFamily: crimson, fontSize: 14, color: MUT, lineHeight: 1.6, margin: '0 0 28px' }}>
           Upgrade your membership to unlock the full annotated Bible with AI theological analysis.
         </p>
-        <a href="/#pricing" style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '10px 28px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textDecoration: 'none', borderRadius: 2, marginRight: 12 }}>
+        <a href="https://warroomintel.com/pricing" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '10px 28px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textDecoration: 'none', borderRadius: 2, marginRight: 12 }}>
           UPGRADE MEMBERSHIP
         </a>
         <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, padding: '9px 20px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', textDecoration: 'none', borderRadius: 2 }}>
@@ -520,7 +521,7 @@ function ScripturePage() {
                   <div style={{ marginLeft: 44, marginBottom: 16 }}>
                     {loadingDake && (
                       <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em', padding: '12px 0' }}>
-                        LOADING DAKE NOTE...
+                        LOADING NOTE...
                       </div>
                     )}
                     {!loadingDake && dakeNote && (
@@ -531,7 +532,7 @@ function ScripturePage() {
                         padding: '14px 18px', marginTop: 6,
                       }}>
                         <div style={{ fontFamily: mono, fontSize: 9, color: G, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
-                          DAKE'S NOTES
+                          ANNOTATION NOTES
                         </div>
                         <div style={{ fontFamily: georgia, fontSize: 15, color: DIM, lineHeight: 1.7, maxHeight: 300, overflowY: 'auto' as const }}>
                           {dakeNote}
@@ -541,7 +542,7 @@ function ScripturePage() {
                     {!loadingDake && !dakeNote && (
                       <div style={{ borderLeft: `3px solid ${BDR}`, padding: '10px 16px', marginTop: 6 }}>
                         <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.08em' }}>
-                          No Dake annotation for this verse.
+                          No annotation available for this verse.
                         </div>
                       </div>
                     )}
@@ -575,7 +576,7 @@ function ScripturePage() {
               whiteSpace: 'nowrap' as const,
             }}
           >
-            ASK WRI ✦
+            ASK SOL ✦
           </button>
         )}
 
@@ -602,8 +603,11 @@ function ScripturePage() {
               {/* Panel header */}
               <div style={{ padding: '20px 24px 12px', borderBottom: `1px solid ${BDR}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700, letterSpacing: '0.06em', marginBottom: 2 }}>ASK WRI</div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <SolIcon size={28} />
+                    <div style={{ fontFamily: cinzel, fontSize: 18, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>ASK SOL</div>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>Pulling from internal ministry notes, various commentaries, and the War Room Intel knowledge base.</div>
                 </div>
                 <button
                   onClick={closePanel}
@@ -639,10 +643,11 @@ function ScripturePage() {
                 style={{
                   width: '100%', background: G, color: '#1a1305', border: 'none', borderRadius: 4,
                   fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
-                  padding: '12px 0', cursor: 'pointer',
+                  padding: '12px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}
               >
-                ASK WRI ✦
+                <SolIcon size={18} />
+                ASK SOL ✦
               </button>
             </div>
 
@@ -666,8 +671,11 @@ function ScripturePage() {
                   {/* Header */}
                   <div style={{ padding: '8px 20px 12px', borderBottom: `1px solid ${BDR}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                     <div>
-                      <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>ASK WRI</div>
-                      <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>AI Theological Analysis</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <SolIcon size={22} />
+                        <div style={{ fontFamily: cinzel, fontSize: 16, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>ASK SOL</div>
+                      </div>
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>Pulling from internal ministry notes, various commentaries, and the War Room Intel knowledge base.</div>
                     </div>
                     <button
                       onClick={closePanel}

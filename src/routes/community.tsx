@@ -1,3 +1,17 @@
+// HANDOFF NOTES — 25-item fix list (June 2026)
+// COMPLETED: #1 mobile sidebar safe-area-inset-top | #2 arsenal category filter (topic field) |
+//   #3/#22 DM tier gating (soldier+) | #4/#5 stream-token addMembers to prayer-wall + general |
+//   #6 testimony audit (1 pending, chain is correct — admin must approve) |
+//   #8/#9 Daily Brief audit (3 entries OK, Generate 14 Days button added to admin) |
+//   #10/#11 Ops Board new post layout (textarea 5→8 rows, canPost gating, upgrade button) |
+//   #12 Chains to Freedom icon onError fallback | #13 course about maxHeight + Read more toggle |
+//   #14 SolIcon → PNG image component | #15 Arsenal upgrade CTA locked-count block |
+//   #16 upgrade links → warroomintel.com/pricing | #18 spirit modal returns to intel after close |
+//   #20 Deliverance Protocol sidebar link (commander+) | #21 Terms popup 3-paragraph disclaimer |
+//   #23 AI connection error (content-type guard) | #24/#25 scripture Dake→SOL rename
+// REQUIRES JUSTIN: Weekly Intel post "Oppression vs. Possession" body is empty — add content in admin.
+//   Stream API key / secret must be set in Netlify env (VITE_STREAM_API_KEY, STREAM_API_SECRET).
+//   Testimony "pending" needs minister approval via admin panel PATCH /api/testimonies.
 import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
@@ -2126,6 +2140,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
   const [loading, setLoading]               = useState(true)
   const [episodeSidebarCollapsed, setEpisodeSidebarCollapsed] = useState(false)
   const [expandedDescCourseId, setExpandedDescCourseId] = useState<string | null>(null)
+  const [courseAboutExpanded, setCourseAboutExpanded] = useState(false)
 
   function extractYouTubeId(url: string): string | null {
     if (!url) return null
@@ -2148,7 +2163,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
     const token = await getToken()
     const res = await fetch(`/api/courses?id=${course.id}`, { headers: { Authorization: `Bearer ${token}` } })
     if (res.ok) { const d = await res.json(); setEpisodes(d.episodes || []); setProgress(d.progress || []) }
-    setSelectedCourse(course); setSelectedEpisode(null); setView('course')
+    setSelectedCourse(course); setSelectedEpisode(null); setView('course'); setCourseAboutExpanded(false)
   }
 
   async function openEpisode(ep: any) {
@@ -2230,7 +2245,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                       onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
                       onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
                       <div style={{ height: 120, background: 'linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(13,11,20,0.8) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, borderBottom: `1px solid ${bdr}` }}>
-                        {course.thumbnail_url ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: '8px 8px 0 0' }} /> : '📚'}
+                        {course.thumbnail_url ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: '8px 8px 0 0' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.parentElement as HTMLElement).innerHTML = '📚' }} /> : '📚'}
                       </div>
                       <div style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
@@ -2406,7 +2421,16 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut, padding: 32 }}>
           <div style={{ fontSize: 40 }}>▶</div>
           <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>{isMobile ? 'Tap an episode above to begin' : 'Select an episode to begin'}</div>
-          {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedCourse.description || '')} />}
+          {!isMobile && selectedCourse.description && (
+            <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, maxHeight: courseAboutExpanded ? 'none' : 120, overflow: 'hidden', lineHeight: 1.6 }} dangerouslySetInnerHTML={renderMd(selectedCourse.description)} />
+              {selectedCourse.description.length > 200 && (
+                <button onClick={() => setCourseAboutExpanded(e => !e)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', marginTop: 6, padding: 0 }}>
+                  {courseAboutExpanded ? 'READ LESS ↑' : 'READ MORE ↓'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -3563,7 +3587,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}
-                    onClick={() => { localStorage.setItem('wri_jump_to_spirit', d.name); setActiveSection('database') }}
+                    onClick={() => { localStorage.setItem('wri_jump_to_spirit', d.name); localStorage.setItem('wri_jump_from', 'intel'); setActiveSection('database') }}
                   >
                     <div>
                       <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{d.name}</div>
@@ -3644,13 +3668,14 @@ function parseSpiritNames(text: string): string[] {
     .filter((p, i, arr) => arr.indexOf(p) === i)
 }
 
-function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [] }: {
+function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [], setActiveSection }: {
   theme: string
   isMobile: boolean
   isTablet: boolean
   setSidebarOpen: (open: boolean) => void
   userTier: string
   demons?: any[]
+  setActiveSection?: (s: string) => void
 }) {
   const { getToken } = useAuth()
   const [query, setQuery]         = useState('')
@@ -3724,6 +3749,15 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
       }
     }
   }, [demonsProp])
+
+  function closeModal() {
+    setSelectedEntry(null)
+    const returnTo = localStorage.getItem('wri_jump_from')
+    if (returnTo && setActiveSection) {
+      localStorage.removeItem('wri_jump_from')
+      setActiveSection(returnTo)
+    }
+  }
 
   const CLASS_COLOR: Record<string, string> = {
     Strongman:    '#C9A84C',
@@ -4109,13 +4143,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         }
 
         return (
-          <div onClick={() => setSelectedEntry(null)}
+          <div onClick={closeModal}
             style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? 8 : 20, paddingTop: isMobile ? 20 : undefined, backdropFilter: 'blur(4px)' }}>
             <div onClick={e => e.stopPropagation()}
               style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '85vh' : '85vh', overflowY: 'auto' as const, padding: 28, paddingBottom: 'max(28px, env(safe-area-inset-bottom, 28px))', position: 'relative', boxSizing: 'border-box' as const }}>
 
               <div style={{ position: 'absolute', top: 14, right: 14 }}>
-                <button onClick={() => setSelectedEntry(null)}
+                <button onClick={closeModal}
                   style={{ background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
               </div>
 
@@ -5149,6 +5183,31 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
               </div>
             </div>
           )}
+
+          {/* Upgrade CTA for Watchman — show locked resource count */}
+          {(() => {
+            const lockedCount = arsenalItems.filter(r => {
+              const lvl = ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 } as Record<string, number>)[(r.tier || '').toLowerCase()] ?? 0
+              return lvl > tierLvl(userTier)
+            }).length
+            if (lockedCount === 0) return null
+            return (
+              <div style={{ marginTop: 20, padding: '16px', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, background: 'rgba(201,168,76,0.04)', textAlign: 'center' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.6)', marginBottom: 6 }}>
+                  🔒 {lockedCount} MORE RESOURCE{lockedCount !== 1 ? 'S' : ''} AVAILABLE
+                </div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: muted, marginBottom: 12, lineHeight: 1.5 }}>
+                  Upgrade to Soldier to unlock the full Arsenal library.
+                </div>
+                <button
+                  onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
+                >
+                  UPGRADE TO SOLDIER →
+                </button>
+              </div>
+            )
+          })()}
         </>
       ) : (
         /* Category / search results view */
@@ -7390,7 +7449,7 @@ function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => 
   }
 
   return (
-    <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 12, padding: '20px 22px', marginBottom: 16 }}>
+    <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 12, padding: '24px 28px', marginBottom: 16, width: '100%', boxSizing: 'border-box' as const }}>
       <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ New Post</div>
       <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 14 }}>
         {Object.entries(FORUM_POST_TYPES).map(([k, v]) => (
@@ -7403,7 +7462,7 @@ function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => 
       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
         <input placeholder="Title (required)" value={title} onChange={e => setTitle(e.target.value)} maxLength={200} style={inputSt} />
         {postType !== 'resource' && (
-          <textarea placeholder={tc.placeholder} value={body} onChange={e => setBody(e.target.value)} rows={5} maxLength={20000} style={{ ...inputSt, resize: 'vertical' as const }} />
+          <textarea placeholder={tc.placeholder} value={body} onChange={e => setBody(e.target.value)} rows={8} maxLength={20000} style={{ ...inputSt, resize: 'vertical' as const, minHeight: 150 }} />
         )}
         {postType === 'resource' && (
           <>
@@ -7715,10 +7774,16 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
             <input placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)}
               style={{ width: '100%', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '6px 12px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
           </div>
-          {!isMobile && (
+          {!isMobile && canPost && (
             <button onClick={() => setComposing(c => !c)}
               style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, padding: '7px 20px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
               ＋ New Post
+            </button>
+          )}
+          {!isMobile && !canPost && (
+            <button onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 9, padding: '7px 14px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
+              🔒 Soldier+ to Post
             </button>
           )}
         </div>
@@ -7747,10 +7812,16 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
         <div style={{ display: 'flex', gap: 24, padding: '20px 24px', maxWidth: 1200, margin: '0 auto' }}>
           {/* Main feed */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {isMobile && (
+            {isMobile && canPost && (
               <button onClick={() => setComposing(c => !c)}
                 style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, padding: '12px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
                 ＋ New Post
+              </button>
+            )}
+            {isMobile && !canPost && (
+              <button onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+                style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 10, padding: '11px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
+                🔒 Soldier+ tier required to post → Upgrade
               </button>
             )}
             {composing && <ForumPostComposer onPost={onPost} onCancel={() => setComposing(false)} canPost={canPost} />}
@@ -8798,10 +8869,16 @@ function CommunityPage() {
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ message: msg.trim(), history: chatMessages, feature: 'ask_dake' }),
       })
+      const ct = res.headers.get('content-type') || ''
+      if (!ct.includes('application/json')) {
+        throw new Error(`Unexpected response type: ${ct}`)
+      }
       const data = await res.json()
       if (res.status === 429) {
         setChatMessages(prev => [...prev, { role: 'assistant', content: `**Limit Reached** — ${data.error || 'Daily AI limit reached.'} [Upgrade your membership](/membership) to continue.` }])
         _usageCache = null
+      } else if (!res.ok) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `AI error: ${data.error || res.status}. Please try again.` }])
       } else {
         const responseText = data.response || 'No response received.'
         setChatMessages(prev => [...prev, { role: 'assistant', content: responseText }])
@@ -8814,8 +8891,8 @@ function CommunityPage() {
           }).catch(() => {})
         }
       }
-    } catch {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Unable to connect. Please try again.' }])
+    } catch (err: any) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Unable to connect. ${err?.message || 'Please try again.'}` }])
     } finally {
       setChatLoading(false)
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -9722,6 +9799,12 @@ function CommunityPage() {
                 <Moon size={14} strokeWidth={1.6} />
                 <span>Dream Interpreter</span>
               </a>
+              {tierLevel >= 2 && (
+                <button onClick={() => { setActiveSection('deliverance-protocol'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'deliverance-protocol' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'deliverance-protocol' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'deliverance-protocol' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                  <Sword size={14} strokeWidth={1.6} />
+                  <span>Deliverance Protocol</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -9811,6 +9894,7 @@ function CommunityPage() {
         display: 'flex', flexDirection: 'column',
         background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
         overflow: 'hidden' as const, WebkitOverflowScrolling: 'touch' as any,
+        paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
         display: 'flex', flexDirection: 'column', position: 'relative' as const,
@@ -9932,7 +10016,24 @@ function CommunityPage() {
             founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))}
           />
         )}
-        {activeSection === 'dms'         && <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} onUnreadChange={setUnreadDMs} />}
+        {activeSection === 'dms' && (
+          tierLevel >= 1
+            ? <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} onUnreadChange={setUnreadDMs} />
+            : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+                <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ DIRECT MESSAGES</div>
+                  <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : '#5C5248', marginBottom: 20, lineHeight: 1.6 }}>
+                    Direct messaging is available to Soldier members and above.
+                  </div>
+                  <button
+                    onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+                    style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
+                  >
+                    UPGRADE TO SOLDIER →
+                  </button>
+                </div>
+              </div>
+        )}
         {activeSection === 'members'     && (
           <MembersView
             members={members}
@@ -9951,7 +10052,7 @@ function CommunityPage() {
         )}
         {activeSection === 'database'    && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} />
+            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} />
             <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
           </div>
         )}
@@ -9986,6 +10087,29 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
+        {activeSection === 'deliverance-protocol' && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+            {isMobile && (
+              <div style={{ alignSelf: 'flex-start', padding: '0 0 20px' }}>
+                <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>☰</button>
+              </div>
+            )}
+            <div style={{ maxWidth: 480, textAlign: 'center' as const }}>
+              <div style={{ fontSize: 36, marginBottom: 16 }}>⚔</div>
+              <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.2em', color: G, marginBottom: 12 }}>COMMANDER TIER · INTEL ARCHIVE</div>
+              <div style={{ fontFamily: cinzel, fontSize: 20, color: G, marginBottom: 12, fontWeight: 700 }}>DELIVERANCE PROTOCOL ENGINE</div>
+              <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#a09080' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>
+                The Deliverance Protocol Engine is integrated into the Intel Archive. Open any spirit dossier and navigate to the <strong style={{ color: G }}>Protocol</strong> tab to generate a customized deliverance protocol for that spirit.
+              </div>
+              <button
+                onClick={() => setActiveSection('database')}
+                style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#0e0c09', background: G, border: 'none', borderRadius: 4, padding: '11px 28px', cursor: 'pointer' }}
+              >
+                Open Intel Archive →
+              </button>
+            </div>
+          </div>
+        )}
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'body-map' && (
           tierLevel >= 2
@@ -10383,7 +10507,7 @@ function CommunityPage() {
                         ) : (
                           [...demons].sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 10).map((d: any) => (
                             <TacticalCard key={d.id || d.name} padding="8px 10px" onClick={() => {
-                              try { localStorage.setItem('wri_jump_to_spirit', d.name) } catch {}
+                              try { localStorage.setItem('wri_jump_to_spirit', d.name); localStorage.setItem('wri_jump_from', 'intel') } catch {}
                               setActiveSection('database')
                               setActiveRailSection(null)
                             }}>
@@ -10622,7 +10746,15 @@ function CommunityPage() {
             <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid rgba(201,168,76,0.12)', textAlign: 'center' }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>⚔</div>
               <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>Welcome to War Room Intel</div>
-              <div style={{ fontFamily: crimson, fontSize: 14, color: '#9a8c74' }}>Before you begin, please review and accept our terms</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: '#9a8c74', lineHeight: 1.6, marginBottom: 0 }}>
+                War Room Intel exists for one purpose: to serve the Lord Jesus Christ and advance His Kingdom. Everything here — the tools, the research, the community — is built to equip believers for the spiritual battle Scripture describes. We stand on the shoulders of men and women who paved this road before us: ministers, scholars, and servants whose faithfulness shaped what we know. We are grateful for their work and honor it here.
+              </div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#7a6d58', lineHeight: 1.6, marginTop: 10 }}>
+                The cost of membership is not for the content itself — much of what we teach has been freely given to the Body of Christ for generations. These fees exist to sustain the hosting, development, and operational costs of this platform, and to support free ministry for those who cannot afford access. If cost is a barrier, reach out. No serious seeker gets turned away.
+              </div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#7a6d58', lineHeight: 1.6, marginTop: 8 }}>
+                By continuing, you agree to use this platform in the spirit it was built — for freedom, for others, and for His glory.
+              </div>
             </div>
             {/* Tab switcher (mobile-friendly) */}
             <div style={{ display: 'flex', borderBottom: '1px solid rgba(201,168,76,0.12)', flexShrink: 0 }}>

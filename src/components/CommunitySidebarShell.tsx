@@ -165,6 +165,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         display: 'flex', flexDirection: 'column',
         position: 'fixed', top: 0, bottom: 0, left: 0,
         overflowY: 'auto', zIndex: 10,
+        paddingTop: 'env(safe-area-inset-top)',
       }}>
 
         {/* Profile block */}

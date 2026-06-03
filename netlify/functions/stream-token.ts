@@ -45,21 +45,23 @@ export default async (req: Request, _context: Context) => {
       role:  'user',
     }])
 
-    // Ensure prayer-wall-requests channel exists
-    await client.chat.channel('messaging', 'prayer-wall-requests').getOrCreate({
+    // Ensure prayer-wall-requests channel exists and user is a member
+    const prayerChannel = client.chat.channel('messaging', 'prayer-wall-requests')
+    await prayerChannel.getOrCreate({
       data: {
-        name:           'Prayer Wall',
         created_by_id:  userId,
-      },
+      } as any,
     })
+    await prayerChannel.update({ add_members: [{ user_id: userId }] })
 
-    // Ensure war-room-general channel exists
-    await client.chat.channel('messaging', 'war-room-general').getOrCreate({
+    // Ensure war-room-general channel exists and user is a member
+    const generalChannel = client.chat.channel('messaging', 'war-room-general')
+    await generalChannel.getOrCreate({
       data: {
-        name:           'The War Room',
         created_by_id:  userId,
-      },
+      } as any,
     })
+    await generalChannel.update({ add_members: [{ user_id: userId }] })
 
     // Generate a valid token for this user (1-hour expiry)
     const token = client.createToken(userId, Math.floor(Date.now() / 1000) + 3600)
