@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useUser, useAuth } from '@clerk/tanstack-start'
 import {
   MessageSquare, Inbox, Heart, Users, HelpCircle,
@@ -45,12 +45,23 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
 
   const isActive = (...labels: string[]) => labels.includes(activeItem)
 
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = sidebarScrollRef.current
+    if (!el) return
+    const saved = sessionStorage.getItem('sidebar-scroll')
+    if (saved) requestAnimationFrame(() => { el.scrollTop = Number(saved) })
+    const active = el.querySelector('[data-active="true"]') as HTMLElement | null
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [])
+
   const navLink = (label: string, href: string, icon?: React.ReactNode, activeAliases?: string[]) => {
     const active = activeAliases ? isActive(label, ...activeAliases) : isActive(label)
     return (
       <a
         key={label}
         href={href}
+        data-active={active ? 'true' : undefined}
         style={{
           display: 'flex', alignItems: 'center', gap: 8,
           width: '100%', padding: '8px 16px', boxSizing: 'border-box',
@@ -223,7 +234,15 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         </div>
 
         {/* Nav scroll area */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+        <div ref={sidebarScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}
+          onScroll={e => { try { sessionStorage.setItem('sidebar-scroll', String((e.target as HTMLElement).scrollTop)) } catch {} }}
+        >
+
+          {/* ── COMMUNITY ── */}
+          {sectionLabel('Community')}
+          {navLink('Weekly Intel',   '/community',             <Antenna      size={16} strokeWidth={1.6} />)}
+          {navLink('Ops Board',      '/community',             <MessageSquare size={16} strokeWidth={1.6} />)}
+          {navLink('Field Ministry', '/community',             <BookOpen     size={16} strokeWidth={1.6} />)}
 
           {/* ── FIELD OPS (commander+) ── */}
           {isCommander && (
@@ -239,12 +258,6 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
               </div>
             </>
           )}
-
-          {/* ── COMMUNITY ── */}
-          {sectionLabel('Community')}
-          {navLink('Weekly Intel',   '/community',             <Antenna      size={16} strokeWidth={1.6} />)}
-          {navLink('Ops Board',      '/community',             <MessageSquare size={16} strokeWidth={1.6} />)}
-          {navLink('Field Ministry', '/community',             <BookOpen     size={16} strokeWidth={1.6} />)}
 
           {/* ── FOUNDATION ── */}
           {sectionLabel('Foundation')}

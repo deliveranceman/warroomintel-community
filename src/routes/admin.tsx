@@ -116,6 +116,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [filterSearch, setFilterSearch]     = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTier, setFilterTier]         = useState('')
+  const [recentSearch, setRecentSearch]     = useState('')
 
   const TOPICS = [
     'Spiritual Warfare',
@@ -352,6 +353,16 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     await fetchResources()
   }
 
+  const recentUploads = (recentSearch.trim()
+    ? [...resources].filter((r: any) =>
+        (r.title || '').toLowerCase().includes(recentSearch.toLowerCase()) ||
+        (r.description || '').toLowerCase().includes(recentSearch.toLowerCase()) ||
+        (r.filename || '').toLowerCase().includes(recentSearch.toLowerCase())
+      )
+    : [...resources]
+  ).sort((a: any, b: any) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
+   .slice(0, 10)
+
   const displayedItems = resources.filter((item: any) => {
     if (filterCategory && item.topic !== filterCategory) return false
     if (filterTier) {
@@ -380,6 +391,36 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
             </span>
           )}
         </div>
+
+        {/* ── Recently Uploaded ── */}
+        {resources.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>RECENTLY UPLOADED</span>
+              <input
+                value={recentSearch}
+                onChange={e => setRecentSearch(e.target.value)}
+                placeholder="Filter..."
+                style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '4px 8px', color: TXT, fontFamily: crimson, fontSize: 12, outline: 'none' }}
+              />
+              {recentSearch && (
+                <button onClick={() => setRecentSearch('')} style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+              {recentUploads.length === 0 ? (
+                <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No matches</div>
+              ) : recentUploads.map((r: any) => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid rgba(255,255,255,0.05)`, borderLeft: `2px solid ${TIER_COLORS[r.tier] || DIM}`, borderRadius: 5, padding: '6px 10px' }}>
+                  <span style={{ fontSize: 13, flexShrink: 0 }}>{FILE_ICONS[r.file_type?.split('/').pop() || ''] || '📎'}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: TXT, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title?.replace(/_arsenal$/i, '') ?? r.filename}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 7, color: TIER_COLORS[r.tier] || DIM, border: `1px solid ${TIER_COLORS[r.tier] || DIM}44`, padding: '1px 6px', borderRadius: 10, flexShrink: 0 }}>{r.tier}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, flexShrink: 0 }}>{r.created_at ? fmtDate(r.created_at) : ''}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Drop zone */}
         <div
@@ -5223,6 +5264,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [dragOverAi, setDragOverAi]   = useState(false)
   const [dragOverPdf, setDragOverPdf] = useState(false)
   const [uploadingAll, setUploadingAll] = useState(false)
+  const [uploadError, setUploadError]   = useState<string | null>(null)
   const [bookSearch, setBookSearch]     = useState('')
   const [quickTagId, setQuickTagId]     = useState<string | null>(null)
   const [kbExpanded, setKbExpanded]     = useState(false)
@@ -5272,8 +5314,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     const valid = Array.from(files).filter(f => {
       const name = f.name.toLowerCase()
       const okType = pdfOnly
-        ? name.endsWith('.pdf')
+        ? (name.endsWith('.pdf') || f.type === 'application/pdf' || f.type === 'application/x-pdf')
         : (name.endsWith('.txt') || name.endsWith('.docx'))
+      console.log('[addFiles] file:', f.name, 'type:', f.type, 'size:', f.size, 'okType:', okType, 'pdfOnly:', pdfOnly)
       return okType && f.size <= 50 * 1024 * 1024
     })
     const duplicates: {file: File, match: any}[] = []
@@ -5370,10 +5413,17 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   async function handleUploadAll() {
     const token = await getToken()
+    console.log('[handleUploadAll] token present:', !!token)
+    if (!token) {
+      setUploadError('Authentication token unavailable — please refresh and try again.')
+      return
+    }
     const pending = stagedFiles.filter(f => f.status === 'pending')
+    console.log('[handleUploadAll] pending files:', pending.length)
     if (!pending.length) return
     setUploadingAll(true)
     for (const sf of pending) {
+      console.log('[handleUploadAll] starting upload:', sf.file.name, 'type:', sf.file.type, 'size:', sf.file.size)
       // Step 1 — signed URL
       updateStaged(sf.id, { status: 'uploading' })
       let signedUrl = '', filePath = ''
@@ -5383,23 +5433,33 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: sf.file.name, contentType: sf.file.type || 'application/octet-stream' }),
         })
+        console.log('[handleUploadAll] signed URL response status:', urlRes.status, 'for', sf.file.name)
         const urlData = await urlRes.json()
-        if (!urlRes.ok) { updateStaged(sf.id, { status: 'error', errorMsg: urlData.error || 'Failed to get upload URL' }); continue }
+        if (!urlRes.ok) {
+          console.error('[handleUploadAll] signed URL error:', urlData.error, 'for', sf.file.name)
+          updateStaged(sf.id, { status: 'error', errorMsg: urlData.error || 'Failed to get upload URL' }); continue
+        }
         signedUrl = urlData.signedUrl
         filePath = urlData.filePath
+        console.log('[handleUploadAll] got signed URL, filePath:', filePath)
       } catch (e: any) {
+        console.error('[handleUploadAll] signed URL fetch threw:', e, 'for', sf.file.name)
         updateStaged(sf.id, { status: 'error', errorMsg: e.message }); continue
       }
 
       // Step 2 — PUT to Supabase
       try {
+        const contentType = getMimeType(sf.file.name, sf.file.type || undefined)
+        console.log('[handleUploadAll] PUT to storage, contentType:', contentType)
         const storageRes = await fetch(signedUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': getMimeType(sf.file.name, sf.file.type || undefined) },
+          headers: { 'Content-Type': contentType },
           body: sf.file,
         })
+        console.log('[handleUploadAll] storage PUT response status:', storageRes.status, 'for', sf.file.name)
         if (!storageRes.ok) { updateStaged(sf.id, { status: 'error', errorMsg: `Storage upload failed: ${storageRes.status}` }); continue }
       } catch (e: any) {
+        console.error('[handleUploadAll] storage PUT threw:', e, 'for', sf.file.name)
         updateStaged(sf.id, { status: 'error', errorMsg: e.message }); continue
       }
 
@@ -5421,15 +5481,21 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             file_type: fileExt(sf.file.name) || 'txt',
           }),
         })
+        console.log('[handleUploadAll] save metadata response status:', saveRes.status, 'for', sf.file.name)
         const saveData = await saveRes.json()
         if (saveRes.status === 409) {
           updateStaged(sf.id, { status: 'error', errorMsg: `Duplicate: "${saveData.existingTitle || 'file already exists'}"` })
           continue
         }
-        if (!saveData.success) { updateStaged(sf.id, { status: 'error', errorMsg: saveData.error || 'Save failed' }); continue }
+        if (!saveData.success) {
+          console.error('[handleUploadAll] save failed:', saveData.error, 'for', sf.file.name)
+          updateStaged(sf.id, { status: 'error', errorMsg: saveData.error || 'Save failed' }); continue
+        }
+        console.log('[handleUploadAll] done for', sf.file.name)
         updateStaged(sf.id, { status: 'done' })
         if (saveData.book) setBooks(prev => [saveData.book, ...prev])
       } catch (e: any) {
+        console.error('[handleUploadAll] save metadata threw:', e, 'for', sf.file.name)
         updateStaged(sf.id, { status: 'error', errorMsg: e.message })
       }
     }
@@ -5789,6 +5855,14 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
         {kbExpanded && (<>
 
+        {/* ── Upload error banner ── */}
+        {uploadError && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 8, padding: '12px 16px', marginBottom: 14, marginTop: 14 }}>
+            <span style={{ fontFamily: crimson, fontSize: 13, color: 'rgba(248,113,113,0.95)', flex: 1 }}>⚠ {uploadError}</span>
+            <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', color: 'rgba(248,113,113,0.8)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>
+          </div>
+        )}
+
         {/* ── AI dropzone ── */}
         <div
           onDragOver={e => { e.preventDefault(); setDragOverAi(true) }}
@@ -6118,6 +6192,14 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, lineHeight: 1.5, marginBottom: 14 }}>
           PDF books for minister reference. Not AI-indexed — ministers can open and read these documents directly.
         </div>
+
+        {/* Upload error banner (PDF section) */}
+        {uploadError && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
+            <span style={{ fontFamily: crimson, fontSize: 13, color: 'rgba(248,113,113,0.95)', flex: 1 }}>⚠ {uploadError}</span>
+            <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', color: 'rgba(248,113,113,0.8)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>
+          </div>
+        )}
 
         {/* PDF dropzone */}
         <div

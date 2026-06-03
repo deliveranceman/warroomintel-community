@@ -8272,6 +8272,22 @@ function CommunityPage() {
     try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
   })
   const [activeSection, setActiveSection] = useState('intel')
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+
+  // Preserve sidebar scroll across activeSection changes
+  useEffect(() => {
+    const el = sidebarScrollRef.current
+    if (!el) return
+    const saved = sessionStorage.getItem('sidebar-scroll')
+    if (saved) requestAnimationFrame(() => { el.scrollTop = Number(saved) })
+  }, [])
+  useEffect(() => {
+    const el = sidebarScrollRef.current
+    if (!el) return
+    const active = el.querySelector('[data-active="true"]') as HTMLElement | null
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [activeSection])
+
   const [trainingExpanded, setTrainingExpanded] = useState(false)
   const [fringeExpanded, setFringeExpanded]     = useState(false)
   const [intelligenceOpen, setIntelligenceOpen] = useState(() => {
@@ -8995,6 +9011,7 @@ function CommunityPage() {
       <button
         onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
         title={collapsed ? label : undefined}
+        data-active={active ? 'true' : undefined}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: collapsed ? 0 : 8,
           width: '100%', padding: collapsed ? '10px 0' : '8px 16px',
@@ -9156,7 +9173,9 @@ function CommunityPage() {
       </div>
 
       {/* Nav */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+      <div ref={sidebarScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}
+        onScroll={e => { try { sessionStorage.setItem('sidebar-scroll', String((e.target as HTMLElement).scrollTop)) } catch {} }}
+      >
 
         {/* ── QUICK ACCESS ICON STRIP ── */}
         {!(sidebarCollapsed && !isMobile) && <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
@@ -9195,6 +9214,15 @@ function CommunityPage() {
           ))}
         </div>}
 
+        {/* ── COMMUNITY ── */}
+        {sectionLabel('Community')}
+        {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
+        {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
+        {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
+        {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
+        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
+        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
+
         {/* ── FIELD OPS (Commander+) ── */}
         {(['commander', 'general'].includes(((user?.publicMetadata?.tier as string) || '').toLowerCase()) || (user?.publicMetadata?.role as string) === 'minister') && (
           <>
@@ -9205,6 +9233,7 @@ function CommunityPage() {
             })}
             <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator','my-intel'].includes(activeSection)) ? 420 : 0, transition: 'max-height 0.2s ease' }}>
               <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'ops-dashboard' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Zap size={14} strokeWidth={1.6} /></span>
                 <span>Ops Dashboard</span>
@@ -9216,16 +9245,19 @@ function CommunityPage() {
                 <span>Case Files</span>
               </a>
               <button onClick={() => { setActiveSection('session-center'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'session-center' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'session-center' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'session-center' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'session-center' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
                 <span>Session Center</span>
               </button>
               <button onClick={() => { setActiveSection('document-creator'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'document-creator' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'document-creator' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'document-creator' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'document-creator' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
                 <span>Document Creator</span>
               </button>
               <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'my-intel' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><span style={{ fontSize: 13, lineHeight: 1 }}>🧠</span></span>
                 <span>My Intel</span>
@@ -9233,15 +9265,6 @@ function CommunityPage() {
             </div>
           </>
         )}
-
-        {/* ── COMMUNITY ── */}
-        {sectionLabel('Community')}
-        {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
-        {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
-        {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
-        {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
-        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
-        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
 
         {/* ── FOUNDATION ── */}
         {sectionLabel('Foundation')}
