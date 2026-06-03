@@ -10682,8 +10682,7 @@ function CommunityPage() {
             height={isMobile ? 44 : 52}
             style={{
               objectFit: 'contain',
-              filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.7)) brightness(1.05)',
-              mixBlendMode: 'screen',
+              filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.7))',
             }}
             alt="Ask SOL"
           />

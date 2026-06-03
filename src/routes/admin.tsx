@@ -9652,7 +9652,7 @@ function ContentStudio({ getToken, isDark }: { getToken: any; isDark: boolean })
         {!generated && !title && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: mut, textAlign: 'center' as const, padding: '60px 0' }}>
             <img src="/images/sol/sol-icon.png" width={56} height={56}
-              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(201,168,76,0.4))', mixBlendMode: 'screen' as const }} />
+              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(201,168,76,0.4))' }} />
             <div style={{ fontFamily: cinzel, fontSize: 11, color: GG, letterSpacing: '0.15em' }}>CONTENT STUDIO</div>
             <div style={{ fontFamily: crimson, fontSize: 14, color: mut, maxWidth: 360, lineHeight: 1.7 }}>
               Select a type, enter your title, and click Generate. SOL writes the complete content.
@@ -10634,7 +10634,7 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
       <div style={{ padding: '12px 24px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: hdr }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src="/images/sol/sol-icon.png" width={32} height={32}
-            style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(201,168,76,0.8)) brightness(1.1)', mixBlendMode: 'screen' as const }} />
+            style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(201,168,76,0.8))' }} />
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 14, color: G2, letterSpacing: '0.1em', fontWeight: 700 }}>WAR ROOM COMMAND</div>
             <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.18em', marginTop: 1 }}>POWERED BY SOL</div>
@@ -10663,7 +10663,7 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
         {messages.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, textAlign: 'center' as const, padding: '80px 20px' }}>
             <img src="/images/sol/sol-icon.png" width={64} height={64}
-              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 20px rgba(201,168,76,0.7)) brightness(1.1)', mixBlendMode: 'screen' as const }} />
+              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 20px rgba(201,168,76,0.7))' }} />
             <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.12em' }}>WAR ROOM INTEL COMMAND AI ONLINE</div>
             <div style={{ fontFamily: crimson, fontSize: 15, color: dim, maxWidth: 400, lineHeight: 1.7 }}>
               I have access to your full ministry library, demon database, and WRI platform intelligence. Ask me anything.
@@ -10674,7 +10674,7 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
             {msg.role === 'assistant' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <img src="/images/sol/sol-icon.png" width={20} height={20}
-                  style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.7))', mixBlendMode: 'screen' as const }} />
+                  style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.7))' }} />
                 <span style={{ fontFamily: cinzel, fontSize: 7, color: G2, letterSpacing: '0.15em' }}>SOL</span>
               </div>
             )}
@@ -10701,7 +10701,7 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
         {loading && (
           <div style={{ alignSelf: 'flex-start' as const, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${G2}`, borderRadius: '0 12px 12px 12px' }}>
             <img src="/images/sol/sol-icon.png" width={16} height={16}
-              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.7))', mixBlendMode: 'screen' as const }} />
+              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.7))' }} />
             <span style={{ fontFamily: cinzel, fontSize: 9, color: G2, letterSpacing: '0.1em' }}>PROCESSING...</span>
           </div>
         )}
