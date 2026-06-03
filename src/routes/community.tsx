@@ -8674,8 +8674,8 @@ function CommunityPage() {
     const stored = localStorage.getItem('wri-theme')
     return (stored === 'dark' || stored === 'light') ? stored : 'dark'
   })
-  const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768)
-  const [isTablet, setIsTablet]       = useState(() => window.innerWidth >= 768 && window.innerWidth < 1100)
+  const [isMobile, setIsMobile]       = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  const [isTablet, setIsTablet]       = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1100)
   const [activeRailSection, setActiveRailSection] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -8735,6 +8735,8 @@ function CommunityPage() {
     if (!('Notification' in window)) return false
     return window.Notification.permission === 'granted'
   })
+  const [arsenalDrops, setArsenalDrops]           = useState<any[]>([])
+  const [arsenalDropsLoading, setArsenalDropsLoading] = useState(true)
   const [unreadWarRoom, setUnreadWarRoom] = useState(0)
   const [unreadNotifs, setUnreadNotifs]   = useState(0)
   const [notifsList, setNotifsList]       = useState<any[]>([])
@@ -8953,9 +8955,15 @@ function CommunityPage() {
       const w = window.innerWidth
       setIsMobile(w < 768)
       setIsTablet(w >= 768 && w < 1100)
+      if (w < 768) setSidebarOpen(false)
     }
+    check()
     window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
+    window.addEventListener('orientationchange', check)
+    return () => {
+      window.removeEventListener('resize', check)
+      window.removeEventListener('orientationchange', check)
+    }
   }, [])
 
   // Read ?section= URL param on mount (e.g. from Launch Session redirect)
@@ -9257,6 +9265,18 @@ function CommunityPage() {
         .catch(() => {})
     }, 2000)
     return () => clearTimeout(t)
+  }, [user?.id])
+
+  // Fetch latest arsenal drops for right-rail panel
+  useEffect(() => {
+    if (!user?.id) return
+    getToken().then(token => {
+      if (!token) { setArsenalDropsLoading(false); return }
+      fetch('/api/latest-arsenal', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { setArsenalDrops(d.resources || []); setArsenalDropsLoading(false) })
+        .catch(() => setArsenalDropsLoading(false))
+    })
   }, [user?.id])
 
   // Fetch Stream presence for Warriors section
@@ -10385,12 +10405,42 @@ function CommunityPage() {
                       <div style={{ marginBottom: 10 }}>
                         <SectionLabel action="VIEW ALL" onAction={() => { setActiveSection('arsenal'); setActiveRailSection(null) }}>Latest Arsenal Drops</SectionLabel>
                       </div>
-                      <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                        <div style={{ fontSize: 28, marginBottom: 12 }}>📄</div>
-                        <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', marginBottom: 6 }}>Arsenal Library</div>
-                        <p style={{ fontSize: 12, color: 'var(--t-4)', fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6, marginBottom: 14 }}>Browse the full PDF and resource library.</p>
-                        <button onClick={() => { setActiveSection('arsenal'); setActiveRailSection(null) }} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '7px 16px', background: 'rgba(201,168,76,0.1)', border: '1px solid var(--gold-line)', borderRadius: 2, color: 'var(--gold)', cursor: 'pointer' }}>Open Arsenal →</button>
-                      </div>
+                      {arsenalDropsLoading ? (
+                        <div style={{ color: 'rgba(201,168,76,0.4)', fontSize: 10, fontFamily: cinzel, padding: '12px 0', textAlign: 'center' as const }}>Loading...</div>
+                      ) : arsenalDrops.length === 0 ? (
+                        <div style={{ color: 'rgba(201,168,76,0.4)', fontSize: 10, fontFamily: cinzel, padding: '12px 0', textAlign: 'center' as const }}>No resources yet</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                          {arsenalDrops.map((r: any) => {
+                            const tierMap: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
+                            const userTierLevel = tierMap[tier.toLowerCase()] ?? 0
+                            const resourceTierLevel = tierMap[r.topic?.toLowerCase() || 'free'] ?? 0
+                            const hasAccess = userTierLevel >= resourceTierLevel
+                            return (
+                              <div
+                                key={r.id}
+                                onClick={() => { hasAccess ? (setActiveSection('arsenal'), setActiveRailSection(null)) : (window.location.href = '/membership') }}
+                                style={{ padding: '8px 10px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.05)')}
+                              >
+                                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, marginBottom: 3, lineHeight: 1.3 }}>
+                                  {r.title?.length > 40 ? r.title.slice(0, 40) + '...' : r.title}
+                                </div>
+                                <div style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                                  {hasAccess ? (r.topic || 'free') : '🔒 ' + (r.topic || 'free') + ' required'}
+                                </div>
+                              </div>
+                            )
+                          })}
+                          <div
+                            onClick={() => { setActiveSection('arsenal'); setActiveRailSection(null) }}
+                            style={{ marginTop: 4, fontSize: 10, color: G, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.08em', textAlign: 'center' as const, padding: '6px 0', borderTop: '1px solid rgba(201,168,76,0.1)' }}
+                          >
+                            View All Arsenal →
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
