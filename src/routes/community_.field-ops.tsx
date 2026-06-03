@@ -732,6 +732,12 @@ function FieldOpsPage() {
     </CommunitySidebarShell>
   )
 
+  // ── GUARD: session views require a selected case ────────────────────────────
+  if ((view === 'new-session' || view === 'edit-session') && !selectedCase) {
+    setView('list')
+    return null
+  }
+
   // ── SESSION FORM (shared by new-session + edit-session) ────────────────────
   if (view === 'new-session' || view === 'edit-session') {
     const isEdit = view === 'edit-session'

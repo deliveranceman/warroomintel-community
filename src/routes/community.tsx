@@ -10519,7 +10519,7 @@ function CommunityPage() {
         }}>
           <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>⚔ WAR ROOM AI</span>
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>◉ ASK SOL</span>
               <AIUsagePill feature="ask_dake" getToken={getToken} />
             </div>
             <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
@@ -10608,9 +10608,9 @@ function CommunityPage() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
             transition: 'all 0.15s',
           }}
-          title="War Room AI"
+          title="Ask SOL"
         >
-          🧠
+          ◉
         </button>
       )}
 

@@ -263,7 +263,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
               })}
               <div style={{ overflow: 'hidden', maxHeight: fieldOpsOpen ? 200 : 0, transition: 'max-height 0.2s ease' }}>
                 {navLink('Case Files', '/community/field-ops', <FolderOpen size={14} strokeWidth={1.6} />, ['Field Ops'])}
-                {navLink('Session Center', '/community', <Sword size={14} strokeWidth={1.6} />)}
+                {navLink('Session Notes', '/community/field-ops', <Sword size={14} strokeWidth={1.6} />, ['Field Ops'])}
               </div>
             </>
           )}
@@ -280,6 +280,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             try { localStorage.setItem('sidebar_intelligence_open', String(next)) } catch {}
           })}
           <div style={{ overflow: 'hidden', maxHeight: intelligenceOpen ? 600 : 0, transition: 'max-height 0.2s ease' }}>
+            {navLink('Ask SOL', '/community/ask-sol', <Eye size={14} strokeWidth={1.6} />, ['Ask SOL'])}
             {navLink('Intel Archive', '/community', <Library size={14} strokeWidth={1.6} />)}
             <div style={{ paddingLeft: 16 }}>
               {subNavLink('Symptom Investigator', '/community',                        <Search   size={11} strokeWidth={1.6} />)}

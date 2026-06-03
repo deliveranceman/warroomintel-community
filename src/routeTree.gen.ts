@@ -33,6 +33,7 @@ import { Route as CommunityScriptureRouteImport } from './routes/community_.scri
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
 import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field-ops'
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
+import { Route as CommunityAskSolRouteImport } from './routes/community_.ask-sol'
 import { Route as CommunityDreamInterpreterRouteImport } from './routes/community_.dream-interpreter'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
@@ -177,6 +178,11 @@ const CommunityFieldOpsRoute = CommunityFieldOpsRouteImport.update({
 const CommunityFieldManualRoute = CommunityFieldManualRouteImport.update({
   id: '/community_/field-manual',
   path: '/community/field-manual',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityAskSolRoute = CommunityAskSolRouteImport.update({
+  id: '/community_/ask-sol',
+  path: '/community/ask-sol',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityDreamInterpreterRoute =
@@ -341,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
+  '/community/ask-sol': typeof CommunityAskSolRoute
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
@@ -390,6 +397,7 @@ export interface FileRoutesByTo {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
+  '/community/ask-sol': typeof CommunityAskSolRoute
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
@@ -441,6 +449,7 @@ export interface FileRoutesById {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
+  '/community_/ask-sol': typeof CommunityAskSolRoute
   '/community_/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
   '/community_/field-ops': typeof CommunityFieldOpsRoute
@@ -493,6 +502,7 @@ export interface FileRouteTypes {
     | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
+    | '/community/ask-sol'
     | '/community/dream-interpreter'
     | '/community/field-manual'
     | '/community/field-ops'
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
+    | '/community/ask-sol'
     | '/community/dream-interpreter'
     | '/community/field-manual'
     | '/community/field-ops'
@@ -592,6 +603,7 @@ export interface FileRouteTypes {
     | '/api/update-profile'
     | '/api/user-tier'
     | '/api/warroom-chat'
+    | '/community_/ask-sol'
     | '/community_/dream-interpreter'
     | '/community_/field-manual'
     | '/community_/field-ops'
@@ -642,6 +654,7 @@ export interface RootRouteChildren {
   ApiUpdateProfileRoute: typeof ApiUpdateProfileRoute
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
+  CommunityAskSolRoute: typeof CommunityAskSolRoute
   CommunityDreamInterpreterRoute: typeof CommunityDreamInterpreterRoute
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
   CommunityFieldOpsRoute: typeof CommunityFieldOpsRoute
@@ -820,6 +833,13 @@ declare module '@tanstack/react-router' {
       path: '/community/field-manual'
       fullPath: '/community/field-manual'
       preLoaderRoute: typeof CommunityFieldManualRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/ask-sol': {
+      id: '/community_/ask-sol'
+      path: '/community/ask-sol'
+      fullPath: '/community/ask-sol'
+      preLoaderRoute: typeof CommunityAskSolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/dream-interpreter': {
@@ -1044,6 +1064,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUpdateProfileRoute: ApiUpdateProfileRoute,
   ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
+  CommunityAskSolRoute: CommunityAskSolRoute,
   CommunityDreamInterpreterRoute: CommunityDreamInterpreterRoute,
   CommunityFieldManualRoute: CommunityFieldManualRoute,
   CommunityFieldOpsRoute: CommunityFieldOpsRoute,

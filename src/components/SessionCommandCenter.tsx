@@ -1333,8 +1333,52 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
               {session.spiritSequence.length === 0 && (
                 <div style={{ padding: '8px 6px', fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No spirits added yet</div>
               )}
-              {session.spiritSequence.map((spirit, i) => {
+              {[...session.spiritSequence]
+                .sort((a, b) => {
+                  if (a.status === 'expelled' && b.status !== 'expelled') return 1
+                  if (a.status !== 'expelled' && b.status === 'expelled') return -1
+                  return 0
+                })
+                .map((spirit, i) => {
                 const isActive = session.activeSpirit?.id === spirit.id
+                const isExpelled = spirit.status === 'expelled'
+                const isReturned = spirit.label?.includes('⚠ RETURNED')
+
+                if (isExpelled) {
+                  return (
+                    <div
+                      key={spirit.id}
+                      onClick={() => setSession(s => ({ ...s, activeSpirit: spirit }))}
+                      style={{ padding: '5px 6px', borderRadius: 4, marginBottom: 2, cursor: 'pointer', opacity: 0.55, background: isActive ? 'rgba(74,222,128,0.04)' : 'transparent', border: `1px solid ${isActive ? 'rgba(74,222,128,0.2)' : 'transparent'}` }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', opacity: 0.7 }}>✓</span>
+                        <span style={{ fontFamily: cinzel, fontSize: 10, color: '#6b7280', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'line-through' }}>{spirit.name}</span>
+                        <span style={{ fontSize: 7, fontFamily: cinzel, color: '#4ade80', letterSpacing: '0.06em', flexShrink: 0 }}>EXPELLED</span>
+                      </div>
+                      {isReturned && (
+                        <div style={{ fontSize: 7, fontFamily: cinzel, color: '#fb923c', letterSpacing: '0.08em', paddingLeft: 14, marginTop: 1 }}>⚠ RETURNED</div>
+                      )}
+                      {isActive && (
+                        <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                          <button onClick={e => {
+                            e.stopPropagation()
+                            setSession(s => ({
+                              ...s,
+                              spiritSequence: s.spiritSequence.map(sp => sp.id === spirit.id ? { ...sp, status: 'active', label: '⚠ RETURNED' } : sp),
+                              activeSpirit: s.activeSpirit?.id === spirit.id ? { ...s.activeSpirit, status: 'active', label: '⚠ RETURNED' } : s.activeSpirit,
+                            }))
+                            addLog('resistance', `⚠ ${spirit.name} RETURNED — previously expelled`)
+                          }}
+                            style={{ padding: '2px 6px', borderRadius: 3, border: `1px solid #fb923c44`, background: 'transparent', color: '#fb923c', fontFamily: cinzel, fontSize: 7, cursor: 'pointer', letterSpacing: '0.04em' }}>
+                            ⚠ STILL ACTIVE
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+
                 return (
                   <div
                     key={spirit.id}
@@ -1359,7 +1403,7 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                       </span>
                     </div>
                     {spirit.label && (
-                      <div style={{ fontSize: 7, fontFamily: cinzel, color: DIM, letterSpacing: '0.06em', paddingLeft: 18, marginTop: 1 }}>{spirit.label}</div>
+                      <div style={{ fontSize: 7, fontFamily: cinzel, color: spirit.label.includes('RETURNED') ? '#fb923c' : DIM, letterSpacing: '0.06em', paddingLeft: 18, marginTop: 1 }}>{spirit.label}</div>
                     )}
                     {/* Status buttons — only show for active spirit */}
                     {isActive && (
@@ -1549,11 +1593,16 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                   {spirit.entryPoints && <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginBottom: 8 }}>{spirit.entryPoints}</div>}
                   <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' as const }}>
                     {(['manifesting','expelled','active'] as const).map(st => (
-                      <button key={st} onClick={() => setSession(s => ({
-                        ...s,
-                        spiritSequence: s.spiritSequence.map(sp => sp.id === spirit.id ? { ...sp, status: st } : sp),
-                        activeSpirit: s.activeSpirit?.id === spirit.id ? { ...s.activeSpirit, status: st } : s.activeSpirit,
-                      }))}
+                      <button key={st} onClick={() => {
+                        setSession(s => ({
+                          ...s,
+                          spiritSequence: s.spiritSequence.map(sp => sp.id === spirit.id ? { ...sp, status: st } : sp),
+                          activeSpirit: s.activeSpirit?.id === spirit.id ? { ...s.activeSpirit, status: st } : s.activeSpirit,
+                        }))
+                        if (st === 'expelled') addLog('breakthrough', `✓ ${spirit.name} EXPELLED`)
+                        else if (st === 'manifesting') addLog('manifestation', `⚡ ${spirit.name} MANIFESTING`)
+                        else if (st === 'active') addLog('note', `${spirit.name} STILL ACTIVE — spirit reporting`)
+                      }}
                         style={{ flex: 1, padding: '8px 4px', borderRadius: 5, border: `1px solid ${STATUS_COLORS[st]}44`, background: spirit.status === st ? `${STATUS_COLORS[st]}22` : 'transparent', color: STATUS_COLORS[st], fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em' }}>
                         {st === 'expelled' ? '✓ EXPELLED' : st === 'manifesting' ? '⚡ MANIFESTING' : 'STILL ACTIVE'}
                       </button>
@@ -1561,10 +1610,15 @@ export function SessionCommandCenter({ sessionId, caseFile, onClose, demons = []
                   </div>
                   <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
                     {(['full','partial','none'] as const).map(lvl => (
-                      <button key={lvl} onClick={() => setSession(s => ({
-                        ...s,
-                        spiritSequence: s.spiritSequence.map(sp => sp.id === spirit.id ? { ...sp, breakthroughLevel: lvl } : sp),
-                      }))}
+                      <button key={lvl} onClick={() => {
+                        setSession(s => ({
+                          ...s,
+                          spiritSequence: s.spiritSequence.map(sp => sp.id === spirit.id ? { ...sp, breakthroughLevel: lvl } : sp),
+                        }))
+                        if (lvl === 'full') addLog('breakthrough', `${spirit.name} — FULL BREAKTHROUGH`)
+                        else if (lvl === 'partial') addLog('note', `${spirit.name} — PARTIAL BREAKTHROUGH`)
+                        else addLog('resistance', `${spirit.name} — NO BREAKTHROUGH`)
+                      }}
                         style={{ flex: 1, padding: '5px', borderRadius: 4, border: `1px solid ${lvl === 'full' ? '#4ade8044' : lvl === 'partial' ? `${G}44` : '#6b728044'}`, background: spirit.breakthroughLevel === lvl ? (lvl === 'full' ? '#4ade8022' : lvl === 'partial' ? `${G}22` : 'rgba(107,114,128,0.1)') : 'transparent', color: spirit.breakthroughLevel === lvl ? (lvl === 'full' ? '#4ade80' : lvl === 'partial' ? G : DIM) : DIM, fontFamily: cinzel, fontSize: 8, cursor: 'pointer' }}>
                         {lvl.toUpperCase()}
                       </button>
