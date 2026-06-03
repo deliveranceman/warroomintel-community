@@ -5433,6 +5433,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [bookSearch, setBookSearch]     = useState('')
   const [quickTagId, setQuickTagId]     = useState<string | null>(null)
   const [kbExpanded, setKbExpanded]     = useState(false)
+  const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set())
+  const [selectAllBooks, setSelectAllBooks] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{ action: string; current: number; total: number; done: boolean; errors: string[] } | null>(null)
   const fileInputRef        = useRef<HTMLInputElement>(null)
   const pdfInputRef         = useRef<HTMLInputElement>(null)
   const libraryFileInputRef = useRef<HTMLInputElement>(null)
@@ -5474,6 +5477,23 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       const existingFilename = (b.filename || b.file_path || '').toLowerCase().replace(/[^a-z0-9]/g, '')
       return existingFilename.includes(cleanFilename) || cleanFilename.includes(existingFilename) || isSimilarTitle(b.title || '', file.name)
     }) || null
+  }
+
+  function checkDuplicate(file: File, allBooks: any[]): string | null {
+    const filenameMatch = allBooks.find(b => b.file_path?.toLowerCase().includes(file.name.toLowerCase()))
+    if (filenameMatch) return `Filename matches: "${filenameMatch.title || file.name}"`
+    if (file.size > 0) {
+      const sizeMatch = allBooks.find(b => b.file_size && Math.abs(b.file_size - file.size) < 100)
+      if (sizeMatch) return `Same file size as: "${sizeMatch.title || 'existing book'}"`
+    }
+    const fname = file.name.toLowerCase().replace(/\.[^/.]+$/, '')
+    const stripped = fname.replace(/^(the|a|an)\s+/i, '').replace(/[-_]/g, ' ').toLowerCase()
+    const titleMatch = allBooks.find(b => {
+      const existingStripped = (b.title || '').replace(/^(the|a|an)\s+/i, '').toLowerCase()
+      return existingStripped.length > 4 && (existingStripped.includes(stripped) || stripped.includes(existingStripped))
+    })
+    if (titleMatch) return `Similar title: "${titleMatch.title}"`
+    return null
   }
 
   const handleLibraryDrop = async (e: React.DragEvent<HTMLDivElement>) => {
@@ -6020,6 +6040,98 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     }
   }
 
+  async function handleBatchAutofill() {
+    const ids = Array.from(selectedBooks)
+    const selectedBookObjects = books.filter(b => ids.includes(b.id))
+    setBatchProgress({ action: 'AI AUTOFILL', current: 0, total: ids.length, done: false, errors: [] })
+    const token = await getToken()
+    if (!token) return
+    const errors: string[] = []
+    for (let i = 0; i < selectedBookObjects.length; i++) {
+      const book = selectedBookObjects[i]
+      setBatchProgress(p => p ? { ...p, current: i + 1 } : p)
+      try {
+        const res = await fetch('/api/library-autofill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ bookId: book.id, filename: book.file_path?.split('/').pop() || '', notes: book.notes || '' }),
+        })
+        if (!res.ok) errors.push(`${book.title || book.id}: autofill failed`)
+      } catch (e: any) {
+        errors.push(`${book.title || book.id}: ${e.message}`)
+      }
+      if (i < selectedBookObjects.length - 1) await new Promise(r => setTimeout(r, 1500))
+    }
+    setBatchProgress(p => p ? { ...p, done: true, errors } : p)
+    await loadBooks()
+    setSelectedBooks(new Set())
+    setSelectAllBooks(false)
+  }
+
+  async function handleBatchReindex() {
+    const ids = Array.from(selectedBooks)
+    const selectedBookObjects = books.filter(b => ids.includes(b.id))
+    setBatchProgress({ action: 'RE-INDEX', current: 0, total: ids.length, done: false, errors: [] })
+    const token = await getToken()
+    if (!token) return
+    const errors: string[] = []
+    for (let i = 0; i < selectedBookObjects.length; i++) {
+      const book = selectedBookObjects[i]
+      setBatchProgress(p => p ? { ...p, current: i + 1 } : p)
+      try {
+        const fp = book.file_path || ''
+        const ext = fp.split('.').pop()?.toLowerCase() || 'txt'
+        const fileType = ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : 'txt'
+        const res = await fetch('/api/library-index', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ resourceId: book.id, filePath: fp, fileType }),
+        })
+        if (!res.ok) errors.push(`${book.title || book.id}: index failed`)
+      } catch (e: any) {
+        errors.push(`${book.title || book.id}: ${e.message}`)
+      }
+      if (i < selectedBookObjects.length - 1) await new Promise(r => setTimeout(r, 800))
+    }
+    setBatchProgress(p => p ? { ...p, done: true, errors } : p)
+    await loadBooks()
+    setSelectedBooks(new Set())
+    setSelectAllBooks(false)
+  }
+
+  async function handleBatchToggleActive(active: boolean) {
+    const ids = Array.from(selectedBooks)
+    const token = await getToken()
+    if (!token) return
+    await Promise.all(ids.map(id =>
+      fetch('/api/admin-library', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, active }),
+      })
+    ))
+    await loadBooks()
+    setSelectedBooks(new Set())
+    setSelectAllBooks(false)
+  }
+
+  async function handleBatchDelete() {
+    const ids = Array.from(selectedBooks)
+    if (!window.confirm(`Delete ${ids.length} book${ids.length !== 1 ? 's' : ''} permanently? This cannot be undone.`)) return
+    const token = await getToken()
+    if (!token) return
+    await Promise.all(ids.map(id =>
+      fetch('/api/admin-library', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id }),
+      })
+    ))
+    await loadBooks()
+    setSelectedBooks(new Set())
+    setSelectAllBooks(false)
+  }
+
   async function loadLibrarySummary() {
     if (libSummaryLoading) return
     setLibSummaryLoading(true)
@@ -6050,6 +6162,22 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       b.notes?.toLowerCase().includes(q)
     )
   })
+
+  const duplicateIds = useMemo(() => {
+    const seen = new Map<string, string>()
+    const dupes = new Set<string>()
+    books.forEach(book => {
+      if (book.file_size) {
+        const sizeKey = String(book.file_size)
+        if (seen.has(sizeKey)) { dupes.add(book.id); dupes.add(seen.get(sizeKey)!) } else { seen.set(sizeKey, book.id) }
+      }
+      const titleKey = (book.title || '').replace(/^(the|a|an)\s+/i, '').toLowerCase().trim()
+      if (titleKey.length > 4) {
+        if (seen.has(titleKey)) { dupes.add(book.id); dupes.add(seen.get(titleKey)!) } else { seen.set(titleKey, book.id) }
+      }
+    })
+    return dupes
+  }, [books])
 
   return (
     <div style={{ color: LTXT, fontFamily: crimson }}>
@@ -6211,6 +6339,11 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           style={{ background: 'none', border: 'none', color: LMUT, cursor: 'pointer', fontSize: 14, padding: '0 2px', flexShrink: 0, lineHeight: 1 }}>×</button>
                       )}
                     </div>
+                    {(() => { const dupReason = checkDuplicate(sf.file, books); return dupReason ? (
+                      <div style={{ background: 'rgba(212,82,74,0.12)', border: '1px solid rgba(212,82,74,0.35)', borderRadius: 5, padding: '4px 10px', marginBottom: 8, fontFamily: cinzel, fontSize: 8, color: '#D4524A', letterSpacing: '0.06em' }}>
+                        ⚠ POSSIBLE DUPLICATE — {dupReason}
+                      </div>
+                    ) : null })()}
                     {/* Editable fields */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                       <div>
@@ -6272,16 +6405,46 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         ) : (
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', marginBottom: 10 }}>
-              {aiBooks.length} book{aiBooks.length !== 1 ? 's' : ''} · {aiBooks.filter(b => b.is_indexed).length} indexed
+            {batchProgress && (
+              <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: LG, letterSpacing: '0.12em', marginBottom: 10 }}>
+                  {batchProgress.action} — {batchProgress.current} / {batchProgress.total}
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 4, height: 5, marginBottom: 10 }}>
+                  <div style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%`, height: '100%', background: LG, borderRadius: 4, transition: 'width 0.4s ease' }} />
+                </div>
+                {batchProgress.done && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: crimson, fontSize: 13, color: '#4CAF7D' }}>
+                      ✓ Complete{batchProgress.errors.length > 0 ? ` — ${batchProgress.errors.length} errors` : ''}
+                    </span>
+                    <button onClick={() => setBatchProgress(null)} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 12px', fontFamily: cinzel, fontSize: 9, color: '#b8a98a', cursor: 'pointer', letterSpacing: '0.06em' }}>DISMISS</button>
+                  </div>
+                )}
+                {batchProgress.done && batchProgress.errors.length > 0 && (
+                  <div style={{ marginTop: 8 }}>{batchProgress.errors.map((e, i) => <div key={i} style={{ fontFamily: crimson, fontSize: 12, color: '#D4524A' }}>{e}</div>)}</div>
+                )}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' as const }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={selectAllBooks && selectedBooks.size === aiBooks.length} onChange={e => { setSelectAllBooks(e.target.checked); setSelectedBooks(e.target.checked ? new Set(aiBooks.map(b => b.id)) : new Set()) }} style={{ accentColor: LG, width: 15, height: 15 }} />
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em' }}>
+                  {aiBooks.length} book{aiBooks.length !== 1 ? 's' : ''} · {aiBooks.filter(b => b.is_indexed).length} indexed
+                </span>
+              </label>
+              <button onClick={() => { const ids = aiBooks.filter(b => !b.is_indexed).map(b => b.id); setSelectedBooks(new Set(ids)) }} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: 'rgba(201,168,76,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>SELECT NOT INDEXED</button>
+              <button onClick={() => setSelectedBooks(new Set([...duplicateIds].filter(id => aiBooks.some(b => b.id === id))))} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: 'rgba(212,82,74,0.7)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>SELECT DUPLICATES</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {aiBooks.map(book => {
                 const isEditing        = editingId === book.id
                 const hasNumericPrefix = /^\d+[-\s]/.test(book.title || '')
                 return (
-                  <div key={book.id} style={{ background: LSURF, border: `1px solid rgba(201,168,76,0.22)`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
+                  <div key={book.id} style={{ background: selectedBooks.has(book.id) ? 'rgba(201,168,76,0.04)' : LSURF, border: `1px solid ${selectedBooks.has(book.id) ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.22)'}`, borderLeft: `3px solid ${book.active !== false ? LG : 'rgba(201,168,76,0.25)'}`, borderRadius: 8, padding: '14px 18px', opacity: book.active !== false ? 1 : 0.6, transition: 'all 0.15s' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      {/* Checkbox */}
+                      <input type="checkbox" checked={selectedBooks.has(book.id)} onChange={e => { setSelectedBooks(prev => { const next = new Set(prev); e.target.checked ? next.add(book.id) : next.delete(book.id); return next }) }} style={{ accentColor: LG, width: 15, height: 15, cursor: 'pointer', flexShrink: 0, marginTop: 2 }} />
                       {/* Left: indexed status + title / author / meta / tags */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' as const }}>
@@ -6290,6 +6453,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', background: book.is_indexed ? 'rgba(76,175,77,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${book.is_indexed ? 'rgba(76,175,77,0.4)' : 'rgba(201,168,76,0.25)'}`, color: book.is_indexed ? '#4CAF7D' : 'rgba(201,168,76,0.6)', flexShrink: 0 }}>
                             {book.is_indexed ? '✓ INDEXED' : '○ NOT INDEXED'}
                           </span>
+                          {duplicateIds.has(book.id) && (
+                            <span style={{ padding: '2px 7px', borderRadius: 10, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', background: 'rgba(212,82,74,0.12)', border: '1px solid rgba(212,82,74,0.3)', color: '#D4524A', flexShrink: 0 }}>⚠ DUPLICATE</span>
+                          )}
                         </div>
                         {book.author && book.author !== 'Unknown' && (
                           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>
@@ -6550,15 +6716,27 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
               )}
             </div>
 
-            <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em', marginBottom: 10 }}>
-              {filteredBooks.length} PDF{filteredBooks.length !== 1 ? 's' : ''}{bookSearch.trim() ? ` of ${allPdfBooks.length}` : ''}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' as const }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={allPdfBooks.length > 0 && allPdfBooks.every(b => selectedBooks.has(b.id))} onChange={e => { setSelectedBooks(prev => { const next = new Set(prev); allPdfBooks.forEach(b => e.target.checked ? next.add(b.id) : next.delete(b.id)); return next }) }} style={{ accentColor: LG, width: 15, height: 15 }} />
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.12em' }}>
+                  {filteredBooks.length} PDF{filteredBooks.length !== 1 ? 's' : ''}{bookSearch.trim() ? ` of ${allPdfBooks.length}` : ''}
+                </span>
+              </label>
+              <button onClick={() => setSelectedBooks(prev => { const next = new Set(prev); allPdfBooks.filter(b => duplicateIds.has(b.id)).forEach(b => next.add(b.id)); return next })} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: 'rgba(212,82,74,0.7)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>SELECT DUPLICATES</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {filteredBooks.map(book => (
-                <div key={book.id} style={{ background: LSURF, border: `1px solid ${highlightedBookId === book.id ? 'rgba(201,168,76,0.8)' : 'rgba(201,168,76,0.22)'}`, borderLeft: `3px solid ${highlightedBookId === book.id ? '#C9A84C' : 'rgba(201,168,76,0.4)'}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, transition: 'border-color 0.4s, background 0.4s', boxShadow: highlightedBookId === book.id ? '0 0 0 2px rgba(201,168,76,0.2)' : 'none' }}>
+                <div key={book.id} style={{ background: selectedBooks.has(book.id) ? 'rgba(201,168,76,0.04)' : LSURF, border: `1px solid ${highlightedBookId === book.id ? 'rgba(201,168,76,0.8)' : selectedBooks.has(book.id) ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.22)'}`, borderLeft: `3px solid ${highlightedBookId === book.id ? '#C9A84C' : 'rgba(201,168,76,0.4)'}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, transition: 'border-color 0.4s, background 0.4s', boxShadow: highlightedBookId === book.id ? '0 0 0 2px rgba(201,168,76,0.2)' : 'none' }}>
+                  <input type="checkbox" checked={selectedBooks.has(book.id)} onChange={e => { setSelectedBooks(prev => { const next = new Set(prev); e.target.checked ? next.add(book.id) : next.delete(book.id); return next }) }} style={{ accentColor: LG, width: 15, height: 15, cursor: 'pointer', flexShrink: 0, marginTop: 2 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, marginBottom: 3, letterSpacing: '0.04em' }}>{book.title}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' as const }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, letterSpacing: '0.04em' }}>{book.title}</span>
+                      {duplicateIds.has(book.id) && (
+                        <span style={{ padding: '2px 7px', borderRadius: 10, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', background: 'rgba(212,82,74,0.12)', border: '1px solid rgba(212,82,74,0.3)', color: '#D4524A', flexShrink: 0 }}>⚠ DUPLICATE</span>
+                      )}
+                    </div>
                     {book.author && book.author !== 'Unknown' && (
                       <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', marginBottom: 4 }}>{book.author}</div>
                     )}
@@ -6607,6 +6785,19 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         )}
       </div>
+
+      {/* Floating batch action bar */}
+      {selectedBooks.size > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1508', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, zIndex: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.6)', whiteSpace: 'nowrap' as const }}>
+          <span style={{ fontFamily: cinzel, fontSize: 10, color: LG, letterSpacing: '0.1em' }}>{selectedBooks.size} SELECTED</span>
+          <button onClick={handleBatchAutofill} disabled={!!batchProgress && !batchProgress.done} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: LG, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontWeight: 700 }}>🧠 AI AUTOFILL</button>
+          <button onClick={handleBatchReindex} disabled={!!batchProgress && !batchProgress.done} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: LG, borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>↺ RE-INDEX</button>
+          <button onClick={() => handleBatchToggleActive(true)} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: 'rgba(76,175,77,0.15)', border: '1px solid rgba(76,175,77,0.3)', color: '#4CAF7D', borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>✓ ACTIVATE</button>
+          <button onClick={() => handleBatchToggleActive(false)} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: '#888', borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>○ DEACTIVATE</button>
+          <button onClick={handleBatchDelete} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: 'rgba(212,82,74,0.15)', border: '1px solid rgba(212,82,74,0.3)', color: '#D4524A', borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>🗑 DELETE</button>
+          <button onClick={() => { setSelectedBooks(new Set()); setSelectAllBooks(false) }} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: '#666' }}>CLEAR</button>
+        </div>
+      )}
     </div>
   )
 }
