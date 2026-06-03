@@ -10678,11 +10678,11 @@ function CommunityPage() {
         >
           <img
             src="/images/sol/sol-icon.png"
-            width={isMobile ? 44 : 52}
-            height={isMobile ? 44 : 52}
+            width={isMobile ? 56 : 72}
+            height={isMobile ? 56 : 72}
             style={{
               objectFit: 'contain',
-              filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.7))',
+              filter: 'drop-shadow(0 0 16px rgba(201,168,76,0.7))',
             }}
             alt="Ask SOL"
           />
