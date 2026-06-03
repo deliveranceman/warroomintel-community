@@ -16,20 +16,21 @@ webpush.setVapidDetails(`mailto:${vapidEmail}`, vapidPublicKey, vapidPrivateKey)
 // ── Stream JWT helpers ────────────────────────────────────────────────────────
 
 function streamJWT(payload: Record<string, unknown>): string {
-  const header  = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const body    = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const sig     = crypto.createHmac('sha256', apiSecret ?? '').update(`${header}.${body}`).digest('base64url')
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+  const body   = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const sig    = crypto.createHmac('sha256', apiSecret ?? '').update(`${header}.${body}`).digest('base64url')
   return `${header}.${body}.${sig}`
 }
 
-const serverToken  = () => streamJWT({ server: true })
-const userToken    = (userId: string) => streamJWT({ user_id: userId })
+const serverToken = () => streamJWT({ server: true })
+const userToken   = (userId: string) => streamJWT({ user_id: userId })
 
 function streamHeaders(token: string) {
   return { 'Content-Type': 'application/json', Authorization: token, 'stream-auth-type': 'jwt' }
 }
 
-// Upsert sol-bot in Stream so it can post messages
+// ── Stream helpers ────────────────────────────────────────────────────────────
+
 async function ensureSolBot(): Promise<void> {
   const url = `https://chat.stream-io-api.com/users?api_key=${streamApiKey}`
   const res = await fetch(url, {
@@ -43,7 +44,6 @@ async function ensureSolBot(): Promise<void> {
   }
 }
 
-// Post a message to a Stream channel on behalf of sol-bot
 async function postStreamMessage(channelType: string, channelId: string, text: string): Promise<void> {
   const url = `https://chat.stream-io-api.com/channels/${channelType}/${channelId}/message?api_key=${streamApiKey}`
   const res = await fetch(url, {
@@ -53,9 +53,8 @@ async function postStreamMessage(channelType: string, channelId: string, text: s
   })
 
   if (!res.ok) {
-    const text = await res.text()
-    // User not found — create sol-bot then retry once
-    if (res.status === 400 && text.includes('user')) {
+    const errText = await res.text()
+    if (res.status === 400 && errText.includes('user')) {
       await ensureSolBot()
       const retry = await fetch(url, {
         method: 'POST',
@@ -68,14 +67,14 @@ async function postStreamMessage(channelType: string, channelId: string, text: s
       }
       return
     }
-    throw new Error(`postStreamMessage failed ${res.status}: ${text}`)
+    throw new Error(`postStreamMessage failed ${res.status}: ${errText}`)
   }
 }
 
-// ── SOL Anthropic reply ───────────────────────────────────────────────────────
+// ── Anthropic call ────────────────────────────────────────────────────────────
 
-async function solReply(messageText: string, channelType: string, channelId: string): Promise<void> {
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+async function callAnthropic(systemPrompt: string, userMessage: string, maxTokens = 400): Promise<string> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -84,23 +83,58 @@ async function solReply(messageText: string, channelType: string, channelId: str
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
-      max_tokens: 300,
-      system: 'You are SOL, the AI intelligence agent of War Room Intel — a spiritual warfare ministry platform. You are brief, direct, and speak with authority. You help deliverance ministers identify spirits, understand manifestations, and pray with precision. Keep responses under 200 words.',
-      messages: [{ role: 'user', content: messageText }],
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
     }),
   })
-
-  if (!anthropicRes.ok) {
-    const err = await anthropicRes.text()
-    throw new Error(`Anthropic API error ${anthropicRes.status}: ${err}`)
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Anthropic error ${res.status}: ${err}`)
   }
-
-  const data = await anthropicRes.json() as { content?: Array<{ type: string; text: string }> }
+  const data = await res.json() as { content?: Array<{ type: string; text: string }> }
   const reply = data.content?.find(b => b.type === 'text')?.text ?? ''
   if (!reply) throw new Error('Empty Anthropic response')
+  return reply
+}
 
+// ── SOL: @-mention reply in war-room-general ──────────────────────────────────
+
+const SOL_SYSTEM_BRIEF = 'You are SOL, the AI intelligence agent of War Room Intel — a spiritual warfare ministry platform. You are brief, direct, and speak with authority. You help deliverance ministers identify spirits, understand manifestations, and pray with precision. Keep responses under 200 words.'
+
+async function solMentionReply(messageText: string, channelType: string, channelId: string): Promise<void> {
+  const reply = await callAnthropic(SOL_SYSTEM_BRIEF, messageText, 300)
   await postStreamMessage(channelType, channelId, reply)
-  console.log(`[stream-webhook] SOL replied to channel=${channelId}`)
+  console.log(`[stream-webhook] SOL mention replied channel=${channelId}`)
+}
+
+// ── SOL: DM autoreply ─────────────────────────────────────────────────────────
+
+async function solDMReply(messageText: string, channelId: string, senderId: string): Promise<void> {
+  const sb = createClient(supabaseUrl, serviceRoleKey)
+
+  const { data: ctxRows } = await sb
+    .from('ministry_context')
+    .select('context_text')
+    .limit(1)
+  const ministryContext = ctxRows?.[0]?.context_text ?? ''
+
+  const systemPrompt =
+    'You are SOL, the intelligence agent of War Room Intel — a spiritual warfare ministry platform built by Pastor Justin Payne of Staffordtown Church, Copperhill TN. ' +
+    'You assist deliverance ministers with identifying spirits, understanding manifestations, legal ground, and strategic prayer. ' +
+    'Be concise, authoritative, and spiritually grounded. Keep responses under 300 words. Never break character.' +
+    (ministryContext ? `\n\n${ministryContext}` : '')
+
+  const reply = await callAnthropic(systemPrompt, messageText, 400)
+
+  await postStreamMessage('messaging', channelId, reply)
+
+  await sb
+    .from('ai_search_history')
+    .insert({ user_id: senderId, query: messageText, result: reply, source: 'sol-dm' })
+    .catch(err => console.error('[stream-webhook] ai_search_history insert error:', err))
+
+  console.log(`[stream-webhook] SOL DM replied channel=${channelId} user=${senderId}`)
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -146,10 +180,18 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
     }
 
-    // SOL @-mention autoreply (war-room-general only)
+    // SOL DM autoreply — any messaging channel not from sol-bot
+    if (channelType === 'messaging') {
+      solDMReply(messageText, channelId, senderUserId).catch(err =>
+        console.error('[stream-webhook] solDMReply error:', err)
+      )
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
+    }
+
+    // SOL @-mention autoreply in war-room-general (team channels)
     if (channelId === 'war-room-general' && /@sol\b/i.test(messageText)) {
-      solReply(messageText, channelType, channelId).catch(err =>
-        console.error('[stream-webhook] solReply error:', err)
+      solMentionReply(messageText, channelType, channelId).catch(err =>
+        console.error('[stream-webhook] solMentionReply error:', err)
       )
     }
 
@@ -184,7 +226,7 @@ export default async function handler(req: Request): Promise<Response> {
               }
             })
           )
-          console.log(`[stream-webhook] message.new channel=${channelId} sent=${sent} failed=${failed}`)
+          console.log(`[stream-webhook] push channel=${channelId} sent=${sent} failed=${failed}`)
         }
       } catch (err) {
         console.error('[stream-webhook] push error:', err)
