@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import {
-  StreamVideo,
-  StreamVideoClient,
-  StreamCall,
-} from '@stream-io/video-react-sdk'
+import pkg from '@stream-io/video-react-sdk'
+const { StreamVideoClient, StreamVideo, StreamCall } = pkg as any
 
 interface CallOverlayProps {
   callType: 'audio' | 'video'
@@ -20,7 +17,7 @@ const cinzel = "'Cinzel', serif"
 const G = '#C9A84C'
 
 export default function CallOverlay({ callType, otherUser, myUserId, streamToken, channelId, onEnd }: CallOverlayProps) {
-  const [client, setClient] = useState<StreamVideoClient | null>(null)
+  const [client, setClient] = useState<InstanceType<typeof StreamVideoClient> | null>(null)
   const [call, setCall] = useState<any>(null)
   const [callingState, setCallingState] = useState<string>('joining')
   const [elapsed, setElapsed] = useState(0)
@@ -51,7 +48,7 @@ export default function CallOverlay({ callType, otherUser, myUserId, streamToken
       timerRef.current = setInterval(() => {
         setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000))
       }, 1000)
-    }).catch(err => {
+    }).catch((err: unknown) => {
       console.error('call error', err)
       setCallingState('error')
     })
