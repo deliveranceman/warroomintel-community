@@ -5399,7 +5399,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
   // Inline edit state — one card open at a time
   const [editingId,   setEditingId]   = useState<string | null>(null)
-  const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence' }>({ title: '', author: '', notes: '', topic: 'Spiritual Warfare', spirit_tags: [], sourceType: 'christian' })
+  const [editForm,    setEditForm]    = useState<{ title: string; author: string; notes: string; topic: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence'; active: boolean; ai_generated: boolean }>({ title: '', author: '', notes: '', topic: 'Spiritual Warfare', spirit_tags: [], sourceType: 'christian', active: true, ai_generated: true })
   const [editLoading, setEditLoading] = useState(false)
   const [reanalyzeId,     setReanalyzeId]     = useState<string | null>(null)
   const [reanalyzeErrors, setReanalyzeErrors] = useState<Record<string, string>>({})
@@ -5697,6 +5697,32 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         console.log('[handleUploadAll] done for', sf.file.name)
         updateStaged(sf.id, { status: 'done' })
         if (saveData.book) setBooks(prev => [saveData.book, ...prev])
+        // Trigger autofill for newly uploaded book (non-blocking)
+        if (saveData.book?.id) {
+          fetch('/api/library-autofill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              bookId: saveData.book.id,
+              filename: sf.file.name,
+              notes: sf.notes || '',
+            }),
+          }).then(r => r.json()).then(d => {
+            console.log('[PDF-upload] autofill result:', d)
+            if (d.spirit_tags?.length || d.title || d.author) {
+              fetch('/api/admin-library', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                  id: saveData.book.id,
+                  ...(d.title  && { title:  d.title }),
+                  ...(d.author && { author: d.author }),
+                  ...(Array.isArray(d.spirit_tags) && d.spirit_tags.length && { spirit_tags: d.spirit_tags }),
+                }),
+              }).catch(() => {})
+            }
+          }).catch(e => console.warn('[PDF-upload] autofill failed silently:', e))
+        }
       } catch (err: any) {
         console.error('[PDF-upload] error:', err)
         updateStaged(sf.id, { status: 'error', errorMsg: err.message || 'Upload failed — check console' })
@@ -5748,12 +5774,14 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   function openEdit(book: any) {
     setEditingId(book.id)
     setEditForm({
-      title:       book.title  || '',
-      author:      book.author || '',
-      notes:       book.notes  || '',
-      topic:       book.topic  || 'Spiritual Warfare',
-      spirit_tags: Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
-      sourceType:  (book.source_type === 'intelligence' ? 'intelligence' : 'christian') as 'christian' | 'intelligence',
+      title:        book.title  || '',
+      author:       book.author || '',
+      notes:        book.notes  || '',
+      topic:        book.topic  || 'Spiritual Warfare',
+      spirit_tags:  Array.isArray(book.spirit_tags) ? book.spirit_tags : [],
+      sourceType:   (book.source_type === 'intelligence' ? 'intelligence' : 'christian') as 'christian' | 'intelligence',
+      active:       book.active ?? true,
+      ai_generated: book.ai_generated ?? true,
     })
     setEditLoading(false)
   }
@@ -5857,13 +5885,15 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        id:          editingId,
-        title:       editForm.title.trim(),
-        author:      editForm.author.trim(),
-        notes:       editForm.notes.trim(),
-        topic:       editForm.topic,
-        spirit_tags: editForm.spirit_tags,
-        source_type: editForm.sourceType,
+        id:           editingId,
+        title:        editForm.title.trim(),
+        author:       editForm.author.trim(),
+        notes:        editForm.notes.trim(),
+        topic:        editForm.topic,
+        spirit_tags:  editForm.spirit_tags,
+        source_type:  editForm.sourceType,
+        active:       editForm.active,
+        ai_generated: editForm.ai_generated,
       }),
     })
     if (res.ok) {
@@ -6254,9 +6284,12 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                       {/* Left: indexed status + title / author / meta / tags */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' as const }}>
                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: book.is_indexed ? '#4ade80' : '#f59e0b', flexShrink: 0 }} title={book.is_indexed ? 'Indexed' : 'Pending extraction'} />
                           <div style={{ fontFamily: cinzel, fontSize: 13, color: LTXT, letterSpacing: '0.04em' }}>{book.title}</div>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', background: book.is_indexed ? 'rgba(76,175,77,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${book.is_indexed ? 'rgba(76,175,77,0.4)' : 'rgba(201,168,76,0.25)'}`, color: book.is_indexed ? '#4CAF7D' : 'rgba(201,168,76,0.6)', flexShrink: 0 }}>
+                            {book.is_indexed ? '✓ INDEXED' : '○ NOT INDEXED'}
+                          </span>
                         </div>
                         {book.author && book.author !== 'Unknown' && (
                           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT, marginBottom: 4, fontStyle: 'italic' }}>{book.author}</div>
@@ -6366,6 +6399,16 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                         <div style={{ marginBottom: 14 }}>
                           <label style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>SPIRIT TAGS</label>
                           <SpiritTagEditor tags={editForm.spirit_tags} onChange={tags => setEditForm(p => ({ ...p, spirit_tags: tags }))} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 20, marginBottom: 14 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={editForm.active} onChange={e => setEditForm(p => ({ ...p, active: e.target.checked }))} style={{ accentColor: LG }} />
+                            ACTIVE (visible to AI)
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: cinzel, fontSize: 8, color: LMUT, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={editForm.ai_generated} onChange={e => setEditForm(p => ({ ...p, ai_generated: e.target.checked }))} style={{ accentColor: '#5C7CBF' }} />
+                            AI CONTEXT ENABLED
+                          </label>
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button onClick={saveEdit} style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 18px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}>✦ Save</button>
