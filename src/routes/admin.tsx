@@ -4832,7 +4832,7 @@ const FB_STATUS_COLORS: Record<string, string> = {
   'open': G, 'in-progress': '#38bdf8', 'resolved': '#4ade80', 'closed': '#6b7280',
 }
 
-function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?: { template?: string }) => Promise<string | null>; section?: 'feedback' | 'testimony' | 'forum' | 'fieldreports' }) {
+function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?: { template?: string }) => Promise<string | null>; section?: 'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags' }) {
   const [feedback, setFeedback]   = useState<any[]>([])
   const [fbLoading, setFbLoading] = useState(true)
   const [editingFb, setEditingFb] = useState<string | null>(null)
@@ -5006,11 +5006,136 @@ function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?:
       {section === 'forum' && <ForumModerationPanel getToken={getToken} />}
 
       {/* ── FIELD REPORTS ── */}
-      {section === 'fieldreports' && (
-        <div style={{ padding: '48px 0', textAlign: 'center' as const, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.14em' }}>
-          FIELD REPORTS — COMING SOON
-        </div>
+      {section === 'fieldreports' && <FieldReportsPanel getToken={getToken} />}
+
+      {/* ── FLAGS ── */}
+      {section === 'flags' && <FlagsPanel getToken={getToken} />}
+    </div>
+  )
+}
+
+function FieldReportsPanel({ getToken }: { getToken: any }) {
+  const [reports, setReports] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/field-reports', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setReports(d.reports || []) }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  async function updateStatus(id: string, status: 'approved' | 'rejected') {
+    const token = await getToken()
+    await fetch('/api/field-reports', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, status }),
+    })
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+  }
+
+  const STATUS_COLOR: Record<string, string> = { pending: G, approved: '#4ade80', rejected: '#f87171' }
+
+  if (loading) return <div style={{ fontFamily: crimson, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>Loading field reports...</div>
+
+  return (
+    <div>
+      <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>
+        Field Reports — {reports.filter(r => r.status === 'pending').length} pending
+      </div>
+      {reports.length === 0 && (
+        <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No field reports submitted yet.</div>
       )}
+      {reports.map(r => (
+        <div key={r.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 2 }}>{r.submitted_by_name} — {r.submitted_by_tier?.toUpperCase()}</div>
+              <div style={{ fontSize: 10, color: DIM }}>{r.location_city}{r.location_state ? `, ${r.location_state}` : ''} · {new Date(r.created_at).toLocaleDateString()}</div>
+            </div>
+            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: `${STATUS_COLOR[r.status] || DIM}18`, color: STATUS_COLOR[r.status] || DIM, fontFamily: cinzel, letterSpacing: '0.06em' }}>
+              {r.status?.toUpperCase()}
+            </span>
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, marginBottom: 4 }}><strong>Spirits:</strong> {Array.isArray(r.spirit_names) ? r.spirit_names.join(', ') : r.spirit_names}</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, marginBottom: 4 }}><strong>Manifestations:</strong> {r.manifestations}</div>
+          {r.outcome && <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, marginBottom: 4 }}><strong>Outcome:</strong> {r.outcome}</div>}
+          {r.status === 'pending' && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button onClick={() => updateStatus(r.id, 'approved')} style={{ padding: '4px 14px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 5, color: '#4ade80', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>✓ Approve</button>
+              <button onClick={() => updateStatus(r.id, 'rejected')} style={{ padding: '4px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#ef4444', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>✗ Reject</button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FlagsPanel({ getToken }: { getToken: any }) {
+  const [flagged, setFlagged] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/forum-posts?sort=new&limit=100', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        setFlagged((d.posts || []).filter((p: any) => p.flagged || (p.flag_count ?? 0) > 0))
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  async function dismiss(id: string) {
+    const token = await getToken()
+    await fetch('/api/forum-posts', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ id, flagged: false }) })
+    setFlagged(prev => prev.filter(p => p.id !== id))
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Delete this post?')) return
+    const token = await getToken()
+    await fetch(`/api/forum-posts?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setFlagged(prev => prev.filter(p => p.id !== id))
+  }
+
+  if (loading) return <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading flagged content...</div>
+
+  return (
+    <div>
+      <div style={{ fontFamily: cinzel, fontSize: 13, color: flagged.length > 0 ? '#f87171' : G, letterSpacing: '0.1em', marginBottom: 16 }}>
+        🚩 Flagged Content — {flagged.length} item{flagged.length !== 1 ? 's' : ''}
+      </div>
+      {flagged.length === 0 && (
+        <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No flagged posts. Community looks clean.</div>
+      )}
+      {flagged.map(p => (
+        <div key={p.id} style={{ background: SURF, border: '1px solid rgba(248,113,113,0.3)', borderLeft: '3px solid #f87171', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 2 }}>{p.title}</div>
+              <div style={{ fontSize: 10, color: DIM }}>{p.author_name} · {p.post_type} · {new Date(p.created_at).toLocaleDateString()}</div>
+            </div>
+            {(p.flag_count ?? 0) > 0 && (
+              <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: 'rgba(248,113,113,0.1)', color: '#f87171', fontFamily: cinzel }}>
+                {p.flag_count} flag{p.flag_count !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          {p.body && <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginBottom: 10 }}>{p.body.slice(0, 140)}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => dismiss(p.id)} style={{ padding: '4px 14px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Dismiss Flag</button>
+            <button onClick={() => remove(p.id)} style={{ padding: '4px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#ef4444', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Delete Post</button>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -6821,6 +6946,7 @@ function DashboardView({ getToken, isDark, setTab }: {
   const [memberStats, setMembers]   = useState<any>(null)
   const [loading, setLoading]       = useState(true)
   const [sotw, setSotw]             = useState<any>(null)
+  const [quickStats, setQuickStats]  = useState<any>(null)
   const [sotwForm, setSotwForm]     = useState({ spirit_name: '', minister_note: '', deliverance_tip: '' })
   const [sotwSaving, setSotwSaving] = useState(false)
   const [sotwMsg, setSotwMsg]       = useState('')
@@ -6830,15 +6956,17 @@ function DashboardView({ getToken, isDark, setTab }: {
       try {
         const token = await getToken()
         const authHdr = { Authorization: `Bearer ${token}` }
-        const [dRes, aRes, mRes, sotwRes] = await Promise.allSettled([
+        const [dRes, aRes, mRes, sotwRes, qsRes] = await Promise.allSettled([
           fetch('/api/demons').then(r => r.json()),
           fetch('/api/ai-usage', { headers: authHdr }).then(r => r.json()),
           fetch('/api/admin-members', { headers: authHdr }).then(r => r.json()),
           fetch('/api/spirit-of-week').then(r => r.json()),
+          fetch('/api/admin-quick-stats', { headers: authHdr }).then(r => r.ok ? r.json() : null),
         ])
         if (dRes.status === 'fulfilled') setDemons(dRes.value.demons || [])
         if (aRes.status === 'fulfilled') setAiStats(aRes.value)
         if (mRes.status === 'fulfilled') setMembers(mRes.value)
+        if (qsRes.status === 'fulfilled' && qsRes.value) setQuickStats(qsRes.value)
         if (sotwRes.status === 'fulfilled' && sotwRes.value.sotw) {
           const s = sotwRes.value.sotw
           setSotw(s)
@@ -6905,6 +7033,14 @@ function DashboardView({ getToken, isDark, setTab }: {
         <div style={{ fontFamily: crimson, fontSize: 14, color: MUT }}>
           {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
+      </div>
+
+      {/* Quick stats — today's snapshot */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' as const }}>
+        {card('AI Calls Today',        quickStats?.callsToday          ?? '…', 'across all members')}
+        {card('Pending Testimonies',   quickStats?.pendingTestimonies  ?? '…', 'awaiting review')}
+        {card('New This Week',         quickStats?.newMembersThisWeek  ?? '…', 'new members joined')}
+        {card('Spirits in Database',   quickStats?.spiritCount         ?? demons.length, 'documented spirits')}
       </div>
 
       {/* Row 1 — Hero stats */}
@@ -9854,11 +9990,127 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
   )
 }
 
+function TestSOLPanel({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const surf = isDark ? SURF : '#FFFFFF'
+  const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT  : '#2D2924'
+  const dim  = isDark ? DIM  : '#5C5248'
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
+    border: `1px solid ${bdr}`, borderRadius: 6,
+    padding: '10px 14px', color: txt,
+    fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const,
+  }
+  const [prompt, setPrompt]   = useState('')
+  const [result, setResult]   = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function run() {
+    if (!prompt.trim()) return
+    setLoading(true); setError(''); setResult(null)
+    const start = Date.now()
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: prompt, conversationHistory: [] }),
+      })
+      const data = await res.json()
+      setResult({
+        response: data.response || data.message || JSON.stringify(data),
+        elapsed:  Date.now() - start,
+        tokens:   data.usage || null,
+        model:    data.model || null,
+      })
+    } catch (e: any) { setError(e.message || 'Request failed') }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ color: txt, fontFamily: crimson }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 20, color: G, marginBottom: 4, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/images/sol/sol-icon.png" width={22} height={22} style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.7))' }} alt="" />
+          Test SOL
+        </div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: dim }}>Send a test prompt to the AI assistant and inspect the response</div>
+      </div>
+
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: 24, marginBottom: 20 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>TEST PROMPT</div>
+        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Enter a test prompt for SOL..." rows={5} style={{ ...inp, minHeight: 100 }} />
+        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={run} disabled={loading || !prompt.trim()}
+            style={{ background: loading || !prompt.trim() ? 'transparent' : 'rgba(201,168,76,0.15)', border: `1px solid ${loading || !prompt.trim() ? bdr : G}`, borderRadius: 6, color: loading || !prompt.trim() ? dim : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', padding: '9px 22px', cursor: loading || !prompt.trim() ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? '⏳ Running...' : '▶ Run Test'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontFamily: crimson, fontSize: 13, color: '#f87171' }}>{error}</div>
+      )}
+
+      {result && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>RESPONSE</div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' as const, marginBottom: 16 }}>
+            <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 14px' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 2 }}>RESPONSE TIME</div>
+              <div style={{ fontFamily: cinzel, fontSize: 16, color: G }}>{result.elapsed.toLocaleString()}ms</div>
+            </div>
+            {result.tokens && (
+              <>
+                <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 14px' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 2 }}>INPUT TOKENS</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 16, color: G }}>{(result.tokens.input_tokens || result.tokens.prompt_tokens || 0).toLocaleString()}</div>
+                </div>
+                <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 14px' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 2 }}>OUTPUT TOKENS</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 16, color: G }}>{(result.tokens.output_tokens || result.tokens.completion_tokens || 0).toLocaleString()}</div>
+                </div>
+                <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 14px' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 2 }}>EST. COST</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 16, color: G }}>
+                    ${(((result.tokens.input_tokens || 0) * 0.000003) + ((result.tokens.output_tokens || 0) * 0.000015)).toFixed(4)}
+                  </div>
+                </div>
+              </>
+            )}
+            {result.model && (
+              <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 14px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 2 }}>MODEL</div>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{result.model}</div>
+              </div>
+            )}
+          </div>
+          <div style={{ background: isDark ? 'rgba(0,0,0,0.3)' : '#F5F0E8', borderRadius: 8, padding: 16, fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>
+            {result.response}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members'>('dashboard')
-  const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports'>('feedback')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol'>('dashboard')
+  const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
+  const [modBadge, setModBadge] = useState(0)
+  useEffect(() => {
+    getToken().then((token: string | null) => {
+      if (!token) return
+      fetch('/api/admin-moderation?count=true', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setModBadge(d.total || (d.pendingTestimonies || 0) + (d.openFeedback || 0) + (d.flaggedPosts || 0)) })
+        .catch(() => {})
+    })
+  }, [])
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -9914,11 +10166,12 @@ function AdminPage() {
       { key: 'dashboard', label: '⚡ Dashboard' },
     ]},
     { label: 'SOL', items: [
-      { key: 'content-suggestions', label: 'Content AI'           },
+      { key: 'content-suggestions', label: 'Content Studio'       },
       { key: 'ai-command',          label: 'AI Command'           },
       { key: 'ai-usage-admin',      label: 'AI Usage'             },
       { key: 'ai-context',          label: 'AI Context'           },
       { key: 'lib-intel',           label: 'Content Intelligence' },
+      { key: 'test-sol',            label: 'Test SOL'             },
     ]},
     { label: 'INTEL ARCHIVE', items: [
       { key: 'intel',             label: 'Intel Archive'    },
@@ -9996,9 +10249,9 @@ function AdminPage() {
             {SIDEBAR_GROUPS.map(group => (
               <div key={group.label} style={{ marginBottom: 8 }}>
                 {group.label === 'SOL' ? (
-                  <div style={{ fontFamily: cinzel, fontSize: 8, color: '#C9A84C', letterSpacing: '0.2em', padding: '10px 20px 4px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' }}>
-                    <img src="/images/sol/sol-icon.png" width={14} height={14} style={{ objectFit: 'contain' as const, marginRight: 5 }} alt="" />
-                    SOL — AI COMMAND CENTER
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '10px 20px 4px' }}>
+                    <img src="/images/sol/sol-icon.png" width={12} height={12} style={{ objectFit: 'contain' as const, marginRight: 0, filter: 'drop-shadow(0 0 4px rgba(201,168,76,0.8))' }} alt="" />
+                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.2em', color: '#C9A84C', textTransform: 'uppercase' as const }}>SOL</span>
                   </div>
                 ) : (
                   <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
@@ -10027,7 +10280,7 @@ function AdminPage() {
                       onMouseEnter={e => { if (!active) e.currentTarget.style.color = isDark ? 'rgba(201,168,76,0.8)' : '#8B6914' }}
                       onMouseLeave={e => { if (!active) e.currentTarget.style.color = adDim }}
                     >
-                      {item.label}
+                      {item.label}{(item.key as string) === 'moderation' && modBadge > 0 && <span style={{ background: '#ef4444', color: 'white', borderRadius: '50%', fontSize: 9, padding: '1px 5px', marginLeft: 4, lineHeight: 1.4 }}>{modBadge}</span>}
                     </button>
                   )
                 })}
@@ -10046,10 +10299,11 @@ function AdminPage() {
               <div>
                 <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${adBdr}` }}>
                   {([
-                    { key: 'feedback',     label: 'Community Feedback' },
-                    { key: 'testimony',    label: 'Testimony Queue'    },
-                    { key: 'forum',        label: 'Forum Board'        },
-                    { key: 'fieldreports', label: 'Field Reports'      },
+                    { key: 'feedback',     label: 'Feedback'      },
+                    { key: 'testimony',    label: 'Testimonies'   },
+                    { key: 'forum',        label: 'Forum'         },
+                    { key: 'fieldreports', label: 'Field Reports' },
+                    { key: 'flags',        label: '🚩 Flags'      },
                   ] as const).map(t => (
                     <button key={t.key} onClick={() => setModTab(t.key)}
                       style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: modTab === t.key ? `2px solid ${adGold}` : '2px solid transparent', color: modTab === t.key ? adGold : adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1, whiteSpace: 'nowrap' as const }}>
@@ -10069,9 +10323,9 @@ function AdminPage() {
             {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
             {tab === 'ai-command'        && (
               <div>
-                <AICommandManager getToken={getToken} isDark={isDark} />
+                <LibraryIntelligence getToken={getToken} isDark={isDark} />
                 <div style={{ marginTop: 32, borderTop: `1px solid ${adBdr}`, paddingTop: 28 }}>
-                  <LibraryIntelligence getToken={getToken} isDark={isDark} />
+                  <AICommandManager getToken={getToken} isDark={isDark} />
                 </div>
               </div>
             )}
@@ -10086,6 +10340,7 @@ function AdminPage() {
             {tab === 'enrichment'        && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
             {tab === 'suggested-edits'   && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'testing'           && <AdminTestingPanel getToken={getToken} isDark={isDark} />}
+            {tab === 'test-sol'          && <TestSOLPanel getToken={getToken} isDark={isDark} />}
             {tab === 'members'           && (
               <div style={{ padding: '32px 0', textAlign: 'center' as const, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
                 MEMBERS — COMING SOON

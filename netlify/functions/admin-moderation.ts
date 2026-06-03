@@ -1,4 +1,9 @@
+import { createClient } from '@supabase/supabase-js'
+
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
+const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
+
+function sb() { return createClient(supabaseUrl!, serviceRoleKey!) }
 
 async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
   try {
@@ -25,6 +30,22 @@ export default async function handler(req: Request) {
   if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
   if (auth.userData?.public_metadata?.role !== 'minister') {
     return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+  }
+
+  const url = new URL(req.url)
+  if (url.searchParams.get('count') === 'true') {
+    const client = sb()
+    const [fbRes, testRes, forumRes] = await Promise.all([
+      client.from('feedback').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+      client.from('testimonies').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      client.from('forum_posts').select('id', { count: 'exact', head: true }).eq('flagged', true),
+    ])
+    return new Response(JSON.stringify({
+      openFeedback:       fbRes.count    ?? 0,
+      pendingTestimonies: testRes.count  ?? 0,
+      flaggedPosts:       forumRes.count ?? 0,
+      total: (fbRes.count ?? 0) + (testRes.count ?? 0) + (forumRes.count ?? 0),
+    }), { status: 200, headers })
   }
 
   return new Response(JSON.stringify({
