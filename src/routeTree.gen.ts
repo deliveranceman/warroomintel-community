@@ -9,17 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PricingRouteImport } from './routes/pricing'
-import { Route as DonateRouteImport } from './routes/donate'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MembershipRouteImport } from './routes/membership'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as InvestigateRouteImport } from './routes/investigate'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as DonateRouteImport } from './routes/donate'
 import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AssessmentBoardRouteImport } from './routes/assessment-board'
 import { Route as AssessmentRouteImport } from './routes/assessment'
@@ -35,8 +35,8 @@ import { Route as CommunityScriptureRouteImport } from './routes/community_.scri
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
 import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field-ops'
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
-import { Route as CommunityAskSolRouteImport } from './routes/community_.ask-sol'
 import { Route as CommunityDreamInterpreterRouteImport } from './routes/community_.dream-interpreter'
+import { Route as CommunityAskSolRouteImport } from './routes/community_.ask-sol'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiUpdateProfileRouteImport } from './routes/api.update-profile'
@@ -61,16 +61,6 @@ import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DonateRoute = DonateRouteImport.update({
-  id: '/donate',
-  path: '/donate',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -96,6 +86,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembershipRoute = MembershipRouteImport.update({
   id: '/membership',
   path: '/membership',
@@ -114,6 +109,11 @@ const InvestigateRoute = InvestigateRouteImport.update({
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DonateRoute = DonateRouteImport.update({
+  id: '/donate',
+  path: '/donate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityRoute = CommunityRouteImport.update({
@@ -192,17 +192,17 @@ const CommunityFieldManualRoute = CommunityFieldManualRouteImport.update({
   path: '/community/field-manual',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CommunityAskSolRoute = CommunityAskSolRouteImport.update({
-  id: '/community_/ask-sol',
-  path: '/community/ask-sol',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CommunityDreamInterpreterRoute =
   CommunityDreamInterpreterRouteImport.update({
     id: '/community_/dream-interpreter',
     path: '/community/dream-interpreter',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CommunityAskSolRoute = CommunityAskSolRouteImport.update({
+  id: '/community_/ask-sol',
+  path: '/community/ask-sol',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
   id: '/api/warroom-chat',
   path: '/api/warroom-chat',
@@ -693,20 +693,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/donate': {
-      id: '/donate'
-      path: '/donate'
-      fullPath: '/donate'
-      preLoaderRoute: typeof DonateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -742,6 +728,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/membership': {
       id: '/membership'
       path: '/membership'
@@ -768,6 +761,13 @@ declare module '@tanstack/react-router' {
       path: '/help'
       fullPath: '/help'
       preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/donate': {
+      id: '/donate'
+      path: '/donate'
+      fullPath: '/donate'
+      preLoaderRoute: typeof DonateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community': {
@@ -875,18 +875,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityFieldManualRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/community_/ask-sol': {
-      id: '/community_/ask-sol'
-      path: '/community/ask-sol'
-      fullPath: '/community/ask-sol'
-      preLoaderRoute: typeof CommunityAskSolRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/community_/dream-interpreter': {
       id: '/community_/dream-interpreter'
       path: '/community/dream-interpreter'
       fullPath: '/community/dream-interpreter'
       preLoaderRoute: typeof CommunityDreamInterpreterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/ask-sol': {
+      id: '/community_/ask-sol'
+      path: '/community/ask-sol'
+      fullPath: '/community/ask-sol'
+      preLoaderRoute: typeof CommunityAskSolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/warroom-chat': {

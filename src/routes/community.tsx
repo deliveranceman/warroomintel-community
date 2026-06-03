@@ -20,7 +20,7 @@ import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
-import { Home, FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell } from 'lucide-react'
+import { Home, FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -28,8 +28,6 @@ export const Route = createFileRoute('/community')({
 })
 
 const G      = '#C9A84C'
-const AMBER  = '#d4903a'
-const BR2    = 'rgba(201,168,76,0.35)'
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 
@@ -60,21 +58,6 @@ const THEME_CSS = `
   --wri-gold: #C9A84C;
 }
 `
-
-// ── TIER BADGE ─────────────────────────────────────────────
-function TierBadge({ tier }: { tier: string }) {
-  const s: Record<string, React.CSSProperties> = {
-    Watchman:  { color: '#c8bfa8', border: '1px solid rgba(200,191,168,0.25)' },
-    Soldier:   { color: G,         border: `1px solid ${BR2}` },
-    Commander: { color: AMBER,     border: '1px solid rgba(212,144,58,0.5)' },
-    General:   { color: G,         border: `1px solid ${G}`, fontWeight: 700 },
-  }
-  return (
-    <span style={{ ...(s[tier] || s.Watchman), fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '1px 6px', borderRadius: 10, whiteSpace: 'nowrap' }}>
-      {tier.toUpperCase()}
-    </span>
-  )
-}
 
 function FoundingBadge() {
   return (
@@ -594,429 +577,6 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-// ── MESSAGES VIEW ─────────────────────────────────────────
-function MessagesView({ isMobile, setSidebarOpen: _setSidebarOpen, streamToken, apiKey, user: _user, userId, userName: _userName, pendingDMWith, onDMStarted, isDark = true, dmMembers = [], onStartDM, onUnreadChange }: {
-  isMobile: boolean
-  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
-  streamToken: string
-  apiKey: string
-  user: any
-  userId: string
-  userName: string
-  pendingDMWith?: string | null
-  onDMStarted?: () => void
-  isDark?: boolean
-  dmMembers?: any[]
-  onStartDM?: (memberId: string, memberName: string) => void
-  onUnreadChange?: (count: number) => void
-}) {
-  const V = {
-    bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
-    card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
-    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)',
-    txt: isDark ? '#f0e8d8' : '#2D2924', mut: isDark ? '#9a8c74' : '#5C5248',
-    dim: isDark ? '#c8b99a' : '#5C5248', s2: isDark ? '#1c1814' : '#FFFFFF', gold: isDark ? '#C9A84C' : '#8B6914',
-    shadow: isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)',
-  }
-  const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
-  const [selectedDMUserId, setSelectedDMUserId] = useState<string | null>(null)
-  const [, setConversations] = useState<any[]>([])
-  const [messages, setMessages]           = useState<any[]>([])
-  const [, setLoading]                    = useState(true)
-  const [showNewDM, setShowNewDM]         = useState(false)
-  const [msgDraft, setMsgDraft]           = useState('')
-  const [newDMSearch, setNewDMSearch]     = useState('')
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [typingUsers, setTypingUsers] = useState<string[]>([])
-  const [, setHeaderOtherId] = useState<string | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const dmFileRef = useRef<HTMLInputElement>(null)
-  const [selectedName, setSelectedName] = useState('')
-  const [connecting, setConnecting] = useState(false)
-
-  // Fetch DM channels this user is a member of
-  const loadConvos = useCallback(async () => {
-    if (!streamToken || !apiKey || !userId) return
-    try {
-      const d = await streamFetch('/channels', 'POST', streamToken, apiKey, {
-        filter_conditions: {
-          type: 'messaging',
-          members: { $in: [userId] },
-        },
-        sort: [{ field: 'last_message_at', direction: -1 }],
-        state: true,
-        watch: false,
-        presence: false,
-        limit: 30,
-        message_limit: 1,
-        member_limit: 10,
-      })
-      const filtered = (d.channels || []).filter((ch: any) => {
-        const id = ch.channel?.id || ch.id
-        return id !== 'prayer-wall-requests' && id !== 'war-room-general'
-      })
-      setConversations(filtered)
-      const total = filtered.reduce((sum: number, ch: any) => sum + (ch.channel?.unread_count || 0), 0)
-      onUnreadChange?.(total)
-    } catch (err) {
-      console.error('loadConvos error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [streamToken, apiKey, userId])
-
-  useEffect(() => {
-    loadConvos()
-    const interval = setInterval(loadConvos, 8000)
-    return () => clearInterval(interval)
-  }, [loadConvos])
-
-  // Load messages when a conversation is selected
-  useEffect(() => {
-    if (!selectedConvo || !streamToken || !apiKey) return
-    async function loadMessages() {
-      try {
-        const d = await streamFetch(
-          `/channels/messaging/${selectedConvo}/query`,
-          'POST', streamToken, apiKey,
-          { state: true, messages: { limit: 50 } }
-        )
-        if (d.messages) {
-          setMessages(d.messages)
-          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-        }
-        // Extract typing users from channel state
-        const typing = Object.keys(d.channel?.typing || {}).filter((id: string) => id !== userId)
-        setTypingUsers(typing.map((id: string) => {
-          const m = dmMembers.find((mem: any) => mem.id === id)
-          return m ? (m.firstName || m.username || 'Someone') : 'Someone'
-        }))
-      } catch (err) {
-        console.error('loadMessages error:', err)
-      }
-    }
-    loadMessages()
-  }, [selectedConvo, streamToken, apiKey])
-
-  async function sendTyping() {
-    if (!selectedConvo || !streamToken || !apiKey) return
-    await streamFetch(`/channels/messaging/${selectedConvo}/event`, 'POST', streamToken, apiKey, {
-      event: { type: 'typing.start', user_id: userId }
-    })
-  }
-
-  async function handleSendMessage() {
-    if (!msgDraft.trim() || !selectedConvo || !streamToken || !apiKey) return
-    const text = msgDraft.trim()
-    setMsgDraft('')
-    try {
-      await streamFetch(
-        `/channels/messaging/${selectedConvo}/message`,
-        'POST', streamToken, apiKey,
-        { message: { text, user_id: userId } }
-      )
-      const d = await streamFetch(
-        `/channels/messaging/${selectedConvo}/query`,
-        'POST', streamToken, apiKey,
-        { state: true, messages: { limit: 50 } }
-      )
-      if (d.messages) {
-        setMessages(d.messages)
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-      }
-    } catch (err) {
-      console.error('Send failed:', err)
-      setMsgDraft(text)
-    }
-  }
-
-  // Create or find DM channel when pendingDMWith is set
-  useEffect(() => {
-    if (!pendingDMWith || !streamToken || !apiKey || !userId) return
-    async function createOrFindDM() {
-      try {
-        // Server-side call — client JWT cannot register other users as members
-        const res = await fetch('/api/create-dm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, otherUserId: pendingDMWith }),
-        })
-        const { channelId: serverChannelId, error } = await res.json()
-        if (error) throw new Error(error)
-        console.log('create-dm server response: channelId =', serverChannelId)
-        setSelectedConvo(serverChannelId)
-        setHeaderOtherId(pendingDMWith ?? null)
-        setTimeout(() => loadConvos(), 800)
-      } catch (err) {
-        console.error('createOrFindDM error:', err)
-      }
-      onDMStarted?.()
-    }
-    createOrFindDM()
-  }, [pendingDMWith])
-
-  useEffect(() => {
-    if (pendingDMWith) setSelectedDMUserId(pendingDMWith)
-  }, [pendingDMWith])
-
-  async function selectMember(id: string, name: string) {
-    setSelectedDMUserId(id)
-    setSelectedName(name)
-    setSelectedConvo(null)
-    setConnecting(true)
-    onStartDM?.(id, name)
-  }
-
-  useEffect(() => { if (selectedConvo) setConnecting(false) }, [selectedConvo])
-
-
-  return (
-    <div style={{ flex: 1, display: 'flex', minHeight: 0, background: V.bg }}>
-      {/* Contacts panel */}
-      {(!isMobile || !selectedDMUserId) && (
-        <div style={{ width: isMobile ? '100%' : 280, flexShrink: 0, borderRight: isMobile ? 'none' : `1px solid ${V.bdr}`, display: 'flex', flexDirection: 'column', height: '100%', background: V.surf }}>
-          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <div style={{ fontFamily: cinzel, color: G, fontSize: 13, letterSpacing: '0.08em' }}>💬 Direct Messages</div>
-            <button
-              onClick={() => setShowNewDM(true)}
-              style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid ${V.bdr}`, color: G, cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-            >+</button>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' as const }}>
-            {dmMembers.filter(m => m.id !== userId).map(member => {
-              const displayName = member.firstName || member.username || 'Warrior'
-              const isSelected = member.id === selectedDMUserId
-              return (
-                <div key={member.id}
-                  onClick={() => selectMember(member.id, displayName)}
-                  style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'background 0.15s', background: isSelected ? 'rgba(201,168,76,0.08)' : 'transparent' }}
-                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
-                  onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                >
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 14, color: G, flexShrink: 0, overflow: 'hidden' }}>
-                    {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>{displayName}</div>
-                    <div style={{ fontSize: 10, color: V.mut, marginTop: 2 }}>{member.publicMetadata?.tier || 'Watchman'}</div>
-                  </div>
-                </div>
-              )
-            })}
-            {dmMembers.filter(m => m.id !== userId).length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center' as const, color: V.mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
-                No other members yet
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Conversation panel */}
-      {(!isMobile || selectedDMUserId) && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {selectedDMUserId ? (
-            <>
-              <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
-                {isMobile && (
-                  <button onClick={() => { setSelectedDMUserId(null); setSelectedConvo(null); setSelectedName('') }} style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
-                )}
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: V.txt, letterSpacing: '0.04em' }}>
-                  {selectedName || dmMembers.find((m: any) => m.id === selectedDMUserId)?.firstName || 'Direct Message'}
-                </div>
-              </div>
-              {(connecting || !selectedConvo) ? (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: V.mut }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em' }}>Connecting...</span>
-                </div>
-              ) : (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-            {/* Messages scroll */}
-            <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {messages.length === 0 && (
-                <div style={{ textAlign: 'center' as const, color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14, marginTop: 40 }}>
-                  Start the conversation
-                </div>
-              )}
-              {messages.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map(msg => {
-                const isMe = msg.user?.id === userId
-                return (
-                  <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: 8 }}>
-                    {!isMe && (
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, flexShrink: 0, overflow: 'hidden', alignSelf: 'flex-end' }}>
-                        {msg.user?.image ? <img src={msg.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (msg.user?.name || '?')[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div style={{ maxWidth: '65%' }}>
-                      {!isMe && <div style={{ fontFamily: cinzel, fontSize: 10, color: V.mut, marginBottom: 3, letterSpacing: '0.04em' }}>{msg.user?.name || 'Warrior'}</div>}
-                      <div style={{ background: isMe ? G : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'), color: isMe ? '#0D0B14' : V.txt, borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px', padding: '10px 14px', fontFamily: crimson, fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word' }}>
-                        {msg.text}
-                        {(msg as any).attachments?.map((att: any, i: number) => (
-                          att.type === 'image' || att.image_url || att.thumb_url ? (
-                            <img key={i} src={att.asset_url || att.image_url || att.thumb_url} alt={att.title || 'image'}
-                              style={{ display: 'block', maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: msg.text ? 6 : 0, cursor: 'pointer' }}
-                              onClick={() => window.open(att.asset_url || att.image_url, '_blank')}
-                            />
-                          ) : att.asset_url ? (
-                            <a key={i} href={att.asset_url} target="_blank" rel="noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: msg.text ? 6 : 0, color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>
-                              📄 {att.title || 'File'}
-                            </a>
-                          ) : null
-                        ))}
-                        {(msg as any).attachments?.filter((att: any) => att.type === 'url' || att.og_scrape_url).map((att: any, i: number) => (
-                          <a key={`url-${i}`} href={att.og_scrape_url || att.title_link} target="_blank" rel="noreferrer"
-                            style={{ display: 'block', marginTop: 8, borderRadius: 8, border: '1px solid rgba(201,168,76,0.2)', overflow: 'hidden', textDecoration: 'none', background: 'rgba(201,168,76,0.05)' }}>
-                            {att.image_url && <img src={att.image_url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover' as const }} />}
-                            <div style={{ padding: '8px 10px' }}>
-                              {att.title && <div style={{ fontFamily: cinzel, fontSize: 12, color: '#C9A84C', marginBottom: 2 }}>{att.title}</div>}
-                              {att.text && <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut, lineHeight: 1.4 }}>{att.text.slice(0, 120)}{att.text.length > 120 ? '...' : ''}</div>}
-                              <div style={{ fontFamily: crimson, fontSize: 11, color: V.mut, marginTop: 4, opacity: 0.7 }}>{att.og_scrape_url}</div>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                      <div style={{ fontSize: 10, color: V.mut, marginTop: 3, textAlign: isMe ? 'right' as const : 'left' as const }}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-              <div ref={bottomRef} />
-            </div>
-            {/* Send bar */}
-            <div style={{ flexShrink: 0, position: 'relative' }}>
-              {showEmojiPicker && (
-                <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, padding: '8px 12px', background: V.s2, borderTop: `1px solid ${V.bdr}`, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {['🙏','❤️','🔥','✝️','⚔️','😭','🛡️','💪','🕊️','🌟'].map(emoji => (
-                    <button
-                      key={emoji}
-                      onClick={() => { setMsgDraft(d => d + emoji); setShowEmojiPicker(false) }}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 6px', borderRadius: 6 }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.1)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                    >{emoji}</button>
-                  ))}
-                </div>
-              )}
-              {typingUsers.length > 0 && (
-                <div style={{ padding: '4px 16px', fontSize: 12, color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>
-                  {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
-                </div>
-              )}
-              <div style={{ borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-                <input
-                  ref={dmFileRef}
-                  type="file"
-                  accept="image/*,video/*,.pdf,.doc,.docx"
-                  style={{ display: 'none' }}
-                  onChange={async e => {
-                    const file = e.target.files?.[0]
-                    if (!file || !selectedConvo || !streamToken || !apiKey) return
-                    e.target.value = ''
-                    const form = new FormData()
-                    form.append('file', file)
-                    form.append('user_id', userId)
-                    const isImage = file.type.startsWith('image/')
-                    const endpoint = isImage ? `/channels/messaging/${selectedConvo}/image` : `/channels/messaging/${selectedConvo}/file`
-                    const res = await fetch(`https://chat.stream-io-api.com${endpoint}?api_key=${apiKey}`, {
-                      method: 'POST',
-                      headers: { Authorization: streamToken, 'Stream-Auth-Type': 'jwt' },
-                      body: form,
-                    })
-                    const data = await res.json()
-                    const url = data.file || data.image_url || data.url
-                    if (url) {
-                      await streamFetch(`/channels/messaging/${selectedConvo}/message`, 'POST', streamToken, apiKey, {
-                        message: { text: '', attachments: [{ type: isImage ? 'image' : 'file', asset_url: url, title: file.name, file_size: file.size }] }
-                      })
-                      const d = await streamFetch(`/channels/messaging/${selectedConvo}/query`, 'POST', streamToken, apiKey, { state: true, messages: { limit: 50 } })
-                      if (d.messages) setMessages(d.messages)
-                    }
-                  }}
-                />
-                <button
-                  title="Attach file or image"
-                  onClick={() => dmFileRef.current?.click()}
-                  style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
-                >📎</button>
-                <button
-                  onClick={() => setShowEmojiPicker(v => !v)}
-                  style={{ padding: '10px', background: showEmojiPicker ? 'rgba(201,168,76,0.15)' : 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
-                >😊</button>
-                <textarea
-                  value={msgDraft}
-                  onChange={e => { setMsgDraft(e.target.value); sendTyping() }}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
-                  placeholder="Type a message... (Enter to send)"
-                  rows={2}
-                  style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 12px', color: V.txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'none' as const }}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!msgDraft.trim()}
-                  style={{ padding: '10px 16px', flexShrink: 0, background: msgDraft.trim() ? G : 'rgba(201,168,76,0.2)', border: 'none', borderRadius: 8, color: msgDraft.trim() ? '#0D0B14' : V.mut, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: msgDraft.trim() ? 'pointer' : 'not-allowed', fontWeight: 700, alignSelf: 'flex-end' }}
-                >Send</button>
-              </div>
-            </div>
-          </div>
-              )}
-            </>
-          ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: V.mut }}>
-              <div style={{ fontSize: 32, opacity: 0.4 }}>💬</div>
-              <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', opacity: 0.6 }}>Select a conversation</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* New DM modal */}
-      {showNewDM && (
-        <div onClick={() => setShowNewDM(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: isDark ? '#0D0B14' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
-            <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', color: G, marginBottom: 16 }}>New Direct Message</div>
-            <input
-              autoFocus
-              type="text"
-              value={newDMSearch}
-              onChange={e => setNewDMSearch(e.target.value)}
-              placeholder="Search members..."
-              style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '8px 12px', color: isDark ? '#f0e8d8' : '#2D2924', fontFamily: crimson, fontSize: 14, outline: 'none', marginBottom: 12 }}
-            />
-            <div style={{ maxHeight: 240, overflowY: 'auto' as const }}>
-              {dmMembers.filter(m => m.id !== userId && `${m.firstName || ''} ${m.lastName || ''} ${m.username || ''}`.toLowerCase().includes(newDMSearch.toLowerCase())).map(m => {
-                const name = m.firstName || m.username || 'Member'
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => { selectMember(m.id, name); setShowNewDM(false) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.08)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                  >
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, overflow: 'hidden', flexShrink: 0 }}>
-                      {m.imageUrl ? <img src={m.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : name[0]?.toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#2D2924', letterSpacing: '0.04em' }}>{name}</div>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 2 }}>
-                        <TierBadge tier={m.publicMetadata?.tier || 'Watchman'} />
-                        {m.publicMetadata?.foundingMember && <FoundingBadge />}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -8662,6 +8222,618 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
   )
 }
 
+// ── MessengerSection ──────────────────────────────────────────────────────────
+
+interface MConversation {
+  channelId: string
+  otherMember: { id: string; name: string; image?: string; online?: boolean } | null
+  lastMessage: { text: string; type?: string; attachments?: any[]; user?: { id: string }; created_at?: string } | null
+  unreadCount: number
+  lastMessageAt?: string
+}
+interface MMessage {
+  id: string
+  text: string
+  type?: string
+  user: { id: string; name: string }
+  created_at: string
+  attachments?: Array<{ type: string; asset_url?: string; duration?: number; call_type?: string }>
+}
+
+const SOL_CONVO: MConversation = {
+  channelId: 'sol',
+  otherMember: { id: 'sol-bot', name: 'SOL Intelligence', online: true },
+  lastMessage: { text: 'Ask me anything about the field…' },
+  unreadCount: 0,
+}
+
+function waveformBars(msgId: string): number[] {
+  return Array.from({ length: 12 }, (_, i) => {
+    const seed = ((msgId?.charCodeAt(i % Math.max(msgId.length, 1)) ?? 65) + i * 7) % 17
+    return 6 + seed
+  })
+}
+function fmtDuration(s: number) {
+  const m = Math.floor(s / 60); const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+function MessengerSection({ userId, getToken, tier }: { userId: string; getToken: () => Promise<string | null>; tier: string }) {
+  const [token, setToken]                     = useState('')
+  const [conversations, setConversations]     = useState<MConversation[]>([])
+  const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
+  const [resolvedChannelId, setResolvedChannelId] = useState<string | null>(null)
+  const [messages, setMessages]               = useState<MMessage[]>([])
+  const [messageText, setMessageText]         = useState('')
+  const [loading, setLoading]                 = useState(true)
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [mobileView, setMobileView]           = useState<'list' | 'chat'>('list')
+  const [isRecording, setIsRecording]         = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol'>('all')
+  const [searchQuery, setSearchQuery]         = useState('')
+  const messagesEndRef   = useRef<HTMLDivElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef   = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recSecondsRef    = useRef(0)
+
+  const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 768
+  const isTabletLayout = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1200
+  const tierLevel = ({ watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 } as Record<string, number>)[tier?.toLowerCase()] ?? 0
+
+  // ── Auth token ──
+  useEffect(() => {
+    getToken().then(t => setToken(t || ''))
+  }, [])
+
+  // ── API helper ──
+  const api = useCallback(async (action: string, method = 'GET', body?: object) => {
+    const t = token || await getToken() || ''
+    const url = `/api/stream-messages?action=${action}`
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+    return res.json()
+  }, [token, getToken])
+
+  // ── Load conversations ──
+  useEffect(() => {
+    if (!userId) return
+    getToken().then(async t => {
+      if (!t) return
+      setToken(t)
+      const data = await fetch('/api/stream-messages?action=list-conversations', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      }).then(r => r.json()).catch(() => ({}))
+      const convos: MConversation[] = Array.isArray(data.conversations) ? data.conversations : []
+      setConversations(convos)
+      setLoading(false)
+      if (!isMobileLayout && convos.length > 0) {
+        selectConversation(convos[0].channelId, t)
+      }
+    })
+  }, [userId])
+
+  // ── Auto-scroll ──
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  // ── Select conversation ──
+  const selectConversation = useCallback(async (channelId: string, overrideToken?: string) => {
+    const t = overrideToken || token || await getToken() || ''
+    setActiveConvoId(channelId)
+    setMobileView('chat')
+    setLoadingMessages(true)
+    setMessages([])
+    try {
+      let realId = channelId
+      if (channelId === 'sol') {
+        const dm = await fetch('/api/stream-messages?action=create-dm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ otherUserId: 'sol-bot' }),
+        }).then(r => r.json())
+        realId = dm.channelId || channelId
+      }
+      setResolvedChannelId(realId)
+      const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(realId)}`, {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      }).then(r => r.json())
+      setMessages(msgs.messages || [])
+      if (channelId !== 'sol') {
+        fetch('/api/stream-messages?action=mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ channelId: realId }),
+        }).catch(() => {})
+        setConversations(prev => prev.map(c => c.channelId === channelId ? { ...c, unreadCount: 0 } : c))
+      }
+    } catch (e) { console.error('selectConversation error', e) }
+    setLoadingMessages(false)
+  }, [token, getToken])
+
+  // ── Send message ──
+  const sendMessage = useCallback(async () => {
+    if (!messageText.trim() || !resolvedChannelId) return
+    const text = messageText.trim()
+    setMessageText('')
+    const data = await api('send-message', 'POST', { channelId: resolvedChannelId, text })
+    if (data.message) setMessages(prev => [...prev, data.message])
+  }, [messageText, resolvedChannelId, api])
+
+  // ── Voice recording ──
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      mediaRecorderRef.current = mr
+      audioChunksRef.current = []
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+      mr.start(100)
+      setIsRecording(true)
+      recSecondsRef.current = 0
+      setRecordingSeconds(0)
+      recordingTimerRef.current = setInterval(() => {
+        recSecondsRef.current += 1
+        setRecordingSeconds(s => s + 1)
+      }, 1000)
+    } catch (e) { console.error('mic error', e) }
+  }, [])
+
+  const stopRecording = useCallback(async () => {
+    if (!mediaRecorderRef.current || !resolvedChannelId) return
+    const mr = mediaRecorderRef.current
+    const duration = recSecondsRef.current
+    mr.stop()
+    mr.stream.getTracks().forEach(t => t.stop())
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+    setIsRecording(false)
+    setRecordingSeconds(0)
+    setTimeout(async () => {
+      try {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const form = new FormData()
+        form.append('audio', blob, 'voice.webm')
+        const t = token || await getToken() || ''
+        const uploadRes = await fetch('/api/stream-messages?action=upload-voice', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${t}` },
+          body: form,
+        })
+        const { url } = await uploadRes.json()
+        if (url && resolvedChannelId) {
+          await fetch('/api/stream-messages?action=send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+            body: JSON.stringify({ channelId: resolvedChannelId, text: '', attachments: [{ type: 'voice', asset_url: url, duration }] }),
+          })
+          const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(resolvedChannelId)}`, {
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          }).then(r => r.json())
+          setMessages(msgs.messages || [])
+        }
+      } catch (e) { console.error('voice upload error', e) }
+    }, 300)
+  }, [resolvedChannelId, token, getToken])
+
+  // ── Derived state ──
+  const displayConvos = React.useMemo(() => {
+    const base = activeTab === 'sol' ? [SOL_CONVO]
+      : activeTab === 'unread' ? [SOL_CONVO, ...conversations].filter(c => c.unreadCount > 0)
+      : [SOL_CONVO, ...conversations]
+    if (!searchQuery) return base
+    return base.filter(c => c.otherMember?.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+  }, [conversations, activeTab, searchQuery])
+
+  const activeConvo = [SOL_CONVO, ...conversations].find(c => c.channelId === activeConvoId)
+
+  // ── Helpers ──
+  const getInitials = (name: string) => name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
+  const getAvatarColor = (id: string) => {
+    const palette = [
+      { bg: 'rgba(201,168,76,0.18)', color: '#C9A84C' },
+      { bg: 'rgba(138,157,202,0.18)', color: '#8B9DCA' },
+      { bg: 'rgba(122,158,126,0.18)', color: '#7a9e7e' },
+      { bg: 'rgba(180,100,100,0.18)', color: '#c47070' },
+      { bg: 'rgba(100,150,200,0.18)', color: '#64a0c8' },
+    ]
+    return palette[(id?.charCodeAt(0) ?? 0) % palette.length]
+  }
+  const relativeTime = (iso?: string) => {
+    if (!iso) return ''
+    const d = Date.now() - new Date(iso).getTime()
+    const m = Math.floor(d / 60000)
+    if (m < 1) return 'now'; if (m < 60) return `${m}m`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h`; return `${Math.floor(h / 24)}d`
+  }
+  const renderPreview = (c: MConversation) => {
+    const lm = c.lastMessage; if (!lm) return 'Start a conversation'
+    if (lm.attachments?.[0]?.type === 'voice') return '🎙 Voice message'
+    if (lm.attachments?.[0]?.type === 'call_log') return lm.attachments[0].call_type === 'video' ? '📹 Video call' : '📞 Audio call'
+    return lm.text?.slice(0, 45) || 'Message'
+  }
+
+  // ── Tier gate ──
+  if (tierLevel < 1) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0D0B14', padding: '40px 20px' }}>
+        <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
+          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ DIRECT MESSAGES</div>
+          <div style={{ fontSize: 15, color: 'rgba(232,224,208,0.6)', marginBottom: 20, lineHeight: 1.6 }}>Direct messaging is available to Soldier members and above.</div>
+          <a href="/membership" style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, textDecoration: 'none', display: 'inline-block' }}>UPGRADE TO SOLDIER →</a>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Styles ──
+  const BG    = '#0a0a12'
+  const SURF  = 'rgba(255,255,255,0.04)'
+  const BDR   = 'rgba(255,255,255,0.08)'
+  const GLD   = '#C9A84C'
+  const WMUT  = 'rgba(255,255,255,0.4)'
+  const WDIM  = 'rgba(255,255,255,0.25)'
+
+  return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: BG, flex: 1 }}>
+
+      {/* ── LEFT PANEL: Conversation list ── */}
+      <div style={{
+        width: isMobileLayout ? (mobileView === 'chat' ? '0' : '100%') : (isTabletLayout ? '220px' : '260px'),
+        flexShrink: 0,
+        borderRight: `1px solid ${BDR}`,
+        display: isMobileLayout && mobileView === 'chat' ? 'none' : 'flex',
+        flexDirection: 'column' as const,
+        overflow: 'hidden',
+        background: 'rgba(0,0,0,0.3)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
+          <button
+            onClick={() => console.log('new DM')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex', alignItems: 'center' }}
+            title="New message"
+          >
+            <PenLine size={16} strokeWidth={1.8} />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
+          {(['all', 'unread', 'sol'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              flex: 1, padding: '8px 0', fontSize: 11, cursor: 'pointer',
+              background: 'none', border: 'none',
+              color: activeTab === tab ? '#fff' : WMUT,
+              borderBottom: activeTab === tab ? `2px solid ${GLD}` : '2px solid transparent',
+              fontFamily: "'Cinzel',serif", letterSpacing: '0.06em',
+              textTransform: 'uppercase' as const,
+            }}>
+              {tab === 'sol' ? 'SOL' : tab === 'all' ? 'All' : 'Unread'}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div style={{ padding: '8px 12px', flexShrink: 0 }}>
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search…"
+            style={{
+              width: '100%', padding: '7px 12px', borderRadius: 20, boxSizing: 'border-box' as const,
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`,
+              color: '#fff', fontSize: 12, outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+        </div>
+
+        {/* Conversation rows */}
+        <div style={{ flex: 1, overflowY: 'auto' as const }}>
+          {loading ? (
+            <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>Loading…</div>
+          ) : displayConvos.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No conversations yet</div>
+          ) : displayConvos.map(convo => {
+            const isSol = convo.otherMember?.id === 'sol-bot'
+            const isActive = convo.channelId === activeConvoId
+            const av = isSol ? { bg: 'rgba(201,168,76,0.2)', color: GLD } : getAvatarColor(convo.otherMember?.id || '')
+            return (
+              <div
+                key={convo.channelId}
+                onClick={() => selectConversation(convo.channelId)}
+                style={{
+                  display: 'flex', gap: 10, padding: '10px 12px', cursor: 'pointer',
+                  background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent',
+                  borderBottom: `1px solid ${BDR}`,
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              >
+                {/* Avatar */}
+                <div style={{ position: 'relative' as const, flexShrink: 0 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: av.bg, color: av.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: isSol ? 16 : 13, fontWeight: 600, overflow: 'hidden',
+                    border: isSol ? `1px solid rgba(201,168,76,0.4)` : `1px solid ${BDR}`,
+                  }}>
+                    {isSol
+                      ? <img src="/images/sol/sol-icon.png" width={36} height={36} style={{ objectFit: 'cover' }} alt="SOL" />
+                      : convo.otherMember?.image
+                        ? <img src={convo.otherMember.image} width={36} height={36} style={{ objectFit: 'cover' }} alt="" />
+                        : getInitials(convo.otherMember?.name || '?')
+                    }
+                  </div>
+                  {convo.otherMember?.online && (
+                    <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#1d9e75', border: '1.5px solid #0a0a12' }} />
+                  )}
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {convo.otherMember?.name || 'Unknown'}
+                    </span>
+                    <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>
+                      {relativeTime(convo.lastMessage?.created_at || convo.lastMessageAt)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
+                      {renderPreview(convo)}
+                    </span>
+                    {convo.unreadCount > 0 && (
+                      <span style={{ background: GLD, color: '#000', fontSize: 9, borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0, marginLeft: 4 }}>
+                        {convo.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── CENTER PANEL: Chat thread ── */}
+      <div style={{
+        flex: 1, display: isMobileLayout && mobileView === 'list' ? 'none' : 'flex',
+        flexDirection: 'column' as const, minWidth: 0, overflow: 'hidden',
+      }}>
+        {!activeConvoId ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' as const }}>
+              <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.3 }}>✉</div>
+              <div style={{ fontSize: 14, color: WMUT }}>Select a conversation</div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Chat header */}
+            <div style={{ padding: '10px 16px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: 'rgba(0,0,0,0.2)' }}>
+              {isMobileLayout && (
+                <button onClick={() => setMobileView('list')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: '4px', display: 'flex' }}>
+                  <ChevronLeft size={20} strokeWidth={2} />
+                </button>
+              )}
+              {/* Avatar */}
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: activeConvo?.otherMember?.id === 'sol-bot' ? 'rgba(201,168,76,0.2)' : SURF, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: GLD, border: `1px solid ${BDR}` }}>
+                {activeConvo?.otherMember?.id === 'sol-bot'
+                  ? <img src="/images/sol/sol-icon.png" width={32} height={32} style={{ objectFit: 'cover' }} alt="SOL" />
+                  : activeConvo?.otherMember?.image
+                    ? <img src={activeConvo.otherMember.image} width={32} height={32} style={{ objectFit: 'cover' }} alt="" />
+                    : getInitials(activeConvo?.otherMember?.name || '?')
+                }
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {activeConvo?.otherMember?.name || 'Unknown'}
+                </div>
+                <div style={{ fontSize: 11, color: activeConvo?.otherMember?.online ? '#1d9e75' : WMUT }}>
+                  {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
+                </div>
+              </div>
+              <button style={{ background: 'rgba(29,158,117,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#1d9e75', cursor: 'pointer', display: 'flex' }} title="Audio call">
+                <Phone size={16} strokeWidth={1.8} />
+              </button>
+              <button style={{ background: 'rgba(14,165,233,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#0ea5e9', cursor: 'pointer', display: 'flex' }} title="Video call">
+                <Video size={16} strokeWidth={1.8} />
+              </button>
+              <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
+                <MoreHorizontal size={16} strokeWidth={1.8} />
+              </button>
+            </div>
+
+            {/* Messages area */}
+            <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px', display: 'flex', flexDirection: 'column' as const, gap: 10, background: 'rgba(0,0,0,0.2)' }}>
+              {loadingMessages ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WMUT, fontSize: 13 }}>Loading…</div>
+              ) : messages.length === 0 ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WMUT, fontSize: 13 }}>No messages yet. Say hello!</div>
+              ) : messages.map(msg => {
+                const isOwn = msg.user?.id === userId
+                const voiceAtt = msg.attachments?.find(a => a.type === 'voice')
+                const callAtt  = msg.attachments?.find(a => a.type === 'call_log')
+                const av2 = getAvatarColor(msg.user?.id || '')
+                return (
+                  <div key={msg.id} style={{ display: 'flex', flexDirection: isOwn ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
+                    {!isOwn && (
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: av2.bg, color: av2.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
+                        {msg.user?.id === 'sol-bot'
+                          ? <img src="/images/sol/sol-icon.png" width={22} height={22} style={{ objectFit: 'cover' }} alt="" />
+                          : getInitials(msg.user?.name || '?')
+                        }
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: isOwn ? 'flex-end' : 'flex-start', maxWidth: '72%' }}>
+                      {voiceAtt ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isOwn ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.08)', borderRadius: 20, padding: '8px 12px', maxWidth: 220 }}>
+                          <button style={{ width: 26, height: 26, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: 10, color: '#000' }}>▶</span>
+                          </button>
+                          <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 22 }}>
+                            {waveformBars(msg.id).map((h, i) => (
+                              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: isOwn ? GLD : 'rgba(255,255,255,0.3)' }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 10, color: WMUT, flexShrink: 0 }}>{fmtDuration(voiceAtt.duration || 0)}</span>
+                        </div>
+                      ) : callAtt ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '9px 13px', maxWidth: 200 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(29,158,117,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {callAtt.call_type === 'video' ? <Video size={14} color="#1d9e75" strokeWidth={1.8} /> : <Phone size={14} color="#1d9e75" strokeWidth={1.8} />}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 500, color: '#fff' }}>{callAtt.call_type === 'video' ? 'Video call' : 'Audio call'}</div>
+                            <div style={{ fontSize: 10, color: WMUT }}>{fmtDuration(callAtt.duration || 0)}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '9px 13px', borderRadius: 16, fontSize: 13, lineHeight: 1.5,
+                          background: isOwn ? GLD : 'rgba(255,255,255,0.08)',
+                          color: isOwn ? '#000' : '#fff',
+                          borderBottomRightRadius: isOwn ? 4 : 16,
+                          borderBottomLeftRadius: isOwn ? 16 : 4,
+                          wordBreak: 'break-word' as const,
+                        }}>
+                          {msg.text}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
+                        {relativeTime(msg.created_at)}
+                        {isOwn && <span>✓✓</span>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer */}
+            <div style={{
+              padding: '10px 12px',
+              paddingBottom: `calc(10px + env(safe-area-inset-bottom, 0px))`,
+              borderTop: `1px solid ${BDR}`,
+              background: 'rgba(0,0,0,0.3)',
+              display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+            }}>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex' }} title="Attach image">
+                <ImageIcon size={18} strokeWidth={1.8} />
+              </button>
+              <input
+                value={messageText}
+                onChange={e => setMessageText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                placeholder="Message…"
+                style={{
+                  flex: 1, background: 'rgba(255,255,255,0.07)', border: `1px solid ${BDR}`,
+                  borderRadius: 20, padding: '8px 14px', color: '#fff', fontSize: 13, outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <div style={{ position: 'relative' as const, display: 'flex', alignItems: 'center' }}>
+                {isRecording && (
+                  <span style={{ position: 'absolute' as const, top: -18, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#e24b4a', whiteSpace: 'nowrap' as const }}>
+                    {recordingSeconds}s
+                  </span>
+                )}
+                <button
+                  onMouseDown={startRecording} onTouchStart={startRecording}
+                  onMouseUp={stopRecording} onTouchEnd={stopRecording}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex',
+                    color: isRecording ? '#e24b4a' : WMUT,
+                    animation: isRecording ? 'wri-pulse-opacity 1s infinite' : 'none',
+                  }}
+                  title={isRecording ? 'Release to send' : 'Hold to record'}
+                >
+                  <Mic size={18} strokeWidth={1.8} />
+                </button>
+              </div>
+              <button
+                onClick={sendMessage}
+                style={{ width: 32, height: 32, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              >
+                <Send size={14} strokeWidth={2} color="#000" />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── RIGHT DETAIL PANEL: Desktop only ── */}
+      {!isMobileLayout && !isTabletLayout && activeConvo && (
+        <div style={{ width: 200, borderLeft: `1px solid ${BDR}`, flexShrink: 0, overflowY: 'auto' as const, background: 'rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '20px 12px', gap: 12 }}>
+          {/* Avatar */}
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: activeConvo.otherMember?.id === 'sol-bot' ? 'rgba(201,168,76,0.2)' : SURF, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: GLD, border: `1px solid ${BDR}` }}>
+            {activeConvo.otherMember?.id === 'sol-bot'
+              ? <img src="/images/sol/sol-icon.png" width={52} height={52} style={{ objectFit: 'cover' }} alt="SOL" />
+              : activeConvo.otherMember?.image
+                ? <img src={activeConvo.otherMember.image} width={52} height={52} style={{ objectFit: 'cover' }} alt="" />
+                : getInitials(activeConvo.otherMember?.name || '?')
+            }
+          </div>
+          <div style={{ textAlign: 'center' as const }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{activeConvo.otherMember?.name}</div>
+            <div style={{ fontSize: 10, color: activeConvo.otherMember?.online ? '#1d9e75' : WMUT, marginTop: 2 }}>
+              {activeConvo.otherMember?.online ? '● Online' : '○ Offline'}
+            </div>
+          </div>
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 12 }}>
+            {[
+              { icon: <Phone size={16} strokeWidth={1.8} />, label: 'Audio', color: '#1d9e75', bg: 'rgba(29,158,117,0.15)' },
+              { icon: <Video size={16} strokeWidth={1.8} />, label: 'Video', color: '#0ea5e9', bg: 'rgba(14,165,233,0.15)' },
+            ].map(({ icon, label, color, bg }) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4 }}>
+                <button style={{ width: 36, height: 36, borderRadius: '50%', background: bg, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
+                  {icon}
+                </button>
+                <span style={{ fontSize: 9, color: WMUT }}>{label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ width: '100%', height: 1, background: BDR }} />
+          {/* Shared voice */}
+          <div style={{ width: '100%' }}>
+            <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Shared Voice</div>
+            {messages.filter(m => m.attachments?.some(a => a.type === 'voice')).slice(0, 3).length === 0
+              ? <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontStyle: 'italic' }}>None yet</div>
+              : messages.filter(m => m.attachments?.some(a => a.type === 'voice')).slice(0, 3).map(m => (
+                <div key={m.id} style={{ fontSize: 11, color: GLD, padding: '4px 0', borderBottom: `1px solid ${BDR}` }}>🎙 {relativeTime(m.created_at)}</div>
+              ))
+            }
+          </div>
+          <div style={{ width: '100%', height: 1, background: BDR }} />
+          <div style={{ width: '100%' }}>
+            <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 4 }}>SOL Autoreply</div>
+            <div style={{ fontSize: 11, color: activeConvo.otherMember?.id === 'sol-bot' ? '#1d9e75' : 'rgba(255,255,255,0.3)' }}>
+              {activeConvo.otherMember?.id === 'sol-bot' ? '● Active' : '○ Off'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pulse keyframe for mic */}
+      <style>{`@keyframes wri-pulse-opacity { 0%,100%{opacity:0.6} 50%{opacity:1} }`}</style>
+    </div>
+  )
+}
+
+// ── CommunityPage ─────────────────────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
@@ -8758,6 +8930,17 @@ function CommunityPage() {
   const [chatInput, setChatInput]         = useState('')
   const [chatLoading, setChatLoading]     = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // Standalone Protocol Engine state
+  const [stpMode, setStpMode]                     = useState<'spirit' | 'manifestation'>('spirit')
+  const [stpSpiritName, setStpSpiritName]         = useState('')
+  const [stpManifestations, setStpManifestations] = useState('')
+  const [stpIncludeCluster, setStpIncludeCluster] = useState(true)
+  const [stpResult, setStpResult]                 = useState<any>(null)
+  const [stpLoading, setStpLoading]               = useState(false)
+  const [stpError, setStpError]                   = useState<string | null>(null)
+  const [stpTab, setStpTab]                       = useState<'intel' | 'legal' | 'renunciation' | 'command' | 'post'>('intel')
+  const [stpChecked, setStpChecked]               = useState<Record<string, boolean>>({})
 
   async function sendChat(msg: string) {
     if (!msg.trim() || chatLoading) return
@@ -8930,7 +9113,7 @@ function CommunityPage() {
   const [demons, setDemons]               = useState<any[]>([])
   const [viewingProfile, setViewingProfile] = useState<any>(null)
   const [editingProfile, setEditingProfile] = useState(false)
-  const [pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
+  const [_pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
   const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
   const warriorHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const railFlyoutRef   = useRef<HTMLDivElement>(null)
@@ -9170,6 +9353,33 @@ function CommunityPage() {
     setNotifsList([])
     setUnreadNotifs(0)
     setDeletingNotifs(false)
+  }
+
+  async function generateStandaloneProtocol() {
+    setStpLoading(true); setStpError(null); setStpResult(null)
+    try {
+      const token = await getToken()
+      const body: any = {
+        mode: stpMode,
+        spiritName: stpMode === 'spirit' ? stpSpiritName : undefined,
+        manifestationDescription: stpMode === 'manifestation' ? stpManifestations : undefined,
+        includeCluster: stpIncludeCluster,
+      }
+      const res = await fetch('/api/deliverance-protocol', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Protocol generation failed')
+      setStpResult(data)
+      setStpTab('intel')
+      setStpChecked({})
+    } catch (e: any) {
+      setStpError(e.message || 'Protocol generation failed')
+    } finally {
+      setStpLoading(false)
+    }
   }
 
   async function enablePushNotifications() {
@@ -9936,22 +10146,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'dms' && (
-          tierLevel >= 1
-            ? <MessagesView isMobile={isMobile} setSidebarOpen={setSidebarOpen} streamToken={streamToken} apiKey={apiKey} user={user} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} pendingDMWith={pendingDMWith} onDMStarted={() => setPendingDMWith(null)} isDark={isDark} dmMembers={members} onStartDM={(memberId) => setPendingDMWith(memberId)} onUnreadChange={setUnreadDMs} />
-            : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
-                <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ DIRECT MESSAGES</div>
-                  <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : '#5C5248', marginBottom: 20, lineHeight: 1.6 }}>
-                    Direct messaging is available to Soldier members and above.
-                  </div>
-                  <button
-                    onClick={() => handleUpgrade('soldier', getToken)}
-                    style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
-                  >
-                    UPGRADE TO SOLDIER →
-                  </button>
-                </div>
-              </div>
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} />
         )}
         {activeSection === 'members'     && (
           <MembersView
@@ -10007,25 +10202,121 @@ function CommunityPage() {
         )}
         {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
         {activeSection === 'deliverance-protocol' && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
-            {isMobile && (
-              <div style={{ alignSelf: 'flex-start', padding: '0 0 20px' }}>
-                <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>☰</button>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
+            <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+              {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>
               </div>
-            )}
-            <div style={{ maxWidth: 480, textAlign: 'center' as const }}>
-              <div style={{ fontSize: 36, marginBottom: 16 }}>⚔</div>
-              <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.2em', color: G, marginBottom: 12 }}>COMMANDER TIER · INTEL ARCHIVE</div>
-              <div style={{ fontFamily: cinzel, fontSize: 20, color: G, marginBottom: 12, fontWeight: 700 }}>DELIVERANCE PROTOCOL ENGINE</div>
-              <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#a09080' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>
-                The Deliverance Protocol Engine is integrated into the Intel Archive. Open any spirit dossier and navigate to the <strong style={{ color: G }}>Protocol</strong> tab to generate a customized deliverance protocol for that spirit.
-              </div>
-              <button
-                onClick={() => setActiveSection('database')}
-                style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#0e0c09', background: G, border: 'none', borderRadius: 4, padding: '11px 28px', cursor: 'pointer' }}
-              >
-                Open Intel Archive →
-              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px' }}>
+              {tierLevel < 2 ? (
+                <div style={{ textAlign: 'center', maxWidth: 420, margin: '60px auto' }}>
+                  <div style={{ fontSize: 40, marginBottom: 16 }}>⚔</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
+                  <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>Upgrade to Commander to access the Protocol Engine.</p>
+                  <a href="/membership" style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, textDecoration: 'none' }}>Upgrade</a>
+                </div>
+              ) : !stpResult ? (
+                <div style={{ maxWidth: 600, margin: '0 auto' }}>
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SELECT MODE</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => setStpMode('spirit')} style={{ flex: 1, padding: '10px 0', background: stpMode === 'spirit' ? G : 'transparent', border: `1px solid ${stpMode === 'spirit' ? G : 'rgba(201,168,76,0.3)'}`, borderRadius: 6, color: stpMode === 'spirit' ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: stpMode === 'spirit' ? 700 : 400 }}>⚔ SPIRIT NAME</button>
+                      <button onClick={() => setStpMode('manifestation')} style={{ flex: 1, padding: '10px 0', background: stpMode === 'manifestation' ? G : 'transparent', border: `1px solid ${stpMode === 'manifestation' ? G : 'rgba(201,168,76,0.3)'}`, borderRadius: 6, color: stpMode === 'manifestation' ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: stpMode === 'manifestation' ? 700 : 400 }}>👁 MANIFESTATION</button>
+                    </div>
+                  </div>
+                  {stpMode === 'spirit' ? (
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SPIRIT OR SPIRIT LINE NAME</label>
+                      <input value={stpSpiritName} onChange={e => setStpSpiritName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && stpSpiritName.trim()) generateStandaloneProtocol() }} placeholder="e.g. Python, Leviathan, Jezebel" style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', boxSizing: 'border-box' as const }} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={stpIncludeCluster} onChange={e => setStpIncludeCluster(e.target.checked)} style={{ accentColor: G }} />
+                        <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#9a8874' : '#5C5248' }}>Include cluster spirits</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>DESCRIBE WHAT YOU ARE SEEING</label>
+                      <textarea rows={4} value={stpManifestations} onChange={e => setStpManifestations(e.target.value)} placeholder="Describe physical, emotional, or behavioral manifestations you are observing in the session..." style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'vertical', boxSizing: 'border-box' as const }} />
+                    </div>
+                  )}
+                  {stpError && <div style={{ border: '1px solid rgba(239,68,68,0.4)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: crimson, fontSize: 14, color: '#ef4444' }}>{stpError}</div>}
+                  <button onClick={generateStandaloneProtocol} disabled={stpLoading || (stpMode === 'spirit' ? !stpSpiritName.trim() : !stpManifestations.trim())} style={{ width: '100%', padding: '14px', background: stpLoading ? 'rgba(201,168,76,0.35)' : G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', cursor: (stpLoading || (stpMode === 'spirit' ? !stpSpiritName.trim() : !stpManifestations.trim())) ? 'not-allowed' : 'pointer' }}>
+                    {stpLoading ? '⏳ GENERATING PROTOCOL...' : '⚔ GENERATE PROTOCOL'}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ maxWidth: 780, margin: '0 auto' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em' }}>⚔ SESSION PROTOCOL</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => window.print()} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
+                      <button onClick={() => { setStpResult(null); setStpError(null) }} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↩ NEW PROTOCOL</button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid rgba(201,168,76,0.18)`, marginBottom: 24, overflowX: 'auto' as const }}>
+                    {([{ key: 'intel', label: 'PRE-SESSION INTEL' }, { key: 'legal', label: 'LEGAL GROUND' }, { key: 'renunciation', label: 'RENUNCIATIONS' }, { key: 'command', label: 'COMMAND PRAYERS' }, { key: 'post', label: 'POST-SESSION' }] as const).map(t => (
+                      <button key={t.key} onClick={() => setStpTab(t.key)} style={{ padding: '8px 14px', background: 'none', border: 'none', borderBottom: stpTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: stpTab === t.key ? G : isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>{t.label}</button>
+                    ))}
+                  </div>
+                  {stpTab === 'intel' && stpResult.protocol?.preSessionIntel && (() => {
+                    const intel = stpResult.protocol.preSessionIntel
+                    return (
+                      <div>
+                        <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.8, marginBottom: 20 }}>{intel.summary}</p>
+                        {intel.keyLegalGrounds?.length > 0 && <div style={{ marginBottom: 18 }}><div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', marginBottom: 8 }}>SPIRITS COVERED</div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{intel.keyLegalGrounds.map((g: string, i: number) => <span key={i} style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', fontFamily: crimson, fontSize: 13, color: G }}>{g}</span>)}</div></div>}
+                        {intel.warningFlags?.length > 0 && <div><div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: '#ef4444', marginBottom: 8 }}>WARNING FLAGS</div>{intel.warningFlags.map((f: string, i: number) => <div key={i} style={{ border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', display: 'flex', gap: 8 }}><span style={{ color: '#ef4444', flexShrink: 0 }}>⚠</span>{f}</div>)}</div>}
+                      </div>
+                    )
+                  })()}
+                  {stpTab === 'legal' && (
+                    <div>
+                      {(stpResult.protocol?.legalGroundChecklist || []).map((item: any, i: number) => (
+                        <label key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1px solid ${stpChecked[`lg-${i}`] ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.12)'}`, borderRadius: 6, marginBottom: 8, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={!!stpChecked[`lg-${i}`]} onChange={e => setStpChecked(prev => ({ ...prev, [`lg-${i}`]: e.target.checked }))} style={{ accentColor: G, marginTop: 3, flexShrink: 0 }} />
+                          <div><div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em', marginBottom: 4 }}>{item.ground}</div><div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#5C5248', fontStyle: 'italic', marginBottom: 4 }}>{item.question}</div>{item.scripture && <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.06em' }}>{item.scripture}</div>}</div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {stpTab === 'renunciation' && (
+                    <div>
+                      {(stpResult.protocol?.renunciationPrayers || []).map((p: any, i: number) => (
+                        <div key={i} style={{ marginBottom: 20 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>{p.title}</div>
+                          <blockquote style={{ margin: 0, paddingLeft: 14, borderLeft: `3px solid ${G}`, fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', fontStyle: 'italic', lineHeight: 1.8 }}>{p.prayer}</blockquote>
+                          {p.notes && <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#8B7355' : '#7a6858', marginTop: 8, fontStyle: 'italic' }}>Note: {p.notes}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {stpTab === 'command' && (
+                    <div>
+                      {(stpResult.protocol?.commandPrayers || []).map((p: any, i: number) => (
+                        <div key={i} style={{ marginBottom: 20 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>{p.target}</div>
+                          <blockquote style={{ margin: 0, paddingLeft: 14, borderLeft: `3px solid ${G}`, fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.8 }}>{p.command}</blockquote>
+                          {p.authority && <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginTop: 8, letterSpacing: '0.06em' }}>{p.authority}</div>}
+                        </div>
+                      ))}
+                      {stpResult.protocol?.intercession && <div style={{ marginTop: 28 }}><div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: G, marginBottom: 16 }}>INTERCESSION</div>{stpResult.protocol.intercession.opening && <blockquote style={{ margin: '0 0 16px', paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.4)`, fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', fontStyle: 'italic', lineHeight: 1.8 }}>{stpResult.protocol.intercession.opening}</blockquote>}{(stpResult.protocol.intercession.declarations || []).map((d: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#5C5248', paddingLeft: 14, borderLeft: '2px solid rgba(201,168,76,0.2)', marginBottom: 8 }}>{d}</div>)}</div>}
+                    </div>
+                  )}
+                  {stpTab === 'post' && stpResult.protocol?.aftercare && (() => {
+                    const ac = stpResult.protocol.aftercare
+                    return (
+                      <div>
+                        {ac.initialSteps?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>INITIAL STEPS</div>{ac.initialSteps.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>⚔ {s}</div>)}</div>}
+                        {ac.dailyPractices?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>DAILY PRACTICES</div>{ac.dailyPractices.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>• {s}</div>)}</div>}
+                        {ac.warningSignsToWatch?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: '#ef4444', letterSpacing: '0.1em', marginBottom: 8 }}>WARNING SIGNS TO WATCH</div>{ac.warningSignsToWatch.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(239,68,68,0.12)` }}>⚠ {s}</div>)}</div>}
+                        {ac.followUpQuestions?.length > 0 && <div><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>FOLLOW-UP QUESTIONS</div>{ac.followUpQuestions.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>? {s}</div>)}</div>}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -158,18 +158,19 @@ export default async function handler(req: Request) {
   const {
     mode = 'spirit',
     spiritData,
+    spiritName: bodySpitName = '',
     spiritNames = [],
     includeCluster = true,
     manifestationDescription = '',
     manifestationCandidates = [],
   } = body
 
-  if (!spiritData && mode === 'spirit') {
-    return new Response(JSON.stringify({ error: 'spiritData required for spirit mode' }), { status: 400, headers: HEADERS })
+  if (!spiritData && !bodySpitName && mode === 'spirit') {
+    return new Response(JSON.stringify({ error: 'spiritName or spiritData required for spirit mode' }), { status: 400, headers: HEADERS })
   }
 
   const supabase = sb()
-  const primaryName = spiritData?.name || manifestationCandidates?.[0]?.name || 'Unknown Spirit'
+  const primaryName = spiritData?.name || bodySpitName || manifestationCandidates?.[0]?.name || 'Unknown Spirit'
   const description = spiritData?.description || ''
   const isTerritorial = spiritData?.isTerritorial || false
 
@@ -198,6 +199,11 @@ Counter Scriptures: ${spiritData.counterScriptures || 'N/A'}
 Prayer Points: ${spiritData.prayerPoints || 'N/A'}
 Aftercare Notes: ${spiritData.aftercareNotes || 'N/A'}
 Cluster Spirits: ${includeCluster ? (spiritNames.join(', ') || 'None listed') : 'Not included'}`
+  } else if (mode === 'spirit' && primaryName) {
+    contextBlock = `SPIRIT NAME: ${primaryName}
+Cluster Spirits: ${includeCluster ? (spiritNames.join(', ') || 'None listed') : 'Not included'}
+
+Generate a complete protocol based on your knowledge of this spirit, its demonic hierarchy, legal grounds, manifestations, and deliverance methodology.`
   } else if (mode === 'manifestation') {
     contextBlock = `SYMPTOM INVESTIGATION RESULTS:
 Symptoms/Manifestations Presented: ${manifestationDescription}
