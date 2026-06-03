@@ -20,6 +20,7 @@ import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
+import CallOverlay from '../components/CallOverlay'
 import { Home, FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
@@ -8274,6 +8275,7 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol'>('all')
   const [searchQuery, setSearchQuery]         = useState('')
+  const [callActive, setCallActive]           = React.useState<{ type: 'audio' | 'video'; otherUser: { id: string; name: string } } | null>(null)
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef   = useRef<Blob[]>([])
@@ -8482,6 +8484,31 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
   const WDIM  = 'rgba(255,255,255,0.25)'
 
   return (
+    <>
+    {callActive && token && (
+      <CallOverlay
+        callType={callActive.type}
+        otherUser={callActive.otherUser}
+        myUserId={userId}
+        streamToken={token}
+        channelId={activeConvoId || ''}
+        onEnd={async (duration) => {
+          setCallActive(null)
+          if (activeConvoId && duration > 0) {
+            const activeChannelId = activeConvoId === 'sol'
+              ? conversations.find((c: any) => c.otherMember?.id === 'sol-bot')?.channelId || activeConvoId
+              : activeConvoId
+            await api('send-message', 'POST', {
+              channelId: activeChannelId,
+              text: '',
+              attachments: [{ type: 'call_log', call_type: callActive.type, duration }]
+            })
+            const msgs = await api(`get-messages&channelId=${activeChannelId}`, 'GET')
+            setMessages(msgs.messages || [])
+          }
+        }}
+      />
+    )}
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: BG, flex: 1 }}>
 
       {/* ── LEFT PANEL: Conversation list ── */}
@@ -8646,10 +8673,14 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
                   {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
                 </div>
               </div>
-              <button style={{ background: 'rgba(29,158,117,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#1d9e75', cursor: 'pointer', display: 'flex' }} title="Audio call">
+              <button
+                onClick={() => activeConvo?.otherMember && setCallActive({ type: 'audio', otherUser: { id: activeConvo.otherMember.id, name: activeConvo.otherMember.name || 'Soldier' } })}
+                style={{ background: 'rgba(29,158,117,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#1d9e75', cursor: 'pointer', display: 'flex' }} title="Audio call">
                 <Phone size={16} strokeWidth={1.8} />
               </button>
-              <button style={{ background: 'rgba(14,165,233,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#0ea5e9', cursor: 'pointer', display: 'flex' }} title="Video call">
+              <button
+                onClick={() => activeConvo?.otherMember && setCallActive({ type: 'video', otherUser: { id: activeConvo.otherMember.id, name: activeConvo.otherMember.name || 'Soldier' } })}
+                style={{ background: 'rgba(14,165,233,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#0ea5e9', cursor: 'pointer', display: 'flex' }} title="Video call">
                 <Video size={16} strokeWidth={1.8} />
               </button>
               <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
@@ -8797,11 +8828,13 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 12 }}>
             {[
-              { icon: <Phone size={16} strokeWidth={1.8} />, label: 'Audio', color: '#1d9e75', bg: 'rgba(29,158,117,0.15)' },
-              { icon: <Video size={16} strokeWidth={1.8} />, label: 'Video', color: '#0ea5e9', bg: 'rgba(14,165,233,0.15)' },
-            ].map(({ icon, label, color, bg }) => (
+              { icon: <Phone size={16} strokeWidth={1.8} />, label: 'Audio', color: '#1d9e75', bg: 'rgba(29,158,117,0.15)', type: 'audio' as const },
+              { icon: <Video size={16} strokeWidth={1.8} />, label: 'Video', color: '#0ea5e9', bg: 'rgba(14,165,233,0.15)', type: 'video' as const },
+            ].map(({ icon, label, color, bg, type }) => (
               <div key={label} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4 }}>
-                <button style={{ width: 36, height: 36, borderRadius: '50%', background: bg, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
+                <button
+                  onClick={() => activeConvo?.otherMember && setCallActive({ type, otherUser: { id: activeConvo.otherMember.id, name: activeConvo.otherMember.name || 'Soldier' } })}
+                  style={{ width: 36, height: 36, borderRadius: '50%', background: bg, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
                   {icon}
                 </button>
                 <span style={{ fontSize: 9, color: WMUT }}>{label}</span>
@@ -8832,6 +8865,7 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
       {/* Pulse keyframe for mic */}
       <style>{`@keyframes wri-pulse-opacity { 0%,100%{opacity:0.6} 50%{opacity:1} }`}</style>
     </div>
+    </>
   )
 }
 
