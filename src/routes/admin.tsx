@@ -5432,8 +5432,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [bookSearch, setBookSearch]     = useState('')
   const [quickTagId, setQuickTagId]     = useState<string | null>(null)
   const [kbExpanded, setKbExpanded]     = useState(false)
-  const fileInputRef    = useRef<HTMLInputElement>(null)
-  const pdfInputRef     = useRef<HTMLInputElement>(null)
+  const fileInputRef        = useRef<HTMLInputElement>(null)
+  const pdfInputRef         = useRef<HTMLInputElement>(null)
+  const libraryFileInputRef = useRef<HTMLInputElement>(null)
 
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
@@ -5474,13 +5475,33 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     }) || null
   }
 
-  function addFiles(files: FileList | File[], pdfOnly = false) {
+  const handleLibraryDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('[library-drop] drop event fired')
+    const files = Array.from(e.dataTransfer.files)
+    console.log('[library-drop] files:', files.map(f => f.name))
+    if (files.length === 0) return
+    addLibraryFiles(files, true)
+  }
+
+  const handleLibraryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[library-select] change event fired')
+    const files = Array.from(e.target.files || [])
+    console.log('[library-select] files:', files.map(f => f.name))
+    if (files.length === 0) return
+    addLibraryFiles(files, true)
+    e.target.value = ''
+  }
+
+  function addLibraryFiles(files: FileList | File[], pdfOnly = false) {
+    console.log('[library-add] processing', Array.from(files).length, 'files, pdfOnly:', pdfOnly)
     const valid = Array.from(files).filter(f => {
       const name = f.name.toLowerCase()
       const okType = pdfOnly
         ? (name.endsWith('.pdf') || f.type === 'application/pdf' || f.type === 'application/x-pdf')
         : (name.endsWith('.txt') || name.endsWith('.docx'))
-      console.log('[addFiles] file:', f.name, 'type:', f.type, 'size:', f.size, 'okType:', okType, 'pdfOnly:', pdfOnly)
+      console.log('[library-add] file:', f.name, 'type:', f.type, 'size:', f.size, 'okType:', okType, 'pdfOnly:', pdfOnly)
       return okType && f.size <= 50 * 1024 * 1024
     })
     const duplicates: {file: File, match: any}[] = []
@@ -6031,12 +6052,13 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         <div
           onDragOver={e => { e.preventDefault(); setDragOverAi(true) }}
           onDragLeave={() => setDragOverAi(false)}
-          onDrop={e => { e.preventDefault(); setDragOverAi(false); addFiles(e.dataTransfer.files, false) }}
+          onDrop={e => { e.preventDefault(); e.stopPropagation(); setDragOverAi(false); addLibraryFiles(e.dataTransfer.files, false) }}
+          onDragEnter={e => { e.preventDefault(); e.stopPropagation() }}
           onClick={() => fileInputRef.current?.click()}
           style={{ border: `2px dashed ${dragOverAi ? LG : 'rgba(201,168,76,0.35)'}`, borderRadius: 8, padding: '18px', marginBottom: 16, marginTop: 14, cursor: 'pointer', background: dragOverAi ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
         >
           <input ref={fileInputRef} type="file" multiple accept=".txt,.docx" style={{ display: 'none' }}
-            onChange={e => { if (e.target.files) addFiles(e.target.files, false); e.target.value = '' }} />
+            onChange={e => { if (e.target.files) addLibraryFiles(e.target.files, false); e.target.value = '' }} />
           <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 3 }}>Drop TXT or DOCX files — AI will extract and index content</div>
           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
         </div>
@@ -6367,14 +6389,21 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
         {/* PDF dropzone */}
         <div
-          onDragOver={e => { e.preventDefault(); setDragOverPdf(true) }}
+          onDrop={handleLibraryDrop}
+          onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOverPdf(true) }}
+          onDragEnter={e => { e.preventDefault(); e.stopPropagation() }}
           onDragLeave={() => setDragOverPdf(false)}
-          onDrop={e => { e.preventDefault(); setDragOverPdf(false); addFiles(e.dataTransfer.files, true) }}
-          onClick={() => pdfInputRef.current?.click()}
+          onClick={() => libraryFileInputRef.current?.click()}
           style={{ border: `2px dashed ${dragOverPdf ? LG : 'rgba(201,168,76,0.35)'}`, borderRadius: 8, padding: '18px', marginBottom: 16, cursor: 'pointer', background: dragOverPdf ? 'rgba(201,168,76,0.06)' : 'transparent', transition: 'all 0.15s', textAlign: 'center' as const }}
         >
-          <input ref={pdfInputRef} type="file" multiple accept=".pdf" style={{ display: 'none' }}
-            onChange={e => { if (e.target.files) addFiles(e.target.files, true); e.target.value = '' }} />
+          <input
+            ref={libraryFileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.txt,.docx,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            style={{ display: 'none' }}
+            onChange={handleLibraryFileSelect}
+          />
           <div style={{ fontFamily: cinzel, fontSize: 11, color: LG, letterSpacing: '0.06em', marginBottom: 3 }}>Drop PDF files — minister reading library</div>
           <div style={{ fontFamily: crimson, fontSize: 12, color: LMUT }}>or click to select · Max 50MB per file</div>
         </div>
