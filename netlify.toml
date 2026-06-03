@@ -195,3 +195,6 @@
 
 [functions."stream-backfill"]
   timeout = 60
+
+[functions."spirit-bulk-import"]
+  timeout = 300

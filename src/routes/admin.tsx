@@ -2050,6 +2050,15 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [backfillProgress, setBackfillProgress] = useState('')
   const [backfillResults, setBackfillResults]   = useState<{ totalUpdated: number; totalSkipped: number; totalFailed: number; complete: boolean } | null>(null)
 
+  // Spirit Line bulk import state
+  const [importFile,     setImportFile]     = useState<File | null>(null)
+  const [importParsed,   setImportParsed]   = useState<any[] | null>(null)
+  const [importProgress, setImportProgress] = useState<{
+    running: boolean; created: number; updated: number;
+    errors: Array<{ name: string; error: string }>; done: boolean
+  } | null>(null)
+  const [importError,    setImportError]    = useState<string | null>(null)
+
   // Selection + batch enrich state
   const [selectedSpirits, setSelectedSpirits]     = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll]                 = useState(false)
@@ -2094,6 +2103,56 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       setShowNew(true)
     }
   }, [])
+
+  async function parseImportFile(file: File): Promise<any[]> {
+    const text = await file.text()
+
+    if (file.name.endsWith('.json')) {
+      const parsed = JSON.parse(text)
+      return Array.isArray(parsed) ? parsed : (parsed.spirits ?? [])
+    }
+
+    // Extract const E = [...] array from .mjs scripts
+    const match = text.match(/const E\s*=\s*(\[[\s\S]*?\]);?\s*\n\s*(?:async function|\/\/)/)
+    if (match) return JSON.parse(match[1])
+
+    // Fallback: find any substantial JSON array in the file
+    const arrayMatch = text.match(/\[[\s\S]{100,}\]/)
+    if (arrayMatch) return JSON.parse(arrayMatch[0])
+
+    throw new Error('Could not parse spirit data from file')
+  }
+
+  async function handleImport() {
+    if (!importParsed || importParsed.length === 0) return
+    const token = await getToken()
+    if (!token) {
+      setImportError('Auth token unavailable — try refreshing')
+      return
+    }
+    setImportProgress({ running: true, created: 0, updated: 0, errors: [], done: false })
+    try {
+      const res = await fetch('/api/spirit-bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ spirits: importParsed }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }))
+        setImportError(`Import failed: ${err.error}`)
+        setImportProgress(null)
+        return
+      }
+      const data = await res.json()
+      setImportProgress({ running: false, created: data.created, updated: data.updated, errors: data.errors ?? [], done: true })
+      await fetchDemons()
+      setImportFile(null)
+      setImportParsed(null)
+    } catch (e: any) {
+      setImportError(`Import failed: ${e.message}`)
+      setImportProgress(null)
+    }
+  }
 
   async function fetchDemons() {
     setDLoading(true)
@@ -3003,6 +3062,111 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           </button>
         )}
       </div>
+
+      {/* ── IMPORT SPIRIT LINE FILE ── */}
+      <details style={{ marginBottom: 16 }}>
+        <summary style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, cursor: 'pointer', padding: '8px 0', listStyle: 'none' as const }}>
+          ⬆ IMPORT SPIRIT LINE FILE
+        </summary>
+        <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '16px', marginTop: 8 }}>
+
+          {/* Error banner */}
+          {importError && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
+              <span style={{ fontFamily: crimson, fontSize: 13, color: 'rgba(248,113,113,0.95)', flex: 1 }}>⚠ {importError}</span>
+              <button onClick={() => setImportError(null)} style={{ background: 'none', border: 'none', color: 'rgba(248,113,113,0.8)', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }}>✕</button>
+            </div>
+          )}
+
+          {/* File picker */}
+          {!importParsed && (
+            <div>
+              <label style={{ display: 'inline-block', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: G, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '8px 18px' }}>
+                📂 Choose .mjs or .json file
+                <input type="file" accept=".mjs,.json" style={{ display: 'none' }}
+                  onChange={async e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    setImportFile(file)
+                    setImportError(null)
+                    try {
+                      const parsed = await parseImportFile(file)
+                      setImportParsed(parsed)
+                    } catch (err: any) {
+                      setImportError(err.message || 'Parse failed')
+                      setImportFile(null)
+                    }
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+              <span style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginLeft: 12 }}>
+                Accepts .mjs scripts (const E = [...]) or .json arrays
+              </span>
+            </div>
+          )}
+
+          {/* Preview table */}
+          {importParsed && !importProgress && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em' }}>
+                  {importParsed.length} SPIRITS FOUND — PREVIEW{importFile ? ` · ${importFile.name}` : ''}
+                </div>
+                <button onClick={() => { setImportFile(null); setImportParsed(null) }}
+                  style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 11, fontFamily: cinzel, letterSpacing: '0.06em' }}>
+                  ✕ Clear
+                </button>
+              </div>
+              <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
+                {importParsed.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontFamily: crimson, fontSize: 13, color: TXT }}>
+                    <span style={{ minWidth: 24, color: 'rgba(201,168,76,0.4)', fontFamily: cinzel, fontSize: 9 }}>{i + 1}</span>
+                    <span style={{ flex: 1 }}>{s.name}</span>
+                    <span style={{ color: 'rgba(201,168,76,0.5)', fontSize: 11 }}>{s.typeRank || s.rank || ''}</span>
+                    <span style={{ color: 'rgba(201,168,76,0.35)', fontSize: 11 }}>{s.hierarchyCategory || ''}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={handleImport}
+                style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: G, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '10px 24px', cursor: 'pointer', fontWeight: 700 }}>
+                ⬆ IMPORT {importParsed.length} SPIRITS TO AIRTABLE
+              </button>
+            </div>
+          )}
+
+          {/* Progress / results */}
+          {importProgress && (
+            <div style={{ marginTop: 4 }}>
+              {importProgress.running && (
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em' }}>⟳ IMPORTING… THIS MAY TAKE A MINUTE</div>
+              )}
+              {importProgress.done && (
+                <div>
+                  <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
+                    <span style={{ color: '#4CAF7D', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>✓ {importProgress.created} CREATED</span>
+                    <span style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>↷ {importProgress.updated} UPDATED</span>
+                    {importProgress.errors.length > 0 && (
+                      <span style={{ color: '#D4524A', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>✗ {importProgress.errors.length} ERRORS</span>
+                    )}
+                  </div>
+                  {importProgress.errors.length > 0 && (
+                    <div style={{ background: 'rgba(212,82,74,0.1)', borderRadius: 6, padding: '8px 12px', marginBottom: 8 }}>
+                      {importProgress.errors.map((e, i) => (
+                        <div key={i} style={{ fontFamily: crimson, fontSize: 12, color: '#D4524A' }}>{e.name}: {e.error}</div>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={() => setImportProgress(null)}
+                    style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, color: '#b8a98a', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                    DISMISS
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </details>
 
       {/* New Spirit form */}
       {showNew && (
