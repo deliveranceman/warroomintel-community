@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
 const MAX_BOOKS = 20
 
-const AT_TOKEN     = () => process.env.AIRTABLE_TOKEN!
+const AT_TOKEN     = () => airtableToken!
 const AT_BASE      = 'appVXEj2DLPBTJTtD'
 const AT_TABLE     = 'tblcP4lgVykzOhLi4'
 const AT_NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
@@ -41,7 +44,7 @@ const headers = {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function fetchLibraryBooks() {

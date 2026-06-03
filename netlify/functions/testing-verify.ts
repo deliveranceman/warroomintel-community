@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -70,7 +72,7 @@ const SEED_FEATURES = [
 ]
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function resolveUser(token: string): Promise<{ userId: string; name: string; tier: string } | null> {

@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+const { publicKey: vapidPublicKey, privateKey: vapidPrivateKey, email: vapidEmail } = JSON.parse(process.env.VAPID || '{}')
+
 const HEADERS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +11,7 @@ const HEADERS = {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function isMinisterToken(token: string): Promise<boolean> {
@@ -36,7 +39,7 @@ export default async function handler(req: Request) {
   // Auth: accept service key (internal) or Clerk minister JWT
   const authHeader = req.headers.get('Authorization') || ''
   const token = authHeader.replace('Bearer ', '').trim()
-  const serviceKey = process.env.SUPABASE_SERVICE_KEY!
+  const serviceKey = supabaseServiceKey!
   const isServiceKey = token === serviceKey
   const host = req.headers.get('host') || ''
   const isInternal = host.includes('netlify') || host.includes('localhost')
@@ -63,15 +66,15 @@ export default async function handler(req: Request) {
   console.log('[send-push] Request:', { title, userId: userId || 'all', url })
 
   // Configure VAPID
-  const vapidPub = process.env.VAPID_PUBLIC_KEY
-  const vapidPriv = process.env.VAPID_PRIVATE_KEY
+  const vapidPub = vapidPublicKey
+  const vapidPriv = vapidPrivateKey
   console.log('[send-push] VAPID check:', {
     publicKeySet: !!vapidPub,
     privateKeySet: !!vapidPriv,
     publicKeyLength: vapidPub?.length ?? 0,
     privateKeyLength: vapidPriv?.length ?? 0,
     publicKeyPrefix: vapidPub ? vapidPub.slice(0, 12) + '…' : 'MISSING',
-    email: process.env.VAPID_EMAIL || 'NOT SET',
+    email: vapidEmail || 'NOT SET',
   })
 
   if (!vapidPub || !vapidPriv) {
@@ -80,9 +83,9 @@ export default async function handler(req: Request) {
 
   try {
     webpush.setVapidDetails(
-      `mailto:${process.env.VAPID_EMAIL}`,
-      process.env.VAPID_PUBLIC_KEY!,
-      process.env.VAPID_PRIVATE_KEY!
+      `mailto:${vapidEmail}`,
+      vapidPublicKey!,
+      vapidPrivateKey!
     )
     console.log('[send-push] VAPID configured successfully')
   } catch (err: any) {

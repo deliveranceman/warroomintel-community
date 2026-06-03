@@ -3,6 +3,8 @@ import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const WAR_STRATEGY_PROMPT = `You are a seasoned deliverance ministry strategist trained in the War Room Intel methodology.
 You have received a completed ministry assessment intake form for a person seeking deliverance.
 
@@ -112,7 +114,7 @@ export default async function handler(req: Request) {
 
     if (anonymizeAndLog) {
       try {
-        const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const anonymized = assessmentText
           .replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[NAME]')
           .replace(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g, '[EMAIL]')

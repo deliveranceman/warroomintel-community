@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -85,7 +87,7 @@ export default async function handler(req: Request) {
   const body = await req.json()
   const { spiritName = '', spiritDescription = '' } = body
 
-  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  const sb = createClient(supabaseUrl!, supabaseServiceKey!)
 
   // Fetch enabled books and active context in parallel
   const [booksResult, contextResult] = await Promise.all([

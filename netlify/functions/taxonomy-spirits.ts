@@ -1,7 +1,9 @@
+
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 // Dedicated endpoint for TaxonomyReview — fetches ALL spirits with ONLY
 // the taxonomy fields (Name, Kingdom, Sub-Kingdom, Biblical Rank) directly
 // from the Airtable table, NO view filter (bypasses hidden-field issue).
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN!
+const AIRTABLE_TOKEN = airtableToken!
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
 const NAME_FIELD     = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'

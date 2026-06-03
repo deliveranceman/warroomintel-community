@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+const { publicKey: vapidPublicKey, privateKey: vapidPrivateKey, email: vapidEmail } = JSON.parse(process.env.VAPID || '{}')
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -8,7 +11,7 @@ const HEADERS = {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function isMinisterToken(token: string): Promise<boolean> {
@@ -51,19 +54,19 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ sent: 0, failed: 0, total, errors: [], dryRun: true }), { status: 200, headers: HEADERS })
   }
 
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  if (!vapidPublicKey || !vapidPrivateKey) {
     return new Response(JSON.stringify({ error: 'VAPID keys not configured', total }), { status: 500, headers: HEADERS })
   }
 
-  const vapidPub = process.env.VAPID_PUBLIC_KEY
-  const vapidPriv = process.env.VAPID_PRIVATE_KEY
+  const vapidPub = vapidPublicKey
+  const vapidPriv = vapidPrivateKey
   console.log('[test-push] vapid:', {
     publicKeyLoaded: !!vapidPub,
     privateKeyLoaded: !!vapidPriv,
     publicKeyPrefix: vapidPub ? vapidPub.slice(0, 8) + '…' : 'MISSING',
   })
   webpush.setVapidDetails(
-    `mailto:${process.env.VAPID_EMAIL || 'exorcist@warroomintel.com'}`,
+    `mailto:${vapidEmail || 'exorcist@warroomintel.com'}`,
     vapidPub!,
     vapidPriv!,
   )

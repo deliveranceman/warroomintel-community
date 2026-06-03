@@ -1,4 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
+import type Stripe from 'stripe'
+
+const stripeConfig = JSON.parse(process.env.STRIPE_PRICES || '{}')
 
 async function getStripe() {
   const { default: Stripe } = await import('stripe')
@@ -11,9 +14,9 @@ function buildPriceMap(): Record<string, string> {
     'price_1TXifB5V5uqVT9SohnQfGZuC': 'Commander',
     'price_1TXifX5V5uqVT9SogXMp79zb': 'General',
   }
-  if (process.env.STRIPE_SOLDIER_PRICE_ID)   map[process.env.STRIPE_SOLDIER_PRICE_ID]   = 'Soldier'
-  if (process.env.STRIPE_COMMANDER_PRICE_ID) map[process.env.STRIPE_COMMANDER_PRICE_ID] = 'Commander'
-  if (process.env.STRIPE_GENERAL_PRICE_ID)   map[process.env.STRIPE_GENERAL_PRICE_ID]   = 'General'
+  if (stripeConfig.soldier)   map[stripeConfig.soldier]   = 'Soldier'
+  if (stripeConfig.commander) map[stripeConfig.commander] = 'Commander'
+  if (stripeConfig.general)   map[stripeConfig.general]   = 'General'
   return map
 }
 

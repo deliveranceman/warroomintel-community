@@ -2,6 +2,8 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { StreamClient } from '@stream-io/node-sdk'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 })
@@ -23,7 +25,7 @@ const CHARTER_PRICE_IDS = new Set([
 ])
 
 function getSupabase() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 const STREAM_TIER_CHANNELS: Record<string, string[]> = {

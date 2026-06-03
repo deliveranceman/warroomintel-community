@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-const AIRTABLE_TOKEN   = process.env.AIRTABLE_TOKEN
+const { token: airtableToken, ministryRequestsTable: airtableMinistryTable } = JSON.parse(process.env.AIRTABLE || '{}')
+
+const AIRTABLE_TOKEN   = airtableToken
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || 'appLPhhHPP5rKvlKT'
 // Table ID returned when "Ministry Requests" table was created in Airtable.
 // Set AIRTABLE_MINISTRY_REQUESTS_TABLE_ID in env vars after creating the table.
-const TABLE_ID = process.env.AIRTABLE_MINISTRY_REQUESTS_TABLE_ID || 'Ministry Requests'
+const TABLE_ID = airtableMinistryTable || 'Ministry Requests'
 
 export const Route = createFileRoute('/api/submit-help')({
   server: {

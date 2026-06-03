@@ -2,8 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 function getMondayDate(): string {

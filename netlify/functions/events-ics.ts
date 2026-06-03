@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 export default async function handler(req: Request) {
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
@@ -8,7 +10,7 @@ export default async function handler(req: Request) {
     return new Response('Missing id', { status: 400 })
   }
 
-  const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
   const { data: event, error } = await supabase
     .from('events')
     .select('*')

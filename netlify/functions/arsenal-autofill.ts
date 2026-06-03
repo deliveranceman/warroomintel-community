@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
+
 const HEADERS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -102,7 +104,7 @@ export default async function handler(req: Request) {
     const resourceId = reqUrl.searchParams.get('id')
     if (!resourceId) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers: HEADERS })
 
-    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
     const { data: resource } = await supabase
       .from('resources')
       .select('title, file_path')
@@ -112,7 +114,7 @@ export default async function handler(req: Request) {
     const fallbackTitle = resource?.title || ''
     let snippet = ''
     if (resource?.file_path) {
-      const bucket = process.env.SUPABASE_BUCKET || 'resources'
+      const bucket = supabaseBucket || 'resources'
       const { data: blob } = await supabase.storage.from(bucket).download(resource.file_path)
       if (blob) {
         const buf = await blob.arrayBuffer()

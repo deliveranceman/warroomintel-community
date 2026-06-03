@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Content-Type': 'application/json',
@@ -33,7 +35,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
   }
 
-  const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
   if (req.method === 'DELETE') {
     const url = new URL(req.url)
@@ -91,7 +93,7 @@ export default async function handler(req: Request) {
 
   if (uploadError) return new Response(JSON.stringify({ error: uploadError.message }), { status: 500, headers })
 
-  const fileUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filePath}`
+  const fileUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${filePath}`
 
   if (type === 'attachment') {
     const fileSizeKb = Math.round(file.size / 1024)

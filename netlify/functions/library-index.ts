@@ -10,6 +10,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const BUCKET  = 'ministry-library'
 const MAX_CHARS = 120_000          // ~30k tokens — enough context without blowing the prompt
 const CORS = {
@@ -20,8 +22,8 @@ const CORS = {
 
 function sb() {
   return createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
+    supabaseUrl!,
+    supabaseServiceKey!,
   )
 }
 

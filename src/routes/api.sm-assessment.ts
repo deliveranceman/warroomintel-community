@@ -1,11 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 export const Route = createFileRoute('/api/sm-assessment')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const body = await request.json()
         if (!body.region_id) return Response.json({ error: 'region_id required' }, { status: 400 })
         const { data, error } = await sb.from('sm_assessments').insert({
@@ -15,7 +17,7 @@ export const Route = createFileRoute('/api/sm-assessment')({
         return Response.json({ id: data.id })
       },
       PUT: async ({ request }) => {
-        const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const url = new URL(request.url)
         const id = url.searchParams.get('id')
         if (!id) return Response.json({ error: 'id required' }, { status: 400 })
@@ -27,7 +29,7 @@ export const Route = createFileRoute('/api/sm-assessment')({
         return Response.json({ ok: true })
       },
       GET: async ({ request }) => {
-        const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const url = new URL(request.url)
         const regionId = url.searchParams.get('regionId')
         if (!regionId) return Response.json({ error: 'regionId required' }, { status: 400 })

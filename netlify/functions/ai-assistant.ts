@@ -2,6 +2,8 @@ import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage, type AIFeature } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -176,7 +178,7 @@ export default async function handler(req: Request) {
   let demonContext = ''
   const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || ''
   const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'
-  const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN || ''
+  const AIRTABLE_TOKEN = airtableToken || ''
   if (AIRTABLE_BASE && AIRTABLE_TOKEN) {
     try {
       const spiritName = message.trim().split(/\s+/).slice(0, 3).join(' ')

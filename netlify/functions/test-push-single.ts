@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+const { publicKey: vapidPublicKey, privateKey: vapidPrivateKey, email: vapidEmail } = JSON.parse(process.env.VAPID || '{}')
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -8,7 +11,7 @@ const HEADERS = {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function resolveUserId(token: string): Promise<string | null> {
@@ -36,7 +39,7 @@ export default async function handler(req: Request) {
   const userId = await resolveUserId(token)
   if (!userId) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: HEADERS })
 
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  if (!vapidPublicKey || !vapidPrivateKey) {
     return new Response(JSON.stringify({ error: 'VAPID keys not configured on server' }), { status: 500, headers: HEADERS })
   }
 
@@ -50,9 +53,9 @@ export default async function handler(req: Request) {
   if (!row) return new Response(JSON.stringify({ error: 'No push subscription found for your account. Subscribe first.' }), { status: 404, headers: HEADERS })
 
   webpush.setVapidDetails(
-    `mailto:${process.env.VAPID_EMAIL || 'exorcist@warroomintel.com'}`,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY,
+    `mailto:${vapidEmail || 'exorcist@warroomintel.com'}`,
+    vapidPublicKey,
+    vapidPrivateKey,
   )
 
   try {

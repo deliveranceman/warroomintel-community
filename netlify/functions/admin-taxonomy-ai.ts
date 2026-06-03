@@ -1,4 +1,6 @@
-const AIRTABLE_TOKEN  = process.env.AIRTABLE_TOKEN!
+
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+const AIRTABLE_TOKEN  = airtableToken!
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY!
 const BASE_ID         = 'appVXEj2DLPBTJTtD'
 const TABLE_ID        = 'tblcP4lgVykzOhLi4'

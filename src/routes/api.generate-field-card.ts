@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
 const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 const BASE_ID = 'appVXEj2DLPBTJTtD'
 const TABLE_ID = 'tblcP4lgVykzOhLi4'
@@ -8,7 +10,7 @@ export const Route = createFileRoute('/api/generate-field-card')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const token = process.env.AIRTABLE_TOKEN
+        const token = airtableToken
         if (!token) {
           return Response.json({ error: 'Missing AIRTABLE_TOKEN env var' }, { status: 500 })
         }

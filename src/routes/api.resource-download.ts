@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-const SUPABASE_URL         = process.env.SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
-const SUPABASE_BUCKET      = process.env.SUPABASE_BUCKET || 'resources'
-const SIGNED_URL_EXPIRY    = parseInt(process.env.SUPABASE_SIGNED_URL_EXPIRY || '14400')
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket, signedUrlExpiry: supabaseExpiry } = JSON.parse(process.env.SUPABASE || '{}')
+
+const SUPABASE_URL         = supabaseUrl
+const SUPABASE_SERVICE_KEY = supabaseServiceKey
+const SUPABASE_BUCKET      = supabaseBucket || 'resources'
+const SIGNED_URL_EXPIRY    = parseInt(supabaseExpiry || '14400')
 
 const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
 

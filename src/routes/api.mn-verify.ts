@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+const { token: airtableToken, membersBase: airtableMembersBase, membersTable: airtableMembersTable } = JSON.parse(process.env.AIRTABLE || '{}')
+
 // ─── ENV ─────────────────────────────────────────────────────────────────────
-const AIRTABLE_TOKEN         = process.env.AIRTABLE_TOKEN
-const AIRTABLE_MEMBERS_BASE  = process.env.AIRTABLE_MEMBERS_BASE
-const AIRTABLE_MEMBERS_TABLE = process.env.AIRTABLE_MEMBERS_TABLE
+const AIRTABLE_TOKEN         = airtableToken
+const AIRTABLE_MEMBERS_BASE  = airtableMembersBase
+const AIRTABLE_MEMBERS_TABLE = airtableMembersTable
 
 // ─── ROUTE ───────────────────────────────────────────────────────────────────
 // Called with ?email=member@email.com from the client

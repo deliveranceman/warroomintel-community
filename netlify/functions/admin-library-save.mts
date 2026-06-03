@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRequire } from 'module'
+
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const require = createRequire(import.meta.url)
 
 const BUCKET = 'ministry-library'
@@ -13,8 +15,8 @@ const HEADERS = {
 
 function makeSupabase() {
   return createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
+    supabaseUrl!,
+    supabaseServiceKey!,
   )
 }
 

@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
+
 const CLERK_SECRET  = process.env.CLERK_SECRET_KEY!
-const SUPABASE_URL  = process.env.SUPABASE_URL!
-const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_KEY!
-const BUCKET        = process.env.SUPABASE_BUCKET || 'resources'
+const SUPABASE_URL  = supabaseUrl!
+const SUPABASE_KEY  = supabaseServiceKey!
+const BUCKET        = supabaseBucket || 'resources'
 
 const ALLOWED_TYPES: Record<string, { maxBytes: number }> = {
   'application/pdf':                                                             { maxBytes: 25 * 1024 * 1024 },

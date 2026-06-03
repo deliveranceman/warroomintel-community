@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+const { publicKey: vapidPublicKey, privateKey: vapidPrivateKey, email: vapidEmail } = JSON.parse(process.env.VAPID || '{}')
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -7,7 +10,7 @@ const HEADERS = {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function isMinisterToken(token: string): Promise<boolean> {
@@ -60,8 +63,8 @@ export default async function handler(req: Request) {
     }
   })
 
-  const vapidPub = process.env.VAPID_PUBLIC_KEY
-  const vapidPriv = process.env.VAPID_PRIVATE_KEY
+  const vapidPub = vapidPublicKey
+  const vapidPriv = vapidPrivateKey
 
   return new Response(JSON.stringify({
     subscriptionCount: subscriptions.length,
@@ -69,7 +72,7 @@ export default async function handler(req: Request) {
     vapidPublicKeySet: !!vapidPub,
     vapidPrivateKeySet: !!vapidPriv,
     vapidPublicKeyPrefix: vapidPub ? vapidPub.slice(0, 12) + '…' : 'NOT SET',
-    vapidEmail: process.env.VAPID_EMAIL || 'NOT SET',
+    vapidEmail: vapidEmail || 'NOT SET',
   }), { status: 200, headers: HEADERS })
 }
 

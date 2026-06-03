@@ -1,5 +1,7 @@
+
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const CLERK_SECRET   = process.env.CLERK_SECRET_KEY!
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN!
+const AIRTABLE_TOKEN = airtableToken!
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
 

@@ -1,4 +1,6 @@
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN!
+
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+const AIRTABLE_TOKEN = airtableToken!
 const AIRTABLE_BASE  = 'appVXEj2DLPBTJTtD'
 const AIRTABLE_TABLE = 'tblcP4lgVykzOhLi4'
 const NAME_FIELD     = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'

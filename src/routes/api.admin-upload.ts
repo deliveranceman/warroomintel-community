@@ -1,10 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { verifyAdminCookie } from './api.admin-auth'
 
-const SUPABASE_URL         = process.env.SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
-const SUPABASE_BUCKET      = process.env.SUPABASE_BUCKET || 'resources'
-const AIRTABLE_TOKEN       = process.env.AIRTABLE_TOKEN
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
+const SUPABASE_URL         = supabaseUrl
+const SUPABASE_SERVICE_KEY = supabaseServiceKey
+const SUPABASE_BUCKET      = supabaseBucket || 'resources'
+const AIRTABLE_TOKEN       = airtableToken
 const AIRTABLE_RESOURCES_BASE  = 'apph6wmOeYjovFytC'
 const AIRTABLE_RESOURCES_TABLE = 'tblVyx8jWlz2HYoWU'
 

@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
+const AIRTABLE_TOKEN = airtableToken
 const BASE_ID = 'appLPhhHPP5rKvlKT'
 const ASSESSMENTS_TABLE = 'tblohf2u576ZXiE4y'
 

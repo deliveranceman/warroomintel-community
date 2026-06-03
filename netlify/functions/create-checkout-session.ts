@@ -1,6 +1,8 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2023-10-16' })
 
 const _pricesJson: Record<string, string> = (() => {
@@ -26,7 +28,7 @@ const headers = {
 }
 
 function getSupabase() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function resolveUser(token: string): Promise<{ userId: string; email: string | null } | null> {

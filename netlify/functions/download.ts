@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
+
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
-const SUPABASE_URL = process.env.SUPABASE_URL!
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
+const SUPABASE_URL = supabaseUrl!
+const SUPABASE_KEY = supabaseServiceKey!
 const EXPIRY_SECS  = 14400 // 4 hours
 
 const TIER_ORDER: Record<string, number> = {
@@ -13,7 +15,7 @@ const TIER_ORDER: Record<string, number> = {
 }
 
 function bucketForPath(filePath: string): string {
-  return filePath.startsWith('user_') ? 'ministry-library' : (process.env.SUPABASE_BUCKET || 'resources')
+  return filePath.startsWith('user_') ? 'ministry-library' : (supabaseBucket || 'resources')
 }
 
 async function verifyAndGetTier(token: string): Promise<{ userId: string; tier: string } | null> {

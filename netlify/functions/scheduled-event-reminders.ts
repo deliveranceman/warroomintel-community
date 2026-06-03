@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const TIER_LEVEL: Record<string, number> = {
   free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4,
 }
 
 export default async function handler() {
-  const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
   const now = new Date()
   const windowStart = new Date(now.getTime() + 55 * 60 * 1000).toISOString()

@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { getUsageToday, DAILY_LIMITS } from '../lib/ai-rate-limit'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -8,7 +10,7 @@ const headers = {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 async function resolveTokenUser(token: string): Promise<{ userId: string; tier: string; isMinister: boolean } | null> {

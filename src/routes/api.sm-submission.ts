@@ -1,11 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 export const Route = createFileRoute('/api/sm-submission')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const { regionId, assessmentId, submitted_by, submitted_by_name } = await request.json()
         if (!regionId) return Response.json({ error: 'regionId required' }, { status: 400 })
         const { data, error } = await sb.from('sm_submissions').insert({
@@ -17,7 +19,7 @@ export const Route = createFileRoute('/api/sm-submission')({
         return Response.json({ submission: data })
       },
       GET: async ({ request }) => {
-        const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const url = new URL(request.url)
         const userId = url.searchParams.get('userId')
         const pending = url.searchParams.get('pending') === 'true'
@@ -30,7 +32,7 @@ export const Route = createFileRoute('/api/sm-submission')({
         return Response.json({ submissions: data || [] })
       },
       PATCH: async ({ request }) => {
-        const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const { id, admin_status, admin_notes, regionId } = await request.json()
         if (!id) return Response.json({ error: 'id required' }, { status: 400 })
         await sb.from('sm_submissions').update({ admin_status, admin_notes, reviewed_at: new Date().toISOString() }).eq('id', id)

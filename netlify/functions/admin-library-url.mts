@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const BUCKET = 'ministry-library'
 
 function makeSupabase() {
   return createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
+    supabaseUrl!,
+    supabaseServiceKey!,
   )
 }
 

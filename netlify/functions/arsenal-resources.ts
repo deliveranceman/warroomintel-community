@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = process.env.SUPABASE_URL!
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
+
+const SUPABASE_URL = supabaseUrl!
+const SUPABASE_KEY = supabaseServiceKey!
 
 const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3, free: 0, soldier: 1, commander: 2, general: 3 }
 
@@ -103,7 +105,7 @@ export default async function handler(req: Request) {
   const allPaths = (data || []).filter((r: any) => r.file_path).map((r: any) => r.file_path as string)
   const libPaths = allPaths.filter(p => p.startsWith('user_'))
   const resPaths = allPaths.filter(p => !p.startsWith('user_'))
-  const bucketName = process.env.SUPABASE_BUCKET || 'resources'
+  const bucketName = supabaseBucket || 'resources'
   if (resPaths.length > 0) {
     const { data: signedUrls } = await supabase.storage.from(bucketName).createSignedUrls(resPaths, 3600)
     for (const su of signedUrls || []) {

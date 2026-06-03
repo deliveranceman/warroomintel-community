@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -43,7 +45,7 @@ export default async function handler(req: Request) {
   if (!spirit) return new Response(JSON.stringify({ resources: [] }), { status: 200, headers })
 
   try {
-    const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+    const sb = createClient(supabaseUrl!, supabaseServiceKey!)
 
     // Build tier filter — include resources up to user's tier
     const tierNames = Object.entries(TIER_ORDER)

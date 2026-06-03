@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -28,7 +30,7 @@ export default async function handler(req: Request) {
   const jobId = url.searchParams.get('jobId')
   if (!jobId) return new Response(JSON.stringify({ error: 'jobId required' }), { status: 400, headers })
 
-  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  const sb = createClient(supabaseUrl!, supabaseServiceKey!)
   const { data, error } = await sb.from('ai_enhance_jobs').select('status,fields,error').eq('id', jobId).single()
 
   if (error || !data) {

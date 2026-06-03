@@ -1,5 +1,7 @@
+
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const CLERK_SECRET   = process.env.CLERK_SECRET_KEY!
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN || process.env.AIRTABLE_API_TOKEN || ''
+const AIRTABLE_TOKEN = airtableToken || process.env.AIRTABLE_API_TOKEN || ''
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
 const NAME_FIELD     = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'

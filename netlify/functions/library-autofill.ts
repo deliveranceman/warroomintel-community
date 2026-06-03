@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -22,7 +25,7 @@ function getUserId(authHeader: string | null): string | null {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 // ─── REGEX EXTRACTION ─────────────────────────────────────────────────────────
@@ -260,7 +263,6 @@ function extractSpiritSections(text: string): string {
 // ─── AIRTABLE FETCH ───────────────────────────────────────────────────────────
 
 async function fetchExistingDemonNames(): Promise<string[]> {
-  const airtableToken = process.env.AIRTABLE_TOKEN
   if (!airtableToken) {
     console.warn('[AUTOFILL] AIRTABLE_TOKEN not set — skipping demon DB filter')
     return []

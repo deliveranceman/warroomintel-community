@@ -2,7 +2,9 @@ import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN!
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
+const AIRTABLE_TOKEN = airtableToken!
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
 const NAME_FIELD     = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'

@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN || ''
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+
+const AIRTABLE_TOKEN = airtableToken || ''
 const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || 'appVXEj2DLPBTJTtD'
 const AIRTABLE_TABLE = process.env.AIRTABLE_DEMON_TABLE_ID || 'tblcP4lgVykzOhLi4'
 
@@ -33,8 +36,8 @@ export default async function handler(req: Request) {
   }
 
   const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
+    supabaseUrl!,
+    supabaseServiceKey!
   )
 
   const body = await req.json().catch(() => ({}))
