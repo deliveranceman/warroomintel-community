@@ -85,7 +85,7 @@ function AskSolPage() {
         {/* Header */}
         <div style={{ borderBottom: `1px solid ${BDR}`, padding: '16px 24px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <SolIcon size={22} />
+            <img src="/images/sol/sol-icon.png" width={22} height={22} style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.8)) brightness(1.1)', mixBlendMode: 'screen' }} alt="" />
             <div>
               <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', fontWeight: 700 }}>ASK SOL</div>
               <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.2em', marginTop: 2 }}>SENTINEL OF LIGHT — WARFARE INTELLIGENCE</div>
@@ -97,7 +97,7 @@ function AskSolPage() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {messages.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 16px 0', maxWidth: 480, margin: '0 auto' }}>
-              <SolIcon size={40} />
+              <img src="/images/sol/sol-icon.png" width={40} height={40} style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 14px rgba(201,168,76,0.7)) brightness(1.1)', mixBlendMode: 'screen' }} alt="" />
               <div style={{ fontFamily: cinzel, fontSize: 12, color: DIM, letterSpacing: '0.15em', marginTop: 20, marginBottom: 8 }}>SENTINEL OF LIGHT</div>
               <div style={{ fontFamily: crimson, fontSize: 16, color: DIM, lineHeight: 1.7 }}>
                 Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, legal grounds, prayer strategy, or any ministry question.

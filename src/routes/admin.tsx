@@ -9463,319 +9463,352 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   )
 }
 
-// ─── ContentSuggestions ──────────────────────────────────────────────────────
+// ─── CONTENT STUDIO ──────────────────────────────────────────────────────────
+type CSType = 'daily_brief' | 'field_manual' | 'weekly_intel' | 'fringe_article'
 
-const CONTENT_TYPE_LABELS: Record<string, string> = {
-  weekly_intel: 'Weekly Intel', arsenal_pdf: 'Arsenal PDF',
-  daily_brief: 'Daily Brief', field_manual: 'Field Manual', youtube_outline: 'YouTube',
-}
-const CONTENT_TYPE_ICONS: Record<string, string> = {
-  weekly_intel: '📡', arsenal_pdf: '📄', daily_brief: '☀️', field_manual: '⚔', youtube_outline: '🎥',
-}
-const TIER_BADGE_COLORS: Record<string, string> = {
-  watchman: '#6a6080', soldier: '#5C7CBF', commander: '#7C5CBF', general: '#C9A84C',
+const CS_TYPE_CONFIG: Record<CSType, { icon: string; label: string; desc: string }> = {
+  daily_brief:    { icon: '📅', label: 'Daily Brief',   desc: 'Morning prayer, scripture, devotional, evening prayer' },
+  field_manual:   { icon: '📖', label: 'Field Manual',  desc: 'Ministry protocol with scriptures, steps & declarations' },
+  weekly_intel:   { icon: '📡', label: 'Weekly Intel',  desc: 'Ministry intelligence briefing for commanders' },
+  fringe_article: { icon: '🔍', label: 'Fringe Article', desc: 'Occult/spiritual warfare intelligence report' },
 }
 
-function ContentSuggestions({ getToken, isDark }: { getToken: any; isDark: boolean }) {
-  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
-  const surf = isDark ? 'rgba(201,168,76,0.06)' : '#FFFFFF'
-  const bdr  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
-  const txt  = isDark ? '#E8D5B0' : '#2D2924'
-  const mut  = isDark ? '#8B7355' : '#5C5248'
-  const GG   = isDark ? '#C9A84C' : '#8B6914'
-  const inp: React.CSSProperties = { background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 12px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+function ContentStudio({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const bg    = isDark ? '#0D0B14' : '#FAF8F5'
+  const panel = isDark ? '#0f0e16' : '#EDE6D3'
+  const surf  = isDark ? 'rgba(201,168,76,0.06)' : '#FFFFFF'
+  const bdr   = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const txt2  = isDark ? '#E8D5B0' : '#2D2924'
+  const mut   = isDark ? '#8B7355' : '#5C5248'
+  const GG    = isDark ? '#C9A84C' : '#8B6914'
+  const inp: React.CSSProperties = { background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 12px', color: txt2, fontFamily: crimson, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const }
 
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [loading, setLoading]         = useState(false)
-  const [generating, setGenerating]   = useState(false)
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [typeFilter, setTypeFilter]   = useState<string>('all')
-  const [msg, setMsg]                 = useState('')
-  const [editingId, setEditingId]     = useState<string | null>(null)
-  const [editForm, setEditForm]       = useState<Record<string, any>>({})
-  const [schedulePicker, setSchedulePicker] = useState<{ id: string; title: string } | null>(null)
-  const [scheduleTime, setScheduleTime]     = useState('')
-  const [topicInput, setTopicInput]   = useState('')
-  const [pendingCount, setPendingCount] = useState(0)
-  const [aiGenerating, setAiGenerating] = useState(false)
-  const [aiGenError, setAiGenError]     = useState('')
+  const [csType, setCsType]       = useState<CSType>('daily_brief')
+  const [title, setTitle]         = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [generated, setGenerated] = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [msg, setMsg]             = useState('')
 
-  async function load() {
-    setLoading(true)
-    try {
-      const token = await getToken()
-      const params = new URLSearchParams()
-      if (statusFilter !== 'all') params.set('status', statusFilter)
-      if (typeFilter   !== 'all') params.set('content_type', typeFilter)
-      const res = await fetch(`/api/content-suggestions?${params}`, { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) {
-        const d = await res.json()
-        setSuggestions(d.suggestions || [])
-        setPendingCount((d.suggestions || []).filter((s: any) => s.status === 'pending').length)
-      }
-    } finally { setLoading(false) }
+  // Daily Brief
+  const [morningPrayer, setMorningPrayer] = useState('')
+  const [scripture, setScripture]         = useState('')
+  const [scriptureText, setScriptureText] = useState('')
+  const [devotional, setDevotional]       = useState('')
+  const [eveningPrayer, setEveningPrayer] = useState('')
+  const [videoUrl, setVideoUrl]           = useState('')
+  const [briefDate, setBriefDate]         = useState(new Date().toISOString().slice(0, 10))
+
+  // Field Manual
+  const [fmSummary, setFmSummary] = useState('')
+  const [fmDraft, setFmDraft]     = useState('')
+  const [fmCategory, setFmCategory] = useState('General')
+
+  // Weekly Intel
+  const [wiSummary, setWiSummary] = useState('')
+  const [wiBody, setWiBody]       = useState('')
+  const [wiTags, setWiTags]       = useState('')
+
+  // Fringe Article
+  const [faCategory, setFaCategory] = useState<'open-intel' | 'classified' | 'the-feed' | 'intel-faq'>('open-intel')
+  const [faBody, setFaBody]         = useState('')
+  const [faSummary, setFaSummary]   = useState('')
+
+  function clearFields() {
+    setMorningPrayer(''); setScripture(''); setScriptureText(''); setDevotional(''); setEveningPrayer(''); setVideoUrl('')
+    setFmSummary(''); setFmDraft('')
+    setWiSummary(''); setWiBody(''); setWiTags('')
+    setFaCategory('open-intel'); setFaBody(''); setFaSummary('')
+    setGenerated(false); setMsg('')
   }
-
-  useEffect(() => { load() }, [statusFilter, typeFilter])
 
   async function generate() {
+    if (!title.trim()) { setMsg('Enter a title first'); return }
     setGenerating(true); setMsg('')
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/generate-content-suggestions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topicInput.trim() || undefined }),
-      })
-      const d = await res.json()
-      if (res.ok) { setMsg(`Generated ${d.count} suggestions`); setTopicInput(''); load() }
-      else setMsg(d.error || 'Generation failed')
-    } catch { setMsg('Network error') }
-    setGenerating(false)
-  }
-
-  async function patchSuggestion(id: string, action: string, extra: Record<string, any> = {}) {
-    const token = await getToken()
-    const res = await fetch(`/api/content-suggestions?id=${id}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...extra }),
-    })
-    const d = await res.json()
-    if (res.ok) { load(); setEditingId(null); setSchedulePicker(null); setMsg('') }
-    else setMsg(d.error || 'Action failed')
-  }
-
-  function startEdit(s: any) {
-    setEditingId(s.id)
-    setEditForm({ title: s.title, summary: s.summary, full_draft: s.full_draft || '', notes: s.notes || '' })
-    setMsg('')
-    setAiGenError('')
-  }
-
-  async function handleGenerateDraft() {
-    if (!editForm.title?.trim() || !editForm.summary?.trim()) { setAiGenError('Enter Title and Summary first'); return }
-    setAiGenerating(true); setAiGenError('')
     try {
       const token = await getToken()
       const res = await fetch('/api/admin-content-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: editForm.title, summary: editForm.summary, type: 'field_manual' }),
+        body: JSON.stringify({ title: title.trim(), type: csType }),
       })
       const data = await res.json()
-      if (res.ok && data.content) setEditForm(p => ({ ...p, full_draft: data.content }))
-      else setAiGenError(data.error || 'Generation failed — try again')
-    } catch { setAiGenError('Generation failed — try again') }
-    setAiGenerating(false)
+      if (!res.ok) { setMsg(data.error || 'Generation failed'); setGenerating(false); return }
+
+      if (csType === 'daily_brief') {
+        setMorningPrayer(data.morningPrayer || '')
+        setScripture(data.scripture || '')
+        setScriptureText(data.scriptureText || '')
+        setDevotional(data.devotional || '')
+        setEveningPrayer(data.eveningPrayer || '')
+      } else if (csType === 'field_manual') {
+        setFmSummary(data.summary || '')
+        setFmDraft(data.draft || data.content || '')
+      } else if (csType === 'weekly_intel') {
+        setWiSummary(data.summary || '')
+        setWiBody(data.body || '')
+        setWiTags(Array.isArray(data.tags) ? data.tags.join(', ') : '')
+      } else {
+        setFaCategory((data.category as any) || 'open-intel')
+        setFaBody(data.body || '')
+        setFaSummary(data.body ? data.body.slice(0, 200) : '')
+      }
+      setGenerated(true)
+    } catch { setMsg('Network error') }
+    setGenerating(false)
   }
 
-  const STATUS_COLORS: Record<string, string> = {
-    pending: '#a07040', approved: '#4a8a4a', rejected: '#8a3232', published: '#4a6a9a',
+  async function save(publish: boolean) {
+    if (!title.trim()) { setMsg('Enter a title first'); return }
+    setSaving(true); setMsg('')
+    try {
+      const token = await getToken()
+      const auth = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      let res: Response
+
+      if (csType === 'daily_brief') {
+        res = await fetch('/api/daily-devotion', {
+          method: 'POST', headers: auth,
+          body: JSON.stringify({ date: briefDate, title, morningPrayer, devotionalText: devotional, scripture: scriptureText, scriptureReference: scripture, eveningPrayer, youtubeUrl: videoUrl || null, published: publish, minTier: 'watchman' }),
+        })
+      } else if (csType === 'field_manual') {
+        res = await fetch('/api/field-manual', {
+          method: 'POST', headers: auth,
+          body: JSON.stringify({ category: fmCategory || 'General', title, slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), content: fmDraft, is_published: publish }),
+        })
+      } else if (csType === 'weekly_intel') {
+        res = await fetch('/api/intel-posts', {
+          method: 'POST', headers: auth,
+          body: JSON.stringify({ title, body: wiBody, post_type: 'briefing' }),
+        })
+      } else {
+        res = await fetch('/api/fringe-articles', {
+          method: 'POST', headers: auth,
+          body: JSON.stringify({ title, summary: faSummary || faBody.slice(0, 200), wri_take: faBody, tag: faCategory, status: publish ? 'published' : 'pending' }),
+        })
+      }
+
+      const d = await res.json()
+      if (res.ok) { setMsg(`✓ ${publish ? 'Published' : 'Saved as draft'} — ${CS_TYPE_CONFIG[csType].label}`); setTitle(''); clearFields() }
+      else setMsg(d.error || 'Save failed')
+    } catch { setMsg('Network error') }
+    setSaving(false)
   }
 
-  const displayed = suggestions.filter(s =>
-    (statusFilter === 'all' || s.status === statusFilter) &&
-    (typeFilter   === 'all' || s.content_type === typeFilter)
+  const tierBadge = (label: string, color: string, bg: string, bd: string) => (
+    <span style={{ fontFamily: cinzel, fontSize: 7, color, background: bg, border: `1px solid ${bd}`, borderRadius: 10, padding: '2px 7px', marginLeft: 8 }}>{label}</span>
   )
-  const published = displayed.filter(s => s.status === 'published').slice(0, 10)
-  const active    = displayed.filter(s => s.status !== 'published')
 
   return (
-    <div>
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12, marginBottom: 20 }}>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: 18, color: GG, letterSpacing: '0.08em', marginBottom: 4 }}>✦ AI Content Suggestions</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>Week of {new Date().toISOString().slice(0, 10)}</div>
+    <div style={{ display: 'flex', minHeight: 'calc(100vh - 180px)' }}>
+      {/* ── Left panel ── */}
+      <div style={{ width: 292, flexShrink: 0, background: panel, borderRight: `1px solid ${bdr}`, padding: '24px 18px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: GG, letterSpacing: '0.15em', marginBottom: 4 }}>✦ CONTENT STUDIO</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5 }}>SOL generates complete content from your title.</div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
-          <input value={topicInput} onChange={e => setTopicInput(e.target.value)} placeholder="Bias topic (optional)..."
-            style={{ ...inp, width: 200, padding: '7px 10px', fontSize: 13 }} />
-          <button onClick={generate} disabled={generating}
-            style={{ padding: '8px 18px', background: generating ? 'rgba(201,168,76,0.15)' : GG, color: generating ? GG : '#0D0B14', border: `1px solid ${GG}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: generating ? 'wait' : 'pointer', opacity: generating ? 0.7 : 1, flexShrink: 0 }}>
-            {generating ? '⚡ GENERATING...' : '⚡ GENERATE NOW'}
-          </button>
-        </div>
-      </div>
 
-      {msg && <div style={{ marginBottom: 14, padding: '8px 14px', background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: crimson, fontSize: 13, color: GG }}>{msg}</div>}
-
-      {/* Status filter */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: `1px solid ${bdr}`, overflowX: 'auto' as const }}>
-        {(['all', 'pending', 'approved', 'published', 'rejected'] as const).map(s => (
-          <button key={s} onClick={() => setStatusFilter(s)}
-            style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: statusFilter === s ? `2px solid ${GG}` : '2px solid transparent', color: statusFilter === s ? GG : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
-            {s.toUpperCase()}{s === 'pending' && pendingCount > 0 ? ` (${pendingCount})` : ''}
-          </button>
-        ))}
-        <div style={{ flex: 1 }} />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 4, padding: '4px 10px', color: txt, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>
-          <option value="all">All Types</option>
-          {Object.entries(CONTENT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-      </div>
-
-      {loading && <div style={{ fontFamily: cinzel, fontSize: 10, color: GG, letterSpacing: '0.1em', padding: '20px 0' }}>LOADING...</div>}
-
-      {/* Active suggestion cards */}
-      {active.map(s => (
-        <div key={s.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '18px 20px', marginBottom: 14 }}>
-          {editingId === s.id ? (
-            // Inline editor
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <span style={{ fontFamily: cinzel, fontSize: 10, color: CONTENT_TYPE_ICONS[s.content_type] ? GG : mut, letterSpacing: '0.08em' }}>
-                  {CONTENT_TYPE_ICONS[s.content_type]} {CONTENT_TYPE_LABELS[s.content_type] || s.content_type}
-                </span>
-                <button onClick={() => setEditingId(null)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 16 }}>×</button>
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>TITLE</label>
-                <input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} style={inp} />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>SUMMARY</label>
-                <textarea value={editForm.summary} onChange={e => setEditForm(p => ({ ...p, summary: e.target.value }))} rows={3} style={{ ...inp, resize: 'vertical' as const }} />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em' }}>FULL DRAFT (MARKDOWN)</label>
-                  <button
-                    type="button"
-                    disabled={aiGenerating}
-                    onClick={handleGenerateDraft}
-                    style={{ fontFamily: 'Cinzel, serif', fontSize: 9, letterSpacing: '0.1em', color: '#1a1305', background: '#C9A84C', border: 'none', borderRadius: 2, padding: '4px 12px', cursor: 'pointer', opacity: aiGenerating ? 0.6 : 1 }}>
-                    {aiGenerating ? 'Generating...' : '✦ Generate Draft'}
-                  </button>
-                  {aiGenError && <span style={{ fontSize: 12, color: '#ef4444' }}>{aiGenError}</span>}
-                </div>
-                <textarea value={editForm.full_draft} onChange={e => setEditForm(p => ({ ...p, full_draft: e.target.value }))} rows={10} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 12 }} />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>NOTES</label>
-                <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => patchSuggestion(s.id, 'approve', { ...editForm })}
-                  style={{ padding: '8px 18px', background: 'rgba(74,138,74,0.15)', border: '1px solid rgba(74,138,74,0.5)', borderRadius: 6, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                  Save and Approve
-                </button>
-                <button onClick={() => setEditingId(null)}
-                  style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Card header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' as const }}>
-                    <span style={{ fontFamily: cinzel, fontSize: 9, color: GG, background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '2px 8px', letterSpacing: '0.06em' }}>
-                      {CONTENT_TYPE_ICONS[s.content_type]} {(CONTENT_TYPE_LABELS[s.content_type] || s.content_type).toUpperCase()}
-                    </span>
-                    <span style={{ fontFamily: cinzel, fontSize: 9, color: '#fff', background: TIER_BADGE_COLORS[s.suggested_tier] || '#6a6080', borderRadius: 10, padding: '2px 8px', letterSpacing: '0.06em' }}>
-                      {(s.suggested_tier || 'watchman').toUpperCase()}
-                    </span>
-                    <span style={{ fontFamily: cinzel, fontSize: 9, color: STATUS_COLORS[s.status] || GG, letterSpacing: '0.06em', marginLeft: 'auto' }}>
-                      {s.status === 'pending' ? 'Suggested by AI' : s.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <div style={{ fontFamily: cinzel, fontSize: 15, color: GG, letterSpacing: '0.04em', marginBottom: 6 }}>{s.title}</div>
-                  <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6 }}>{s.summary}</div>
-                  {s.status === 'approved' && s.scheduled_for && (
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.08em', marginTop: 8 }}>
-                      APPROVED — Scheduled: {new Date(s.scheduled_for).toLocaleString()}
-                    </div>
-                  )}
-                  {s.status === 'approved' && !s.scheduled_for && (
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.08em', marginTop: 8 }}>APPROVED</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Schedule picker inline */}
-              {schedulePicker?.id === s.id && (
-                <div style={{ marginBottom: 12, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: `1px solid ${bdr}`, borderRadius: 6 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 8 }}>SCHEDULE FOR</div>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
-                    <input type="datetime-local" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
-                      style={{ ...inp, width: 'auto', fontSize: 12, padding: '6px 10px' }} />
-                    <button onClick={() => patchSuggestion(s.id, 'approve', { scheduled_for: scheduleTime || null })}
-                      style={{ padding: '6px 14px', background: 'rgba(74,138,74,0.15)', border: '1px solid rgba(74,138,74,0.5)', borderRadius: 6, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                      Confirm
-                    </button>
-                    <button onClick={() => patchSuggestion(s.id, 'approve', {})}
-                      style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                      Publish Now
-                    </button>
-                    <button onClick={() => setSchedulePicker(null)}
-                      style={{ background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 14 }}>×</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginTop: 12 }}>
-                {s.status === 'pending' && (
-                  <button onClick={() => { setSchedulePicker({ id: s.id, title: s.title }); setScheduleTime('') }}
-                    style={{ padding: '7px 16px', background: 'rgba(74,138,74,0.12)', border: '1px solid rgba(74,138,74,0.4)', borderRadius: 6, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                    Approve and Schedule
-                  </button>
-                )}
-                {s.status === 'approved' && (
-                  <button onClick={() => patchSuggestion(s.id, 'publish')}
-                    style={{ padding: '7px 16px', background: 'rgba(74,110,154,0.15)', border: '1px solid rgba(74,110,154,0.5)', borderRadius: 6, color: '#60a5fa', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                    Publish Now
-                  </button>
-                )}
-                <button onClick={() => startEdit(s)}
-                  style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                  Edit
-                </button>
-                {s.status === 'pending' && (
-                  <button onClick={() => patchSuggestion(s.id, 'reject')}
-                    style={{ padding: '7px 14px', background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, color: '#f87171', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-                    Reject
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      ))}
-
-      {!loading && active.length === 0 && (
-        <div style={{ padding: '32px 0', textAlign: 'center' as const, color: mut, fontFamily: crimson, fontSize: 14 }}>
-          No suggestions found. Click Generate Now to create this week's suggestions.
-        </div>
-      )}
-
-      {/* Published history */}
-      {published.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.12em', marginBottom: 12 }}>PUBLISHED HISTORY</div>
-          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
-            {published.map((s, i) => (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: i < published.length - 1 ? `1px solid ${bdr}` : 'none' }}>
-                <span style={{ fontFamily: cinzel, fontSize: 10, color: '#60a5fa', flexShrink: 0 }}>
-                  {CONTENT_TYPE_ICONS[s.content_type]}
-                </span>
-                <span style={{ fontFamily: crimson, fontSize: 13, color: txt, flex: 1 }}>{s.title}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, flexShrink: 0 }}>
-                  {CONTENT_TYPE_LABELS[s.content_type] || s.content_type}
-                </span>
-                <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, flexShrink: 0 }}>
-                  {s.published_at ? new Date(s.published_at).toLocaleDateString() : ''}
-                </span>
-              </div>
+        {/* Type grid */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.15em', marginBottom: 10 }}>CONTENT TYPE</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {(Object.entries(CS_TYPE_CONFIG) as [CSType, typeof CS_TYPE_CONFIG[CSType]][]).map(([key, cfg]) => (
+              <button key={key} onClick={() => { setCsType(key); clearFields() }}
+                style={{ padding: '12px 6px', background: csType === key ? 'rgba(201,168,76,0.12)' : surf, border: `1px solid ${csType === key ? GG : bdr}`, borderRadius: 8, cursor: 'pointer', textAlign: 'center' as const }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{cfg.icon}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 7, color: csType === key ? GG : mut, letterSpacing: '0.06em', lineHeight: 1.3 }}>{cfg.label.toUpperCase()}</div>
+              </button>
             ))}
           </div>
         </div>
-      )}
+
+        {/* Title */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.14em', marginBottom: 7 }}>TITLE</div>
+          <input value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') generate() }}
+            placeholder={`${CS_TYPE_CONFIG[csType].label} title...`}
+            style={{ ...inp, fontSize: 13, padding: '10px 12px' }} />
+        </div>
+
+        {/* Generate button */}
+        <button onClick={generate} disabled={generating || !title.trim()}
+          style={{ width: '100%', padding: '11px', background: generating ? `rgba(201,168,76,0.1)` : GG, color: generating ? GG : '#0D0B14', border: `1px solid ${GG}`, borderRadius: 8, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', cursor: generating || !title.trim() ? 'not-allowed' : 'pointer', opacity: !title.trim() && !generating ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+          <img src="/images/sol/sol-icon.png" width={13} height={13} style={{ objectFit: 'contain' as const, filter: generating ? 'none' : 'brightness(0)' }} />
+          {generating ? 'GENERATING...' : '✦ GENERATE WITH SOL'}
+        </button>
+        <div style={{ fontFamily: crimson, fontSize: 11, color: mut, textAlign: 'center' as const, lineHeight: 1.5 }}>
+          SOL fills all fields based on your title
+        </div>
+
+        {msg && (
+          <div style={{ marginTop: 16, padding: '8px 12px', background: msg.startsWith('✓') ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.06)', border: `1px solid ${msg.startsWith('✓') ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.25)'}`, borderRadius: 6, fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171' }}>
+            {msg}
+          </div>
+        )}
+      </div>
+
+      {/* ── Right panel ── */}
+      <div style={{ flex: 1, padding: '24px 28px', overflowY: 'auto' as const, background: bg }}>
+        {!generated && !title && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: mut, textAlign: 'center' as const, padding: '60px 0' }}>
+            <img src="/images/sol/sol-icon.png" width={56} height={56}
+              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(201,168,76,0.4))', mixBlendMode: 'screen' as const }} />
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: GG, letterSpacing: '0.15em' }}>CONTENT STUDIO</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: mut, maxWidth: 360, lineHeight: 1.7 }}>
+              Select a type, enter your title, and click Generate. SOL writes the complete content.
+            </div>
+          </div>
+        )}
+
+        {(generated || title) && (
+          <div>
+            {generated && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, padding: '7px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 6 }}>
+                <img src="/images/sol/sol-icon.png" width={12} height={12} style={{ objectFit: 'contain' }} />
+                <span style={{ fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em' }}>✦ GENERATED BY SOL — Review and edit before saving</span>
+              </div>
+            )}
+
+            {/* Daily Brief form */}
+            {csType === 'daily_brief' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>TITLE</label>
+                    <input value={title} onChange={e => setTitle(e.target.value)} style={inp} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>DATE</label>
+                    <input type="date" value={briefDate} onChange={e => setBriefDate(e.target.value)} style={{ ...inp, width: 150 }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em' }}>MORNING PRAYER</label>
+                    {tierBadge('WATCHMAN FREE', '#C9A84C', 'rgba(201,168,76,0.08)', 'rgba(201,168,76,0.25)')}
+                  </div>
+                  <textarea value={morningPrayer} onChange={e => setMorningPrayer(e.target.value)} rows={5} style={{ ...inp, resize: 'vertical' as const }} />
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>SCRIPTURE REFERENCE</label>
+                    <input value={scripture} onChange={e => setScripture(e.target.value)} placeholder="e.g. Ephesians 6:12" style={inp} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>SCRIPTURE TEXT</label>
+                  <textarea value={scriptureText} onChange={e => setScriptureText(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' as const }} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em' }}>DEVOTIONAL</label>
+                    {tierBadge('SOLDIER+', '#4ade80', 'rgba(74,222,128,0.06)', 'rgba(74,222,128,0.3)')}
+                  </div>
+                  <textarea value={devotional} onChange={e => setDevotional(e.target.value)} rows={10} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 12 }} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em' }}>EVENING PRAYER</label>
+                    {tierBadge('SOLDIER+', '#4ade80', 'rgba(74,222,128,0.06)', 'rgba(74,222,128,0.3)')}
+                  </div>
+                  <textarea value={eveningPrayer} onChange={e => setEveningPrayer(e.target.value)} rows={4} style={{ ...inp, resize: 'vertical' as const }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.1em', marginBottom: 6 }}>VIDEO URL (OPTIONAL)</label>
+                  <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://youtube.com/..." style={inp} />
+                </div>
+              </div>
+            )}
+
+            {/* Field Manual form */}
+            {csType === 'field_manual' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>TITLE</label>
+                    <input value={title} onChange={e => setTitle(e.target.value)} style={inp} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>CATEGORY</label>
+                    <input value={fmCategory} onChange={e => setFmCategory(e.target.value)} placeholder="e.g. Deliverance" style={inp} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>SUMMARY</label>
+                  <textarea value={fmSummary} onChange={e => setFmSummary(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' as const }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>FULL DRAFT (MARKDOWN)</label>
+                  <textarea value={fmDraft} onChange={e => setFmDraft(e.target.value)} rows={20} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 12 }} />
+                </div>
+              </div>
+            )}
+
+            {/* Weekly Intel form */}
+            {csType === 'weekly_intel' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>TITLE</label>
+                  <input value={title} onChange={e => setTitle(e.target.value)} style={inp} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>SUMMARY HOOK</label>
+                  <textarea value={wiSummary} onChange={e => setWiSummary(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' as const }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>BODY CONTENT (MARKDOWN)</label>
+                  <textarea value={wiBody} onChange={e => setWiBody(e.target.value)} rows={15} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 12 }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.1em', marginBottom: 6 }}>TAGS (COMMA SEPARATED)</label>
+                  <input value={wiTags} onChange={e => setWiTags(e.target.value)} placeholder="deliverance, intercession, warfare" style={inp} />
+                </div>
+              </div>
+            )}
+
+            {/* Fringe Article form */}
+            {csType === 'fringe_article' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>TITLE</label>
+                    <input value={title} onChange={e => setTitle(e.target.value)} style={inp} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>CATEGORY</label>
+                    <select value={faCategory} onChange={e => setFaCategory(e.target.value as any)} style={{ ...inp, cursor: 'pointer' }}>
+                      <option value="open-intel">Open Intel</option>
+                      <option value="classified">Classified</option>
+                      <option value="the-feed">The Feed</option>
+                      <option value="intel-faq">Intel FAQ</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>SUMMARY</label>
+                  <textarea value={faSummary} onChange={e => setFaSummary(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>BODY (MARKDOWN)</label>
+                  <textarea value={faBody} onChange={e => setFaBody(e.target.value)} rows={15} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 12 }} />
+                </div>
+              </div>
+            )}
+
+            {/* Save buttons */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button onClick={() => save(true)} disabled={saving || !title.trim()}
+                style={{ padding: '10px 24px', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 6, color: '#4ade80', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: saving || !title.trim() ? 'not-allowed' : 'pointer', opacity: !title.trim() ? 0.5 : 1 }}>
+                {saving ? '...' : '✓ Save and Publish'}
+              </button>
+              <button onClick={() => save(false)} disabled={saving || !title.trim()}
+                style={{ padding: '10px 24px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: saving || !title.trim() ? 'not-allowed' : 'pointer', opacity: !title.trim() ? 0.5 : 1 }}>
+                {saving ? '...' : 'Save Draft'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -10331,7 +10364,7 @@ function AdminPage() {
             )}
             {tab === 'ai-context'        && <MinistryContextManager getToken={getToken} isDark={isDark} />}
             {tab === 'taxonomy'          && <TaxonomyReview getToken={getToken} isDark={isDark} />}
-            {tab === 'content-suggestions' && <ContentSuggestions getToken={getToken} isDark={isDark} />}
+            {tab === 'content-suggestions' && <ContentStudio getToken={getToken} isDark={isDark} />}
             {tab === 'notifications'     && <NotificationsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'ai-usage-admin'    && <AIUsageAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
@@ -10535,23 +10568,21 @@ interface ChatMessage {
 }
 
 function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
-  const G2    = isDark ? G : '#A07C2C'
-  const surf2 = isDark ? SURF2 : '#EDE6D3'
-  const bdr2  = isDark ? BDR : 'rgba(139,105,20,0.25)'
-  const txt2  = isDark ? TXT : '#2D2924'
-  const dim2  = isDark ? DIM : '#6B5520'
+  const G2   = isDark ? G : '#A07C2C'
+  const surf = isDark ? SURF2 : '#EDE6D3'
+  const bdr  = isDark ? BDR : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT : '#2D2924'
+  const dim  = isDark ? DIM : '#6B5520'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const hdr  = isDark ? '#13111e' : '#FFFFFF'
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: 'War Room Intel Command AI online. I have access to your full ministry library, demon database, and WRI platform intelligence. Ask me anything.' },
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput]         = useState('')
   const [loading, setLoading]     = useState(false)
   const [contextMode, setContextMode] = useState<'library' | 'database' | 'both'>('both')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   async function sendMessage() {
     const text = input.trim()
@@ -10583,40 +10614,45 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
       if (line.startsWith('- ') || line.startsWith('* ')) return (
         <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
           <span style={{ color: G2, flexShrink: 0 }}>•</span>
-          <span style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
+          <span style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
         </div>
       )
       if (line.match(/^\d+\./)) return (
         <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
           <span style={{ color: G2, flexShrink: 0, fontFamily: cinzel, fontSize: 11 }}>{line.match(/^\d+/)![0]}.</span>
-          <span style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: line.replace(/^\d+\.\s*/, '').replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
+          <span style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: line.replace(/^\d+\.\s*/, '').replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
         </div>
       )
       if (!line.trim()) return <div key={i} style={{ height: 8 }} />
-      return <div key={i} style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.7, marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
+      return <div key={i} style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7, marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, `<strong style="color:${G2}">$1</strong>`) }} />
     })
   }
 
-  const chatHeight = 'calc(100vh - 180px)'
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: chatHeight, background: isDark ? '#0D0B14' : '#FAF8F5' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)', background: bg }}>
       {/* Header */}
-      <div style={{ padding: '14px 24px', borderBottom: `1px solid ${bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: isDark ? '#13111e' : '#FFFFFF' }}>
-        <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.1em' }}>⚔ ADMIN COMMAND AI</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ padding: '12px 24px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: hdr }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src="/images/sol/sol-icon.png" width={32} height={32}
+            style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(201,168,76,0.8)) brightness(1.1)', mixBlendMode: 'screen' as const }} />
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: G2, letterSpacing: '0.1em', fontWeight: 700 }}>WAR ROOM COMMAND</div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.18em', marginTop: 1 }}>POWERED BY SOL</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {(['library', 'database', 'both'] as const).map(mode => (
             <button key={mode} onClick={() => setContextMode(mode)} style={{
               padding: '4px 12px', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em',
-              background: contextMode === mode ? `rgba(201,168,76,0.15)` : 'transparent',
-              border: `1px solid ${contextMode === mode ? G2 : bdr2}`,
-              borderRadius: 20, color: contextMode === mode ? G2 : dim2, cursor: 'pointer',
+              background: contextMode === mode ? 'rgba(201,168,76,0.15)' : 'transparent',
+              border: `1px solid ${contextMode === mode ? G2 : bdr}`,
+              borderRadius: 20, color: contextMode === mode ? G2 : dim, cursor: 'pointer',
             }}>
               {mode.toUpperCase()}
             </button>
           ))}
-          <button onClick={() => setMessages([{ role: 'assistant', content: 'War Room Intel Command AI online. I have access to your full ministry library, demon database, and WRI platform intelligence. Ask me anything.' }])}
-            style={{ padding: '4px 12px', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr2}`, borderRadius: 4, color: dim2, cursor: 'pointer', marginLeft: 8 }}>
+          <button onClick={() => setMessages([])}
+            style={{ padding: '4px 12px', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: dim, cursor: 'pointer', marginLeft: 6 }}>
             CLEAR
           </button>
         </div>
@@ -10624,50 +10660,78 @@ function AdminChat({ getToken, isDark }: { getToken: any; isDark: boolean }) {
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {messages.map((msg, i) => (
+        {messages.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, textAlign: 'center' as const, padding: '80px 20px' }}>
+            <img src="/images/sol/sol-icon.png" width={64} height={64}
+              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 20px rgba(201,168,76,0.7)) brightness(1.1)', mixBlendMode: 'screen' as const }} />
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.12em' }}>WAR ROOM INTEL COMMAND AI ONLINE</div>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: dim, maxWidth: 400, lineHeight: 1.7 }}>
+              I have access to your full ministry library, demon database, and WRI platform intelligence. Ask me anything.
+            </div>
+          </div>
+        ) : messages.map((msg, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            {msg.role === 'assistant' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <img src="/images/sol/sol-icon.png" width={20} height={20}
+                  style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.7))', mixBlendMode: 'screen' as const }} />
+                <span style={{ fontFamily: cinzel, fontSize: 7, color: G2, letterSpacing: '0.15em' }}>SOL</span>
+              </div>
+            )}
             <div style={{
-              padding: '14px 18px', borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-              background: msg.role === 'user' ? `rgba(201,168,76,0.15)` : surf2,
-              border: `1px solid ${msg.role === 'user' ? `rgba(201,168,76,0.35)` : bdr2}`,
+              padding: '14px 18px',
+              borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '0 12px 12px 12px',
+              background: msg.role === 'user' ? 'rgba(201,168,76,0.12)' : surf,
+              border: `1px solid ${msg.role === 'user' ? 'rgba(201,168,76,0.3)' : bdr}`,
+              borderLeft: msg.role === 'assistant' ? `3px solid ${G2}` : `1px solid rgba(201,168,76,0.3)`,
             }}>
-              {msg.role === 'user' ? (
-                <div style={{ fontFamily: crimson, fontSize: 15, color: txt2, lineHeight: 1.6 }}>{msg.content}</div>
-              ) : renderMd(msg.content)}
+              {msg.role === 'user'
+                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.6 }}>{msg.content}</div>
+                : renderMd(msg.content)
+              }
             </div>
             {msg.sources && msg.sources.length > 0 && (
-              <div style={{ marginTop: 6, padding: '6px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr2}`, borderRadius: 6, maxWidth: '100%' }}>
+              <div style={{ marginTop: 6, padding: '6px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, maxWidth: '100%' }}>
                 <span style={{ fontFamily: cinzel, fontSize: 8, color: G2, letterSpacing: '0.08em' }}>📚 SOURCES: </span>
-                <span style={{ fontFamily: crimson, fontSize: 12, color: dim2 }}>{[...new Set(msg.sources)].join(' · ')}</span>
+                <span style={{ fontFamily: crimson, fontSize: 12, color: dim }}>{[...new Set(msg.sources)].join(' · ')}</span>
               </div>
             )}
           </div>
         ))}
         {loading && (
-          <div style={{ alignSelf: 'flex-start', padding: '14px 18px', background: surf2, border: `1px solid ${bdr2}`, borderRadius: '12px 12px 12px 2px' }}>
-            <div style={{ fontFamily: cinzel, fontSize: 9, color: G2, letterSpacing: '0.1em' }}>⚡ PROCESSING...</div>
+          <div style={{ alignSelf: 'flex-start' as const, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid ${G2}`, borderRadius: '0 12px 12px 12px' }}>
+            <img src="/images/sol/sol-icon.png" width={16} height={16}
+              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.7))', mixBlendMode: 'screen' as const }} />
+            <span style={{ fontFamily: cinzel, fontSize: 9, color: G2, letterSpacing: '0.1em' }}>PROCESSING...</span>
           </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={endRef} />
       </div>
 
       {/* Input */}
-      <div style={{ padding: '16px 24px', borderTop: `1px solid ${bdr2}`, flexShrink: 0, background: isDark ? '#13111e' : '#FFFFFF', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+      <div style={{ padding: '16px 24px', borderTop: `1px solid ${bdr}`, flexShrink: 0, background: hdr, display: 'flex', gap: 12, alignItems: 'flex-end' }}>
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
           placeholder="Ask about demons, your library, ministry protocols... (Enter to send, Shift+Enter for newline)"
           rows={3}
-          style={{ flex: 1, background: surf2, border: `1px solid ${bdr2}`, borderRadius: 6, padding: '10px 14px', color: txt2, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'none' as const, lineHeight: 1.5 }}
+          style={{ flex: 1, background: bg, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'none' as const, lineHeight: 1.5 }}
+          onFocus={e => { e.currentTarget.style.borderColor = G2 }}
+          onBlur={e => { e.currentTarget.style.borderColor = bdr }}
         />
         <button onClick={sendMessage} disabled={loading || !input.trim()} style={{
-          padding: '10px 20px', background: G2, border: 'none', borderRadius: 6,
-          color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em',
+          padding: '10px 18px',
+          background: input.trim() && !loading ? 'rgba(201,168,76,0.12)' : 'transparent',
+          border: `1px solid ${input.trim() && !loading ? G2 : bdr}`,
+          borderRadius: 8, color: input.trim() && !loading ? G2 : dim,
+          fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em',
           cursor: loading || !input.trim() ? 'default' : 'pointer',
           opacity: loading || !input.trim() ? 0.5 : 1, flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          ⚔ SEND
+          <img src="/images/sol/sol-icon.png" width={14} height={14} style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 4px rgba(201,168,76,0.6))' }} />
+          SEND
         </button>
       </div>
     </div>

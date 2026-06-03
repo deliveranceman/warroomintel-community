@@ -10615,19 +10615,28 @@ function CommunityPage() {
           onClick={() => setChatOpen(o => !o)}
           style={{
             position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 1000,
+            bottom: isMobile ? '80px' : '24px',
+            right: '16px',
+            zIndex: 999,
             background: 'none',
             border: 'none',
             padding: 0,
             cursor: 'pointer',
-            display: isMobile ? 'none' : 'flex',
-            filter: 'drop-shadow(0 0 8px rgba(201,168,76,0.5))',
+            display: 'flex',
           }}
           title="Ask SOL"
         >
-          <SolIcon size={44} />
+          <img
+            src="/images/sol/sol-icon.png"
+            width={isMobile ? 44 : 52}
+            height={isMobile ? 44 : 52}
+            style={{
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.7)) brightness(1.05)',
+              mixBlendMode: 'screen',
+            }}
+            alt="Ask SOL"
+          />
         </button>
       )}
 
