@@ -19,6 +19,7 @@ import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { FlagButton } from '@/components/FlagButton'
+import { SolIcon } from '@/components/SolIcon'
 import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen, Zap, Bell } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
@@ -9775,7 +9776,7 @@ function CommunityPage() {
               <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
                 data-active={activeSection === 'my-intel' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><span style={{ fontSize: 13, lineHeight: 1 }}>🧠</span></span>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={16} /></span>
                 <span>My Intel</span>
               </button>
             </div>
@@ -10689,7 +10690,8 @@ function CommunityPage() {
         }}>
           <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>◉ ASK SOL</span>
+              <SolIcon size={16} />
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>ASK SOL</span>
               <AIUsagePill feature="ask_dake" getToken={getToken} />
             </div>
             <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
@@ -10780,7 +10782,7 @@ function CommunityPage() {
           }}
           title="Ask SOL"
         >
-          ◉
+          <SolIcon size={28} />
         </button>
       )}
 
