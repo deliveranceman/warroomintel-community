@@ -1,0 +1,11157 @@
+// HANDOFF NOTES — 25-item fix list (June 2026)
+// COMPLETED: #1 mobile sidebar safe-area-inset-top | #2 arsenal category filter (topic field) |
+//   #3/#22 DM tier gating (soldier+) | #4/#5 stream-token addMembers to prayer-wall + general |
+//   #6 testimony audit (1 pending, chain is correct — admin must approve) |
+//   #8/#9 Daily Brief audit (3 entries OK, Generate 14 Days button added to admin) |
+//   #10/#11 Ops Board new post layout (textarea 5→8 rows, canPost gating, upgrade button) |
+//   #12 Chains to Freedom icon onError fallback | #13 course about maxHeight + Read more toggle |
+//   #14 SolIcon → PNG image component | #15 Arsenal upgrade CTA locked-count block |
+//   #16 upgrade links → warroomintel.com/pricing | #18 spirit modal returns to intel after close |
+//   #20 Deliverance Protocol sidebar link (commander+) | #21 Terms popup 3-paragraph disclaimer |
+//   #23 AI connection error (content-type guard) | #24/#25 scripture Dake→SOL rename
+// REQUIRES JUSTIN: Weekly Intel post "Oppression vs. Possession" body is empty — add content in admin.
+//   Stream credentials must be set in Netlify env as STREAM JSON: {"appId":"...","apiKey":"...","apiSecret":"..."}.
+//   Testimony "pending" needs minister approval via admin panel PATCH /api/testimonies.
+import { createFileRoute, useLocation } from '@tanstack/react-router'
+import { useAuth, useUser } from '@clerk/tanstack-start'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { SpiritNetwork } from '@/components/SpiritNetwork'
+import { SessionCommandCenter } from '@/components/SessionCommandCenter'
+import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
+import { FlagButton } from '@/components/FlagButton'
+import { SolIcon } from '@/components/SolIcon'
+import { Home, FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
+
+export const Route = createFileRoute('/community')({
+  ssr: false,
+  component: CommunityPage,
+})
+
+const G      = '#C9A84C'
+const cinzel  = "'Cinzel', serif"
+const crimson = "'Crimson Pro', serif"
+
+
+const THEME_CSS = `
+@keyframes pulse { 0%,100% { opacity: 0.4 } 50% { opacity: 0.8 } }
+.msg-row:hover .msg-actions { opacity: 1 !important; }
+:root {
+  --wri-bg: #0e0c09;
+  --wri-surface: #1c1814;
+  --wri-surface2: #242018;
+  --wri-border: rgba(201,168,76,0.25);
+  --wri-text: #f0e8d8;
+  --wri-dim: #c8b896;
+  --wri-muted: #9a8c74;
+  --wri-card: #201c16;
+  --wri-gold: #C9A84C;
+}
+:root[data-theme="light"] {
+  --wri-bg: #F8F6F2;
+  --wri-surface: #FFFFFF;
+  --wri-surface2: #F5F2EE;
+  --wri-border: rgba(212,196,176,0.85);
+  --wri-text: #1C1410;
+  --wri-dim: #4A3728;
+  --wri-muted: #7A6555;
+  --wri-card: #FFFFFF;
+  --wri-gold: #C9A84C;
+}
+`
+
+function FoundingBadge() {
+  return (
+    <span style={{ background: 'rgba(201,168,76,0.13)', border: `1px solid ${G}`, borderRadius: 10, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: G, padding: '1px 6px', whiteSpace: 'nowrap' as const }}>
+      ⚜ Founding
+    </span>
+  )
+}
+
+// ── AI USAGE PILL ──────────────────────────────────────────
+let _usageCache: { data: any; ts: number } | null = null
+let _usageFetch: Promise<any> | null = null
+
+function AIUsagePill({ feature, getToken, style }: { feature: string; getToken: () => Promise<string | null>; style?: React.CSSProperties }) {
+  const [info, setInfo] = React.useState<{ used: number; limit: number } | null>(null)
+
+  React.useEffect(() => {
+    const load = async () => {
+      if (_usageCache && Date.now() - _usageCache.ts < 60000) {
+        const f = _usageCache.data?.features?.find((x: any) => x.feature === feature)
+        if (f) setInfo({ used: f.used, limit: f.limit })
+        return
+      }
+      if (!_usageFetch) {
+        _usageFetch = getToken().then(token => {
+          if (!token) return null
+          return fetch('/api/ai-usage', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null)
+        }).then(d => {
+          _usageFetch = null
+          if (d) { _usageCache = { data: d, ts: Date.now() } }
+          return d
+        }).catch(() => { _usageFetch = null; return null })
+      }
+      const d = await _usageFetch
+      if (d) {
+        const f = d.features?.find((x: any) => x.feature === feature)
+        if (f) setInfo({ used: f.used, limit: f.limit })
+      }
+    }
+    load()
+  }, [feature])
+
+  if (!info) return null
+  if (info.limit === -1) return null
+  const pct = info.limit > 0 ? info.used / info.limit : 1
+  const color = pct >= 1 ? '#c84a4a' : pct >= 0.75 ? '#e2a73c' : 'rgba(201,168,76,0.5)'
+  return (
+    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.08em', color, background: `${color}18`, border: `1px solid ${color}40`, borderRadius: 3, padding: '1px 5px', ...style }}>
+      {info.used}/{info.limit} today
+    </span>
+  )
+}
+
+// ── STREAM HELPER ──────────────────────────────────────────
+function streamFetch(path: string, method: string, token: string, apiKey: string, body?: object) {
+  return fetch(`https://chat.stream-io-api.com${path}?api_key=${apiKey}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: token, 'Stream-Auth-Type': 'jwt' },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  }).then(r => r.json())
+}
+
+interface StreamMsg {
+  id: string
+  text: string
+  user: { id: string; name?: string; image?: string }
+  created_at: string
+  reaction_counts?: Record<string, number>
+  type?: string
+  deleted_at?: string
+}
+
+// ── SIGN-IN GATE ───────────────────────────────────────────
+function SignInGate() {
+  useEffect(() => {
+    window.location.href =
+      'https://accounts.warroomintel.com/sign-in?redirect_url=' +
+      encodeURIComponent('https://warroomintel.com/community')
+  }, [])
+  return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0e0c09' }}>
+      <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G }}>Redirecting to sign in...</span>
+    </div>
+  )
+}
+
+// ── PROFILE MODAL ──────────────────────────────────────────
+interface ProfileModalProps {
+  member: any
+  currentUserId: string
+  onClose: () => void
+  onStartDM: (memberId: string, memberName: string) => void
+  isDark: boolean
+}
+function ProfileModal({ member, currentUserId, onClose, onStartDM, isDark }: ProfileModalProps) {
+  const isOwn = member.id === currentUserId
+  const tier = member.publicMetadata?.tier || 'Watchman'
+  const tierColors: Record<string, string> = {
+    General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a'
+  }
+  const tierColor = tierColors[tier] || '#6b6b7a'
+  const bg   = isDark ? '#0D0B14' : '#ffffff'
+  const text = isDark ? '#f0ece0' : '#2D2924'
+  const muted = '#6b6b7a'
+  const mc = "'Cinzel', serif"
+  const cr = "'Crimson Pro', Georgia, serif"
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden' }}>
+        <div style={{ height: '72px', background: 'linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(13,11,20,0.9) 100%)', borderBottom: '1px solid rgba(201,168,76,0.12)', position: 'relative' }}>
+          <button onClick={onClose} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '26px', height: '26px', color: '#C9A84C', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+        </div>
+        <div style={{ padding: '0 24px 24px', marginTop: '-36px' }}>
+          <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.05))', border: `2px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontFamily: mc, fontWeight: 'bold', color: '#C9A84C', marginBottom: '14px', overflow: 'hidden' }}>
+            {member.imageUrl
+              ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : (member.firstName?.[0] || member.username?.[0] || '?').toUpperCase()
+            }
+          </div>
+          <div style={{ fontFamily: mc, fontSize: '18px', color: text, fontWeight: 700, letterSpacing: '0.04em', marginBottom: '6px' }}>
+            {member.firstName} {member.lastName}
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap' as const }}>
+            <div style={{ display: 'inline-block', padding: '2px 10px', border: `1px solid ${tierColor}`, borderRadius: '20px', fontSize: '10px', fontFamily: mc, letterSpacing: '0.1em', color: tierColor, textTransform: 'uppercase' as const }}>{tier}</div>
+            {member.publicMetadata?.foundingMember && <FoundingBadge />}
+          </div>
+          {member.publicMetadata?.bio && (
+            <p style={{ fontSize: '13px', color: isDark ? '#a09898' : '#555', lineHeight: '1.6', marginBottom: '12px', fontFamily: cr }}>
+              {member.publicMetadata.bio}
+            </p>
+          )}
+          {member.publicMetadata?.location && (
+            <div style={{ fontSize: '12px', color: muted, marginBottom: '10px' }}>📍 {member.publicMetadata.location}</div>
+          )}
+          {member.publicMetadata?.role && (
+            <div style={{ fontSize: '12px', color: muted, marginBottom: '16px' }}>
+              ⚔️ {member.publicMetadata.role === 'minister' ? 'Deliverance Minister' : member.publicMetadata.role}
+            </div>
+          )}
+          {!isOwn ? (
+            <button
+              onClick={() => { onStartDM(member.id, member.firstName || member.username || 'Member'); onClose() }}
+              style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.45)', borderRadius: '6px', color: '#C9A84C', fontFamily: mc, fontSize: '11px', letterSpacing: '0.08em', cursor: 'pointer' }}
+            >💬 Send Direct Message</button>
+          ) : (
+            <div style={{ fontSize: '11px', color: muted, textAlign: 'center' as const, fontStyle: 'italic', fontFamily: cr }}>This is your profile</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── EDIT PROFILE MODAL ─────────────────────────────────────
+interface EditProfileModalProps {
+  userId: string
+  firstName: string
+  lastName: string
+  imageUrl: string
+  existingBio: string
+  existingCity: string
+  existingState: string
+  onClose: () => void
+  isDark: boolean
+}
+function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, existingBio, existingCity, existingState, onClose, isDark }: EditProfileModalProps) {
+  const { getToken } = useAuth()
+  const { user }     = useUser()
+  const [bio,     setBio]     = useState(existingBio)
+  const [city,    setCity]    = useState(existingCity)
+  const [state,   setState]   = useState(existingState)
+  const [saving,  setSaving]  = useState(false)
+  const [saved,   setSaved]   = useState(false)
+  const [saveErr, setSaveErr] = useState('')
+
+  const userRole = (user?.publicMetadata?.role as string) || 'member'
+  const isMinisterOrAdmin = userRole === 'minister' || userRole === 'admin'
+
+  const [pushInfo, setPushInfo] = useState<{ browserSupport: boolean; permission: string; swRegistered: boolean; subscribed: boolean; endpointHost?: string; lastRefreshed?: string } | null>(null)
+  const [pushWorking, setPushWorking] = useState(false)
+  const [pushMsg, setPushMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isMinisterOrAdmin || typeof window === 'undefined') return
+    ;(async () => {
+      const browserSupport =
+        'Notification' in window &&
+        'serviceWorker' in navigator &&
+        'PushManager' in window
+      const permission = browserSupport ? Notification.permission : 'unsupported'
+      console.log('[push-debug] browserSupport:', browserSupport, 'permission:', permission)
+
+      let swRegistered = false, subscribed = false
+      if (!browserSupport) {
+        setPushInfo({ browserSupport, permission, swRegistered, subscribed })
+        return
+      }
+
+      try {
+        // Wait for the active service worker instead of just checking registrations
+        const reg = await navigator.serviceWorker.register('/sw.js')
+        await navigator.serviceWorker.ready
+        swRegistered = true
+        console.log('[push-debug] service worker ready')
+
+        const existingSub = await reg.pushManager.getSubscription()
+        subscribed = !!existingSub
+        let endpointHost: string | undefined
+        let lastRefreshed: string | undefined
+        if (existingSub) {
+          try { endpointHost = new URL(existingSub.endpoint).host } catch {}
+          console.log('[push-debug] existing subscription host:', endpointHost, 'endpoint tail:', existingSub.endpoint.slice(-40))
+        } else {
+          console.log('[push-debug] no existing subscription')
+        }
+
+        // If permission is already granted and a subscription exists, refresh updated_at in DB
+        if (permission === 'granted' && existingSub && user?.id) {
+          const refreshRes = await fetch('/api/push-subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, subscription: existingSub.toJSON() }),
+          }).catch(e => { console.warn('[push-debug] refresh failed:', e.message); return null })
+          if (refreshRes?.ok) {
+            lastRefreshed = new Date().toLocaleTimeString()
+            console.log('[push-debug] subscription refreshed in DB at', lastRefreshed)
+          }
+        }
+        setPushInfo({ browserSupport, permission, swRegistered, subscribed, endpointHost, lastRefreshed })
+        return
+      } catch (e: any) {
+        console.warn('[push-debug] SW/subscription check failed:', e.message)
+      }
+
+      setPushInfo({ browserSupport, permission, swRegistered, subscribed })
+    })()
+  }, [isMinisterOrAdmin, user?.id])
+
+  async function pushRequestPermission() {
+    const p = await window.Notification.requestPermission()
+    setPushInfo(prev => prev ? { ...prev, permission: p } : null)
+  }
+
+  async function pushSubscribe(force = false) {
+    // iOS: push requires standalone (home-screen) PWA — check before proceeding
+    if (typeof window !== 'undefined') {
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+      const isStandalone = (navigator as any).standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches
+      if (isIOS && !isStandalone) {
+        setPushMsg('On iOS, add this app to your Home Screen first to enable push notifications.')
+        return
+      }
+    }
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushMsg('Push notifications are not supported in this browser.')
+      return
+    }
+
+    setPushWorking(true)
+    setPushMsg(null)
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.ready
+      console.log('[push-debug] SW ready for subscribe, force:', force)
+
+      if (force) {
+        // Force refresh: unsubscribe existing to get a new endpoint
+        const existing = await reg.pushManager.getSubscription()
+        if (existing) {
+          await existing.unsubscribe()
+          console.log('[push-debug] unsubscribed existing endpoint')
+        }
+      } else {
+        // Non-forced: if an active subscription already exists, just re-save it (refresh updated_at)
+        const existing = await reg.pushManager.getSubscription()
+        if (existing) {
+          console.log('[push-debug] existing subscription found, posting to DB:', existing.endpoint.slice(-40))
+          const res = await fetch('/api/push-subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user?.id, subscription: existing.toJSON() }),
+          })
+          if (!res.ok) throw new Error('Failed to save subscription')
+          setPushInfo(prev => prev ? { ...prev, swRegistered: true, subscribed: true } : null)
+          setPushMsg('Subscription active and refreshed.')
+          return
+        }
+      }
+
+      console.log('[push-debug] calling pushManager.subscribe()')
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+      console.log('[push-debug] new subscription endpoint:', sub.endpoint.slice(-40))
+
+      const res = await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, subscription: sub.toJSON() }),
+      })
+      if (!res.ok) throw new Error('Failed to save subscription')
+      console.log('[push-debug] subscription posted successfully')
+      setPushInfo(prev => prev ? { ...prev, swRegistered: true, subscribed: true } : null)
+      setPushMsg(force ? 'Subscription refreshed — new endpoint saved.' : 'Subscribed successfully.')
+    } catch (e: any) {
+      console.error('[push-debug] subscribe failed:', e.message)
+      const hint = /denied|not allowed/i.test(e.message)
+        ? 'Permission denied — check browser notification settings.'
+        : /vapid|unauthorized|401|403/i.test(e.message)
+        ? 'VAPID key mismatch — use Refresh Subscription to get a new endpoint.'
+        : e.message
+      setPushMsg(`Subscribe failed: ${hint}`)
+    } finally { setPushWorking(false) }
+  }
+
+  async function pushSendTestToMe() {
+    setPushWorking(true)
+    setPushMsg(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/test-push-single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      setPushMsg(res.ok ? 'Test notification sent — check your device.' : `Error: ${data.error}`)
+    } catch (e: any) {
+      setPushMsg(`Error: ${e.message}`)
+    } finally { setPushWorking(false) }
+  }
+
+  const bg   = isDark ? '#0D0B14' : '#ffffff'
+  const surf = isDark ? 'rgba(255,255,255,0.04)' : '#FFFFFF'
+  const text = isDark ? '#f0ece0' : '#2D2924'
+  const dim  = isDark ? '#6b6b7a' : '#8a8a9a'
+  const bdr  = 'rgba(201,168,76,0.25)'
+  const mc   = "'Cinzel', serif"
+  const cr   = "'Crimson Pro', Georgia, serif"
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: surf, border: `1px solid ${bdr}`, borderRadius: '6px',
+    padding: '10px 12px', color: text, fontFamily: cr,
+    fontSize: '14px', outline: 'none',
+  }
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontFamily: mc, fontSize: '9px',
+    letterSpacing: '0.12em', color: dim, textTransform: 'uppercase',
+    marginBottom: '6px',
+  }
+
+  async function handleSave() {
+    if (saving) return
+    setSaving(true)
+    setSaveErr('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ bio, city, state }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || 'Save failed')
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (e: any) { setSaveErr(e?.message || 'Save failed. Try again.') } finally { setSaving(false) }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '440px', padding: '28px', boxShadow: '0 24px 64px rgba(0,0,0,0.9)', position: 'relative' }}>
+
+        {/* Header */}
+        <div style={{ fontFamily: mc, fontSize: '12px', letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: '20px' }}>
+          ⚙ Profile Settings
+        </div>
+
+        {/* Profile card */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, padding: '16px 18px', background: surf, border: `1px solid ${bdr}`, borderRadius: 10 }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(201,168,76,0.4)', flexShrink: 0, background: surf }}>
+            {imageUrl
+              ? <img src={imageUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: mc, fontSize: 22, color: '#C9A84C' }}>{(firstName?.[0] || '?').toUpperCase()}</div>
+            }
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: mc, fontSize: 14, color: '#C9A84C', marginBottom: 3 }}>{firstName} {lastName}</div>
+            <div style={{ fontSize: 12, color: dim, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{user?.primaryEmailAddress?.emailAddress}</div>
+            <div style={{ fontSize: 10, color: dim, fontFamily: mc, letterSpacing: '0.06em' }}>
+              {(t => (t.toLowerCase() === 'free' ? 'Watchman' : t).toUpperCase())((user?.publicMetadata?.tier as string) || 'Watchman')} · {(user?.publicMetadata?.role as string) || 'member'}
+            </div>
+          </div>
+          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ fontFamily: mc, fontSize: '9px', letterSpacing: '0.08em', color: dim, textDecoration: 'none', borderBottom: `1px solid ${bdr}`, paddingBottom: 1, flexShrink: 0 }}>
+            Change Photo →
+          </a>
+        </div>
+
+        {/* Name row — read only */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <label style={labelStyle}>First Name</label>
+            <div style={{ ...inputStyle, color: dim, cursor: 'default', userSelect: 'none' as const }}>{firstName || '—'}</div>
+          </div>
+          <div>
+            <label style={labelStyle}>Last Name</label>
+            <div style={{ ...inputStyle, color: dim, cursor: 'default', userSelect: 'none' as const }}>{lastName || '—'}</div>
+          </div>
+        </div>
+        <p style={{ fontSize: '10px', color: dim, fontFamily: cr, fontStyle: 'italic', marginBottom: '20px', marginTop: '-6px' }}>
+          Name is managed by Clerk. <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ color: '#C9A84C' }}>Edit on account page →</a>
+        </p>
+
+        {/* City + State */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <label style={labelStyle}>City</label>
+            <input value={city} onChange={e => setCity(e.target.value)} placeholder="City" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>State</label>
+            <input value={state} onChange={e => setState(e.target.value)} placeholder="TX" maxLength={2} style={inputStyle} />
+          </div>
+        </div>
+
+        {/* Bio */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={labelStyle}>Bio</label>
+          <textarea
+            value={bio} onChange={e => setBio(e.target.value.slice(0, 280))}
+            rows={4}
+            placeholder="Brief description of your ministry or calling..."
+            style={{ ...inputStyle, resize: 'vertical' as const }}
+          />
+          <div style={{ fontSize: '10px', color: bio.length > 250 ? '#f97316' : dim, textAlign: 'right' as const, marginTop: '3px' }}>{bio.length}/280</div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: '6px', color: dim, fontFamily: mc, fontSize: '10px', letterSpacing: '0.05em', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: '10px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: '6px', color: '#C9A84C', fontFamily: mc, fontSize: '10px', letterSpacing: '0.08em', cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+            {saving ? 'SAVING...' : 'SAVE CHANGES'}
+          </button>
+        </div>
+        {saved    && <div style={{ fontSize: 13, color: '#4ade80', marginBottom: 8, fontFamily: cr }}>✓ Profile updated successfully</div>}
+        {saveErr  && <div style={{ fontSize: 13, color: '#f87171', marginBottom: 8, fontFamily: cr }}>⚠ {saveErr}</div>}
+
+        {/* Account Security */}
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${bdr}` }}>
+          <div style={{ fontFamily: mc, fontSize: 9, letterSpacing: '0.12em', color: dim, textTransform: 'uppercase' as const, marginBottom: 10 }}>Account Security</div>
+          <a href="https://accounts.warroomintel.com/user" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, padding: '8px 16px', fontFamily: mc, fontSize: 10, color: dim, textDecoration: 'none', letterSpacing: '0.06em' }}>
+            Change Password →
+          </a>
+        </div>
+
+        {/* Push Debug — minister/admin only */}
+        {isMinisterOrAdmin && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${bdr}` }}>
+            <div style={{ fontFamily: mc, fontSize: 9, letterSpacing: '0.12em', color: '#C9A84C', textTransform: 'uppercase' as const, marginBottom: 12 }}>Push Notification Status</div>
+            {!pushInfo ? (
+              <div style={{ fontSize: 12, color: dim, fontFamily: cr }}>Checking...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 12 }}>
+                {([
+                  ['Browser support',  pushInfo.browserSupport ? '✓ Yes' : '✗ No'],
+                  ['Permission',       pushInfo.permission],
+                  ['Service worker',   pushInfo.swRegistered ? '✓ Registered' : '✗ Not registered'],
+                  ['Subscription',     pushInfo.subscribed ? '✓ Active' : '✗ None'],
+                  ['Push service',     pushInfo.endpointHost || (pushInfo.subscribed ? '?' : '—')],
+                  ['VAPID client key', VAPID_PUBLIC_KEY.slice(0, 8) + '…'],
+                  ['Last DB refresh',  pushInfo.lastRefreshed || '—'],
+                ] as [string, string][]).map(([label, value]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontFamily: cr }}>
+                    <span style={{ color: dim }}>{label}</span>
+                    <span style={{ color: value.startsWith('✓') ? '#5fae6f' : value.startsWith('✗') ? '#c84a4a' : '#C9A84C' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+              {pushInfo && pushInfo.permission !== 'granted' && (
+                <button onClick={pushRequestPermission} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: '#C9A84C', cursor: 'pointer' }}>
+                  Request Permission
+                </button>
+              )}
+              {pushInfo && pushInfo.permission === 'granted' && !pushInfo.subscribed && (
+                <button onClick={() => pushSubscribe(false)} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: '#C9A84C', cursor: 'pointer' }}>
+                  {pushWorking ? 'Subscribing...' : 'Subscribe'}
+                </button>
+              )}
+              {pushInfo && pushInfo.permission === 'granted' && (
+                <button onClick={() => pushSubscribe(true)} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: '#9a8874', cursor: 'pointer' }}>
+                  {pushWorking ? 'Refreshing...' : 'Refresh Subscription'}
+                </button>
+              )}
+              {pushInfo?.subscribed && (
+                <button onClick={pushSendTestToMe} disabled={pushWorking}
+                  style={{ padding: '7px 14px', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, color: '#C9A84C', cursor: 'pointer' }}>
+                  {pushWorking ? 'Sending...' : 'Send Test to My Device'}
+                </button>
+              )}
+            </div>
+            {pushMsg && (
+              <div style={{ marginTop: 8, fontSize: 12, fontFamily: cr, color: pushMsg.startsWith('Error') || pushMsg.startsWith('Subscribe failed') ? '#c84a4a' : '#5fae6f' }}>
+                {pushMsg}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── MEMBERS VIEW ──────────────────────────────────────────
+interface MembersViewProps {
+  members: any[]
+  currentUserId: string
+  currentUserTier: string
+  currentUserRole: string
+  onViewProfile: (member: any) => void
+  onStartDM: (memberId: string, memberName: string) => void
+  setActiveSection: (s: string) => void
+  isDark: boolean
+  isMobile: boolean
+}
+
+function MembersView({ members, currentUserId, currentUserTier, currentUserRole, onViewProfile, onStartDM, setActiveSection: _setActiveSection, isDark, isMobile }: MembersViewProps) {
+  const [search, setSearch]       = useState('')
+  const [filterTier, setFilterTier] = useState('All')
+
+  const TIER_ORDER: Record<string,number> = { Watchman:1, Soldier:2, Commander:3, General:4 }
+  const TIER_COLORS: Record<string,string> = { General:'#C9A84C', Commander:'#8B9DCA', Soldier:'#7a9e7e', Watchman:'#6b6b7a' }
+  const TIER_GLOW:  Record<string,string> = { General:'rgba(201,168,76,0.25)', Commander:'rgba(139,157,202,0.2)', Soldier:'rgba(122,158,126,0.15)', Watchman:'rgba(107,107,122,0.1)' }
+
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const s2   = isDark ? 'rgba(255,255,255,0.06)' : '#ffffff'
+  const bdr  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const txt  = isDark ? '#e8e0d0' : '#2D2924'
+  const muted = isDark ? 'rgba(232,224,208,0.45)' : 'rgba(45,41,36,0.45)'
+  const mc   = cinzel
+
+  const tierNum = TIER_ORDER[currentUserTier || 'Watchman'] || 1
+  const canDM   = currentUserRole === 'admin' || tierNum >= 2
+
+  const q = search.toLowerCase()
+  const filtered = members
+    .filter(m => m.id !== currentUserId)
+    .filter(m => {
+      const name = `${m.firstName||''} ${m.lastName||''} ${m.username||''}`.toLowerCase()
+      const matchSearch = !q || name.includes(q)
+      const matchTier   = filterTier === 'All' || (m.publicMetadata?.tier || 'Watchman') === filterTier
+      return matchSearch && matchTier
+    })
+    .sort((a,b) => {
+      const ta = TIER_ORDER[a.publicMetadata?.tier || 'Watchman'] || 1
+      const tb = TIER_ORDER[b.publicMetadata?.tier || 'Watchman'] || 1
+      if (tb !== ta) return tb - ta
+      return `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`)
+    })
+
+  const featured  = filtered.filter(m => ['General','Commander'].includes(m.publicMetadata?.tier || ''))
+  const roster    = filtered.filter(m => !['General','Commander'].includes(m.publicMetadata?.tier || ''))
+
+  const TIER_TO_CLASS: Record<string, import('@/components/primitives').ClassLevel> = {
+    General: 'I', Commander: 'II', Soldier: 'III', Watchman: 'IV',
+  }
+
+  function MemberCard({ member, large = false }: { member: any, large?: boolean }) {
+    const tier        = member.publicMetadata?.tier || 'Watchman'
+    const tierColor   = TIER_COLORS[tier] || '#6b6b7a'
+    const tierGlow    = TIER_GLOW[tier] || 'transparent'
+    const isOwn       = member.id === currentUserId
+    const displayName = member.firstName || member.username || 'Warrior'
+    const avatarSize  = large ? 72 : 48
+    const initials    = ((member.firstName?.[0]||'') + (member.lastName?.[0]||'')).toUpperCase() || displayName[0]?.toUpperCase() || 'W'
+
+    return (
+      <TacticalCard
+        brackets={large}
+        glow={large}
+        padding={large ? '24px 20px' : '16px 14px'}
+        onClick={() => onViewProfile(member)}
+        style={{
+          display: 'flex',
+          flexDirection: 'column' as const,
+          alignItems: 'center',
+          gap: large ? 10 : 8,
+          cursor: 'pointer',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+          ...(large ? { background: `linear-gradient(135deg, var(--bg-2), ${tierGlow})` } : {}),
+        }}
+      >
+        {isOwn && (
+          <HUDChip style={{ position: 'absolute', top: 8, right: 8, fontSize: 9 }}>YOU</HUDChip>
+        )}
+        <div style={{ width:avatarSize, height:avatarSize, borderRadius:'50%', border:`2px solid ${tierColor}`, overflow:'hidden', flexShrink:0, background:`rgba(201,168,76,0.1)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:large?24:16, fontFamily:mc, color:'#C9A84C', boxShadow: large ? `0 0 16px ${tierGlow}` : 'none' }}>
+          {member.imageUrl ? <img src={member.imageUrl} alt={displayName} style={{ width:'100%', height:'100%', objectFit:'cover' as const }} /> : initials}
+        </div>
+        <div style={{ textAlign:'center' as const, width:'100%' }}>
+          <div style={{ fontFamily: cinzel, fontSize: large ? 13 : 11, color: txt, letterSpacing:'0.05em', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom: 6 }}>{displayName}</div>
+          <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:4, flexWrap:'wrap' as const }}>
+            <ClassBadge level={TIER_TO_CLASS[tier] || 'IV'} label={tier.toUpperCase()} />
+            {member.publicMetadata?.foundingMember && <FoundingBadge />}
+          </div>
+        </div>
+        {!isOwn && (
+          <button
+            onClick={e => { e.stopPropagation(); canDM ? onStartDM(member.id, displayName) : onViewProfile(member) }}
+            style={{ marginTop:2, padding: large ? '6px 18px' : '4px 12px', background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent', border:`1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius:6, color: canDM ? '#C9A84C' : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
+          >{canDM ? '💬 Message' : '🔒 Soldier+'}</button>
+        )}
+      </TacticalCard>
+    )
+  }
+
+  return (
+    <div style={{ flex:1, overflowY:'auto' as const, background:bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      {/* Header */}
+      <div style={{ marginBottom:24 }}>
+        <div style={{ fontFamily:mc, fontSize: isMobile ? 18 : 22, color:'#C9A84C', letterSpacing:'0.12em', marginBottom:4 }}>⚔ INTEL ROSTER</div>
+        <div style={{ fontFamily:crimson, fontSize:14, color:muted }}>{members.length} warrior{members.length!==1?'s':''} registered</div>
+      </div>
+
+      {/* Search + Filter */}
+      <div style={{ display:'flex', gap:10, marginBottom:24, flexWrap:'wrap' as const }}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search warriors..."
+          style={{ flex:1, minWidth:160, padding:'8px 12px', background:s2, border:`1px solid ${bdr}`, borderRadius:8, color:txt, fontFamily:crimson, fontSize:14, outline:'none' }}
+        />
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' as const }}>
+          {['All','General','Commander','Soldier','Watchman'].map(t => (
+            <button key={t} onClick={() => setFilterTier(t)}
+              style={{ padding:'6px 12px', borderRadius:8, border:`1px solid ${filterTier===t ? TIER_COLORS[t]||'#C9A84C' : bdr}`, background: filterTier===t ? (TIER_COLORS[t]||'#C9A84C')+'22' : 'transparent', color: filterTier===t ? (TIER_COLORS[t]||'#C9A84C') : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
+            >{t}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Featured: Generals + Commanders */}
+      {featured.length > 0 && (
+        <div style={{ marginBottom:32 }}>
+          <div style={{ fontFamily:mc, fontSize:10, color:muted, letterSpacing:'0.15em', marginBottom:12, textTransform:'uppercase' as const }}>— Field Leadership —</div>
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${Math.min(featured.length, 4)}, 1fr)`, gap:16 }}>
+            {featured.map(m => <MemberCard key={m.id} member={m} large={true} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Roster: Soldiers + Watchmen */}
+      {roster.length > 0 && (
+        <div>
+          {featured.length > 0 && <div style={{ fontFamily:mc, fontSize:10, color:muted, letterSpacing:'0.15em', marginBottom:12, textTransform:'uppercase' as const }}>— Active Warriors —</div>}
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(140px, 1fr))', gap:12 }}>
+            {roster.map(m => <MemberCard key={m.id} member={m} large={false} />)}
+          </div>
+        </div>
+      )}
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign:'center' as const, padding:'60px 20px', color:muted, fontFamily:crimson, fontSize:16 }}>No warriors found.</div>
+      )}
+    </div>
+  )
+}
+
+// ── POST CARD ──────────────────────────────────────────────
+function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, streamToken, apiKey, onReaction, isFounder }: {
+  msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode; isDark?: boolean;
+  hoveredId?: string | null; onHover?: (id: string | null) => void;
+  streamToken?: string; apiKey?: string; onReaction?: () => void; isFounder?: boolean;
+}) {
+  const V = {
+    bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
+    card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)',
+    txt: isDark ? '#f0e8d8' : '#2D2924', mut: isDark ? '#9a8c74' : '#5C5248',
+    dim: isDark ? '#c8b99a' : '#5C5248', s2: isDark ? '#1c1814' : '#FFFFFF', gold: isDark ? '#C9A84C' : '#8B6914',
+    shadow: isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)',
+  }
+  const emojiMap: Record<string, string> = { pray: '🙏', love: '❤️', fire: '🔥', cross: '✝️', sword: '⚔️' }
+  const initial = (msg.user?.name || msg.user?.id || '?')[0].toUpperCase()
+  const time    = new Date(msg.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
+  const isNew = Date.now() - new Date(msg.created_at).getTime() < 86400000
+  return (
+    <div
+      onMouseEnter={() => onHover?.(msg.id)}
+      onMouseLeave={() => onHover?.(null)}
+      style={{ position: 'relative', background: hoveredId === msg.id ? (isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.06)') : V.surf, border: `1px solid ${hoveredId === msg.id ? 'rgba(201,168,76,0.5)' : V.bdr}`, padding: 20, marginBottom: 12, overflow: 'visible', transition: 'background 0.15s, border-color 0.15s', cursor: 'default' }}
+    >
+      {/* Bracket corners */}
+      <div style={{ position: 'absolute', top: -1, left: -1, width: 10, height: 10, borderTop: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -1, right: -1, width: 10, height: 10, borderTop: '1px solid var(--gold)', borderRight: '1px solid var(--gold)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -1, left: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderRight: '1px solid var(--gold)', pointerEvents: 'none' }} />
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid var(--gold-line)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
+          {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <MonoTime size={13}>{msg.user?.name || msg.user?.id || 'Warrior'}</MonoTime>
+            {isFounder && <FoundingBadge />}
+            {pinned && <HUDChip>HOST</HUDChip>}
+            {isNew && <StatusDot kind="ok" label="New" size={5} />}
+            <MonoTime color="var(--t-3)" size={11}>{time}</MonoTime>
+          </div>
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
+          {/* Reactions */}
+          <div style={{ position: 'relative', display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 8, alignItems: 'center' }}>
+            {hoveredId === msg.id && streamToken && (
+              <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 4, display: 'flex', gap: 3, background: V.surf, border: `1px solid ${V.bdr}`, borderRadius: 16, padding: '3px 8px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 9999, whiteSpace: 'nowrap' as const }}>
+                {([['pray','🙏'],['love','❤️'],['fire','🔥'],['cross','✝️'],['sword','⚔️']] as [string,string][]).map(([type, emoji]) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      if (streamToken && apiKey) {
+                        streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
+                          .then(() => onReaction?.())
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 8, transition: 'transform 0.1s' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.3)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
+                  >{emoji}</button>
+                ))}
+              </div>
+            )}
+            {msg.reaction_counts && Object.entries(msg.reaction_counts).map(([type, count]) => (
+              <button
+                key={type}
+                onClick={() => {
+                  if (streamToken && apiKey) {
+                    streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
+                      .then(() => onReaction?.())
+                  }
+                }}
+                style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 7px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: V.txt }}
+              >
+                {emojiMap[type] || type} <span style={{ fontSize: 10, color: V.mut }}>{String(count)}</span>
+              </button>
+            ))}
+          </div>
+          {actions && (
+            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${V.bdr}` }}>
+              {actions}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── PRAYER VIEW ────────────────────────────────────────────
+interface PrayerViewProps {
+  streamToken: string
+  apiKey: string
+  userId: string
+  userName: string
+  userImageUrl: string
+  isDark: boolean
+  isMobile: boolean
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+  founderIds?: Set<string>
+  isMinister?: boolean
+}
+function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen, founderIds, isMinister = false }: PrayerViewProps) {
+  const V = {
+    bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
+    card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
+    bdr: isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)',
+    txt: isDark ? '#f0e8d8' : '#2D2924', mut: isDark ? '#9a8c74' : '#5C5248',
+    dim: isDark ? '#c8b99a' : '#5C5248', s2: isDark ? '#1c1814' : '#FFFFFF', gold: isDark ? '#C9A84C' : '#8B6914',
+    shadow: isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)',
+  }
+  const [draft,           setDraft]           = useState('')
+  const [prayers,         setPrayers]         = useState<StreamMsg[]>([])
+  const [hoveredPrayerId, setHoveredPrayerId] = useState<string | null>(null)
+  const [editingPostId,   setEditingPostId]   = useState<string | null>(null)
+  const [editDraft,       setEditDraft]       = useState('')
+  const [showPrayerEmoji, setShowPrayerEmoji] = useState(false)
+  const [prayerJoined,    setPrayerJoined]    = useState<boolean>(() => {
+    try { return localStorage.getItem('wri_prayer_joined') === 'true' } catch { return false }
+  })
+  const [warriorCount, setWarriorCount]       = useState<number>(() => {
+    try { return parseInt(localStorage.getItem('wri_warrior_count') || '0', 10) || 0 } catch { return 0 }
+  })
+  const inputRef = useRef<HTMLInputElement>(null)
+  const PRAYER_EMOJIS = ['🙏','❤️','🔥','✝️','⚔️','💪','🕊️','👑','🌿','💧','🗡️','📖','🏔️','⭐','🌟','💛','🤍','🫶','🙌','✨']
+
+  function joinPrayerChain() {
+    if (prayerJoined) return
+    const next = warriorCount + 1
+    setPrayerJoined(true)
+    setWarriorCount(next)
+    try {
+      localStorage.setItem('wri_prayer_joined', 'true')
+      localStorage.setItem('wri_warrior_count', String(next))
+    } catch {}
+  }
+
+  const fetchPrayers = useCallback(async () => {
+    if (!streamToken || !apiKey) return
+    try {
+      const d = await streamFetch('/channels/messaging/prayer-wall-requests/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 20 } })
+      if (d.messages) {
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+        setPrayers(d.messages.filter((m: StreamMsg) => new Date(m.created_at).getTime() > cutoff))
+      }
+    } catch {}
+  }, [streamToken, apiKey])
+
+  useEffect(() => {
+    fetchPrayers()
+    const t = setInterval(fetchPrayers, 30000)
+    return () => clearInterval(t)
+  }, [fetchPrayers])
+
+  async function handleDeletePrayer(messageId: string) {
+    if (!confirm('Delete this prayer request?')) return
+    try {
+      await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
+      await fetchPrayers()
+    } catch (err) { console.error('Delete prayer failed:', err) }
+  }
+
+  async function handleSend() {
+    if (!draft.trim() || !streamToken || !apiKey) return
+    try {
+      await streamFetch('/channels/messaging/prayer-wall-requests/message', 'POST', streamToken, apiKey, { message: { text: draft.trim() } })
+      setDraft('')
+      await fetchPrayers()
+    } catch (err) { console.error('PRAYER ERROR:', err) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(o => !o)}
+              style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>
+              ☰
+            </button>
+          )}
+          <div>
+            <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
+            {warriorCount > 0 && (
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: V.mut, letterSpacing: '0.08em', marginTop: 2 }}>
+                ⚔ {warriorCount} warrior{warriorCount !== 1 ? 's' : ''} in the chain
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={joinPrayerChain}
+            disabled={prayerJoined}
+            style={{ padding: '6px 14px', background: prayerJoined ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.15)', border: `1px solid ${prayerJoined ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.5)'}`, borderRadius: '6px', color: prayerJoined ? V.mut : G, fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', cursor: prayerJoined ? 'default' : 'pointer', textTransform: 'uppercase' as const }}
+          >{prayerJoined ? '✓ In the Chain' : '🙏 Join Prayer Chain'}</button>
+          <button
+            onClick={() => inputRef.current?.focus()}
+            style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '6px', color: G, fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          >+ Add Prayer</button>
+        </div>
+      </div>
+      <div style={{ margin: '12px 20px 0', padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start', flexShrink: 0 }}>
+        <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+        <p style={{ margin: 0, fontFamily: crimson, fontSize: 13, color: V.mut, lineHeight: 1.5 }}>
+          <strong style={{ color: V.dim }}>Public wall.</strong>{' '}
+          This section is visible to all visitors. Do not share personal contact information,
+          addresses, or sensitive details. While this wall is monitored, posts from the community
+          may appear before review. War Room Intel is not responsible for content submitted by users.
+          Report concerns to{' '}
+          <a href="mailto:exorcist@warroomintel.com" style={{ color: G, textDecoration: 'none' }}>exorcist@warroomintel.com</a>.
+        </p>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        {prayers.length === 0 && (
+          <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', marginTop: 60, fontFamily: crimson, fontSize: 17 }}>
+            No prayer requests yet. Be the first.
+          </div>
+        )}
+        {prayers.map(m => (
+          <PostCard
+            key={m.id}
+            msg={m}
+            isDark={isDark}
+            hoveredId={hoveredPrayerId}
+            onHover={setHoveredPrayerId}
+            streamToken={streamToken}
+            apiKey={apiKey}
+            onReaction={fetchPrayers}
+            isFounder={founderIds?.has(m.user?.id || '')}
+            actions={m.user?.id === userId || isMinister ? (
+              editingPostId === m.id ? (
+                <div>
+                  <textarea
+                    value={editDraft}
+                    onChange={e => setEditDraft(e.target.value)}
+                    rows={3}
+                    style={{ width: '100%', boxSizing: 'border-box', background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 4, padding: '6px 8px', color: V.txt, fontFamily: crimson, fontSize: 14, resize: 'none' as const, outline: 'none', marginBottom: 6 }}
+                  />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => streamFetch(`/messages/${m.id}`, 'PUT', streamToken, apiKey, { message: { text: editDraft } }).then(() => { fetchPrayers(); setEditingPostId(null) })}
+                      style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
+                    >Save</button>
+                    <button
+                      onClick={() => setEditingPostId(null)}
+                      style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
+                    >Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => { setEditingPostId(m.id); setEditDraft(m.text || '') }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                  >✏ Edit</button>
+                  <button
+                    onClick={() => handleDeletePrayer(m.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                  >🗑 Delete</button>
+                </div>
+              )
+            ) : undefined}
+          />
+        ))}
+      </div>
+      <div style={{ padding: '12px 20px', borderTop: `1px solid ${V.bdr}`, background: V.s2, flexShrink: 0, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            placeholder="Add a prayer request..."
+            style={{ flex: 1, background: V.bg, border: `1px solid ${V.bdr}`, borderRadius: 8, padding: '10px 14px', color: V.txt, fontFamily: crimson, fontSize: 16, outline: 'none' }}
+          />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              type="button"
+              onClick={() => setShowPrayerEmoji(p => !p)}
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 18, color: '#C9A84C' }}
+              title="Add emoji"
+            >😊</button>
+            {showPrayerEmoji && (
+              <div style={{ position: 'absolute', bottom: '110%', left: 0, background: '#1a1628', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: 8, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, zIndex: 1000, width: 180 }}>
+                {PRAYER_EMOJIS.map(e => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => { setDraft(prev => prev + e); setShowPrayerEmoji(false) }}
+                    style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', padding: 4, borderRadius: 4, lineHeight: 1 }}
+                  >{e}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={handleSend} disabled={!draft.trim()}
+            style={{ background: draft.trim() ? G : 'rgba(201,168,76,0.3)', color: draft.trim() ? '#0D0B14' : V.mut, border: 'none', borderRadius: 8, padding: '10px 18px', fontFamily: cinzel, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'default', fontWeight: 700, whiteSpace: 'nowrap' }}>
+            🙏 Post
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── TESTIMONY WALL VIEW ────────────────────────────────────
+function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, userName: _userName, userTier: _userTier, userImage: _userImage }: any) {
+  const isDark = theme !== 'light'
+  const { getToken } = useAuth()
+  const bg     = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf   = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr    = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt    = isDark ? '#f0e8d8' : '#2D2924'
+  const mut    = isDark ? '#9a8c74' : '#5C5248'
+  const GG     = isDark ? '#C9A84C' : '#8B6914'
+  const shadow = isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)'
+
+  const [testimonies, setTestimonies]   = useState<any[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [showForm, setShowForm]         = useState(false)
+  const [title, setTitle]               = useState('')
+  const [body, setBody]                 = useState('')
+  const [category, setCategory]         = useState('personal')
+  const [isAnonymous, setIsAnonymous]   = useState(false)
+  const [submitting, setSubmitting]     = useState(false)
+  const [submitted, setSubmitted]       = useState(false)
+  const [expandedId, setExpandedId]     = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [reactions, setReactions]       = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('wri_reactions') || '{}') } catch { return {} }
+  })
+  const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/testimonies', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        const ts = d.testimonies || []
+        setTestimonies(ts)
+        const counts: Record<string, number> = {}
+        ts.forEach((t: any) => { counts[t.id] = t.reaction_count || 0 })
+        setReactionCounts(counts)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  async function submitTestimony() {
+    if (!title.trim() || !body.trim()) return
+    setSubmitting(true)
+    const token = await getToken()
+    const res = await fetch('/api/testimonies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title, body, category, isAnonymous }),
+    })
+    setSubmitting(false)
+    if (res.ok) { setSubmitted(true); setShowForm(false); setTitle(''); setBody('') }
+  }
+
+  async function handleReaction(testimonyId: string) {
+    if (reactions[testimonyId]) return
+    const newReactions = { ...reactions, [testimonyId]: true }
+    setReactions(newReactions)
+    setReactionCounts(prev => ({ ...prev, [testimonyId]: (prev[testimonyId] || 0) + 1 }))
+    try {
+      localStorage.setItem('wri_reactions', JSON.stringify(newReactions))
+      const token = await getToken()
+      await fetch(`/api/testimonies?id=${testimonyId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {}
+  }
+
+  const TESTIMONY_CATEGORIES = ['all', 'personal', 'healing', 'deliverance', 'restoration', 'ministry', 'freedom', 'breakthrough']
+  const categoryLabels: Record<string, string> = {
+    all: 'All', personal: '✝ Personal', healing: '🙏 Healing', deliverance: '⚔ Deliverance',
+    restoration: '💛 Restoration', ministry: '📡 Ministry', freedom: '🕊 Freedom', breakthrough: '⚡ Breakthrough',
+  }
+  const categories = ['personal', 'healing', 'deliverance', 'restoration', 'ministry', 'freedom', 'breakthrough']
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+        <div>
+          <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>✝ Testimony Wall</h2>
+          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>What God has done — shared for His glory</p>
+        </div>
+        <button
+          onClick={() => { setShowForm(f => !f); setSubmitted(false) }}
+          style={{ marginLeft: 'auto', padding: '8px 18px', background: showForm ? 'transparent' : 'rgba(201,168,76,0.15)', border: `1px solid ${GG}`, borderRadius: 8, color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0 }}
+        >
+          {showForm ? 'Cancel' : '+ Share Testimony'}
+        </button>
+      </div>
+
+      {/* Submission success */}
+      {submitted && (
+        <div style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 10, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 20 }}>✓</span>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: '#4ade80', letterSpacing: '0.06em', marginBottom: 2 }}>Testimony Submitted</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>Your testimony is pending review and will appear here once approved by leadership.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit form */}
+      {showForm && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '20px 24px', marginBottom: 28 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: GG, letterSpacing: '0.1em', marginBottom: 16 }}>Share What God Did</div>
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Title — e.g. 'Freedom from 20 years of fear'"
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.04em', outline: 'none', marginBottom: 10 }}
+          />
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            placeholder="Share what happened in your own words. How did God move? What changed?"
+            rows={5}
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6, marginBottom: 10 }}
+          />
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' as const }}>
+            {categories.map(cat => (
+              <button key={cat} onClick={() => setCategory(cat)}
+                style={{ padding: '4px 12px', background: category === cat ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${category === cat ? GG : bdr}`, borderRadius: 20, color: category === cat ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                {categoryLabels[cat]}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <input type="checkbox" id="anon-check" checked={isAnonymous} onChange={e => setIsAnonymous(e.target.checked)} style={{ accentColor: GG, width: 14, height: 14 }} />
+            <label htmlFor="anon-check" style={{ fontFamily: crimson, fontSize: 13, color: mut, cursor: 'pointer' }}>Post anonymously</label>
+          </div>
+          <button
+            onClick={submitTestimony}
+            disabled={submitting || !title.trim() || !body.trim()}
+            style={{ padding: '10px 24px', background: GG, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700, opacity: (!title.trim() || !body.trim()) ? 0.5 : 1 }}
+          >
+            {submitting ? 'Submitting...' : '✝ Submit Testimony'}
+          </button>
+        </div>
+      )}
+
+      {/* Category filter chips */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' as const }}>
+        {TESTIMONY_CATEGORIES.map(cat => (
+          <button key={cat} onClick={() => setActiveFilter(cat)}
+            style={{ padding: '4px 12px', background: activeFilter === cat ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${activeFilter === cat ? GG : bdr}`, borderRadius: 20, color: activeFilter === cat ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+            {categoryLabels[cat]}
+          </button>
+        ))}
+      </div>
+
+      {/* Testimonies list */}
+      {loading ? (
+        <div style={{ textAlign: 'center' as const, color: mut, fontFamily: crimson, fontStyle: 'italic', padding: 40 }}>Loading testimonies...</div>
+      ) : testimonies.filter(t => activeFilter === 'all' || t.category === activeFilter).length === 0 ? (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '40px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>✝</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: GG, letterSpacing: '0.08em', marginBottom: 8 }}>No Testimonies Yet</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+          {testimonies.filter(t => activeFilter === 'all' || t.category === activeFilter).map(t => {
+            const isExpanded = expandedId === t.id
+            const preview = t.body.length > 200 ? t.body.slice(0, 200) + '...' : t.body
+            const initial = (t.user_name || 'A')[0].toUpperCase()
+            const hasReacted = reactions[t.id]
+            const count = reactionCounts[t.id] || 0
+            return (
+              <div key={t.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '20px 22px', borderLeft: `3px solid ${GG}`, boxShadow: shadow }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 12, color: GG, flexShrink: 0, overflow: 'hidden' }}>
+                    {t.user_image ? <img src={t.user_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : initial}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{t.user_name}</div>
+                      {t.is_founder && <FoundingBadge />}
+                    </div>
+                    <div style={{ fontSize: 10, color: mut, marginTop: 1 }}>
+                      {categoryLabels[t.category] || t.category} · {new Date(t.approved_at || t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, letterSpacing: '0.04em', marginBottom: 10 }}>{t.title}</div>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7, marginBottom: 12 }}>
+                  {isExpanded ? t.body : preview}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {t.body.length > 200 && (
+                    <button onClick={() => setExpandedId(isExpanded ? null : t.id)}
+                      style={{ background: 'none', border: 'none', color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>
+                      {isExpanded ? '▲ Show Less' : '▼ Read More'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleReaction(t.id)}
+                    style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', background: hasReacted ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${hasReacted ? GG : bdr}`, borderRadius: 20, color: hasReacted ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: hasReacted ? 'default' : 'pointer', textTransform: 'uppercase' as const }}>
+                    <span>⚔</span>
+                    <span>Standing with You</span>
+                    {count > 0 && <span style={{ color: GG, fontWeight: 700 }}>{count}</span>}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── MINIMAL MARKDOWN RENDERER ──────────────────────────────
+function renderMd(raw: string): { __html: string } {
+  if (!raw) return { __html: '' }
+  const esc = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const inline = (s: string) => s
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#C9A84C;text-decoration:underline">$1</a>')
+  const lines = esc.split('\n')
+  const out: string[] = []
+  let inList = false, inPara = false
+  const closeList = () => { if (inList) { out.push('</ul>'); inList = false } }
+  const closePara = () => { if (inPara) { out.push('</p>'); inPara = false } }
+  for (const line of lines) {
+    const h3 = line.match(/^### (.+)$/); const h2 = line.match(/^## (.+)$/); const h1 = line.match(/^# (.+)$/)
+    const li = line.match(/^[-*•] (.+)$/)
+    if (h3) { closeList(); closePara(); out.push(`<h4 style="font-family:'Cinzel',serif;font-size:13px;color:#C9A84C;letter-spacing:.06em;margin:16px 0 6px">${inline(h3[1])}</h4>`) }
+    else if (h2) { closeList(); closePara(); out.push(`<h3 style="font-family:'Cinzel',serif;font-size:15px;color:#C9A84C;letter-spacing:.06em;margin:18px 0 8px">${inline(h2[1])}</h3>`) }
+    else if (h1) { closeList(); closePara(); out.push(`<h2 style="font-family:'Cinzel',serif;font-size:17px;color:#C9A84C;letter-spacing:.06em;margin:20px 0 10px">${inline(h1[1])}</h2>`) }
+    else if (li) { closePara(); if (!inList) { out.push('<ul style="padding-left:18px;margin:8px 0">'); inList = true } out.push(`<li style="margin:3px 0">${inline(li[1])}</li>`) }
+    else if (line.trim() === '') { closeList(); closePara() }
+    else { closeList(); if (!inPara) { out.push('<p style="margin:0 0 10px;line-height:1.7">'); inPara = true } else out.push('<br/>'); out.push(inline(line)) }
+  }
+  closeList(); closePara()
+  return { __html: out.join('') }
+}
+
+function stripMdPreview(raw: string, maxChars = 120): string {
+  if (!raw) return ''
+  const stripped = raw
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*{1,3}(.+?)\*{1,3}/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*•]\s+/gm, '')
+    .replace(/\n+/g, ' ')
+    .trim()
+  const sentences = stripped.match(/[^.!?]+[.!?]+/g) || []
+  const twoSentences = sentences.slice(0, 2).join(' ').trim()
+  const result = twoSentences || stripped
+  return result.length > maxChars ? result.slice(0, maxChars).trimEnd() + '…' : result
+}
+
+// ── DAILY DEVOTION VIEW ────────────────────────────────────
+function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#2D2924'
+  const mut  = isDark ? '#9a8c74' : '#5C5248'
+  const GD   = isDark ? '#C9A84C' : '#8B6914'
+  const { getToken } = useAuth()
+
+  const TIER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+  const userLvl = TIER[(userTier || '').toLowerCase()] ?? 0
+
+  const [devotion, setDevotion]   = useState<any>(null)
+  const [loading, setLoading]     = useState(true)
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().slice(0, 10))
+  const [archive, setArchive]     = useState<any[]>([])
+  const [showArchive, setShowArchive] = useState(false)
+
+  function extractYouTubeId(url: string): string | null {
+    if (!url) return null
+    const patterns = [/youtu\.be\/([^?&#]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/, /youtube(?:\.com)?\/live\/([^?&#]+)/]
+    for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
+    return null
+  }
+
+  async function loadDevotion(date: string) {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/daily-devotion?date=${date}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setDevotion(d.devotion) }
+      else setDevotion(null)
+    } catch { setDevotion(null) }
+    setLoading(false)
+  }
+
+  async function loadArchive() {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/daily-devotion?archive=true', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setArchive(d.devotions || []) }
+    } catch {}
+  }
+
+  useEffect(() => { loadDevotion(currentDate) }, [currentDate])
+
+  function prevDay() {
+    const d = new Date(currentDate); d.setDate(d.getDate() - 1); setCurrentDate(d.toISOString().slice(0, 10))
+  }
+  function nextDay() {
+    const today = new Date().toISOString().slice(0, 10)
+    const d = new Date(currentDate); d.setDate(d.getDate() + 1)
+    const next = d.toISOString().slice(0, 10)
+    if (next <= today) setCurrentDate(next)
+  }
+
+  const isToday = currentDate === new Date().toISOString().slice(0, 10)
+  const displayDate = new Date(currentDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
+  function LockedSection({ tierNeeded, children }: { tierNeeded: number; children: React.ReactNode }) {
+    if (userLvl >= tierNeeded) return <>{children}</>
+    const labels = ['', 'Soldier', 'Commander', 'General']
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8, padding: '20px', background: surf, border: `1px solid ${bdr}`, borderRadius: 8, textAlign: 'center' as const, marginBottom: 24 }}>
+        <div style={{ fontSize: 24 }}>🔒</div>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: GD, letterSpacing: '0.08em' }}>{labels[tierNeeded] || 'Higher'} Tier Required</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>Upgrade your membership to access this section</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 36px', minHeight: 0 }}>
+      <div style={!isMobile ? { maxWidth: 720, margin: '0 auto', width: '100%' } : {}}>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row' as const, gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>☀️ Daily Brief</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>{displayDate}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={prevDay} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>← PREV</button>
+          {!isToday && <button onClick={nextDay} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>NEXT →</button>}
+          <button onClick={() => { setShowArchive(s => !s); if (!showArchive) loadArchive() }}
+            style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>
+            ARCHIVE
+          </button>
+        </div>
+      </div>
+
+      {/* Archive panel */}
+      {showArchive && (
+        <div style={{ marginBottom: 24, background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.12em', marginBottom: 10 }}>LAST 30 DAYS</div>
+          {archive.length === 0
+            ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No archive entries found</div>
+            : archive.map(a => (
+              <button key={a.id} onClick={() => { setCurrentDate(a.date); setShowArchive(false) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', borderBottom: `1px solid ${bdr}`, padding: '8px 0', cursor: 'pointer', color: a.date === currentDate ? GD : txt, fontFamily: crimson, fontSize: 14 }}>
+                {new Date(a.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {a.title}
+              </button>
+            ))
+          }
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center' as const, padding: '60px 20px', color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 16 }}>Loading today's brief…</div>
+      ) : !devotion ? (
+        <div style={{ textAlign: 'center' as const, padding: '60px 20px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 48 }}>☀️</div>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: GD, letterSpacing: '0.08em' }}>Today's brief is being prepared</div>
+          <div style={{ fontFamily: crimson, fontSize: 15, color: mut }}>Check back soon. The minister is preparing today's word.</div>
+        </div>
+      ) : (
+        <div style={{ maxWidth: 680 }}>
+          {devotion.title && <div style={{ fontFamily: cinzel, fontSize: 20, color: txt, letterSpacing: '0.05em', marginBottom: 24, fontWeight: 700 }}>{devotion.title}</div>}
+
+          {/* Morning Prayer (watchman+) */}
+          {devotion.morning_prayer && (
+            <LockedSection tierNeeded={0}>
+              <div style={{ borderLeft: `4px solid ${GD}`, paddingLeft: 20, marginBottom: 28, background: 'rgba(201,168,76,0.04)', borderRadius: '0 8px 8px 0', padding: '16px 20px', borderTop: `1px solid ${bdr}`, borderRight: `1px solid ${bdr}`, borderBottom: `1px solid ${bdr}` }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 10 }}>MORNING PRAYER</div>
+                <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.morning_prayer}</div>
+              </div>
+            </LockedSection>
+          )}
+
+          {/* Scripture (soldier+) */}
+          {devotion.scripture && (
+            <LockedSection tierNeeded={1}>
+              <div style={{ textAlign: 'center' as const, marginBottom: 28, padding: '20px' }}>
+                <div style={{ fontFamily: crimson, fontSize: 20, color: GD, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 8 }}>"{devotion.scripture}"</div>
+                {devotion.scripture_reference && <div style={{ fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.1em' }}>— {devotion.scripture_reference}</div>}
+              </div>
+            </LockedSection>
+          )}
+
+          {/* Devotional text (soldier+) */}
+          {devotion.devotional_text && (
+            <LockedSection tierNeeded={1}>
+              <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.85, marginBottom: 28, whiteSpace: 'pre-wrap' as const }}>{devotion.devotional_text}</div>
+            </LockedSection>
+          )}
+
+          {/* Daily video (commander+) */}
+          {devotion.youtube_url && (
+            <LockedSection tierNeeded={2}>
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 10 }}>TODAY'S MESSAGE</div>
+                <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', borderRadius: 8, overflow: 'hidden' }}>
+                  {extractYouTubeId(devotion.youtube_url) && (
+                    <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(devotion.youtube_url)}?rel=0&modestbranding=1`}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                      allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+                  )}
+                </div>
+              </div>
+            </LockedSection>
+          )}
+
+          {/* Evening Prayer (commander+) */}
+          {devotion.evening_prayer && (
+            <LockedSection tierNeeded={2}>
+              <div style={{ borderLeft: '4px solid #3d5a80', paddingLeft: 20, marginBottom: 28, background: 'rgba(61,90,128,0.06)', borderRadius: '0 8px 8px 0', padding: '16px 20px', borderTop: `1px solid rgba(61,90,128,0.2)`, borderRight: `1px solid rgba(61,90,128,0.2)`, borderBottom: `1px solid rgba(61,90,128,0.2)` }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5c7cbf', letterSpacing: '0.18em', marginBottom: 10 }}>EVENING PRAYER</div>
+                <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.evening_prayer}</div>
+              </div>
+            </LockedSection>
+          )}
+        </div>
+      )}
+      </div>
+    </div>
+  )
+}
+
+// ── OPS DASHBOARD VIEW ─────────────────────────────────────
+function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, setActiveSection }: any) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#2D2924'
+  const mut  = isDark ? '#9a8c74' : '#5C5248'
+  const GD   = isDark ? '#C9A84C' : '#8B6914'
+
+  const [cases, setCases]     = useState<any[]>([])
+  const [events, setEvents]   = useState<any[]>([])
+  const [intel, setIntel]     = useState<any[]>([])
+  const [prayers, setPrayers] = useState<any[]>([])
+  const [brief, setBrief]     = useState<any>(null)
+  const [loaded, setLoaded]   = useState(false)
+
+  useEffect(() => {
+    async function loadAll() {
+      try {
+        const token = await getToken()
+        const h = { Authorization: `Bearer ${token}` }
+        const [casesRes, eventsRes, intelRes, prayerRes, briefRes] = await Promise.allSettled([
+          fetch('/api/field-ops?resource=cases', { headers: h }),
+          fetch('/api/events?upcoming=3', { headers: h }),
+          fetch('/api/ai-history?limit=3', { headers: h }),
+          fetch('/api/prayer-wall?limit=4', { headers: h }),
+          fetch(`/api/daily-devotion?date=${new Date().toISOString().slice(0, 10)}`, { headers: h }),
+        ])
+        if (casesRes.status === 'fulfilled' && casesRes.value.ok) { const d = await casesRes.value.json(); setCases((d.cases || []).slice(0, 3)) }
+        if (eventsRes.status === 'fulfilled' && eventsRes.value.ok) { const d = await eventsRes.value.json(); setEvents((d.events || []).slice(0, 2)) }
+        if (intelRes.status === 'fulfilled' && intelRes.value.ok) { const d = await intelRes.value.json(); setIntel((d.history || []).slice(0, 3)) }
+        if (prayerRes.status === 'fulfilled' && prayerRes.value.ok) { const d = await prayerRes.value.json(); setPrayers((d.prayers || d.items || []).slice(0, 2)) }
+        if (briefRes.status === 'fulfilled' && briefRes.value.ok) { const d = await briefRes.value.json(); setBrief(d.devotion) }
+      } catch {}
+      setLoaded(true)
+    }
+    loadAll()
+  }, [])
+
+  function Widget({ title, icon, children, onViewAll: _onViewAll, section }: { title: string; icon: string; children: React.ReactNode; onViewAll?: string; section?: string }) {
+    return (
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.16em' }}>{icon} {title}</div>
+          {section && <button onClick={() => setActiveSection(section)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: 0 }}>VIEW ALL →</button>}
+        </div>
+        <div>{children}</div>
+      </div>
+    )
+  }
+
+  const gridCols = isMobile ? '1fr' : 'repeat(2, 1fr)'
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>⚡ Ops Dashboard</div>
+          {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Minister command center</div>}
+        </div>
+      </div>
+
+      {!loaded ? (
+        <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 15, textAlign: 'center' as const, paddingTop: 48 }}>Loading dashboard…</div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 16, marginBottom: 16 }}>
+
+            {/* Active Cases */}
+            <Widget title="ACTIVE CASES" icon="📁" section="case-files">
+              {cases.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No active cases</div>
+                : cases.map(c => (
+                  <div key={c.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{c.subject_name || c.subject_alias || 'Unnamed'}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{c.primary_issue || c.status}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+
+            {/* Upcoming Events */}
+            <Widget title="UPCOMING EVENTS" icon="📅" section="events">
+              {events.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No upcoming events</div>
+                : events.map(e => (
+                  <div key={e.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{e.title}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{e.event_date ? new Date(e.event_date).toLocaleDateString() : ''} {e.type && `· ${e.type}`}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+
+            {/* Recent AI Searches */}
+            <Widget title="RECENT AI SEARCHES" icon="🔍" section="my-intel">
+              {intel.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No searches yet</div>
+                : intel.map(i => (
+                  <div key={i.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{i.query}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em' }}>{i.tool}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+
+            {/* Prayer Requests */}
+            <Widget title="PRAYER WALL" icon="🙏" section="prayer-wall">
+              {prayers.length === 0
+                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No recent prayer requests</div>
+                : prayers.map((p: any) => (
+                  <div key={p.id || p.cid} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{p.user?.name || p.user?.firstName || 'Anonymous'}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.text || p.message || p.body || ''}</div>
+                  </div>
+                ))
+              }
+            </Widget>
+          </div>
+
+          {/* Today's Brief widget — full width */}
+          <Widget title="TODAY'S BRIEF" icon="☀️" section="daily-brief">
+            {!brief
+              ? <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>No brief posted today</div>
+              : <>
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: txt }}>{brief.title}</div>
+                {brief.morning_prayer && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>{brief.morning_prayer.split('\n')[0]}</div>}
+              </>
+            }
+          </Widget>
+
+          {/* Quick Actions */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 10 }}>QUICK ACTIONS</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+              {[
+                { label: '+ New Case File', section: 'case-files' },
+                { label: '+ Session Center', section: 'session-center' },
+                { label: '+ Prayer Request', section: 'prayer-wall' },
+                { label: '+ Field Report', section: 'forum' },
+              ].map(a => (
+                <button key={a.label} onClick={() => setActiveSection(a.section)}
+                  style={{ padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── TRAINING VIEW ──────────────────────────────────────────
+function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? '#f0e8d8' : '#2D2924'
+  const mut  = isDark ? '#9a8c74' : '#5C5248'
+  const dim  = isDark ? '#5a4f3a' : '#5C5248'
+  const G    = isDark ? '#C9A84C' : '#8B6914'
+
+  const [view, setView]                     = useState<'list' | 'course' | 'episode'>('list')
+  const [courses, setCourses]               = useState<any[]>([])
+  const [selectedCourse, setSelectedCourse] = useState<any>(null)
+  const [episodes, setEpisodes]             = useState<any[]>([])
+  const [selectedEpisode, setSelectedEpisode] = useState<any>(null)
+  const [progress, setProgress]             = useState<any[]>([])
+  const [attachments, setAttachments]       = useState<any[]>([])
+  const [comments, setComments]             = useState<any[]>([])
+  const [activeTab, setActiveTab]           = useState<'notes' | 'resources' | 'discussion'>('notes')
+  const [commentBody, setCommentBody]       = useState('')
+  const [replyTo, setReplyTo]               = useState<any>(null)
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [loading, setLoading]               = useState(true)
+  const [episodeSidebarCollapsed, setEpisodeSidebarCollapsed] = useState(false)
+  const [expandedDescCourseId, setExpandedDescCourseId] = useState<string | null>(null)
+  const [courseAboutExpanded, setCourseAboutExpanded] = useState(false)
+  const [readMoreEpisode, setReadMoreEpisode] = useState<any>(null)
+
+  function extractYouTubeId(url: string): string | null {
+    if (!url) return null
+    const patterns = [/youtu\.be\/([^?&#]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/, /youtube(?:\.com)?\/live\/([^?&#]+)/]
+    for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
+    return null
+  }
+
+  useEffect(() => { loadCourses() }, [])
+
+  async function loadCourses() {
+    setLoading(true)
+    const token = await getToken()
+    const res = await fetch('/api/courses', { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setCourses(d.courses || []) }
+    setLoading(false)
+  }
+
+  async function openCourse(course: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/courses?id=${course.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setEpisodes(d.episodes || []); setProgress(d.progress || []) }
+    setSelectedCourse(course); setSelectedEpisode(null); setView('course'); setCourseAboutExpanded(false)
+  }
+
+  async function openEpisode(ep: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/episodes?id=${ep.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) { const d = await res.json(); setAttachments(d.attachments || []) }
+    const cRes = await fetch(`/api/episode-comments?episodeId=${ep.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (cRes.ok) { const d = await cRes.json(); setComments(d.comments || []) }
+    setSelectedEpisode(ep); setActiveTab('notes')
+  }
+
+  async function markWatched(episodeId: string, watched: boolean) {
+    const token = await getToken()
+    await fetch('/api/episode-progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ episodeId, watched }),
+    })
+    setProgress(prev => {
+      const existing = prev.find(p => p.episode_id === episodeId)
+      if (existing) return prev.map(p => p.episode_id === episodeId ? { ...p, watched } : p)
+      return [...prev, { episode_id: episodeId, watched }]
+    })
+  }
+
+  async function submitComment() {
+    if (!commentBody.trim() || !selectedEpisode) return
+    setSubmittingComment(true)
+    const token = await getToken()
+    const res = await fetch('/api/episode-comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ episodeId: selectedEpisode.id, body: commentBody.trim(), parentId: replyTo?.id || null }),
+    })
+    if (res.ok) { const d = await res.json(); setComments(prev => [...prev, d.comment]); setCommentBody(''); setReplyTo(null) }
+    setSubmittingComment(false)
+  }
+
+  async function deleteComment(id: string) {
+    const token = await getToken()
+    await fetch(`/api/episode-comments?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setComments(prev => prev.filter(c => c.id !== id && c.parent_id !== id))
+  }
+
+  const isWatched = (epId: string) => progress.find(p => p.episode_id === epId)?.watched === true
+  const watchedCount = episodes.filter(ep => isWatched(ep.id)).length
+  const tierColors: Record<string, string> = { free: '#9a8c74', watchman: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+  const tierLabel = (tier: string) => ({ free: 'WATCHMAN', watchman: 'WATCHMAN', soldier: 'SOLDIER', commander: 'COMMANDER', general: 'GENERAL' }[tier] || tier.toUpperCase())
+
+  // ── COURSE LIST VIEW ──
+  if (view === 'list') return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px', paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : undefined }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        <div>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>🎬 Training</h2>
+          <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Courses, protocols, and quick-hit teachings</p>
+        </div>
+      </div>
+      {loading ? (
+        <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, padding: 40 }}>Loading training...</div>
+      ) : courses.length === 0 ? (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '48px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>🎬</div>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>Training Coming Soon</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>Courses and protocols are being prepared. Check back soon.</div>
+        </div>
+      ) : (
+        <div>
+          {courses.filter(c => c.course_type === 'course' || !c.course_type).length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 14 }}>📚 Courses</div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                {courses.filter(c => c.course_type === 'course' || !c.course_type).map(course => {
+                  const hasAccess = course.hasAccess !== false
+                  return (
+                    <div key={course.id} onClick={() => hasAccess && openCourse(course)}
+                      style={{ background: surf, border: `1px solid ${hasAccess ? bdr : 'rgba(255,255,255,0.06)'}`, borderRadius: 12, overflow: 'hidden', cursor: hasAccess ? 'pointer' : 'default', opacity: hasAccess ? 1 : 0.75, position: 'relative' as const }}
+                      onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
+                      onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
+                      <div style={{ height: 120, background: 'linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(13,11,20,0.8) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, borderBottom: `1px solid ${bdr}` }}>
+                        {course.thumbnail_url ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: '8px 8px 0 0' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.parentElement as HTMLElement).innerHTML = '📚' }} /> : '📚'}
+                      </div>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
+                          {!hasAccess && <span style={{ fontSize: 14, flexShrink: 0 }}>🔒</span>}
+                        </div>
+                        {course.description && (isMobile ? (
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>
+                            {expandedDescCourseId === course.id ? course.description : stripMdPreview(course.description)}
+                            {course.description.length > 120 && (
+                              <button onClick={e => { e.stopPropagation(); setExpandedDescCourseId(expandedDescCourseId === course.id ? null : course.id) }}
+                                style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: '0 0 0 4px' }}>
+                                {expandedDescCourseId === course.id ? 'Read less' : 'Read more'}
+                              </button>
+                            )}
+                          </div>
+                        ) : <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>{stripMdPreview(course.description)}</div>)}
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                          <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
+                          <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
+                          {hasAccess && course.watchedCount > 0 && <span style={{ fontSize: 11, color: '#4ade80', fontFamily: crimson }}>{course.watchedCount}/{course.episodeCount} watched</span>}
+                        </div>
+                        {!hasAccess && <button onClick={e => { e.stopPropagation(); handleUpgrade(course.tier, getToken) }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {courses.filter(c => c.course_type === 'protocol').length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 14 }}>📋 Protocols</div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                {courses.filter(c => c.course_type === 'protocol').map(course => {
+                  const hasAccess = course.hasAccess !== false
+                  return (
+                    <div key={course.id} onClick={() => hasAccess && openCourse(course)}
+                      style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 18px', cursor: hasAccess ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 14, opacity: hasAccess ? 1 : 0.75 }}
+                      onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
+                      onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
+                      <span style={{ fontSize: 24, flexShrink: 0 }}>📋</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: 3 }}>{course.title}</div>
+                        {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{stripMdPreview(course.description)}</div>}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                        <span style={{ fontSize: 9, color: tierColors[course.tier] || mut, fontFamily: cinzel, letterSpacing: '0.06em', border: `1px solid ${tierColors[course.tier] || mut}`, borderRadius: 10, padding: '1px 7px' }}>{tierLabel(course.tier)}</span>
+                        {!hasAccess ? <span style={{ fontSize: 14 }}>🔒</span> : <span style={{ fontSize: 12, color: G }}>›</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {courses.filter(c => c.course_type === 'quick-hit').length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 14 }}>⚡ Quick Hits</div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                {courses.filter(c => c.course_type === 'quick-hit').map(course => {
+                  const hasAccess = course.hasAccess !== false
+                  return (
+                    <div key={course.id} onClick={() => hasAccess && openCourse(course)}
+                      style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 16px', cursor: hasAccess ? 'pointer' : 'default', opacity: hasAccess ? 1 : 0.75 }}
+                      onMouseEnter={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = G)}
+                      onMouseLeave={e => hasAccess && ((e.currentTarget as HTMLElement).style.borderColor = bdr)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 18 }}>⚡</span>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em', flex: 1 }}>{course.title}</div>
+                        {!hasAccess && <span style={{ fontSize: 12 }}>🔒</span>}
+                      </div>
+                      {course.description && <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{stripMdPreview(course.description)}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  // ── COURSE VIEW (episode list) ──
+  if (view === 'course' && selectedCourse) return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row' as const, minHeight: 0, background: bg }}>
+
+      {/* ── DESKTOP: collapsible sidebar ── */}
+      {!isMobile && (
+        <div style={{ position: 'relative' as const, flexShrink: 0, display: 'flex' }}>
+          <div style={{ width: episodeSidebarCollapsed ? 0 : 220, overflow: 'hidden', transition: 'width 0.2s ease', borderRight: episodeSidebarCollapsed ? 'none' : `1px solid ${bdr}`, background: isDark ? '#13111e' : '#ede6db', display: 'flex', flexDirection: 'column' as const }}>
+            <div style={{ width: 220, padding: '14px 16px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
+              <button onClick={() => { setView('list'); setSelectedCourse(null) }} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 8 }}>← Back to Training</button>
+              <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: 4, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedCourse.title}</div>
+              {episodes.length > 0 && (
+                <div style={{ fontSize: 11, color: mut, fontFamily: crimson }}>
+                  {watchedCount}/{episodes.length} complete
+                  <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 6 }}>
+                    <div style={{ height: '100%', width: `${episodes.length ? (watchedCount / episodes.length) * 100 : 0}%`, background: G, borderRadius: 2, transition: 'width 0.3s' }} />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', width: 220 }}>
+              {episodes.map((ep, idx) => {
+                const watched = isWatched(ep.id)
+                const isActive = selectedEpisode?.id === ep.id
+                return (
+                  <button key={ep.id} onClick={() => openEpisode(ep)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 12px', background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderBottom: `1px solid ${bdr}`, borderLeft: `3px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', textAlign: 'left' as const }}>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', border: `1px solid ${watched ? G : bdr}`, background: watched ? 'rgba(201,168,76,0.2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: watched ? G : mut, flexShrink: 0 }}>
+                      {watched ? '✓' : idx + 1}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: isActive ? G : txt, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</div>
+                    </div>
+                  </button>
+                )
+              })}
+              {episodes.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center' as const, color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No episodes yet</div>}
+            </div>
+          </div>
+          {/* Collapse / expand toggle button */}
+          <button
+            onClick={() => setEpisodeSidebarCollapsed(c => !c)}
+            title={episodeSidebarCollapsed ? 'Expand episode list' : 'Collapse episode list'}
+            style={{ position: 'absolute' as const, top: 14, right: episodeSidebarCollapsed ? -28 : -14, zIndex: 10, width: 24, height: 24, borderRadius: '50%', border: `1px solid ${bdr}`, background: isDark ? '#13111e' : '#ede6db', color: G, fontSize: 13, lineHeight: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.3)', transition: 'right 0.2s ease', padding: 0 }}
+          >
+            {episodeSidebarCollapsed ? '›' : '‹'}
+          </button>
+        </div>
+      )}
+
+      {/* ── MOBILE: full-width column layout ── */}
+      {isMobile && (
+        <>
+          {/* Course header */}
+          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${bdr}`, background: isDark ? '#13111e' : '#ede6db', flexShrink: 0 }}>
+            <button onClick={() => { setView('list'); setSelectedCourse(null) }} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, marginBottom: 6 }}>← Back to Training</button>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.04em', marginBottom: episodes.length > 0 ? 4 : 0 }}>{selectedCourse.title}</div>
+            {episodes.length > 0 && (
+              <div style={{ fontSize: 10, color: mut, fontFamily: crimson, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{watchedCount}/{episodes.length} complete</span>
+                <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+                  <div style={{ height: '100%', width: `${episodes.length ? (watchedCount / episodes.length) * 100 : 0}%`, background: G, borderRadius: 2, transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Horizontal scrollable episode strip */}
+          <div style={{ overflowX: 'auto', display: 'flex', gap: 0, borderBottom: `1px solid ${bdr}`, background: isDark ? '#13111e' : '#ede6db', flexShrink: 0 }}>
+            {episodes.map((ep, idx) => {
+              const watched = isWatched(ep.id)
+              const isActive = selectedEpisode?.id === ep.id
+              return (
+                <button key={ep.id} onClick={() => openEpisode(ep)}
+                  style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 3, padding: '0 10px', height: 64, background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent', border: 'none', borderBottom: `2px solid ${isActive ? G : 'transparent'}`, cursor: 'pointer', flexShrink: 0, minWidth: 60, maxWidth: 84 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: watched ? 14 : 20, fontWeight: 700, color: watched ? '#4ade80' : G, lineHeight: 1 }}>
+                    {watched ? '✓' : idx + 1}
+                  </div>
+                  <div style={{ fontFamily: cinzel, fontSize: 7, color: isActive ? G : mut, letterSpacing: '0.02em', maxWidth: 68, textAlign: 'center' as const, lineHeight: 1.2, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2 as any, WebkitBoxOrient: 'vertical' as any, whiteSpace: 'normal' as const }}>{ep.title}</div>
+                </button>
+              )
+            })}
+            {episodes.length === 0 && <div style={{ padding: '12px 16px', color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 12 }}>No episodes yet</div>}
+          </div>
+        </>
+      )}
+
+      {/* ── NO EPISODE SELECTED ── */}
+      {!selectedEpisode && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut, padding: 32 }}>
+          <div style={{ fontSize: 40 }}>▶</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>{isMobile ? 'Tap an episode above to begin' : 'Select an episode to begin'}</div>
+          {!isMobile && selectedCourse.description && (
+            <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, maxHeight: courseAboutExpanded ? 'none' : 120, overflow: 'hidden', lineHeight: 1.6 }} dangerouslySetInnerHTML={renderMd(selectedCourse.description)} />
+              {selectedCourse.description.length > 200 && (
+                <button onClick={() => setCourseAboutExpanded(e => !e)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', marginTop: 6, padding: 0 }}>
+                  {courseAboutExpanded ? 'READ LESS ↑' : 'READ MORE ↓'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── EPISODE PLAYER ── */}
+      {selectedEpisode && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflow: 'hidden' }}>
+          {/* 16:9 responsive video container */}
+          {selectedEpisode.youtube_url && (
+            <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', flexShrink: 0, width: '100%' }}>
+              {extractYouTubeId(selectedEpisode.youtube_url) ? (
+                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+              ) : null}
+            </div>
+          )}
+          {isMobile ? (
+            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', lineHeight: 1.3 }}>{selectedEpisode.title}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: mut, marginTop: 2 }}>{selectedCourse.title}</div>
+              </div>
+              <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
+                style={{ flexShrink: 0, padding: '5px 10px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 15, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedEpisode.title}</div>
+                {selectedEpisode.description && (
+                  <>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: mut, ...(selectedEpisode.description.length > 200 ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } : {}) }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />
+                    {selectedEpisode.description.length > 200 && (
+                      <button onClick={() => setReadMoreEpisode(selectedEpisode)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 0 0', opacity: 0.8 }}>READ MORE ↓</button>
+                    )}
+                  </>
+                )}
+              </div>
+              <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
+                style={{ flexShrink: 0, padding: '7px 14px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
+              </button>
+            </div>
+          )}
+          <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, padding: isMobile ? '0 8px' : '0 20px', ...(isMobile && { position: 'sticky' as const, top: 0, zIndex: 100, background: bg }) }}>
+            {(['notes', 'resources', 'discussion'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                style={{ padding: '10px 16px', background: 'transparent', border: 'none', borderBottom: activeTab === tab ? `2px solid ${G}` : '2px solid transparent', color: activeTab === tab ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
+                {tab === 'notes' ? '📝 Notes' : tab === 'resources' ? '📎 Resources' : '💬 Discussion'}
+                {tab === 'discussion' && comments.length > 0 && <span style={{ marginLeft: 4, fontSize: 9, background: 'rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 6px', color: G }}>{comments.length}</span>}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', minHeight: 0, paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : 20 }}>
+            {activeTab === 'notes' && (() => {
+              const notes = selectedEpisode.notes || ''
+              const isYtSpam = notes.includes('#Deliverance') || notes.includes('Subscribe for teachings')
+              return notes && !isYtSpam
+                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(notes)} />
+                : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>Notes for this episode will be added shortly.</div>
+            })()}
+            {activeTab === 'resources' && (() => {
+              const TIER_LVL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+              const epTierNum  = TIER_LVL[selectedEpisode.tier?.toLowerCase()] ?? 0
+              const userTierNum = TIER_LVL[userTier?.toLowerCase()] ?? 0
+              const hasResourceAccess = userTierNum >= epTierNum
+              const fileIcon = (att: any) => {
+                const m = (att.mime_type || '').toLowerCase()
+                const t = (att.title || '').toLowerCase()
+                if (m.includes('pdf') || t.endsWith('.pdf')) return '📄'
+                if (m.includes('image') || /\.(png|jpg|jpeg|gif|webp)$/.test(t)) return '🖼️'
+                if (m.includes('word') || /\.(doc|docx)$/.test(t)) return '📝'
+                return '📎'
+              }
+              const isPdf = (att: any) => {
+                const m = (att.mime_type || '').toLowerCase()
+                const t = (att.title || '').toLowerCase()
+                return m.includes('pdf') || t.endsWith('.pdf')
+              }
+              if (!hasResourceAccess) return (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' as const }}>
+                  <div style={{ fontSize: 32 }}>🔒</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>This resource requires {selectedEpisode.tier || 'higher'} access</div>
+                  <button onClick={() => handleUpgrade(selectedEpisode.tier || 'soldier', getToken)}
+                    style={{ padding: '8px 20px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                    Upgrade to {selectedEpisode.tier} →
+                  </button>
+                </div>
+              )
+              if (attachments.length === 0) return (
+                <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No resources attached to this episode yet.</div>
+              )
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  {attachments.map((att: any) => (
+                    <div key={att.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>{fileIcon(att)}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <a href={att.file_path} target="_blank" rel="noopener noreferrer"
+                            style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.04em', textDecoration: 'underline', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                            {att.title || 'Download'}
+                          </a>
+                          {att.file_size && <div style={{ fontSize: 11, color: mut, marginTop: 2 }}>{att.file_size}</div>}
+                        </div>
+                      </div>
+                      {isPdf(att) && (
+                        <button onClick={() => setActiveSection('arsenal')}
+                          style={{ marginTop: 8, background: 'none', border: 'none', color: mut, fontFamily: crimson, fontSize: 12, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          Search in Ministry Library →
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+            {activeTab === 'discussion' && (
+              <div>
+                {/* Comment count header */}
+                <div style={{ fontFamily: cinzel, fontSize: isMobile ? 11 : 13, color: txt, letterSpacing: '0.06em', marginBottom: isMobile ? 12 : 16 }}>
+                  {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
+                </div>
+                {isMobile ? (
+                  <div style={{ marginBottom: 20 }}>
+                    {replyTo && (
+                      <div style={{ fontSize: 11, color: mut, fontFamily: crimson, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        ↩ Replying to {replyTo.user_name}
+                        <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: mut, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: G, fontSize: 14 }}>▸</div>
+                      <input
+                        value={commentBody}
+                        onChange={e => setCommentBody(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && commentBody.trim()) { e.preventDefault(); submitComment() } }}
+                        placeholder={replyTo ? `Reply to ${replyTo.user_name}…` : 'Add a comment…'}
+                        style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 20, padding: '8px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', minWidth: 0 }}
+                      />
+                      <button
+                        onClick={submitComment}
+                        disabled={submittingComment || !commentBody.trim()}
+                        style={{ background: 'none', border: 'none', color: commentBody.trim() ? G : mut, fontSize: 22, cursor: commentBody.trim() ? 'pointer' : 'default', flexShrink: 0, padding: '0 2px', opacity: !commentBody.trim() ? 0.4 : 1, lineHeight: 1 }}>
+                        →
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 24 }}>
+                    {replyTo && <div style={{ fontSize: 11, color: mut, fontFamily: crimson, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>Replying to {replyTo.user_name} <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: mut, cursor: 'pointer', fontSize: 12 }}>×</button></div>}
+                    <textarea value={commentBody} onChange={e => setCommentBody(e.target.value)} placeholder="Share a thought, question, or insight from this teaching..." rows={3}
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6, marginBottom: 8 }} />
+                    <button onClick={submitComment} disabled={submittingComment || !commentBody.trim()}
+                      style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, fontWeight: 700, opacity: !commentBody.trim() ? 0.5 : 1 }}>
+                      {submittingComment ? 'Posting...' : 'Post Comment'}
+                    </button>
+                  </div>
+                )}
+                {comments.length === 0
+                  ? <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>No discussion yet — be the first to comment.</div>
+                  : <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+                      {comments.filter(c => !c.parent_id).map(comment => (
+                        <div key={comment.id}>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 12, color: G, flexShrink: 0, overflow: 'hidden' }}>
+                              {comment.user_image ? <img src={comment.user_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : (comment.user_name?.[0] || '?').toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <span style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{comment.user_name}</span>
+                                {comment.is_founder && <FoundingBadge />}
+                                <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(comment.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                              </div>
+                              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6, marginBottom: 6 }}>{comment.body}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <button onClick={() => setReplyTo(comment)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>↩ Reply</button>
+                                {(comment.user_id === userId || userTier === 'minister') && (
+                                  <button onClick={() => deleteComment(comment.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>✕ Delete</button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {comments.filter(c => c.parent_id === comment.id).map(reply => (
+                            <div key={reply.id} style={{ display: 'flex', gap: 10, marginLeft: 42, marginTop: 10 }}>
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, flexShrink: 0 }}>
+                                {(reply.user_name?.[0] || '?').toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                                  <span style={{ fontFamily: cinzel, fontSize: 10, color: txt, letterSpacing: '0.04em' }}>{reply.user_name}</span>
+                                  {reply.is_founder && <FoundingBadge />}
+                                  <span style={{ fontSize: 10, color: dim, fontFamily: crimson }}>{new Date(reply.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                  {(reply.user_id === userId || userTier === 'minister') && (
+                                    <button onClick={() => deleteComment(reply.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, textTransform: 'uppercase' as const }}>✕ Delete</button>
+                                  )}
+                                </div>
+                                <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6 }}>{reply.body}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* READ MORE modal */}
+      {readMoreEpisode && (
+        <div onClick={() => setReadMoreEpisode(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '100%', marginTop: '10vh', padding: 32, background: '#0d0d0d', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setReadMoreEpisode(null)} style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', color: '#9a8c74', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 16, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 16 }}>{readMoreEpisode.title}</div>
+            <div style={{ fontFamily: 'Crimson Pro, Georgia, serif', fontSize: 15, color: '#f0e8d8', lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(readMoreEpisode.description || readMoreEpisode.notes || '')} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  return null
+}
+
+// ── WAR ROOM CHAT VIEW ─────────────────────────────────────
+interface WarRoomChatViewProps {
+  streamToken: string
+  apiKey: string
+  userId: string
+  userName: string
+  userImageUrl: string
+  isDark: boolean
+  isMobile: boolean
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSidebarOpen }: WarRoomChatViewProps) {
+  const [messages, setMessages] = useState<StreamMsg[]>([])
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const [hoveredMsg, setHoveredMsg] = useState<string | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const warRoomFileRef = useRef<HTMLInputElement>(null)
+
+  const V = {
+    bg:   isDark ? '#0D0B14' : '#FAF8F5',
+    surf: isDark ? '#1a1714' : '#FFFFFF',
+    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)',
+    txt:  isDark ? '#f0e8d8' : '#2D2924',
+    mut:  isDark ? '#9a8c74' : '#5C5248',
+    s2:   isDark ? '#1c1814' : '#FFFFFF',
+  }
+
+  const fetchMessages = useCallback(async () => {
+    if (!streamToken || !apiKey) return
+    try {
+      const d = await streamFetch(
+        '/channels/messaging/war-room-general/query',
+        'POST', streamToken, apiKey,
+        { state: true, messages: { limit: 50 } }
+      )
+      if (d.messages) {
+        setMessages(d.messages)
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      }
+    } catch {}
+  }, [streamToken, apiKey])
+
+  useEffect(() => {
+    fetchMessages()
+    const t = setInterval(fetchMessages, 5000)
+    return () => clearInterval(t)
+  }, [fetchMessages])
+
+  async function handleSend() {
+    if (!draft.trim() || sending) return
+    const text = draft.trim()
+    setSending(true)
+    setDraft('')
+    try {
+      await streamFetch(
+        '/channels/messaging/war-room-general/message',
+        'POST', streamToken, apiKey,
+        { message: { text, user_id: userId } }
+      )
+      await fetchMessages()
+    } catch { setDraft(text) } finally { setSending(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: V.bg }}>
+      {/* Header */}
+      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: '#C9A84C', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
+        )}
+        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9A84C', letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Chat</span>
+        <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 12, color: V.mut, fontStyle: 'italic' }}>All members</span>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', color: V.mut, fontStyle: 'italic', fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 14, marginTop: 60 }}>
+            No messages yet. Be the first to speak.
+          </div>
+        )}
+        {messages.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map((msg, i) => {
+          const isOwn = msg.user?.id === userId
+          const prevMsg = messages[i - 1]
+          const sameAuthor = prevMsg && prevMsg.user?.id === msg.user?.id
+          const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          return (
+            <div key={msg.id} className="msg-row" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: sameAuthor ? 2 : 12 }}
+              onMouseEnter={() => setHoveredMsg(msg.id)}
+              onMouseLeave={() => setHoveredMsg(null)}
+            >
+              <div style={{ width: 32, flexShrink: 0 }}>
+                {!sameAuthor && (
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontSize: 12, color: '#C9A84C', overflow: 'hidden' }}>
+                    {msg.user?.image
+                      ? <img src={msg.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : (msg.user?.name || '?')[0].toUpperCase()
+                    }
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {!sameAuthor && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: isOwn ? '#C9A84C' : V.txt, fontWeight: 600, letterSpacing: '0.04em' }}>
+                      {msg.user?.name || 'Warrior'}
+                    </span>
+                    <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 11, color: V.mut }}>{time}</span>
+                  </div>
+                )}
+                {editingId === msg.id ? (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'flex-end' }}>
+                    <textarea
+                      autoFocus
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          streamFetch(`/messages/${msg.id}`, 'PUT', streamToken, apiKey, { message: { text: editText } })
+                            .then(() => { setEditingId(null); fetchMessages() })
+                        }
+                        if (e.key === 'Escape') setEditingId(null)
+                      }}
+                      rows={2}
+                      style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 10px', color: V.txt, fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 14, outline: 'none', resize: 'none' as const }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+                      <button
+                        onClick={() => streamFetch(`/messages/${msg.id}`, 'PUT', streamToken, apiKey, { message: { text: editText } }).then(() => { setEditingId(null); fetchMessages() })}
+                        style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}
+                      >Save</button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        style={{ padding: '4px 10px', background: 'none', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}
+                      >Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{
+                      fontFamily: "'Crimson Pro', Georgia, serif",
+                      fontSize: 15, color: V.txt, lineHeight: 1.5,
+                      wordBreak: 'break-word',
+                      background: isOwn ? 'rgba(201,168,76,0.06)' : 'transparent',
+                      borderRadius: isOwn ? 6 : 0,
+                      padding: isOwn ? '4px 8px' : '0',
+                      display: 'inline-block', maxWidth: '100%',
+                    }}>
+                      {msg.text}
+                      {(msg as any).attachments?.map((att: any, i: number) => (
+                        att.type === 'image' || att.image_url || att.thumb_url ? (
+                          <img key={i} src={att.asset_url || att.image_url || att.thumb_url} alt={att.title || 'image'}
+                            style={{ display: 'block', maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: msg.text ? 6 : 0, cursor: 'pointer' }}
+                            onClick={() => window.open(att.asset_url || att.image_url, '_blank')}
+                          />
+                        ) : att.asset_url ? (
+                          <a key={i} href={att.asset_url} target="_blank" rel="noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: msg.text ? 6 : 0, color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>
+                            📄 {att.title || 'File'}
+                          </a>
+                        ) : null
+                      ))}
+                      {(msg as any).attachments?.filter((att: any) => att.type === 'url' || att.og_scrape_url).map((att: any, i: number) => (
+                        <a key={`url-${i}`} href={att.og_scrape_url || att.title_link} target="_blank" rel="noreferrer"
+                          style={{ display: 'block', marginTop: 8, borderRadius: 8, border: '1px solid rgba(201,168,76,0.2)', overflow: 'hidden', textDecoration: 'none', background: 'rgba(201,168,76,0.05)' }}>
+                          {att.image_url && <img src={att.image_url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover' as const }} />}
+                          <div style={{ padding: '8px 10px' }}>
+                            {att.title && <div style={{ fontFamily: cinzel, fontSize: 12, color: '#C9A84C', marginBottom: 2 }}>{att.title}</div>}
+                            {att.text && <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut, lineHeight: 1.4 }}>{att.text.slice(0, 120)}{att.text.length > 120 ? '...' : ''}</div>}
+                            <div style={{ fontFamily: crimson, fontSize: 11, color: V.mut, marginTop: 4, opacity: 0.7 }}>{att.og_scrape_url}</div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                    {/* Reactions */}
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 2, alignItems: 'center' }}>
+                      {msg.reaction_counts && Object.entries(msg.reaction_counts).map(([type, count]) => {
+                        const emojiMap: Record<string, string> = { pray: '🙏', love: '❤️', fire: '🔥', cross: '✝️', sword: '⚔️' }
+                        const emoji = emojiMap[type] || type
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } }).then(() => fetchMessages())}
+                            style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 7px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: V.txt }}
+                          >
+                            {emoji} <span style={{ fontSize: 10, color: V.mut }}>{String(count)}</span>
+                          </button>
+                        )
+                      })}
+                      {hoveredMsg === msg.id && (
+                        <div style={{ display: 'flex', gap: 3, background: V.surf, border: `1px solid ${V.bdr}`, borderRadius: 16, padding: '3px 8px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                          {([['pray','🙏'],['love','❤️'],['fire','🔥'],['cross','✝️'],['sword','⚔️']] as [string,string][]).map(([type, emoji]) => (
+                            <button
+                              key={type}
+                              onClick={() => streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } }).then(() => fetchMessages())}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 8, transition: 'transform 0.1s' }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.3)'}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
+                            >{emoji}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {isOwn && (
+                      <div className="msg-actions" style={{ display: 'flex', gap: 6, marginTop: 3, opacity: 0, transition: 'opacity 0.15s' }}>
+                        <button
+                          onClick={() => { setEditingId(msg.id); setEditText(msg.text || '') }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: V.mut, fontFamily: cinzel, padding: '1px 6px', borderRadius: 4 }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#C9A84C'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                        >✏ Edit</button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Delete this message?')) return
+                            try {
+                              await streamFetch(`/messages/${msg.id}`, 'DELETE', streamToken, apiKey, undefined)
+                              await fetchMessages()
+                            } catch {}
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: V.mut, fontFamily: cinzel, padding: '1px 6px', borderRadius: 4 }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                        >🗑 Delete</button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ flexShrink: 0, borderTop: `1px solid ${V.bdr}`, padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'flex-end', background: V.s2, paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <input
+          ref={warRoomFileRef}
+          type="file"
+          accept="image/*,video/*,.pdf,.doc,.docx"
+          style={{ display: 'none' }}
+          onChange={async e => {
+            const file = e.target.files?.[0]
+            if (!file || !streamToken || !apiKey) return
+            e.target.value = ''
+            const form = new FormData()
+            form.append('file', file)
+            form.append('user_id', userId)
+            const isImage = file.type.startsWith('image/')
+            const endpoint = isImage ? `/channels/messaging/war-room-general/image` : `/channels/messaging/war-room-general/file`
+            const res = await fetch(`https://chat.stream-io-api.com${endpoint}?api_key=${apiKey}`, {
+              method: 'POST',
+              headers: { Authorization: streamToken, 'Stream-Auth-Type': 'jwt' },
+              body: form,
+            })
+            const data = await res.json()
+            const url = data.file || data.image_url || data.url
+            if (url) {
+              await streamFetch(`/channels/messaging/war-room-general/message`, 'POST', streamToken, apiKey, {
+                message: { text: '', attachments: [{ type: isImage ? 'image' : 'file', asset_url: url, title: file.name, file_size: file.size }] }
+              })
+              fetchMessages()
+            }
+          }}
+        />
+        <button
+          title="Attach file or image"
+          onClick={() => warRoomFileRef.current?.click()}
+          style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
+        >📎</button>
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+          placeholder="Message the War Room... (Enter to send)"
+          rows={2}
+          style={{
+            flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
+            border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8,
+            padding: '10px 12px', color: V.txt,
+            fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 14,
+            outline: 'none', resize: 'none' as const,
+          }}
+        />
+        <button
+          onClick={handleSend}
+          disabled={!draft.trim() || sending}
+          style={{
+            padding: '10px 16px', flexShrink: 0,
+            background: draft.trim() && !sending ? '#C9A84C' : 'rgba(201,168,76,0.2)',
+            border: 'none', borderRadius: 8,
+            color: draft.trim() && !sending ? '#0D0B14' : '#6b6b7a',
+            fontFamily: "'Cinzel', serif", fontSize: 11,
+            letterSpacing: '0.08em', cursor: draft.trim() && !sending ? 'pointer' : 'not-allowed',
+            fontWeight: 700, alignSelf: 'flex-end',
+          }}
+        >{sending ? '...' : 'Send'}</button>
+      </div>
+    </div>
+  )
+}
+
+// ── DATABASE VIEW ──────────────────────────────────────────
+// ── STRIPE UPGRADE ────────────────────────────────────────────────────────────
+async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    const token = await getToken()
+    if (!token) { window.location.href = '/sign-in'; return }
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tier }),
+    })
+    if (!res.ok) throw new Error('Checkout failed')
+    const data = await res.json()
+    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+  } catch (err) {
+    console.error('Upgrade error:', err)
+  }
+}
+const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
+const tierNum = (t: string) => TIER_LEVEL[t?.toLowerCase()] ?? 0
+
+// ── MARKDOWN → HTML ─────────────────────────────────────────────────────────
+function markdownToHtml(md: string): string {
+  if (!md) return ''
+  return md
+    .replace(/^### (.+)$/gm, '<h3 style="font-family:Cinzel,serif;color:#C9A84C;font-size:14px;letter-spacing:0.08em;margin:20px 0 8px">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-family:Cinzel,serif;color:#C9A84C;font-size:18px;letter-spacing:0.06em;margin:24px 0 10px">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 style="font-family:Cinzel,serif;color:#C9A84C;font-size:22px;margin:28px 0 12px">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #C9A84C;padding:8px 16px;margin:16px 0;color:#8B7355;font-style:italic">$1</blockquote>')
+    .replace(/^- (.+)$/gm, '<li style="margin:4px 0">$1</li>')
+    .replace(/(<li[^>]*>.*?<\/li>\n?)+/g, '<ul style="padding-left:20px;margin:12px 0">$&</ul>')
+    .replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0">$1</li>')
+    .replace(/\n\n/g, '</p><p style="margin:0 0 16px">')
+    .replace(/^(?!<[hbuol])(.+)$/gm, '<p style="margin:0 0 16px">$1</p>')
+    .replace(/<p style="margin:0 0 16px"><\/p>/g, '')
+}
+
+function getYouTubeId(url: string): string {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([^&\n?#]+)/)
+  return match?.[1] || ''
+}
+
+// ── FIELD MINISTRY VIEW ──────────────────────────────────────────────────────
+function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpen }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const GG  = isDark ? '#C9A84C' : '#8B6914'
+  const bg  = isDark ? '#0D0B14' : '#FAF8F5'
+  const bdr = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt = isDark ? '#E8D5B0' : '#2D2924'
+  const mut = isDark ? '#8B7355' : '#5C5248'
+  const navBg   = isDark ? 'rgba(13,11,20,0.95)' : '#FFFFFF'
+  const navBdr  = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [openCats, setOpenCats]     = useState<Set<string>>(new Set(['understanding-deliverance']))
+  const [activeArticle, setActiveArticle] = useState<any>(null)
+  const [showPanel, setShowPanel]   = useState(false) // mobile: show article panel
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const res = await fetch('/api/field-manual', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setCategories(d.categories || [])
+        // Auto-open first category
+        if (d.categories?.[0]) {
+          setOpenCats(new Set([d.categories[0].category_slug]))
+        }
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  function toggleCat(slug: string) {
+    setOpenCats(prev => {
+      const next = new Set(prev)
+      if (next.has(slug)) next.delete(slug)
+      else next.add(slug)
+      return next
+    })
+  }
+
+  function selectArticle(article: any) {
+    if (article.locked) return
+    setActiveArticle(article)
+    if (isMobile) setShowPanel(true)
+  }
+
+  const TIER_COLORS: Record<string, string> = {
+    soldier: '#60a5fa', commander: '#a78bfa', general: '#f59e0b', minister: '#C9A84C',
+  }
+
+  // ── NAV PANEL ──
+  const navPanel = (
+    <div style={{
+      width: isMobile ? '100%' : 240, flexShrink: 0,
+      background: navBg, borderRight: isMobile ? 'none' : `1px solid ${navBdr}`,
+      overflowY: 'auto', display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Header */}
+      <div style={{ padding: '16px 16px 10px', borderBottom: `1px solid ${navBdr}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)}
+            style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}>☰</button>
+        )}
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.14em', color: GG, fontWeight: 700 }}>📖 FIELD MINISTRY</div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 24, fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 13, textAlign: 'center' }}>Loading…</div>
+      ) : categories.length === 0 ? (
+        <div style={{ padding: 24, fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 13, textAlign: 'center', fontStyle: 'italic' }}>No articles published yet.</div>
+      ) : categories.map(cat => (
+        <div key={cat.category_slug}>
+          {/* Category header */}
+          <div
+            onClick={() => toggleCat(cat.category_slug)}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '9px 16px', cursor: 'pointer',
+              background: 'rgba(201,168,76,0.06)', borderBottom: `1px solid ${navBdr}`,
+              fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', color: GG,
+              userSelect: 'none',
+            }}
+          >
+            <span>{cat.category_icon} {cat.category.toUpperCase()}</span>
+            <span style={{ fontSize: 9, display: 'inline-block', transition: 'transform 0.2s', transform: openCats.has(cat.category_slug) ? 'rotate(180deg)' : 'none' }}>▼</span>
+          </div>
+
+          {/* Articles */}
+          {openCats.has(cat.category_slug) && cat.articles.map((article: any) => (
+            <div
+              key={article.id}
+              onClick={() => selectArticle(article)}
+              style={{
+                padding: '8px 16px 8px 24px', cursor: article.locked ? 'default' : 'pointer',
+                background: activeArticle?.id === article.id ? 'rgba(201,168,76,0.12)' : 'transparent',
+                borderLeft: activeArticle?.id === article.id ? `2px solid ${GG}` : '2px solid transparent',
+                borderBottom: `1px solid ${navBdr}20`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                fontFamily: "'Crimson Pro', serif", fontSize: 13,
+                color: article.locked ? (isDark ? '#4a4032' : '#aaa') : activeArticle?.id === article.id ? GG : (isDark ? '#a09888' : '#5C5248'),
+                transition: 'background 0.15s',
+              }}
+            >
+              <span style={{ flex: 1, lineHeight: 1.3 }}>{article.locked ? '🔒 ' : ''}{article.title}</span>
+              {article.locked && (
+                <span style={{
+                  fontSize: 8, fontFamily: "'Cinzel', serif", letterSpacing: '0.06em',
+                  color: TIER_COLORS[article.min_tier] || mut,
+                  background: 'rgba(255,255,255,0.04)', padding: '2px 5px', borderRadius: 3,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                  {article.min_tier.toUpperCase()}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+
+  // ── ARTICLE PANEL ──
+  const articlePanel = (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '32px 40px', minHeight: 0 }}>
+      {isMobile && showPanel && (
+        <button onClick={() => setShowPanel(false)}
+          style={{ background: 'none', border: 'none', color: GG, fontSize: 13, cursor: 'pointer', fontFamily: "'Cinzel', serif", letterSpacing: '0.08em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+          ← Back
+        </button>
+      )}
+
+      {!activeArticle ? (
+        <div style={{ textAlign: 'center', padding: isMobile ? '40px 20px' : '80px 40px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📖</div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: GG, marginBottom: 10, letterSpacing: '0.06em' }}>Field Ministry</div>
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, color: mut, lineHeight: 1.8, maxWidth: 420, margin: '0 auto' }}>
+            Your guide to understanding and walking in deliverance ministry.
+            Select a topic from the menu to begin.
+          </div>
+        </div>
+      ) : activeArticle.locked ? (
+        <div style={{ textAlign: 'center', padding: isMobile ? '40px 20px' : '80px 40px' }}>
+          <div style={{ display: 'inline-block', padding: '40px', background: 'rgba(201,168,76,0.04)', borderRadius: 12, border: `1px solid ${bdr}` }}>
+            <div style={{ fontSize: 36, marginBottom: 14 }}>🔒</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG, letterSpacing: '0.1em', marginBottom: 10 }}>
+              {activeArticle.min_tier.toUpperCase()} ACCESS REQUIRED
+            </div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: mut, marginBottom: 24, lineHeight: 1.7 }}>
+              This content is available to {activeArticle.min_tier} members and above.
+            </div>
+            <a href="/membership" style={{
+              display: 'inline-block', padding: '10px 28px',
+              background: GG, color: '#0D0B14', borderRadius: 4,
+              fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.08em', textDecoration: 'none',
+            }}>Upgrade Now</a>
+          </div>
+        </div>
+      ) : (
+        <div style={{ maxWidth: 720 }}>
+          {/* Breadcrumb */}
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', color: mut, marginBottom: 10 }}>
+            {categories.find(c => c.articles.some((a: any) => a.id === activeArticle.id))?.category_icon}{' '}
+            {categories.find(c => c.articles.some((a: any) => a.id === activeArticle.id))?.category}
+          </div>
+
+          {/* Title */}
+          <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: isMobile ? 20 : 26, color: GG, margin: '0 0 8px', letterSpacing: '0.04em', lineHeight: 1.3 }}>
+            {activeArticle.title}
+          </h1>
+
+          {/* Tier badge */}
+          {activeArticle.min_tier !== 'free' && (
+            <span style={{
+              display: 'inline-block', marginBottom: 20,
+              fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em',
+              color: TIER_COLORS[activeArticle.min_tier] || GG,
+              background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`,
+              padding: '3px 10px', borderRadius: 4,
+            }}>
+              {activeArticle.min_tier.toUpperCase()} CONTENT
+            </span>
+          )}
+
+          {/* YouTube embed */}
+          {activeArticle.youtube_url && getYouTubeId(activeArticle.youtube_url) && (
+            <div style={{ marginBottom: 28, borderRadius: 8, overflow: 'hidden', border: `1px solid rgba(201,168,76,0.2)` }}>
+              <iframe
+                src={`https://www.youtube.com/embed/${getYouTubeId(activeArticle.youtube_url)}?rel=0`}
+                style={{ width: '100%', height: isMobile ? 220 : 360, border: 'none', display: 'block' }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
+          {/* Content */}
+          <div
+            style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, lineHeight: 1.85, color: txt }}
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(activeArticle.content || '') }}
+          />
+        </div>
+      )}
+    </div>
+  )
+
+  if (isMobile) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: bg, minHeight: 0 }}>
+        {!showPanel ? navPanel : articlePanel}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: bg, minHeight: 0 }}>
+      {navPanel}
+      {articlePanel}
+    </div>
+  )
+}
+
+// ── WEEKLY INTEL VIEW ────────────────────────────────────────────────────────
+function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection, demons: demonsProp = [] }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection: (s: string) => void; demons?: any[]
+}) {
+  const { user }     = useUser()
+  const { getToken } = useAuth()
+  const isMinister   = (user?.publicMetadata?.role as string) === 'minister'
+  const isDark       = theme !== 'light'
+  const GG           = isDark ? '#C9A84C' : '#8B6914'
+  const bg           = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf         = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr          = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt          = isDark ? '#E8D5B0' : '#2D2924'
+  const mut          = isDark ? '#8B7355' : '#5C5248'
+  const dm           = isDark ? '#5a4f3a' : '#5C5248'
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
+    border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 12px',
+    color: txt, fontSize: 13, fontFamily: "'Crimson Pro', serif", outline: 'none',
+  }
+
+  const [posts, setPosts]         = useState<any[]>([])
+  const [links, setLinks]         = useState<any[]>([])
+  const [reports, setReports]     = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [, setRecentResources] = useState<any[]>([])
+  const [arsenalDrops, setArsenalDrops]       = useState<any[]>([])
+  const [arsenalLoading, setArsenalLoading]   = useState(false)
+  const [sotw, setSotw]           = useState<any>(null)
+
+  const [showReportForm, setShowReportForm] = useState(false)
+  const [reportForm, setReportForm]         = useState({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
+  const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportSuccess, setReportSuccess]       = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchAll() {
+      const token = await getToken()
+      const auth  = { 'Authorization': `Bearer ${token}` }
+      const [postsRes, linksRes, reportsRes, sotwRes] = await Promise.allSettled([
+        fetch('/api/intel-posts').then(r => r.json()),
+        fetch('/api/intel-links').then(r => r.json()),
+        fetch('/api/field-reports', { headers: auth }).then(r => r.json()),
+        fetch('/api/spirit-of-week').then(r => r.json()),
+      ])
+      if (cancelled) return
+      if (postsRes.status   === 'fulfilled') setPosts(postsRes.value.posts || [])
+      if (linksRes.status   === 'fulfilled') setLinks(linksRes.value.links || [])
+      if (reportsRes.status === 'fulfilled') setReports(reportsRes.value.reports || [])
+      if (sotwRes.status    === 'fulfilled') setSotw(sotwRes.value.sotw || null)
+      setLoading(false)
+    }
+    fetchAll()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      const token = await getToken()
+      const res = await fetch('/api/arsenal-resources?limit=3&sort=newest', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setRecentResources(d.resources?.slice(0, 3) || [])
+      }
+    }, 2500)
+    return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    if (!getToken) return
+    setArsenalLoading(true)
+    getToken().then(token =>
+      fetch('/api/latest-arsenal', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { setArsenalDrops(d.resources || []); setArsenalLoading(false) })
+        .catch(() => setArsenalLoading(false))
+    )
+  }, [])
+
+  async function submitReport() {
+    if (!reportForm.spirit_names || !reportForm.manifestations) return
+    setReportSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/field-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(reportForm),
+      })
+      if (res.ok) {
+        setReportSuccess(true)
+        setShowReportForm(false)
+        setReportForm({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
+      }
+    } finally { setReportSubmitting(false) }
+  }
+
+  if (loading) return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
+      {[1,2,3].map(i => (
+        <div key={i} style={{ height: 120, background: surf, borderRadius: 8, marginBottom: 16, border: `1px solid ${bdr}`, animation: 'pulse 1.5s ease-in-out infinite' }} />
+      ))}
+    </div>
+  )
+
+  // Use passed-in demons, sorted newest-first
+  const recentDemons = [...demonsProp].sort((a: any, b: any) => {
+    const ta = a.createdTime ? new Date(a.createdTime).getTime() : 0
+    const tb = b.createdTime ? new Date(b.createdTime).getTime() : 0
+    return tb - ta
+  }).slice(0, 6)
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0, maxWidth: '100%', boxSizing: 'border-box' as const }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+          <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>⚡ Weekly Intel</h2>
+        </div>
+        {!isMobile && <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson, textAlign: 'right' as const }}>Operational briefings, field intelligence, and ministry resources</p>}
+      </div>
+
+      {/* Spirit of the Week */}
+      {sotw && (
+        <div style={{ marginBottom: 28, background: 'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.03))', border: `2px solid ${GG}`, borderRadius: 12, padding: '20px 24px' }}>
+          <div style={{ fontSize: 9, fontFamily: cinzel, color: GG, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 8 }}>🎯 Spirit of the Week</div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: txt, marginBottom: sotw.minister_note ? 10 : 0 }}>{sotw.spirit_name}</div>
+          {sotw.minister_note && (
+            <p style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.7, margin: '0 0 12px' }}>{sotw.minister_note}</p>
+          )}
+          {sotw.deliverance_tip && (
+            <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.12em', marginBottom: 4 }}>TACTICAL TIP</div>
+              <p style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.6, margin: 0 }}>{sotw.deliverance_tip}</p>
+            </div>
+          )}
+          <button
+            onClick={() => setActiveSection('database')}
+            style={{ padding: '6px 16px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 6, color: GG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          >View in Spirit Network</button>
+        </div>
+      )}
+
+      {/* FULL WIDTH — Intel Briefing */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
+          ⚡ Intel Briefing
+        </div>
+        <style>{`@keyframes wri-pulse{0%,100%{opacity:0.4}50%{opacity:0.8}}@keyframes railFlyoutIn{from{transform:translateX(280px);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ height: 110, background: 'rgba(201,168,76,0.04)', borderRadius: 10, border: '1px solid rgba(201,168,76,0.1)', animation: 'wri-pulse 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
+        ) : posts.length === 0 ? (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '40px 24px', textAlign: 'center' as const }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
+            <div style={{ fontFamily: cinzel, color: GG, fontSize: 16, marginBottom: 8 }}>No Briefings Yet</div>
+            <div style={{ fontFamily: crimson, color: mut, fontSize: 14, marginBottom: userTier === 'minister' ? 20 : 0 }}>
+              Operational briefings and field intelligence from War Room Intel leadership.
+            </div>
+            {userTier === 'minister' && (
+              <button
+                onClick={() => { window.location.href = '/admin' }}
+                style={{ padding: '8px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, fontFamily: cinzel, fontSize: 10, color: GG, cursor: 'pointer', letterSpacing: '0.08em' }}>
+                + POST FIRST BRIEFING
+              </button>
+            )}
+          </div>
+        ) : posts.slice(0, 3).map(post => {
+          const classBadgeLevel = post.post_type === 'external-alert' ? 'I' : post.post_type === 'watch-report' ? 'III' : 'II'
+          const classBadgeLabel = post.post_type === 'external-alert' ? 'ALERT' : post.post_type === 'watch-report' ? 'WATCH REPORT' : 'BRIEFING'
+          return (
+            <TacticalCard key={post.id} brackets style={{ marginBottom: 16, minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap' as const, gap: 8 }}>
+                <div>
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: GG, fontWeight: 600, marginBottom: 4 }}>{post.title}</div>
+                  <div style={{ fontSize: 11, color: dm, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {post.author_name} · <MonoTime size={11} color={dm}>{new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</MonoTime>
+                  </div>
+                </div>
+                <ClassBadge level={classBadgeLevel as any} label={classBadgeLabel} />
+              </div>
+              <div style={{ fontSize: 15, color: txt, lineHeight: 1.75, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>{post.body}</div>
+              {post.scripture && (
+                <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, fontSize: 13, color: '#86efac', fontFamily: "'Crimson Pro', serif", fontStyle: 'italic' }}>
+                  📖 {post.scripture}
+                </div>
+              )}
+            </TacticalCard>
+          )
+        })}
+      </div>
+
+      {/* TWO COLUMNS */}
+      <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' as const }}>
+
+        {/* LEFT — Field Reports (2/3) */}
+        <div style={{ flex: 2, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
+            📡 Field Reports
+          </div>
+
+        {tierNum(userTier) >= 2 ? (
+          <div style={{ marginBottom: 16 }}>
+            {!showReportForm && !reportSuccess && (
+              <button onClick={() => setShowReportForm(true)} style={{ background: 'transparent', border: `1px solid ${GG}`, borderRadius: 6, padding: '8px 20px', fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                + Submit Field Report
+              </button>
+            )}
+            {reportSuccess && (
+              <div style={{ background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 6, padding: '12px 16px', color: '#86efac', fontSize: 13 }}>
+                ✅ Report submitted for review. Thank you for your field intelligence.
+              </div>
+            )}
+            {showReportForm && (
+              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+                <div style={{ fontFamily: "'Cinzel', serif", color: GG, fontSize: 13, letterSpacing: '0.1em', marginBottom: 16 }}>SUBMIT FIELD REPORT</div>
+                {([
+                  { label: 'Spirits Encountered *', key: 'spirit_names', placeholder: 'e.g. Leviathan, Python, Fear of Rejection' },
+                  { label: 'Manifestations Observed *', key: 'manifestations', placeholder: 'What did you see, hear, or discern?' },
+                  { label: 'Entry Points Identified', key: 'entry_points', placeholder: 'Trauma, occult, generational...' },
+                  { label: 'Outcome', key: 'outcome', placeholder: 'Full deliverance, partial, ongoing...' },
+                  { label: 'Additional Notes', key: 'notes', placeholder: 'Anything else ministers should know' },
+                ] as const).map(field => (
+                  <div key={field.key} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 10, color: mut, letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>{field.label}</div>
+                    <textarea value={reportForm[field.key]} onChange={e => setReportForm(f => ({ ...f, [field.key]: e.target.value }))}
+                      placeholder={field.placeholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  {([{ label: 'City', key: 'location_city' }, { label: 'State', key: 'location_state' }] as const).map(f => (
+                    <div key={f.key} style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: mut, letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 4 }}>{f.label}</div>
+                      <input value={reportForm[f.key]} onChange={e => setReportForm(r => ({ ...r, [f.key]: e.target.value }))} style={inp} />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={submitReport} disabled={reportSubmitting || !reportForm.spirit_names || !reportForm.manifestations}
+                    style={{ background: GG, color: '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                  </button>
+                  <button onClick={() => setShowReportForm(false)} style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 20px', color: mut, fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 20 }}>🔒</span>
+            <div>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.06em', marginBottom: 3 }}>Commander Tier Required</div>
+              <div style={{ fontSize: 12, color: mut }}>Submit field intelligence reports from your sessions.</div>
+            </div>
+            <button onClick={() => handleUpgrade('commander', getToken)} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
+          </div>
+        )}
+
+        {reports.filter(r => r.status === 'approved').length === 0 ? (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '20px 24px', textAlign: 'center', color: mut, fontSize: 13 }}>
+            Field reports from active ministers will appear here.
+          </div>
+        ) : reports.filter(r => r.status === 'approved').map(report => (
+          <TacticalCard key={report.id} brackets style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, flexWrap: 'wrap' as const, gap: 4 }}>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: GG }}>{report.spirit_names}</div>
+              <ClassBadge level="I" label="FIELD REPORT" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{ fontSize: 11, color: dm, fontFamily: "'JetBrains Mono', monospace" }}>
+                {report.submitted_by_name?.split(' ')[0]}{report.location_city ? ` · ${report.location_city}${report.location_state ? ', ' + report.location_state : ''}` : ''}
+              </span>
+              {report.is_founder && <FoundingBadge />}
+            </div>
+            <div style={{ fontSize: 13, color: txt, lineHeight: 1.6, fontFamily: "'Crimson Pro', serif" }}>{report.manifestations}</div>
+            {report.entry_points && <div style={{ fontSize: 12, color: mut, marginTop: 6 }}>Entry points: {report.entry_points}</div>}
+            {report.outcome && <div style={{ fontSize: 12, color: '#86efac', marginTop: 4 }}>Outcome: {report.outcome}</div>}
+          </TacticalCard>
+        ))}
+
+        {isMinister && reports.filter(r => r.status === 'pending').length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 10, color: '#f87171', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Pending Review ({reports.filter(r => r.status === 'pending').length})</div>
+            {reports.filter(r => r.status === 'pending').map(report => (
+              <div key={report.id} style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, padding: '14px 18px', marginBottom: 10 }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: '#f87171', marginBottom: 6 }}>{report.spirit_names}</div>
+                <div style={{ fontSize: 13, color: txt, marginBottom: 10 }}>{report.manifestations}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['approved', 'rejected'] as const).map(status => (
+                    <button key={status} onClick={async () => {
+                      const token = await getToken()
+                      await fetch('/api/field-reports', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ id: report.id, status }) })
+                      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status } : r))
+                    }} style={{
+                      background: status === 'approved' ? '#15803d' : 'transparent',
+                      border: `1px solid ${status === 'approved' ? '#15803d' : 'rgba(220,38,38,0.4)'}`,
+                      color: status === 'approved' ? '#fff' : '#f87171',
+                      borderRadius: 5, padding: '6px 14px', fontSize: 11, cursor: 'pointer', fontFamily: "'Cinzel', serif",
+                    }}>
+                      {status === 'approved' ? '✓ Approve' : '✗ Reject'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        </div>{/* end left column */}
+
+        {/* RIGHT — Intel Sidebar (1/3) */}
+        <div style={{ flexShrink: 0, width: isMobile ? '100%' : 280 }}>
+
+          {/* Latest Arsenal Drops */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
+              ✦ Latest Arsenal Drops
+            </div>
+            {(() => {
+              const _tl = (t: string) => ({ watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 3, admin: 3 }[t?.toLowerCase()] ?? 0)
+              const _ttl = (topic: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }[topic?.toLowerCase()] ?? 0)
+              return (
+                <>
+                  {arsenalLoading && <div style={{ color: 'rgba(201,168,76,0.5)', fontSize: 11, padding: '8px 0' }}>Loading...</div>}
+                  {arsenalDrops.map(r => {
+                    const hasAccess = _tl(userTier) >= _ttl(r.topic)
+                    return (
+                      <div key={r.id} onClick={() => hasAccess ? setActiveSection('arsenal') : window.open('/membership', '_blank', 'noopener,noreferrer')}
+                        style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, cursor: 'pointer' }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: GG, marginBottom: 3 }}>
+                          {r.title?.length > 42 ? r.title.slice(0, 42) + '...' : r.title}
+                        </div>
+                        <div style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                          {hasAccess ? r.topic : '🔒 ' + r.topic + ' tier required'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div onClick={() => setActiveSection('arsenal')} style={{ marginTop: 8, fontSize: 10, color: GG, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.08em' }}>
+                    Open Arsenal →
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+
+          {/* New to Intel Archive */}
+          {recentDemons.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
+                📚 New to Intel Archive
+              </div>
+              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
+                {recentDemons.map((d, i) => (
+                  <div
+                    key={d.id}
+                    style={{
+                      padding: '10px 14px',
+                      borderBottom: i < recentDemons.length - 1 ? `1px solid ${bdr}` : 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                    onClick={() => { localStorage.setItem('wri_jump_to_spirit', d.name); localStorage.setItem('wri_jump_from', 'intel'); setActiveSection('database') }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{d.name}</div>
+                      <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.biblicalRank || ''}</div>
+                    </div>
+                    <span style={{ fontSize: 10, color: GG, flexShrink: 0, marginLeft: 8 }}>→</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* External Intel Links */}
+          {links.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.15em', color: mut, textTransform: 'uppercase' as const, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${bdr}` }}>External Intel</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {links.slice(0, 3).map(link => (
+                  <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block', background: surf, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 12px', transition: 'border-color 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = GG)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = bdr)}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, marginBottom: 2 }}>{link.title}</div>
+                    {link.source && <div style={{ fontSize: 10, color: mut }}>{link.source} →</div>}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>{/* end right sidebar */}
+
+      </div>{/* end two-column wrapper */}
+    </div>
+  )
+}
+
+const HIERARCHY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  'Fear / Rejection':    { bg: '#1a0f2e', text: '#c084fc', border: '#7c3aed' },
+  'Marine Kingdom':      { bg: '#0a1628', text: '#38bdf8', border: '#0284c7' },
+  'Occult / Witchcraft': { bg: '#1a0a0a', text: '#f87171', border: '#dc2626' },
+  'Freemasonry':         { bg: '#0d1117', text: '#d4a017', border: '#92400e' },
+  'Perversion':          { bg: '#1a0a1a', text: '#f472b6', border: '#9d174d' },
+  'Death / Destruction': { bg: '#0a0a0a', text: '#9ca3af', border: '#374151' },
+  'Religious':           { bg: '#0f1a0a', text: '#86efac', border: '#15803d' },
+  'General Oppression':  { bg: '#0f0f1a', text: '#a5b4fc', border: '#4338ca' },
+}
+
+const HIERARCHY_CATEGORIES = [
+  'All', 'Fear / Rejection', 'Marine Kingdom', 'Occult / Witchcraft',
+  'Freemasonry', 'Perversion', 'Death / Destruction', 'Religious', 'General Oppression',
+]
+
+const STOP_WORDS = new Set([
+  'and','the','with','through','by','of','in','a','an','all','its','their','this','that',
+  'these','those','maintains','control','operates','functions','works','also','known','as',
+  'or','but','for','on','at','to','from','into','over','under','both','often','may','can',
+])
+
+function parseSpiritNames(text: string): string[] {
+  if (!text) return []
+  let raw = text
+  const subMatch = raw.match(/[Ss]ubordinates?[:\s]+(.+)/s)
+  if (subMatch) raw = subMatch[1]
+  raw = raw.replace(/[Bb]oss[:\s]+[^.]+\.\s*/g, '')
+  const parts = raw.split(/[,;]|\band\b/)
+  return parts
+    .map(p => p.trim().replace(/^[-•*\d.]+\s*/, '').replace(/[.!?]$/, '').trim())
+    .filter(p => p.length > 1 && p.length <= 40)
+    .filter(p => !STOP_WORDS.has(p.toLowerCase()))
+    .filter((p, i, arr) => arr.indexOf(p) === i)
+}
+
+function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [], setActiveSection }: {
+  theme: string
+  isMobile: boolean
+  isTablet: boolean
+  setSidebarOpen: (open: boolean) => void
+  userTier: string
+  demons?: any[]
+  setActiveSection?: (s: string) => void
+}) {
+  const { getToken } = useAuth()
+  const [query, setQuery]         = useState('')
+  const [dbLoading] = useState(false)
+  const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [spiritResources, setSpiritResources] = useState<any[]>([])
+  const [, setLoadingResources] = useState(false)
+  const [modalTab, setModalTab] = useState<'overview' | 'intelligence' | 'warfare' | 'scholarly' | 'protocol'>('overview')
+  const [rankFilter, setRankFilter] = useState('')
+  const [generationalFilter, setGenerationalFilter] = useState(false)
+  const [territorialFilter, setTerritorialFilter] = useState(false)
+  const [showLegend, setShowLegend] = useState(false)
+  const [protocolResult, setProtocolResult] = useState<any>(null)
+  const [protocolLoading, setProtocolLoading] = useState(false)
+  const [protocolError, setProtocolError] = useState('')
+  const [manifestationInput, setManifestationInput] = useState('')
+  const [includeCluster, setIncludeCluster] = useState(true)
+  const [activeProtocolSection, setActiveProtocolSection] = useState(0)
+  const [checkedGrounds, setCheckedGrounds] = useState<Record<string, boolean>>({})
+  const [invFromInvestigator, setInvFromInvestigator] = useState<any>(null)
+  const [protocolMode, setProtocolMode] = useState<'spirit' | 'manifestation'>('spirit')
+
+  useEffect(() => {
+    if (!selectedEntry) { setSpiritResources([]); return }
+    async function load() {
+      setLoadingResources(true)
+      try {
+        const token = await getToken()
+        // Use spirit-resources endpoint for tag-based matching; fall back to arsenal-resources
+        const params = new URLSearchParams({ spirit: selectedEntry.name })
+        if (selectedEntry.hierarchyCategory) params.set('category', selectedEntry.hierarchyCategory)
+        const res = await fetch(`/api/spirit-resources?${params}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (res.ok) {
+          const d = await res.json()
+          setSpiritResources(d.resources?.slice(0, 5) || [])
+        }
+      } catch(e) {}
+      setLoadingResources(false)
+    }
+    load()
+  }, [selectedEntry?.id])
+
+  // demons come from parent — no separate fetch needed
+
+  useEffect(() => {
+    const seen = localStorage.getItem('wri-archive-legend-seen')
+    if (!seen) {
+      setShowLegend(true)
+      localStorage.setItem('wri-archive-legend-seen', 'true')
+    }
+  }, [])
+
+  useEffect(() => {
+    const jump = localStorage.getItem('wri_jump_to_spirit')
+    if (jump && demonsProp.length > 0) {
+      const match = demonsProp.find((d: any) => d.name?.toLowerCase() === jump.toLowerCase())
+      if (match) {
+        setSelectedEntry(match)
+        localStorage.removeItem('wri_jump_to_spirit')
+        const invData = localStorage.getItem('wri_protocol_inv_data')
+        if (invData) {
+          try {
+            setInvFromInvestigator(JSON.parse(invData))
+            setModalTab('protocol')
+          } catch {}
+          localStorage.removeItem('wri_protocol_inv_data')
+        }
+      }
+    }
+  }, [demonsProp])
+
+  function closeModal() {
+    setSelectedEntry(null)
+    const returnTo = localStorage.getItem('wri_jump_from')
+    if (returnTo && setActiveSection) {
+      localStorage.removeItem('wri_jump_from')
+      setActiveSection(returnTo)
+    }
+  }
+
+  const CLASS_COLOR: Record<string, string> = {
+    Strongman:    '#C9A84C',
+    Familiar:     '#4a9eff',
+    Marine:       '#a855f7',
+    Rejection:    '#ff6b6b',
+    Generational: '#22c55e',
+    Religious:    '#f97316',
+    Sexual:       '#ec4899',
+  }
+
+  function getColor(cls: string) {
+    for (const [key, val] of Object.entries(CLASS_COLOR)) {
+      if (cls?.toLowerCase().includes(key.toLowerCase())) return val
+    }
+    return G
+  }
+
+  const tierLevel = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+  const atLeast = (required: string) => tierLevel(userTier) >= tierLevel(required)
+  const TierLock = ({ tierName }: { tierName: string }) => (
+    <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
+      🔒 {tierName} tier. <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to access.</a>
+    </div>
+  )
+
+  const filtered = demonsProp.filter((e: any) => {
+    const matchesSearch = !query || [
+      e.name, e.aka, e.description, e.manifestation, e.symptoms,
+      e.entryPoints, e.legalRights, e.wriNotes, e.personalityPresentation,
+      e.hierarchyCategory, e.deliveranceSequence, e.counterScriptures, e.operationalNotes,
+    ].some(s => s && String(s).toLowerCase().includes(query.toLowerCase()))
+    const matchesCat = !categoryFilter || e.hierarchyCategory === categoryFilter
+    const matchesRank = !rankFilter || (e.biblicalRank || '').toLowerCase().includes(rankFilter.toLowerCase())
+    const matchesGen = !generationalFilter || e.isGenerational === true
+    const matchesTerr = !territorialFilter || e.isTerritorial === true
+    return matchesSearch && matchesCat && matchesRank && matchesGen && matchesTerr
+  })
+
+  const dbIsDark = theme !== 'light'
+  const dbBg     = dbIsDark ? '#0D0B14' : '#F8F6F2'
+  const dbSurf   = dbIsDark ? '#1a1714' : '#FFFFFF'
+  const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : '#D4C4B0'
+  const dbText   = dbIsDark ? '#f0e8d8' : '#1C1410'
+  const dbDim    = dbIsDark ? '#c8b99a' : '#4A3728'
+
+  async function handleGenerateProtocol(mode: 'spirit' | 'manifestation' = 'spirit') {
+    if (!selectedEntry && mode === 'spirit') return
+    setProtocolLoading(true); setProtocolError(''); setProtocolResult(null)
+    try {
+      const token = await getToken()
+      const clusterNames = selectedEntry
+        ? parseSpiritNames(selectedEntry.subordinates || selectedEntry.clusterSpirits || '').slice(0, 10)
+        : []
+      const body: any = {
+        mode,
+        spiritData: selectedEntry || null,
+        spiritNames: clusterNames,
+        includeCluster,
+        manifestationDescription: invFromInvestigator?.symptoms || manifestationInput,
+        manifestationCandidates: invFromInvestigator?.probableSpirits || [],
+      }
+      const res = await fetch('/api/deliverance-protocol', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Protocol generation failed')
+      setProtocolResult(data)
+      setActiveProtocolSection(0)
+      setCheckedGrounds({})
+    } catch (e: any) {
+      setProtocolError(e.message || 'Protocol generation failed')
+    } finally {
+      setProtocolLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden', minHeight: 0 }}>
+
+      {/* Header + search */}
+      <div style={{ padding: isMobile ? '12px 12px 10px' : '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0, overflow: 'visible' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G, fontSize: '20px', flexShrink: 0 }}
+              aria-label="Open navigation"
+            >☰</button>
+          )}
+          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: G }}>⚔ INTEL DATABASE</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search spirits, symptoms, manifestations, entry points..."
+            style={{
+              flex: 1, padding: '10px 14px',
+              background: dbBg, border: `1px solid ${query ? G : dbBorder}`,
+              borderRadius: 8, fontFamily: crimson, fontSize: 15,
+              color: dbText, outline: 'none', boxSizing: 'border-box' as const,
+              marginBottom: 4, transition: 'border-color 0.2s',
+            }}
+          />
+          <button
+            onClick={() => setShowLegend(true)}
+            style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, color: G, fontFamily: cinzel, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            title="How to use the Intel Archive"
+          >?</button>
+        </div>
+        <p style={{ fontSize: 11, color: dbDim, marginTop: 4, marginBottom: 8 }}>
+          Search by name, symptom, manifestation, entry point, or emotional pattern
+        </p>
+        {/* Hierarchy category filter pills */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, paddingBottom: 12 }}>
+          {HIERARCHY_CATEGORIES.map(cat => {
+            const isAll = cat === 'All'
+            const active = isAll ? !categoryFilter : categoryFilter === cat
+            const colors = isAll
+              ? { bg: '#1a1625', text: '#C9A84C', border: '#C9A84C' }
+              : (HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression'])
+            return (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(isAll ? null : cat)}
+                style={{
+                  padding: '4px 12px', borderRadius: 999, fontSize: 11,
+                  cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em',
+                  border: `1px solid ${colors.border}`,
+                  backgroundColor: active ? colors.border : 'transparent',
+                  color: active ? '#0D0B14' : colors.text,
+                  transition: 'all 0.15s ease',
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                {cat}
+              </button>
+            )
+          })}
+        </div>
+        {/* Biblical rank filter */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, maxWidth: '100%' }}>
+          {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
+            <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
+              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
+              {rank}
+            </button>
+          ))}
+        </div>
+        {/* Generational / Territorial badges */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 6 }}>
+          <button onClick={() => setGenerationalFilter(f => !f)}
+            style={{ padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
+            🧬 Generational
+          </button>
+          <button onClick={() => setTerritorialFilter(f => !f)}
+            style={{ padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${territorialFilter ? '#8B9DCA' : dbBorder}`, background: territorialFilter ? 'rgba(139,157,202,0.15)' : 'transparent', color: territorialFilter ? '#8B9DCA' : dbDim }}>
+            🗺 Territorial
+          </button>
+        </div>
+      </div>
+
+      {/* Count bar */}
+      <div style={{ padding: '8px 20px', flexShrink: 0, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: dbDim }}>
+        {dbLoading ? 'Loading archive...' : query ? `${filtered.length} entries matching "${query}"` : `${filtered.length} entries in archive`}
+      </div>
+
+      {/* Cards grid */}
+      <div style={{
+        flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '8px 16px 16px',
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: 12, alignContent: 'start',
+        maxWidth: '100%', boxSizing: 'border-box' as const,
+      }}>
+        {dbLoading && (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
+            ACCESSING DATABASE...
+          </div>
+        )}
+        {!dbLoading && filtered.length === 0 && (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: crimson, fontSize: 16, fontStyle: 'italic' }}>
+            No entries found. Try different search terms.
+          </div>
+        )}
+        {filtered.map((entry, i) => {
+          const id             = entry.id || String(i)
+          const name           = entry.name || 'Unknown'
+          const cls            = entry.biblicalRank || ''
+          const aliases        = entry.aka || ''
+          const description    = entry.description || ''
+          const companions     = entry.companionSpirits || ''
+          const color          = getColor(cls)
+          const hierCat        = entry.hierarchyCategory || ''
+          const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
+
+          return (
+            <TacticalCard key={id} brackets onClick={() => setSelectedEntry(entry)} style={{ marginBottom: 12, cursor: 'pointer' }}>
+              {/* Name row */}
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: 'var(--t-0)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
+              </div>
+
+              {/* Threat level */}
+              <div style={{ marginBottom: 8 }}>
+                <ThreatBar level={entry.threatLevel ?? 3} />
+              </div>
+
+              {/* Hierarchy category + rank as HUDChips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 8 }}>
+                {hierCat && (
+                  <HUDChip active style={{ fontSize: 9 }}>{hierCat}</HUDChip>
+                )}
+                {entry.biblicalRank && (
+                  <HUDChip style={{ fontSize: 9, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {entry.biblicalRank.length > 40 ? entry.biblicalRank.slice(0, 40) + '…' : entry.biblicalRank}
+                  </HUDChip>
+                )}
+                {entry.isGenerational && <HUDChip style={{ fontSize: 9 }}>GEN.</HUDChip>}
+                {entry.isTerritorial && <HUDChip style={{ fontSize: 9 }}>TERR.</HUDChip>}
+              </div>
+
+              {/* Aliases */}
+              {aliases && (
+                <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginBottom: 6 }}>
+                  aka {aliases}
+                </div>
+              )}
+
+              {/* Description — clamped preview */}
+              <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                {description}
+              </div>
+
+              {/* Companion chips preview — Commander+ */}
+              {companionList.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>COMPANIONS</div>
+                  {atLeast('Commander') ? (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {companionList.slice(0, 3).map((c: string, ci: number) => (
+                        <span key={ci}
+                          onClick={e => { e.stopPropagation(); setQuery(c) }}
+                          style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
+                          title={`Search for ${c}`}>
+                          {c}
+                        </span>
+                      ))}
+                      {companionList.length > 3 && <span style={{ fontFamily: cinzel, fontSize: 8, color: dbDim }}>+{companionList.length - 3} more</span>}
+                    </div>
+                  ) : (
+                    <div style={{ fontFamily: cinzel, fontSize: 8, color: dbDim, fontStyle: 'italic' }}>Commander+ to view</div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
+                ▼ VIEW FULL INTEL
+              </div>
+            </TacticalCard>
+          )
+        })}
+      </div>
+
+      {/* Intel Dossier Modal */}
+      {selectedEntry && (() => {
+        const entry = selectedEntry
+        const name  = entry.name || 'Unknown'
+        const cls   = entry.biblicalRank || ''
+        const color = getColor(cls)
+        const bdr   = dbBorder
+        const surf  = dbSurf
+        const txt   = dbText
+        const mut   = dbDim
+        const TierGate = ({ tierName, children }: { tierName: string; children: React.ReactNode }) => {
+          if (atLeast(tierName)) return <>{children}</>
+          return (
+            <div style={{ position: 'relative', minHeight: 180 }}>
+              <div style={{ filter: 'blur(4px)', userSelect: 'none' as const, pointerEvents: 'none' as const }}>
+                {children}
+              </div>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', background: 'rgba(13,11,20,0.75)', borderRadius: 8 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ {tierName.toUpperCase()} INTEL</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
+                  Upgrade to {tierName} to unlock this intelligence.
+                </div>
+                <button onClick={() => handleUpgrade(tierName, getToken)} style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}>Upgrade Now</button>
+              </div>
+            </div>
+          )
+        }
+
+        const FieldBlock = ({ label, value, color: c }: { label: string; value: string | null | undefined; color?: string }) => {
+          if (!value) return null
+          return (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: (c || color) + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>{label}</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65 }}>{value}</div>
+            </div>
+          )
+        }
+
+        // Render text with demon names as clickable links
+        const linkifySpirits = (text: string): React.ReactNode => {
+          if (!text || !demonsProp.length) return text
+          const matchList: { start: number; end: number; name: string }[] = []
+          for (const d of demonsProp as any[]) {
+            if (!d.name) continue
+            const lower = text.toLowerCase()
+            const nameLower = d.name.toLowerCase()
+            let idx = 0
+            while (idx < lower.length) {
+              const found = lower.indexOf(nameLower, idx)
+              if (found === -1) break
+              matchList.push({ start: found, end: found + d.name.length, name: d.name })
+              idx = found + d.name.length
+            }
+          }
+          if (!matchList.length) return text
+          matchList.sort((a, b) => a.start - b.start || b.end - a.end)
+          const filtered: typeof matchList = []
+          let lastEnd = 0
+          for (const m of matchList) {
+            if (m.start >= lastEnd) { filtered.push(m); lastEnd = m.end }
+          }
+          const parts: React.ReactNode[] = []
+          let pos = 0
+          for (const m of filtered) {
+            if (m.start > pos) parts.push(text.slice(pos, m.start))
+            parts.push(
+              <span key={`${m.name}-${m.start}`}
+                onClick={() => { const d = (demonsProp as any[]).find(e => e.name?.toLowerCase() === m.name.toLowerCase()); if (d) setSelectedEntry(d) }}
+                style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontWeight: 600 }}>
+                {text.slice(m.start, m.end)}
+              </span>
+            )
+            pos = m.end
+          }
+          if (pos < text.length) parts.push(text.slice(pos))
+          return <>{parts}</>
+        }
+
+        const SpiritPill = ({ name }: { name: string }) => {
+          const matched = (demonsProp as any[]).find(d => d.name?.toLowerCase() === name.toLowerCase())
+          if (matched) {
+            return (
+              <span
+                onClick={() => setSelectedEntry(matched)}
+                style={{ display: 'inline-block', background: `rgba(201,168,76,0.12)`, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: G, cursor: 'pointer', transition: 'background 0.15s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.22)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.12)' }}
+                title={`Open dossier: ${matched.name}`}
+              >{name}</span>
+            )
+          }
+          if (userTier !== 'minister') {
+            return (
+              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.1)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: mut }}>
+                {name}
+              </span>
+            )
+          }
+          return (
+            <span
+              onClick={() => { localStorage.setItem('wri_add_spirit_prefill', name); window.open('/admin', '_blank') }}
+              style={{ display: 'inline-block', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.1)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: mut, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.4)'; (e.currentTarget as HTMLElement).style.color = G }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.color = mut }}
+              title={`Add "${name}" to Intel Archive`}
+            >{name} <span style={{ fontSize: 10, opacity: 0.7 }}>✚</span></span>
+          )
+        }
+
+        return (
+          <div onClick={closeModal}
+            style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? 8 : 20, paddingTop: isMobile ? 20 : undefined, backdropFilter: 'blur(4px)' }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '85vh' : '85vh', overflowY: 'auto' as const, padding: 28, paddingBottom: 'max(28px, env(safe-area-inset-bottom, 28px))', position: 'relative', boxSizing: 'border-box' as const }}>
+
+              <div style={{ position: 'absolute', top: 14, right: 14 }}>
+                <button onClick={closeModal}
+                  style={{ background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
+              </div>
+
+              {/* Name + badges header */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 22, color: dbIsDark ? color : '#2D2924', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>{name}</div>
+                {entry.phonetic && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</span>
+                    <button onClick={() => { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(entry.phonetic); u.rate = 0.75; u.pitch = 0.9; window.speechSynthesis.speak(u) } }}
+                      style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '2px 10px', color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                      🔊 Hear
+                    </button>
+                  </div>
+                )}
+                {/* Classification badges */}
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                  {entry.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(201,168,76,0.15)', color: dbIsDark ? G : '#7a5c10', border: `1px solid rgba(201,168,76,0.35)`, padding: '3px 10px', borderRadius: 4 }}>⚔ {entry.biblicalRank}</span>}
+                  {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
+                  {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
+                  {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', padding: '3px 10px', borderRadius: 4 }}>🗺 Territorial</span>}
+                </div>
+              </div>
+
+              {/* Tab bar */}
+              <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 20, overflowX: 'auto' as const, scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any }}>
+                {([
+                  { key: 'overview', label: '📖 Overview' },
+                  { key: 'intelligence', label: '🔍 Intel' },
+                  { key: 'warfare', label: '⚔ Warfare' },
+                  { key: 'scholarly', label: '📚 Research' },
+                ] as const).map(t => (
+                  <button key={t.key} onClick={() => setModalTab(t.key)}
+                    style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: modalTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: modalTab === t.key ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
+                    {t.label}
+                  </button>
+                ))}
+                {atLeast('commander') && (
+                  <button onClick={() => setModalTab('protocol')}
+                    style={{ padding: '8px 16px', background: modalTab === 'protocol' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: modalTab === 'protocol' ? `2px solid ${G}` : '2px solid transparent', color: modalTab === 'protocol' ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
+                    ⚔ PROTOCOL
+                  </button>
+                )}
+              </div>
+
+              {/* TAB 1: OVERVIEW */}
+              {modalTab === 'overview' && (
+                <div>
+                  {/* Image display */}
+                  {(() => {
+                    const imgArr = Array.isArray(entry.images) ? entry.images : String(entry.images || '').split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean)
+                    const url = imgArr[0]
+                    if (!url || !url.startsWith('http')) return null
+                    return (
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Historical Depiction</div>
+                        <img src={url} alt={entry.name}
+                          style={{ maxWidth: '100%', maxHeight: 250, borderRadius: 8, border: `1px solid rgba(201,168,76,0.15)`, objectFit: 'contain' as const, display: 'block', margin: '0 auto', cursor: 'pointer' }}
+                          onClick={() => window.open(url, '_blank')}
+                          onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
+                        />
+                      </div>
+                    )
+                  })()}
+                  {entry.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 14 }}>aka {entry.aka}</div>}
+                  <FieldBlock label="Description" value={entry.description} />
+                  <FieldBlock label="Kingdom" value={entry.kingdom} />
+                  {entry.subKingdom && entry.subKingdom !== 'None' && (
+                    <div style={{ marginBottom: 14, marginTop: -8 }}>
+                      <span style={{
+                        display: 'inline-block',
+                        fontFamily: cinzel,
+                        fontSize: 8,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase' as const,
+                        background: 'rgba(201,168,76,0.08)',
+                        color: dbIsDark ? 'rgba(201,168,76,0.65)' : '#7a5c10',
+                        border: '1px solid rgba(201,168,76,0.22)',
+                        borderRadius: 3,
+                        padding: '3px 9px',
+                      }}>
+                        ◈ {entry.subKingdom}
+                      </span>
+                    </div>
+                  )}
+                  {entry.isTerritorial && entry.region && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>🗺 Territorial Region</div>
+                      <div style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.region}</div>
+                    </div>
+                  )}
+                  {/* Related Resources — visible to all tiers */}
+                  {spiritResources.length > 0 && (
+                    <div style={{ marginTop: 20, borderTop: `1px solid rgba(201,168,76,0.15)`, paddingTop: 16 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Related Resources</div>
+                      {spiritResources.map((r: any) => (
+                        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid rgba(201,168,76,0.08)`, cursor: 'pointer' }}
+                          onClick={() => window.open('/community#arsenal', '_blank')}>
+                          <span style={{ fontSize: 16, flexShrink: 0 }}>📄</span>
+                          <div>
+                            <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{r.title}</div>
+                            <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{r.topic}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: INTELLIGENCE — Soldier+ */}
+              {modalTab === 'intelligence' && (
+                <TierGate tierName="Soldier">
+                  <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation || entry.symptoms} />
+                  <FieldBlock label="Entry Points" value={entry.entryPoints} />
+                  <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
+                  <FieldBlock label="Source & Origin" value={entry.sourceOrigin} />
+                  {entry.strongman ? (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Strongman</div>
+                      {(() => { const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase()); return linked ? (
+                        <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontFamily: crimson, fontSize: 14, fontWeight: 600 }} title={`View ${entry.strongman} dossier`}>{entry.strongman}</span>
+                      ) : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span> })()}
+                    </div>
+                  ) : null}
+                  {entry.parentStrongman && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Parent Strongman</div>
+                      <button onClick={() => { const p = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
+                        style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                        {entry.parentStrongman}
+                      </button>
+                    </div>
+                  )}
+                  {entry.companionSpirits && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Companion Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {String(entry.companionSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
+                          const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={n} onClick={() => linked && setSelectedEntry(linked)}
+                              style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <FieldBlock label="Counter Scriptures" value={entry.counterScriptures} color={G} />
+                  {entry.deliveranceSequence && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Deliverance Sequence</div>
+                      <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
+                        {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
+                          <span key={i}><span style={{ color: txt }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: G, margin: '0 6px' }}>→</span>}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {entry.hierarchyCategory && (() => {
+                    const cat = entry.hierarchyCategory
+                    const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
+                    return (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Kingdom Category</div>
+                        <span style={{ padding: '5px 14px', borderRadius: 999, fontSize: 12, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, letterSpacing: '0.05em', display: 'inline-block' }}>{cat}</span>
+                      </div>
+                    )
+                  })()}
+                </TierGate>
+              )}
+
+              {/* TAB 3: WARFARE — Commander+ */}
+              {modalTab === 'warfare' && (
+                <TierGate tierName="Commander">
+                  <FieldBlock label="Session Indicators" value={entry.sessionIndicators} />
+                  <FieldBlock label="Resistance Signature" value={entry.resistanceSignature} />
+                  {entry.clusterSpirits && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cluster Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const }}>
+                        {parseSpiritNames(String(entry.clusterSpirits)).map((n, i) => <SpiritPill key={i} name={n} />)}
+                      </div>
+                      {parseSpiritNames(String(entry.clusterSpirits)).length === 0 && (
+                        <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.7 }}>{linkifySpirits(String(entry.clusterSpirits))}</div>
+                      )}
+                    </div>
+                  )}
+                  <FieldBlock label="Transmission Vectors" value={entry.transmissionVectors} />
+                  <FieldBlock label="Legal Rights" value={entry.legalRights} />
+                  <FieldBlock label="Legal Rights Framework" value={entry.legalRightsFramework} />
+                  <FieldBlock label="Demonic Agreements & Lies" value={entry.demonicAgreements} />
+                  <FieldBlock label="Assignment" value={entry.assignment} />
+                  <FieldBlock label="WRI Exorcist Notes" value={entry.wriNotes} />
+                  <FieldBlock label="Operational Notes" value={entry.operationalNotes} />
+                  {entry.prayerPoints && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Prayer Points</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                        {String(entry.prayerPoints).split(/\n|\d+\./).filter((s: string) => s.trim()).map((p: string, i: number) => (
+                          <div key={i} style={{ background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, padding: '10px 14px', fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6 }}>
+                            {p.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <FieldBlock label="Aftercare Notes" value={entry.aftercareNotes} />
+
+                  {/* ── Session Intel: Cultural Presence + Trigger Questions ── */}
+                  {((Array.isArray(entry.culturalPresence) && entry.culturalPresence.length > 0) || entry.sessionTriggerQuestions) && (
+                    <div style={{ marginTop: 8, marginBottom: 18, paddingTop: 16, borderTop: `1px solid rgba(201,168,76,0.12)` }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>⚡</span><span>Session Intel</span>
+                      </div>
+                      {Array.isArray(entry.culturalPresence) && entry.culturalPresence.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cultural Presence</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                            {entry.culturalPresence.map((cat: string) => (
+                              <span key={cat} style={{ fontFamily: cinzel, fontSize: 9, color: G, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '4px 10px', letterSpacing: '0.06em', background: 'rgba(201,168,76,0.05)' }}>
+                                {cat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {entry.sessionTriggerQuestions && (
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Session Trigger Questions</div>
+                          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                            {String(entry.sessionTriggerQuestions).split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
+                              <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.65, fontStyle: 'italic', paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>
+                                {line.replace(/^\d+\.\s*/, '')}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Related Arsenal resources */}
+                  {spiritResources.length > 0 && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>📎 Related Resources</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {spiritResources.map((r: any) => (
+                          <div key={r.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 16 }}>📄</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title}</div>
+                              <div style={{ fontSize: 10, color: mut }}>{r.topic || r.category}</div>
+                            </div>
+                            {r.file_url
+                              ? <a href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none' }}>↗ View</a>
+                              : <button onClick={async () => { const token = await getToken(); const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } }); if (res.ok) { const d = await res.json(); if (d.url) window.open(d.url, '_blank') } }} style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel }}>↗ View</button>
+                            }
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </TierGate>
+              )}
+
+              {/* TAB 4: RESEARCH — General+ */}
+              {modalTab === 'scholarly' && (
+                <TierGate tierName="General">
+                  <FieldBlock label="Etymology & Name Analysis" value={entry.etymologyNotes} />
+                  <FieldBlock label="Archaeological & ANE Context" value={entry.archaeologyNotes} />
+                  <FieldBlock label="Scripture Context" value={entry.scriptureContext} />
+                  <FieldBlock label="Institutional Expression" value={entry.institutionalExpression} />
+                  <FieldBlock label="Primary Battlefield" value={entry.primaryBattlefield} />
+                  <FieldBlock label="Personality Presentation" value={entry.personalityPresentation} />
+                  <FieldBlock label="Case Type" value={entry.caseType} />
+                  <FieldBlock label="Biblical Rank" value={entry.biblicalRank} />
+                  <FieldBlock label="Sub-Kingdom" value={entry.subKingdom && entry.subKingdom !== 'None' ? entry.subKingdom : undefined} />
+                  {entry.relatedSpirits && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Related Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const }}>
+                        {String(entry.relatedSpirits).split(/[,;]/).map(s => s.trim()).filter(Boolean).map((n, i) => <SpiritPill key={i} name={n} />)}
+                      </div>
+                    </div>
+                  )}
+                  <FieldBlock label="WRI Exorcist Notes" value={entry.wriNotes} />
+                </TierGate>
+              )}
+
+              {/* TAB 5: PROTOCOL ENGINE — Commander+ */}
+              {modalTab === 'protocol' && (
+                <div>
+                  {!atLeast('commander') ? (
+                    <TierLock tierName="Commander" />
+                  ) : !protocolResult ? (
+                    <div>
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>⚔ PROTOCOL ENGINE</div>
+                        <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6 }}>
+                          Generate a complete deliverance session protocol — legal ground checklist, renunciation prayers, command prayers, and aftercare.
+                        </div>
+                      </div>
+
+                      {/* Mode selector */}
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+                        <button onClick={() => setProtocolMode('spirit')}
+                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'spirit' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'spirit' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'spirit' ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                          ⚔ SPIRIT NAME
+                        </button>
+                        <button onClick={() => setProtocolMode('manifestation')}
+                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'manifestation' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'manifestation' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'manifestation' ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                          👁 MANIFESTATION
+                        </button>
+                      </div>
+
+                      {/* Spirit mode: show name + cluster option */}
+                      {protocolMode === 'spirit' && (
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6 }}>
+                            {entry.name}
+                            {entry.biblicalRank && <span style={{ color: mut, fontFamily: cinzel, fontSize: 8, marginLeft: 8 }}>— {entry.biblicalRank}</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.06em' }}>
+                              <input type="checkbox" checked={includeCluster} onChange={e => setIncludeCluster(e.target.checked)}
+                                style={{ accentColor: G, width: 14, height: 14 }} />
+                              Include cluster spirits
+                            </label>
+                          </div>
+                          {includeCluster && parseSpiritNames(entry.clusterSpirits || entry.subordinates || '').length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 14 }}>
+                              {parseSpiritNames(entry.clusterSpirits || entry.subordinates || '').slice(0, 5).map((n: string, i: number) => (
+                                <span key={i} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 10, background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}`, color: mut }}>{n}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Manifestation mode: textarea input */}
+                      {protocolMode === 'manifestation' && (
+                        <div style={{ marginBottom: 16 }}>
+                          <textarea
+                            value={manifestationInput}
+                            onChange={e => setManifestationInput(e.target.value)}
+                            placeholder="Describe what you are observing — physical manifestations, behavioral patterns, emotional responses, words spoken during session..."
+                            rows={4}
+                            style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.04)', border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px', fontFamily: crimson, fontSize: 14, color: txt, resize: 'vertical' as const, boxSizing: 'border-box' as const, outline: 'none' }}
+                          />
+                        </div>
+                      )}
+
+                      {invFromInvestigator && (
+                        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', marginBottom: 6 }}>LINKED FROM SYMPTOM INVESTIGATOR</div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>
+                            {invFromInvestigator.probableSpirits?.length} spirits identified — protocol will incorporate investigation results
+                          </div>
+                        </div>
+                      )}
+                      {protocolError && (
+                        <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 6, padding: '10px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 16 }}>
+                          {protocolError}
+                        </div>
+                      )}
+                      <button onClick={() => handleGenerateProtocol(protocolMode)} disabled={protocolLoading}
+                        style={{ width: '100%', padding: '14px', background: protocolLoading ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', cursor: protocolLoading ? 'not-allowed' : 'pointer', textTransform: 'uppercase' as const }}>
+                        {protocolLoading ? '⏳ GENERATING PROTOCOL...' : '⚔ GENERATE SESSION PROTOCOL'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Protocol header + print + regenerate */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>⚔ SESSION PROTOCOL</div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>{entry.name}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => window.print()}
+                            style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: G + '99', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
+                            🖨 PRINT
+                          </button>
+                          <button onClick={() => { setProtocolResult(null); setInvFromInvestigator(null); setCheckedGrounds({}) }}
+                            style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
+                            ↺ REGENERATE
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section nav pills */}
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+                        {['Pre-Session Intel', 'Legal Grounds', 'Renunciation', 'Intercession', 'Command Prayers', 'Aftercare', 'Resources'].map((sec, i) => (
+                          <button key={i} onClick={() => setActiveProtocolSection(i)}
+                            style={{ padding: '4px 10px', borderRadius: 20, fontSize: 9, fontFamily: cinzel, letterSpacing: '0.04em', cursor: 'pointer', border: `1px solid ${activeProtocolSection === i ? G : bdr}`, background: activeProtocolSection === i ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeProtocolSection === i ? G : mut }}>
+                            {sec}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Section 0: Pre-Session Intel */}
+                      {activeProtocolSection === 0 && protocolResult.protocol?.preSessionIntel && (() => {
+                        const intel = protocolResult.protocol.preSessionIntel
+                        return (
+                          <div>
+                            <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
+                              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7 }}>{intel.summary}</div>
+                            </div>
+                            {intel.keyLegalGrounds?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Key Legal Grounds</div>
+                                {intel.keyLegalGrounds.map((g: string, i: number) => (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                                    <span style={{ color: G, flexShrink: 0, fontSize: 10, marginTop: 2 }}>▸</span>
+                                    <span style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5 }}>{g}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {intel.keyScriptures?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Key Scriptures</div>
+                                {intel.keyScriptures.map((s: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: G, fontStyle: 'italic', marginBottom: 5, paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>{s}</div>
+                                ))}
+                              </div>
+                            )}
+                            {intel.warningFlags?.length > 0 && (
+                              <div style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 8, padding: '12px 16px' }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Warning Flags</div>
+                                {intel.warningFlags.map((w: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 4 }}>• {w}</div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Section 1: Legal Ground Checklist */}
+                      {activeProtocolSection === 1 && (
+                        <div>
+                          <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6, marginBottom: 16 }}>
+                            Go through each ground with the person. Check off what applies — this forms the basis for renunciation.
+                          </div>
+                          {(protocolResult.protocol?.legalGroundChecklist || []).map((item: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: checkedGrounds[i] ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${checkedGrounds[i] ? 'rgba(201,168,76,0.3)' : bdr}`, borderRadius: 8, marginBottom: 8, cursor: 'pointer' }}
+                              onClick={() => setCheckedGrounds(prev => ({ ...prev, [i]: !prev[i] }))}>
+                              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 4, border: `2px solid ${checkedGrounds[i] ? G : bdr}`, background: checkedGrounds[i] ? G : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                                {checkedGrounds[i] && <span style={{ color: '#0D0B14', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 10, color: checkedGrounds[i] ? G : txt, letterSpacing: '0.06em', marginBottom: 4 }}>{item.ground}</div>
+                                <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', lineHeight: 1.5, marginBottom: 4 }}>"{item.question}"</div>
+                                {item.scripture && <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '99', letterSpacing: '0.04em' }}>{item.scripture}</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Section 2: Renunciation Prayers */}
+                      {activeProtocolSection === 2 && (
+                        <div>
+                          {(protocolResult.protocol?.renunciationPrayers || []).map((prayer: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 20, background: 'rgba(255,255,255,0.02)', border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px' }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>{prayer.title}</div>
+                              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', marginBottom: 10, paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.3)` }}>
+                                {prayer.prayer}
+                              </div>
+                              {prayer.notes && (
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.04em', background: 'rgba(201,168,76,0.05)', borderRadius: 4, padding: '6px 10px' }}>
+                                  📋 {prayer.notes}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Section 3: Intercession */}
+                      {activeProtocolSection === 3 && protocolResult.protocol?.intercession && (() => {
+                        const ic = protocolResult.protocol.intercession
+                        return (
+                          <div>
+                            {ic.opening && (
+                              <div style={{ marginBottom: 20 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Opening Intercession</div>
+                                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.3)` }}>{ic.opening}</div>
+                              </div>
+                            )}
+                            {ic.declarations?.length > 0 && (
+                              <div style={{ marginBottom: 20 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Declarations</div>
+                                {ic.declarations.map((d: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6, marginBottom: 8, paddingLeft: 12, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>{d}</div>
+                                ))}
+                              </div>
+                            )}
+                            {ic.binding && (
+                              <div>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Binding Prayer</div>
+                                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', paddingLeft: 14, borderLeft: `3px solid rgba(220,38,38,0.4)` }}>{ic.binding}</div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Section 4: Command Prayers */}
+                      {activeProtocolSection === 4 && (
+                        <div>
+                          {(protocolResult.protocol?.commandPrayers || []).map((prayer: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 20, background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.15)', borderLeft: '3px solid rgba(220,38,38,0.5)', borderRadius: 10, padding: '16px 18px' }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 10, color: '#f87171', letterSpacing: '0.08em', marginBottom: 10 }}>TARGET: {prayer.target}</div>
+                              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', marginBottom: 10 }}>
+                                {prayer.command}
+                              </div>
+                              {prayer.authority && (
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '99', letterSpacing: '0.04em' }}>⚔ Authority: {prayer.authority}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Section 5: Aftercare */}
+                      {activeProtocolSection === 5 && protocolResult.protocol?.aftercare && (() => {
+                        const ac = protocolResult.protocol.aftercare
+                        return (
+                          <div>
+                            {ac.initialSteps?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Immediate Steps</div>
+                                {ac.initialSteps.map((s: string, i: number) => (
+                                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                                    <span style={{ color: G, flexShrink: 0, fontFamily: cinzel, fontSize: 11, marginTop: 1 }}>{i + 1}.</span>
+                                    <span style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5 }}>{s}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {ac.dailyPractices?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Daily Practices</div>
+                                {ac.dailyPractices.map((p: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5, marginBottom: 6, paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.15)` }}>• {p}</div>
+                                ))}
+                              </div>
+                            )}
+                            {ac.warningSignsToWatch?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Warning Signs to Watch</div>
+                                {ac.warningSignsToWatch.map((w: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 5 }}>• {w}</div>
+                                ))}
+                              </div>
+                            )}
+                            {ac.followUpQuestions?.length > 0 && (
+                              <div>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Follow-Up Questions</div>
+                                {ac.followUpQuestions.map((q: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic', marginBottom: 6 }}>• {q}</div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Section 6: Arsenal Resources */}
+                      {activeProtocolSection === 6 && (
+                        <div>
+                          {protocolResult.arsenalResources?.length > 0 ? (
+                            <div>
+                              <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6, marginBottom: 16 }}>
+                                Resources matched to this protocol based on spirit domain and legal grounds.
+                              </div>
+                              {protocolResult.arsenalResources.map((r: any, i: number) => (
+                                <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${bdr}`, borderRadius: 8, marginBottom: 8 }}>
+                                  <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>📄</span>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, marginBottom: 3 }}>{r.title}</div>
+                                    {r.relevance && <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5, marginBottom: 4 }}>{r.relevance}</div>}
+                                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '80', letterSpacing: '0.04em' }}>{r.category || 'Resource'}</div>
+                                  </div>
+                                  {r.file_path && (
+                                    <a href={r.file_path} target="_blank" rel="noopener noreferrer"
+                                      style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none', alignSelf: 'flex-start', flexShrink: 0 }}>
+                                      ↗ VIEW
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center' as const, color: mut, fontFamily: crimson, fontSize: 14, padding: '32px 0' }}>
+                              No matched arsenal resources for this spirit.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+            {/* Flag this entry — bottom of modal, away from close button */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(201,168,76,0.1)` }}>
+              <FlagButton contentType="intel-archive" contentId={String(entry.id || entry.name)} contentTitle={name} />
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Intel Archive Legend */}
+      {showLegend && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowLegend(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: dbIsDark ? '#0D0B14' : '#FAF8F5', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 14, width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', padding: '28px 32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>📚 Intel Archive Guide</div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, fontStyle: 'italic' }}>Understanding your intelligence database</div>
+              </div>
+              <button onClick={() => setShowLegend(false)} style={{ background: 'none', border: 'none', color: dbDim, fontSize: 22, cursor: 'pointer' }}>×</button>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>What Is This?</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: dbText, lineHeight: 1.7 }}>
+                The Intel Archive is a spiritual warfare database containing intelligence on demonic entities, principalities, and spiritual forces. Each entry is a complete dossier drawing from Scripture, biblical archaeology, etymology, and decades of deliverance ministry research. This is not a casual reference. It is a minister's field manual.
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Biblical Hierarchy (Ephesians 6:12)</div>
+              {[
+                { rank: 'Principality', color: '#ef4444', desc: 'Ruling spirits over nations and regions. Highest rank. Require territorial-level authority to displace.', ref: 'Dan. 10:13 — "Prince of Persia"' },
+                { rank: 'Power', color: '#f97316', desc: 'Delegated authority — enforce the will of principalities. Assigned to cities, institutions, and families.', ref: 'Eph. 1:21, Col. 2:15' },
+                { rank: 'Ruler of Darkness', color: '#8b5cf6', desc: 'Control world systems — media, government, education, finance, false religion.', ref: 'John 12:31 — "prince of this world"' },
+                { rank: 'Spiritual Wickedness', color: '#6366f1', desc: 'Atmospheric spirits in the heavenly realms. Affect thoughts and spiritual climate.', ref: 'Eph. 2:2 — "prince of the power of the air"' },
+                { rank: 'Demon / Familiar Spirit', color: '#9a8c74', desc: 'Ground-level spirits. Personal assignment, generational access, operate in individuals.', ref: 'Luke 13:11, Mark 5:9' },
+              ].map(item => (
+                <div key={item.rank} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: `${item.color}10`, border: `1px solid ${item.color}30`, borderLeft: `3px solid ${item.color}`, borderRadius: 8, marginBottom: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: item.color, letterSpacing: '0.06em', marginBottom: 3 }}>{item.rank}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.5, marginBottom: 4 }}>{item.desc}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: dbDim, letterSpacing: '0.04em' }}>{item.ref}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>What Each Tab Contains</div>
+              {[
+                { tab: '📖 Overview', tier: 'All members', desc: 'Identity, classification, biblical rank, manifestations, primary battlefield.' },
+                { tab: '🔍 Intel', tier: 'Commander+', desc: 'Session indicators, resistance signature, demonic agreements, entry points, transmission vectors, cluster spirits, legal rights.' },
+                { tab: '⚔ Warfare', tier: 'Soldier+', desc: 'Counter scriptures, deliverance sequence, prayer points, aftercare notes, linked resources.' },
+                { tab: '📚 Research', tier: 'General+', desc: 'Etymology, archaeological context, comprehensive scripture study, historical sources.' },
+              ].map(item => (
+                <div key={item.tab} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, marginBottom: 6 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.04em' }}>{item.tab}</span>
+                      <span style={{ fontSize: 9, color: dbDim, fontFamily: cinzel, letterSpacing: '0.06em', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 7px' }}>{item.tier}</span>
+                    </div>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, lineHeight: 1.5 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={() => setShowLegend(false)}
+              style={{ width: '100%', padding: '12px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase' as const }}>
+              Enter the Archive ⚔
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function cleanArsenalTitle(title: string): string {
+  return title
+    .replace(/_arsenal(\.pdf|\.docx)?$/i, '')
+    .replace(/\.(pdf|docx)$/i, '')
+    .trim()
+}
+
+// ── ARSENAL VIEW ──────────────────────────────────────────
+function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+}) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const bg      = isDark ? '#0D0B14' : '#FAF8F5'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const text    = isDark ? '#E8D5B0' : '#2D2924'
+  const muted   = isDark ? '#8B7355' : '#5C5248'
+
+  // ARSENAL ONLY — reads from resources table via /api/arsenal-resources (source_type='arsenal')
+  // DO NOT merge this state with any library state — these are separate features with separate DB rows
+  const [arsenalItems, setArsenalItems]         = useState<any[]>([])
+  const [arsenalLoading, setArsenalLoading]     = useState(true)
+  const [arsenalError, setArsenalError]         = useState('')
+  const [query, setQuery]                       = useState('')
+  const [tierFilter, setTierFilter]             = useState('All')
+  const [selectedArsenalIds, setSelectedArsenalIds] = useState<Set<string>>(new Set())
+  const [showMassDeleteConfirm, setShowMassDeleteConfirm] = useState(false)
+  const [massDeleting, setMassDeleting]         = useState(false)
+  const [massEditTier, setMassEditTier]         = useState('')
+  const [massEditTopic, setMassEditTopic]       = useState('')
+  const [massApplying, setMassApplying]         = useState(false)
+  const isMinister = userTier === 'minister'
+  const [activeCategory, setActiveCategory]     = useState<string | null>(null)
+  const [expandedId, setExpandedId]             = useState<string | null>(null)
+  const [arsenalSort, setArsenalSort]           = useState<'newest'|'az'|'tier'>('newest')
+  const [showCategorySheet, setShowCategorySheet] = useState(false)
+
+  const ARSENAL_TOPICS = [
+    'Soul Ties', 'Generational Curses', 'Forgiveness', 'Ungodly Vows',
+    'Freemasonry & Secret Societies', 'Sexual Bondage', 'Fear & Rejection',
+    'Identity & Sonship', 'Inner Healing', 'Witchcraft & Occult',
+    'Marine Kingdom', 'Mind Control', 'Leviathan & Pride', 'Jezebel & Control',
+    'Python & Constriction', 'Deliverance Foundations', 'Aftercare',
+    'Prayer & Intercession', 'Scripture Reference', 'General Ministry',
+  ]
+  const ARSENAL_CATEGORY_ICONS: Record<string, string> = {
+    'Soul Ties':                      '🔗',
+    'Generational Curses':            '🧬',
+    'Forgiveness':                    '✦',
+    'Ungodly Vows':                   '⛓',
+    'Freemasonry & Secret Societies': '🔺',
+    'Sexual Bondage':                 '🔒',
+    'Fear & Rejection':               '🛡',
+    'Identity & Sonship':             '👑',
+    'Inner Healing':                  '✚',
+    'Witchcraft & Occult':            '⚡',
+    'Marine Kingdom':                 '🌊',
+    'Mind Control':                   '👁',
+    'Leviathan & Pride':              '🐍',
+    'Jezebel & Control':              '🔥',
+    'Python & Constriction':          '⛓',
+    'Deliverance Foundations':        '⚔',
+    'Aftercare':                      '📖',
+    'Prayer & Intercession':          '🙏',
+    'Scripture Reference':            '📜',
+    'General Ministry':               '📋',
+  }
+
+  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+
+  useEffect(() => {
+    async function load() {
+      // ARSENAL ONLY — fetches from /api/arsenal-resources → resources table WHERE source_type='arsenal'
+      // DO NOT change this to /api/admin-library — that is the Ministry Library endpoint
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/arsenal-resources', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) throw new Error('Failed to load')
+        const data = await res.json()
+        setArsenalItems(data.resources || [])
+      } catch {
+        setArsenalError('Could not load resources')
+      } finally {
+        setArsenalLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  async function handleMassDelete() {
+    setMassDeleting(true)
+    try {
+      const token = await getToken()
+      const ids = Array.from(selectedArsenalIds).join(',')
+      await fetch(`/api/admin-resources?ids=${encodeURIComponent(ids)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setArsenalItems(prev => prev.filter(i => !selectedArsenalIds.has(i.id)))
+      setSelectedArsenalIds(new Set())
+      setShowMassDeleteConfirm(false)
+    } catch { /* silent */ }
+    setMassDeleting(false)
+  }
+
+  async function handleMassEdit() {
+    if (!massEditTier && !massEditTopic) return
+    setMassApplying(true)
+    try {
+      const token = await getToken()
+      const body: any = { ids: [...selectedArsenalIds] }
+      if (massEditTier)  body.tier  = massEditTier
+      if (massEditTopic) body.topic = massEditTopic
+      const res = await fetch('/api/admin-resources', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setArsenalItems(prev => prev.map(r =>
+          selectedArsenalIds.has(r.id)
+            ? { ...r, ...(massEditTier ? { tier: massEditTier } : {}), ...(massEditTopic ? { topic: massEditTopic } : {}) }
+            : r
+        ))
+        setSelectedArsenalIds(new Set())
+        setMassEditTier('')
+        setMassEditTopic('')
+      }
+    } catch { /* silent */ }
+    setMassApplying(false)
+  }
+
+  const FILE_ICONS: Record<string, string> = {
+    'application/pdf': '📄',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '📝',
+    'audio/mpeg': '🎵',
+    'image/png': '🖼️',
+    'image/jpeg': '🖼️',
+  }
+
+  const TIER_COLORS: Record<string, string> = {
+    Free:      'rgba(148,163,184,0.85)',
+    Watchman:  'rgba(148,163,184,0.85)',
+    Soldier:   'rgba(201,168,76,0.9)',
+    Commander: 'rgba(251,146,60,0.9)',
+    General:   'rgba(167,139,250,0.9)',
+  }
+  const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
+
+  const categoryCounts = arsenalItems.reduce((acc, item) => {
+    const t = item.topic || item.category
+    if (t) acc[t] = (acc[t] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+  const dynamicTopics = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a])
+
+  const filtered = arsenalItems.filter(r => {
+    const matchSearch = !query ||
+      r.title?.toLowerCase().includes(query.toLowerCase()) ||
+      (r.description || '').toLowerCase().includes(query.toLowerCase()) ||
+      (Array.isArray(r.tags) ? r.tags.some((t: string) => t.toLowerCase().includes(query.toLowerCase())) : false)
+    const matchTier  = tierFilter === 'All' || (tierFilter === 'Watchman' ? (r.tier === 'Free' || r.tier === 'free' || r.tier === 'Watchman') : r.tier === tierFilter)
+    const matchTopic = !activeCategory || activeCategory === '__search__' || r.topic === activeCategory || r.category === activeCategory
+    return matchSearch && matchTier && matchTopic
+  })
+
+  const recent = [...arsenalItems]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 6)
+
+  const sortedItems = [...filtered].sort((a, b) => {
+    if (arsenalSort === 'az')   return (a.title || '').localeCompare(b.title || '')
+    if (arsenalSort === 'tier') return (TIER_ORDER[(b.tier || '').toLowerCase()] ?? 0) - (TIER_ORDER[(a.tier || '').toLowerCase()] ?? 0)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const ResourceRow = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
+    const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
+    const tc         = TIER_COLORS[resource.tier] || G
+    const isExp      = expandedId === resource.id
+    const tierLabel  = (resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier
+    return (
+      <div
+        style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '10px 14px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+        onClick={() => setExpandedId(isExp ? null : resource.id)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onToggle && (
+            <input type="checkbox" checked={!!isSelected} onChange={e => { e.stopPropagation(); onToggle(resource.id) }}
+              style={{ accentColor: G, width: 14, height: 14, cursor: 'pointer', flexShrink: 0 }} />
+          )}
+          <span style={{ fontSize: 15, flexShrink: 0 }}>{FILE_ICONS[resource.file_type] || '📄'}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: hasAccess ? '#f0e8d8' : muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+              {cleanArsenalTitle(resource.title || '')}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 7, padding: '2px 7px', borderRadius: 20, background: `${tc}18`, color: tc, border: `1px solid ${tc}35`, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{tierLabel}</span>
+            {hasAccess
+              ? resource.file_url
+                ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
+                : null
+              : <button onClick={e => { e.stopPropagation(); handleUpgrade(resource.tier, getToken) }}
+                  style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
+            }
+          </div>
+        </div>
+        {isExp && (resource.description || resource.topic) && (
+          <div style={{ paddingTop: 8, paddingLeft: onToggle ? 58 : 42 }}>
+            {resource.description && (
+              <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.55)', lineHeight: 1.5, fontStyle: 'italic', marginBottom: resource.topic ? 4 : 0 }}>{resource.description}</div>
+            )}
+            {resource.topic && (
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{resource.topic}</span>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '12px' : '24px 32px', minHeight: 0 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
+          )}
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>✦ Arsenal</div>
+        </div>
+        {!isMobile && <div style={{ fontSize: 12, color: muted, textAlign: 'right' as const }}>Ministry resources, protocols, and teaching documents</div>}
+      </div>
+
+      {/* Global search */}
+      <div style={{ position: 'relative', marginBottom: 20 }}>
+        <input
+          value={query}
+          onChange={e => {
+            setQuery(e.target.value)
+            if (e.target.value) setActiveCategory('__search__')
+            else setActiveCategory(null)
+          }}
+          placeholder="Search sermons, teachings, topics..."
+          style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '12px 16px 12px 42px', color: text, fontSize: 13, fontFamily: crimson, outline: 'none' }}
+        />
+        <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.35, fontSize: 15, pointerEvents: 'none' }}>🔍</span>
+      </div>
+
+      {arsenalLoading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: cinzel, fontSize: 13 }}>Loading arsenal...</div>
+      ) : arsenalError ? (
+        <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{arsenalError}</div>
+      ) : activeCategory === null ? (
+        <>
+          {/* Mobile: Browse Topics button */}
+          {isMobile && (
+            <button onClick={() => setShowCategorySheet(true)}
+              style={{ width: '100%', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 8, padding: '12px 16px', color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.07em', cursor: 'pointer', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>📚 Browse by Topic</span>
+              <span style={{ opacity: 0.45, fontSize: 10 }}>{dynamicTopics.length} categories →</span>
+            </button>
+          )}
+
+          {/* Desktop: compact category grid */}
+          {!isMobile && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 24 }}>
+              {dynamicTopics.map(topic => (
+                <div key={topic} onClick={() => setActiveCategory(topic)}
+                  style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 8, padding: '14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, transition: 'border-color 0.15s, background 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.35)'; e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.12)'; e.currentTarget.style.background = 'rgba(201,168,76,0.04)' }}>
+                  <span style={{ fontSize: 20 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', lineHeight: 1.3 }}>{topic}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.4)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Recently added */}
+          {recent.length > 0 && (
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 10 }}>Recently Added</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {recent.map(r => <ResourceRow key={r.id} resource={r} />)}
+              </div>
+            </div>
+          )}
+
+          {/* Upgrade CTA for Watchman — show locked resource count */}
+          {(() => {
+            const lockedCount = arsenalItems.filter(r => {
+              const lvl = ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 } as Record<string, number>)[(r.tier || '').toLowerCase()] ?? 0
+              return lvl > tierLvl(userTier)
+            }).length
+            if (lockedCount === 0) return null
+            return (
+              <div style={{ marginTop: 20, padding: '16px', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, background: 'rgba(201,168,76,0.04)', textAlign: 'center' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.6)', marginBottom: 6 }}>
+                  🔒 {lockedCount} MORE RESOURCE{lockedCount !== 1 ? 'S' : ''} AVAILABLE
+                </div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: muted, marginBottom: 12, lineHeight: 1.5 }}>
+                  Upgrade to Soldier to unlock the full Arsenal library.
+                </div>
+                <button
+                  onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
+                >
+                  UPGRADE TO SOLDIER →
+                </button>
+              </div>
+            )
+          })()}
+        </>
+      ) : (
+        /* Category / search results view */
+        <div style={{ display: isMobile ? 'block' : 'flex', gap: 20 }}>
+
+          {/* Desktop sidebar */}
+          {!isMobile && activeCategory !== '__search__' && (
+            <div style={{ width: 188, flexShrink: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.4)', letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>Browse by Topic</div>
+              {dynamicTopics.map(topic => (
+                <div key={topic}
+                  onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
+                  style={{ padding: '7px 10px', borderRadius: 5, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: activeCategory === topic ? 'rgba(201,168,76,0.1)' : 'transparent', borderLeft: `2px solid ${activeCategory === topic ? 'rgba(201,168,76,0.6)' : 'transparent'}`, marginBottom: 1 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: activeCategory === topic ? G : 'rgba(240,232,216,0.42)', letterSpacing: '0.04em', lineHeight: 1.35 }}>{topic}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 10, color: 'rgba(240,232,216,0.22)', flexShrink: 0, marginLeft: 4 }}>{categoryCounts[topic] || 0}</span>
+                </div>
+              ))}
+              <div onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
+                style={{ marginTop: 10, padding: '7px 10px', borderRadius: 5, cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.38)', letterSpacing: '0.06em' }}>
+                ← All Categories
+              </div>
+            </div>
+          )}
+
+          {/* Main content */}
+          <div style={{ flex: 1, minWidth: 0, paddingBottom: isMinister && selectedArsenalIds.size > 0 ? 72 : 0 }}>
+
+            {/* Mobile: category pills */}
+            {isMobile && activeCategory !== '__search__' && (
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' as any, WebkitOverflowScrolling: 'touch' as any, paddingBottom: 6, marginBottom: 12 }}>
+                <button onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
+                  style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: '1px solid rgba(201,168,76,0.22)', background: 'transparent', color: 'rgba(201,168,76,0.45)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.05em' }}>
+                  ← All
+                </button>
+                {dynamicTopics.map(topic => (
+                  <button key={topic}
+                    onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
+                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: `1px solid rgba(201,168,76,${activeCategory === topic ? '0.6' : '0.18'})`, background: activeCategory === topic ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === topic ? G : 'rgba(240,232,216,0.48)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>
+                    {topic}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search mode back */}
+            {activeCategory === '__search__' && (
+              <button onClick={() => { setActiveCategory(null); setQuery('') }}
+                style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.28)', borderRadius: 4, padding: '5px 12px', color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', marginBottom: 12 }}>
+                ← All Categories
+              </button>
+            )}
+
+            {/* Count + sort bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' as const }}>
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.06em' }}>
+                {activeCategory !== '__search__'
+                  ? `${ARSENAL_CATEGORY_ICONS[activeCategory!] || ''} ${activeCategory}`
+                  : `"${query}"`}
+              </span>
+              <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.3)' }}>
+                · {sortedItems.length} resource{sortedItems.length !== 1 ? 's' : ''}
+              </span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>SORT</span>
+                <select value={arsenalSort} onChange={e => setArsenalSort(e.target.value as any)}
+                  style={{ background: isDark ? '#0D0B14' : '#fff', border: `1px solid rgba(201,168,76,0.18)`, borderRadius: 4, padding: '3px 7px', color: muted, fontFamily: cinzel, fontSize: 8, outline: 'none', cursor: 'pointer' }}>
+                  <option value="newest">Newest</option>
+                  <option value="az">A → Z</option>
+                  <option value="tier">By Tier</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Tier filter pills */}
+            <div style={{ display: 'flex', gap: 5, marginBottom: 12, flexWrap: 'wrap' as const }}>
+              {['All', 'Watchman', 'Soldier', 'Commander', 'General'].map(tier => (
+                <button key={tier} onClick={() => setTierFilter(tier)}
+                  style={{ padding: '3px 10px', borderRadius: 20, border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.55' : '0.18'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.13)' : 'transparent', color: tierFilter === tier ? G : 'rgba(201,168,76,0.42)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                  {tier}
+                </button>
+              ))}
+            </div>
+
+            {/* Minister select all */}
+            {isMinister && sortedItems.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                <button onClick={() => setSelectedArsenalIds(new Set(sortedItems.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '3px 8px', fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Select All ({sortedItems.length})</button>
+                {selectedArsenalIds.size > 0 && <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 4, padding: '3px 8px', fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em', cursor: 'pointer' }}>Deselect All</button>}
+              </div>
+            )}
+
+            {/* Resource list */}
+            {sortedItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: crimson, fontSize: 15, fontStyle: 'italic' }}>
+                No resources found. Try different filters.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {sortedItems.map(r => <ResourceRow key={r.id} resource={r} isSelected={selectedArsenalIds.has(r.id)} onToggle={isMinister ? id => setSelectedArsenalIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s }) : undefined} />)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Minister floating action bar */}
+      {isMinister && selectedArsenalIds.size > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1A1626', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', flexWrap: 'wrap' as const, maxWidth: '90vw' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>{selectedArsenalIds.size} SELECTED</span>
+          <button onClick={() => setSelectedArsenalIds(new Set(arsenalItems.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 10px', fontFamily: cinzel, fontSize: 9, color: muted, cursor: 'pointer' }}>Select All</button>
+          <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 10px', fontFamily: cinzel, fontSize: 9, color: muted, cursor: 'pointer' }}>Deselect All</button>
+          <select value={massEditTier} onChange={e => setMassEditTier(e.target.value)} style={{ background: '#0D0B14', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTier ? '#E8D5B0' : '#8B7355', fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+            <option value=''>Tier...</option>
+            {['watchman','soldier','commander','general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+          </select>
+          <select value={massEditTopic} onChange={e => setMassEditTopic(e.target.value)} style={{ background: '#0D0B14', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTopic ? '#E8D5B0' : '#8B7355', fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+            <option value=''>Topic...</option>
+            {ARSENAL_TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          {(massEditTier || massEditTopic) && (
+            <button onClick={handleMassEdit} disabled={massApplying} style={{ background: massApplying ? 'rgba(201,168,76,0.2)' : G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: massApplying ? 'not-allowed' : 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>
+              {massApplying ? '…' : '⊕ Apply'}
+            </button>
+          )}
+          <button onClick={() => setShowMassDeleteConfirm(true)} style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>🗑 Delete</button>
+          <button onClick={() => { setSelectedArsenalIds(new Set()); setMassEditTier(''); setMassEditTopic('') }} style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '6px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: muted }}>✕</button>
+        </div>
+      )}
+
+      {/* Mass delete confirmation modal */}
+      {showMassDeleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1A1626', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 12, padding: 32, maxWidth: 400, width: '90%', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 15, color: '#f87171', marginBottom: 12, letterSpacing: '0.1em' }}>⚠ DELETE {selectedArsenalIds.size} ARSENAL ITEM{selectedArsenalIds.size !== 1 ? 'S' : ''}?</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: '#8B7355', marginBottom: 24, lineHeight: 1.6 }}>
+              This permanently deletes {selectedArsenalIds.size} file{selectedArsenalIds.size !== 1 ? 's' : ''} from Arsenal and storage. This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={handleMassDelete} disabled={massDeleting} style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 6, padding: '10px 24px', color: '#f87171', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: massDeleting ? 'wait' : 'pointer', fontWeight: 700 }}>
+                {massDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+              <button onClick={() => setShowMassDeleteConfirm(false)} style={{ background: 'transparent', border: `1px solid ${G}`, borderRadius: 6, padding: '10px 24px', color: G, fontFamily: cinzel, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile bottom sheet — category picker */}
+      {showCategorySheet && (
+        <>
+          <div onClick={() => setShowCategorySheet(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 10000 }} />
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10001, background: '#13111e', border: '1px solid rgba(201,168,76,0.18)', borderRadius: '16px 16px 0 0', paddingBottom: 40, maxHeight: '72vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 20px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+              <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.55)', textTransform: 'uppercase' as const }}>Browse by Topic</span>
+              <button onClick={() => setShowCategorySheet(false)} style={{ background: 'none', border: 'none', color: muted, fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 0 }}>✕</button>
+            </div>
+            {dynamicTopics.map(topic => (
+              <div key={topic}
+                onClick={() => { setActiveCategory(topic); setShowCategorySheet(false); setTierFilter('All'); setExpandedId(null) }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, color: '#f0e8d8', letterSpacing: '0.04em' }}>{topic}</span>
+                </span>
+                <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.32)' }}>{categoryCounts[topic]}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── INVESTIGATOR TYPES & CONSTANTS ────────────────────────
+interface InvestigationResult {
+  summary: string
+  probableSpirits: Array<{ name: string; confidence: 'High' | 'Medium' | 'Low'; reason: string; category: string }>
+  entryPoints: string[]
+  deliveranceSequence: string[]
+  counterScriptures: string[]
+  warningFlags: string[]
+}
+
+const CONFIDENCE_COLORS = {
+  High:   { bg: 'rgba(220,38,38,0.15)', text: '#f87171', border: 'rgba(220,38,38,0.3)' },
+  Medium: { bg: 'rgba(201,168,76,0.1)',  text: '#C9A84C', border: 'rgba(201,168,76,0.25)' },
+  Low:    { bg: 'rgba(99,102,241,0.1)',  text: '#a5b4fc', border: 'rgba(99,102,241,0.25)' },
+}
+
+// ── INVESTIGATOR VIEW ──────────────────────────────────────
+function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void
+}) {
+  const { getToken } = useAuth()
+  const [invInput, setInvInput]   = useState('')
+  const [invLoading, setInvLoading] = useState(false)
+  const [invResult, setInvResult] = useState<InvestigationResult | null>(null)
+  const [invError, setInvError]   = useState('')
+  const [recentSymptomSearches, setRecentSymptomSearches] = useState<string[]>([])
+
+  useEffect(() => {
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/ai-history?tool=symptom-investigator&limit=5', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.history) setRecentSymptomSearches(d.history.map((h: any) => h.query)) })
+        .catch(() => {})
+    })
+  }, [])
+
+  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+  const hasAccess = tierLvl(userTier) >= tierLvl('commander')
+
+  if (!hasAccess) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: '#0D0B14' }}>
+        <div style={{ textAlign: 'center', maxWidth: 480 }}>
+          <div style={{ fontSize: 48, marginBottom: 20 }}>🔒</div>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: 20, marginBottom: 12 }}>Commander Tier Required</h2>
+          <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: crimson }}>
+            The Symptom Investigator is an AI-powered operational intelligence tool available to Commander and General members.
+            Upgrade to access real-time spirit analysis, deliverance sequencing, and session support.
+          </p>
+          <button onClick={() => handleUpgrade('commander', getToken)} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+            Upgrade to Commander — $39/mo
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  async function handleInvestigate() {
+    if (!invInput.trim()) return
+    setInvLoading(true); setInvError(''); setInvResult(null)
+    try {
+      const token = await getToken()
+      console.log('token:', token ? 'present' : 'null')
+      const res = await fetch('/api/investigate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ symptoms: invInput }),
+      })
+      const data = await res.json()
+      if (res.status === 429) { _usageCache = null; throw new Error(data.error || 'Daily limit reached. Upgrade to continue.') }
+      if (!res.ok) {
+        console.error('Investigate failed:', res.status, data)
+        throw new Error(data.error || `Investigation failed: ${res.status}`)
+      }
+      _usageCache = null
+      setInvResult(data)
+      if (token) {
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'symptom-investigator', query: invInput, response: data.summary || '', context: { symptoms: invInput } }),
+        }).catch(() => {})
+      }
+    } catch (err: any) {
+      setInvError(err?.message || 'Investigation failed. Check connection.')
+    } finally {
+      setInvLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#12101e', minHeight: 0 }}>
+      <div style={{ maxWidth: 760, margin: '0 auto' }}>
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>Symptom Investigator</span>
+          </div>
+        )}
+
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ fontSize: 11, color: G, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚔ War Room Intel</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
+            <h1 style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: isMobile ? 22 : 28, fontWeight: 700, margin: 0 }}>Symptom Investigator</h1>
+            <AIUsagePill feature="symptom_investigator" getToken={getToken} />
+          </div>
+          <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.6, fontFamily: crimson }}>
+            Describe what you are observing — symptoms, manifestations, dreams, emotional patterns, physical reactions.
+            The system will identify probable spirits and suggest a deliverance sequence.
+          </p>
+        </div>
+
+        {recentSymptomSearches.length > 0 && !invResult && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5a4f3a', letterSpacing: '0.12em', marginBottom: 8 }}>RECENT SEARCHES</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+              {recentSymptomSearches.map((s, i) => (
+                <button key={i} onClick={() => setInvInput(s)}
+                  style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 20, color: '#8B7355', fontFamily: crimson, fontSize: 12, padding: '4px 12px', cursor: 'pointer', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {s.length > 50 ? s.slice(0, 50) + '…' : s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: 24, marginBottom: 24 }}>
+          <label style={{ display: 'block', fontSize: 11, color: '#8B7355', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>
+            Observed Symptoms / Manifestations
+          </label>
+          <textarea
+            value={invInput}
+            onChange={e => setInvInput(e.target.value)}
+            placeholder="Example: Recurring nightmares, pressure on chest, irrational fear of abandonment, history of sexual abuse, difficulty feeling God's presence, chronic migraines..."
+            rows={6}
+            style={{ width: '100%', background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: '#E8D5B0', fontSize: 15, padding: 14, fontFamily: crimson, lineHeight: 1.6, resize: 'vertical' as const, outline: 'none', boxSizing: 'border-box' as const }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' as const, gap: 10 }}>
+            <span style={{ fontSize: 12, color: '#5a4f3a', fontFamily: crimson }}>Be specific — the more detail, the more accurate the intelligence.</span>
+            <button
+              onClick={handleInvestigate}
+              disabled={invLoading || !invInput.trim()}
+              style={{ background: invLoading ? 'rgba(201,168,76,0.3)' : G, color: invLoading ? '#8B7355' : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
+            >
+              {invLoading ? '⚔ Analyzing...' : '⚔ Investigate'}
+            </button>
+          </div>
+        </div>
+
+        {invError && (
+          <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>
+            {invError}
+          </div>
+        )}
+
+        {invLoading && (
+          <div style={{ textAlign: 'center', padding: 40, color: '#8B7355' }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>⚔</div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, letterSpacing: '0.1em' }}>Running intelligence analysis...</div>
+          </div>
+        )}
+
+        {invResult && !invLoading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* AI Disclaimer */}
+            <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠</span>
+              <div style={{ fontSize: 12, color: '#8B7355', lineHeight: 1.6, fontFamily: crimson }}>
+                <strong style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>AI-GENERATED ANALYSIS</strong>
+                {' '}— This report is generated using our spirit database and AI. Results are a starting point for discernment, not a definitive diagnosis. Always follow the Holy Spirit's leading. Deliverance ministry requires trained ministers, prayer, and pastoral oversight.
+              </div>
+            </div>
+
+            <section style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '20px 24px' }}>
+              <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>Intelligence Summary</div>
+              <p style={{ color: '#E8D5B0', fontSize: 16, lineHeight: 1.7, margin: 0, fontFamily: crimson }}>{invResult.summary}</p>
+            </section>
+
+            {invResult.probableSpirits?.length > 0 && (
+              <section>
+                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>
+                  Probable Entities ({invResult.probableSpirits.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {invResult.probableSpirits.map((spirit, i) => {
+                    const conf = CONFIDENCE_COLORS[spirit.confidence] || CONFIDENCE_COLORS.Low
+                    const cat  = HIERARCHY_COLORS[spirit.category]  || HIERARCHY_COLORS['General Oppression']
+                    return (
+                      <div key={i} style={{ background: 'rgba(13,11,20,0.8)', border: `1px solid ${conf.border}`, borderLeft: `3px solid ${conf.border}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' as const }}>
+                            <span style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: 15, fontWeight: 600 }}>{spirit.name}</span>
+                            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, backgroundColor: cat.bg, color: cat.text, border: `1px solid ${cat.border}`, fontFamily: cinzel, letterSpacing: '0.04em' }}>{spirit.category}</span>
+                          </div>
+                          <p style={{ color: '#8B7355', fontSize: 13, margin: 0, lineHeight: 1.5, fontFamily: crimson }}>{spirit.reason}</p>
+                        </div>
+                        <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' as const, backgroundColor: conf.bg, color: conf.text, border: `1px solid ${conf.border}`, fontFamily: cinzel }}>{spirit.confidence}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {invResult.entryPoints?.length > 0 && (
+              <section style={{ background: 'rgba(13,11,20,0.6)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>Likely Entry Points</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                  {invResult.entryPoints.map((ep, i) => (
+                    <span key={i} style={{ fontSize: 13, padding: '4px 12px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: G, border: '1px solid rgba(201,168,76,0.2)', fontFamily: crimson }}>{ep}</span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {invResult.deliveranceSequence?.length > 0 && (
+              <section style={{ background: 'rgba(13,11,20,0.6)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 14, fontFamily: cinzel }}>Suggested Deliverance Sequence</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {invResult.deliveranceSequence.map((step, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <span style={{ minWidth: 24, height: 24, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', color: G, fontSize: 11, fontFamily: cinzel, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ color: '#E8D5B0', fontSize: 14, lineHeight: 1.6, paddingTop: 2, fontFamily: crimson }}>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {invResult.counterScriptures?.length > 0 && (
+              <section style={{ background: 'rgba(0,30,10,0.4)', border: '1px solid rgba(134,239,172,0.2)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#86efac', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>📖 Counter Scriptures</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {invResult.counterScriptures.map((s, i) => (
+                    <div key={i} style={{ color: '#86efac', fontSize: 14, fontFamily: crimson, lineHeight: 1.5 }}>{s}</div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {invResult.warningFlags?.length > 0 && (
+              <section style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: '#f87171', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚠ Warning Flags</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {invResult.warningFlags.map((w, i) => (
+                    <div key={i} style={{ color: '#f87171', fontSize: 14, lineHeight: 1.5, fontFamily: crimson }}>• {w}</div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {setActiveSection && invResult.probableSpirits?.length > 0 && (
+              <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '20px 24px', textAlign: 'center' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ READY FOR DELIVERANCE?</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: '#8B7355', lineHeight: 1.6, marginBottom: 14 }}>
+                  Generate a complete session protocol for {invResult.probableSpirits[0].name} with legal grounds, prayers, and aftercare.
+                </div>
+                <button onClick={() => {
+                  const topSpirit = invResult!.probableSpirits[0]
+                  localStorage.setItem('wri_jump_to_spirit', topSpirit.name)
+                  localStorage.setItem('wri_protocol_inv_data', JSON.stringify({
+                    symptoms: invInput,
+                    probableSpirits: invResult!.probableSpirits,
+                  }))
+                  setActiveSection('database')
+                }} style={{ background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+                  ⚔ LAUNCH PROTOCOL ENGINE →
+                </button>
+              </div>
+            )}
+
+            <p style={{ fontSize: 12, color: '#3a3228', textAlign: 'center' as const, lineHeight: 1.6, marginTop: 8, fontFamily: crimson }}>
+              This analysis is an intelligence aid for trained ministers. Always lead with prayer, discernment, and the Holy Spirit. This tool does not replace ministerial judgment.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── GATEWAY INVESTIGATOR VIEW ──────────────────────────────
+function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: any) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const bg    = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr   = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const txt   = isDark ? '#f0e8d8' : '#2D2924'
+  const mut   = isDark ? '#8B7355' : '#5C5248'
+  const dim   = isDark ? '#5a4f3a' : '#5C5248'
+
+  const [spiritName, setSpiritName]       = useState('')
+  const [personContext, setPersonContext] = useState('')
+  const [loading, setLoading]             = useState(false)
+  const [report, setReport]               = useState<any>(null)
+  const [error, setError]                 = useState('')
+
+  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+  const hasAccess = tierLvl(userTier) >= tierLvl('soldier')
+
+  if (!hasAccess) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: bg }}>
+        <div style={{ textAlign: 'center', maxWidth: 480 }}>
+          <div style={{ fontSize: 48, marginBottom: 20 }}>🔒</div>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: 20, marginBottom: 12 }}>Soldier Tier Required</h2>
+          <p style={{ color: mut, fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: "'Crimson Pro', serif" }}>
+            The Gateway Investigator is an AI-powered intake research tool that identifies cultural entry points for any spirit.
+            Available to Soldier, Commander, and General members.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const canSubmit = spiritName.trim().length > 0 || personContext.trim().length > 0
+
+  async function handleInvestigate() {
+    if (!canSubmit) return
+    setLoading(true); setError(''); setReport(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/gateway-investigator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ spiritName: spiritName.trim(), personContext: personContext.trim() }),
+      })
+      const data = await res.json()
+      if (res.status === 429) { _usageCache = null; throw new Error(data.error || 'Daily limit reached. Upgrade to continue.') }
+      if (!res.ok) throw new Error(data.error || 'Investigation failed')
+      _usageCache = null
+      setReport(data)
+      if (token) {
+        fetch('/api/ai-history', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'gateway-investigator', query: spiritName.trim() || personContext.trim(), response: data.summary || '', context: { gateway: spiritName.trim(), context: personContext.trim() } }),
+        }).catch(() => {})
+      }
+    } catch (e: any) { setError(e.message) }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: bg, minHeight: 0 }}>
+      <div style={{ maxWidth: 780, margin: '0 auto' }}>
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <h1 style={{ fontFamily: cinzel, color: isDark ? '#E8D5B0' : '#2D2924', fontSize: isMobile ? 20 : 26, fontWeight: 700, letterSpacing: '0.06em', margin: 0 }}>
+              🚪 Gateway Investigator
+            </h1>
+            <AIUsagePill feature="gateway" getToken={getToken} />
+          </div>
+          <p style={{ fontFamily: "'Crimson Pro', serif", color: mut, fontSize: 14, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
+            Enter a spirit name, a cultural exposure, or both. Get a full intelligence report on gateways, entry points, and session questions.
+          </p>
+        </div>
+
+        {/* Input form */}
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: isMobile ? '20px 16px' : '24px 28px', marginBottom: 28 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Spirit Name <span style={{ opacity: 0.55, fontFamily: "'Crimson Pro', serif", letterSpacing: 0, fontSize: 10, textTransform: 'none' as const }}>(optional)</span></label>
+            <input
+              value={spiritName}
+              onChange={e => setSpiritName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleInvestigate()}
+              placeholder="e.g. Leviathan, Jezebel, Baal, Python..."
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 16px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 15, outline: 'none' }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>
+              Cultural Exposure or Session Context <span style={{ opacity: 0.55, fontFamily: "'Crimson Pro', serif", letterSpacing: 0, fontSize: 10, textTransform: 'none' as const }}>(optional)</span>
+            </label>
+            <textarea
+              value={personContext}
+              onChange={e => setPersonContext(e.target.value)}
+              placeholder="e.g. Watched the movie Chucky, heavily into D&D, listens to a lot of death metal, was in a fraternity..."
+              rows={3}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none', resize: 'vertical' as const, lineHeight: 1.6 }}
+            />
+          </div>
+          <button
+            onClick={handleInvestigate}
+            disabled={loading || !canSubmit}
+            style={{ background: loading ? 'rgba(201,168,76,0.4)' : G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', border: 'none', borderRadius: 6, padding: '11px 28px', cursor: loading || !canSubmit ? 'wait' : 'pointer', opacity: !canSubmit ? 0.5 : 1 }}
+          >
+            {loading ? '🔍 Investigating…' : '🚪 Run Gateway Report'}
+          </button>
+        </div>
+
+        {error && (
+          <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '12px 16px', color: '#f87171', fontFamily: "'Crimson Pro', serif", fontSize: 14, marginBottom: 20 }}>
+            ⚠ {error}
+          </div>
+        )}
+
+        {report && (
+          <div style={{ marginTop: 24 }}>
+            {/* Header */}
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>
+              GATEWAY INTELLIGENCE REPORT: {(report.spirit || spiritName || personContext.slice(0, 50)).toUpperCase()}
+            </div>
+
+            {/* Summary */}
+            {report.summary && (
+              <div style={{ padding: '16px 20px', marginBottom: 24, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', marginBottom: 8 }}>INTELLIGENCE SUMMARY</div>
+                <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, color: isDark ? '#a89878' : '#4a3a2a', lineHeight: 1.7 }}>
+                  {report.summary}
+                </div>
+              </div>
+            )}
+
+            {/* Sections grid */}
+            {Array.isArray(report.sections) && report.sections.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                {report.sections.map((section: any, i: number) => {
+                  const items: string[] = Array.isArray(section.items) ? section.items : (section.content ? [section.content] : [])
+                  if (!items.length) return null
+                  const isSessionQ = section.title?.toLowerCase().includes('session')
+                  return (
+                    <div key={i} style={{ padding: '16px 20px', background: isDark ? '#0a0807' : '#FAF8F5', border: `1px solid ${isSessionQ ? 'rgba(201,168,76,0.3)' : (isDark ? '#2a2218' : 'rgba(160,120,48,0.2)')}`, borderLeft: isSessionQ ? `3px solid ${G}` : undefined, borderRadius: 6 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: isSessionQ ? G : mut, letterSpacing: '0.1em', marginBottom: 12, textTransform: 'uppercase' as const }}>
+                        {isSessionQ ? '⚡ ' : ''}{section.title}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {items.map((item: string, j: number) => (
+                          <div key={j} style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: isSessionQ ? txt : (isDark ? '#8a7a60' : '#5a4a3a'), lineHeight: 1.65, paddingLeft: 12, borderLeft: `1px solid ${isDark ? '#2a2218' : 'rgba(160,120,48,0.15)'}`, fontStyle: isSessionQ ? 'italic' : 'normal' }}>
+                            {isSessionQ && <span style={{ color: G, marginRight: 6, fontStyle: 'normal' }}>{j + 1}.</span>}
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <p style={{ fontSize: 12, color: dim, textAlign: 'center' as const, lineHeight: 1.6, marginTop: 16, fontFamily: "'Crimson Pro', serif", fontStyle: 'italic' }}>
+              This report is an AI-generated intelligence aid for trained ministers. Always lead with prayer and Holy Spirit discernment.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── FRINGE INTEL VIEW ─────────────────────────────────────
+function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
+  const { getToken } = useAuth()
+  const isDark  = theme !== 'light'
+  const G2      = isDark ? '#C9A84C' : '#a07830'
+  const SURF    = isDark ? 'rgba(201,168,76,0.03)' : '#f9f5ee'
+  const BDR     = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(160,120,48,0.2)'
+  const TXT     = isDark ? '#f0e8d8' : '#1a1410'
+  const MUT     = isDark ? '#9a8c74' : '#5c4a3a'
+  const cinzel  = "'Cinzel', serif"
+  const crimson = "'Crimson Pro', serif"
+
+  function tierLevel(t: string): number {
+    return ({ free:0, watchman:0, soldier:1, commander:2, general:3, minister:3 }[t?.toLowerCase()] ?? 0)
+  }
+
+  const TAG_BG: Record<string,string> = {
+    disclosure:'rgba(83,74,183,0.15)', genesis6:'rgba(201,168,76,0.15)',
+    occult:'rgba(216,90,48,0.15)', transhumanist:'rgba(13,110,86,0.15)',
+    nwo:'rgba(150,30,30,0.15)', prophecy:'rgba(14,80,180,0.15)',
+  }
+  const TAG_CLR: Record<string,string> = {
+    disclosure:'#AFA9EC', genesis6:'#C9A84C', occult:'#E8703A',
+    transhumanist:'#1D9E75', nwo:'#E87070', prophecy:'#5BADF0',
+  }
+
+  const level      = tierLevel(userTier || 'free')
+  const hasSoldier = level >= 1
+
+  const [feed, setFeed]       = React.useState<any[]>([])
+  const [feedLoading, setFL]  = React.useState(true)
+  const [feedFilter, setFF]   = React.useState('all')
+  const [activeTab, setTab]   = React.useState<'open'|'classified'|'feed'|'faq'>('open')
+  const [faqOpen, setFaqOpen] = React.useState<number|null>(null)
+
+  React.useEffect(() => {
+    setFL(true)
+    const tokenP = (window as any).Clerk?.session?.getToken?.() || Promise.resolve('')
+    Promise.resolve(tokenP).then((t: string) => {
+      fetch('/api/fringe-articles', { headers: t ? { Authorization: 'Bearer ' + t } : {} })
+        .then(r => r.json()).then(d => setFeed(Array.isArray(d) ? d : [])).catch(() => setFeed([]))
+        .finally(() => setFL(false))
+    })
+  }, [])
+
+  const filteredFeed = feedFilter === 'all' ? feed : feed.filter((a: any) => a.tag === feedFilter)
+
+  const openTopics = [
+    { icon:'🛸', title:'UAP DISCLOSURE', sub:'Daily intelligence from the disclosure front',
+      desc:'Congressional hearings, whistleblower testimony, and declassified documents examined through the lens of Genesis 6. What the Pentagon calls "non-human intelligence" has a name and a 3,000-year-old criminal dossier.', tag:'disclosure' },
+    { icon:'📖', title:'GENESIS 6 FILES', sub:'The original incursion and its modern echoes',
+      desc:'The Watcher descent on Mount Hermon, the Nephilim bloodlines, the three-race hybrid offspring, and the forbidden knowledge still operating through secret societies today. The church has the oldest intelligence file on this subject.', tag:'genesis6' },
+  ]
+
+  const classifiedTopics = [
+    { icon:'👁', title:'GOVT PROGRAMS', sub:'MK-Ultra, Monarch, and the mind control legacy',
+      desc:'Operation Paperclip imported Nazi occult scientists into the CIA. The same demonic access points exploited by the SS Ahnenerbe drove MK-Ultra. Monarch programming merges trauma-based dissociation with Satanic ritual abuse.', tag:'occult' },
+    { icon:'🧬', title:'TRANSHUMANISM', sub:'Watcher technology — the new Tower of Babel',
+      desc:'Gary Wayne identifies AI as fallen angel technology. The convergence of AI, quantum computing, and neural interface chips creates the architecture for the speaking image of the beast and the hive mind system discussed at Davos in 2018.', tag:'transhumanist' },
+    { icon:'🕯', title:'OCCULT OPS', sub:'CERN, bloodlines, and the horn god network',
+      desc:'CERN derives from Cernunnos — the Indo-Aryan horn god, cognate with Baphomet and Azazel. The Shiva statue at CERN is not decorative. Royal bloodlines trace to Nephilim patriarchs and fallen angel godfathers. The dragon bloodline has kept its genealogies for 4,000 years.', tag:'occult' },
+    { icon:'🌐', title:'NWO WATCH', sub:'Beast system infrastructure going live',
+      desc:'CBDC operational in 11 nations. WHO pandemic treaty. Global digital ID. The Ten Kings rise before Antichrist. Babylon the Harlot controls them first. Then at the ordained hour everything transfers to him. We are watching the transfer infrastructure being built.', tag:'nwo' },
+  ]
+
+  const faqData = [
+    {
+      q: 'Are aliens demons? What does Scripture actually say?',
+      biblical: '1 John 4:1 commands testing every spirit. 2 Corinthians 11:14: Satan masquerades as an angel of light. Revelation 16:14 identifies spirits of devils working miracles going to the kings of the earth in the last days. These are not separate categories of being — they are the same entities named with different cultural vocabularies. The term "non-human intelligence" now used by the Pentagon is a bureaucratic rebranding of what Genesis 6 called Bene Elohim.',
+      historical: 'The Book of Enoch (chapters 6-8) names 200 Watcher angels who descended to Mount Hermon, led by Semyaza and Azazel. Their disembodied hybrid offspring became what Scripture calls demons — 1 Enoch 15:8-9: evil spirits shall proceed from their flesh. Scott Alan Roberts documents in Rise and Fall of the Nephilim that virtually every ancient culture preserves parallel accounts: the Anunnaki of Sumeria, the Apkallu of Babylon, the Apsaras of Hindu tradition — all memories of the same event.',
+      ops: 'Gary Wayne argues that the Nazi Aryan program was a deliberate attempt to recover Nephilim bloodlines — and the modern gray alien abduction program is a continuation of the same Watcher breeding agenda. The UAP Disclosure movement is a managed revelation. Their next declared narrative will be that extraterrestrials seeded humanity. That is the setup for 2 Thessalonians 2:11 — the great deception God permits because people refused the love of the truth.',
+      tag: 'genesis6'
+    },
+    {
+      q: 'What is CERN really and why does it have a Shiva statue?',
+      biblical: 'Revelation 9:1-11 describes an angel opening the abyss and releasing Apollyon — the Destroyer — from the pit prison. Isaiah 14 and Ezekiel 28 describe Lucifer\'s pre-fall dominion and fall. The Book of Enoch (10:4-6) records Azazel being bound in the pit at Dudael until the Great Day of Judgment. Revelation 9:14 mentions four fallen angels bound at the Euphrates who are released at the sixth trumpet.',
+      historical: 'Gary Wayne documents that CERN is an Indo-Aryan word meaning horn god — cognate with Cernunnos (Celtic), the Etruscan god Cern, and Baphomet (Ba-Phomet: Father Mithras). All are representations of Azazel, the goat-headed fallen Watcher who taught all the arts of destruction. The Shiva statue at CERN entrance depicts the destroyer deity — same function as Azazel, Apollyon, and Abaddon in their respective languages. CERN also created the internet. The technology that connects all of humanity was born at a location dedicated to a horn god.',
+      ops: 'Wayne\'s framework: CERN is the modern technological attempt to do what Nimrod attempted at Babel — open a portal into another dimension. Hades and Sheol are understood in occult tradition as occupying the same dimensional space as the inner earth. If interdimensional technology could punch through, it could potentially reach the pit prison and release Azazel before the ordained time. This is why the book of Revelation specifies that it is an angel who opens the abyss with a key (Rev 9:1) — the timing is under divine control, not human or demonic control.',
+      tag: 'occult'
+    },
+    {
+      q: 'How does AI connect to fallen angel technology and the Mark of the Beast?',
+      biblical: 'Revelation 13:15: the second beast was given power to give breath to the image of the first beast, so that the image could speak and cause all who refused to worship it to be killed. Daniel 12:4: knowledge shall increase. Azazel\'s indictment in 1 Enoch 10:8: the whole earth has been ruined by the work and teaching of Azazel — therefore all sin will be ascribed to him. The forbidden knowledge given before the flood is the same knowledge being weaponized now.',
+      historical: 'Gary Wayne identifies AI as Watcher technology — not dangerous in itself but in how it will be used. The ancient teraphim were family idols that could speak — seemingly inanimate objects with a demonic intelligence occupying them. The speaking image of the Antichrist will function identically: an AI system serving as an oikitarian — a dwelling place for disembodied spirits seeking a body. The Nephilim\'s disembodied spirits have been seeking oikitarians since the flood. AI may provide them a technological vessel for mass-scale habitation.',
+      ops: 'Wayne documents that at Davos 2018, the global elite discussed needing AI to advance faster to implement the neural link chip system enabling a hive mind — direct thought-to-thought communication. The convergence: AI plus quantum computing (which operates interdimensionally) plus neural interface chips plus CBDC creates the complete Mark of the Beast architecture. Wayne adds: they intend to offer immortality and unlimited knowledge as part of the mark covenant — a Faustian bargain on a civilizational scale.',
+      tag: 'transhumanist'
+    },
+    {
+      q: 'What was the Nazi Aryan program really attempting?',
+      biblical: 'Daniel 8:23-24: a fierce-looking king, a master of intrigue, will arise. He will become very strong, but not by his own power. Hitler was an antichrist-type figure — demonically empowered. 1 John 4:3 confirms the spirit of antichrist has been with us all along, always seeking a possible vessel. Matthew 24:37: as in the days of Noah — the conditions of Genesis 6 return in the last days.',
+      historical: 'Gary Wayne: Hans Harberger wrote the genealogical framework tracing the German Aryan race back to post-flood Nephilim bloodlines. The Nazi elite maintained bloodline records tracing to specific Rephaim patriarchs and fallen angel godfathers. They created the Rice Church in 1933 to formalize Ariosophy — a fusion of Theosophy, Volkish ideology, and Aryanism — as a state religion. The Thule Society is named for the ancient Atlantis of Norse mythology — the pre-flood Nephilim civilization. The Nazi program was a deliberate attempt to recreate the Nephilim superman through eugenics. Their Fuhrer was their counterfeit messiah. The Third Reich was their counterfeit millennium.',
+      ops: 'Wayne\'s key insight: it does not matter whether their genealogies are accurate. What matters is that they believe them and are working an agenda based on them. The Nazi program\'s logic continues today in the transhumanist movement: instead of selective breeding, they now use genetic engineering and mRNA platforms to introduce non-human genetic elements. The goal is identical — the creation of a new man. Gary Wayne identifies the "thousand points of light" phrase in political speeches as New Age language for the spark of the fallen angels — the divine essence the bloodline families believe they carry and are trying to recover and amplify.',
+      tag: 'occult'
+    },
+    {
+      q: 'What is the Mark of the Beast and how close are we?',
+      biblical: 'Revelation 13:16-17: no one may buy or sell except one who has the mark. Revelation 14:9-11: receiving the mark results in eternal separation from God. This is not temporary economic inconvenience — it is a permanent covenant decision with eternal consequences. Alberino in Birthright: the mark is the voluntary genetic modification of the human image — the exchange of imago Dei for the genetic markers of the beast kingdom.',
+      historical: 'Gary Wayne\'s timeline from Genesis 6 Conspiracy II: the Ten Kings rise before Antichrist comes to power at the midpoint of the last seven years. The Babylon Harlot religion controls the Ten Kings first — riding the beast empire. Then at the ordained hour, the Ten Kings destroy Babylon and hand their power to Antichrist. He then implements the mark. Wayne connects the mark to the complete package: AI image, neural link, quantum connectivity, CBDC economic control, and the oikitarian for demonic spirits. They are building all five components simultaneously.',
+      ops: 'The infrastructure is now in active deployment. CBDC live in 11 nations, developing in 119 more. WHO pandemic treaty being ratified. Global digital ID framework standardizing through WEF. DARPA neural interface research accelerating. AI development being fast-tracked specifically because the Davos meetings said it is not yet advanced enough for the chip system they need. The beast system does not appear fully formed — it assembles piece by piece so no single component triggers resistance. The plumbing is going into the walls before anyone notices the blueprint.',
+      tag: 'nwo'
+    },
+    {
+      q: "Why did David cut off Goliath's head and what does it mean for spiritual warfare?",
+      biblical: 'The Strongs concordance: Hebrew 7495 (Rapha) = to heal or doctor. 7496 = the disembodied demon spirit. 7497 = giant. The Rephaim are simultaneously healers, demon spirits, and giants — because their nature is hybrid. Their name encodes their biology. Ezekiel 32 documents the terrible ones in the sides of the pit — Rephaim dynastic kings in Sheol, speaking to Pharaoh.',
+      historical: 'Gary Wayne: David took five stones not because he expected to miss, but because Goliath had four brothers — five kings total he may have needed to fight. More critically, Rephaim giants had a supernatural healing ability. Severed limbs could regenerate. Only decapitation could prevent this. When David cut off Goliath\'s head and raised it before both armies, he was making a theological declaration: this being is officially dead and cannot return. The worst death for a royal in the ancient world was beheading because it prevented the Ugaritic funeral rite — being escorted by other Rephaim kings through Sheol to dwell with the gods. Beheading trapped the spirit in the dry places.',
+      ops: 'This framework has end-times implications. Wayne notes that the Antichrist will behead those who refuse the mark — not merely as execution, but as the same ritual logic. Some rival bloodlines will not submit to his kingship. Beheading ensures they stay dead and cannot become opposition in the spiritual realm. The AI image commands the beheading. Revelation 20:4 confirms the martyrs who are beheaded for their witness. Understanding the Rephaim theology makes clear why this specific method is prescribed — it is not arbitrary cruelty. It is ancient spiritual warfare logic translated into end-time policy.',
+      tag: 'genesis6'
+    },
+  ]
+
+  const feedTags = ['all','disclosure','genesis6','occult','transhumanist','nwo','prophecy']
+
+  const Divider = ({ label, badge }: { label: string; badge?: string }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
+      <div style={{ height:1, flex:1, background:'rgba(201,168,76,0.15)' }}/>
+      <div style={{ fontFamily:cinzel, fontSize:9, letterSpacing:'0.14em', color:G2, display:'flex', alignItems:'center', gap:8 }}>
+        {label}
+        {badge && <span style={{ fontSize:8, background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.25)', padding:'2px 8px', borderRadius:20 }}>{badge}</span>}
+      </div>
+      <div style={{ height:1, flex:1, background:'rgba(201,168,76,0.15)' }}/>
+    </div>
+  )
+
+  return (
+    <div style={{ padding:isMobile?16:'28px 32px', maxWidth:960, margin:'0 auto', fontFamily:crimson, color:TXT }}>
+
+      {/* HEADER */}
+      <div style={{ marginBottom:24 }}>
+        {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{background:'none',border:'none',color:G2,cursor:'pointer',padding:'0 0 12px',fontSize:20}}>☰</button>}
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',flexWrap:'wrap' as const,gap:12,marginBottom:6}}>
+          <div>
+            <div style={{fontFamily:cinzel,fontSize:isMobile?18:22,color:G2,letterSpacing:'0.06em',marginBottom:4}}>⬛ FRINGE INTELLIGENCE</div>
+            <div style={{fontFamily:crimson,fontSize:14,color:MUT}}>Daily briefings on prophecy, disclosure, and the hidden architecture of the antichrist system</div>
+          </div>
+          {!hasSoldier && (
+            <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
+          )}
+        </div>
+        <div style={{display:'flex',gap:2,borderBottom:'1px solid '+BDR,marginTop:14}}>
+          {([
+            {key:'open',label:'Open Intel'},
+            {key:'classified',label:hasSoldier?'Classified Intel':'🔒 Classified'},
+            {key:'feed',label:'📡 The Feed'},
+            {key:'faq',label:'🗂 Intel FAQ'},
+          ] as const).map(({key,label}) => (
+            <button key={key} onClick={()=>setTab(key)} style={{fontFamily:cinzel,fontSize:isMobile?9:10,letterSpacing:'0.1em',padding:isMobile?'7px 10px':'8px 16px',background:'none',border:'none',borderBottom:activeTab===key?'2px solid '+G2:'2px solid transparent',color:activeTab===key?G2:MUT,cursor:'pointer',transition:'all 0.15s',marginBottom:-1}}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* OPEN INTEL */}
+      {activeTab === 'open' && (
+        <div>
+          <Divider label="OPEN INTELLIGENCE" badge="ALL RANKS" />
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>These files are open to all Watchmen. The truth of Genesis 6 and the reality of the UAP phenomenon belong in the hands of the church — equipped with the theological framework to understand what it is seeing.</p>
+          <div style={{display:'flex',gap:16,flexWrap:'wrap' as const,marginBottom:28}}>
+            {openTopics.map(t => {
+              const [h,setH] = React.useState(false)
+              return (
+                <div key={t.title} onClick={()=>setTab('feed')} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+                  style={{flex:1,minWidth:260,background:h?'rgba(201,168,76,0.06)':SURF,border:'1px solid '+(h?'rgba(201,168,76,0.45)':BDR),borderTop:'3px solid '+G2,borderRadius:10,padding:'22px 20px',cursor:'pointer',transition:'all 0.18s'}}>
+                  <div style={{fontSize:28,marginBottom:10}}>{t.icon}</div>
+                  <div style={{fontFamily:cinzel,fontSize:13,color:G2,letterSpacing:'0.06em',marginBottom:4}}>{t.title}</div>
+                  <div style={{fontFamily:crimson,fontSize:13,color:MUT,marginBottom:10}}>{t.sub}</div>
+                  <p style={{fontFamily:crimson,fontSize:14,color:TXT,lineHeight:1.6,marginBottom:14}}>{t.desc}</p>
+                  <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[t.tag]||'rgba(201,168,76,0.12)',color:TAG_CLR[t.tag]||G2,padding:'3px 10px',borderRadius:20}}>{t.tag.toUpperCase()}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{background:SURF,border:'1px solid '+BDR,borderLeft:'4px solid rgba(83,74,183,0.7)',borderRadius:8,padding:'18px 20px',marginBottom:18}}>
+            <div style={{fontFamily:cinzel,fontSize:11,color:'#AFA9EC',letterSpacing:'0.1em',marginBottom:12}}>📚 FIELD RESEARCH LIBRARY</div>
+            <div style={{display:'flex',gap:20,flexWrap:'wrap' as const}}>
+              {[
+                {title:'Genesis 6 Conspiracy (I & II)',author:'Gary Wayne',note:'Nephilim bloodlines from before the flood through the Nazi regime to the end-time Ten Kings. The most comprehensive biblical genealogy of the hidden rulers.',c:'#FAC775'},
+                {title:'Cydonia: The Secret Chronicles of Mars',author:'David Flynn + Timothy Alberino',note:'The destroyed planet Rahab, Cydonia sacred geometry, and the mystery school knowledge of pre-Adamic civilizations that still drives the elite.',c:'#AFA9EC'},
+                {title:'Birthright',author:'Timothy Alberino',note:'The GRIN technology agenda as posthuman apocalypse. Mark of the Beast as genetic usurpation of Adam\'s dominion — the most rigorous theological framework on transhumanism.',c:'#9FE1CB'},
+                {title:'Apollyon Rising',author:'Tom Horn',note:'The Masonic Great Seal, Novus Ordo Seclorum, and the occult plan to summon the return of Apollo encoded in American founding documents and presidential speeches.',c:'#F5C4B3'},
+              ].map(b => (
+                <div key={b.title} style={{flex:1,minWidth:180}}>
+                  <div style={{fontFamily:cinzel,fontSize:11,color:b.c,marginBottom:2}}>{b.title}</div>
+                  <div style={{fontFamily:crimson,fontSize:11,color:MUT,marginBottom:4}}>{b.author}</div>
+                  <div style={{fontFamily:crimson,fontSize:12,color:TXT,lineHeight:1.55,opacity:0.85}}>{b.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {!hasSoldier && (
+            <div style={{background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,padding:'14px 20px',textAlign:'center' as const}}>
+              <span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 CLASSIFIED INTELLIGENCE — Govt Programs, Transhumanism, Occult Ops, NWO Watch — available to Soldier rank and above. </span>
+              <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em',background:'none',border:'none',cursor:'pointer',padding:0}}>UPGRADE NOW</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CLASSIFIED */}
+      {activeTab === 'classified' && (
+        <div>
+          {hasSoldier ? (
+            <>
+              <Divider label="CLASSIFIED INTELLIGENCE" badge="SOLDIER+" />
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Operational intelligence on the deeper mechanisms of the antichrist system. Government programs, CERN and interdimensional technology, Nephilim bloodline networks, the transhumanist mark agenda, and the globalist control grid — examined through Scripture and Christian discernment.</p>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(210px,1fr))',gap:14,marginBottom:28}}>
+                {classifiedTopics.map(t => {
+                  const [h,setH] = React.useState(false)
+                  return (
+                    <div key={t.title} onClick={()=>setTab('feed')} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+                      style={{background:h?'rgba(201,168,76,0.07)':SURF,border:'1px solid '+(h?'rgba(201,168,76,0.5)':'rgba(201,168,76,0.2)'),borderTop:'3px solid rgba(216,90,48,0.7)',borderRadius:10,padding:'22px 20px',cursor:'pointer',transition:'all 0.18s'}}>
+                      <div style={{fontSize:24,marginBottom:8}}>{t.icon}</div>
+                      <div style={{fontFamily:cinzel,fontSize:12,color:G2,letterSpacing:'0.05em',marginBottom:4}}>{t.title}</div>
+                      <div style={{fontFamily:crimson,fontSize:12,color:MUT,marginBottom:10}}>{t.sub}</div>
+                      <p style={{fontFamily:crimson,fontSize:13,color:TXT,lineHeight:1.5,marginBottom:10}}>{t.desc}</p>
+                      <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[t.tag]||'rgba(201,168,76,0.12)',color:TAG_CLR[t.tag]||G2,padding:'3px 10px',borderRadius:20}}>{t.tag.toUpperCase()}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{background:'rgba(60,52,137,0.08)',border:'1px solid rgba(83,74,183,0.35)',borderLeft:'4px solid rgba(83,74,183,0.7)',borderRadius:8,padding:'20px 22px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                  <span style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.12em',color:'#AFA9EC'}}>CLASSIFIED DOSSIER</span>
+                  <span style={{fontFamily:cinzel,fontSize:8,background:'rgba(216,90,48,0.15)',color:'#E87070',padding:'2px 8px',borderRadius:20,letterSpacing:'0.1em'}}>COMING SOON</span>
+                </div>
+                <div style={{fontFamily:cinzel,fontSize:15,color:'#EEEDFE',letterSpacing:'0.04em',marginBottom:8}}>The Nazi Occult Kingdom: Thule to Paperclip to Now</div>
+                <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65}}>The Third Reich as a fully operational demonic kingdom. Gary Wayne documents the Ariosophy religion, the bloodline genealogies of the Nazi elite, their Messiah-figure Fuhrer, the counterfeit millennium of the Thousand-Year Reich, and how Operation Paperclip transferred the entire apparatus — scientists, occult knowledge, and demonic allegiance — into the CIA and NASA. The spirit did not die in the bunker. Interactive network map included. Sources: Gary Wayne, Tom Horn, Timothy Alberino.</p>
+              </div>
+            </>
+          ) : (
+            <div style={{border:'1px dashed rgba(201,168,76,0.25)',borderRadius:10,padding:'40px 24px',textAlign:'center' as const,background:'rgba(201,168,76,0.02)'}}>
+              <div style={{fontSize:32,marginBottom:12}}>🔒</div>
+              <div style={{fontFamily:cinzel,fontSize:14,color:G2,letterSpacing:'0.08em',marginBottom:10}}>CLASSIFIED INTELLIGENCE</div>
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20,maxWidth:480,margin:'0 auto 20px'}}>Government programs, CERN and interdimensional technology, Nephilim bloodline networks, the transhumanist mark agenda, and the globalist control grid — available to Soldier rank and above.</p>
+              <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap' as const,marginBottom:20}}>
+                {['Govt Programs','Transhumanism','Occult Ops','NWO Watch'].map(l=>(
+                  <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:'rgba(201,168,76,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
+                ))}
+              </div>
+              <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* THE FEED */}
+      {activeTab === 'feed' && (
+        <div>
+          <Divider label="THE FEED" badge="AI-CURATED DAILY" />
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:16}}>External articles, video drops, and intelligence briefings — curated by criteria and filtered through biblical discernment. Updated every 48 hours. Items are reviewed before publication.</p>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap' as const,marginBottom:20}}>
+            {feedTags.map(tag=>(
+              <button key={tag} onClick={()=>setFF(tag)} style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',padding:'4px 12px',borderRadius:20,cursor:'pointer',background:feedFilter===tag?(TAG_BG[tag]||'rgba(201,168,76,0.2)'):'transparent',color:feedFilter===tag?(TAG_CLR[tag]||G2):MUT,border:'1px solid '+(feedFilter===tag?(TAG_CLR[tag]||G2):'rgba(201,168,76,0.15)'),transition:'all 0.15s'}}>
+                {tag==='all'?'ALL':tag.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {feedLoading ? (
+            <div style={{textAlign:'center' as const,padding:48,fontFamily:cinzel,fontSize:11,color:MUT,letterSpacing:'0.1em'}}>LOADING INTELLIGENCE FEED...</div>
+          ) : filteredFeed.length===0 ? (
+            <div style={{textAlign:'center' as const,padding:48,border:'1px dashed '+BDR,borderRadius:8}}>
+              <div style={{fontFamily:cinzel,fontSize:11,color:MUT,letterSpacing:'0.08em',marginBottom:8}}>📡 FEED INITIALIZING</div>
+              <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.6}}>No briefings published for this filter yet. Check back — the feed updates every 48 hours.</p>
+            </div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
+              {filteredFeed.map((a:any,i:number)=>{
+                const [h,setH]=React.useState(false)
+                const tag=a.tag||'disclosure'
+                return (
+                  <a key={a.id||i} href={a.source_url||'#'} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none',display:'block'}}>
+                    <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{background:h?'rgba(201,168,76,0.04)':SURF,border:'1px solid '+(h?'rgba(201,168,76,0.35)':BDR),borderLeft:'3px solid '+(TAG_CLR[tag]||G2),borderRadius:8,padding:'14px 16px',transition:'all 0.15s',cursor:'pointer',display:'flex',gap:14,alignItems:'flex-start'}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5,flexWrap:'wrap' as const}}>
+                          <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[tag]||'rgba(201,168,76,0.12)',color:TAG_CLR[tag]||G2,padding:'2px 8px',borderRadius:20}}>{tag.toUpperCase()}</span>
+                          {a.source_type==='youtube'&&<span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.08em',color:'#E87070',background:'rgba(216,90,48,0.12)',padding:'2px 8px',borderRadius:20}}>VIDEO</span>}
+                          <span style={{fontFamily:crimson,fontSize:11,color:MUT,marginLeft:'auto'}}>{a.published_at?new Date(a.published_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}</span>
+                        </div>
+                        <div style={{fontFamily:cinzel,fontSize:13,color:TXT,letterSpacing:'0.03em',marginBottom:5,lineHeight:1.4}}>{a.title}</div>
+                        <p style={{fontFamily:crimson,fontSize:13,color:MUT,lineHeight:1.55,margin:0,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical' as any}}>{a.summary}</p>
+                        {a.wri_take&&<div style={{marginTop:8,padding:'6px 10px',background:'rgba(201,168,76,0.06)',border:'1px solid rgba(201,168,76,0.2)',borderRadius:5,fontFamily:crimson,fontSize:12,color:G2,lineHeight:1.5}}><span style={{fontSize:9,fontFamily:cinzel,letterSpacing:'0.08em',opacity:0.7}}>WRI TAKE: </span>{a.wri_take}</div>}
+                      </div>
+                      {a.significance&&<span style={{flexShrink:0,display:'inline-flex',gap:3,alignItems:'center',paddingTop:2}}>{[1,2,3,4,5].map((d:number)=><span key={d} style={{width:6,height:6,borderRadius:'50%',background:d<=a.significance?(TAG_CLR[tag]||G2):'rgba(201,168,76,0.15)',display:'inline-block'}}/>)}</span>}
+                    </div>
+                  </a>
+                )
+              })}
+            </div>
+          )}
+          {!hasSoldier&&<div style={{marginTop:20,padding:'14px 20px',background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,textAlign:'center' as const}}><span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 Occult Ops, NWO Watch, and Govt Programs feed items require Soldier+ rank.</span></div>}
+        </div>
+      )}
+
+      {/* INTEL FAQ */}
+      {activeTab === 'faq' && (
+        <div>
+          <Divider label="FRINGE INTEL FAQ" badge="DOSSIER FORMAT" />
+          <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20}}>Deep-dive intelligence in three-part dossier format: Biblical Intelligence, Historical Record, Current Operations. Sources: Book of Enoch (Knibb), Gary Wayne (Genesis 6 Conspiracy I & II), Timothy Alberino (Birthright), Tom Horn (Apollyon Rising), David Flynn (Cydonia), Scott Alan Roberts.</p>
+          <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
+            {faqData.map((item,i)=>{
+              const open=faqOpen===i
+              const tagClr=TAG_CLR[item.tag]||G2
+              return (
+                <div key={i} style={{background:SURF,border:'1px solid '+(open?'rgba(201,168,76,0.35)':BDR),borderLeft:'3px solid '+(open?tagClr:'rgba(201,168,76,0.2)'),borderRadius:8,overflow:'hidden',transition:'all 0.2s'}}>
+                  <button onClick={()=>setFaqOpen(open?null:i)} style={{width:'100%',background:'none',border:'none',padding:'16px 18px',cursor:'pointer',display:'flex',alignItems:'center',gap:12,textAlign:'left' as const}}>
+                    <span style={{fontFamily:cinzel,fontSize:8,letterSpacing:'0.1em',background:TAG_BG[item.tag]||'rgba(201,168,76,0.12)',color:tagClr,padding:'2px 8px',borderRadius:20,flexShrink:0}}>{item.tag.toUpperCase()}</span>
+                    <span style={{fontFamily:cinzel,fontSize:12,color:open?G2:TXT,letterSpacing:'0.04em',flex:1,lineHeight:1.4}}>{item.q}</span>
+                    <span style={{fontFamily:cinzel,fontSize:16,color:G2,flexShrink:0,transform:open?'rotate(45deg)':'none',transition:'transform 0.2s'}}>+</span>
+                  </button>
+                  {open&&(
+                    <div style={{padding:'0 18px 18px',borderTop:'1px solid rgba(201,168,76,0.1)'}}>
+                      {([
+                        {label:'BIBLICAL INTELLIGENCE',content:item.biblical,color:'#AFA9EC'},
+                        {label:'HISTORICAL RECORD',content:item.historical,color:'#C9A84C'},
+                        {label:'CURRENT OPERATIONS',content:item.ops,color:'#E8703A'},
+                      ]).map(sec=>(
+                        <div key={sec.label} style={{marginTop:14}}>
+                          <div style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.12em',color:sec.color,marginBottom:6}}>{sec.label}</div>
+                          <p style={{fontFamily:crimson,fontSize:14,color:TXT,lineHeight:1.7,margin:0}}>{sec.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
+// ── EVENTS VIEW ────────────────────────────────────────────
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  live_training: '🎬 Live Training',
+  prayer_call: '🙏 Prayer Call',
+  q_and_a: '❓ Q&A Session',
+  deliverance_workshop: '⚔ Deliverance Workshop',
+  group_warfare_prayer: '🔥 Group Warfare Prayer',
+  generals_table: "🪖 General's Table",
+  youtube_premiere: '▶ YouTube Premiere',
+}
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  live_training: '#C9A84C', prayer_call: '#7a9e7e', q_and_a: '#8B9DCA', deliverance_workshop: '#b87333',
+  group_warfare_prayer: '#9b59b6', generals_table: '#c0392b', youtube_premiere: '#e74c3c',
+}
+const TIER_LEVEL_MAP: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+
+function generateICS(event: any): string {
+  const start = new Date(event.event_date)
+  const end = new Date(start.getTime() + (event.duration_minutes || 60) * 60000)
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//War Room Intel//EN',
+    'BEGIN:VEVENT',
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${(event.title || '').replace(/,/g, '\\,')}`,
+    `DESCRIPTION:${(event.description || '').replace(/\n/g, '\\n').replace(/,/g, '\\,')}`,
+    event.zoom_link ? `URL:${event.zoom_link}` : '',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].filter(Boolean)
+  return lines.join('\r\n')
+}
+
+function downloadICS(event: any) {
+  const ics = generateICS(event)
+  const blob = new Blob([ics], { type: 'text/calendar' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${(event.title || 'event').replace(/\s+/g, '-')}.ics`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function useCountdown(targetDate: Date) {
+  const [diff, setDiff] = useState(() => targetDate.getTime() - Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setDiff(targetDate.getTime() - Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [targetDate])
+  if (diff <= 0) return null
+  const totalSec = Math.floor(diff / 1000)
+  const d = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec % 86400) / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  return { d, h, m, s }
+}
+
+function extractYouTubeIdFromUrl(url: string): string | null {
+  if (!url) return null
+  const patterns = [/youtu\.be\/([^?&]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/]
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
+  return null
+}
+
+function EventCard({ event, userTier, isDark, getToken: _getToken }: { event: any; userTier: string; isDark: boolean; getToken: any }) {
+  const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr   = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const txt   = isDark ? '#E8D5B0' : '#2D2924'
+  const muted = isDark ? '#8B7355' : '#5C5248'
+
+  const eventDate = new Date(event.event_date)
+  const now = new Date()
+  const msSince = now.getTime() - eventDate.getTime()
+  const isPast   = msSince > (event.duration_minutes || 60) * 60000
+  const isLive   = msSince >= -15 * 60000 && msSince < (event.duration_minutes || 60) * 60000
+  const isUpcoming = !isPast && !isLive
+  const msUntil = eventDate.getTime() - now.getTime()
+  const showJoinLink = msUntil <= 30 * 60 * 1000 // show 30 min before
+
+  const typeColor = EVENT_TYPE_COLORS[event.event_type] || G
+  const typeLabel = EVENT_TYPE_LABELS[event.event_type] || (event.event_type || 'EVENT').replace(/_/g, ' ').toUpperCase()
+  const userLevel = TIER_LEVEL_MAP[userTier?.toLowerCase() || 'free'] ?? 0
+  const requiredLevel = TIER_LEVEL_MAP[event.zoom_link_tier?.toLowerCase() || 'free'] ?? 0
+  const canJoin = userLevel >= requiredLevel
+  const ytId = extractYouTubeIdFromUrl(event.zoom_link || '')
+  const countdown = useCountdown(eventDate)
+
+  const tierLabel = ({ free: 'WATCHMAN', watchman: 'WATCHMAN', soldier: 'SOLDIER', commander: 'COMMANDER', general: 'GENERAL' } as Record<string, string>)[event.zoom_link_tier?.toLowerCase() || 'free'] || 'WATCHMAN'
+
+  return (
+    <div style={{ background: surf, border: `1px solid ${isLive ? 'rgba(239,68,68,0.5)' : bdr}`, borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+      {/* Header strip */}
+      <div style={{ background: isLive ? 'rgba(239,68,68,0.1)' : `${typeColor}12`, borderBottom: `1px solid ${isLive ? 'rgba(239,68,68,0.3)' : `${typeColor}30`}`, padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: isLive ? '#ef4444' : typeColor }}>{typeLabel}</span>
+          {isLive && <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: '#ef4444', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, padding: '1px 6px', animation: 'pulse 1.5s ease-in-out infinite' }}>● LIVE NOW</span>}
+        </div>
+        <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>
+          {eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+        </span>
+      </div>
+
+      {/* Live YouTube embed */}
+      {isLive && ytId && (
+        <div style={{ background: '#000', aspectRatio: '16/9' as any }}>
+          <iframe src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+        </div>
+      )}
+
+      <div style={{ padding: '16px 18px' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 15, color: G, fontWeight: 700, marginBottom: 6 }}>{event.title}</div>
+        {event.description && <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65, marginBottom: 10 }}>{event.description}</div>}
+        {event.duration_minutes && <div style={{ fontFamily: crimson, fontSize: 12, color: muted, marginBottom: 12 }}>⏱ {event.duration_minutes} min{event.max_attendees ? ` · max ${event.max_attendees}` : ''}</div>}
+
+        {/* Countdown for upcoming */}
+        {isUpcoming && countdown && (
+          <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+            {[{ v: countdown.d, l: 'days' }, { v: countdown.h, l: 'hrs' }, { v: countdown.m, l: 'min' }, { v: countdown.s, l: 'sec' }].map(({ v, l }) => (
+              <div key={l} style={{ textAlign: 'center' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 20, color: G, lineHeight: 1 }}>{String(v).padStart(2, '0')}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.1em', marginTop: 2 }}>{l.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tier badge */}
+        {event.zoom_link_tier && event.zoom_link_tier !== 'free' && (
+          <div style={{ marginBottom: 10 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: TIER_COLORS[event.zoom_link_tier] || muted, border: `1px solid ${TIER_COLORS[event.zoom_link_tier] || muted}`, borderRadius: 10, padding: '2px 8px' }}>{tierLabel}+</span>
+          </div>
+        )}
+
+        {/* CTAs */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+          {/* Past: recording */}
+          {isPast && event.recording_url && (
+            extractYouTubeIdFromUrl(event.recording_url)
+              ? null
+              : <a href={event.recording_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>▶ Watch Recording</a>
+          )}
+          {isPast && !event.recording_url && (
+            <span style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.06em' }}>No recording available</span>
+          )}
+
+          {/* Upcoming/live zoom call */}
+          {!isPast && event.zoom_link && canJoin && (
+            showJoinLink || isLive
+              ? <a href={event.zoom_link} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '8px 18px', background: isLive ? 'rgba(239,68,68,0.15)' : 'rgba(201,168,76,0.15)', border: `1px solid ${isLive ? '#ef4444' : G}`, borderRadius: 6, color: isLive ? '#ef4444' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', textDecoration: 'none' }}>
+                  {isLive ? '🔴 Join Live Call' : '🔗 Join Call →'}
+                </a>
+              : <div style={{ fontFamily: cinzel, fontSize: 10, color: muted, letterSpacing: '0.06em', padding: '8px 0' }}>Join link available 30 min before start</div>
+          )}
+          {!isPast && event.zoom_link && !canJoin && (
+            <div style={{ display: 'inline-block', padding: '8px 14px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: cinzel, fontSize: 9, color: muted, letterSpacing: '0.06em' }}>
+              🔒 {tierLabel}+ required to join
+            </div>
+          )}
+
+          {/* Add to calendar */}
+          {!isPast && (
+            <button onClick={() => downloadICS(event)} style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, color: muted, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+              📅 Add to Calendar
+            </button>
+          )}
+        </div>
+
+        {/* Past YouTube recording embed */}
+        {isPast && event.recording_url && extractYouTubeIdFromUrl(event.recording_url) && (
+          <div style={{ marginTop: 14, background: '#000', aspectRatio: '16/9' as any, borderRadius: 6, overflow: 'hidden' }}>
+            <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeIdFromUrl(event.recording_url)}?rel=0&modestbranding=1`} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const TIER_COLORS: Record<string, string> = { watchman: '#9a8c74', free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
+
+function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
+  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userTier: string; getToken: any
+}) {
+  const isDark = theme !== 'light'
+  const bg    = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr   = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const muted = isDark ? '#8B7355' : '#5C5248'
+
+  const [events, setEvents]   = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab]         = useState<'upcoming' | 'past'>('upcoming')
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/events', token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        if (res.ok) { const d = await res.json(); setEvents(d.events || []) }
+      } catch { /* ignore */ } finally { setLoading(false) }
+    }
+    load()
+  }, [])
+
+  const now = new Date()
+  const upcoming = events.filter(e => {
+    const end = new Date(new Date(e.event_date).getTime() + (e.duration_minutes || 60) * 60000)
+    return end >= now
+  })
+  const past = events.filter(e => {
+    const end = new Date(new Date(e.event_date).getTime() + (e.duration_minutes || 60) * 60000)
+    return end < now
+  }).reverse()
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto' as const, background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>📅 Events</div>
+          <div style={{ fontSize: 12, color: muted, marginTop: 2, fontFamily: crimson }}>Live sessions, training calls, and special gatherings</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, marginBottom: 20 }}>
+        {(['upcoming', 'past'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: tab === t ? `2px solid ${G}` : '2px solid transparent', color: tab === t ? G : muted, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
+            {t === 'upcoming' ? `Upcoming${upcoming.length ? ` (${upcoming.length})` : ''}` : `Past${past.length ? ` (${past.length})` : ''}`}
+          </button>
+        ))}
+      </div>
+
+      {loading && (
+        <div style={{ textAlign: 'center' as const, padding: '40px', fontFamily: cinzel, fontSize: 11, color: muted, letterSpacing: '0.1em' }}>Loading events...</div>
+      )}
+
+      {!loading && tab === 'upcoming' && upcoming.length === 0 && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '40px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: G, marginBottom: 8 }}>📅 No upcoming events scheduled</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: muted }}>Check back soon — Warfare Prayer · Training Sessions · Q&A Calls</div>
+        </div>
+      )}
+
+      {!loading && tab === 'upcoming' && upcoming.map(e => (
+        <EventCard key={e.id} event={e} userTier={userTier} isDark={isDark} getToken={getToken} />
+      ))}
+
+      {!loading && tab === 'past' && past.length === 0 && (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: muted, fontStyle: 'italic', padding: '20px 0' }}>No past events yet.</div>
+      )}
+
+      {!loading && tab === 'past' && past.map(e => (
+        <EventCard key={e.id} event={e} userTier={userTier} isDark={isDark} getToken={getToken} />
+      ))}
+    </div>
+  )
+}
+
+// ── FEEDBACK VIEW ──────────────────────────────────────────
+function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _userId, userName }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
+}) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const bg      = isDark ? '#0D0B14' : '#FAF8F5'
+  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const text    = isDark ? '#E8D5B0' : '#2D2924'
+  const muted   = isDark ? '#8B7355' : '#5C5248'
+  const isMinister = userTier === 'minister'
+
+  const STATUS_COLORS: Record<string, string> = { open: '#C9A84C', 'in progress': '#4a90d9', done: '#4ade80' }
+
+  const [tabType, setTabType]     = useState<'feature' | 'bug'>('feature')
+  const [type, setType]           = useState<'bug' | 'feature'>('feature')
+  const [title, setTitle]         = useState('')
+  const [desc, setDesc]           = useState('')
+  const [showForm, setShowForm]   = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [success, setSuccess]     = useState(false)
+  const [error, setError]         = useState('')
+  const [feedback, setFeedback]   = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
+
+  async function loadFeedback() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/platform-feedback`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setFeedback(d.feedback || []) }
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadFeedback() }, [success])
+
+  async function handleSubmit() {
+    if (!title.trim()) return
+    setSaving(true); setError('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/platform-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type, title: title.trim(), description: desc.trim(), userName }),
+      })
+      if (!res.ok) throw new Error('Submit failed')
+      setSuccess(true); setTitle(''); setDesc(''); setShowForm(false)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (e: any) { setError(e.message) } finally { setSaving(false) }
+  }
+
+  async function toggleUpvote(item: any) {
+    const token = await getToken()
+    const res = await fetch(`/api/platform-feedback?id=${item.id}&action=upvote`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, upvotes: d.upvotes, userUpvoted: d.userUpvoted } : f))
+    }
+  }
+
+  async function changeStatus(item: any, status: string) {
+    const token = await getToken()
+    const res = await fetch(`/api/platform-feedback?id=${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    })
+    if (res.ok) {
+      setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, status } : f))
+    }
+  }
+
+  const inp: React.CSSProperties = { width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#fff', border: `1px solid ${border}`, borderRadius: 6, padding: '10px 14px', color: text, fontSize: 14, fontFamily: crimson, outline: 'none' }
+  const filtered = feedback.filter(f => f.type === tabType)
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>? Feedback & Requests</div>
+              <div style={{ fontSize: 12, color: muted, marginTop: 2, fontFamily: crimson }}>Vote on features, report bugs — all tiers can submit</div>
+            </div>
+          </div>
+          <button onClick={() => setShowForm(s => !s)}
+            style={{ padding: '8px 16px', background: showForm ? 'rgba(201,168,76,0.15)' : surface, border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            {showForm ? '× CLOSE' : '+ SUBMIT REQUEST'}
+          </button>
+        </div>
+
+        {success && <div style={{ color: '#4ade80', fontSize: 13, marginBottom: 12, fontFamily: cinzel }}>✓ Submitted — thank you!</div>}
+        {error   && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</div>}
+
+        {/* Submit form */}
+        {showForm && (
+          <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 10, padding: '20px', marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G, marginBottom: 16 }}>Submit Request</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {(['feature', 'bug'] as const).map(t => (
+                <button key={t} onClick={() => setType(t)}
+                  style={{ flex: 1, padding: '8px', borderRadius: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', border: `1px solid ${type === t ? (t === 'bug' ? '#f87171' : G) : border}`, background: type === t ? (t === 'bug' ? 'rgba(248,113,113,0.1)' : 'rgba(201,168,76,0.1)') : 'transparent', color: type === t ? (t === 'bug' ? '#f87171' : G) : muted }}>
+                  {t === 'feature' ? '✨ Feature Request' : '🐛 Bug Report'}
+                </button>
+              ))}
+            </div>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title (required)"
+              style={{ ...inp, marginBottom: 10 }} />
+            <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description (optional)" rows={3}
+              style={{ ...inp, resize: 'vertical' as const, marginBottom: 12 }} />
+            <button onClick={handleSubmit} disabled={saving || !title.trim()}
+              style={{ padding: '8px 20px', background: title.trim() ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.5 }}>
+              {saving ? 'SUBMITTING…' : 'SUBMIT'}
+            </button>
+          </div>
+        )}
+
+        {/* Type tabs */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, marginBottom: 16 }}>
+          {(['feature', 'bug'] as const).map(t => (
+            <button key={t} onClick={() => setTabType(t)}
+              style={{ padding: '8px 20px', background: 'transparent', border: 'none', borderBottom: tabType === t ? `2px solid ${G}` : '2px solid transparent', color: tabType === t ? G : muted, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1 }}>
+              {t === 'feature' ? 'FEATURES' : 'BUGS'}
+            </button>
+          ))}
+        </div>
+
+        {/* Feedback list */}
+        {loading
+          ? <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>Loading…</div>
+          : filtered.length === 0
+            ? <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>No {tabType === 'feature' ? 'feature requests' : 'bug reports'} yet. Be the first!</div>
+            : filtered.map(item => (
+              <div key={item.id} style={{ display: 'flex', gap: 14, background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10, alignItems: 'flex-start' }}>
+                {/* Upvote */}
+                <button onClick={() => toggleUpvote(item)}
+                  style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3, padding: '6px 10px', borderRadius: 8, border: `1px solid ${item.userUpvoted ? G : border}`, background: item.userUpvoted ? 'rgba(201,168,76,0.12)' : 'transparent', cursor: 'pointer', flexShrink: 0, minWidth: 44 }}>
+                  <span style={{ fontSize: 14, color: item.userUpvoted ? G : muted }}>▲</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 13, color: item.userUpvoted ? G : text, fontWeight: 700 }}>{item.upvotes || 0}</span>
+                </button>
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 13, color: text, letterSpacing: '0.03em', flex: 1 }}>{item.title}</div>
+                    {isMinister ? (
+                      <select value={item.status || 'open'} onChange={e => changeStatus(item, e.target.value)}
+                        style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 6px', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                        {['open', 'in progress', 'done'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    ) : (
+                      <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 8px', flexShrink: 0, textTransform: 'uppercase' as const }}>{item.status || 'open'}</span>
+                    )}
+                  </div>
+                  {item.description && <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>}
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{item.user_name || 'Anonymous'} · {new Date(item.created_at).toLocaleDateString()}</div>
+                </div>
+              </div>
+            ))
+        }
+      </div>
+    </div>
+  )
+}
+
+// ── BODY MAP VIEW ──────────────────────────────────────────
+
+
+class BodyMapBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+  constructor(props: any) { super(props); this.state = { hasError: false } }
+  static getDerivedStateFromError() { return { hasError: true } }
+  render() {
+    if (this.state.hasError) return (
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#0D0B14', padding:'40px 20px' }}>
+        <div style={{ textAlign:'center', maxWidth:480 }}>
+          <div style={{ fontFamily:"'Cinzel',serif", fontSize:10, color:'#C9A84C', letterSpacing:'0.2em', marginBottom:12 }}>BODY MAP — LOADING ERROR</div>
+          <div style={{ fontFamily:"'Crimson Pro',serif", fontSize:15, color:'#8B7355', lineHeight:1.7, marginBottom:20 }}>The body map could not render. This is a known issue with certain browser configurations. Try refreshing or use the Symptom Investigator instead.</div>
+          <button onClick={() => this.setState({ hasError:false })} style={{ background:'#C9A84C', color:'#060408', border:'none', borderRadius:6, padding:'10px 24px', fontFamily:"'Cinzel',serif", fontSize:11, letterSpacing:'0.08em', cursor:'pointer', fontWeight:700 }}>Retry</button>
+        </div>
+      </div>
+    )
+    return this.props.children
+  }
+}
+
+type BMHotspot = { id: string; label: string; x: number; y: number }
+type BMFigure  = { key: string; label: string; image: string; hotspots: BMHotspot[] }
+
+const BM_FIGURES: BMFigure[] = [
+  {
+    key: 'male-front', label: 'Male Front', image: '/images/WRI_BODY_MALE_FRONT.png',
+    hotspots: [
+      { id: 'mf-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
+      { id: 'mf-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.0  },
+      { id: 'mf-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.0  },
+      { id: 'mf-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 11.5 },
+      { id: 'mf-throat',         label: 'Throat',            x: 50.5, y: 15.0 },
+      { id: 'mf-heart',          label: 'Heart / Chest',     x: 50.5, y: 23.5 },
+      { id: 'mf-left-shoulder',  label: 'Left Shoulder',     x: 36.0, y: 21.0 },
+      { id: 'mf-right-shoulder', label: 'Right Shoulder',    x: 65.5, y: 21.0 },
+      { id: 'mf-left-elbow',     label: 'Left Elbow',        x: 29.0, y: 34.0 },
+      { id: 'mf-right-elbow',    label: 'Right Elbow',       x: 72.0, y: 34.0 },
+      { id: 'mf-solar-plexus',   label: 'Solar Plexus',      x: 50.5, y: 30.0 },
+      { id: 'mf-abdomen',        label: 'Abdomen',           x: 50.5, y: 36.5 },
+      { id: 'mf-left-wrist',     label: 'Left Wrist',        x: 24.5, y: 44.5 },
+      { id: 'mf-right-wrist',    label: 'Right Wrist',       x: 76.5, y: 44.5 },
+      { id: 'mf-pelvis',         label: 'Pelvis / Groin',    x: 50.5, y: 44.0 },
+      { id: 'mf-left-hand',      label: 'Left Hand',         x: 21.0, y: 50.0 },
+      { id: 'mf-right-hand',     label: 'Right Hand',        x: 80.5, y: 50.0 },
+      { id: 'mf-left-thigh',     label: 'Left Thigh',        x: 42.5, y: 57.0 },
+      { id: 'mf-right-thigh',    label: 'Right Thigh',       x: 58.5, y: 57.0 },
+      { id: 'mf-left-knee',      label: 'Left Knee',         x: 42.5, y: 68.5 },
+      { id: 'mf-right-knee',     label: 'Right Knee',        x: 58.5, y: 68.5 },
+      { id: 'mf-left-shin',      label: 'Left Shin',         x: 42.0, y: 78.0 },
+      { id: 'mf-right-shin',     label: 'Right Shin',        x: 59.0, y: 78.0 },
+      { id: 'mf-left-foot',      label: 'Left Foot',         x: 41.5, y: 91.0 },
+      { id: 'mf-right-foot',     label: 'Right Foot',        x: 59.5, y: 91.0 },
+    ],
+  },
+  {
+    key: 'male-back', label: 'Male Back', image: '/images/WRI_BODY_MALE_BACK.png',
+    hotspots: [
+      { id: 'mb-crown',           label: 'Crown / Back of Head',  x: 50.5, y: 4.0  },
+      { id: 'mb-neck',            label: 'Neck / Cervical',       x: 50.5, y: 10.0 },
+      { id: 'mb-left-shoulder',   label: 'Left Shoulder Blade',   x: 36.5, y: 18.5 },
+      { id: 'mb-right-shoulder',  label: 'Right Shoulder Blade',  x: 64.0, y: 18.5 },
+      { id: 'mb-upper-back',      label: 'Upper Back / Thoracic', x: 50.5, y: 22.0 },
+      { id: 'mb-left-elbow',      label: 'Left Elbow',            x: 29.5, y: 33.5 },
+      { id: 'mb-right-elbow',     label: 'Right Elbow',           x: 71.0, y: 33.5 },
+      { id: 'mb-mid-back',        label: 'Mid Back / Lumbar',     x: 50.5, y: 33.0 },
+      { id: 'mb-lower-back',      label: 'Lower Back / Sacral',   x: 50.5, y: 41.5 },
+      { id: 'mb-left-hip',        label: 'Left Hip / Glute',      x: 40.0, y: 47.5 },
+      { id: 'mb-right-hip',       label: 'Right Hip / Glute',     x: 61.5, y: 47.5 },
+      { id: 'mb-left-hamstring',  label: 'Left Hamstring',        x: 41.5, y: 57.5 },
+      { id: 'mb-right-hamstring', label: 'Right Hamstring',       x: 59.5, y: 57.5 },
+      { id: 'mb-left-knee-back',  label: 'Left Knee (Back)',      x: 41.5, y: 68.0 },
+      { id: 'mb-right-knee-back', label: 'Right Knee (Back)',     x: 59.5, y: 68.0 },
+      { id: 'mb-left-heel',       label: 'Left Heel / Foot',      x: 41.0, y: 92.5 },
+      { id: 'mb-right-heel',      label: 'Right Heel / Foot',     x: 60.0, y: 92.5 },
+    ],
+  },
+  {
+    key: 'female-front', label: 'Female Front', image: '/images/WRI_BODY_FEMALE_FRONT.png',
+    hotspots: [
+      { id: 'ff-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
+      { id: 'ff-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.5  },
+      { id: 'ff-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.5  },
+      { id: 'ff-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 12.0 },
+      { id: 'ff-throat',         label: 'Throat',            x: 50.5, y: 15.5 },
+      { id: 'ff-heart',          label: 'Heart / Chest',     x: 50.5, y: 24.5 },
+      { id: 'ff-left-shoulder',  label: 'Left Shoulder',     x: 36.5, y: 22.0 },
+      { id: 'ff-right-shoulder', label: 'Right Shoulder',    x: 64.5, y: 22.0 },
+      { id: 'ff-left-elbow',     label: 'Left Elbow',        x: 28.5, y: 34.5 },
+      { id: 'ff-right-elbow',    label: 'Right Elbow',       x: 72.5, y: 34.5 },
+      { id: 'ff-solar-plexus',   label: 'Solar Plexus',      x: 50.5, y: 31.0 },
+      { id: 'ff-abdomen',        label: 'Abdomen',           x: 50.5, y: 37.5 },
+      { id: 'ff-womb',           label: 'Womb / Uterus',     x: 50.5, y: 43.0 },
+      { id: 'ff-left-wrist',     label: 'Left Wrist',        x: 23.5, y: 45.5 },
+      { id: 'ff-right-wrist',    label: 'Right Wrist',       x: 77.5, y: 45.5 },
+      { id: 'ff-pelvis',         label: 'Pelvis',            x: 50.5, y: 46.5 },
+      { id: 'ff-left-hand',      label: 'Left Hand',         x: 20.0, y: 51.5 },
+      { id: 'ff-right-hand',     label: 'Right Hand',        x: 81.0, y: 51.5 },
+      { id: 'ff-left-thigh',     label: 'Left Thigh',        x: 43.0, y: 58.0 },
+      { id: 'ff-right-thigh',    label: 'Right Thigh',       x: 58.0, y: 58.0 },
+      { id: 'ff-left-knee',      label: 'Left Knee',         x: 43.0, y: 69.5 },
+      { id: 'ff-right-knee',     label: 'Right Knee',        x: 58.0, y: 69.5 },
+      { id: 'ff-left-shin',      label: 'Left Shin',         x: 42.5, y: 79.0 },
+      { id: 'ff-right-shin',     label: 'Right Shin',        x: 58.5, y: 79.0 },
+      { id: 'ff-left-foot',      label: 'Left Foot',         x: 42.0, y: 92.0 },
+      { id: 'ff-right-foot',     label: 'Right Foot',        x: 59.0, y: 92.0 },
+    ],
+  },
+  {
+    key: 'female-back', label: 'Female Back', image: '/images/WRI_BODY_FEMALE_BACK.png',
+    hotspots: [
+      { id: 'fb-crown',           label: 'Crown / Back of Head',  x: 50.5, y: 3.5  },
+      { id: 'fb-neck',            label: 'Neck / Cervical',       x: 50.5, y: 9.5  },
+      { id: 'fb-left-shoulder',   label: 'Left Shoulder Blade',   x: 36.5, y: 18.0 },
+      { id: 'fb-right-shoulder',  label: 'Right Shoulder Blade',  x: 64.5, y: 18.0 },
+      { id: 'fb-upper-back',      label: 'Upper Back / Thoracic', x: 50.5, y: 22.5 },
+      { id: 'fb-left-elbow',      label: 'Left Elbow',            x: 28.0, y: 34.0 },
+      { id: 'fb-right-elbow',     label: 'Right Elbow',           x: 73.0, y: 34.0 },
+      { id: 'fb-mid-back',        label: 'Mid Back / Lumbar',     x: 50.5, y: 33.5 },
+      { id: 'fb-lower-back',      label: 'Lower Back / Sacral',   x: 50.5, y: 41.0 },
+      { id: 'fb-left-hip',        label: 'Left Hip / Glute',      x: 40.5, y: 47.0 },
+      { id: 'fb-right-hip',       label: 'Right Hip / Glute',     x: 60.5, y: 47.0 },
+      { id: 'fb-left-hamstring',  label: 'Left Hamstring',        x: 42.0, y: 57.5 },
+      { id: 'fb-right-hamstring', label: 'Right Hamstring',       x: 59.0, y: 57.5 },
+      { id: 'fb-left-knee-back',  label: 'Left Knee (Back)',      x: 42.0, y: 68.5 },
+      { id: 'fb-right-knee-back', label: 'Right Knee (Back)',     x: 59.0, y: 68.5 },
+      { id: 'fb-left-heel',       label: 'Left Heel / Foot',      x: 41.5, y: 91.5 },
+      { id: 'fb-right-heel',      label: 'Right Heel / Foot',     x: 59.5, y: 91.5 },
+    ],
+  },
+]
+
+// ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
+
+const TOOL_LABELS: Record<string, string> = {
+  'ask-dake': 'Ask Dake',
+  'symptom-investigator': 'Symptoms',
+  'gateway-investigator': 'Gateway',
+  'spirit-network': 'Spirits',
+  'ai-assistant': 'Assistant',
+}
+
+const TOOL_COLORS: Record<string, string> = {
+  'ask-dake': '#C9A84C',
+  'symptom-investigator': '#ef4444',
+  'gateway-investigator': '#8B9DCA',
+  'spirit-network': '#7a9e7e',
+  'ai-assistant': '#a78bfa',
+}
+
+function intelTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`
+  const months = Math.floor(days / 30)
+  return `${months} month${months === 1 ? '' : 's'} ago`
+}
+
+function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
+  const [entries,   setEntries]   = useState<any[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [filter,    setFilter]    = useState('all')
+  const [searchQ,   setSearchQ]   = useState('')
+  const [aiUsage,   setAIUsage]   = useState<{ tier: string; features: any[] } | null>(null)
+
+  useEffect(() => {
+    getToken().then((token: string | null) => {
+      if (!token) return
+      fetch('/api/ai-usage', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.features) setAIUsage(d) })
+        .catch(() => {})
+    })
+  }, [])
+
+  const FILTERS = ['all', 'ask-dake', 'symptom-investigator', 'gateway-investigator', 'spirit-network', 'ai-assistant']
+
+  const AI_FEATURE_LABELS: Record<string, string> = {
+    ask_dake: 'Ask Dake', ai_assistant: 'AI Assistant', bible_ask: 'Bible Study',
+    symptom_investigator: 'Symptom Inv.', gateway: 'Gateway Inv.',
+    dream: 'Dream Interp.', document: 'Documents', session_ai: 'Session AI', assessment: 'Assessment',
+  }
+
+  async function loadHistory(tool?: string) {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      if (!token) return
+      const params = new URLSearchParams({ limit: '50' })
+      if (tool && tool !== 'all') params.set('tool', tool)
+      const res = await fetch(`/api/ai-history?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setEntries(d.history || []) }
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadHistory(filter === 'all' ? undefined : filter) }, [filter])
+
+  async function toggleSaved(id: string, saved: boolean) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`/api/ai-history?id=${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saved: !saved }),
+    }).catch(() => {})
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, saved: !saved } : e))
+  }
+
+  async function deleteEntry(id: string) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`/api/ai-history?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    setEntries(prev => prev.filter(e => e.id !== id))
+  }
+
+  const filtered = entries.filter(e => {
+    if (!searchQ) return true
+    const q = searchQ.toLowerCase()
+    return e.query?.toLowerCase().includes(q) || e.response?.toLowerCase().includes(q)
+  })
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px', background: '#0D0B14', minHeight: 0 }}>
+      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>My Intel</span>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: '0 0 4px', letterSpacing: '0.08em' }}>My Intel</h2>
+          <p style={{ color: '#8B7355', fontSize: 13, margin: 0, fontFamily: crimson }}>Your AI search history across all tools</p>
+        </div>
+
+        {/* AI Usage Today widget */}
+        {aiUsage && (
+          <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '16px 18px', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>AI USAGE TODAY</span>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4f3a', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{aiUsage.tier}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '8px 16px' }}>
+              {aiUsage.features.filter((f: any) => f.limit !== 0).map((f: any) => {
+                const label = AI_FEATURE_LABELS[f.feature] || f.feature
+                const isUnlimited = f.limit === -1
+                const pct = isUnlimited ? 0 : f.limit > 0 ? f.used / f.limit : 1
+                const barColor = pct >= 1 ? '#c84a4a' : pct >= 0.75 ? '#e2a73c' : G
+                return (
+                  <div key={f.feature}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span style={{ fontFamily: crimson, fontSize: 11, color: '#9a8c74' }}>{label}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, color: isUnlimited ? '#5fae6f' : pct >= 1 ? '#c84a4a' : '#9a8c74', letterSpacing: '0.04em' }}>
+                        {isUnlimited ? '∞' : `${f.used}/${f.limit}`}
+                      </span>
+                    </div>
+                    {!isUnlimited && (
+                      <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, pct * 100)}%`, background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {aiUsage.features.some((f: any) => f.limit > 0 && f.used >= f.limit) && (
+              <div style={{ marginTop: 12, padding: '6px 10px', background: 'rgba(200,74,74,0.08)', border: '1px solid rgba(200,74,74,0.2)', borderRadius: 6 }}>
+                <span style={{ fontFamily: crimson, fontSize: 12, color: '#c84a4a' }}>
+                  Some AI tools have reached their daily limit.{' '}
+                  <a href="/membership" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>Upgrade</a> for more calls.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Search bar */}
+        <div style={{ marginBottom: 16 }}>
+          <input
+            value={searchQ}
+            onChange={e => setSearchQ(e.target.value)}
+            placeholder="Search across all history..."
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', color: '#E8D5B0', fontFamily: crimson, fontSize: 14, outline: 'none' }}
+          />
+        </div>
+
+        {/* Filter tabs */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+          {FILTERS.map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{
+                padding: '5px 12px', borderRadius: 20,
+                background: filter === f ? 'rgba(201,168,76,0.15)' : 'transparent',
+                border: `1px solid ${filter === f ? G : 'rgba(201,168,76,0.2)'}`,
+                color: filter === f ? G : '#8B7355',
+                fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer',
+                textTransform: 'uppercase' as const,
+              }}>
+              {f === 'all' ? 'ALL' : (TOOL_LABELS[f] || f)}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center' as const, padding: 40, color: '#8B7355', fontFamily: crimson, fontStyle: 'italic' }}>Loading history...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '48px 24px', textAlign: 'center' as const }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em', marginBottom: 6 }}>No Intel Found</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: '#8B7355', fontStyle: 'italic' }}>
+              {searchQ ? 'No results match your search.' : 'Use AI tools to build your history.'}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+            {filtered.map(entry => (
+              <div key={entry.id} style={{ background: 'rgba(201,168,76,0.04)', border: `1px solid ${entry.saved ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}`, borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                  {/* Tool badge */}
+                  <span style={{
+                    fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em',
+                    color: TOOL_COLORS[entry.tool] || G,
+                    background: `${TOOL_COLORS[entry.tool] || G}18`,
+                    border: `1px solid ${TOOL_COLORS[entry.tool] || G}44`,
+                    borderRadius: 10, padding: '2px 8px', flexShrink: 0, marginTop: 2,
+                  }}>
+                    {TOOL_LABELS[entry.tool] || entry.tool}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: crimson, fontSize: 14, color: '#E8D5B0', lineHeight: 1.4, marginBottom: 4 }}>{entry.query}</div>
+                    {entry.response && (
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: '#8B7355', lineHeight: 1.5 }}>
+                        {entry.response.slice(0, 100)}{entry.response.length > 100 ? '…' : ''}
+                      </div>
+                    )}
+                    {entry.context && Object.keys(entry.context).length > 0 && (
+                      <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                        {Object.entries(entry.context).filter(([, v]) => v).map(([k, v]) => (
+                          <span key={k} style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4f3a', letterSpacing: '0.06em' }}>{k}: {String(v)}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button
+                      onClick={() => toggleSaved(entry.id, entry.saved)}
+                      title={entry.saved ? 'Unsave' : 'Save'}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4, opacity: entry.saved ? 1 : 0.35, filter: entry.saved ? 'none' : 'grayscale(1)' }}
+                    >⭐</button>
+                    <button
+                      onClick={() => deleteEntry(entry.id)}
+                      title="Delete"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: '#8B7355', opacity: 0.6 }}
+                    >🗑</button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.06em' }}>{intelTimeAgo(entry.created_at)}</span>
+                  {!entry.saved && (
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.04em' }}>Auto-purges in 90 days</span>
+                  )}
+                  {entry.saved && (
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: '#C9A84C', letterSpacing: '0.04em' }}>⭐ Saved</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSection, getToken, isAdmin }: any) {
+  const GC = '#C9A84C'
+
+  const [activeFigure,   setActiveFigure]   = useState(0)
+  const [selectedHotspot, setSelectedHotspot] = useState<BMHotspot | null>(null)
+  const [hoveredHotspot,  setHoveredHotspot]  = useState<string | null>(null)
+  const [sheetOpen,       setSheetOpen]       = useState(false)
+  const [manifestations,  setManifestations]  = useState<any[]>([])
+  const [manifLoading,    setManifLoading]    = useState(false)
+  const [imgOpacity,      setImgOpacity]      = useState(0)
+  const [debugMode,       setDebugMode]       = useState(false)
+  const [debugClick,      setDebugClick]      = useState<{x: number; y: number} | null>(null)
+  const touchStartX = React.useRef(0)
+  const touchStartY = React.useRef(0)
+
+  // Preload all 4 figure images on mount so tab switches are instant
+  useEffect(() => {
+    BM_FIGURES.forEach(fig => {
+      const img = new Image()
+      img.src = fig.image
+    })
+  }, [])
+
+  const figure = BM_FIGURES[activeFigure]
+
+  // Reset fade-in when figure changes
+  useEffect(() => { setImgOpacity(0) }, [activeFigure])
+
+  function closeSheet() {
+    setSheetOpen(false)
+    setSelectedHotspot(null)
+    setManifestations([])
+  }
+
+  function handleHotspotClick(h: BMHotspot) {
+    setSelectedHotspot(h)
+    setSheetOpen(true)
+  }
+
+  useEffect(() => {
+    if (!selectedHotspot) return
+    setManifestations([])
+    setManifLoading(true)
+    const load = async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/body-map?hotspot_id=${selectedHotspot.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const d = await res.json()
+        setManifestations(d.manifestations || [])
+      } catch { setManifestations([]) }
+      finally { setManifLoading(false) }
+    }
+    load()
+  }, [selectedHotspot])
+
+  const panelContent = (
+    <>
+      {/* Drag handle (mobile) */}
+      {isMobile && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px', flexShrink: 0 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#3a3020' }} />
+        </div>
+      )}
+      {/* Panel header */}
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 15, color: GC, letterSpacing: '0.08em', marginBottom: 2 }}>
+            {selectedHotspot?.label}
+          </div>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', letterSpacing: '0.06em' }}>
+            {manifLoading ? 'LOADING...' : `${manifestations.length} MANIFESTATION${manifestations.length !== 1 ? 'S' : ''}`}
+          </div>
+        </div>
+        <button onClick={closeSheet} style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: '4px 8px' }}>×</button>
+      </div>
+      {/* Panel body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', WebkitOverflowScrolling: 'touch' as any }}>
+        {manifLoading && (
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.12em', padding: '32px 0', textAlign: 'center' }}>LOADING MANIFESTATIONS...</div>
+        )}
+        {!manifLoading && manifestations.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: '#4a3f2f', fontStyle: 'italic', marginBottom: 12 }}>No manifestations documented for this region yet.</div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#3a3020', letterSpacing: '0.1em' }}>Admins can add entries in the Admin panel under Body Map</div>
+          </div>
+        )}
+        {manifestations.map((m: any) => (
+          <div key={m.id} style={{ marginBottom: 16, padding: '14px 16px', background: '#09070F', border: '1px solid #1e1a0e', borderLeft: `3px solid ${GC}`, borderRadius: 6 }}>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8b99a', lineHeight: 1.6, marginBottom: m.spirit_names?.length ? 10 : 0 }}>
+              {m.manifestation}
+            </div>
+            {m.spirit_names?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: m.notes ? 8 : 0 }}>
+                {m.spirit_names.map((name: string) => (
+                  <a
+                    key={name}
+                    href={`/community?section=database&search=${encodeURIComponent(name)}`}
+                    style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.06em',
+                      background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)',
+                      borderRadius: 3, padding: '2px 8px', textDecoration: 'none', cursor: 'pointer' }}
+                  >
+                    {name}
+                  </a>
+                ))}
+              </div>
+            )}
+            {m.notes && (
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#6b5e45', fontStyle: 'italic', lineHeight: 1.5 }}>
+                {m.notes}
+              </div>
+            )}
+            {m.source && (
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.06em', marginTop: 6 }}>SOURCE: {m.source}</div>
+            )}
+          </div>
+        ))}
+        {!manifLoading && (
+          <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(139,50,50,0.04)', border: '1px solid #2a1a1a', borderRadius: 6 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a2a2a', letterSpacing: '0.1em', marginBottom: 3 }}>DISCLAIMER</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3030', lineHeight: 1.5, fontStyle: 'italic' }}>
+              For pastoral discernment and prayer preparation only. Physical or mental health symptoms should be evaluated by qualified professionals.
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+
+  return (
+    <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
+      {/* Header */}
+      <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1, flexShrink: 0 }}>☰</button>
+        )}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: GC, letterSpacing: '0.15em', marginBottom: 2 }}>SPIRIT BODY MAP</div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3f2f', fontStyle: 'italic' }}>Tap a region to see associated manifestations and spirits</div>
+        </div>
+      </div>
+
+      {/* Figure selector tabs — all screen sizes */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0, alignItems: 'stretch' }}>
+        {BM_FIGURES.map((fig, i) => (
+          <button key={fig.key} onClick={() => { setActiveFigure(i); closeSheet() }}
+            style={{ flex: 1, padding: '10px 4px', background: 'transparent', border: 'none',
+              borderBottom: activeFigure === i ? `2px solid ${GC}` : '2px solid transparent',
+              color: activeFigure === i ? GC : '#6a5f4f', fontFamily: cinzel,
+              fontSize: isMobile ? 8 : 10, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1 }}>
+            {fig.label.toUpperCase()}
+          </button>
+        ))}
+        {isAdmin && (
+          <button onClick={() => { setDebugMode(d => !d); setDebugClick(null) }}
+            style={{ padding: '10px 12px', background: debugMode ? 'rgba(201,168,76,0.15)' : 'transparent',
+              border: 'none', borderBottom: debugMode ? `2px solid ${GC}` : '2px solid transparent',
+              color: debugMode ? GC : '#4a3f2f', fontFamily: cinzel, fontSize: 8,
+              letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            ⊕ DEBUG
+          </button>
+        )}
+      </div>
+
+      {/* Main area: image + hotspots, with optional side panel on desktop */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', position: 'relative' }}>
+
+        {/* Scrollable image column */}
+        <div
+          style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any,
+            paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20 }}
+          onTouchStart={e => {
+            touchStartX.current = e.touches[0].clientX
+            touchStartY.current = e.touches[0].clientY
+          }}
+          onTouchEnd={e => {
+            const dx = touchStartX.current - e.changedTouches[0].clientX
+            const dy = Math.abs(touchStartY.current - e.changedTouches[0].clientY)
+            if (Math.abs(dx) > 50 && Math.abs(dx) > dy) {
+              if (dx > 0) setActiveFigure(prev => Math.min(BM_FIGURES.length - 1, prev + 1))
+              else        setActiveFigure(prev => Math.max(0, prev - 1))
+              closeSheet()
+            }
+          }}
+        >
+          {/* SVG body map — single coordinate space, no DOM measurement needed */}
+          <div style={{ position: 'relative', maxWidth: isMobile ? '100%' : 480, margin: '0 auto', lineHeight: 0 }}>
+            <svg
+              key={figure.image}
+              viewBox="0 0 100 150"
+              preserveAspectRatio="xMidYMid meet"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+                opacity: imgOpacity,
+                transition: 'opacity 0.3s',
+                cursor: debugMode ? 'crosshair' : 'default',
+              }}
+              aria-label={figure.label}
+              onClick={debugMode ? ((e: React.MouseEvent<SVGSVGElement>) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const x = Math.round(((e.clientX - rect.left) / rect.width) * 100 * 10) / 10
+                const y = Math.round(((e.clientY - rect.top) / rect.height) * 100 * 10) / 10
+                setDebugClick({ x, y })
+              }) : undefined}
+            >
+              {/* anatomy image fills the entire viewBox */}
+              <image
+                href={figure.image}
+                x={0}
+                y={0}
+                width={100}
+                height={150}
+                preserveAspectRatio="xMidYMid meet"
+                onLoad={() => setImgOpacity(1)}
+                style={{ pointerEvents: 'none' }}
+              />
+              {/* hotspots — x/y are 0–100 percentages; cy = h.y * 1.5 maps into the 150-unit viewBox height */}
+              {figure.hotspots.map(h => {
+                const isActive = selectedHotspot?.id === h.id && sheetOpen
+                const isHov = hoveredHotspot === h.id
+                const cx = h.x
+                const cy = h.y * 1.5
+                const r = isMobile ? 3.5 : 2.5
+                return (
+                  <g
+                    key={h.id}
+                    onClick={(e) => { e.stopPropagation(); handleHotspotClick(h) }}
+                    onMouseEnter={() => !isMobile && setHoveredHotspot(h.id)}
+                    onMouseLeave={() => !isMobile && setHoveredHotspot(null)}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleHotspotClick(h) }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* invisible tap target — larger hit area on mobile */}
+                    <circle cx={cx} cy={cy} r={isMobile ? 5 : 3.5} fill="transparent" style={{ touchAction: 'none' }} />
+                    {/* visible ring */}
+                    <circle
+                      cx={cx} cy={cy} r={r}
+                      fill={isActive ? 'rgba(201,168,76,0.20)' : isHov ? 'rgba(201,168,76,0.12)' : 'rgba(201,168,76,0.06)'}
+                      stroke={isActive ? 'rgba(201,168,76,0.95)' : isHov ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.35)'}
+                      strokeWidth={0.6}
+                      style={{ pointerEvents: 'none', transition: 'fill 0.15s, stroke 0.15s' }}
+                    />
+                    {/* gold center dot — always visible so users can find hotspots */}
+                    <circle
+                      cx={cx} cy={cy} r={0.8}
+                      fill={isActive ? '#C9A84C' : 'rgba(201,168,76,0.55)'}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  </g>
+                )
+              })}
+            </svg>
+            {/* Hovered label tooltip (desktop only) — positioned over the SVG wrapper */}
+            {!isMobile && hoveredHotspot && !sheetOpen && (() => {
+              const h = figure.hotspots.find(p => p.id === hoveredHotspot)
+              if (!h) return null
+              return (
+                <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 2.5%)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
+                  fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
+                  background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
+                  {h.label}
+                </div>
+              )
+            })()}
+            {/* Debug coordinate label */}
+            {debugMode && debugClick && (
+              <div
+                onClick={e => { e.stopPropagation(); setDebugClick(null) }}
+                style={{
+                  position: 'absolute', left: `${debugClick.x}%`, top: `${debugClick.y}%`,
+                  transform: 'translate(-50%, -120%)', zIndex: 20, pointerEvents: 'auto', cursor: 'pointer',
+                  background: '#0D0B14', border: `1px solid ${GC}`, borderRadius: 4,
+                  padding: '4px 10px', whiteSpace: 'nowrap', fontFamily: cinzel, fontSize: 9,
+                  color: GC, letterSpacing: '0.08em', boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                }}>
+                x: {debugClick.x}% · y: {debugClick.y}%
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop side panel — slides in from right within the main area */}
+        {!isMobile && sheetOpen && selectedHotspot && (
+          <div style={{
+            width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column',
+            background: '#0f0c07', borderLeft: '1px solid #2a2218', overflow: 'hidden',
+          }}>
+            {panelContent}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile bottom sheet */}
+      {isMobile && sheetOpen && selectedHotspot && (
+        <>
+          <div onClick={closeSheet} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.4)' }} />
+          <div style={{
+            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50,
+            maxHeight: '60dvh', display: 'flex', flexDirection: 'column',
+            background: '#0f0c07', borderTop: '1px solid #2a2218',
+            borderRadius: '14px 14px 0 0', boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
+            overflow: 'hidden',
+          }}>
+            {panelContent}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── STREAM TIME AGO (uses last_active from Stream API) ─────
+function streamTimeAgo(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 2) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return `${Math.floor(days / 30)}mo ago`
+}
+
+// ── TIME AGO HELPER ────────────────────────────────────────
+function timeAgo(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 2) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return `${Math.floor(days / 30)}mo ago`
+}
+
+// ── FORUM VIEW ─────────────────────────────────────────────────────────────────
+
+const F_SURF  = 'rgba(255,255,255,0.03)'
+const F_SURF2 = 'rgba(255,255,255,0.06)'
+const F_BDR   = 'rgba(201,168,76,0.15)'
+const F_TXT   = '#f0e8d8'
+const F_DIM   = '#8B7355'
+const F_MUT   = '#6b5e45'
+
+const FORUM_TIER_LEVELS: Record<string, number> = {
+  free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 99,
+}
+
+const FORUM_POST_TYPES: Record<string, { label: string; color: string; bg: string; placeholder: string }> = {
+  discussion:   { label: 'Discussion',   color: '#C9A84C', bg: 'rgba(201,168,76,0.12)',   placeholder: 'Share your thoughts with the community…'    },
+  question:     { label: 'Question',     color: '#4A9EE8', bg: 'rgba(74,158,232,0.12)',   placeholder: "What's your question for the community?"    },
+  revelation:   { label: 'Revelation',   color: '#9B7FD4', bg: 'rgba(155,127,212,0.12)', placeholder: 'What has God shown you?'                     },
+  field_report: { label: 'Field Report', color: '#D4524A', bg: 'rgba(212,82,74,0.12)',   placeholder: 'What happened in the field?'                 },
+  prayer:       { label: 'Prayer',       color: '#4CAF7D', bg: 'rgba(76,175,125,0.12)',  placeholder: 'How can we pray with you?'                   },
+  resource:     { label: 'Resource',     color: '#4AB8C9', bg: 'rgba(74,184,201,0.12)',  placeholder: 'Tell us about this resource…'                },
+}
+
+const FORUM_TIER_STYLES: Record<string, { label: string; color: string; bg: string }> = {
+  minister:  { label: 'Minister',  color: '#C9A84C', bg: 'rgba(201,168,76,0.15)'  },
+  general:   { label: 'General',   color: '#e2c96e', bg: 'rgba(226,201,110,0.12)' },
+  commander: { label: 'Commander', color: '#a0c4e8', bg: 'rgba(160,196,232,0.12)' },
+  soldier:   { label: 'Soldier',   color: '#9de0ad', bg: 'rgba(157,224,173,0.12)' },
+  free:      { label: 'Watchman',  color: '#8B7355', bg: 'rgba(139,115,85,0.1)'   },
+}
+
+function ForumTierPill({ tier }: { tier: string }) {
+  const s = FORUM_TIER_STYLES[tier] || FORUM_TIER_STYLES.free
+  return (
+    <span style={{ background: s.bg, color: s.color, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', padding: '1px 7px', borderRadius: 10, border: `1px solid ${s.color}44`, flexShrink: 0 }}>
+      {s.label}
+    </span>
+  )
+}
+
+function ForumTagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
+  const [input, setInput] = useState('')
+  function add(val: string) {
+    const tag = val.trim().toLowerCase().replace(/\s+/g, '-').slice(0, 40)
+    if (tag && !tags.includes(tag) && tags.length < 10) onChange([...tags, tag])
+    setInput('')
+  }
+  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(input) }
+    if (e.key === 'Backspace' && !input && tags.length) onChange(tags.slice(0, -1))
+  }
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, padding: '6px 10px', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, cursor: 'text', minHeight: 38, alignItems: 'center' }}
+      onClick={e => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}>
+      {tags.map(t => (
+        <span key={t} style={{ background: 'rgba(74,158,232,0.12)', color: '#4A9EE8', fontFamily: cinzel, fontSize: 9, padding: '2px 8px', borderRadius: 10, border: '1px solid rgba(74,158,232,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          {t}
+          <button type="button" onClick={() => onChange(tags.filter(x => x !== t))} style={{ background: 'transparent', border: 'none', color: '#4A9EE8', cursor: 'pointer', padding: 0, fontSize: 10, lineHeight: 1 }}>×</button>
+        </span>
+      ))}
+      <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey} onBlur={() => input.trim() && add(input)}
+        placeholder={tags.length === 0 ? 'Add tags (Enter to add)…' : ''}
+        style={{ border: 'none', background: 'transparent', outline: 'none', color: F_TXT, fontFamily: crimson, fontSize: 13, flex: 1, minWidth: 120 }} />
+    </div>
+  )
+}
+
+function ForumResourceCard({ url, title, thumbnail, description, domain }: any) {
+  if (!url) return null
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      style={{ display: 'flex', gap: 12, background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 8, padding: '10px 12px', textDecoration: 'none', alignItems: 'flex-start', marginTop: 8 }}>
+      {thumbnail && <img src={thumbnail} alt="" style={{ width: 80, height: 56, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {title && <div style={{ fontFamily: cinzel, fontSize: 11, color: F_TXT, letterSpacing: '0.04em', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{title}</div>}
+        {description && <div style={{ fontFamily: crimson, fontSize: 12, color: F_DIM, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{description}</div>}
+        {domain && <div style={{ fontFamily: cinzel, fontSize: 8, color: F_MUT, marginTop: 4, letterSpacing: '0.08em' }}>{domain}</div>}
+      </div>
+    </a>
+  )
+}
+
+function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => void; onCancel: () => void; canPost: boolean }) {
+  const { getToken } = useAuth()
+  const [postType,    setPostType]    = useState('discussion')
+  const [title,       setTitle]       = useState('')
+  const [body,        setBody]        = useState('')
+  const [tags,        setTags]        = useState<string[]>([])
+  const [resourceUrl, setResourceUrl] = useState('')
+  const [ogData,      setOgData]      = useState<any>(null)
+  const [ogLoading,   setOgLoading]   = useState(false)
+  const [submitting,  setSubmitting]  = useState(false)
+  const [error,       setError]       = useState('')
+  const tc = FORUM_POST_TYPES[postType]
+  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '9px 12px', color: F_TXT, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }
+
+  async function fetchOg(url: string) {
+    if (!url.trim()) return
+    setOgLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/forum-og', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
+      if (res.ok) { const d = await res.json(); setOgData(d) }
+    } catch {}
+    setOgLoading(false)
+  }
+
+  async function submit() {
+    if (!title.trim()) { setError('Title is required'); return }
+    if (postType !== 'resource' && !body.trim()) { setError('Body is required'); return }
+    if (postType === 'resource' && !resourceUrl.trim()) { setError('URL is required for Resource Share'); return }
+    setSubmitting(true); setError('')
+    try {
+      const token = await getToken()
+      const payload: any = { title: title.trim(), post_type: postType, tags }
+      if (body.trim())         payload.body                 = body.trim()
+      if (resourceUrl.trim())  payload.resource_url         = resourceUrl.trim()
+      if (ogData?.title)       payload.resource_title       = ogData.title
+      if (ogData?.thumbnail)   payload.resource_thumbnail   = ogData.thumbnail
+      if (ogData?.description) payload.resource_description = ogData.description
+      const res = await fetch('/api/forum-posts', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (res.ok) {
+        const d = await res.json()
+        onPost(d.post)
+        setTitle(''); setBody(''); setTags([]); setResourceUrl(''); setOgData(null); setPostType('discussion')
+      } else { const d = await res.json(); setError(d.error || 'Failed to post') }
+    } catch { setError('Network error') }
+    setSubmitting(false)
+  }
+
+  return (
+    <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 12, padding: '24px 28px', marginBottom: 16, width: '100%', boxSizing: 'border-box' as const }}>
+      <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ New Post</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 14 }}>
+        {Object.entries(FORUM_POST_TYPES).map(([k, v]) => (
+          <button key={k} type="button" onClick={() => setPostType(k)}
+            style={{ background: postType === k ? v.bg : 'transparent', border: `1px solid ${postType === k ? v.color : F_BDR}`, borderRadius: 20, padding: '4px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: postType === k ? v.color : F_DIM, letterSpacing: '0.08em' }}>
+            {v.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+        <input placeholder="Title (required)" value={title} onChange={e => setTitle(e.target.value)} maxLength={200} style={inputSt} />
+        {postType !== 'resource' && (
+          <textarea placeholder={tc.placeholder} value={body} onChange={e => setBody(e.target.value)} rows={8} maxLength={20000} style={{ ...inputSt, resize: 'vertical' as const, minHeight: 150 }} />
+        )}
+        {postType === 'resource' && (
+          <>
+            <textarea placeholder={tc.placeholder} value={body} onChange={e => setBody(e.target.value)} rows={3} maxLength={2000} style={{ ...inputSt, resize: 'vertical' as const }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input placeholder="Resource URL" value={resourceUrl} onChange={e => setResourceUrl(e.target.value)}
+                onBlur={() => resourceUrl.trim() && fetchOg(resourceUrl)}
+                onPaste={e => { setTimeout(() => { const v = (e.target as HTMLInputElement).value; if (v.startsWith('http')) fetchOg(v) }, 100) }}
+                style={{ ...inputSt, flex: 1 }} />
+              {ogLoading && <span style={{ color: F_DIM, fontFamily: cinzel, fontSize: 10, alignSelf: 'center' }}>Fetching…</span>}
+            </div>
+            {ogData && <ForumResourceCard {...ogData} url={resourceUrl} />}
+          </>
+        )}
+        <ForumTagInput tags={tags} onChange={setTags} />
+        {error && <div style={{ color: '#f87171', fontFamily: crimson, fontSize: 12 }}>{error}</div>}
+        {!canPost && <div style={{ color: F_DIM, fontFamily: crimson, fontSize: 12, fontStyle: 'italic' }}>Soldier+ tier required to post. You can still comment on existing posts.</div>}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 6, color: F_DIM, fontFamily: cinzel, fontSize: 9, padding: '8px 18px', cursor: 'pointer', letterSpacing: '0.08em' }}>Cancel</button>
+          <button type="button" onClick={submit} disabled={submitting || !canPost}
+            style={{ background: canPost ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${canPost ? 'rgba(201,168,76,0.4)' : F_BDR}`, borderRadius: 6, color: canPost ? G : F_MUT, fontFamily: cinzel, fontSize: 9, padding: '8px 20px', cursor: canPost ? 'pointer' : 'not-allowed', letterSpacing: '0.08em', opacity: submitting ? 0.6 : 1 }}>
+            {submitting ? 'Posting…' : 'Post'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ForumPostEditForm({ post, onSave, onCancel }: any) {
+  const { getToken } = useAuth()
+  const [title,  setTitle]  = useState(post.title || '')
+  const [body,   setBody]   = useState(post.body || '')
+  const [tags,   setTags]   = useState<string[]>(post.tags || [])
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState('')
+  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '8px 12px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }
+
+  async function save() {
+    if (!title.trim()) { setError('Title required'); return }
+    setSaving(true)
+    const token = await getToken()
+    const res = await fetch('/api/forum-posts', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: post.id, title: title.trim(), body: body.trim(), tags }) })
+    if (res.ok) { const d = await res.json(); onSave(d.post) }
+    else { const d = await res.json(); setError(d.error || 'Failed to save') }
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+      <input value={title} onChange={e => setTitle(e.target.value)} style={inputSt} placeholder="Title" />
+      <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} style={{ ...inputSt, resize: 'vertical' as const }} />
+      <ForumTagInput tags={tags} onChange={setTags} />
+      {error && <div style={{ color: '#f87171', fontFamily: crimson, fontSize: 12 }}>{error}</div>}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={save} disabled={saving} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, padding: '6px 16px', cursor: 'pointer' }}>{saving ? '…' : 'Save'}</button>
+        <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 5, color: F_DIM, fontFamily: cinzel, fontSize: 9, padding: '6px 12px', cursor: 'pointer' }}>Cancel</button>
+      </div>
+    </div>
+  )
+}
+
+function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isMinister, getToken }: any) {
+  const [comments,   setComments]   = useState<any[]>([])
+  const [loaded,     setLoaded]     = useState(false)
+  const [loading,    setLoading]    = useState(false)
+  const [draft,      setDraft]      = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (loaded) return
+    setLoading(true)
+    const load = async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/forum-comments?postId=${postId}`, { headers: { Authorization: `Bearer ${token}` } })
+        if (res.ok) { const d = await res.json(); setComments(d.comments || []) }
+      } catch {}
+      setLoading(false); setLoaded(true)
+    }
+    load()
+  }, [])
+
+  async function submit() {
+    if (!draft.trim()) return
+    setSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/forum-comments', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ postId, body: draft.trim() }) })
+      if (res.ok) { const d = await res.json(); setComments(c => [...c, d.comment]); setDraft('') }
+    } catch {}
+    setSubmitting(false)
+  }
+
+  async function del(id: string) {
+    const token = await getToken()
+    await fetch(`/api/forum-comments?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setComments(c => c.filter(x => x.id !== id))
+  }
+
+  return (
+    <div style={{ borderTop: `1px solid ${F_BDR}`, padding: '14px 16px 16px' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>
+        {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
+      </div>
+      {loading && <div style={{ color: F_DIM, fontFamily: cinzel, fontSize: 9, padding: '8px 0' }}>Loading…</div>}
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 14 }}>
+        {comments.map(c => (
+          <div key={c.id} style={{ background: F_SURF2, borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' as const }}>
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.05em' }}>{c.author_name}</span>
+              <ForumTierPill tier={c.author_tier} />
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: F_MUT }}>{timeAgo(c.created_at)}</span>
+              {(c.user_id === userId || isMinister) && (
+                <button onClick={() => del(c.id)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: F_MUT, cursor: 'pointer', fontSize: 11, padding: '0 2px', opacity: 0.6 }} title="Delete">✕</button>
+              )}
+            </div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: F_TXT, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>{c.body}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        <textarea placeholder="Write a comment… (Cmd+Enter to submit)" value={draft} onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
+          rows={2} style={{ flex: 1, background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '8px 10px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'none' as const }} />
+        <button onClick={submit} disabled={submitting || !draft.trim()}
+          style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, padding: '9px 14px', cursor: 'pointer', opacity: (!draft.trim() || submitting) ? 0.4 : 1, whiteSpace: 'nowrap' as const, letterSpacing: '0.08em' }}>
+          {submitting ? '…' : 'Reply'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete }: any) {
+  const [expanded, setExpanded] = useState(false)
+  const [editing,  setEditing]  = useState(false)
+  const [voting,   setVoting]   = useState(false)
+  const tc = FORUM_POST_TYPES[post.post_type] || FORUM_POST_TYPES.discussion
+
+  async function vote(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (voting) return
+    setVoting(true)
+    const token = await getToken()
+    const res = await fetch('/api/forum-vote', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: post.id }) })
+    if (res.ok) { const d = await res.json(); onUpdate({ ...post, upvotes: d.upvotes, voted: d.voted }) }
+    setVoting(false)
+  }
+
+  async function togglePin(e: React.MouseEvent) {
+    e.stopPropagation()
+    const token = await getToken()
+    const res = await fetch('/api/forum-posts', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: post.id, pinned: !post.pinned }) })
+    if (res.ok) { const d = await res.json(); onUpdate(d.post) }
+  }
+
+  async function del(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!confirm('Delete this post?')) return
+    const token = await getToken()
+    await fetch(`/api/forum-posts?id=${post.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    onDelete(post.id)
+  }
+
+  const isOwn = post.user_id === userId
+
+  const postTypeToClass: Record<string, import('@/components/primitives').ClassLevel> = {
+    discussion: 'III', question: 'III', revelation: 'II',
+    field_report: 'I', prayer: 'IV', resource: 'II',
+  }
+
+  return (
+    <div style={{ position: 'relative', background: 'var(--bg-2)', border: `1px solid ${post.pinned ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, borderLeft: post.pinned ? `3px solid var(--gold)` : '3px solid transparent', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '16px 10px', gap: 2, borderRight: `1px solid var(--gold-line)`, flexShrink: 0, width: 52 }}>
+          <button onClick={vote} title={post.voted ? 'Remove vote' : 'Upvote'}
+            style={{ background: post.voted ? 'rgba(201,168,76,0.15)' : 'transparent', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2, transition: 'background 0.15s' }}>
+            <span style={{ fontSize: 14, color: post.voted ? G : F_MUT }}>▲</span>
+            <span style={{ fontFamily: cinzel, fontSize: 11, color: post.voted ? G : F_DIM, letterSpacing: '0.04em' }}>{post.upvotes || 0}</span>
+          </button>
+        </div>
+        <div style={{ flex: 1, minWidth: 0, padding: '12px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' as const }}>
+            <ClassBadge level={postTypeToClass[post.post_type] || 'III'} label={tc.label} />
+            {post.pinned && <HUDChip>📌 Pinned</HUDChip>}
+            {(post.tags || []).map((tag: string) => (
+              <span key={tag} style={{ background: 'rgba(74,158,232,0.08)', color: '#4A9EE8', fontFamily: cinzel, fontSize: 7, padding: '1px 7px', borderRadius: 10, border: '1px solid rgba(74,158,232,0.25)' }}>{tag}</span>
+            ))}
+          </div>
+          {editing ? (
+            <ForumPostEditForm post={post} onSave={(updated: any) => { onUpdate(updated); setEditing(false) }} onCancel={() => setEditing(false)} />
+          ) : (
+            <>
+              <div onClick={() => setExpanded(e => !e)} style={{ fontFamily: cinzel, fontSize: 14, color: F_TXT, letterSpacing: '0.04em', marginBottom: 6, lineHeight: 1.4, cursor: 'pointer' }}>{post.title}</div>
+              {post.body && (
+                <div onClick={() => setExpanded(e => !e)} style={{ fontFamily: crimson, fontSize: 13, color: F_DIM, lineHeight: 1.6, cursor: 'pointer',
+                  ...(expanded ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }) }}>
+                  {post.body}
+                </div>
+              )}
+              {post.resource_url && (
+                <ForumResourceCard url={post.resource_url} title={post.resource_title} thumbnail={post.resource_thumbnail} description={post.resource_description}
+                  domain={(() => { try { return new URL(post.resource_url).hostname.replace('www.','') } catch { return '' } })()} />
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' as const }}>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: F_DIM, letterSpacing: '0.04em' }}>{post.author_name}</span>
+                <ForumTierPill tier={post.author_tier} />
+                <MonoTime color="var(--t-4)" size={9}>{timeAgo(post.created_at)}</MonoTime>
+                <button onClick={() => setExpanded(e => !e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 4, color: F_DIM }}>
+                  <span style={{ fontSize: 11 }}>💬</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em' }}>{post.comment_count || 0}</span>
+                </button>
+                <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                  {isOwn && !isMinister && (
+                    <button onClick={() => setEditing(true)} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 4, color: F_DIM, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>✎ Edit</button>
+                  )}
+                  {isMinister && (
+                    <>
+                      <button onClick={() => setEditing(true)} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 4, color: F_DIM, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>✎</button>
+                      <button onClick={togglePin} style={{ background: post.pinned ? 'rgba(201,168,76,0.1)' : 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 4, color: post.pinned ? G : F_DIM, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>📌</button>
+                    </>
+                  )}
+                  {(isOwn || isMinister) && (
+                    <button onClick={del} style={{ background: 'transparent', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>🗑</button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      {expanded && !editing && (
+        <ForumCommentsSection postId={post.id} commentCount={post.comment_count} userId={userId} isMinister={isMinister} getToken={getToken} />
+      )}
+    </div>
+  )
+}
+
+function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: boolean; userId: string; userTier: string }) {
+  const { getToken } = useAuth()
+  const { user }     = useUser()
+  const userRole     = (user?.publicMetadata?.role as string) || ''
+  const isMinister   = userRole === 'minister'
+  const canPost      = FORUM_TIER_LEVELS[userTier] >= 1 || isMinister
+
+  const [posts,       setPosts]       = useState<any[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [sort,        setSort]        = useState('hot')
+  const [typeFilter,  setTypeFilter]  = useState('all')
+  const [tagFilter,   setTagFilter]   = useState('')
+  const [search,      setSearch]      = useState('')
+  const [composing,   setComposing]   = useState(false)
+  const [page,        setPage]        = useState(0)
+  const [hasMore,     setHasMore]     = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  async function load(p = 0, appendMode = false) {
+    if (p === 0) setLoading(true); else setLoadingMore(true)
+    try {
+      const token = await getToken()
+      const params = new URLSearchParams({ sort, page: String(p), limit: '20' })
+      if (typeFilter !== 'all') params.set('type', typeFilter)
+      if (tagFilter)            params.set('tag', tagFilter)
+      const res = await fetch(`/api/forum-posts?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        setPosts(prev => appendMode ? [...prev, ...(d.posts || []).map((p: any) => ({ ...p, voted: p.voted ?? false }))] : (d.posts || []).map((p: any) => ({ ...p, voted: p.voted ?? false })))
+        setHasMore(d.hasMore)
+      }
+    } catch {}
+    if (p === 0) setLoading(false); else setLoadingMore(false)
+  }
+
+  useEffect(() => { setPage(0); load(0) }, [sort, typeFilter, tagFilter])
+
+  function loadMore() { const next = page + 1; setPage(next); load(next, true) }
+  function onPost(newPost: any) { setPosts(prev => [newPost, ...prev]); setComposing(false) }
+  function onUpdate(updated: any) { setPosts(prev => prev.map(p => p.id === updated.id ? updated : p)) }
+  function onDelete(id: string) { setPosts(prev => prev.filter(p => p.id !== id)) }
+
+  const displayed = search.trim()
+    ? posts.filter(p => p.title.toLowerCase().includes(search.toLowerCase()) || (p.tags || []).some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
+    : posts
+
+  const tagCounts: Record<string, number> = {}
+  posts.forEach(p => (p.tags || []).forEach((t: string) => { tagCounts[t] = (tagCounts[t] || 0) + 1 }))
+  const trendingTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const pinnedPosts  = posts.filter(p => p.pinned)
+
+  const sortBtnSt = (s: string): React.CSSProperties => ({
+    background: sort === s ? 'rgba(201,168,76,0.12)' : 'transparent',
+    border: `1px solid ${sort === s ? 'rgba(201,168,76,0.4)' : 'transparent'}`,
+    borderRadius: 6, padding: '6px 16px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10,
+    color: sort === s ? G : F_DIM, letterSpacing: '0.08em',
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%', overflow: 'hidden', background: '#0D0B14' }}>
+      {/* Sticky header */}
+      <div style={{ borderBottom: `1px solid ${F_BDR}`, padding: '16px 24px 0', background: '#0D0B14', flexShrink: 0 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>⚔ The Ops Board</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: F_DIM, fontStyle: 'italic', marginBottom: 14 }}>Open discussion for the War Room Intel community</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, paddingBottom: 12 }}>
+          <button onClick={() => setSort('hot')} style={sortBtnSt('hot')}>🔥 Hot</button>
+          <button onClick={() => setSort('new')} style={sortBtnSt('new')}>✨ New</button>
+          <button onClick={() => setSort('top')} style={sortBtnSt('top')}>⬆ Top</button>
+          <div style={{ flex: 1, maxWidth: 280 }}>
+            <input placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)}
+              style={{ width: '100%', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '6px 12px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+          </div>
+          {!isMobile && canPost && (
+            <button onClick={() => setComposing(c => !c)}
+              style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, padding: '7px 20px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
+              ＋ New Post
+            </button>
+          )}
+          {!isMobile && !canPost && (
+            <button onClick={() => { window.location.href = '/membership' }}
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 9, padding: '7px 14px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
+              🔒 Soldier+ to Post
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, paddingBottom: 12 }}>
+          <button onClick={() => setTypeFilter('all')}
+            style={{ background: typeFilter === 'all' ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${typeFilter === 'all' ? 'rgba(201,168,76,0.4)' : F_BDR}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === 'all' ? G : F_DIM, letterSpacing: '0.08em' }}>
+            All
+          </button>
+          {Object.entries(FORUM_POST_TYPES).map(([k, v]) => (
+            <button key={k} onClick={() => setTypeFilter(typeFilter === k ? 'all' : k)}
+              style={{ background: typeFilter === k ? v.bg : 'transparent', border: `1px solid ${typeFilter === k ? v.color : F_BDR}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === k ? v.color : F_DIM, letterSpacing: '0.08em' }}>
+              {v.label}
+            </button>
+          ))}
+          {tagFilter && (
+            <button onClick={() => setTagFilter('')}
+              style={{ background: 'rgba(74,158,232,0.1)', border: '1px solid rgba(74,158,232,0.35)', borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: '#4A9EE8', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}>
+              #{tagFilter} ×
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{ flex: 1, overflowY: 'auto' as const }}>
+        <div style={{ display: 'flex', gap: 24, padding: '20px 24px', maxWidth: 1200, margin: '0 auto' }}>
+          {/* Main feed */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {isMobile && canPost && (
+              <button onClick={() => setComposing(c => !c)}
+                style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, padding: '12px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
+                ＋ New Post
+              </button>
+            )}
+            {isMobile && !canPost && (
+              <button onClick={() => { window.location.href = '/membership' }}
+                style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 10, padding: '11px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
+                🔒 Soldier+ tier required to post → Upgrade
+              </button>
+            )}
+            {composing && <ForumPostComposer onPost={onPost} onCancel={() => setComposing(false)} canPost={canPost} />}
+            {loading ? (
+              <div style={{ padding: '60px 0', textAlign: 'center' as const, color: F_DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em' }}>Loading…</div>
+            ) : displayed.length === 0 ? (
+              <div style={{ padding: '60px 0', textAlign: 'center' as const, color: F_DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
+                {posts.length === 0 ? 'No posts yet. Start the conversation.' : 'No posts match this filter.'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                {displayed.map(post => (
+                  <ForumPostCard key={post.id} post={post} userId={userId} isMinister={isMinister} getToken={getToken} onUpdate={onUpdate} onDelete={onDelete} />
+                ))}
+              </div>
+            )}
+            {hasMore && !search && (
+              <div style={{ textAlign: 'center' as const, marginTop: 24 }}>
+                <button onClick={loadMore} disabled={loadingMore}
+                  style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 6, color: F_DIM, fontFamily: cinzel, fontSize: 10, padding: '8px 24px', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                  {loadingMore ? 'Loading…' : 'Load more'}
+                </button>
+              </div>
+            )}
+          </div>
+          {/* Right sidebar */}
+          {!isMobile && (
+            <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+              {canPost ? (
+                <button onClick={() => setComposing(true)}
+                  style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 10, color: G, fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                  ＋ New Post
+                </button>
+              ) : (
+                <button onClick={() => { window.location.href = '/membership' }}
+                  title="Soldier tier required to post"
+                  style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, color: 'rgba(201,168,76,0.4)', fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                  🔒 Soldier+ to Post
+                </button>
+              )}
+              {trendingTags.length > 0 && (
+                <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>🔥 Trending Tags</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                    {trendingTags.map(([tag, count]) => (
+                      <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
+                        style={{ background: tagFilter === tag ? 'rgba(74,158,232,0.12)' : F_SURF, border: `1px solid ${tagFilter === tag ? 'rgba(74,158,232,0.35)' : F_BDR}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: tagFilter === tag ? '#4A9EE8' : F_DIM, letterSpacing: '0.06em' }}>
+                        #{tag} <span style={{ opacity: 0.6 }}>{count}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {pinnedPosts.length > 0 && (
+                <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>📌 Pinned</div>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                    {pinnedPosts.map(p => (
+                      <div key={p.id} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: F_TXT, lineHeight: 1.4, letterSpacing: '0.03em' }}>{p.title}</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: F_MUT, marginTop: 3 }}>{p.author_name} · {timeAgo(p.created_at)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>Community Stats</div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: crimson, fontSize: 13, color: F_DIM }}>Total Discussions</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, color: F_TXT }}>{posts.length}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: crimson, fontSize: 13, color: F_DIM }}>This Week</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, color: F_TXT }}>
+                      {posts.filter(p => Date.now() - new Date(p.created_at).getTime() < 7 * 86400000).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── ONBOARDING ─────────────────────────────────────────────
+function useFirstTime(key: string): [boolean, () => void] {
+  const [show, setShow] = useState(() => {
+    try { return !localStorage.getItem(key) } catch { return false }
+  })
+  const dismiss = useCallback(() => {
+    setShow(false)
+    try { localStorage.setItem(key, '1') } catch {}
+  }, [key])
+  return [show, dismiss]
+}
+
+function OnboardingOverlay({ storageKey, icon, title, points }: {
+  storageKey: string; icon: string; title: string; points: string[]
+}) {
+  const [show, dismiss] = useFirstTime(storageKey)
+  if (!show) return null
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: 'rgba(9,7,15,0.92)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ maxWidth: 480, width: '100%', background: '#0f0c07', border: '1px solid rgba(201,168,76,0.25)', borderTop: '2px solid #C9A84C', borderRadius: 8, padding: '32px 28px' }}>
+        <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' as const }}>{icon}</div>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, textAlign: 'center' as const, marginBottom: 20 }}>{title}</div>
+        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+          {points.map((pt, i) => (
+            <li key={i} style={{ display: 'flex', gap: 10, fontFamily: crimson, fontSize: 14, color: '#c8b896', lineHeight: 1.6 }}>
+              <span style={{ color: G, flexShrink: 0 }}>⚔</span>
+              {pt}
+            </li>
+          ))}
+        </ul>
+        <div style={{ textAlign: 'center' as const }}>
+          <button
+            onClick={dismiss}
+            style={{ padding: '10px 32px', background: 'transparent', border: '1px solid #C9A84C', borderRadius: 4, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          >
+            ENTER BRIEFING →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── SESSION CENTER VIEW ────────────────────────────────────
+function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, demons, onLaunch, userTier }: any) {
+  const isDark = theme !== 'light'
+  const isCommanderOnly = (userTier || '').toLowerCase() === 'commander'
+  const bg     = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf   = isDark ? '#13111e' : '#FFFFFF'
+  const bdr    = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const txt    = isDark ? '#e8dcc8' : '#2D2924'
+  const dim    = isDark ? '#6b5e45' : '#5C5248'
+  const gold   = isDark ? '#C9A84C' : '#8B6914'
+
+  const [sessions, setSessions]     = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [step, setStep]             = useState<'list' | 'new'>(  'list')
+  const [alias, setAlias]           = useState('')
+  const [sessionNum, setSessionNum] = useState(1)
+  const [spiritsFromLS, setSpiritsFromLS] = useState<string[]>([])
+  const [launching, setLaunching]   = useState(false)
+  const [launchError, setLaunchError] = useState('')
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('wri_session_spirits') || '[]')
+      if (Array.isArray(stored)) setSpiritsFromLS(stored)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (step !== 'list') return
+    getToken().then((token: string | null) => {
+      fetch('/api/sessions', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { setSessions(d.sessions || []); setLoading(false) })
+        .catch(() => setLoading(false))
+    })
+  }, [step])
+
+  async function startNewSession() {
+    if (!alias.trim() || launching) return
+    setLaunching(true)
+    setLaunchError('')
+    try {
+      const token = await getToken()
+      const spiritSeq = spiritsFromLS.map(name => {
+        const d = demons.find((x: any) => x.name?.toLowerCase() === name.toLowerCase())
+        return { id: Math.random().toString(36).slice(2), name: d?.name || name, rank: d?.biblicalRank || 'Common Spirit', label: '', status: 'pending', reasoning: '', entryPoints: d?.entryPoints || '', companions: [], scriptures: [], breakthroughLevel: 'none' }
+      })
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ subject_alias: alias.trim(), session_number: sessionNum, spirit_sequence: spiritSeq }),
+      })
+      const data = await res.json()
+      if (data.session) {
+        localStorage.removeItem('wri_session_spirits')
+        onLaunch(data.session.id, { subjectAlias: alias.trim(), sessionNumber: sessionNum, defaultMode: isCommanderOnly ? 'offline' : undefined })
+      } else {
+        setLaunchError(data.error || 'Failed to create session. Try again.')
+      }
+    } catch {
+      setLaunchError('Network error. Check your connection and try again.')
+    } finally {
+      setLaunching(false)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+    border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', color: txt,
+    fontFamily: "'Crimson Pro', serif", fontSize: 15, outline: 'none',
+  }
+
+  const tierLevel = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[(userTier||'').toLowerCase()] ?? 0
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 32px' }}>
+      {isMobile && (
+        <button onClick={() => setSidebarOpen(true)} style={{ background: 'transparent', border: 'none', color: gold, fontSize: 20, cursor: 'pointer', marginBottom: 16, padding: 0 }}>☰</button>
+      )}
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.2em', marginBottom: 4 }}>FIELD OPERATIONS</div>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, color: txt, marginBottom: 4 }}>Session Center</div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: tierLevel < 2 ? 24 : (isCommanderOnly ? 12 : 24) }}>Launch, manage, and resume deliverance sessions.</div>
+
+        {tierLevel < 2 && (
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ fontSize: 40, color: gold, marginBottom: 20, fontFamily: "'Cinzel', serif" }}>⚔</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: gold, letterSpacing: '0.2em', marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
+            <p style={{ color: dim, fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: "'Crimson Pro', serif" }}>
+              The Session Center is a live deliverance operations tool for Commander-tier ministers and above. Upgrade to unlock guided sessions, case file integration, and the 9-role command structure.
+            </p>
+            <a href="/membership" style={{ display: 'inline-block', background: gold, color: '#0D0B14', fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, textDecoration: 'none' }}>
+              Upgrade to Commander
+            </a>
+          </div>
+        )}
+        {tierLevel >= 2 && <>
+
+        {/* Commander tier — offline only */}
+        {isCommanderOnly && (
+          <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.35)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#a78bfa', letterSpacing: '0.12em', marginBottom: 4 }}>COMMANDER TIER — OFFLINE SESSION MODE</div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim, lineHeight: 1.5 }}>Your tier includes offline session capture. Sessions will launch in Quick Capture mode. <a href="/membership" style={{ color: gold }}>Upgrade to General</a> to unlock live and guided modes.</div>
+          </div>
+        )}
+
+        {step === 'list' ? (
+          <>
+            <button onClick={() => setStep('new')} style={{ width: '100%', padding: '14px', background: gold, border: 'none', borderRadius: 8, fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.1em', color: '#060408', cursor: 'pointer', fontWeight: 700, marginBottom: 24 }}>
+              ⚔ START NEW SESSION
+            </button>
+            {spiritsFromLS.length > 0 && (
+              <div style={{ background: `${gold}11`, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.1em' }}>SPIRITS FROM CASE FILES:</span>
+                <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: txt }}>{spiritsFromLS.join(', ')}</span>
+              </div>
+            )}
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim, letterSpacing: '0.15em', marginBottom: 12 }}>RECENT SESSIONS</div>
+            {loading && <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim }}>Loading...</div>}
+            {!loading && sessions.length === 0 && (
+              <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: dim, fontStyle: 'italic' }}>No sessions yet. Start your first session above.</div>
+            )}
+            {sessions.map(s => {
+              const isActive = s.status === 'active' || s.status === 'paused'
+              const spirits  = (s.spirit_sequence || []).length
+              const expelled = (s.spirit_sequence || []).filter((x: any) => x.status === 'expelled').length
+              return (
+                <div key={s.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '14px 18px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: txt }}>{s.subject_alias}</span>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>#{s.session_number}</span>
+                      {s.status === 'paused' && (
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: '#fb923c', background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.3)', borderRadius: 10, padding: '1px 6px' }}>IN PROGRESS</span>
+                      )}
+                      {s.status === 'completed' && (
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 10, padding: '1px 6px' }}>COMPLETED</span>
+                      )}
+                    </div>
+                    <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: dim }}>
+                      {new Date(s.created_at).toLocaleDateString()} · {spirits} spirits · {expelled} expelled
+                    </div>
+                  </div>
+                  {isActive && (
+                    <button onClick={() => onLaunch(s.id, { subjectAlias: s.subject_alias, sessionNumber: s.session_number })}
+                      style={{ padding: '8px 14px', background: s.status === 'paused' ? 'rgba(251,146,60,0.15)' : `${gold}22`, border: `1px solid ${s.status === 'paused' ? 'rgba(251,146,60,0.4)' : bdr}`, borderRadius: 6, color: s.status === 'paused' ? '#fb923c' : gold, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      {s.status === 'paused' ? '▶ RESUME' : '▶ ENTER'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </>
+        ) : (
+          /* New Session Form */
+          <div>
+            <button onClick={() => setStep('list')} style={{ background: 'transparent', border: 'none', color: dim, fontFamily: "'Cinzel', serif", fontSize: 9, cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 20, padding: 0 }}>← BACK</button>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: txt, marginBottom: 20 }}>New Session Setup</div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', color: dim, marginBottom: 5 }}>SUBJECT ALIAS</label>
+              <input value={alias} onChange={e => setAlias(e.target.value)} placeholder="e.g. Jane D." style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', color: dim, marginBottom: 5 }}>SESSION NUMBER</label>
+              <input type="number" min={1} value={sessionNum} onChange={e => setSessionNum(parseInt(e.target.value) || 1)} style={{ ...inputStyle, width: 100 }} />
+            </div>
+            {spiritsFromLS.length > 0 && (
+              <div style={{ background: `${gold}11`, border: `1px solid ${bdr}`, borderRadius: 8, padding: '10px 14px', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.1em', marginBottom: 6 }}>PRE-LOADED FROM CASE FILES</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                  {spiritsFromLS.map(name => (
+                    <span key={name} style={{ padding: '2px 8px', borderRadius: 10, background: `${gold}11`, border: `1px solid ${bdr}`, fontFamily: "'Cinzel', serif", fontSize: 9, color: gold }}>{name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {launchError && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 6, fontFamily: "'Crimson Pro', serif", fontSize: 13, color: '#f87171' }}>
+                {launchError}
+              </div>
+            )}
+            <button type="button" onClick={startNewSession} disabled={!alias.trim() || launching}
+              style={{ width: '100%', padding: '14px', background: alias.trim() && !launching ? gold : 'transparent', border: `1px solid ${alias.trim() && !launching ? gold : bdr}`, borderRadius: 8, fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.1em', color: alias.trim() && !launching ? '#060408' : dim, cursor: alias.trim() && !launching ? 'pointer' : 'default', fontWeight: 700 }}>
+              {launching ? 'CREATING SESSION...' : '⚔ LAUNCH SESSION'}
+            </button>
+          </div>
+        )}
+        </>}
+      </div>
+    </div>
+  )
+}
+
+// ── MAIN PAGE ──────────────────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BO08S4Y49Q5vv1I-E_bV9NSaygiXF5GKgZ_Zmq6vQ5AWc9PG0Z_9qnSpP21TucVowWky6SHe6YlNRir_tdHeW-Q'
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+}
+
+function AssessmentUploadView({ theme, isMobile, setSidebarOpen, tier: _tier, tierLevel: _tierLevel, user, getToken }: {
+  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void;
+  tier: string; tierLevel: number; user: any; getToken: () => Promise<string | null>
+}) {
+  const isDark = theme === 'dark'
+  const G = '#C9A84C'
+  const cinzel = "'Cinzel', serif"
+  const crimson = "'Crimson Pro', serif"
+
+  const [tab, setTab] = useState<'upload'|'fill'|'strategy'>('upload')
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [strategy, setStrategy] = useState('')
+  const [strategyLoading, setStrategyLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showAnonConsent, setShowAnonConsent] = useState(false)
+  const [anonConsented, setAnonConsented] = useState<boolean | null>(null)
+  const [extractedText, setExtractedText] = useState('')
+
+  async function handleFileUpload(f: File) {
+    setFile(f)
+    setError('')
+    setStrategy('')
+
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const base64 = (e.target?.result as string)?.split(',')[1]
+      if (!base64) return
+
+      setUploading(true)
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/assessment-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ fileName: f.name, fileType: f.type, fileData: base64 }),
+        })
+        const data = await res.json()
+        if (data.extractedText) {
+          setExtractedText(data.extractedText)
+          setShowAnonConsent(true)
+        } else {
+          setError(data.error || 'Could not read the file. Please try a different format.')
+        }
+      } catch {
+        setError('Upload failed. Please try again.')
+      } finally {
+        setUploading(false)
+      }
+    }
+    reader.readAsDataURL(f)
+  }
+
+  async function generateStrategy(consented: boolean) {
+    setShowAnonConsent(false)
+    setAnonConsented(consented)
+    setStrategyLoading(true)
+    setTab('strategy')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/assessment-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          assessmentText: extractedText,
+          anonymizeAndLog: consented,
+          userName: user?.firstName || 'Warrior',
+        }),
+      })
+      const data = await res.json()
+      if (data.strategy) {
+        setStrategy(data.strategy)
+      } else {
+        setError(data.error || 'Strategy generation failed.')
+      }
+    } catch {
+      setError('Could not generate strategy. Please try again.')
+    } finally {
+      setStrategyLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: isDark ? '#0D0B14' : '#FAF8F5', padding: isMobile ? '16px' : '28px 32px' }}>
+      {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 20, cursor: 'pointer', marginBottom: 16, padding: 0 }}>☰</button>}
+
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.2em', marginBottom: 4 }}>INTELLIGENCE TOOL</div>
+        <div style={{ fontFamily: cinzel, fontSize: 22, color: isDark ? '#e8dcc8' : '#2D2924', marginBottom: 6 }}>Ministry Assessment</div>
+        <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>
+          Complete the WRI Ministry Assessment to receive an AI-generated spiritual warfare strategy tailored to your situation.
+        </p>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: `1px solid rgba(201,168,76,0.15)`, paddingBottom: 0 }}>
+          {[
+            { id: 'upload',   label: '⬆ Upload Assessment' },
+            { id: 'fill',     label: '✏ Fill Out Now' },
+            { id: 'strategy', label: '⚔ War Strategy' },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id as any)} style={{
+              background: 'none', border: 'none',
+              borderBottom: tab === t.id ? `2px solid ${G}` : '2px solid transparent',
+              color: tab === t.id ? G : isDark ? '#6b5e45' : '#8B7355',
+              fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em',
+              padding: '10px 16px', cursor: 'pointer', marginBottom: -1,
+              transition: 'all 0.15s',
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* UPLOAD TAB */}
+        {tab === 'upload' && (
+          <div>
+            <div style={{ background: isDark ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '16px 20px', marginBottom: 24 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>STEP 1 — GET THE TEMPLATE</div>
+              <p style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#8B7355' : '#5C5248', lineHeight: 1.6, marginBottom: 12 }}>
+                Download the WRI Ministry Assessment PDF. Fill it out on paper or digitally, then upload it below for your AI-generated war strategy.
+              </p>
+              <a href="/assessment" target="_blank" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: G, color: '#060408', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 18px', borderRadius: 5, textDecoration: 'none', fontWeight: 700 }}>
+                Open Assessment Template →
+              </a>
+            </div>
+
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>STEP 2 — UPLOAD COMPLETED ASSESSMENT</div>
+            <p style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#6b5e45' : '#5C5248', marginBottom: 16 }}>
+              Accepts PDF, PNG, JPG (photo of paper form), or DOCX. The AI will read the content and generate a personalized war strategy.
+            </p>
+
+            <label style={{ display: 'block', border: `2px dashed rgba(201,168,76,${file ? '0.6' : '0.25'})`, borderRadius: 10, padding: '40px 20px', textAlign: 'center' as const, cursor: 'pointer', background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.04)', transition: 'all 0.2s' }}>
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f) }} />
+              {uploading ? (
+                <div>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>READING ASSESSMENT...</div>
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#6b5e45' : '#8B7355' }}>AI is extracting your answers...</div>
+                </div>
+              ) : file ? (
+                <div>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>{file.name}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#6b5e45' : '#8B7355' }}>Click to choose a different file</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? '#e8dcc8' : '#2D2924', letterSpacing: '0.08em', marginBottom: 6 }}>DROP FILE HERE OR CLICK TO BROWSE</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#6b5e45' : '#8B7355' }}>PDF · PNG · JPG · DOCX</div>
+                </div>
+              )}
+            </label>
+
+            {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, fontFamily: crimson, fontSize: 14, color: '#fca5a5' }}>{error}</div>}
+
+            <div style={{ textAlign: 'center' as const, marginTop: 28, paddingTop: 24, borderTop: `1px solid rgba(201,168,76,0.12)` }}>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#6b5e45' : '#8B7355', marginBottom: 8 }}>Don't have a completed assessment?</div>
+              <button onClick={() => setTab('fill')} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.35)`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
+                Fill Out Assessment Now →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FILL TAB */}
+        {tab === 'fill' && (
+          <div>
+            <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#8B7355' : '#5C5248', lineHeight: 1.7, marginBottom: 20 }}>
+              Complete the assessment directly here. When you finish, an AI-generated war strategy will be created immediately.
+            </p>
+            <a href="/assessment" style={{ display: 'block', width: '100%', boxSizing: 'border-box' as const, padding: 14, background: G, border: 'none', borderRadius: 8, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: '#060408', cursor: 'pointer', fontWeight: 700, textDecoration: 'none', textAlign: 'center' as const }}>
+              ⚔ Open Full Assessment
+            </a>
+            <p style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#4a3f2a' : '#8B7355', marginTop: 12, textAlign: 'center' as const }}>
+              The full assessment includes Heritage & Bloodline and Inner Healing sections now.
+            </p>
+          </div>
+        )}
+
+        {/* STRATEGY TAB */}
+        {tab === 'strategy' && (
+          <div>
+            {strategyLoading ? (
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>GENERATING WAR STRATEGY...</div>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#8B7355', lineHeight: 1.7 }}>
+                  AI is analyzing your assessment and building a personalized spiritual warfare strategy. This takes 15-30 seconds.
+                </div>
+              </div>
+            ) : strategy ? (
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', marginBottom: 16 }}>⚔ PERSONALIZED WAR STRATEGY</div>
+                <div style={{ whiteSpace: 'pre-wrap' as const, fontFamily: crimson, fontSize: 15, color: isDark ? '#e8dcc8' : '#2D2924', lineHeight: 1.8, background: isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '20px 24px' }}>
+                  {strategy}
+                </div>
+                {anonConsented && (
+                  <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6, fontFamily: crimson, fontSize: 13, color: '#86efac' }}>
+                    ✓ An anonymized copy has been logged to help improve WRI ministry resources.
+                  </div>
+                )}
+                <button onClick={() => { setStrategy(''); setFile(null); setExtractedText(''); setTab('upload') }} style={{ marginTop: 20, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
+                  ← New Assessment
+                </button>
+              </div>
+            ) : !file && !extractedText ? (
+              <div style={{ textAlign: 'center' as const, padding: '40px 20px' }}>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#8B7355' }}>Upload a completed assessment to generate your war strategy.</div>
+                <button onClick={() => setTab('upload')} style={{ marginTop: 16, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>Upload Assessment →</button>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {/* ANONYMOUS CONSENT MODAL */}
+      {showAnonConsent && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#0f0c07', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 12, padding: 28, maxWidth: 480, width: '100%' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>DATA CONSENT</div>
+            <p style={{ fontFamily: crimson, fontSize: 15, color: '#e8dcc8', lineHeight: 1.7, marginBottom: 20 }}>
+              Your assessment has been read successfully. May we anonymize your responses (removing all personal identifiers) and add them to our ministry research database? This helps us improve WRI resources and better understand spiritual warfare patterns across the Body of Christ.
+            </p>
+            <p style={{ fontFamily: crimson, fontSize: 13, color: '#6b5e45', lineHeight: 1.6, marginBottom: 24 }}>
+              Your name, email, and any identifying details will be completely removed. You can say no and still receive your war strategy.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => generateStrategy(true)} style={{ flex: 1, background: G, border: 'none', borderRadius: 6, padding: '12px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#060408', cursor: 'pointer', fontWeight: 700 }}>
+                ✓ Yes, I Consent
+              </button>
+              <button onClick={() => generateStrategy(false)} style={{ flex: 1, background: 'none', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '12px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: G, cursor: 'pointer' }}>
+                No Thanks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── DOCUMENT CREATOR ──────────────────────────────────────────────────────────
+const COMM_DOC_TEMPLATES = [
+  {
+    id: 'session-prep',
+    name: 'Session Preparation Sheet',
+    icon: '⚔️',
+    description: 'Pre-session checklist, prayer, discernment notes, and intercession focus',
+    sections: [
+      { id: 'purpose', label: 'Session Purpose & Goals', instruction: 'Summarize the spiritual goals for this session based on the subject provided' },
+      { id: 'pre-prayer', label: 'Pre-Session Prayer & Authority', instruction: 'Opening declarations of authority, binding prayers, team covering' },
+      { id: 'discernment', label: 'Discernment Notes', instruction: 'Known strongholds, spirits likely present, areas to watch based on subject' },
+      { id: 'checklist', label: 'Session Checklist', instruction: 'Step-by-step preparation checklist for the minister and team' },
+      { id: 'intercession', label: 'Intercession Focus', instruction: 'Specific prayer targets and scripture-based declarations for the session' },
+    ],
+  },
+  {
+    id: 'deliverance-protocol',
+    name: 'Deliverance Protocol',
+    icon: '🗡️',
+    description: 'Step-by-step protocol for addressing a specific spirit or stronghold',
+    sections: [
+      { id: 'overview', label: 'Spirit Overview', instruction: 'Rank, domain, manifestations, and how this spirit gains entry' },
+      { id: 'legal-rights', label: 'Legal Rights to Break', instruction: 'Sins, vows, trauma, and generational ties that give this spirit legal access' },
+      { id: 'renunciation', label: 'Renunciation Script', instruction: 'Word-for-word renunciation the subject should pray aloud' },
+      { id: 'expulsion', label: 'Expulsion Command', instruction: 'Direct command to the spirit, invoking blood of Jesus and authority of Christ' },
+      { id: 'fill-up', label: 'Fill-Up & Aftercare', instruction: 'Holy Spirit invitation, declarations of freedom, ongoing protection steps' },
+    ],
+  },
+  {
+    id: 'field-report-doc',
+    name: 'Field Report',
+    icon: '📋',
+    description: 'Intelligence report documenting a deliverance session for the ministry record',
+    sections: [
+      { id: 'session-summary', label: 'Session Summary', instruction: 'Date, location, team members, subject alias, duration, and general outcome' },
+      { id: 'spirits-addressed', label: 'Spirits Addressed', instruction: 'List of spirits encountered, rank, and response during session' },
+      { id: 'breakthroughs', label: 'Breakthroughs', instruction: 'Specific victories, deliverances, and moments of freedom documented' },
+      { id: 'unfinished', label: 'Unfinished Business', instruction: 'Areas needing follow-up, spirits not fully expelled, inner healing needed' },
+      { id: 'aftercare', label: 'Aftercare Recommendations', instruction: 'Specific instructions for the subject post-session, mentor notes' },
+    ],
+  },
+  {
+    id: 'intercession-brief',
+    name: 'Intercession Brief',
+    icon: '🙏',
+    description: 'Intelligence-style intercession document for a person, region, or situation',
+    sections: [
+      { id: 'target', label: 'Intercession Target', instruction: 'Description of the person, region, or situation requiring intercession' },
+      { id: 'spiritual-landscape', label: 'Spiritual Landscape', instruction: 'Principalities, powers, and spiritual climate over this target' },
+      { id: 'prayer-points', label: 'Strategic Prayer Points', instruction: '5-7 specific scripture-based prayer points for this target' },
+      { id: 'declarations', label: 'Warfare Declarations', instruction: 'Bold, authoritative declarations to make over this target in Jesus name' },
+      { id: 'watch-points', label: 'Watch Points', instruction: 'Signs and confirmations to look for as intercession takes effect' },
+    ],
+  },
+  {
+    id: 'teaching-outline',
+    name: 'Teaching Outline',
+    icon: '📖',
+    description: 'Ministry teaching outline on a spiritual warfare or deliverance topic',
+    sections: [
+      { id: 'intro', label: 'Introduction & Hook', instruction: 'Opening illustration or question that draws the audience into the topic' },
+      { id: 'scriptural-foundation', label: 'Scriptural Foundation', instruction: '3-5 key scriptures with context and application for this teaching' },
+      { id: 'main-points', label: 'Main Teaching Points', instruction: '3-4 clear main points with sub-points, illustrations, and ministry application' },
+      { id: 'practical', label: 'Practical Application', instruction: 'Specific takeaways — what should the listener DO with this teaching' },
+      { id: 'altar-call', label: 'Ministry Response', instruction: 'Closing prayer, altar call, or activation exercise for the audience' },
+    ],
+  },
+]
+
+function DocumentCreatorView({ isMobile, setSidebarOpen, getToken }: any) {
+  const GC = '#C9A84C'
+  const [selectedIdx, setSelectedIdx] = useState(0)
+  const [subject, setSubject] = useState('')
+  const [instructions, setInstructions] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+  const [doc, setDoc] = useState<any>(null)
+
+  const template = COMM_DOC_TEMPLATES[selectedIdx]
+
+  async function generate() {
+    if (!subject.trim()) { setError('Please enter a subject'); return }
+    setGenerating(true); setError(''); setDoc(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/generate-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          templateId: template.id,
+          templateName: template.name,
+          sections: template.sections,
+          subject: subject.trim(),
+          specialInstructions: instructions.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+      setDoc(data.document)
+    } catch (e: any) { setError(e.message || 'Generation failed') }
+    setGenerating(false)
+  }
+
+  return (
+    <div style={{ height: '100%', overflowY: 'auto', background: '#0D0B14' }}>
+      <div style={{ padding: isMobile ? '16px 16px' : '24px 28px', maxWidth: 800, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, flexShrink: 0 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+          )}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: GC, letterSpacing: '0.1em' }}>DOCUMENT CREATOR</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: '#6a5f4f', marginTop: 2 }}>AI-generated ministry documents with WRI context</div>
+          </div>
+        </div>
+
+        {/* Template selector */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: 8, marginBottom: 24 }}>
+          {COMM_DOC_TEMPLATES.map((t, i) => (
+            <button key={t.id} onClick={() => { setSelectedIdx(i); setDoc(null); setError('') }}
+              style={{ padding: '10px 8px', background: selectedIdx === i ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.02)', border: `1px solid ${selectedIdx === i ? GC : 'rgba(201,168,76,0.15)'}`, borderRadius: 8, cursor: 'pointer', textAlign: 'center' as const, transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: selectedIdx === i ? GC : '#6a5f4f', letterSpacing: '0.06em', lineHeight: 1.3 }}>{t.name.toUpperCase()}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Selected template description */}
+        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.08em', marginBottom: 4 }}>{template.name}</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: '#9a8c74' }}>{template.description}</div>
+        </div>
+
+        {/* Input fields */}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6a5f4f', letterSpacing: '0.1em', marginBottom: 6 }}>SUBJECT / TOPIC *</div>
+            <input
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder={template.id === 'session-prep' ? 'e.g. John Doe — Session 2' : template.id === 'deliverance-protocol' ? 'e.g. Spirit of Fear' : template.id === 'teaching-outline' ? 'e.g. Generational Curses' : 'Enter subject or topic'}
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', color: '#f0e8d8', fontFamily: crimson, fontSize: 14, outline: 'none' }}
+            />
+          </div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6a5f4f', letterSpacing: '0.1em', marginBottom: 6 }}>SPECIAL INSTRUCTIONS (optional)</div>
+            <textarea
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              rows={2}
+              placeholder="Any context, focus, or specific details to include..."
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', color: '#f0e8d8', fontFamily: crimson, fontSize: 14, outline: 'none', resize: 'vertical' as const }}
+            />
+          </div>
+        </div>
+
+        {error && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 12 }}>{error}</div>}
+
+        <button onClick={generate} disabled={generating || !subject.trim()}
+          style={{ padding: '11px 28px', background: generating ? 'rgba(201,168,76,0.15)' : GC, border: 'none', borderRadius: 6, color: generating ? GC : '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: generating ? 'default' : 'pointer', opacity: !subject.trim() ? 0.5 : 1, marginBottom: 28 }}>
+          {generating ? '⟳ GENERATING...' : `✦ GENERATE ${template.name.toUpperCase()}`}
+        </button>
+
+        {/* Generated document */}
+        {doc && (
+          <div style={{ border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, overflow: 'hidden', marginBottom: 40 }}>
+            <div style={{ background: 'rgba(201,168,76,0.08)', borderBottom: '1px solid rgba(201,168,76,0.15)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.08em' }}>{doc.title}</div>
+                {doc.subtitle && <div style={{ fontFamily: crimson, fontSize: 12, color: '#6a5f4f', marginTop: 2 }}>{doc.subtitle}</div>}
+              </div>
+              <button onClick={() => window.print()}
+                style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${GC}`, borderRadius: 4, color: GC, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                ⎙ PRINT
+              </button>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              {(doc.sections || []).map((s: any) => (
+                <div key={s.id} style={{ marginBottom: 24 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.1em', marginBottom: 8, borderBottom: '1px solid rgba(201,168,76,0.12)', paddingBottom: 6 }}>{s.label}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 15, color: '#d8d0c0', lineHeight: 1.75, whiteSpace: 'pre-wrap' as const }}>{s.content}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, posts, draft, setDraft, sending, sendPost, fetchPosts, bottomRef, setSidebarOpen }: {
+  isMobile: boolean; isDark: boolean; streamToken: string; apiKey: string
+  user: any; initials: string; posts: StreamMsg[]; draft: string
+  setDraft: (v: string) => void; sending: boolean
+  sendPost: () => void; fetchPosts: () => void
+  bottomRef: React.RefObject<HTMLDivElement | null>; setSidebarOpen: (v: boolean) => void
+}) {
+  const G2 = isDark ? '#C9A84C' : '#8B6914'
+  const V2 = {
+    bdr:  isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)',
+    surf: isDark ? '#1a1714' : '#FFFFFF',
+    bg:   isDark ? '#0D0B14' : '#FAF8F5',
+    txt:  isDark ? '#f0e8d8' : '#2D2924',
+    mut:  isDark ? '#9a8c74' : '#5C5248',
+  }
+
+  const [editingId,    setEditingId]    = useState<string | null>(null)
+  const [editText,     setEditText]     = useState('')
+  const [showComposer, setShowComposer] = useState(false)
+  const [hoveredPostId, setHoveredPostId] = useState<string | null>(null)
+
+  const PINNED: StreamMsg = {
+    id: 'pinned',
+    text: 'Welcome to War Room Intel. If you are fighting for your own freedom or walking others into theirs, you are in the right place. Start by introducing yourself below.',
+    user: { id: 'host', name: 'Pastor Justin Payne' },
+    created_at: new Date().toISOString(),
+  }
+
+  async function handleDeletePost(messageId: string) {
+    if (!confirm('Delete this post?')) return
+    try {
+      await streamFetch(`/messages/${messageId}`, 'DELETE', streamToken, apiKey, undefined)
+      await fetchPosts()
+    } catch (err) { console.error('Delete failed:', err) }
+  }
+
+  async function handleEditPost(messageId: string) {
+    try {
+      await streamFetch(`/messages/${messageId}`, 'PUT', streamToken, apiKey, { message: { text: editText } })
+      setEditingId(null)
+      await fetchPosts()
+    } catch (err) { console.error('Edit failed:', err) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V2.bdr}`, background: V2.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        {isMobile && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G2, fontSize: '20px', flexShrink: 0 }}
+            aria-label="Open navigation"
+          >☰</button>
+        )}
+        <span style={{ fontFamily: cinzel, fontSize: 14, color: G2, letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Community</span>
+        <button onClick={() => setShowComposer(true)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G2, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
+      </div>
+
+      {showComposer && (
+        <div onClick={() => setShowComposer(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: V2.surf, border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 12, width: '100%', maxWidth: 480, padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.85)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${V2.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G2, flexShrink: 0, overflow: 'hidden' }}>
+                {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+              </div>
+              <span style={{ fontFamily: cinzel, fontSize: 12, color: G2, letterSpacing: '0.08em' }}>New Post</span>
+              <button onClick={() => setShowComposer(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: V2.mut, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) { sendPost(); setShowComposer(false) } }}
+              placeholder="Share something with the War Room..."
+              rows={5}
+              style={{ width: '100%', boxSizing: 'border-box', background: V2.bg, border: `1px solid ${V2.bdr}`, borderRadius: 8, padding: '12px 14px', color: V2.txt, fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'none' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+              <button onClick={() => setShowComposer(false)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: V2.mut, background: 'transparent', border: `1px solid ${V2.bdr}`, borderRadius: 3, padding: '6px 14px', cursor: 'pointer' }}>Cancel</button>
+              <button
+                onClick={() => { sendPost(); setShowComposer(false) }}
+                disabled={sending || !draft.trim()}
+                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: sending || !draft.trim() ? 'rgba(201,168,76,0.3)' : G2, border: 'none', borderRadius: 3, padding: '6px 16px', cursor: sending || !draft.trim() ? 'default' : 'pointer' }}>
+                {sending ? '...' : 'Post ⚔'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
+        <PostCard msg={PINNED} pinned isDark={isDark} streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} hoveredId={hoveredPostId} onHover={setHoveredPostId} />
+        {posts.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map(msg => (
+          <PostCard key={msg.id} msg={msg} isDark={isDark}
+            streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts}
+            hoveredId={hoveredPostId} onHover={setHoveredPostId}
+            actions={msg.user?.id === user?.id || user?.publicMetadata?.role === 'minister' ? (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {editingId === msg.id ? (
+                  <>
+                    <textarea
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      rows={2}
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '6px', padding: '6px 10px', color: V2.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' as const }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
+                      <button onClick={() => handleEditPost(msg.id)} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '4px', color: G2, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Save</button>
+                      <button onClick={() => setEditingId(null)} style={{ background: 'none', border: '1px solid rgba(201,168,76,0.15)', borderRadius: '4px', color: V2.mut, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setEditingId(msg.id); setEditText(msg.text || '') }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V2.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G2}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V2.mut}
+                    >✏ Edit</button>
+                    <button
+                      onClick={() => handleDeletePost(msg.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V2.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V2.mut}
+                    >🗑 Delete</button>
+                  </>
+                )}
+              </div>
+            ) : undefined}
+          />
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  )
+}
+
+// ── MessengerSection ──────────────────────────────────────────────────────────
+
+interface MConversation {
+  channelId: string
+  otherMember: { id: string; name: string; image?: string; online?: boolean } | null
+  lastMessage: { text: string; type?: string; attachments?: any[]; user?: { id: string }; created_at?: string } | null
+  unreadCount: number
+  lastMessageAt?: string
+}
+interface MMessage {
+  id: string
+  text: string
+  type?: string
+  user: { id: string; name: string }
+  created_at: string
+  attachments?: Array<{ type: string; asset_url?: string; duration?: number; call_type?: string }>
+}
+
+const SOL_CONVO: MConversation = {
+  channelId: 'sol',
+  otherMember: { id: 'sol-bot', name: 'SOL Intelligence', online: true },
+  lastMessage: { text: 'Ask me anything about the field…' },
+  unreadCount: 0,
+}
+
+function waveformBars(msgId: string): number[] {
+  return Array.from({ length: 12 }, (_, i) => {
+    const seed = ((msgId?.charCodeAt(i % Math.max(msgId.length, 1)) ?? 65) + i * 7) % 17
+    return 6 + seed
+  })
+}
+function fmtDuration(s: number) {
+  const m = Math.floor(s / 60); const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+function MessengerSection({ userId, getToken, tier }: { userId: string; getToken: () => Promise<string | null>; tier: string }) {
+  const [token, setToken]                     = useState('')
+  const [conversations, setConversations]     = useState<MConversation[]>([])
+  const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
+  const [resolvedChannelId, setResolvedChannelId] = useState<string | null>(null)
+  const [messages, setMessages]               = useState<MMessage[]>([])
+  const [messageText, setMessageText]         = useState('')
+  const [loading, setLoading]                 = useState(true)
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [mobileView, setMobileView]           = useState<'list' | 'chat'>('list')
+  const [isRecording, setIsRecording]         = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol'>('all')
+  const [searchQuery, setSearchQuery]         = useState('')
+  const messagesEndRef   = useRef<HTMLDivElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef   = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recSecondsRef    = useRef(0)
+
+  const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 768
+  const isTabletLayout = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1200
+  const tierLevel = ({ watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 } as Record<string, number>)[tier?.toLowerCase()] ?? 0
+
+  // ── Auth token ──
+  useEffect(() => {
+    getToken().then(t => setToken(t || ''))
+  }, [])
+
+  // ── API helper ──
+  const api = useCallback(async (action: string, method = 'GET', body?: object) => {
+    const t = token || await getToken() || ''
+    const url = `/api/stream-messages?action=${action}`
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+    return res.json()
+  }, [token, getToken])
+
+  // ── Load conversations ──
+  useEffect(() => {
+    if (!userId) return
+    getToken().then(async t => {
+      if (!t) return
+      setToken(t)
+      const data = await fetch('/api/stream-messages?action=list-conversations', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      }).then(r => r.json()).catch(() => ({}))
+      const convos: MConversation[] = Array.isArray(data.conversations) ? data.conversations : []
+      setConversations(convos)
+      setLoading(false)
+      if (!isMobileLayout && convos.length > 0) {
+        selectConversation(convos[0].channelId, t)
+      }
+    })
+  }, [userId])
+
+  // ── Auto-scroll ──
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  // ── Select conversation ──
+  const selectConversation = useCallback(async (channelId: string, overrideToken?: string) => {
+    const t = overrideToken || token || await getToken() || ''
+    setActiveConvoId(channelId)
+    setMobileView('chat')
+    setLoadingMessages(true)
+    setMessages([])
+    try {
+      let realId = channelId
+      if (channelId === 'sol') {
+        const dm = await fetch('/api/stream-messages?action=create-dm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ otherUserId: 'sol-bot' }),
+        }).then(r => r.json())
+        realId = dm.channelId || channelId
+      }
+      setResolvedChannelId(realId)
+      const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(realId)}`, {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      }).then(r => r.json())
+      setMessages(msgs.messages || [])
+      if (channelId !== 'sol') {
+        fetch('/api/stream-messages?action=mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ channelId: realId }),
+        }).catch(() => {})
+        setConversations(prev => prev.map(c => c.channelId === channelId ? { ...c, unreadCount: 0 } : c))
+      }
+    } catch (e) { console.error('selectConversation error', e) }
+    setLoadingMessages(false)
+  }, [token, getToken])
+
+  // ── Send message ──
+  const sendMessage = useCallback(async () => {
+    if (!messageText.trim() || !resolvedChannelId) return
+    const text = messageText.trim()
+    setMessageText('')
+    const data = await api('send-message', 'POST', { channelId: resolvedChannelId, text })
+    if (data.message) setMessages(prev => [...prev, data.message])
+  }, [messageText, resolvedChannelId, api])
+
+  // ── Voice recording ──
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      mediaRecorderRef.current = mr
+      audioChunksRef.current = []
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+      mr.start(100)
+      setIsRecording(true)
+      recSecondsRef.current = 0
+      setRecordingSeconds(0)
+      recordingTimerRef.current = setInterval(() => {
+        recSecondsRef.current += 1
+        setRecordingSeconds(s => s + 1)
+      }, 1000)
+    } catch (e) { console.error('mic error', e) }
+  }, [])
+
+  const stopRecording = useCallback(async () => {
+    if (!mediaRecorderRef.current || !resolvedChannelId) return
+    const mr = mediaRecorderRef.current
+    const duration = recSecondsRef.current
+    mr.stop()
+    mr.stream.getTracks().forEach(t => t.stop())
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+    setIsRecording(false)
+    setRecordingSeconds(0)
+    setTimeout(async () => {
+      try {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const form = new FormData()
+        form.append('audio', blob, 'voice.webm')
+        const t = token || await getToken() || ''
+        const uploadRes = await fetch('/api/stream-messages?action=upload-voice', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${t}` },
+          body: form,
+        })
+        const { url } = await uploadRes.json()
+        if (url && resolvedChannelId) {
+          await fetch('/api/stream-messages?action=send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+            body: JSON.stringify({ channelId: resolvedChannelId, text: '', attachments: [{ type: 'voice', asset_url: url, duration }] }),
+          })
+          const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(resolvedChannelId)}`, {
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          }).then(r => r.json())
+          setMessages(msgs.messages || [])
+        }
+      } catch (e) { console.error('voice upload error', e) }
+    }, 300)
+  }, [resolvedChannelId, token, getToken])
+
+  // ── Derived state ──
+  const displayConvos = React.useMemo(() => {
+    const base = activeTab === 'sol' ? [SOL_CONVO]
+      : activeTab === 'unread' ? [SOL_CONVO, ...conversations].filter(c => c.unreadCount > 0)
+      : [SOL_CONVO, ...conversations]
+    if (!searchQuery) return base
+    return base.filter(c => c.otherMember?.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+  }, [conversations, activeTab, searchQuery])
+
+  const activeConvo = [SOL_CONVO, ...conversations].find(c => c.channelId === activeConvoId)
+
+  // ── Helpers ──
+  const getInitials = (name: string) => name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
+  const getAvatarColor = (id: string) => {
+    const palette = [
+      { bg: 'rgba(201,168,76,0.18)', color: '#C9A84C' },
+      { bg: 'rgba(138,157,202,0.18)', color: '#8B9DCA' },
+      { bg: 'rgba(122,158,126,0.18)', color: '#7a9e7e' },
+      { bg: 'rgba(180,100,100,0.18)', color: '#c47070' },
+      { bg: 'rgba(100,150,200,0.18)', color: '#64a0c8' },
+    ]
+    return palette[(id?.charCodeAt(0) ?? 0) % palette.length]
+  }
+  const relativeTime = (iso?: string) => {
+    if (!iso) return ''
+    const d = Date.now() - new Date(iso).getTime()
+    const m = Math.floor(d / 60000)
+    if (m < 1) return 'now'; if (m < 60) return `${m}m`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h`; return `${Math.floor(h / 24)}d`
+  }
+  const renderPreview = (c: MConversation) => {
+    const lm = c.lastMessage; if (!lm) return 'Start a conversation'
+    if (lm.attachments?.[0]?.type === 'voice') return '🎙 Voice message'
+    if (lm.attachments?.[0]?.type === 'call_log') return lm.attachments[0].call_type === 'video' ? '📹 Video call' : '📞 Audio call'
+    return lm.text?.slice(0, 45) || 'Message'
+  }
+
+  // ── Tier gate ──
+  if (tierLevel < 1) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0D0B14', padding: '40px 20px' }}>
+        <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
+          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ DIRECT MESSAGES</div>
+          <div style={{ fontSize: 15, color: 'rgba(232,224,208,0.6)', marginBottom: 20, lineHeight: 1.6 }}>Direct messaging is available to Soldier members and above.</div>
+          <a href="/membership" style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, textDecoration: 'none', display: 'inline-block' }}>UPGRADE TO SOLDIER →</a>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Styles ──
+  const BG    = '#0a0a12'
+  const SURF  = 'rgba(255,255,255,0.04)'
+  const BDR   = 'rgba(255,255,255,0.08)'
+  const GLD   = '#C9A84C'
+  const WMUT  = 'rgba(255,255,255,0.4)'
+  const WDIM  = 'rgba(255,255,255,0.25)'
+
+  return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: BG, flex: 1 }}>
+
+      {/* ── LEFT PANEL: Conversation list ── */}
+      <div style={{
+        width: isMobileLayout ? (mobileView === 'chat' ? '0' : '100%') : (isTabletLayout ? '220px' : '260px'),
+        flexShrink: 0,
+        borderRight: `1px solid ${BDR}`,
+        display: isMobileLayout && mobileView === 'chat' ? 'none' : 'flex',
+        flexDirection: 'column' as const,
+        overflow: 'hidden',
+        background: 'rgba(0,0,0,0.3)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
+          <button
+            onClick={() => console.log('new DM')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex', alignItems: 'center' }}
+            title="New message"
+          >
+            <PenLine size={16} strokeWidth={1.8} />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
+          {(['all', 'unread', 'sol'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              flex: 1, padding: '8px 0', fontSize: 11, cursor: 'pointer',
+              background: 'none', border: 'none',
+              color: activeTab === tab ? '#fff' : WMUT,
+              borderBottom: activeTab === tab ? `2px solid ${GLD}` : '2px solid transparent',
+              fontFamily: "'Cinzel',serif", letterSpacing: '0.06em',
+              textTransform: 'uppercase' as const,
+            }}>
+              {tab === 'sol' ? 'SOL' : tab === 'all' ? 'All' : 'Unread'}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div style={{ padding: '8px 12px', flexShrink: 0 }}>
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search…"
+            style={{
+              width: '100%', padding: '7px 12px', borderRadius: 20, boxSizing: 'border-box' as const,
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`,
+              color: '#fff', fontSize: 12, outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+        </div>
+
+        {/* Conversation rows */}
+        <div style={{ flex: 1, overflowY: 'auto' as const }}>
+          {loading ? (
+            <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>Loading…</div>
+          ) : displayConvos.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No conversations yet</div>
+          ) : displayConvos.map(convo => {
+            const isSol = convo.otherMember?.id === 'sol-bot'
+            const isActive = convo.channelId === activeConvoId
+            const av = isSol ? { bg: 'rgba(201,168,76,0.2)', color: GLD } : getAvatarColor(convo.otherMember?.id || '')
+            return (
+              <div
+                key={convo.channelId}
+                onClick={() => selectConversation(convo.channelId)}
+                style={{
+                  display: 'flex', gap: 10, padding: '10px 12px', cursor: 'pointer',
+                  background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent',
+                  borderBottom: `1px solid ${BDR}`,
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              >
+                {/* Avatar */}
+                <div style={{ position: 'relative' as const, flexShrink: 0 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: av.bg, color: av.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: isSol ? 16 : 13, fontWeight: 600, overflow: 'hidden',
+                    border: isSol ? `1px solid rgba(201,168,76,0.4)` : `1px solid ${BDR}`,
+                  }}>
+                    {isSol
+                      ? <img src="/images/sol/sol-icon.png" width={36} height={36} style={{ objectFit: 'cover' }} alt="SOL" />
+                      : convo.otherMember?.image
+                        ? <img src={convo.otherMember.image} width={36} height={36} style={{ objectFit: 'cover' }} alt="" />
+                        : getInitials(convo.otherMember?.name || '?')
+                    }
+                  </div>
+                  {convo.otherMember?.online && (
+                    <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#1d9e75', border: '1.5px solid #0a0a12' }} />
+                  )}
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {convo.otherMember?.name || 'Unknown'}
+                    </span>
+                    <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>
+                      {relativeTime(convo.lastMessage?.created_at || convo.lastMessageAt)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
+                      {renderPreview(convo)}
+                    </span>
+                    {convo.unreadCount > 0 && (
+                      <span style={{ background: GLD, color: '#000', fontSize: 9, borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0, marginLeft: 4 }}>
+                        {convo.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── CENTER PANEL: Chat thread ── */}
+      <div style={{
+        flex: 1, display: isMobileLayout && mobileView === 'list' ? 'none' : 'flex',
+        flexDirection: 'column' as const, minWidth: 0, overflow: 'hidden',
+      }}>
+        {!activeConvoId ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' as const }}>
+              <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.3 }}>✉</div>
+              <div style={{ fontSize: 14, color: WMUT }}>Select a conversation</div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Chat header */}
+            <div style={{ padding: '10px 16px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: 'rgba(0,0,0,0.2)' }}>
+              {isMobileLayout && (
+                <button onClick={() => setMobileView('list')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: '4px', display: 'flex' }}>
+                  <ChevronLeft size={20} strokeWidth={2} />
+                </button>
+              )}
+              {/* Avatar */}
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: activeConvo?.otherMember?.id === 'sol-bot' ? 'rgba(201,168,76,0.2)' : SURF, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: GLD, border: `1px solid ${BDR}` }}>
+                {activeConvo?.otherMember?.id === 'sol-bot'
+                  ? <img src="/images/sol/sol-icon.png" width={32} height={32} style={{ objectFit: 'cover' }} alt="SOL" />
+                  : activeConvo?.otherMember?.image
+                    ? <img src={activeConvo.otherMember.image} width={32} height={32} style={{ objectFit: 'cover' }} alt="" />
+                    : getInitials(activeConvo?.otherMember?.name || '?')
+                }
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {activeConvo?.otherMember?.name || 'Unknown'}
+                </div>
+                <div style={{ fontSize: 11, color: activeConvo?.otherMember?.online ? '#1d9e75' : WMUT }}>
+                  {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
+                </div>
+              </div>
+              <button style={{ background: 'rgba(29,158,117,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#1d9e75', cursor: 'pointer', display: 'flex' }} title="Audio call">
+                <Phone size={16} strokeWidth={1.8} />
+              </button>
+              <button style={{ background: 'rgba(14,165,233,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#0ea5e9', cursor: 'pointer', display: 'flex' }} title="Video call">
+                <Video size={16} strokeWidth={1.8} />
+              </button>
+              <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
+                <MoreHorizontal size={16} strokeWidth={1.8} />
+              </button>
+            </div>
+
+            {/* Messages area */}
+            <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px', display: 'flex', flexDirection: 'column' as const, gap: 10, background: 'rgba(0,0,0,0.2)' }}>
+              {loadingMessages ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WMUT, fontSize: 13 }}>Loading…</div>
+              ) : messages.length === 0 ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WMUT, fontSize: 13 }}>No messages yet. Say hello!</div>
+              ) : messages.map(msg => {
+                const isOwn = msg.user?.id === userId
+                const voiceAtt = msg.attachments?.find(a => a.type === 'voice')
+                const callAtt  = msg.attachments?.find(a => a.type === 'call_log')
+                const av2 = getAvatarColor(msg.user?.id || '')
+                return (
+                  <div key={msg.id} style={{ display: 'flex', flexDirection: isOwn ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
+                    {!isOwn && (
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: av2.bg, color: av2.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
+                        {msg.user?.id === 'sol-bot'
+                          ? <img src="/images/sol/sol-icon.png" width={22} height={22} style={{ objectFit: 'cover' }} alt="" />
+                          : getInitials(msg.user?.name || '?')
+                        }
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: isOwn ? 'flex-end' : 'flex-start', maxWidth: '72%' }}>
+                      {voiceAtt ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isOwn ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.08)', borderRadius: 20, padding: '8px 12px', maxWidth: 220 }}>
+                          <button style={{ width: 26, height: 26, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: 10, color: '#000' }}>▶</span>
+                          </button>
+                          <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 22 }}>
+                            {waveformBars(msg.id).map((h, i) => (
+                              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: isOwn ? GLD : 'rgba(255,255,255,0.3)' }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 10, color: WMUT, flexShrink: 0 }}>{fmtDuration(voiceAtt.duration || 0)}</span>
+                        </div>
+                      ) : callAtt ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '9px 13px', maxWidth: 200 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(29,158,117,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {callAtt.call_type === 'video' ? <Video size={14} color="#1d9e75" strokeWidth={1.8} /> : <Phone size={14} color="#1d9e75" strokeWidth={1.8} />}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 500, color: '#fff' }}>{callAtt.call_type === 'video' ? 'Video call' : 'Audio call'}</div>
+                            <div style={{ fontSize: 10, color: WMUT }}>{fmtDuration(callAtt.duration || 0)}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '9px 13px', borderRadius: 16, fontSize: 13, lineHeight: 1.5,
+                          background: isOwn ? GLD : 'rgba(255,255,255,0.08)',
+                          color: isOwn ? '#000' : '#fff',
+                          borderBottomRightRadius: isOwn ? 4 : 16,
+                          borderBottomLeftRadius: isOwn ? 16 : 4,
+                          wordBreak: 'break-word' as const,
+                        }}>
+                          {msg.text}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
+                        {relativeTime(msg.created_at)}
+                        {isOwn && <span>✓✓</span>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer */}
+            <div style={{
+              padding: '10px 12px',
+              paddingBottom: `calc(10px + env(safe-area-inset-bottom, 0px))`,
+              borderTop: `1px solid ${BDR}`,
+              background: 'rgba(0,0,0,0.3)',
+              display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+            }}>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex' }} title="Attach image">
+                <ImageIcon size={18} strokeWidth={1.8} />
+              </button>
+              <input
+                value={messageText}
+                onChange={e => setMessageText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                placeholder="Message…"
+                style={{
+                  flex: 1, background: 'rgba(255,255,255,0.07)', border: `1px solid ${BDR}`,
+                  borderRadius: 20, padding: '8px 14px', color: '#fff', fontSize: 13, outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <div style={{ position: 'relative' as const, display: 'flex', alignItems: 'center' }}>
+                {isRecording && (
+                  <span style={{ position: 'absolute' as const, top: -18, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#e24b4a', whiteSpace: 'nowrap' as const }}>
+                    {recordingSeconds}s
+                  </span>
+                )}
+                <button
+                  onMouseDown={startRecording} onTouchStart={startRecording}
+                  onMouseUp={stopRecording} onTouchEnd={stopRecording}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex',
+                    color: isRecording ? '#e24b4a' : WMUT,
+                    animation: isRecording ? 'wri-pulse-opacity 1s infinite' : 'none',
+                  }}
+                  title={isRecording ? 'Release to send' : 'Hold to record'}
+                >
+                  <Mic size={18} strokeWidth={1.8} />
+                </button>
+              </div>
+              <button
+                onClick={sendMessage}
+                style={{ width: 32, height: 32, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              >
+                <Send size={14} strokeWidth={2} color="#000" />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── RIGHT DETAIL PANEL: Desktop only ── */}
+      {!isMobileLayout && !isTabletLayout && activeConvo && (
+        <div style={{ width: 200, borderLeft: `1px solid ${BDR}`, flexShrink: 0, overflowY: 'auto' as const, background: 'rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '20px 12px', gap: 12 }}>
+          {/* Avatar */}
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: activeConvo.otherMember?.id === 'sol-bot' ? 'rgba(201,168,76,0.2)' : SURF, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: GLD, border: `1px solid ${BDR}` }}>
+            {activeConvo.otherMember?.id === 'sol-bot'
+              ? <img src="/images/sol/sol-icon.png" width={52} height={52} style={{ objectFit: 'cover' }} alt="SOL" />
+              : activeConvo.otherMember?.image
+                ? <img src={activeConvo.otherMember.image} width={52} height={52} style={{ objectFit: 'cover' }} alt="" />
+                : getInitials(activeConvo.otherMember?.name || '?')
+            }
+          </div>
+          <div style={{ textAlign: 'center' as const }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{activeConvo.otherMember?.name}</div>
+            <div style={{ fontSize: 10, color: activeConvo.otherMember?.online ? '#1d9e75' : WMUT, marginTop: 2 }}>
+              {activeConvo.otherMember?.online ? '● Online' : '○ Offline'}
+            </div>
+          </div>
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 12 }}>
+            {[
+              { icon: <Phone size={16} strokeWidth={1.8} />, label: 'Audio', color: '#1d9e75', bg: 'rgba(29,158,117,0.15)' },
+              { icon: <Video size={16} strokeWidth={1.8} />, label: 'Video', color: '#0ea5e9', bg: 'rgba(14,165,233,0.15)' },
+            ].map(({ icon, label, color, bg }) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4 }}>
+                <button style={{ width: 36, height: 36, borderRadius: '50%', background: bg, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
+                  {icon}
+                </button>
+                <span style={{ fontSize: 9, color: WMUT }}>{label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ width: '100%', height: 1, background: BDR }} />
+          {/* Shared voice */}
+          <div style={{ width: '100%' }}>
+            <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Shared Voice</div>
+            {messages.filter(m => m.attachments?.some(a => a.type === 'voice')).slice(0, 3).length === 0
+              ? <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontStyle: 'italic' }}>None yet</div>
+              : messages.filter(m => m.attachments?.some(a => a.type === 'voice')).slice(0, 3).map(m => (
+                <div key={m.id} style={{ fontSize: 11, color: GLD, padding: '4px 0', borderBottom: `1px solid ${BDR}` }}>🎙 {relativeTime(m.created_at)}</div>
+              ))
+            }
+          </div>
+          <div style={{ width: '100%', height: 1, background: BDR }} />
+          <div style={{ width: '100%' }}>
+            <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 4 }}>SOL Autoreply</div>
+            <div style={{ fontSize: 11, color: activeConvo.otherMember?.id === 'sol-bot' ? '#1d9e75' : 'rgba(255,255,255,0.3)' }}>
+              {activeConvo.otherMember?.id === 'sol-bot' ? '● Active' : '○ Off'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pulse keyframe for mic */}
+      <style>{`@keyframes wri-pulse-opacity { 0%,100%{opacity:0.6} 50%{opacity:1} }`}</style>
+    </div>
+  )
+}
+
+// ── CommunityPage ─────────────────────────────────────────────────────────────
+function CommunityPage() {
+  const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
+  const { user } = useUser()
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    if (window.innerWidth < 768) return 'dark'
+    const stored = localStorage.getItem('wri-theme')
+    return (stored === 'dark' || stored === 'light') ? stored : 'dark'
+  })
+  const [isMobile, setIsMobile]       = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  const [isTablet, setIsTablet]       = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1100)
+  const [activeRailSection, setActiveRailSection] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
+  })
+  const [activeSection, setActiveSection] = useState('intel')
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+
+  // Preserve sidebar scroll across activeSection changes
+  useEffect(() => {
+    const el = sidebarScrollRef.current
+    if (!el) return
+    const saved = sessionStorage.getItem('sidebar-scroll')
+    if (saved) requestAnimationFrame(() => { el.scrollTop = Number(saved) })
+  }, [])
+  useEffect(() => {
+    const el = sidebarScrollRef.current
+    if (!el) return
+    const active = el.querySelector('[data-active="true"]') as HTMLElement | null
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [activeSection])
+
+  const [fringeExpanded, setFringeExpanded]     = useState(false)
+  const [intelligenceOpen, setIntelligenceOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_intelligence_open') !== 'false' } catch { return true }
+  })
+  const [intelArchiveOpen, setIntelArchiveOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
+  })
+  const [fieldOpsOpen, setFieldOpsOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_field_ops_open') !== 'false' } catch { return true }
+  })
+  const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
+
+  const [streamToken, setStreamToken] = useState<string>('')
+  const [apiKey, setApiKey]           = useState<string>('')
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string | null>(null)
+
+  const [posts, setPosts]             = useState<StreamMsg[]>([])
+  const [draft, setDraft]             = useState('')
+  const [sending, setSending]         = useState(false)
+  const [prayers, setPrayers]         = useState<StreamMsg[]>([])
+  const [unreadDMs, setUnreadDMs]         = useState(0)
+  const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null)
+  const [termsTab, setTermsTab] = useState<'terms' | 'privacy'>('terms')
+  const [termsChecked, setTermsChecked] = useState(false)
+  const [termsSubmitting, setTermsSubmitting] = useState(false)
+
+  const [showPushBanner, setShowPushBanner] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (!('Notification' in window)) return false
+    return !localStorage.getItem('wri-push-dismissed') && window.Notification.permission === 'default'
+  })
+  const [pushSubscribed, setPushSubscribed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (!('Notification' in window)) return false
+    return window.Notification.permission === 'granted'
+  })
+  const [arsenalDrops, setArsenalDrops]           = useState<any[]>([])
+  const [arsenalDropsLoading, setArsenalDropsLoading] = useState(true)
+  const [unreadWarRoom, setUnreadWarRoom] = useState(0)
+  const [unreadNotifs, setUnreadNotifs]   = useState(0)
+  const [notifsList, setNotifsList]       = useState<any[]>([])
+  const [deletingNotifs, setDeletingNotifs] = useState(false)
+  const [hoveredNotifId, setHoveredNotifId] = useState<string | null>(null)
+  const [showInstallBanner, setShowInstallBanner] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (typeof navigator === 'undefined') return false
+    const isMobileUA = /Mobi|Android|iPad|iPhone|iPod/i.test(navigator.userAgent)
+    const isStandalone = ('standalone' in window.navigator && (window.navigator as any).standalone === true) ||
+      window.matchMedia('(display-mode: standalone)').matches
+    const dismissed = localStorage.getItem('wri-pwa-dismissed')
+    return isMobileUA && !isStandalone && !dismissed
+  })
+
+  // AI Chatbot
+  const [chatOpen, setChatOpen]           = useState(false)
+  const [chatMessages, setChatMessages]   = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [chatInput, setChatInput]         = useState('')
+  const [chatLoading, setChatLoading]     = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // Standalone Protocol Engine state
+  const [stpMode, setStpMode]                     = useState<'spirit' | 'manifestation'>('spirit')
+  const [stpSpiritName, setStpSpiritName]         = useState('')
+  const [stpManifestations, setStpManifestations] = useState('')
+  const [stpIncludeCluster, setStpIncludeCluster] = useState(true)
+  const [stpResult, setStpResult]                 = useState<any>(null)
+  const [stpLoading, setStpLoading]               = useState(false)
+  const [stpError, setStpError]                   = useState<string | null>(null)
+  const [stpTab, setStpTab]                       = useState<'intel' | 'legal' | 'renunciation' | 'command' | 'post'>('intel')
+  const [stpChecked, setStpChecked]               = useState<Record<string, boolean>>({})
+
+  async function sendChat(msg: string) {
+    if (!msg.trim() || chatLoading) return
+    const userMsg = { role: 'user' as const, content: msg.trim() }
+    const history = [...chatMessages, userMsg]
+    setChatMessages(history)
+    setChatInput('')
+    setChatLoading(true)
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+
+    // /library command — list ministry library grouped by source_type
+    const isLibraryCmd = msg.trim().toLowerCase() === '/library'
+      || msg.trim().toLowerCase().includes('list my books')
+      || msg.trim().toLowerCase().includes('show my library')
+    if (isLibraryCmd) {
+      try {
+        const token = await getToken()
+        // ⚠️ MINISTRY LIBRARY ONLY — fetches from /api/admin-library → resources Supabase table (source_type='christian'/'intelligence')
+        // DO NOT change this to /api/arsenal-resources — that is the Arsenal endpoint
+        const res = await fetch('/api/admin-library', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        const books: any[] = data.books || []
+        if (!books.length) {
+          setChatMessages(prev => [...prev, { role: 'assistant', content: 'Your ministry library is empty. Upload books in the Admin → Library tab.' }])
+        } else {
+          const groups: Record<string, string[]> = {}
+          for (const b of books) {
+            const group = b.source_type === 'intelligence' ? 'Intelligence Resources' : 'Christian Ministry'
+            if (!groups[group]) groups[group] = []
+            groups[group].push(`• ${b.title}${b.author && b.author !== 'Unknown' ? ` — ${b.author}` : ''}`)
+          }
+          const lines: string[] = [`**Ministry Library** (${books.length} books)\n`]
+          for (const [group, titles] of Object.entries(groups)) {
+            lines.push(`### ${group}`)
+            lines.push(...titles)
+            lines.push('')
+          }
+          setChatMessages(prev => [...prev, { role: 'assistant', content: lines.join('\n') }])
+        }
+      } catch {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: 'Unable to load library. Please try again.' }])
+      } finally {
+        setChatLoading(false)
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      }
+      return
+    }
+
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: msg.trim(), history: chatMessages, feature: 'ask_dake' }),
+      })
+      const ct = res.headers.get('content-type') || ''
+      if (!ct.includes('application/json')) {
+        throw new Error(`Unexpected response type: ${ct}`)
+      }
+      const data = await res.json()
+      if (res.status === 429) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `**Limit Reached** — ${data.error || 'Daily AI limit reached.'} [Upgrade your membership](/membership) to continue.` }])
+        _usageCache = null
+      } else if (!res.ok) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `AI error: ${data.error || res.status}. Please try again.` }])
+      } else {
+        const responseText = data.response || 'No response received.'
+        setChatMessages(prev => [...prev, { role: 'assistant', content: responseText }])
+        _usageCache = null
+        if (token) {
+          fetch('/api/ai-history', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tool: 'ai-assistant', query: msg.trim(), response: responseText }),
+          }).catch(() => {})
+        }
+      }
+    } catch (err: any) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Unable to connect. ${err?.message || 'Please try again.'}` }])
+    } finally {
+      setChatLoading(false)
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
+  }
+
+  function renderMarkdown(text: string): string {
+    return text
+      .replace(/^### (.+)$/gm, '<div style="font-family:\'Cinzel\',serif;font-size:11px;color:#C9A84C;letter-spacing:0.1em;margin:16px 0 6px">$1</div>')
+      .replace(/^## (.+)$/gm, '<div style="font-family:\'Cinzel\',serif;font-size:12px;color:#C9A84C;letter-spacing:0.1em;margin:16px 0 8px">$1</div>')
+      .replace(/^# (.+)$/gm, '<div style="font-family:\'Cinzel\',serif;font-size:14px;color:#C9A84C;letter-spacing:0.12em;margin:16px 0 10px">$1</div>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#c8b99a">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em style="color:#8a7a60">$1</em>')
+      .replace(/^- (.+)$/gm, '<div style="padding-left:12px;margin:4px 0;color:#a89878">⚔ $1</div>')
+      .replace(/\n\n/g, '<div style="margin:8px 0"></div>')
+      .replace(/\n/g, '<br/>')
+  }
+
+  function exportToPDF(content: string) {
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    const bodyHtml = content
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br/>')
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>War Room Intel — Intelligence Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  body { margin: 0; background: #fff; color: #1a1408; font-family: 'Crimson Text', Georgia, serif; font-size: 15px; line-height: 1.7; }
+  .page { max-width: 720px; margin: 0 auto; padding: 48px 48px 64px; }
+  .header { border-bottom: 2px solid #C9A84C; padding-bottom: 20px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; }
+  .brand span { color: #C9A84C; }
+  .classification { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.25em; color: #C9A84C; text-transform: uppercase; border: 1px solid #C9A84C; padding: 3px 8px; }
+  .date { font-family: 'Cinzel', serif; font-size: 10px; color: #8a7a60; letter-spacing: 0.1em; margin-top: 6px; }
+  .divider { border: none; border-top: 1px solid #d4b896; margin: 24px 0; }
+  h1 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; margin: 24px 0 12px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: #3a2a10; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: #5a4a30; letter-spacing: 0.06em; margin: 16px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 0; list-style: none; margin: 8px 0 12px; }
+  li::before { content: '⚔ '; color: #C9A84C; }
+  li { margin: 4px 0; padding-left: 16px; text-indent: -16px; }
+  strong { color: #1a1408; font-weight: 600; }
+  em { color: #5a4a30; }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d4b896; display: flex; justify-content: space-between; font-family: 'Cinzel', serif; font-size: 9px; color: #8a7a60; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand">WAR ROOM <span>INTEL</span></div>
+      <div class="date">${date}</div>
+    </div>
+    <div class="classification">INTELLIGENCE REPORT</div>
+  </div>
+  <div>${bodyHtml}</div>
+  <div class="footer">
+    <span>War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN</span>
+    <span>warroomintel.com</span>
+  </div>
+</div>
+<script>window.onload = () => window.print()</script>
+</body>
+</html>`
+    const win = window.open('', '_blank')
+    if (win) { win.document.write(html); win.document.close() }
+  }
+
+  // Session Command Center
+  const [sessionOpen, setSessionOpen]           = useState(false)
+  const [activeSessionId, setActiveSessionId]   = useState<string | undefined>(undefined)
+  const [activeSessionCF, setActiveSessionCF]   = useState<any>(undefined)
+
+  const [hoveredPrayer, setHoveredPrayer] = useState<any>(null)
+  const [hoverY, setHoverY]               = useState(0)
+  const [members, setMembers]             = useState<any[]>([])
+  const [memberPresence, setMemberPresence] = useState<Record<string, { online: boolean, lastActive: string | null }>>({})
+  const [demons, setDemons]               = useState<any[]>([])
+  const [viewingProfile, setViewingProfile] = useState<any>(null)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [_pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
+  const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
+  const warriorHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const railFlyoutRef   = useRef<HTMLDivElement>(null)
+  const railStripRef    = useRef<HTMLDivElement>(null)
+  const showWarriorCard = (id: string) => { clearTimeout(warriorHoverTimer.current!); setHoveredWarrior(id) }
+  const hideWarriorCard = () => { warriorHoverTimer.current = setTimeout(() => setHoveredWarrior(null), 150) }
+  const [recentMessages, setRecentMessages] = useState<Array<{
+    id: string; senderName: string; text: string; timeAgo: string
+  }>>([])
+  const [railEvents, setRailEvents] = useState<any[]>([])
+
+  const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  const tier     = (user?.publicMetadata?.tier as string) || 'Watchman'
+  const tierLevel = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[tier.toLowerCase()] ?? 0
+  const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
+
+  // Responsive breakpoint
+  useEffect(() => {
+    const check = () => {
+      const w = window.innerWidth
+      setIsMobile(w < 768)
+      setIsTablet(w >= 768 && w < 1100)
+      if (w < 768) setSidebarOpen(false)
+    }
+    check()
+    window.addEventListener('resize', check)
+    window.addEventListener('orientationchange', check)
+    return () => {
+      window.removeEventListener('resize', check)
+      window.removeEventListener('orientationchange', check)
+    }
+  }, [])
+
+  // Read ?section= URL param on mount (e.g. from Launch Session redirect)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const section = params.get('section')
+    if (section) {
+      setActiveSection(section)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  // Close sidebar when switching to desktop
+  useEffect(() => { if (!isMobile) setSidebarOpen(false) }, [isMobile])
+
+  // Inject CSS variable definitions once
+  useEffect(() => {
+    if (!document.getElementById('wri-theme-vars')) {
+      const style = document.createElement('style')
+      style.id = 'wri-theme-vars'
+      style.textContent = THEME_CSS
+      document.head.appendChild(style)
+    }
+    return () => { document.getElementById('wri-theme-vars')?.remove() }
+  }, [])
+
+  // Sync theme attribute + localStorage
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('wri-theme', theme)
+  }, [theme])
+
+  // Hide site nav and AI chatbot; lock scroll
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    const nav     = document.querySelector('nav') as HTMLElement | null
+    const chatBtn = document.querySelector('[aria-label="Open AI assistant"]') as HTMLElement | null
+    if (nav) nav.style.display = 'none'
+    if (chatBtn) chatBtn.style.display = 'none'
+    return () => {
+      document.body.style.overflow = ''
+      if (nav) nav.style.display = ''
+      if (chatBtn) chatBtn.style.display = ''
+    }
+  }, [])
+
+  // Update last_login_at in Clerk metadata (throttled 24hr)
+  useEffect(() => {
+    if (!user?.id) return
+    const key = `wri-last-login-ping-${user.id}`
+    const last = localStorage.getItem(key)
+    if (last && Date.now() - Number(last) < 24 * 60 * 60 * 1000) return
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/update-last-login', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(() => localStorage.setItem(key, String(Date.now()))).catch(() => {})
+    })
+  }, [user?.id])
+
+  // Sync terms acceptance from Clerk metadata
+  useEffect(() => {
+    if (!user?.id) return
+    const accepted = !!(user.publicMetadata?.terms_accepted)
+    setTermsAccepted(accepted)
+  }, [user?.id, user?.publicMetadata?.terms_accepted])
+
+  // Fetch Stream token — upserts user in Stream then returns a valid token
+  useEffect(() => {
+    if (!user?.id) return
+    fetch('/api/stream-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId:    user.id,
+        userName:  user.fullName || user.firstName || user.username || 'Warrior',
+        userImage: user.imageUrl || '',
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.token) {
+          setStreamToken(data.token)
+          setApiKey(data.apiKey)
+          setLoading(false)
+          console.log('Stream token obtained successfully')
+        } else {
+          console.error('No token returned:', data)
+          setError(data.error || 'Stream token error')
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        console.error('stream-token fetch error:', err)
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [user?.id])
+
+  // Fetch unread notification count on mount and every 2 minutes
+  useEffect(() => {
+    if (!user?.id) return
+    const fetchNotifCount = async () => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const res = await fetch('/api/user-notifications', { headers: { Authorization: `Bearer ${token}` } })
+        if (res.ok) { const d = await res.json(); setUnreadNotifs(d.unread || 0) }
+      } catch {}
+    }
+    fetchNotifCount()
+    const t = setInterval(fetchNotifCount, 120000)
+    return () => clearInterval(t)
+  }, [user?.id])
+
+  // Refresh Stream token every 25 minutes (tokens expire at 1hr, refresh well before that)
+  useEffect(() => {
+    if (!user?.id) return
+    const interval = setInterval(() => {
+      fetch('/api/stream-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId:    user.id,
+          userName:  user.fullName || user.firstName || user.username || 'Warrior',
+          userImage: user.imageUrl || '',
+        }),
+      })
+        .then(r => r.json())
+        .then(data => { if (data.token) { setStreamToken(data.token); setApiKey(data.apiKey) } })
+        .catch(err => console.error('stream-token refresh error:', err))
+    }, 25 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [user?.id])
+
+  const fetchPosts = useCallback(async () => {
+    if (!streamToken || !apiKey) return
+    try {
+      const d = await streamFetch('/channels/messaging/war-room-general/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 50 } })
+      if (d.messages) setPosts(d.messages)
+      if (typeof d.channel?.unread_count === 'number') setUnreadWarRoom(d.channel.unread_count)
+    } catch {}
+  }, [streamToken, apiKey])
+
+  const fetchPrayers = useCallback(async () => {
+    if (!streamToken || !apiKey) return
+    try {
+      const d = await streamFetch('/channels/messaging/prayer-wall-requests/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 20 } })
+      if (d.messages) {
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+        setPrayers(
+          d.messages.filter((m: StreamMsg) =>
+            new Date(m.created_at).getTime() > cutoff
+          )
+        )
+      }
+    } catch {}
+  }, [streamToken, apiKey])
+
+  useEffect(() => {
+    if (!streamToken || !apiKey) return
+    const t = setTimeout(() => {
+      fetchPosts()
+      fetchPrayers()
+      if (pollRef.current) clearInterval(pollRef.current)
+      pollRef.current = setInterval(() => { fetchPosts(); fetchPrayers() }, 30000)
+    }, 2000)
+    return () => { clearTimeout(t); if (pollRef.current) clearInterval(pollRef.current) }
+  }, [streamToken, apiKey, fetchPosts, fetchPrayers])
+
+  useEffect(() => {
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+  }, [posts])
+
+  // Phase 3 — browser tab title reflects unread DMs
+  useEffect(() => {
+    if (unreadDMs > 0) {
+      document.title = `💬 (${unreadDMs}) War Room Intel`
+    } else {
+      document.title = 'War Room Intel'
+    }
+    return () => { document.title = 'War Room Intel' }
+  }, [unreadDMs])
+
+  async function deleteOneNotif(id: string) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`/api/user-notifications?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    setNotifsList(prev => prev.filter((n: any) => n.id !== id))
+    setUnreadNotifs(prev => {
+      const wasUnread = notifsList.find((n: any) => n.id === id && !n.read)
+      return wasUnread ? Math.max(0, prev - 1) : prev
+    })
+  }
+
+  async function clearAllNotifs() {
+    if (!confirm('Clear all notifications?')) return
+    setDeletingNotifs(true)
+    const token = await getToken()
+    if (token) {
+      await fetch('/api/user-notifications?all=true', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    }
+    setNotifsList([])
+    setUnreadNotifs(0)
+    setDeletingNotifs(false)
+  }
+
+  async function generateStandaloneProtocol() {
+    setStpLoading(true); setStpError(null); setStpResult(null)
+    try {
+      const token = await getToken()
+      const body: any = {
+        mode: stpMode,
+        spiritName: stpMode === 'spirit' ? stpSpiritName : undefined,
+        manifestationDescription: stpMode === 'manifestation' ? stpManifestations : undefined,
+        includeCluster: stpIncludeCluster,
+      }
+      const res = await fetch('/api/deliverance-protocol', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Protocol generation failed')
+      setStpResult(data)
+      setStpTab('intel')
+      setStpChecked({})
+    } catch (e: any) {
+      setStpError(e.message || 'Protocol generation failed')
+    } finally {
+      setStpLoading(false)
+    }
+  }
+
+  async function enablePushNotifications() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      console.warn('[push] Notifications or service workers not supported')
+      return
+    }
+    console.log('[push] Requesting permission...')
+    const permission = await window.Notification.requestPermission()
+    console.log('[push] Permission result:', permission)
+    if (permission !== 'granted') {
+      setShowPushBanner(false)
+      try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
+      return
+    }
+    try {
+      console.log('[push] Registering service worker...')
+      const reg = await navigator.serviceWorker.register('/sw.js')
+      console.log('[push] SW registered, waiting for ready...')
+      await navigator.serviceWorker.ready
+      console.log('[push] SW ready, subscribing to push...')
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+      console.log('[push] Push subscription created:', sub.endpoint.slice(0, 60) + '...')
+      const res = await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, subscription: sub.toJSON() }),
+      })
+      console.log('[push] Subscribe API response:', res.status)
+      setPushSubscribed(true)
+      setShowPushBanner(false)
+    } catch (err) {
+      console.error('[push] subscription failed:', err)
+      setShowPushBanner(false)
+    }
+  }
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeRailSection !== 'notifs' || !user?.id) return
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/user-notifications', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { if (d.notifications) { setNotifsList(d.notifications); setUnreadNotifs(d.unread || 0) } })
+        .catch(() => {})
+    })
+  }, [activeRailSection, user?.id])
+
+  useEffect(() => {
+    if (!activeRailSection) return
+    function handleOutsideClick(e: MouseEvent) {
+      const target = e.target as Node
+      if (
+        railFlyoutRef.current && !railFlyoutRef.current.contains(target) &&
+        railStripRef.current  && !railStripRef.current.contains(target)
+      ) {
+        setActiveRailSection(null)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [activeRailSection])
+
+  useEffect(() => {
+    if (!user?.id) return
+    const t = setTimeout(() => {
+      fetch('/api/get-members')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data.members)) setMembers(data.members)
+        })
+        .catch(err => console.error('get-members error:', err))
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [user?.id])
+
+  // Fetch demons for Body Map + Spirit Network — delay 2s so critical fetches go first
+  useEffect(() => {
+    if (!user?.id) return
+    const t = setTimeout(() => {
+      fetch('/api/demons')
+        .then(r => r.json())
+        .then(d => setDemons(d.demons || d.records || []))
+        .catch(() => {})
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [user?.id])
+
+  // Fetch latest arsenal drops for right-rail panel
+  useEffect(() => {
+    if (!user?.id) return
+    getToken().then(token => {
+      if (!token) { setArsenalDropsLoading(false); return }
+      fetch('/api/latest-arsenal', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { setArsenalDrops(d.resources || []); setArsenalDropsLoading(false) })
+        .catch(() => setArsenalDropsLoading(false))
+    })
+  }, [user?.id])
+
+  // Fetch Stream presence for Warriors section
+  useEffect(() => {
+    if (!streamToken || !apiKey) return
+    async function fetchPresence() {
+      try {
+        const res = await fetch(
+          `https://chat.stream-io-api.com/channels/messaging/war-room-general/query?api_key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: streamToken, 'stream-auth-type': 'jwt' },
+            body: JSON.stringify({ state: true, presence: true, watch: false }),
+          }
+        )
+        const data = await res.json()
+        const presenceMap: Record<string, { online: boolean, lastActive: string | null }> = {}
+        ;(data.members || []).forEach((m: any) => {
+          if (m.user?.id) presenceMap[m.user.id] = { online: m.user.online === true, lastActive: m.user.last_active || null }
+        })
+        setMemberPresence(presenceMap)
+      } catch(e) {
+        console.log('Presence fetch failed:', e)
+      }
+    }
+    fetchPresence()
+    const interval = setInterval(fetchPresence, 60000)
+    return () => clearInterval(interval)
+  }, [streamToken, apiKey])
+
+  useEffect(() => {
+    if (!streamToken || !apiKey) return
+    async function loadRecentMessages() {
+      try {
+        const uid = user?.id
+        if (!uid) return
+        const res = await fetch(
+          `https://chat.stream-io-api.com/channels?api_key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': streamToken, 'stream-auth-type': 'jwt' },
+            body: JSON.stringify({
+              filter_conditions: { type: 'messaging', members: { $in: [uid] } },
+              sort: [{ field: 'last_message_at', direction: -1 }],
+              limit: 5, message_limit: 1,
+            }),
+          }
+        )
+        const data = await res.json()
+        const msgs: typeof recentMessages = []
+        for (const ch of (data.channels || [])) {
+          const msg = ch.messages?.[0]
+          if (!msg) continue
+          const d = new Date(msg.created_at), now = new Date()
+          const mins = Math.floor((now.getTime() - d.getTime()) / 60000)
+          const timeAgo = mins < 1 ? 'now' : mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          const otherMember = (ch.members || []).find((m: any) => m.user_id !== uid)
+          const clerkMatch = members?.find((m: any) => m.id === otherMember?.user_id)
+          const clerkName = (clerkMatch ? (clerkMatch.firstName || clerkMatch.username || '') : '')
+          const streamName = (otherMember?.user?.name && !otherMember.user.name.startsWith('user_') ? otherMember.user.name : '')
+          const clerkUsername = (clerkMatch?.username && !clerkMatch.username.startsWith('user_')) ? clerkMatch.username : ''
+          const senderName = clerkName || streamName || clerkUsername || 'Warrior'
+          msgs.push({ id: msg.id, senderName, text: msg.text || '', timeAgo })
+        }
+        setRecentMessages(msgs)
+        const totalUnread = (data.channels || [])
+          .filter((ch: any) => ch.channel?.id !== 'war-room-general' && ch.channel?.id !== 'prayer-wall-requests')
+          .reduce((sum: number, ch: any) => sum + (ch.channel?.unread_count || 0), 0)
+        setUnreadDMs(totalUnread)
+      } catch { /* silent */ }
+    }
+    loadRecentMessages()
+    const t = setInterval(loadRecentMessages, 20000)
+    return () => clearInterval(t)
+  }, [streamToken, apiKey, user?.id])
+
+  useEffect(() => {
+    async function loadRailEvents() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/events', token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        if (res.ok) { const d = await res.json(); setRailEvents(d.events || []) }
+      } catch { /* silent */ }
+    }
+    loadRailEvents()
+  }, [isSignedIn])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault()
+      ;(window as any).__pwaInstallPrompt = e
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  async function sendPost() {
+    if (!draft.trim() || !streamToken || !apiKey || sending) return
+    setSending(true)
+    try {
+      await streamFetch('/channels/messaging/war-room-general/message', 'POST', streamToken, apiKey, { message: { text: draft.trim(), user_id: user?.id } })
+      setDraft('')
+      await fetchPosts()
+    } finally { setSending(false) }
+  }
+
+  if (!isLoaded || loading) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0e0c09' }}>
+      <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G }}>Connecting to War Room...</span>
+    </div>
+  )
+  if (!isSignedIn) return <SignInGate />
+  if (error) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0e0c09', padding: '2rem' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, marginBottom: 8 }}>Connection error</div>
+        <p style={{ fontFamily: crimson, fontSize: 14, color: 'rgba(221,213,192,0.65)', fontStyle: 'italic' }}>{error}</p>
+      </div>
+    </div>
+  )
+
+  const isDark = theme !== 'light'
+  const V = {
+    bg:     isDark ? '#0D0B14' : '#FAF8F5',
+    surf:   isDark ? '#1a1714' : '#FFFFFF',
+    card:   isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
+    bdr:    isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)',
+    txt:    isDark ? '#f0e8d8' : '#2D2924',
+    mut:    isDark ? '#9a8c74' : '#5C5248',
+    dim:    isDark ? '#c8b99a' : '#5C5248',
+    s2:     isDark ? '#1c1814' : '#FFFFFF',
+    gold:   isDark ? '#C9A84C' : '#8B6914',
+    shadow: isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)',
+  }
+
+  // ── NAV HELPERS ────────────────────────────────────────────
+  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed'])
+  const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network', 'gateway'])
+  const intelOpen    = intelligenceOpen || INTELLIGENCE_SECTS.has(activeSection)
+  const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
+
+  const chevronStyle = (open: boolean): React.CSSProperties => ({
+    fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block',
+    transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s',
+  })
+
+  const sectionLabel = (label: string) => sidebarCollapsed && !isMobile ? null : (
+    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#5C5248' }}>
+      {label}
+    </div>
+  )
+
+  const collapsibleSection = (label: string, open: boolean, toggle: () => void) => sidebarCollapsed && !isMobile ? null : (
+    <button onClick={toggle} style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '12px 16px 4px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+      <span style={{ flex: 1, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#5C5248', textTransform: 'uppercase' as const }}>{label}</span>
+      <span style={chevronStyle(open)}>›</span>
+    </button>
+  )
+
+  const NAV_DEFAULT = isDark ? '#b8a98a' : '#3d2e1e'
+  const navGold    = isDark ? G : '#8B6914'
+
+  const navItem = (label: string, section: string, icon?: React.ReactNode) => {
+    const active = activeSection === section
+    const collapsed = sidebarCollapsed && !isMobile
+    return (
+      <button
+        onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
+        title={collapsed ? label : undefined}
+        data-active={active ? 'true' : undefined}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: collapsed ? 0 : 8,
+          width: '100%', padding: collapsed ? '10px 0' : '8px 16px',
+          background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
+          border: 'none', borderLeft: `2px solid ${active ? navGold : 'transparent'}`,
+          textAlign: 'left', cursor: 'pointer',
+          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
+          color: active ? navGold : NAV_DEFAULT,
+          fontWeight: active ? 600 : 400,
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
+        onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
+      >
+        {icon && <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>{icon}</span>}
+        {!collapsed && label}
+      </button>
+    )
+  }
+
+  // Hamburger button for mobile center headers
+  const Hamburger = () => isMobile ? (
+    <button
+      onClick={() => setSidebarOpen(true)}
+      style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G, fontSize: '20px', flexShrink: 0 }}
+      aria-label="Open navigation"
+    >
+      ☰
+    </button>
+  ) : null
+
+  // ── VIEWS ──────────────────────────────────────────────────
+
+  const LauncherView = ({ title, icon, href }: { title: string; icon: string; href: string }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {isMobile && (
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <Hamburger />
+          <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>{icon} {title}</span>
+        </div>
+      )}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <img src="/logo.png" alt="WRI" style={{ width: 52, height: 52, objectFit: 'contain', marginBottom: 20, opacity: 0.7 }} />
+        <div style={{ fontFamily: cinzel, fontSize: 15, letterSpacing: '0.15em', color: G, marginBottom: 10 }}>{icon} {title}</div>
+        <div style={{ fontFamily: crimson, fontSize: 15, fontStyle: 'italic', color: V.dim, marginBottom: 28 }}>
+          This section opens as a full page
+        </div>
+        <button
+          onClick={() => { window.location.href = href }}
+          style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#0e0c09', background: G, border: 'none', borderRadius: 4, padding: '11px 28px', cursor: 'pointer' }}
+        >
+          Open Full Page →
+        </button>
+      </div>
+    </div>
+  )
+
+  // ── SIDEBAR CONTENT (shared between desktop and mobile overlay) ──
+  const SidebarContent = () => (
+    <>
+      {/* Compact sidebar header */}
+      <div style={{ padding: sidebarCollapsed && !isMobile ? '10px 4px' : '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed && !isMobile ? 'center' : undefined, gap: 10, flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: '50%',
+          background: 'rgba(201,168,76,0.15)',
+          border: `1px solid ${V.bdr}`,
+          flexShrink: 0, overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: cinzel, fontSize: 11, color: G,
+        }}>
+          {user?.imageUrl
+            ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : (user?.firstName?.[0] || 'W')
+          }
+        </div>
+        {!(sidebarCollapsed && !isMobile) && (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user?.firstName || 'Warrior'}
+              </div>
+              <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
+                {tier}
+              </div>
+            </div>
+            {!isMobile && (
+              <button
+                onClick={() => setTheme((t: string) => t === 'dark' ? 'light' : 'dark')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2, flexShrink: 0 }}
+                title="Toggle theme"
+              >
+                {isDark ? '☀️' : '🌙'}
+              </button>
+            )}
+            <button
+              onClick={() => signOut()}
+              style={{
+                background: 'none',
+                border: `1px solid ${V.bdr}`,
+                borderRadius: 5,
+                color: V.mut,
+                fontFamily: cinzel,
+                fontSize: 8,
+                letterSpacing: '0.08em',
+                padding: '3px 8px',
+                cursor: 'pointer',
+                flexShrink: 0,
+                textTransform: 'uppercase' as const,
+              }}
+            >Out</button>
+          </>
+        )}
+      </div>
+
+      {/* Nav */}
+      <div ref={sidebarScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}
+        onScroll={e => { try { sessionStorage.setItem('sidebar-scroll', String((e.target as HTMLElement).scrollTop)) } catch {} }}
+      >
+
+        {/* ── QUICK ACCESS ICON STRIP ── */}
+        {!(sidebarCollapsed && !isMobile) && <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const, ...(isMobile && { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)', width: '100%', boxSizing: 'border-box' as const, minHeight: 52 }) }} onMouseLeave={() => setTooltipVisible(null)}>
+          {([
+            { icon: <MessageSquare size={16} strokeWidth={1.6} />, label: 'War Room Chat',     mobileLabel: 'Chat',      section: 'war-room-chat'  },
+            { icon: <Inbox size={16} strokeWidth={1.6} />,         label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
+            { icon: <Heart size={16} strokeWidth={1.6} />,         label: 'Prayer Wall',       mobileLabel: 'Prayer',    section: 'prayer-wall'    },
+            { icon: <Cross size={16} strokeWidth={1.6} />,         label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
+            { icon: <Users size={16} strokeWidth={1.6} />,         label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
+            { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Feedback',          mobileLabel: 'Feedback',  section: 'feedback'       },
+          ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
+            <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
+              <button
+                onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
+                onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
+                onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
+                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
+              >
+                {icon}
+                {section === 'dms' && unreadDMs > 0 && (
+                  <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
+                )}
+                {section === 'war-room-chat' && unreadWarRoom > 0 && (
+                  <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadWarRoom > 9 ? '9+' : unreadWarRoom}</span>
+                )}
+              </button>
+              {isMobile && (
+                <div style={{ fontFamily: cinzel, fontSize: 7, color: activeSection === section ? G : '#8B7355', letterSpacing: '0.04em', textAlign: 'center' as const, lineHeight: 1.2, maxWidth: 44, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {mobileLabel}
+                </div>
+              )}
+              {!isMobile && tooltipVisible === section && (
+                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 5 ? 'auto' : '50%', right: idx === 5 ? 0 : 'auto', transform: idx > 0 && idx < 5 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
+              )}
+            </div>
+          ))}
+        </div>}
+
+        {/* ── COMMUNITY ── */}
+        {sectionLabel('Community')}
+        {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
+        {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
+        {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
+        {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
+        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
+        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
+
+        {/* ── FIELD OPS (Commander+) ── */}
+        {(['commander', 'general'].includes(((user?.publicMetadata?.tier as string) || '').toLowerCase()) || (user?.publicMetadata?.role as string) === 'minister') && (
+          <>
+            {collapsibleSection('Field Ops', fieldOpsOpen, () => {
+              const next = !fieldOpsOpen
+              setFieldOpsOpen(next)
+              try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
+            })}
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator','my-intel'].includes(activeSection)) ? 420 : 0, transition: 'max-height 0.2s ease' }}>
+              <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'ops-dashboard' ? 'true' : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Zap size={14} strokeWidth={1.6} /></span>
+                <span>Ops Dashboard</span>
+              </button>
+              <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FolderOpen size={14} strokeWidth={1.6} /></span>
+                <span>Case Files</span>
+              </a>
+              <button onClick={() => { setActiveSection('session-center'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'session-center' ? 'true' : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'session-center' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'session-center' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'session-center' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
+                <span>Session Center</span>
+              </button>
+              <button onClick={() => { setActiveSection('document-creator'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'document-creator' ? 'true' : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'document-creator' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'document-creator' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'document-creator' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
+                <span>Document Creator</span>
+              </button>
+              <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
+                data-active={activeSection === 'my-intel' ? 'true' : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={16} /></span>
+                <span>My Intel</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── FOUNDATION ── */}
+        {sectionLabel('Foundation')}
+        {navItem('Arsenal', 'arsenal', <Archive size={16} strokeWidth={1.6} />)}
+        <a href="/community/scripture" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><BookOpen size={14} /></span>
+          <span>Scripture</span>
+        </a>
+
+        {/* ── INTELLIGENCE ── */}
+        {collapsibleSection('Intelligence', intelOpen, () => {
+          const next = !intelligenceOpen
+          setIntelligenceOpen(next)
+          try { localStorage.setItem('sidebar_intelligence_open', String(next)) } catch {}
+        })}
+        <div style={{ overflow: 'hidden', maxHeight: intelOpen ? 800 : 0, transition: 'max-height 0.2s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button
+              onClick={() => { setActiveSection('database'); if (isMobile) setSidebarOpen(false) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, padding: '8px 8px 8px 16px', background: activeSection === 'database' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'database' ? navGold : 'transparent'}`, cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'database' ? navGold : NAV_DEFAULT, fontWeight: activeSection === 'database' ? 600 : 400, textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
+              onMouseLeave={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Library size={14} strokeWidth={1.6} /></span>
+              Intel Archive
+            </button>
+            <button
+              onClick={() => {
+                const next = !intelArchiveOpen
+                setIntelArchiveOpen(next)
+                try { localStorage.setItem('sidebar_intel_archive_open', String(next)) } catch {}
+              }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 12px 8px 4px', color: activeSection === 'database' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), flexShrink: 0 }}
+            >
+              <span style={chevronStyle(archiveOpen)}>›</span>
+            </button>
+          </div>
+          <div style={{ overflow: 'hidden', maxHeight: archiveOpen ? 250 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ paddingLeft: 16 }}>
+              <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <Search size={14} strokeWidth={1.6} />
+                <span>Symptom Investigator</span>
+              </button>
+              <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <Map size={14} strokeWidth={1.6} />
+                <span>Body Map</span>
+              </button>
+              <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <Network size={14} strokeWidth={1.6} />
+                <span>Spirit Network</span>
+              </button>
+              <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                <DoorOpen size={14} strokeWidth={1.6} />
+                <span>Gateway Investigator</span>
+              </button>
+              <a href="/community/dream-interpreter" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid rgba(201,168,76,0.1)', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: isDark ? '#9a8874' : '#7a6858', boxSizing: 'border-box' as const }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#9a8874' : '#7a6858'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}>
+                <Moon size={14} strokeWidth={1.6} />
+                <span>Dream Interpreter</span>
+              </a>
+              {tierLevel >= 2 && (
+                <button onClick={() => { setActiveSection('deliverance-protocol'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'deliverance-protocol' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'deliverance-protocol' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'deliverance-protocol' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                  <Sword size={14} strokeWidth={1.6} />
+                  <span>Deliverance Protocol</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+            <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Eye size={14} strokeWidth={1.6} /></span>
+            <span style={{ flex: 1 }}>Fringe Intelligence</span>
+            <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+          </button>
+          {fringeExpanded && (
+            <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
+              {navItem('The Feed', 'fringe-feed', <Radio size={16} strokeWidth={1.6} />)}
+              {([{ label: 'The Archive', icon: <FolderArchive size={13} strokeWidth={1.6} /> }, { label: 'Fringe Chat', icon: <MessageSquare size={13} strokeWidth={1.6} /> }, { label: 'Courses', icon: <GraduationCap size={13} strokeWidth={1.6} /> }] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── ADMIN (minister only) ── */}
+        {(user?.publicMetadata?.role as string) === 'minister' && (
+          <>
+            <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '12px 16px 8px' }} />
+            <a href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: G, transition: 'background 0.15s', boxSizing: 'border-box' as const }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.12)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.06)' }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Shield size={14} strokeWidth={1.6} /></span>
+              Admin Panel
+            </a>
+          </>
+        )}
+      </div>
+
+      {/* ── SIDEBAR FOOTER — pinned outside scroll ── */}
+      <div style={{ flexShrink: 0, borderTop: '1px solid rgba(201,168,76,0.1)', padding: '4px 0' }}>
+        <button
+          onClick={() => { setEditingProfile(true); if (isMobile) setSidebarOpen(false) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: '2px solid transparent', textAlign: 'left', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'color 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.color = G }}
+          onMouseLeave={e => { e.currentTarget.style.color = NAV_DEFAULT }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Settings size={14} strokeWidth={1.6} /></span>
+          Settings
+        </button>
+        <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12, alignItems: 'center' }}>
+          <a href="/terms" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>TERMS</a>
+          <a href="/privacy" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>PRIVACY</a>
+          <a href="https://www.youtube.com/@war_room_intel" target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>🎥</a>
+          <a href="https://www.facebook.com/warroomintel" target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>📘</a>
+        </div>
+      </div>
+    </>
+  )
+
+  // ── FULL LAYOUT ────────────────────────────────────────────
+  return (
+    <div style={{
+      height: '100dvh',
+      display: isMobile ? 'block' : 'flex',
+      background: V.bg,
+      overflow: 'hidden',
+      width: '100%',
+      maxWidth: '100%',
+      position: 'relative',
+      paddingTop: isMobile ? 'env(safe-area-inset-top)' : 0,
+      boxSizing: 'border-box' as const,
+    }}>
+
+      {/* Mobile overlay */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, background: 'rgba(0,0,0,0.6)', WebkitOverflowScrolling: 'touch' as any }}
+        />
+      )}
+
+      {/* ── LEFT SIDEBAR ── */}
+      <div style={isMobile ? {
+        position: 'fixed', top: 0, left: 0, bottom: 0,
+        width: '280px', zIndex: 1000,
+        transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+        display: 'flex', flexDirection: 'column',
+        background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
+        overflow: 'hidden' as const, WebkitOverflowScrolling: 'touch' as any,
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      } : {
+        display: 'flex', flexDirection: 'column', position: 'relative' as const,
+        background: V.surf, borderRight: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : V.bdr}`,
+        height: '100dvh', overflowY: sidebarCollapsed ? 'hidden' : 'auto', flexShrink: 0,
+        width: sidebarCollapsed ? '48px' : (isTablet ? '220px' : '280px'),
+        transition: 'width 0.2s ease',
+        overflow: 'hidden' as const,
+      }}>
+        <SidebarContent />
+        {/* Desktop collapse toggle */}
+        {!isMobile && (
+          <button
+            onClick={() => {
+              const next = !sidebarCollapsed
+              setSidebarCollapsed(next)
+              try { localStorage.setItem('sidebar_collapsed', String(next)) } catch {}
+            }}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{
+              position: 'absolute' as const, bottom: 12, right: -12,
+              width: 24, height: 24, borderRadius: '50%',
+              background: isDark ? '#1a1714' : '#fff',
+              border: `1px solid ${V.bdr}`,
+              color: G, cursor: 'pointer', fontSize: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {sidebarCollapsed ? '›' : '‹'}
+          </button>
+        )}
+      </div>
+
+      {/* ── CENTER ── */}
+      <div className="wri-bottom-nav-spacer" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowX: 'hidden', minWidth: 0, minHeight: 0, background: V.bg, height: isMobile ? '100dvh' : undefined, width: isMobile ? '100%' : undefined, maxWidth: '100%', paddingBottom: isMobile ? 'calc(var(--bottom-nav-h) + var(--safe-bottom) + 8px)' : undefined }}>
+
+        {/* Push notification banner */}
+        {showPushBanner && !pushSubscribed && typeof window !== 'undefined' && 'Notification' in window && (() => {
+          const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+          const isStandalone = (window.navigator as any).standalone === true
+          const iosNeedsHomeScreen = isIOS && !isStandalone
+          return (
+            <div style={{
+              flexShrink: 0,
+              padding: '8px 16px',
+              background: isDark ? 'rgba(201,168,76,0.07)' : 'rgba(201,168,76,0.12)',
+              borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.35)'}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: isDark ? 'var(--t-2)' : V.mut, letterSpacing: '0.04em' }}>
+                  Enable notifications for prayer requests and session alerts.
+                </span>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  {!iosNeedsHomeScreen && (
+                    <button
+                      onClick={enablePushNotifications}
+                      style={{
+                        padding: '4px 12px', fontFamily: 'var(--font-mono)', fontSize: 10,
+                        fontWeight: 600, letterSpacing: '0.08em',
+                        background: 'var(--gold)', color: '#1a1305',
+                        border: 'none', borderRadius: 2, cursor: 'pointer',
+                      }}
+                    >
+                      Enable
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowPushBanner(false)
+                      try { localStorage.setItem('wri-push-dismissed', '1') } catch {}
+                    }}
+                    style={{
+                      padding: '4px 10px', fontFamily: 'var(--font-mono)', fontSize: 10,
+                      letterSpacing: '0.05em', color: isDark ? 'var(--t-3)' : V.mut,
+                      background: 'none', border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : V.bdr}`,
+                      borderRadius: 2, cursor: 'pointer',
+                    }}
+                  >
+                    {iosNeedsHomeScreen ? 'Dismiss' : 'Not Now'}
+                  </button>
+                </div>
+              </div>
+              {iosNeedsHomeScreen && (
+                <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 10, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.03em' }}>
+                  iOS: To enable push notifications, tap Share → Add to Home Screen first.
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
+        {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
+        {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'war-room'      && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'war-room-chat' && (
+          <WarRoomChatView
+            streamToken={streamToken}
+            apiKey={apiKey}
+            userId={user?.id || ''}
+            userName={user?.fullName || user?.firstName || 'Warrior'}
+            userImageUrl={user?.imageUrl || ''}
+            isDark={isDark}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+          />
+        )}
+        {activeSection === 'prayer-wall' && (
+          <PrayerView
+            streamToken={streamToken}
+            apiKey={apiKey}
+            userId={user?.id || ''}
+            userName={user?.fullName || user?.firstName || 'Warrior'}
+            userImageUrl={user?.imageUrl || ''}
+            isDark={theme !== 'light'}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))}
+            isMinister={(user?.publicMetadata?.role as string) === 'minister'}
+          />
+        )}
+        {activeSection === 'dms' && (
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} />
+        )}
+        {activeSection === 'members'     && (
+          <MembersView
+            members={members}
+            currentUserId={user?.id || ''}
+            currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'}
+            currentUserRole={(user?.publicMetadata?.role as string) || 'member'}
+            onViewProfile={setViewingProfile}
+            onStartDM={(memberId, _memberName) => {
+              setPendingDMWith(memberId)
+              setActiveSection('dms')
+            }}
+            setActiveSection={setActiveSection}
+            isDark={theme !== 'light'}
+            isMobile={isMobile}
+          />
+        )}
+        {activeSection === 'database'    && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} />
+            <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
+          </div>
+        )}
+        {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
+        {activeSection === 'arsenal'     && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
+            <OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} />
+          </div>
+        )}
+        {activeSection === 'testimony-wall' && (
+          <TestimonyWallView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            userId={user?.id || ''}
+            userName={user?.firstName || 'Warrior'}
+            userTier={tier}
+            userImage={user?.imageUrl || ''}
+          />
+        )}
+
+        {activeSection === 'assessment'  && (
+          <AssessmentUploadView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            tier={tier}
+            tierLevel={tierLevel}
+            user={user}
+            getToken={getToken}
+          />
+        )}
+        {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
+        {activeSection === 'deliverance-protocol' && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
+            <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+              {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px' }}>
+              {tierLevel < 2 ? (
+                <div style={{ textAlign: 'center', maxWidth: 420, margin: '60px auto' }}>
+                  <div style={{ fontSize: 40, marginBottom: 16 }}>⚔</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
+                  <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>Upgrade to Commander to access the Protocol Engine.</p>
+                  <a href="/membership" style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, textDecoration: 'none' }}>Upgrade</a>
+                </div>
+              ) : !stpResult ? (
+                <div style={{ maxWidth: 600, margin: '0 auto' }}>
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SELECT MODE</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => setStpMode('spirit')} style={{ flex: 1, padding: '10px 0', background: stpMode === 'spirit' ? G : 'transparent', border: `1px solid ${stpMode === 'spirit' ? G : 'rgba(201,168,76,0.3)'}`, borderRadius: 6, color: stpMode === 'spirit' ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: stpMode === 'spirit' ? 700 : 400 }}>⚔ SPIRIT NAME</button>
+                      <button onClick={() => setStpMode('manifestation')} style={{ flex: 1, padding: '10px 0', background: stpMode === 'manifestation' ? G : 'transparent', border: `1px solid ${stpMode === 'manifestation' ? G : 'rgba(201,168,76,0.3)'}`, borderRadius: 6, color: stpMode === 'manifestation' ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: stpMode === 'manifestation' ? 700 : 400 }}>👁 MANIFESTATION</button>
+                    </div>
+                  </div>
+                  {stpMode === 'spirit' ? (
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SPIRIT OR SPIRIT LINE NAME</label>
+                      <input value={stpSpiritName} onChange={e => setStpSpiritName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && stpSpiritName.trim()) generateStandaloneProtocol() }} placeholder="e.g. Python, Leviathan, Jezebel" style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', boxSizing: 'border-box' as const }} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={stpIncludeCluster} onChange={e => setStpIncludeCluster(e.target.checked)} style={{ accentColor: G }} />
+                        <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#9a8874' : '#5C5248' }}>Include cluster spirits</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>DESCRIBE WHAT YOU ARE SEEING</label>
+                      <textarea rows={4} value={stpManifestations} onChange={e => setStpManifestations(e.target.value)} placeholder="Describe physical, emotional, or behavioral manifestations you are observing in the session..." style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'vertical', boxSizing: 'border-box' as const }} />
+                    </div>
+                  )}
+                  {stpError && <div style={{ border: '1px solid rgba(239,68,68,0.4)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: crimson, fontSize: 14, color: '#ef4444' }}>{stpError}</div>}
+                  <button onClick={generateStandaloneProtocol} disabled={stpLoading || (stpMode === 'spirit' ? !stpSpiritName.trim() : !stpManifestations.trim())} style={{ width: '100%', padding: '14px', background: stpLoading ? 'rgba(201,168,76,0.35)' : G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', cursor: (stpLoading || (stpMode === 'spirit' ? !stpSpiritName.trim() : !stpManifestations.trim())) ? 'not-allowed' : 'pointer' }}>
+                    {stpLoading ? '⏳ GENERATING PROTOCOL...' : '⚔ GENERATE PROTOCOL'}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ maxWidth: 780, margin: '0 auto' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em' }}>⚔ SESSION PROTOCOL</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => window.print()} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
+                      <button onClick={() => { setStpResult(null); setStpError(null) }} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↩ NEW PROTOCOL</button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid rgba(201,168,76,0.18)`, marginBottom: 24, overflowX: 'auto' as const }}>
+                    {([{ key: 'intel', label: 'PRE-SESSION INTEL' }, { key: 'legal', label: 'LEGAL GROUND' }, { key: 'renunciation', label: 'RENUNCIATIONS' }, { key: 'command', label: 'COMMAND PRAYERS' }, { key: 'post', label: 'POST-SESSION' }] as const).map(t => (
+                      <button key={t.key} onClick={() => setStpTab(t.key)} style={{ padding: '8px 14px', background: 'none', border: 'none', borderBottom: stpTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: stpTab === t.key ? G : isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>{t.label}</button>
+                    ))}
+                  </div>
+                  {stpTab === 'intel' && stpResult.protocol?.preSessionIntel && (() => {
+                    const intel = stpResult.protocol.preSessionIntel
+                    return (
+                      <div>
+                        <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.8, marginBottom: 20 }}>{intel.summary}</p>
+                        {intel.keyLegalGrounds?.length > 0 && <div style={{ marginBottom: 18 }}><div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', marginBottom: 8 }}>SPIRITS COVERED</div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{intel.keyLegalGrounds.map((g: string, i: number) => <span key={i} style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', fontFamily: crimson, fontSize: 13, color: G }}>{g}</span>)}</div></div>}
+                        {intel.warningFlags?.length > 0 && <div><div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: '#ef4444', marginBottom: 8 }}>WARNING FLAGS</div>{intel.warningFlags.map((f: string, i: number) => <div key={i} style={{ border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', display: 'flex', gap: 8 }}><span style={{ color: '#ef4444', flexShrink: 0 }}>⚠</span>{f}</div>)}</div>}
+                      </div>
+                    )
+                  })()}
+                  {stpTab === 'legal' && (
+                    <div>
+                      {(stpResult.protocol?.legalGroundChecklist || []).map((item: any, i: number) => (
+                        <label key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1px solid ${stpChecked[`lg-${i}`] ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.12)'}`, borderRadius: 6, marginBottom: 8, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={!!stpChecked[`lg-${i}`]} onChange={e => setStpChecked(prev => ({ ...prev, [`lg-${i}`]: e.target.checked }))} style={{ accentColor: G, marginTop: 3, flexShrink: 0 }} />
+                          <div><div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em', marginBottom: 4 }}>{item.ground}</div><div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#5C5248', fontStyle: 'italic', marginBottom: 4 }}>{item.question}</div>{item.scripture && <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.06em' }}>{item.scripture}</div>}</div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {stpTab === 'renunciation' && (
+                    <div>
+                      {(stpResult.protocol?.renunciationPrayers || []).map((p: any, i: number) => (
+                        <div key={i} style={{ marginBottom: 20 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>{p.title}</div>
+                          <blockquote style={{ margin: 0, paddingLeft: 14, borderLeft: `3px solid ${G}`, fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', fontStyle: 'italic', lineHeight: 1.8 }}>{p.prayer}</blockquote>
+                          {p.notes && <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#8B7355' : '#7a6858', marginTop: 8, fontStyle: 'italic' }}>Note: {p.notes}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {stpTab === 'command' && (
+                    <div>
+                      {(stpResult.protocol?.commandPrayers || []).map((p: any, i: number) => (
+                        <div key={i} style={{ marginBottom: 20 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>{p.target}</div>
+                          <blockquote style={{ margin: 0, paddingLeft: 14, borderLeft: `3px solid ${G}`, fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.8 }}>{p.command}</blockquote>
+                          {p.authority && <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginTop: 8, letterSpacing: '0.06em' }}>{p.authority}</div>}
+                        </div>
+                      ))}
+                      {stpResult.protocol?.intercession && <div style={{ marginTop: 28 }}><div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: G, marginBottom: 16 }}>INTERCESSION</div>{stpResult.protocol.intercession.opening && <blockquote style={{ margin: '0 0 16px', paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.4)`, fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', fontStyle: 'italic', lineHeight: 1.8 }}>{stpResult.protocol.intercession.opening}</blockquote>}{(stpResult.protocol.intercession.declarations || []).map((d: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#5C5248', paddingLeft: 14, borderLeft: '2px solid rgba(201,168,76,0.2)', marginBottom: 8 }}>{d}</div>)}</div>}
+                    </div>
+                  )}
+                  {stpTab === 'post' && stpResult.protocol?.aftercare && (() => {
+                    const ac = stpResult.protocol.aftercare
+                    return (
+                      <div>
+                        {ac.initialSteps?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>INITIAL STEPS</div>{ac.initialSteps.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>⚔ {s}</div>)}</div>}
+                        {ac.dailyPractices?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>DAILY PRACTICES</div>{ac.dailyPractices.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>• {s}</div>)}</div>}
+                        {ac.warningSignsToWatch?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: '#ef4444', letterSpacing: '0.1em', marginBottom: 8 }}>WARNING SIGNS TO WATCH</div>{ac.warningSignsToWatch.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(239,68,68,0.12)` }}>⚠ {s}</div>)}</div>}
+                        {ac.followUpQuestions?.length > 0 && <div><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>FOLLOW-UP QUESTIONS</div>{ac.followUpQuestions.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>? {s}</div>)}</div>}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+        {activeSection === 'body-map' && (
+          tierLevel >= 2
+            ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary>
+            : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+                <div style={{ textAlign:'center', maxWidth:480 }}>
+                  <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>
+                  <div style={{ fontFamily:cinzel, fontSize:10, color:G, letterSpacing:'0.2em', marginBottom:12 }}>BODY MAP</div>
+                  <h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2>
+                  <p style={{ color:isDark?'#8B7355':'#5C5248', fontSize:15, lineHeight:1.7, marginBottom:28, fontFamily:crimson }}>The Body Map is an advanced session tool for Commander-tier ministers and above. Upgrade to unlock symptom-to-spirit mapping, anatomical gate analysis, and live session integration.</p>
+                  <a href="/membership" style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, textDecoration:'none' }}>Upgrade to Commander</a>
+                </div>
+              </div>
+        )}
+        {activeSection === 'spirit-network' && (
+          tierLevel >= 2
+            ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
+                <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
+              </div>
+            : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+                <div style={{ textAlign:'center', maxWidth:480 }}>
+                  <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>
+                  <div style={{ fontFamily:cinzel, fontSize:10, color:G, letterSpacing:'0.2em', marginBottom:12 }}>SPIRIT NETWORK</div>
+                  <h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2>
+                  <p style={{ color:isDark?'#8B7355':'#5C5248', fontSize:15, lineHeight:1.7, marginBottom:28, fontFamily:crimson }}>The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above. Upgrade to unlock org-chart navigation, companion spirit mapping, and live network traversal.</p>
+                  <a href="/membership" style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, textDecoration:'none' }}>Upgrade to Commander</a>
+                </div>
+              </div>
+        )}
+        {activeSection === 'gateway' && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
+            <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','The AI cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
+          </div>
+        )}
+        {activeSection === 'training'    && (
+          <TrainingView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            userId={user?.id || ''}
+            userTier={tier}
+            getToken={getToken}
+            setActiveSection={setActiveSection}
+          />
+        )}
+        {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+        {activeSection === 'session-center' && (
+          <SessionCenterView
+            theme={theme}
+            isMobile={isMobile}
+            setSidebarOpen={setSidebarOpen}
+            userId={user?.id || ''}
+            getToken={getToken}
+            demons={demons}
+            userTier={tier}
+            onLaunch={(sessionId?: string, caseFile?: any) => {
+              setActiveSessionId(sessionId)
+              setActiveSessionCF(caseFile)
+              setSessionOpen(true)
+            }}
+          />
+        )}
+        {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
+        {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
+        {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+        {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+        {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
+        {activeSection === 'forum'       && (
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} />
+            <OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} />
+          </div>
+        )}
+      </div>
+
+      {/* ── SESSION COMMAND CENTER ── */}
+      {sessionOpen && (
+        <SessionCommandCenter
+          sessionId={activeSessionId}
+          caseFile={activeSessionCF}
+          demons={demons}
+          onClose={() => { setSessionOpen(false); setActiveSessionId(undefined); setActiveSessionCF(undefined) }}
+        />
+      )}
+
+      {/* ── MODALS ── */}
+      {viewingProfile && (
+        <ProfileModal
+          member={viewingProfile}
+          currentUserId={user?.id || ''}
+          isDark={theme !== 'light'}
+          onClose={() => setViewingProfile(null)}
+          onStartDM={(memberId, _memberName) => {
+            setViewingProfile(null)
+            setActiveSection('dms')
+            setPendingDMWith(memberId)
+          }}
+        />
+      )}
+      {editingProfile && (
+        <EditProfileModal
+          userId={user?.id || ''}
+          firstName={user?.firstName || ''}
+          lastName={user?.lastName || ''}
+          imageUrl={user?.imageUrl || ''}
+          existingBio={(user?.publicMetadata?.bio as string) || ''}
+          existingCity={(user?.publicMetadata?.city as string) || ''}
+          existingState={(user?.publicMetadata?.state as string) || ''}
+          isDark={theme !== 'light'}
+          onClose={() => setEditingProfile(false)}
+        />
+      )}
+
+      {/* ── RIGHT RAIL — Option D: icon strip + flyout panels ── */}
+      {!isMobile && !isTablet && (() => {
+        const onlineCount = Object.values(memberPresence).filter(p => p.online).length + 1
+        const hasPrayers  = prayers.length > 0
+        const hasMessages = unreadDMs > 0
+        const hasOnline   = onlineCount > 1
+
+        const RAIL_ICONS: Array<{ id: string; icon: React.ReactNode; label: string; dot: boolean; count?: number }> = [
+          { id: 'prayer',   icon: <Heart size={18} strokeWidth={1.6} />,         label: 'Prayer Wall',          dot: hasPrayers },
+          { id: 'messages', icon: <MessageSquare size={18} strokeWidth={1.6} />, label: 'Recent Messages',      dot: hasMessages },
+          { id: 'calls',    icon: <Calendar size={18} strokeWidth={1.6} />,      label: 'Upcoming Calls',       dot: false },
+          { id: 'warriors', icon: <Users size={18} strokeWidth={1.6} />,         label: 'Warriors Online',      dot: hasOnline },
+          { id: 'arsenal',  icon: <Archive size={18} strokeWidth={1.6} />,       label: 'Latest Arsenal Drops', dot: false },
+          { id: 'archive',  icon: <BookOpen size={18} strokeWidth={1.6} />,      label: 'New to Intel Archive', dot: false },
+          { id: 'notifs',   icon: <Bell size={18} strokeWidth={1.6} />,          label: 'Notifications',        dot: unreadNotifs > 0, count: unreadNotifs > 0 ? unreadNotifs : undefined },
+        ]
+
+        return (
+          <div
+            ref={railStripRef}
+            style={{ width: 48, flexShrink: 0, borderLeft: '1px solid var(--gold-line)', background: 'var(--bg-1)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 2, position: 'relative', zIndex: 50 }}
+          >
+            {RAIL_ICONS.map(({ id, icon, label, dot }) => {
+              const isActive = activeRailSection === id
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveRailSection(isActive ? null : id)}
+                  title={label}
+                  style={{
+                    width: 48, height: 48, border: 'none', cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
+                    color: isActive ? 'var(--gold)' : 'var(--t-3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'relative', flexShrink: 0,
+                    transition: 'background 0.15s, color 0.15s',
+                    borderLeft: isActive ? '2px solid var(--gold)' : '2px solid transparent',
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(201,168,76,0.08)'; e.currentTarget.style.color = 'var(--t-1)' } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t-3)' } }}
+                >
+                  {icon}
+                  {dot && !RAIL_ICONS.find(r => r.id === id)?.count && (
+                    <span style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 4px var(--gold)' }} />
+                  )}
+                  {RAIL_ICONS.find(r => r.id === id)?.count ? (
+                    <span style={{ position: 'absolute', top: 7, right: 7, minWidth: 15, height: 15, borderRadius: 8, background: '#ef4444', color: '#fff', fontSize: 9, fontFamily: "'Cinzel', serif", display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', fontWeight: 700, lineHeight: 1 }}>
+                      {(RAIL_ICONS.find(r => r.id === id)?.count ?? 0) > 99 ? '99+' : RAIL_ICONS.find(r => r.id === id)?.count}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
+
+            {/* Flyout panel */}
+            {activeRailSection && (
+              <div
+                ref={railFlyoutRef}
+                style={{
+                  position: 'fixed', top: 60, right: 48, height: 'calc(100vh - 60px)',
+                  width: 280, background: 'var(--bg-1)',
+                  border: '1px solid var(--gold-line)', borderRight: 'none',
+                  borderRadius: '8px 0 0 8px',
+                  boxShadow: '-4px 0 20px rgba(0,0,0,0.4)',
+                  zIndex: 100, display: 'flex', flexDirection: 'column',
+                  animation: 'railFlyoutIn 200ms ease both',
+                }}
+              >
+                {/* Flyout header */}
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--gold-line)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: 'var(--gold)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>
+                    {RAIL_ICONS.find(r => r.id === activeRailSection)?.label}
+                  </span>
+                  <button onClick={() => setActiveRailSection(null)} style={{ background: 'none', border: 'none', color: 'var(--t-4)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px' }}>×</button>
+                </div>
+
+                {/* Flyout content */}
+                <div style={{ flex: 1, overflowY: 'auto' as const, padding: '12px 14px' }}>
+
+                  {/* ── PRAYER WALL ── */}
+                  {activeRailSection === 'prayer' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel action="+ ADD" onAction={() => { setActiveSection('prayer-wall'); setActiveRailSection(null) }}>
+                          Prayer Wall
+                        </SectionLabel>
+                      </div>
+                      {hoveredPrayer && (
+                        <div style={{ position: 'fixed', right: 336, top: hoverY, width: 240, background: V.s2, border: '1px solid rgba(201,168,76,0.45)', borderRadius: 10, padding: '14px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', zIndex: 9999, pointerEvents: 'none' }}>
+                          <div style={{ position: 'absolute', right: -6, top: 16, width: 10, height: 10, background: V.s2, border: '1px solid rgba(201,168,76,0.45)', borderLeft: 'none', borderBottom: 'none', transform: 'rotate(45deg)' }} />
+                          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, marginBottom: 6, letterSpacing: '0.08em' }}>
+                            {(hoveredPrayer.user?.name || 'Warrior').split(' ')[0]}
+                            <span style={{ color: V.mut, fontWeight: 400 }}>{' · '}{(() => { const d = Date.now() - new Date(hoveredPrayer.created_at).getTime(); return d < 60000 ? 'just now' : d < 3600000 ? `${Math.floor(d / 60000)}m ago` : d < 86400000 ? `${Math.floor(d / 3600000)}h ago` : `${Math.floor(d / 86400000)}d ago` })()}</span>
+                          </div>
+                          <div style={{ fontFamily: crimson, fontSize: 14, color: V.txt, lineHeight: 1.55 }}>{hoveredPrayer.text.length > 220 ? hoveredPrayer.text.slice(0, 220) + '…' : hoveredPrayer.text}</div>
+                          <div style={{ marginTop: 8, fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>Click to open Prayer Wall →</div>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                        {prayers.length === 0 ? (
+                          <div style={{ color: V.mut, fontStyle: 'italic', fontFamily: crimson, fontSize: 14 }}>No requests yet</div>
+                        ) : (
+                          [...prayers].reverse().slice(0, 8).map(p => {
+                            const name = (p.user?.name || 'Warrior').split(' ')[0]
+                            const preview = p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text
+                            const d = Date.now() - new Date(p.created_at).getTime()
+                            const timeAgo = d < 60000 ? 'just now' : d < 3600000 ? `${Math.floor(d / 60000)}m ago` : d < 86400000 ? `${Math.floor(d / 3600000)}h ago` : `${Math.floor(d / 86400000)}d ago`
+                            return (
+                              <div key={p.id} onMouseEnter={e => { setHoverY((e.currentTarget as HTMLElement).getBoundingClientRect().top); setHoveredPrayer(p) }} onMouseLeave={() => setHoveredPrayer(null)}>
+                                <TacticalCard onClick={() => { setActiveSection('prayer-wall'); setActiveRailSection(null) }} padding={10}>
+                                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+                                    <div style={{ fontFamily: cinzel, fontSize: 12, color: 'var(--t-0)', letterSpacing: '0.06em' }}>{name}</div>
+                                    <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
+                                  </div>
+                                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 14, color: 'var(--t-1)', lineHeight: 1.6 }}>{preview}</div>
+                                </TacticalCard>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── RECENT MESSAGES ── */}
+                  {activeRailSection === 'messages' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel>Recent Messages</SectionLabel>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {recentMessages.length === 0 ? (
+                          <div style={{ fontSize: 13, color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>No messages yet</div>
+                        ) : (
+                          recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 8).map((msg: any) => (
+                            <TacticalCard key={msg.id} onClick={() => setActiveSection('dms')} padding={10}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <StatusDot kind="info" size={5} />
+                                  <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 130 }}>{msg.senderName}</span>
+                                </div>
+                                <MonoTime size={9} color="var(--t-4)">{msg.timeAgo}</MonoTime>
+                              </div>
+                              <div style={{ fontSize: 13, color: 'var(--t-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{msg.text}</div>
+                            </TacticalCard>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── UPCOMING CALLS ── */}
+                  {activeRailSection === 'calls' && (() => {
+                    const now2 = new Date()
+                    const upcomingEvts = railEvents.filter(e => new Date(e.event_date) >= now2).slice(0, 5)
+                    const recentPast   = railEvents.filter(e => new Date(e.event_date) < now2 && e.recording_url).slice(0, 3)
+                    return (
+                      <div>
+                        <div style={{ marginBottom: 10 }}>
+                          <SectionLabel>Upcoming Calls</SectionLabel>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                          {upcomingEvts.length === 0 && recentPast.length === 0 && (
+                            <div style={{ fontSize: 12, color: 'var(--t-4)', fontStyle: 'italic', fontFamily: crimson }}>No scheduled events</div>
+                          )}
+                          {upcomingEvts.map(ev => {
+                            const d = new Date(ev.event_date)
+                            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                            const t = (ev.zoom_link_tier || 'free')
+                            const badgeLabel = t === 'free' ? 'WATCHMAN' : t.toUpperCase()
+                            const badgeLevel = t === 'general' ? 'I' : t === 'commander' ? 'II' : t === 'soldier' ? 'III' : 'IV'
+                            return (
+                              <TacticalCard key={ev.id} padding="10px 12px">
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4, gap: 6 }}>
+                                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)', flex: 1 }}>{ev.title}</span>
+                                  <ClassBadge level={badgeLevel} label={badgeLabel} />
+                                </div>
+                                <MonoTime color="var(--gold)" size={10}>{dateStr}</MonoTime>
+                              </TacticalCard>
+                            )
+                          })}
+                          {recentPast.length > 0 && (
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--t-4)', letterSpacing: '0.1em', margin: '4px 0 2px' }}>RECORDINGS</div>
+                          )}
+                          {recentPast.map(ev => (
+                            <TacticalCard key={ev.id} padding="10px 12px">
+                              <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)', marginBottom: 6 }}>{ev.title}</div>
+                              <a href={ev.recording_url} target="_blank" rel="noopener noreferrer"
+                                style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--gold)', letterSpacing: '0.06em', textDecoration: 'none' }}>▶ Watch Recording</a>
+                            </TacticalCard>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── WARRIORS ONLINE ── */}
+                  {activeRailSection === 'warriors' && (
+                    <div>
+                      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <SectionLabel>Warriors</SectionLabel>
+                        <HUDChip>{onlineCount} online</HUDChip>
+                      </div>
+                      {/* Current user */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden', flexShrink: 0 }}>
+                          {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)' }}>{user?.firstName || 'You'}</div>
+                          <ClassBadge level={tier === 'General' ? 'I' : tier === 'Commander' ? 'II' : tier === 'Soldier' ? 'III' : 'IV'} label={tier.toUpperCase()} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}><StatusDot kind="ok" size={4} /></div>
+                        </div>
+                      </div>
+                      {/* Other members */}
+                      {[...members.filter(m => m.id !== user?.id)]
+                        .sort((a, b) => new Date(b.lastActiveAt || b.lastSignInAt || 0).getTime() - new Date(a.lastActiveAt || a.lastSignInAt || 0).getTime())
+                        .slice(0, 8)
+                        .map((member, index) => {
+                          const memberTier = member.publicMetadata?.tier || 'Watchman'
+                          const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
+                          const tierColor = tierColors[memberTier] || '#6b6b7a'
+                          const currentUserId = user?.id || ''
+                          const displayName = member.firstName || (member.username && !member.username.startsWith('user_') ? member.username : '') || 'Warrior'
+                          const presence = memberPresence[member.id]
+                          const isOnline = presence?.online === true
+                          const lastActive = presence?.lastActive ?? null
+                          return (
+                            <div key={member.id} style={{ position: 'relative', overflow: 'visible' }} onMouseEnter={() => showWarriorCard(member.id)} onMouseLeave={hideWarriorCard}>
+                              <button onClick={() => setViewingProfile(member)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}>
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
+                                  {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
+                                </div>
+                                <div>
+                                  <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.03em' }}>{displayName}</div>
+                                  <ClassBadge level={memberTier === 'General' ? 'I' : memberTier === 'Commander' ? 'II' : memberTier === 'Soldier' ? 'III' : 'IV'} label={memberTier.toUpperCase()} />
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                                    {isOnline ? <StatusDot kind="ok" size={4} /> : lastActive ? <span style={{ fontSize: 9, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{streamTimeAgo(lastActive)}</span> : null}
+                                  </div>
+                                </div>
+                              </button>
+                              {hoveredWarrior === member.id && member.id !== currentUserId && (
+                                <div onMouseEnter={() => clearTimeout(warriorHoverTimer.current!)} onMouseLeave={hideWarriorCard}
+                                  style={{ position: 'absolute', bottom: index > 1 ? 'calc(100% + 6px)' : 'auto', top: index > 1 ? 'auto' : 'calc(100% + 6px)', right: 0, left: 0, background: '#0f0c07', border: '1px solid #3a3020', borderTop: index > 1 ? '2px solid #C9A84C' : '1px solid #3a3020', borderBottom: index > 1 ? '1px solid #3a3020' : '2px solid #C9A84C', borderRadius: 6, padding: '12px 14px', zIndex: 200, boxShadow: index > 1 ? '0 -8px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)', minWidth: 160 }}>
+                                  <div style={{ fontFamily: cinzel, fontSize: 11, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 10, borderBottom: '1px solid #1e1a0e', paddingBottom: 8 }}>{displayName}</div>
+                                  <button onClick={() => setViewingProfile(member)} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 6, textAlign: 'left' as const }}>👤 PROFILE</button>
+                                  <button onClick={() => { setPendingDMWith(member.id); setActiveSection('dms') }} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'left' as const }}>💬 MESSAGE</button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                    </div>
+                  )}
+
+                  {/* ── ARSENAL DROPS ── */}
+                  {activeRailSection === 'arsenal' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel action="VIEW ALL" onAction={() => { setActiveSection('arsenal'); setActiveRailSection(null) }}>Latest Arsenal Drops</SectionLabel>
+                      </div>
+                      {arsenalDropsLoading ? (
+                        <div style={{ color: 'rgba(201,168,76,0.4)', fontSize: 10, fontFamily: cinzel, padding: '12px 0', textAlign: 'center' as const }}>Loading...</div>
+                      ) : arsenalDrops.length === 0 ? (
+                        <div style={{ color: 'rgba(201,168,76,0.4)', fontSize: 10, fontFamily: cinzel, padding: '12px 0', textAlign: 'center' as const }}>No resources yet</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                          {arsenalDrops.map((r: any) => {
+                            const tierMap: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
+                            const userTierLevel = tierMap[tier.toLowerCase()] ?? 0
+                            const resourceTierLevel = tierMap[r.topic?.toLowerCase() || 'free'] ?? 0
+                            const hasAccess = userTierLevel >= resourceTierLevel
+                            return (
+                              <div
+                                key={r.id}
+                                onClick={() => { hasAccess ? (setActiveSection('arsenal'), setActiveRailSection(null)) : (window.location.href = '/membership') }}
+                                style={{ padding: '8px 10px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.05)')}
+                              >
+                                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, marginBottom: 3, lineHeight: 1.3 }}>
+                                  {r.title?.length > 40 ? r.title.slice(0, 40) + '...' : r.title}
+                                </div>
+                                <div style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                                  {hasAccess ? (r.topic || 'free') : '🔒 ' + (r.topic || 'free') + ' required'}
+                                </div>
+                              </div>
+                            )
+                          })}
+                          <div
+                            onClick={() => { setActiveSection('arsenal'); setActiveRailSection(null) }}
+                            style={{ marginTop: 4, fontSize: 10, color: G, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.08em', textAlign: 'center' as const, padding: '6px 0', borderTop: '1px solid rgba(201,168,76,0.1)' }}
+                          >
+                            View All Arsenal →
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── INTEL ARCHIVE ── */}
+                  {activeRailSection === 'archive' && (
+                    <div>
+                      <div style={{ marginBottom: 10 }}>
+                        <SectionLabel action="VIEW ALL" onAction={() => { setActiveSection('database'); setActiveRailSection(null) }}>New to Intel Archive</SectionLabel>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {demons.length === 0 ? (
+                          <div style={{ fontSize: 13, color: 'var(--t-4)', fontStyle: 'italic', fontFamily: crimson }}>No spirits indexed yet</div>
+                        ) : (
+                          [...demons].sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 10).map((d: any) => (
+                            <TacticalCard key={d.id || d.name} padding="8px 10px" onClick={() => {
+                              try { localStorage.setItem('wri_jump_to_spirit', d.name); localStorage.setItem('wri_jump_from', 'intel') } catch {}
+                              setActiveSection('database')
+                              setActiveRailSection(null)
+                            }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', marginBottom: 3 }}>{d.name}</div>
+                              {d.hierarchyCategory && <div style={{ fontSize: 10, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{d.hierarchyCategory}</div>}
+                            </TacticalCard>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── NOTIFICATIONS ── */}
+                  {activeRailSection === 'notifs' && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>RECENT NOTIFICATIONS</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {notifsList.some((n: any) => !n.read) && (
+                            <button
+                              onClick={async () => {
+                                const token = await getToken()
+                                if (!token) return
+                                await fetch('/api/user-notifications', { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
+                                setNotifsList(prev => prev.map((n: any) => ({ ...n, read: true })))
+                                setUnreadNotifs(0)
+                              }}
+                              style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: G, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: 0.7 }}
+                            >
+                              MARK ALL READ
+                            </button>
+                          )}
+                          {notifsList.length > 0 && (
+                            <button
+                              onClick={clearAllNotifs}
+                              disabled={deletingNotifs}
+                              style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: deletingNotifs ? 'rgba(248,113,113,0.4)' : 'rgba(248,113,113,0.7)', background: 'none', border: 'none', cursor: deletingNotifs ? 'default' : 'pointer', padding: 0 }}
+                            >
+                              {deletingNotifs ? 'CLEARING…' : 'CLEAR ALL'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {notifsList.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--t-4)', fontFamily: crimson, fontSize: 14, fontStyle: 'italic' }}>
+                          No notifications yet
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                          {notifsList.slice(0, 20).map((n: any) => {
+                            const d = Date.now() - new Date(n.created_at).getTime()
+                            const timeAgo = d < 60000 ? 'just now' : d < 3600000 ? `${Math.floor(d / 60000)}m ago` : d < 86400000 ? `${Math.floor(d / 3600000)}h ago` : `${Math.floor(d / 86400000)}d ago`
+                            const isHovered = hoveredNotifId === n.id
+                            return (
+                              <div
+                                key={n.id}
+                                style={{ position: 'relative' as const }}
+                                onMouseEnter={() => setHoveredNotifId(n.id)}
+                                onMouseLeave={() => setHoveredNotifId(null)}
+                              >
+                                <TacticalCard
+                                  padding="10px 12px"
+                                  onClick={async () => {
+                                    if (!n.read) {
+                                      const token = await getToken()
+                                      if (token) {
+                                        fetch(`/api/user-notifications?id=${n.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+                                        setNotifsList(prev => prev.map((x: any) => x.id === n.id ? { ...x, read: true } : x))
+                                        setUnreadNotifs(prev => Math.max(0, prev - 1))
+                                      }
+                                    }
+                                    if (n.url) { setActiveRailSection(null); window.location.href = n.url }
+                                  }}
+                                  style={{ opacity: n.read ? 0.6 : 1, cursor: n.url ? 'pointer' : 'default', paddingRight: 28 }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                        {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', flexShrink: 0, display: 'inline-block' }} />}
+                                        <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{n.title || 'Notification'}</span>
+                                      </div>
+                                      {n.body && <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--t-2)', lineHeight: 1.5 }}>{n.body.length > 80 ? n.body.slice(0, 80) + '…' : n.body}</div>}
+                                    </div>
+                                    <MonoTime size={9} color="var(--t-4)">{timeAgo}</MonoTime>
+                                  </div>
+                                </TacticalCard>
+                                <button
+                                  onClick={e => { e.stopPropagation(); deleteOneNotif(n.id) }}
+                                  style={{
+                                    position: 'absolute' as const, top: 8, right: 8,
+                                    background: 'transparent', border: 'none',
+                                    color: 'rgba(201,168,76,0.7)', fontSize: 14, lineHeight: 1,
+                                    cursor: 'pointer', padding: '0 2px',
+                                    opacity: isHovered ? 1 : 0.5,
+                                    transition: 'opacity 0.15s',
+                                    zIndex: 2,
+                                  }}
+                                  title="Dismiss"
+                                >×</button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ── AI CHATBOT ── */}
+      {chatOpen && (
+        <div style={{
+          position: 'fixed',
+          bottom: isMobile ? 66 : 84,
+          right: isMobile ? 0 : 24,
+          left: isMobile ? 0 : undefined,
+          width: isMobile ? '100%' : 340,
+          height: isMobile ? '70vh' : 460,
+          background: '#0f0c07',
+          border: '1px solid #3a3020',
+          borderTop: '2px solid #C9A84C',
+          borderRadius: isMobile ? '12px 12px 0 0' : 8,
+          display: 'flex',
+          flexDirection: 'column' as const,
+          zIndex: 1001,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+        }}>
+          <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <SolIcon size={16} />
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>ASK SOL</span>
+              <AIUsagePill feature="ask_dake" getToken={getToken} />
+            </div>
+            <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            {chatMessages.length === 0 && (
+              <div style={{ textAlign: 'center' as const, padding: '32px 16px', color: '#6b5e45', fontFamily: crimson, fontSize: 13, lineHeight: 1.6 }}>
+                Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, or any ministry question.
+              </div>
+            )}
+            {chatMessages.map((msg, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div style={{
+                  maxWidth: '85%',
+                  padding: '8px 12px',
+                  borderRadius: msg.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                  background: msg.role === 'user' ? 'rgba(201,168,76,0.1)' : '#1a1408',
+                  border: msg.role === 'user' ? '1px solid rgba(201,168,76,0.3)' : '1px solid #2a2010',
+                  lineHeight: 1.6,
+                }}>
+                  {msg.role === 'user' ? (
+                    <span style={{ fontFamily: crimson, fontSize: 14, color: '#e8d9b0', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span>
+                  ) : (
+                    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: '#a89878', lineHeight: 1.7 }} />
+                  )}
+                </div>
+                {msg.role === 'assistant' && (
+                  <button
+                    onClick={() => exportToPDF(msg.content)}
+                    style={{ marginTop: 4, background: 'none', border: 'none', color: '#6b5e45', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}
+                  >
+                    ↓ EXPORT
+                  </button>
+                )}
+              </div>
+            ))}
+            {chatLoading && (
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ padding: '8px 14px', background: '#1a1408', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>
+                  Analyzing…
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+          <div style={{ padding: 12, borderTop: '1px solid #1e1a0e', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <textarea
+                rows={2}
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(chatInput) } }}
+                placeholder="Ask a question…"
+                style={{ flex: 1, background: '#1a1408', border: '1px solid #2a2010', borderRadius: 6, padding: '8px 10px', color: '#c8b896', fontFamily: crimson, fontSize: 13, resize: 'none' as const, outline: 'none' }}
+              />
+              <button
+                onClick={() => sendChat(chatInput)}
+                disabled={chatLoading || !chatInput.trim()}
+                style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '0 14px', color: G, fontFamily: cinzel, fontSize: 10, cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer', opacity: chatLoading || !chatInput.trim() ? 0.5 : 1, flexShrink: 0, letterSpacing: '0.06em' }}
+              >
+                SEND
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!isAdminPage && (
+        <button
+          onClick={() => setChatOpen(o => !o)}
+          style={{
+            position: 'fixed',
+            bottom: isMobile ? '80px' : '24px',
+            right: '16px',
+            zIndex: 999,
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            width: isMobile ? 56 : 72,
+            height: isMobile ? 56 : 72,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            boxShadow: '0 0 20px 6px rgba(255, 180, 50, 0.4)',
+          }}
+          title="Ask SOL"
+        >
+          <img
+            src="/images/sol/sol-icon.png"
+            width={isMobile ? 56 : 72}
+            height={isMobile ? 56 : 72}
+            style={{ objectFit: 'contain' }}
+            alt="Ask SOL"
+          />
+        </button>
+      )}
+
+      {/* Terms acceptance modal — blocks access until accepted */}
+      {termsAccepted === false && user?.id && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: '#0f0c07', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 12, maxWidth: 560, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.8)' }}>
+            {/* Header */}
+            <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid rgba(201,168,76,0.12)', textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>⚔</div>
+              <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>Welcome to War Room Intel</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: '#9a8c74', lineHeight: 1.6, marginBottom: 0 }}>
+                War Room Intel exists for one purpose: to serve the Lord Jesus Christ and advance His Kingdom. Everything here — the tools, the research, the community — is built to equip believers for the spiritual battle Scripture describes. We stand on the shoulders of men and women who paved this road before us: ministers, scholars, and servants whose faithfulness shaped what we know. We are grateful for their work and honor it here.
+              </div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#7a6d58', lineHeight: 1.6, marginTop: 10 }}>
+                The cost of membership is not for the content itself — much of what we teach has been freely given to the Body of Christ for generations. These fees exist to sustain the hosting, development, and operational costs of this platform, and to support free ministry for those who cannot afford access. If cost is a barrier, reach out. No serious seeker gets turned away.
+              </div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#7a6d58', lineHeight: 1.6, marginTop: 8 }}>
+                By continuing, you agree to use this platform in the spirit it was built — for freedom, for others, and for His glory.
+              </div>
+            </div>
+            {/* Tab switcher (mobile-friendly) */}
+            <div style={{ display: 'flex', borderBottom: '1px solid rgba(201,168,76,0.12)', flexShrink: 0 }}>
+              {(['terms', 'privacy'] as const).map(tab => (
+                <button key={tab} onClick={() => setTermsTab(tab)}
+                  style={{ flex: 1, padding: '10px', background: termsTab === tab ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: termsTab === tab ? `2px solid ${G}` : '2px solid transparent', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: termsTab === tab ? G : '#6a5f4f', cursor: 'pointer' }}>
+                  {tab === 'terms' ? 'TERMS OF SERVICE' : 'PRIVACY POLICY'}
+                </button>
+              ))}
+            </div>
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', maxHeight: 260 }}>
+              {termsTab === 'terms' ? (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>
+                  <p>War Room Intel is a ministry platform for deliverance and spiritual warfare education. By accessing this platform you agree to use it solely for lawful, ministry-aligned purposes.</p>
+                  <p>You agree not to: share login credentials, redistribute proprietary content, use AI tools for harm, or misrepresent ministry materials.</p>
+                  <p>Content on this platform is intended for spiritual edification and deliverance ministry education. It does not constitute medical, psychological, or legal advice.</p>
+                  <p>We reserve the right to remove access for violations of these terms. Subscriptions are non-refundable after access is granted.</p>
+                  <p>These terms may be updated from time to time. Continued use constitutes acceptance of updated terms.</p>
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Terms of Service →</a>
+                </div>
+              ) : (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}>
+                  <p>We collect your name, email, and usage data to provide and improve this ministry platform. We do not sell your data.</p>
+                  <p>Account data is stored securely via Clerk (authentication) and Supabase (content). Payment data is processed by Stripe and never stored on our servers.</p>
+                  <p>Push notification subscriptions are stored locally and in our database only to deliver ministry alerts you have opted into.</p>
+                  <p>You may request deletion of your data at any time by contacting exorcist@warroomintel.com.</p>
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Privacy Policy →</a>
+                </div>
+              )}
+            </div>
+            {/* Acceptance */}
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(201,168,76,0.12)', background: '#09070F' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
+                <input type="checkbox" checked={termsChecked} onChange={e => setTermsChecked(e.target.checked)}
+                  style={{ marginTop: 3, accentColor: G, width: 16, height: 16, flexShrink: 0 }} />
+                <span style={{ fontFamily: crimson, fontSize: 14, color: '#c8b99a', lineHeight: 1.5 }}>
+                  I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Privacy Policy</a>
+                </span>
+              </label>
+              <button
+                disabled={!termsChecked || termsSubmitting}
+                onClick={async () => {
+                  if (!termsChecked || termsSubmitting) return
+                  setTermsSubmitting(true)
+                  try {
+                    const token = await getToken()
+                    const res = await fetch('/api/accept-terms', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    })
+                    if (res.ok) setTermsAccepted(true)
+                  } catch { /* fail silently — user can retry */ }
+                  setTermsSubmitting(false)
+                }}
+                style={{ width: '100%', padding: '12px', background: termsChecked ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: termsChecked ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: termsChecked ? 'pointer' : 'default', opacity: termsSubmitting ? 0.7 : 1 }}>
+                {termsSubmitting ? 'SAVING...' : 'CONTINUE TO WAR ROOM →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInstallBanner && (
+        <div style={{
+          position: 'fixed',
+          bottom: isMobile ? 72 : 24,
+          ...(isMobile
+            ? { left: 16, right: 16 }
+            : { left: '50%', transform: 'translateX(-50%)', width: 420 }),
+          zIndex: 200,
+          maxWidth: isMobile ? 'calc(100% - 32px)' : 420,
+          background: 'linear-gradient(135deg, #1a1408 0%, #0f0c07 100%)',
+          border: '1px solid rgba(201,168,76,0.45)',
+          borderRadius: 12,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          overflowX: 'hidden',
+          boxSizing: 'border-box' as const,
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+            background: '#C9A84C', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 22,
+          }}>⚔</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontFamily: "'Cinzel',serif", fontSize: 11,
+              color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 4,
+            }}>
+              INSTALL WAR ROOM INTEL
+            </div>
+            <div style={{
+              fontFamily: "'Crimson Pro',serif", fontSize: 13,
+              color: '#c8b99a', lineHeight: 1.5, marginBottom: 8,
+            }}>
+              Tap the <span style={{ color: '#C9A84C', fontWeight: 600 }}>Share</span> button
+              {' '}
+              <span style={{ fontSize: 15 }}>⎋</span>
+              {' '}then{' '}
+              <span style={{ color: '#C9A84C', fontWeight: 600 }}>"Add to Home Screen"</span>
+              {' '}for the full app experience — works offline, no App Store needed.
+            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem('wri-pwa-dismissed', '1')
+                setShowInstallBanner(false)
+              }}
+              style={{
+                background: 'transparent', border: '1px solid rgba(201,168,76,0.3)',
+                borderRadius: 5, padding: '4px 12px',
+                fontFamily: "'Cinzel',serif", fontSize: 9,
+                color: '#6b5e45', letterSpacing: '0.1em', cursor: 'pointer',
+              }}
+            >
+              DISMISS
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.setItem('wri-pwa-dismissed', '1')
+              setShowInstallBanner(false)
+            }}
+            style={{
+              background: 'transparent', border: 'none',
+              color: '#6b5e45', fontSize: 18, cursor: 'pointer',
+              padding: '0 2px', flexShrink: 0, lineHeight: 1,
+            }}
+          >×</button>
+        </div>
+      )}
+
+      <BottomNav
+        tabs={[
+          { id: 'intel',    label: 'Home',     icon: <Home size={20} strokeWidth={1.6} /> },
+          { id: 'database', label: 'Database', icon: <Library size={20} strokeWidth={1.6} /> },
+          { id: 'forum',    label: 'Ops',      icon: <MessageSquare size={20} strokeWidth={1.6} /> },
+          { id: 'ai',       label: 'AI',       icon: <Zap size={20} strokeWidth={1.6} /> },
+        ]}
+        activeId={activeSection}
+        onTab={(id) => {
+          if (id === 'ai') { setChatOpen(o => !o) }
+          else { setActiveSection(id) }
+        }}
+        onFAB={() => setActiveSection('session-center')}
+        onLongPress={() => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
+        }}
+        fabIcon={<Plus size={24} color="#1a1305" strokeWidth={2.2} />}
+      />
+    </div>
+  )
+}

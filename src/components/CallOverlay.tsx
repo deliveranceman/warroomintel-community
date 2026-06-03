@@ -1,6 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react'
-import pkg from '@stream-io/video-react-sdk'
-const { StreamVideoClient, StreamVideo, StreamCall } = pkg as any
 
 interface CallOverlayProps {
   callType: 'audio' | 'video'
@@ -11,196 +9,182 @@ interface CallOverlayProps {
   onEnd: (durationSeconds: number) => void
 }
 
-const STREAM_API_KEY = 'gsx7ykbj4rzr'
-
 const cinzel = "'Cinzel', serif"
 const G = '#C9A84C'
 
-export default function CallOverlay({ callType, otherUser, myUserId, streamToken, channelId, onEnd }: CallOverlayProps) {
-  const [client, setClient] = useState<InstanceType<typeof StreamVideoClient> | null>(null)
-  const [call, setCall] = useState<any>(null)
-  const [callingState, setCallingState] = useState<string>('joining')
+export default function CallOverlay({ callType, otherUser, onEnd }: CallOverlayProps) {
+  const [status, setStatus] = useState<'connecting' | 'active' | 'error'>('connecting')
   const [elapsed, setElapsed] = useState(0)
   const [muted, setMuted] = useState(false)
   const [cameraOff, setCameraOff] = useState(callType === 'audio')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const startTimeRef = useRef<number>(Date.now())
+  const startRef = useRef(Date.now())
+  const localVideoRef = useRef<HTMLVideoElement>(null)
+  const remoteVideoRef = useRef<HTMLVideoElement>(null)
+  const pcRef = useRef<RTCPeerConnection | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+
+  const getInitials = (name: string) => name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
+  const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
   useEffect(() => {
-    const c = new StreamVideoClient({
-      apiKey: STREAM_API_KEY,
-      user: { id: myUserId, name: myUserId },
-      token: streamToken,
-    })
+    let cancelled = false
 
-    const callId = `wri-${[myUserId, otherUser.id].sort().join('-')}-${Date.now()}`
-    const cl = c.call('default', callId)
+    const start = async () => {
+      try {
+        const constraints = callType === 'video'
+          ? { audio: true, video: { width: 640, height: 480 } }
+          : { audio: true, video: false }
 
-    cl.getOrCreate({
-      ring: true,
-      data: {
-        members: [{ user_id: myUserId }, { user_id: otherUser.id }],
-        custom: { channelId, callType },
-      },
-    }).then(() => cl.join()).then(() => {
-      setCallingState('active')
-      startTimeRef.current = Date.now()
-      timerRef.current = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000))
-      }, 1000)
-    }).catch((err: unknown) => {
-      console.error('call error', err)
-      setCallingState('error')
-    })
+        const stream = await navigator.mediaDevices.getUserMedia(constraints)
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        localStreamRef.current = stream
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream
+          localVideoRef.current.muted = true
+        }
 
-    setClient(c)
-    setCall(cl)
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ]
+        })
+        pcRef.current = pc
+
+        stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
+        pc.ontrack = (e) => {
+          if (remoteVideoRef.current && e.streams[0]) {
+            remoteVideoRef.current.srcObject = e.streams[0]
+          }
+        }
+
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'connected') {
+            setStatus('active')
+            startRef.current = Date.now()
+            timerRef.current = setInterval(() => {
+              setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+            }, 1000)
+          }
+          if (pc.connectionState === 'failed') setStatus('error')
+        }
+
+        setStatus('active')
+        startRef.current = Date.now()
+        timerRef.current = setInterval(() => {
+          setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+        }, 1000)
+
+      } catch (err) {
+        console.error('call error', err)
+        if (!cancelled) setStatus('error')
+      }
+    }
+
+    start()
 
     return () => {
+      cancelled = true
       if (timerRef.current) clearInterval(timerRef.current)
-      cl.leave().catch(() => {})
-      c.disconnectUser().catch(() => {})
+      localStreamRef.current?.getTracks().forEach(t => t.stop())
+      pcRef.current?.close()
     }
   }, [])
 
-  const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-
   const handleEnd = () => {
     if (timerRef.current) clearInterval(timerRef.current)
-    const dur = Math.floor((Date.now() - startTimeRef.current) / 1000)
-    call?.leave().catch(() => {})
-    client?.disconnectUser().catch(() => {})
+    localStreamRef.current?.getTracks().forEach(t => t.stop())
+    pcRef.current?.close()
+    const dur = Math.floor((Date.now() - startRef.current) / 1000)
     onEnd(dur)
   }
 
-  const getInitials = (name: string) =>
-    name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
+  const toggleMute = () => {
+    const track = localStreamRef.current?.getAudioTracks()[0]
+    if (track) { track.enabled = !track.enabled; setMuted(m => !m) }
+  }
 
-  const overlayStyle: React.CSSProperties = {
+  const toggleCamera = () => {
+    const track = localStreamRef.current?.getVideoTracks()[0]
+    if (track) { track.enabled = !track.enabled; setCameraOff(c => !c) }
+  }
+
+  const overlay: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 9999,
     background: 'rgba(0,0,0,0.92)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   }
 
-  const cardStyle: React.CSSProperties = {
-    width: '100%', maxWidth: 420,
-    background: callType === 'video' ? '#0d1117' : '#0a0d1a',
+  const card: React.CSSProperties = {
+    width: '100%', maxWidth: 400,
+    background: '#0a0d1a',
     borderRadius: 16, overflow: 'hidden',
     border: '1px solid rgba(201,168,76,0.2)',
   }
 
-  if (callingState === 'error') return (
-    <div style={overlayStyle}>
-      <div style={{ ...cardStyle, padding: 32, textAlign: 'center' }}>
-        <div style={{ color: '#f87171', fontFamily: cinzel, fontSize: 12, marginBottom: 12 }}>CALL FAILED</div>
-        <button
-          onClick={() => onEnd(0)}
-          style={{ fontFamily: cinzel, fontSize: 10, padding: '8px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: G, borderRadius: 4, cursor: 'pointer' }}
-        >
-          CLOSE
-        </button>
+  const btnStyle = (active = false, danger = false): React.CSSProperties => ({
+    width: 46, height: 46, borderRadius: '50%', border: 'none', cursor: 'pointer',
+    fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: danger ? '#dc2626' : active ? 'rgba(201,168,76,0.3)' : 'rgba(255,255,255,0.12)',
+    color: danger ? 'white' : active ? G : 'white',
+  })
+
+  if (status === 'error') return (
+    <div style={overlay}>
+      <div style={{ ...card, padding: 32, textAlign: 'center' }}>
+        <div style={{ color: '#f87171', fontFamily: cinzel, fontSize: 12, marginBottom: 8 }}>CALL FAILED</div>
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 16 }}>Could not access microphone or camera</div>
+        <button onClick={() => onEnd(0)} style={{ fontFamily: cinzel, fontSize: 10, padding: '8px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: G, borderRadius: 4, cursor: 'pointer' }}>CLOSE</button>
       </div>
     </div>
   )
 
   return (
-    <div style={overlayStyle}>
-      <div style={cardStyle}>
-        {/* Timer bar */}
-        <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={overlay}>
+      <div style={card}>
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: 'rgba(201,168,76,0.6)' }}>
             {callType === 'video' ? 'VIDEO CALL' : 'AUDIO CALL'} · WAR ROOM INTEL
           </div>
-          <div style={{ fontFamily: 'monospace', fontSize: 13, color: callingState === 'active' ? 'white' : 'rgba(255,255,255,0.4)' }}>
-            {callingState === 'active' ? formatTime(elapsed) : 'Connecting…'}
+          <div style={{ fontFamily: 'monospace', fontSize: 13, color: status === 'active' ? 'white' : 'rgba(255,255,255,0.4)' }}>
+            {status === 'active' ? formatTime(elapsed) : 'Connecting…'}
           </div>
         </div>
 
-        {callType === 'video' && client && call ? (
-          /* VIDEO LAYOUT */
-          <StreamVideo client={client}>
-            <StreamCall call={call}>
-              <div style={{ height: 280, background: '#0d1117', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: '100%', height: '100%', display: 'flex', gap: 4, padding: 8 }}>
-                  <div style={{ flex: 1, background: '#1a1f2e', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 16, color: G }}>
-                      {getInitials(otherUser.name)}
-                    </div>
-                    <div style={{ position: 'absolute', bottom: 8, left: 10, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-                      {otherUser.name}
-                    </div>
-                  </div>
-                </div>
-                {/* PiP self view */}
-                <div style={{ position: 'absolute', bottom: 12, right: 12, width: 80, height: 60, borderRadius: 8, background: '#1a2a3a', border: '1.5px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{getInitials(myUserId)}</div>
-                </div>
+        {callType === 'video' ? (
+          <div style={{ position: 'relative', height: 260, background: '#0d1117' }}>
+            <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '2px solid rgba(201,168,76,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 18, color: G }}>
+                {getInitials(otherUser.name)}
               </div>
-            </StreamCall>
-          </StreamVideo>
+            </div>
+            <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', bottom: 10, right: 10, width: 80, height: 60, borderRadius: 8, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.2)' }} />
+            <div style={{ position: 'absolute', bottom: 8, left: 10, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{otherUser.name}</div>
+          </div>
         ) : (
-          /* AUDIO LAYOUT */
           <div style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <div style={{ position: 'relative', width: 80, height: 80 }}>
-              {callingState !== 'active' && (
-                <>
-                  <div style={{ position: 'absolute', inset: -16, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.2)', animation: 'pulse-ring 2s ease-out infinite' }} />
-                  <div style={{ position: 'absolute', inset: -8, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.15)', animation: 'pulse-ring 2s ease-out infinite 0.5s' }} />
-                </>
-              )}
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '2px solid rgba(201,168,76,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 22, color: G, position: 'relative', zIndex: 1 }}>
+            <div style={{ position: 'relative', width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'absolute', inset: -16, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.2)', animation: 'pulse-ring 2s ease-out infinite' }} />
+              <div style={{ position: 'absolute', inset: -8, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.12)', animation: 'pulse-ring 2s ease-out infinite 0.6s' }} />
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '2px solid rgba(201,168,76,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 22, color: G, zIndex: 1 }}>
                 {getInitials(otherUser.name)}
               </div>
             </div>
             <div style={{ fontFamily: cinzel, fontSize: 15, color: 'white', letterSpacing: '0.05em' }}>{otherUser.name}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-              {callingState === 'active' ? formatTime(elapsed) : 'Ringing…'}
-            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{status === 'active' ? formatTime(elapsed) : 'Connecting…'}</div>
           </div>
         )}
 
-        {/* Controls */}
-        <div style={{ padding: '16px 24px 20px', display: 'flex', justifyContent: 'center', gap: 16, alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <button
-            title="Mute"
-            onClick={() => { call?.microphone?.toggle(); setMuted(m => !m) }}
-            style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', cursor: 'pointer', background: muted ? 'rgba(201,168,76,0.25)' : 'rgba(255,255,255,0.1)', color: muted ? G : 'white', fontSize: 18 }}
-          >
-            {muted ? '🔇' : '🎙'}
-          </button>
-          {callType === 'video' && (
-            <button
-              title="Camera"
-              onClick={() => { call?.camera?.toggle(); setCameraOff(c => !c) }}
-              style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', cursor: 'pointer', background: cameraOff ? 'rgba(201,168,76,0.25)' : 'rgba(255,255,255,0.1)', color: cameraOff ? G : 'white', fontSize: 18 }}
-            >
-              {cameraOff ? '📵' : '📹'}
-            </button>
-          )}
-          <button
-            title="End call"
-            onClick={handleEnd}
-            style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: '#dc2626', color: 'white', fontSize: 22 }}
-          >
-            📵
-          </button>
-          {callType === 'video' && (
-            <button
-              title="Screen share"
-              onClick={() => call?.screenShare?.toggle()}
-              style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 18 }}
-            >
-              🖥
-            </button>
-          )}
+        <div style={{ padding: '14px 24px 18px', display: 'flex', justifyContent: 'center', gap: 14, alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={toggleMute} style={btnStyle(muted)}>{muted ? '🔇' : '🎙'}</button>
+          {callType === 'video' && <button onClick={toggleCamera} style={btnStyle(cameraOff)}>{cameraOff ? '📵' : '📹'}</button>}
+          <button onClick={handleEnd} style={{ ...btnStyle(false, true), width: 54, height: 54, fontSize: 20 }}>📵</button>
         </div>
 
-        <style>{`
-          @keyframes pulse-ring {
-            0% { transform: scale(1); opacity: 0.6; }
-            100% { transform: scale(1.5); opacity: 0; }
-          }
-        `}</style>
+        <style>{`@keyframes pulse-ring { 0% { transform:scale(1);opacity:.6; } 100% { transform:scale(1.6);opacity:0; } }`}</style>
       </div>
     </div>
   )
