@@ -9301,10 +9301,220 @@ function ContentSuggestions({ getToken, isDark }: { getToken: any; isDark: boole
   )
 }
 
+// ─── ADMIN TESTING PANEL ────────────────────────────────────────────────────
+function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<string | null>; isDark: boolean }) {
+  const [testingVisible, setTestingVisible] = useState(true)
+  const [testingMsg, setTestingMsg]         = useState('')
+  const [loadingSettings, setLoadingSettings] = useState(true)
+  const [savingSettings, setSavingSettings]   = useState(false)
+  const [bugs, setBugs]                       = useState<any[]>([])
+  const [features, setFeatures]               = useState<any[]>([])
+  const [loadingBugs, setLoadingBugs]         = useState(true)
+  const [loadingFeats, setLoadingFeats]       = useState(true)
+  const [editBugId, setEditBugId]             = useState<string | null>(null)
+  const [editBugStatus, setEditBugStatus]     = useState('')
+  const [editBugNote, setEditBugNote]         = useState('')
+  const [editFeatId, setEditFeatId]           = useState<string | null>(null)
+  const [editFeatStatus, setEditFeatStatus]   = useState('')
+  const [editFeatNote, setEditFeatNote]       = useState('')
+  const [savingItem, setSavingItem]           = useState(false)
+
+  const bg    = isDark ? '#0D0B14' : '#f5f3ee'
+  const surf  = isDark ? '#12101e' : '#fff'
+  const bdr   = isDark ? 'rgba(201,168,76,0.22)' : 'rgba(201,168,76,0.3)'
+  const txt   = isDark ? '#e8dcc8' : '#1a1208'
+  const dim   = isDark ? '#a09080' : '#8b7355'
+  const mut   = isDark ? '#6b5e45' : '#a09080'
+  const inp: React.CSSProperties = { width: '100%', background: bg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '7px 10px', color: txt, fontFamily: "'Crimson Pro', serif", fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }
+  const lbl: React.CSSProperties = { fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', color: mut, display: 'block', marginBottom: 4 }
+
+  async function apiFetch(path: string, opts: RequestInit = {}) {
+    const token = await getToken()
+    return fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...((opts.headers as any) || {}) } })
+  }
+
+  async function loadSettings() {
+    setLoadingSettings(true)
+    try {
+      const r = await fetch('/api/testing-settings')
+      const d = await r.json()
+      setTestingVisible(d.testing_visible ?? true)
+      setTestingMsg(d.testing_message || '')
+    } finally { setLoadingSettings(false) }
+  }
+
+  async function saveSettings() {
+    setSavingSettings(true)
+    try {
+      await apiFetch('/api/testing-settings', { method: 'PATCH', body: JSON.stringify({ testing_visible: testingVisible, testing_message: testingMsg }) })
+    } finally { setSavingSettings(false) }
+  }
+
+  async function loadBugs() {
+    setLoadingBugs(true)
+    try { const r = await apiFetch('/api/testing-bugs'); const d = await r.json(); setBugs(d.bugs || []) } finally { setLoadingBugs(false) }
+  }
+
+  async function loadFeatures() {
+    setLoadingFeats(true)
+    try { const r = await apiFetch('/api/testing-features'); const d = await r.json(); setFeatures(d.features || []) } finally { setLoadingFeats(false) }
+  }
+
+  useEffect(() => { loadSettings(); loadBugs(); loadFeatures() }, [])
+
+  async function saveBug() {
+    if (!editBugId) return
+    setSavingItem(true)
+    try {
+      await apiFetch('/api/testing-bugs', { method: 'PATCH', body: JSON.stringify({ id: editBugId, status: editBugStatus, resolved_note: editBugNote }) })
+      setEditBugId(null); await loadBugs()
+    } finally { setSavingItem(false) }
+  }
+
+  async function saveFeat() {
+    if (!editFeatId) return
+    setSavingItem(true)
+    try {
+      await apiFetch('/api/testing-features', { method: 'PATCH', body: JSON.stringify({ id: editFeatId, status: editFeatStatus, admin_note: editFeatNote }) })
+      setEditFeatId(null); await loadFeatures()
+    } finally { setSavingItem(false) }
+  }
+
+  function exportCSV() {
+    const rows: string[][] = [['Type','Title','Severity/Status','Category','Submitted By','Tier','Created','Status','Notes']]
+    bugs.forEach(b => rows.push(['bug', b.title, b.severity, b.category, b.submitted_by_name || '', b.submitted_by_tier || '', b.created_at, b.status, b.resolved_note || '']))
+    features.forEach(f => rows.push(['feature', f.title, '', '', f.submitted_by_name || '', f.submitted_by_tier || '', f.created_at, f.status, f.admin_note || '']))
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'testing-feedback.csv'; a.click()
+  }
+
+  const SEV_COLORS: Record<string, string> = { low: '#6b7280', medium: '#b45309', high: '#c2410c', critical: '#dc2626' }
+  const STATUS_BG: Record<string, string> = { open: 'rgba(201,168,76,0.12)', in_progress: 'rgba(59,130,246,0.12)', resolved: 'rgba(34,197,94,0.12)', wont_fix: 'rgba(100,100,100,0.12)', planned: 'rgba(147,51,234,0.12)', shipped: 'rgba(34,197,94,0.12)', declined: 'rgba(100,100,100,0.12)' }
+  const STATUS_C: Record<string, string> = { open: G, in_progress: '#60a5fa', resolved: '#4ade80', wont_fix: '#9ca3af', planned: '#c084fc', shipped: '#4ade80', declined: '#9ca3af' }
+
+  return (
+    <div style={{ padding: '24px 0' }}>
+      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>🧪 TESTING COMMAND CENTER</div>
+
+      {/* Settings card */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: 20, marginBottom: 24 }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.18em', color: G, marginBottom: 14 }}>VISIBILITY SETTINGS</div>
+        {loadingSettings ? <div style={{ color: dim, fontSize: 12 }}>Loading...</div> : (
+          <div style={{ display: 'grid', gap: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <div
+                onClick={() => setTestingVisible(v => !v)}
+                style={{ width: 44, height: 24, borderRadius: 12, background: testingVisible ? G : 'rgba(100,100,100,0.3)', position: 'relative' as const, cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }}
+              >
+                <div style={{ position: 'absolute' as const, top: 3, left: testingVisible ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+              </div>
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.1em', color: testingVisible ? G : dim }}>
+                Testing Mode {testingVisible ? 'ON' : 'OFF'} — sidebar link {testingVisible ? 'visible' : 'hidden'} for all users
+              </span>
+            </label>
+            <div>
+              <label style={lbl}>BANNER MESSAGE</label>
+              <input style={inp} value={testingMsg} onChange={e => setTestingMsg(e.target.value)} placeholder="Message shown in the testing banner..." />
+            </div>
+            <button onClick={saveSettings} disabled={savingSettings} style={{ alignSelf: 'flex-start', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', background: G, color: BG, border: 'none', borderRadius: 4, padding: '7px 16px', cursor: 'pointer', opacity: savingSettings ? 0.5 : 1 }}>
+              {savingSettings ? 'SAVING...' : 'SAVE SETTINGS'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Export */}
+      <div style={{ marginBottom: 20 }}>
+        <button onClick={exportCSV} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.12em', background: 'transparent', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '7px 14px', cursor: 'pointer' }}>
+          ↓ Export All Feedback as CSV
+        </button>
+      </div>
+
+      {/* Bug Reports */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, marginBottom: 20, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.18em', color: G }}>BUG REPORTS ({bugs.length})</span>
+        </div>
+        {loadingBugs ? <div style={{ padding: 20, color: dim, fontSize: 12 }}>Loading...</div> : bugs.length === 0 ? <div style={{ padding: 20, color: dim, fontSize: 12, fontStyle: 'italic' }}>No bug reports yet.</div> : bugs.map(bug => (
+          <div key={bug.id} style={{ padding: '12px 16px', borderBottom: `1px solid ${bdr}` }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' as const }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G }}>{bug.title}</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: SEV_COLORS[bug.severity] || dim, border: `1px solid ${SEV_COLORS[bug.severity] || dim}44`, padding: '1px 5px', borderRadius: 8 }}>{bug.severity}</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: STATUS_BG[bug.status] || 'transparent', color: STATUS_C[bug.status] || dim, padding: '1px 6px', borderRadius: 8 }}>{bug.status.replace('_',' ')}</span>
+                </div>
+                <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: txt, margin: '0 0 4px', lineHeight: 1.4 }}>{bug.description}</p>
+                <div style={{ fontSize: 11, color: dim, fontFamily: "'Crimson Pro', serif" }}>
+                  {bug.submitted_by_name} · {bug.submitted_by_tier} · {bug.category}
+                </div>
+                {editBugId === bug.id ? (
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                    <select style={{ ...inp, width: 'auto', fontSize: 11 }} value={editBugStatus} onChange={e => setEditBugStatus(e.target.value)}>
+                      {['open','in_progress','resolved','wont_fix'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                    </select>
+                    <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editBugNote} onChange={e => setEditBugNote(e.target.value)} placeholder="Resolution note..." />
+                    <button onClick={saveBug} disabled={savingItem} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: G, color: BG, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>{savingItem ? '...' : 'Save'}</button>
+                    <button onClick={() => setEditBugId(null)} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setEditBugId(bug.id); setEditBugStatus(bug.status); setEditBugNote(bug.resolved_note || '') }}
+                    style={{ marginTop: 6, fontFamily: "'Cinzel', serif", fontSize: 8, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                    UPDATE STATUS
+                  </button>
+                )}
+              </div>
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>▲ {bug.upvotes}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Feature Requests */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${bdr}` }}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.18em', color: G }}>FEATURE REQUESTS ({features.length})</span>
+        </div>
+        {loadingFeats ? <div style={{ padding: 20, color: dim, fontSize: 12 }}>Loading...</div> : features.length === 0 ? <div style={{ padding: 20, color: dim, fontSize: 12, fontStyle: 'italic' }}>No feature requests yet.</div> : features.map(feat => (
+          <div key={feat.id} style={{ padding: '12px 16px', borderBottom: `1px solid ${bdr}` }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' as const }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G }}>{feat.title}</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: STATUS_BG[feat.status] || 'transparent', color: STATUS_C[feat.status] || dim, padding: '1px 6px', borderRadius: 8 }}>{feat.status.replace('_',' ')}</span>
+                </div>
+                <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: txt, margin: '0 0 4px', lineHeight: 1.4 }}>{feat.description}</p>
+                <div style={{ fontSize: 11, color: dim, fontFamily: "'Crimson Pro', serif" }}>{feat.submitted_by_name} · {feat.submitted_by_tier}</div>
+                {editFeatId === feat.id ? (
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                    <select style={{ ...inp, width: 'auto', fontSize: 11 }} value={editFeatStatus} onChange={e => setEditFeatStatus(e.target.value)}>
+                      {['open','planned','in_progress','shipped','declined'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                    </select>
+                    <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editFeatNote} onChange={e => setEditFeatNote(e.target.value)} placeholder="Admin note..." />
+                    <button onClick={saveFeat} disabled={savingItem} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: G, color: BG, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>{savingItem ? '...' : 'Save'}</button>
+                    <button onClick={() => setEditFeatId(null)} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setEditFeatId(feat.id); setEditFeatStatus(feat.status); setEditFeatNote(feat.admin_note || '') }}
+                    style={{ marginTop: 6, fontFamily: "'Cinzel', serif", fontSize: 8, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                    UPDATE STATUS
+                  </button>
+                )}
+              </div>
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>▲ {feat.upvotes}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing'>('dashboard')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -9390,6 +9600,9 @@ function AdminPage() {
       { key: 'internal-books',  label: 'Internal Books' },
       { key: 'suggested-edits', label: '🚩 Flags'       },
     ]},
+    { label: 'COMMAND', items: [
+      { key: 'testing', label: '🧪 Testing' },
+    ]},
   ] as const
 
   const sidebarBg  = isDark ? '#0f0e16' : '#FAFAF7'
@@ -9443,7 +9656,7 @@ function AdminPage() {
           }}>
             {SIDEBAR_GROUPS.map(group => (
               <div key={group.label} style={{ marginBottom: 8 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.45)', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
                   {group.label}
                 </div>
                 {group.items.map(item => {
@@ -9532,6 +9745,7 @@ function AdminPage() {
               </div>
             )}
             {tab === 'suggested-edits'   && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
+            {tab === 'testing'           && <AdminTestingPanel getToken={getToken} isDark={isDark} />}
           </div>
         </div>
 

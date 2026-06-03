@@ -29,6 +29,15 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   const { user } = useUser()
   const { signOut } = useAuth()
 
+  const [testingVisible, setTestingVisible] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/testing-settings')
+      .then(r => r.json())
+      .then(d => setTestingVisible(d.testing_visible === true))
+      .catch(() => {})
+  }, [])
+
   const [intelligenceOpen, setIntelligenceOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_intelligence_open') !== 'false' } catch { return true }
   })
@@ -351,6 +360,15 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
 
           {/* ── EVENTS ── */}
           {navLink('Events', '/community', <Calendar size={16} strokeWidth={1.6} />)}
+
+          {/* ── COMMAND (testing, visibility-controlled) ── */}
+          {testingVisible && (
+            <>
+              <div style={{ height: 1, background: 'rgba(201,168,76,0.12)', margin: '12px 16px 4px' }} />
+              {sectionLabel('Command')}
+              {navLink('War Room Testing', '/community/testing', <span style={{ fontSize: 14 }}>🧪</span>)}
+            </>
+          )}
 
           {/* ── ADMIN (minister only) ── */}
           {isMinister && (

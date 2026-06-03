@@ -18,6 +18,7 @@ const COMMUNITY_SHELL_ROUTES = [
   '/community/dream-interpreter',
   '/community/field-ops',
   '/community/spiritual-mapping',
+  '/community/testing',
 ]
 
 // Hardcoded fallback so ClerkProvider never receives undefined during SSR
