@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useCallback } from 'react'
-import { useAuth, useUser, useClerk, SignInButton, SignUpButton } from '@clerk/tanstack-start'
+import { useAuth, useUser, SignInButton, SignUpButton } from '@clerk/tanstack-start'
 import { Search } from 'lucide-react'
 import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
 import type { ClassLevel } from '@/components/primitives'
@@ -202,7 +202,6 @@ function SectionHeader({ tier }: { tier: string }) {
 function ArsenalPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
-  const { signOut } = useClerk()
 
   const [resources, setResources]     = useState<Resource[]>([])
   const [loading, setLoading]         = useState(true)

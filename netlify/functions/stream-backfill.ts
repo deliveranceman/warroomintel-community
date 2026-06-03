@@ -55,7 +55,7 @@ export default async function handler(req: Request) {
   // Create all 4 channels — no-op if they already exist
   for (const ch of CHANNELS) {
     try {
-      const channel = serverClient.channel('messaging', ch.id, { name: ch.name, created_by_id: 'system' })
+      const channel = serverClient.channel('messaging', ch.id, { name: ch.name, created_by_id: 'system' } as any)
       await channel.create()
       console.log(`[stream-backfill] Channel ${ch.id} ready`)
     } catch (e: any) {

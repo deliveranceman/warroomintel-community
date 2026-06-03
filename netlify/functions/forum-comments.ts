@@ -96,12 +96,7 @@ export default async function handler(req: Request) {
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
 
     // Increment comment_count on post
-    await client.rpc('increment_comment_count' as any, { post_id: postId }).catch(() => {
-      // Fallback: manual increment
-      client.from('forum_posts').select('comment_count').eq('id', postId).single().then(({ data: p }) => {
-        if (p) client.from('forum_posts').update({ comment_count: (p.comment_count || 0) + 1 }).eq('id', postId)
-      })
-    })
+    void client.rpc('increment_comment_count' as any, { post_id: postId })
     // Always do manual increment (RPC may not exist yet)
     const { data: p } = await client.from('forum_posts').select('comment_count').eq('id', postId).single()
     if (p) await client.from('forum_posts').update({ comment_count: (p.comment_count || 0) + 1 }).eq('id', postId)

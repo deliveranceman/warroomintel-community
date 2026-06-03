@@ -124,9 +124,9 @@ export default async function handler(req: Request) {
         messages: [{ role: 'user', content: userMessage }],
       }),
       timeoutPromise,
-    ]) as Awaited<ReturnType<typeof client.messages.create>>
+    ]) as { content: Array<{ type: string; text?: string }> }
 
-    const text = cleanAIOutput(message.content[0].type === 'text' ? message.content[0].text : '')
+    const text = cleanAIOutput(message.content[0].type === 'text' ? (message.content[0].text ?? '') : '')
     const clean = text.replace(/```json|```/g, '').trim()
     const parsed = JSON.parse(clean)
 

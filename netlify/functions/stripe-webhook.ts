@@ -5,7 +5,7 @@ import { StreamClient } from '@stream-io/node-sdk'
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2026-04-22.dahlia',
 })
 
 const PRICE_TO_TIER: Record<string, string> = {
@@ -207,7 +207,7 @@ export default async function handler(req: Request) {
         const email = invoice.customer_email
         if (!email) break
 
-        const sub = await stripe.subscriptions.retrieve(invoice.subscription as string)
+        const sub = await stripe.subscriptions.retrieve((invoice as any).subscription as string)
         const priceId = sub.items.data[0]?.price?.id
         const tier = priceId ? PRICE_TO_TIER[priceId] : null
         if (!tier) break

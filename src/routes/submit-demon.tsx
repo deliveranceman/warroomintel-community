@@ -1,4 +1,4 @@
-import { createFileRoute, useSearch } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
 export const Route = createFileRoute('/submit-demon')({
@@ -6,8 +6,6 @@ export const Route = createFileRoute('/submit-demon')({
 })
 
 const gold = 'var(--gold)'
-const goldLight = 'var(--gold-light)'
-const goldDim = 'var(--gold-dim)'
 const deep = 'var(--deep)'
 const surface = 'var(--surface)'
 const surface2 = 'var(--surface2)'

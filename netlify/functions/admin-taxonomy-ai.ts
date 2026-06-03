@@ -80,8 +80,6 @@ function buildPrompt(r: any): string {
   const origin   = f['Source / Orgin'] || ''
   const curRank  = f['Biblical Rank'] || ''
   const curKing  = f['Kingdom'] || ''
-  const curSub   = f['Sub-Kingdom'] || ''
-
   return `You are a deliverance ministry taxonomy expert. Classify this spirit using ONLY the exact options listed. Return ONLY valid JSON, no explanation.
 
 Spirit name: ${name}

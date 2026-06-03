@@ -107,8 +107,6 @@ export default async function handler(req: Request) {
       debug: { userId: auth.userId, role: auth.userData?.public_metadata?.role, allMetadata: auth.userData?.public_metadata },
     }), { status: 403 })
   }
-  const userId = auth.userId
-
   if (req.method === 'PATCH') {
     const body = await req.json()
     const { id, fields } = body

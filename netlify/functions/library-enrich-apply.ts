@@ -84,7 +84,7 @@ export default async function handler(req: Request) {
     await supabase.from('enrichment_rejected').insert({
       spirit_name: suggestion.spirit_name,
       source_book: suggestion.book_title || null,
-    }).catch(() => {})
+    }).then(null, () => {})
     return new Response(JSON.stringify({ success: true, action: 'rejected', spiritName: suggestion.spirit_name }), { status: 200, headers: CORS })
   }
 

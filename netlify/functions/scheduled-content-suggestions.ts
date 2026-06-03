@@ -124,7 +124,6 @@ export default async function handler() {
 
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
-    const list = suggestions.map((s: any, i: number) => `${i + 1}. [${s.content_type}] ${s.title}`).join('\n')
     await resend.emails.send({
       from: 'exorcist@warroomintel.com',
       to: 'exorcist@warroomintel.com',

@@ -13,14 +13,14 @@
 //   Stream credentials must be set in Netlify env as STREAM JSON: {"appId":"...","apiKey":"...","apiSecret":"..."}.
 //   Testimony "pending" needs minister approval via admin panel PATCH /api/testimonies.
 import { createFileRoute, useLocation } from '@tanstack/react-router'
-import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useAuth, useUser } from '@clerk/tanstack-start'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
-import { Home, FileText, Crosshair, User, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Clapperboard, MapPin, ClipboardList, Calendar, Shield, Settings, GraduationCap, FolderArchive, Star, DoorOpen, Zap, Bell } from 'lucide-react'
+import { Home, FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -143,6 +143,8 @@ interface StreamMsg {
   user: { id: string; name?: string; image?: string }
   created_at: string
   reaction_counts?: Record<string, number>
+  type?: string
+  deleted_at?: string
 }
 
 // ── SIGN-IN GATE ───────────────────────────────────────────
@@ -597,7 +599,7 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
 }
 
 // ── MESSAGES VIEW ─────────────────────────────────────────
-function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, userId, userName, pendingDMWith, onDMStarted, isDark = true, dmMembers = [], onStartDM, onUnreadChange }: {
+function MessagesView({ isMobile, setSidebarOpen: _setSidebarOpen, streamToken, apiKey, user: _user, userId, userName: _userName, pendingDMWith, onDMStarted, isDark = true, dmMembers = [], onStartDM, onUnreadChange }: {
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   streamToken: string
@@ -622,17 +624,15 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   }
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null)
   const [selectedDMUserId, setSelectedDMUserId] = useState<string | null>(null)
-  const [conversations, setConversations] = useState<any[]>([])
+  const [, setConversations] = useState<any[]>([])
   const [messages, setMessages]           = useState<any[]>([])
-  const [loading, setLoading]             = useState(true)
-  const [searchQuery, setSearchQuery]     = useState('')
+  const [, setLoading]                    = useState(true)
   const [showNewDM, setShowNewDM]         = useState(false)
   const [msgDraft, setMsgDraft]           = useState('')
   const [newDMSearch, setNewDMSearch]     = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
-  const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  const [headerOtherId, setHeaderOtherId] = useState<string | null>(null)
+  const [, setHeaderOtherId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const dmFileRef = useRef<HTMLInputElement>(null)
   const [selectedName, setSelectedName] = useState('')
@@ -738,9 +738,6 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
   useEffect(() => {
     if (!pendingDMWith || !streamToken || !apiKey || !userId) return
     async function createOrFindDM() {
-      const sortedIds = [userId, pendingDMWith].sort()
-      const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
-      const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
       try {
         // Server-side call — client JWT cannot register other users as members
         const res = await fetch('/api/create-dm', {
@@ -752,7 +749,7 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
         if (error) throw new Error(error)
         console.log('create-dm server response: channelId =', serverChannelId)
         setSelectedConvo(serverChannelId)
-        setHeaderOtherId(pendingDMWith)
+        setHeaderOtherId(pendingDMWith ?? null)
         setTimeout(() => loadConvos(), 800)
       } catch (err) {
         console.error('createOrFindDM error:', err)
@@ -776,37 +773,6 @@ function MessagesView({ isMobile, setSidebarOpen, streamToken, apiKey, user, use
 
   useEffect(() => { if (selectedConvo) setConnecting(false) }, [selectedConvo])
 
-  function getConvoMeta(ch: any) {
-    const channel = ch.channel || ch
-    if (channel.id === 'war-room-general') {
-      return { channel, name: '⚔ War Room', avatar: '', unread: 0, preview: 'Group channel · all members', time: '' }
-    }
-    const lastMsg = ch.messages?.[ch.messages.length - 1]
-    const members = ch.members || []
-    const other   = members.find((m: any) => m.user_id !== userId)
-    const otherId = other?.user_id || null
-    const clerkMatch = dmMembers.find((m: any) => m.id === otherId)
-    const clerkName = clerkMatch ? (clerkMatch.firstName || clerkMatch.username || '') : ''
-    const streamName = (other?.user?.name && !other.user.name.startsWith('user_')) ? other.user.name.split(' ')[0] : ''
-    const name = clerkName || streamName || (otherId ? otherId.slice(0, 12) : (other ? 'Warrior' : 'Loading...'))
-    const avatar  = clerkMatch?.imageUrl || other?.user?.image || ''
-    const unread  = channel.unread_count || 0
-    const preview = lastMsg?.text || 'No messages yet'
-    const time    = lastMsg?.created_at ? (() => {
-      const diff = Date.now() - new Date(lastMsg.created_at).getTime()
-      if (diff < 60000)   return 'now'
-      if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
-      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
-      return `${Math.floor(diff / 86400000)}d`
-    })() : ''
-    return { channel, name, avatar, unread, preview, time, otherId: other?.user_id || null }
-  }
-
-  const filteredConvos = conversations.filter(ch => {
-    if (!searchQuery) return true
-    const { name } = getConvoMeta(ch)
-    return name.toLowerCase().includes(searchQuery.toLowerCase())
-  })
 
   return (
     <div style={{ flex: 1, display: 'flex', minHeight: 0, background: V.bg }}>
@@ -1068,7 +1034,7 @@ interface MembersViewProps {
   isMobile: boolean
 }
 
-function MembersView({ members, currentUserId, currentUserTier, currentUserRole, onViewProfile, onStartDM, setActiveSection, isDark, isMobile }: MembersViewProps) {
+function MembersView({ members, currentUserId, currentUserTier, currentUserRole, onViewProfile, onStartDM, setActiveSection: _setActiveSection, isDark, isMobile }: MembersViewProps) {
   const [search, setSearch]       = useState('')
   const [filterTier, setFilterTier] = useState('All')
 
@@ -1077,7 +1043,6 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
   const TIER_GLOW:  Record<string,string> = { General:'rgba(201,168,76,0.25)', Commander:'rgba(139,157,202,0.2)', Soldier:'rgba(122,158,126,0.15)', Watchman:'rgba(107,107,122,0.1)' }
 
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
-  const s1   = isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF'
   const s2   = isDark ? 'rgba(255,255,255,0.06)' : '#ffffff'
   const bdr  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
   const txt  = isDark ? '#e8e0d0' : '#2D2924'
@@ -1520,7 +1485,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
 }
 
 // ── TESTIMONY WALL VIEW ────────────────────────────────────
-function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId, userName, userTier, userImage }: any) {
+function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, userName: _userName, userTier: _userTier, userImage: _userImage }: any) {
   const isDark = theme !== 'light'
   const { getToken } = useAuth()
   const bg     = isDark ? '#0D0B14' : '#FAF8F5'
@@ -1962,7 +1927,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
 }
 
 // ── OPS DASHBOARD VIEW ─────────────────────────────────────
-function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId, getToken, setActiveSection }: any) {
+function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, setActiveSection }: any) {
   const isDark = theme !== 'light'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -2001,7 +1966,7 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId, getToken, s
     loadAll()
   }, [])
 
-  function Widget({ title, icon, children, onViewAll, section }: { title: string; icon: string; children: React.ReactNode; onViewAll?: string; section?: string }) {
+  function Widget({ title, icon, children, onViewAll: _onViewAll, section }: { title: string; icon: string; children: React.ReactNode; onViewAll?: string; section?: string }) {
     return (
       <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -3016,7 +2981,7 @@ function getYouTubeId(url: string): string {
 }
 
 // ── FIELD MINISTRY VIEW ──────────────────────────────────────────────────────
-function FieldMinistryView({ theme, userTier, isMobile, setSidebarOpen }: {
+function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpen }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
 }) {
   const { getToken } = useAuth()
@@ -3028,11 +2993,6 @@ function FieldMinistryView({ theme, userTier, isMobile, setSidebarOpen }: {
   const mut = isDark ? '#8B7355' : '#5C5248'
   const navBg   = isDark ? 'rgba(13,11,20,0.95)' : '#FFFFFF'
   const navBdr  = isDark ? 'rgba(201,168,76,0.12)' : 'rgba(160,120,48,0.2)'
-  const artBg   = isDark ? 'rgba(201,168,76,0.04)' : '#ffffff'
-
-  const TIER_NUM: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
-  const userTierNum = TIER_NUM[userTier?.toLowerCase()] ?? 0
-
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading]       = useState(true)
   const [openCats, setOpenCats]     = useState<Set<string>>(new Set(['understanding-deliverance']))
@@ -3264,7 +3224,6 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   const txt          = isDark ? '#E8D5B0' : '#2D2924'
   const mut          = isDark ? '#8B7355' : '#5C5248'
   const dm           = isDark ? '#5a4f3a' : '#5C5248'
-  const shadow       = isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
     background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
@@ -3276,7 +3235,9 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   const [links, setLinks]         = useState<any[]>([])
   const [reports, setReports]     = useState<any[]>([])
   const [loading, setLoading]     = useState(true)
-  const [recentResources, setRecentResources] = useState<any[]>([])
+  const [, setRecentResources] = useState<any[]>([])
+  const [arsenalDrops, setArsenalDrops]       = useState<any[]>([])
+  const [arsenalLoading, setArsenalLoading]   = useState(false)
   const [sotw, setSotw]           = useState<any>(null)
 
   const [showReportForm, setShowReportForm] = useState(false)
@@ -3318,6 +3279,17 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
       }
     }, 2500)
     return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    if (!getToken) return
+    setArsenalLoading(true)
+    getToken().then(token =>
+      fetch('/api/latest-arsenal', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { setArsenalDrops(d.resources || []); setArsenalLoading(false) })
+        .catch(() => setArsenalLoading(false))
+    )
   }, [])
 
   async function submitReport() {
@@ -3560,52 +3532,37 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
         <div style={{ flexShrink: 0, width: isMobile ? '100%' : 280 }}>
 
           {/* Latest Arsenal Drops */}
-          {recentResources.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
-                ✦ Latest Arsenal Drops
-              </div>
-              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
-                {recentResources.map((r, i) => {
-                  const TIER_LVL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
-                  const required = TIER_LVL[(r.tier || 'watchman').toLowerCase()] ?? 0
-                  const userTierNum = tierNum(userTier)
-                  const hasAccess = userTierNum >= required
-                  return (
-                    <div key={r.id} style={{
-                      padding: '10px 14px',
-                      borderBottom: i < recentResources.length - 1 ? `1px solid ${bdr}` : 'none',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
-                        <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{r.category} · {r.tier}</div>
-                      </div>
-                      {hasAccess ? (
-                        <button
-                          onClick={() => setActiveSection('arsenal')}
-                          style={{ fontSize: 9, color: GG, background: 'transparent', border: `1px solid ${GG}`, borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
-                        >VIEW</button>
-                      ) : (
-                        <button
-                          onClick={() => { window.location.href = '/membership' }}
-                          title={`${r.tier || 'Soldier'} tier required`}
-                          style={{ fontSize: 9, color: 'rgba(201,168,76,0.4)', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
-                        >🔒</button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-              <button
-                onClick={() => setActiveSection('arsenal')}
-                style={{ width: '100%', marginTop: 8, background: 'transparent', border: 'none', color: GG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textAlign: 'right' as const, padding: '2px 0', opacity: 0.7 }}
-              >Open Arsenal →</button>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
+              ✦ Latest Arsenal Drops
             </div>
-          )}
+            {(() => {
+              const _tl = (t: string) => ({ watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 3, admin: 3 }[t?.toLowerCase()] ?? 0)
+              const _ttl = (topic: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }[topic?.toLowerCase()] ?? 0)
+              return (
+                <>
+                  {arsenalLoading && <div style={{ color: 'rgba(201,168,76,0.5)', fontSize: 11, padding: '8px 0' }}>Loading...</div>}
+                  {arsenalDrops.map(r => {
+                    const hasAccess = _tl(userTier) >= _ttl(r.topic)
+                    return (
+                      <div key={r.id} onClick={() => hasAccess ? setActiveSection('arsenal') : window.open('/membership', '_blank', 'noopener,noreferrer')}
+                        style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, cursor: 'pointer' }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: GG, marginBottom: 3 }}>
+                          {r.title?.length > 42 ? r.title.slice(0, 42) + '...' : r.title}
+                        </div>
+                        <div style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                          {hasAccess ? r.topic : '🔒 ' + r.topic + ' tier required'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div onClick={() => setActiveSection('arsenal')} style={{ marginTop: 8, fontSize: 10, color: GG, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.08em' }}>
+                    Open Arsenal →
+                  </div>
+                </>
+              )
+            })()}
+          </div>
 
           {/* New to Intel Archive */}
           {recentDemons.length > 0 && (
@@ -3673,14 +3630,6 @@ const HIERARCHY_COLORS: Record<string, { bg: string; text: string; border: strin
   'General Oppression':  { bg: '#0f0f1a', text: '#a5b4fc', border: '#4338ca' },
 }
 
-const BATTLEFIELD_ICONS: Record<string, string> = {
-  'Identity and emotions':                 '🪞',
-  'Mind and will':                         '🧠',
-  'Mind, sexuality, spiritual oppression': '⚡',
-  'Control and spiritual authority':       '👑',
-  'Sexual purity and soul ties':           '🔗',
-}
-
 const HIERARCHY_CATEGORIES = [
   'All', 'Fear / Rejection', 'Marine Kingdom', 'Occult / Witchcraft',
   'Freemasonry', 'Perversion', 'Death / Destruction', 'Religious', 'General Oppression',
@@ -3717,11 +3666,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 }) {
   const { getToken } = useAuth()
   const [query, setQuery]         = useState('')
-  const [dbLoading, setDbLoading] = useState(false)
+  const [dbLoading] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [spiritResources, setSpiritResources] = useState<any[]>([])
-  const [loadingResources, setLoadingResources] = useState(false)
+  const [, setLoadingResources] = useState(false)
   const [modalTab, setModalTab] = useState<'overview' | 'intelligence' | 'warfare' | 'scholarly' | 'protocol'>('overview')
   const [rankFilter, setRankFilter] = useState('')
   const [generationalFilter, setGenerationalFilter] = useState(false)
@@ -3990,17 +3939,9 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           const cls            = entry.biblicalRank || ''
           const aliases        = entry.aka || ''
           const description    = entry.description || ''
-          const manifestations = entry.manifestation || ''
           const companions     = entry.companionSpirits || ''
-          const scriptures     = entry.scripture || ''
-          const protocol       = entry.protocol || ''
-          const wriNotes       = entry.wriNotes || ''
-          const entryPoints    = entry.entryPoints || ''
-          const legalRights    = entry.legalRights || ''
-          const symptoms       = entry.symptoms || ''
           const color          = getColor(cls)
           const hierCat        = entry.hierarchyCategory || ''
-          const hierColors     = HIERARCHY_COLORS[hierCat] || null
           const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
 
           return (
@@ -4891,7 +4832,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const { getToken } = useAuth()
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#FAF8F5'
-  const surface = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
   const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
   const text    = isDark ? '#E8D5B0' : '#2D2924'
   const muted   = isDark ? '#8B7355' : '#5C5248'
@@ -5029,10 +4969,12 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   }
   const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
 
-  const categoryCounts = ARSENAL_TOPICS.reduce((acc, topic) => {
-    acc[topic] = arsenalItems.filter(i => i.topic === topic || i.category === topic).length
+  const categoryCounts = arsenalItems.reduce((acc, item) => {
+    const t = item.topic || item.category
+    if (t) acc[t] = (acc[t] || 0) + 1
     return acc
   }, {} as Record<string, number>)
+  const dynamicTopics = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a])
 
   const filtered = arsenalItems.filter(r => {
     const matchSearch = !query ||
@@ -5053,58 +4995,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     if (arsenalSort === 'tier') return (TIER_ORDER[(b.tier || '').toLowerCase()] ?? 0) - (TIER_ORDER[(a.tier || '').toLowerCase()] ?? 0)
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
-
-  const ResourceCard = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
-    const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
-    const icon   = FILE_ICONS[resource.file_type] || '📄'
-    const sizeMB = resource.file_size ? (resource.file_size / 1024 / 1024).toFixed(1) : null
-    const tc     = TIER_COLORS[resource.tier] || G
-
-    return (
-      <div style={{ position: 'relative', background: surface, border: `1px solid ${isSelected ? 'rgba(201,168,76,0.6)' : hasAccess ? border : 'rgba(201,168,76,0.25)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: onToggle ? '16px 18px 16px 36px' : '16px 18px', opacity: hasAccess ? 1 : 0.9 }}>
-        {onToggle && (
-          <input
-            type="checkbox"
-            checked={!!isSelected}
-            onChange={e => { e.stopPropagation(); onToggle(resource.id) }}
-            style={{ position: 'absolute', top: 12, left: 12, accentColor: '#C9A84C', width: 16, height: 16, cursor: 'pointer', zIndex: 10 }}
-          />
-        )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 16 }}>{icon}</span>
-              <span style={{ fontFamily: cinzel, fontSize: 13, color: hasAccess ? G : muted, fontWeight: 600 }}>{cleanArsenalTitle(resource.title || '')}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, alignItems: 'center' }}>
-              <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${tc}20`, color: tc, border: `1px solid ${tc}40`, letterSpacing: '0.06em' }}>{(resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier}</span>
-              <span style={{ fontSize: 10, color: muted, fontFamily: crimson }}>{resource.topic || resource.category}</span>
-              {sizeMB && <span style={{ fontSize: 11, color: muted }}>· {sizeMB} MB</span>}
-            </div>
-          </div>
-          {hasAccess ? (
-            resource.file_url
-              ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0, textDecoration: 'none', display: 'inline-block' }}>↗ View</a>
-              : <span style={{ fontSize: 10, color: muted, fontFamily: cinzel }}>No file</span>
-          ) : (
-            <button onClick={() => handleUpgrade(resource.tier, getToken)} style={{ background: 'transparent', border: `1px solid ${G}`, color: G, borderRadius: 5, padding: '7px 14px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
-              🔒 Upgrade
-            </button>
-          )}
-        </div>
-        {resource.description && (
-          <div style={{ fontSize: 12, color: muted, lineHeight: 1.5, marginBottom: 6 }}>{resource.description}</div>
-        )}
-        {Array.isArray(resource.tags) && resource.tags.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 4 }}>
-            {resource.tags.slice(0, 3).map((tag: string) => (
-              <span key={tag} style={{ fontSize: 8, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 7px', color: muted, fontFamily: cinzel, letterSpacing: '0.04em' }}>{tag}</span>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
 
   const ResourceRow = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
     const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
@@ -5192,14 +5082,14 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
             <button onClick={() => setShowCategorySheet(true)}
               style={{ width: '100%', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 8, padding: '12px 16px', color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.07em', cursor: 'pointer', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>📚 Browse by Topic</span>
-              <span style={{ opacity: 0.45, fontSize: 10 }}>{ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).length} categories →</span>
+              <span style={{ opacity: 0.45, fontSize: 10 }}>{dynamicTopics.length} categories →</span>
             </button>
           )}
 
           {/* Desktop: compact category grid */}
           {!isMobile && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 24 }}>
-              {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+              {dynamicTopics.map(topic => (
                 <div key={topic} onClick={() => setActiveCategory(topic)}
                   style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 8, padding: '14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, transition: 'border-color 0.15s, background 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.35)'; e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
@@ -5255,7 +5145,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
           {!isMobile && activeCategory !== '__search__' && (
             <div style={{ width: 188, flexShrink: 0 }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.4)', letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>Browse by Topic</div>
-              {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+              {dynamicTopics.map(topic => (
                 <div key={topic}
                   onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
                   style={{ padding: '7px 10px', borderRadius: 5, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: activeCategory === topic ? 'rgba(201,168,76,0.1)' : 'transparent', borderLeft: `2px solid ${activeCategory === topic ? 'rgba(201,168,76,0.6)' : 'transparent'}`, marginBottom: 1 }}>
@@ -5280,7 +5170,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
                   style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: '1px solid rgba(201,168,76,0.22)', background: 'transparent', color: 'rgba(201,168,76,0.45)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.05em' }}>
                   ← All
                 </button>
-                {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+                {dynamicTopics.map(topic => (
                   <button key={topic}
                     onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
                     style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: `1px solid rgba(201,168,76,${activeCategory === topic ? '0.6' : '0.18'})`, background: activeCategory === topic ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === topic ? G : 'rgba(240,232,216,0.48)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>
@@ -5402,7 +5292,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
               <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.55)', textTransform: 'uppercase' as const }}>Browse by Topic</span>
               <button onClick={() => setShowCategorySheet(false)} style={{ background: 'none', border: 'none', color: muted, fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 0 }}>✕</button>
             </div>
-            {ARSENAL_TOPICS.filter(t => categoryCounts[t] > 0).map(topic => (
+            {dynamicTopics.map(topic => (
               <div key={topic}
                 onClick={() => { setActiveCategory(topic); setShowCategorySheet(false); setTierFilter('All'); setExpandedId(null) }}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
@@ -6276,7 +6166,7 @@ function extractYouTubeIdFromUrl(url: string): string | null {
   return null
 }
 
-function EventCard({ event, userTier, isDark, getToken }: { event: any; userTier: string; isDark: boolean; getToken: any }) {
+function EventCard({ event, userTier, isDark, getToken: _getToken }: { event: any; userTier: string; isDark: boolean; getToken: any }) {
   const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
   const bdr   = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
   const txt   = isDark ? '#E8D5B0' : '#2D2924'
@@ -6473,7 +6363,7 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
 }
 
 // ── FEEDBACK VIEW ──────────────────────────────────────────
-function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId, userName }: {
+function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _userId, userName }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
 }) {
   const { getToken } = useAuth()
@@ -7024,7 +6914,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
 }
 
 
-function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isAdmin }: any) {
+function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSection, getToken, isAdmin }: any) {
   const GC = '#C9A84C'
 
   const [activeFigure,   setActiveFigure]   = useState(0)
@@ -7156,8 +7046,6 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
 
   return (
     <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
-      <style>{`@keyframes bmPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.45); } 60% { box-shadow: 0 0 0 9px rgba(201,168,76,0); } }`}</style>
-
       {/* Header */}
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {isMobile && (
@@ -7212,65 +7100,76 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
             }
           }}
         >
-          {/* Image + hotspot overlay */}
-          <div
-            style={{ position: 'relative', width: '100%', lineHeight: 0, cursor: debugMode ? 'crosshair' : 'default' }}
-            onClick={debugMode ? (e => {
-              const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-              const x = Math.round(((e.clientX - rect.left) / rect.width) * 100 * 10) / 10
-              const y = Math.round(((e.clientY - rect.top) / rect.height) * 100 * 10) / 10
-              setDebugClick({ x, y })
-            }) : undefined}
-          >
-            <img
+          {/* SVG body map — single coordinate space, no DOM measurement needed */}
+          <div style={{ position: 'relative', maxWidth: isMobile ? '100%' : 480, margin: '0 auto', lineHeight: 0 }}>
+            <svg
               key={figure.image}
-              src={figure.image}
-              alt={figure.label}
-              loading="eager"
-              draggable={false}
-              onLoad={() => setImgOpacity(1)}
-              style={{ display: 'block', width: '100%', height: 'auto', opacity: imgOpacity, transition: 'opacity 0.3s' }}
-            />
-            {/* Hotspots — outer div is 4% of container width (scales with image); inner ring is 65% of that */}
-            {figure.hotspots.map(h => {
-              const isActive = selectedHotspot?.id === h.id && sheetOpen
-              const isHov    = hoveredHotspot === h.id
-              return (
-                <div
-                  key={h.id}
-                  title={h.label}
-                  onClick={() => handleHotspotClick(h)}
-                  onMouseEnter={() => !isMobile && setHoveredHotspot(h.id)}
-                  onMouseLeave={() => !isMobile && setHoveredHotspot(null)}
-                  style={{
-                    position: 'absolute',
-                    left: `${h.x}%`,
-                    top: `${h.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                    width: '4%',
-                    height: '4%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    zIndex: 10,
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  <div style={{
-                    width: '65%',
-                    height: '65%',
-                    borderRadius: '50%',
-                    background: isActive ? 'rgba(201,168,76,0.15)' : isHov ? 'rgba(201,168,76,0.08)' : debugMode ? 'rgba(201,168,76,0.04)' : 'transparent',
-                    border: `1.5px solid ${isActive ? 'rgba(201,168,76,0.9)' : isHov ? 'rgba(201,168,76,0.5)' : debugMode ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.0)'}`,
-                    boxShadow: isActive ? '0 0 8px rgba(201,168,76,0.4)' : isHov ? '0 0 10px rgba(201,168,76,0.3)' : 'none',
-                    animation: isHov && !isMobile ? 'bmPulse 1.2s ease-in-out infinite' : 'none',
-                    transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
-                  }} />
-                </div>
-              )
-            })}
-            {/* Hovered label tooltip (desktop only) */}
+              viewBox="0 0 100 150"
+              preserveAspectRatio="xMidYMid meet"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+                opacity: imgOpacity,
+                transition: 'opacity 0.3s',
+                cursor: debugMode ? 'crosshair' : 'default',
+              }}
+              aria-label={figure.label}
+              onClick={debugMode ? ((e: React.MouseEvent<SVGSVGElement>) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const x = Math.round(((e.clientX - rect.left) / rect.width) * 100 * 10) / 10
+                const y = Math.round(((e.clientY - rect.top) / rect.height) * 100 * 10) / 10
+                setDebugClick({ x, y })
+              }) : undefined}
+            >
+              {/* anatomy image fills the entire viewBox */}
+              <image
+                href={figure.image}
+                x={0}
+                y={0}
+                width={100}
+                height={150}
+                preserveAspectRatio="xMidYMid meet"
+                onLoad={() => setImgOpacity(1)}
+                style={{ pointerEvents: 'none' }}
+              />
+              {/* hotspots — x/y are 0–100 percentages; cy = h.y * 1.5 maps into the 150-unit viewBox height */}
+              {figure.hotspots.map(h => {
+                const isActive = selectedHotspot?.id === h.id && sheetOpen
+                const isHov = hoveredHotspot === h.id
+                const cx = h.x
+                const cy = h.y * 1.5
+                const r = isMobile ? 3.5 : 2.5
+                return (
+                  <g
+                    key={h.id}
+                    onClick={(e) => { e.stopPropagation(); handleHotspotClick(h) }}
+                    onMouseEnter={() => !isMobile && setHoveredHotspot(h.id)}
+                    onMouseLeave={() => !isMobile && setHoveredHotspot(null)}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleHotspotClick(h) }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* invisible tap target — larger hit area on mobile */}
+                    <circle cx={cx} cy={cy} r={isMobile ? 5 : 3.5} fill="transparent" style={{ touchAction: 'none' }} />
+                    {/* visible ring */}
+                    <circle
+                      cx={cx} cy={cy} r={r}
+                      fill={isActive ? 'rgba(201,168,76,0.20)' : isHov ? 'rgba(201,168,76,0.12)' : 'rgba(201,168,76,0.06)'}
+                      stroke={isActive ? 'rgba(201,168,76,0.95)' : isHov ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.35)'}
+                      strokeWidth={0.6}
+                      style={{ pointerEvents: 'none', transition: 'fill 0.15s, stroke 0.15s' }}
+                    />
+                    {/* gold center dot — always visible so users can find hotspots */}
+                    <circle
+                      cx={cx} cy={cy} r={0.8}
+                      fill={isActive ? '#C9A84C' : 'rgba(201,168,76,0.55)'}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  </g>
+                )
+              })}
+            </svg>
+            {/* Hovered label tooltip (desktop only) — positioned over the SVG wrapper */}
             {!isMobile && hoveredHotspot && !sheetOpen && (() => {
               const h = figure.hotspots.find(p => p.id === hoveredHotspot)
               if (!h) return null
@@ -7993,7 +7892,7 @@ function OnboardingOverlay({ storageKey, icon, title, points }: {
 }
 
 // ── SESSION CENTER VIEW ────────────────────────────────────
-function SessionCenterView({ theme, isMobile, setSidebarOpen, userId, getToken, demons, onLaunch, userTier }: any) {
+function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, demons, onLaunch, userTier }: any) {
   const isDark = theme !== 'light'
   const isCommanderOnly = (userTier || '').toLowerCase() === 'commander'
   const bg     = isDark ? '#0D0B14' : '#FAF8F5'
@@ -8195,7 +8094,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
-function AssessmentUploadView({ theme, isMobile, setSidebarOpen, tier, tierLevel, user, getToken }: {
+function AssessmentUploadView({ theme, isMobile, setSidebarOpen, tier: _tier, tierLevel: _tierLevel, user, getToken }: {
   theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void;
   tier: string; tierLevel: number; user: any; getToken: () => Promise<string | null>
 }) {
@@ -8631,7 +8530,7 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
   user: any; initials: string; posts: StreamMsg[]; draft: string
   setDraft: (v: string) => void; sending: boolean
   sendPost: () => void; fetchPosts: () => void
-  bottomRef: React.RefObject<HTMLDivElement>; setSidebarOpen: (v: boolean) => void
+  bottomRef: React.RefObject<HTMLDivElement | null>; setSidebarOpen: (v: boolean) => void
 }) {
   const G2 = isDark ? '#C9A84C' : '#8B6914'
   const V2 = {
@@ -8799,7 +8698,6 @@ function CommunityPage() {
     if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [activeSection])
 
-  const [trainingExpanded, setTrainingExpanded] = useState(false)
   const [fringeExpanded, setFringeExpanded]     = useState(false)
   const [intelligenceOpen, setIntelligenceOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_intelligence_open') !== 'false' } catch { return true }
@@ -9549,36 +9447,6 @@ function CommunityPage() {
     )
   }
 
-  const externalItem = (label: string, href: string, icon?: string) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        width: '100%', padding: '8px 16px',
-        background: 'transparent', textDecoration: 'none',
-        borderLeft: '2px solid transparent',
-        fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
-        color: NAV_DEFAULT, transition: 'color 0.15s',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.color = G }}
-      onMouseLeave={e => { e.currentTarget.style.color = NAV_DEFAULT }}
-    >
-      {icon && <span style={{ fontSize: 14, width: 20, flexShrink: 0 }}>{icon}</span>}
-      <span style={{ flex: 1 }}>{label}</span>
-      <span style={{ fontSize: 10, opacity: 0.5 }}>↗</span>
-    </a>
-  )
-
-  const dimItem = (label: string, icon?: string) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderLeft: '2px solid transparent', cursor: 'default' }}>
-      {icon && <span style={{ fontSize: 14, width: 20, opacity: 0.6 }}>{icon}</span>}
-      <span style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, flex: 1 }}>{label}</span>
-      <span style={{ fontFamily: cinzel, fontSize: 8, color: '#8a7a5a', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', padding: '1px 5px', borderRadius: 8 }}>SOON</span>
-    </div>
-  )
-
   // Hamburger button for mobile center headers
   const Hamburger = () => isMobile ? (
     <button
@@ -9591,22 +9459,6 @@ function CommunityPage() {
   ) : null
 
   // ── VIEWS ──────────────────────────────────────────────────
-
-  const PlaceholderView = ({ title, icon }: { title: string; icon: string }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {isMobile && (
-        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          <Hamburger />
-          <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>{icon} {title}</span>
-        </div>
-      )}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        {!isMobile && <div style={{ fontSize: 40, marginBottom: 16 }}>{icon}</div>}
-        <div style={{ fontFamily: cinzel, fontSize: 13, letterSpacing: '0.1em', color: G, marginBottom: 8 }}>{title}</div>
-        <div style={{ fontFamily: crimson, fontSize: 14, fontStyle: 'italic', color: V.mut }}>Coming soon</div>
-      </div>
-    </div>
-  )
 
   const LauncherView = ({ title, icon, href }: { title: string; icon: string; href: string }) => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -10088,7 +9940,7 @@ function CommunityPage() {
             currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'}
             currentUserRole={(user?.publicMetadata?.role as string) || 'member'}
             onViewProfile={setViewingProfile}
-            onStartDM={(memberId, memberName) => {
+            onStartDM={(memberId, _memberName) => {
               setPendingDMWith(memberId)
               setActiveSection('dms')
             }}
@@ -10766,23 +10618,16 @@ function CommunityPage() {
             bottom: 24,
             right: 24,
             zIndex: 1000,
-            width: 48,
-            height: 48,
-            borderRadius: '50%',
-            background: chatOpen ? 'rgba(201,168,76,0.2)' : '#0f0c07',
-            border: `1px solid ${chatOpen ? G : 'rgba(201,168,76,0.4)'}`,
-            color: G,
-            fontSize: 22,
+            background: 'none',
+            border: 'none',
+            padding: 0,
             cursor: 'pointer',
             display: isMobile ? 'none' : 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-            transition: 'all 0.15s',
+            filter: 'drop-shadow(0 0 8px rgba(201,168,76,0.5))',
           }}
           title="Ask SOL"
         >
-          <SolIcon size={28} />
+          <SolIcon size={44} />
         </button>
       )}
 

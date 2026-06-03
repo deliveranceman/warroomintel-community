@@ -76,7 +76,7 @@ export default async function handler(req: Request) {
     if (existing) {
       // Remove upvote
       await supabase.from('feedback_upvotes').delete().eq('feedback_id', id).eq('user_id', userId)
-      await supabase.rpc('decrement_feedback_upvote', { fid: id }).catch(() => {
+      await supabase.rpc('decrement_feedback_upvote', { fid: id }).then(null, () => {
         supabase.from('platform_feedback').select('upvotes').eq('id', id).single().then(({ data: fd }) => {
           if (fd) supabase.from('platform_feedback').update({ upvotes: Math.max(0, (fd.upvotes || 1) - 1) }).eq('id', id)
         })

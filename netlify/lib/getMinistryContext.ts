@@ -14,9 +14,10 @@ export async function getMinistryContext(): Promise<string> {
       .select('context_text')
       .eq('is_active', true)
       .single()
-    _cached = data?.context_text || ''
+    const text = data?.context_text || ''
+    _cached = text
     _cacheExpiry = Date.now() + 60_000
-    return _cached
+    return text
   } catch {
     return ''
   }

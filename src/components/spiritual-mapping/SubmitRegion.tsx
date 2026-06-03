@@ -39,7 +39,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string; icon: string
   rejected: { color: '#e09090', label: 'Needs Revision', icon: '↩' },
 }
 
-export function SubmitRegion({ userId, userName }: Props) {
+export function SubmitRegion({ userId }: Props) {
   const [regions, setRegions] = useState<Region[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)

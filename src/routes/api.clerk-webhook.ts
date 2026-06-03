@@ -88,7 +88,7 @@ export const Route = createFileRoute('/api/clerk-webhook')({
 
               // Add to war-room-general
               const channel = client.chat.channel('messaging', 'war-room-general')
-              await channel.addMembers([{ user_id: streamUserId }])
+              await (channel as any).addMembers([{ user_id: streamUserId }])
               console.log(`[clerk-webhook] Added ${streamUserId} to war-room-general`)
             } catch (err: any) {
               console.error(`[clerk-webhook] Stream join failed for ${userId}:`, err.message)

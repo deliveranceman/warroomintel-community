@@ -3,8 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const supabase    = createClient(supabaseUrl!, supabaseServiceKey!)
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
-
 async function resolveUser(token: string) {
   try {
     const parts = token.split('.')

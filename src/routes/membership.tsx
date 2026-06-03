@@ -27,7 +27,6 @@ const cinzel = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 const gold = 'var(--gold)'
 const deep = 'var(--deep)'
-const surface = 'var(--surface)'
 const surface2 = 'var(--surface2)'
 const border = 'var(--border)'
 const borderBright = 'var(--border-bright)'

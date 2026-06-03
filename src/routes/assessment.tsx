@@ -6,12 +6,10 @@ export const Route = createFileRoute('/assessment')({
 })
 
 const gold = 'var(--gold)'
-const goldLight = 'var(--gold-light)'
 const goldDim = 'var(--gold-dim)'
 const deep = 'var(--deep)'
 const surface = 'var(--surface)'
 const surface2 = 'var(--surface2)'
-const surface3 = 'var(--surface3)'
 const border = 'var(--border)'
 const borderBright = 'var(--border-bright)'
 const text = 'var(--text)'

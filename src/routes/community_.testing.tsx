@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 
 export const Route = createFileRoute('/community_/testing')({
@@ -272,7 +272,7 @@ function TestingPage() {
 }
 
 // ─── TAB 1: BUG REPORTS ───────────────────────────────────────────────────────
-function BugReportsTab({ apiFetch, user, isMinister }: { apiFetch: Function; user: any; isMinister: boolean }) {
+function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Function; user: any; isMinister: boolean }) {
   const [bugs, setBugs]               = useState<BugReport[]>([])
   const [loading, setLoading]         = useState(true)
   const [showForm, setShowForm]       = useState(false)
@@ -291,8 +291,6 @@ function BugReportsTab({ apiFetch, user, isMinister }: { apiFetch: Function; use
   const [category, setCategory]       = useState('other')
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
   const [submitting, setSubmitting]   = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
-
   // Admin edit state
   const [editId, setEditId]           = useState<string | null>(null)
   const [editStatus, setEditStatus]   = useState('')
@@ -501,7 +499,7 @@ function BugReportsTab({ apiFetch, user, isMinister }: { apiFetch: Function; use
 }
 
 // ─── TAB 2: FEATURE REQUESTS ──────────────────────────────────────────────────
-function FeatureRequestsTab({ apiFetch, user, isMinister }: { apiFetch: Function; user: any; isMinister: boolean }) {
+function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Function; user: any; isMinister: boolean }) {
   const [features, setFeatures]     = useState<FeatureRequest[]>([])
   const [loading, setLoading]       = useState(true)
   const [showForm, setShowForm]     = useState(false)
@@ -657,7 +655,7 @@ function FeatureRequestsTab({ apiFetch, user, isMinister }: { apiFetch: Function
 }
 
 // ─── TAB 3: DOCUMENT REVIEW ───────────────────────────────────────────────────
-function DocumentReviewTab({ apiFetch, user }: { apiFetch: Function; user: any }) {
+function DocumentReviewTab({ apiFetch, user: _user }: { apiFetch: Function; user: any }) {
   const [reviews, setReviews]       = useState<DocumentReview[]>([])
   const [loading, setLoading]       = useState(true)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
@@ -825,7 +823,7 @@ function DocumentReviewTab({ apiFetch, user }: { apiFetch: Function; user: any }
 }
 
 // ─── TAB 4: FEATURE VERIFICATION ─────────────────────────────────────────────
-function FeatureVerifyTab({ apiFetch, user }: { apiFetch: Function; user: any }) {
+function FeatureVerifyTab({ apiFetch, user: _user }: { apiFetch: Function; user: any }) {
   const [features, setFeatures]     = useState<FeatureVerification[]>([])
   const [loading, setLoading]       = useState(true)
   const [savingId, setSavingId]     = useState<string | null>(null)

@@ -50,7 +50,7 @@ export default async function handler(req: Request) {
       debug: { userId: auth.userId, role: auth.userData?.public_metadata?.role, allMetadata: auth.userData?.public_metadata },
     }), { status: 403 })
   }
-  const { userId } = auth
+  const { userId: _userId } = auth
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 

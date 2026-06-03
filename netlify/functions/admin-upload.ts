@@ -204,7 +204,6 @@ Respond with valid JSON only.`
     }), { status: 409, headers: { 'Content-Type': 'application/json' } })
   }
 
-  const ext       = file.name.split('.').pop() || ''
   const safeName  = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
   const filePath  = `${tier.toLowerCase()}/${safeName}`
 

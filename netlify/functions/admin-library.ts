@@ -33,7 +33,7 @@ async function isMinister(token: string): Promise<boolean> {
   } catch { return false }
 }
 
-function parseMultipart(req: Request, bodyBuf: Buffer, contentType: string): Promise<{
+function parseMultipart(_req: Request, bodyBuf: Buffer, contentType: string): Promise<{
   fields: Record<string, string>
   file?: { buffer: Buffer; filename: string; mimeType: string }
 }> {
@@ -42,7 +42,7 @@ function parseMultipart(req: Request, bodyBuf: Buffer, contentType: string): Pro
     let file: { buffer: Buffer; filename: string; mimeType: string } | undefined
     const busboy = Busboy({ headers: { 'content-type': contentType } })
     busboy.on('field', (name, val) => { fields[name] = val })
-    busboy.on('file', (fieldname, stream, info) => {
+    busboy.on('file', (_fieldname, stream, info) => {
       const chunks: Buffer[] = []
       stream.on('data', (c: Buffer) => chunks.push(c))
       stream.on('end', () => {

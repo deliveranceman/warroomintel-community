@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2023-10-16' })
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-04-22.dahlia' })
 
 const _pricesJson: Record<string, string> = (() => {
   try { return JSON.parse(process.env.STRIPE_PRICES || '{}') } catch { return {} }

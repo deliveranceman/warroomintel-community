@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 const cinzel = "'Cinzel', serif"
 const inter  = 'Inter, system-ui, sans-serif'
@@ -656,50 +656,8 @@ function MobileDossier({ spirit, demons, resources, loadingResources, onSelectSp
 
 // ── MOBILE EXPLORER ────────────────────────────────────────────────────────────
 
-function MobileExplorer({ demons, kingdoms, groupedByKingdom, onSelect }: {
-  demons: Demon[]; kingdoms: string[]; groupedByKingdom: Record<string, Demon[]>; onSelect: (d: Demon) => void
-}) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-
-  return (
-    <div>
-      <div style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.14em', marginBottom: 12 }}>
-        {demons.length} SPIRITS IN DATABASE
-      </div>
-      {kingdoms.map(k => {
-        const spirits = groupedByKingdom[k] || []
-        const isOpen  = !collapsed.has(k)
-        return (
-          <div key={k} style={{ marginBottom: 4 }}>
-            <button
-              onClick={() => setCollapsed(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 0', background: 'transparent', border: 'none', borderBottom: `1px solid ${BDR}`, cursor: 'pointer', textAlign: 'left' as const }}>
-              <span style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.1em', flex: 1, textTransform: 'uppercase' as const }}>{k}</span>
-              <span style={{ fontFamily: inter, fontSize: 10, color: DIM }}>{spirits.length}</span>
-              <span style={{ fontSize: 12, color: DIM, display: 'inline-block', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
-            </button>
-            {isOpen && (
-              <div style={{ paddingTop: 4 }}>
-                {spirits.map(d => (
-                  <button key={d.id} onClick={() => onSelect(d)}
-                    style={{ display: 'block', width: '100%', padding: '8px 0 8px 12px', background: 'transparent', border: 'none', borderLeft: '2px solid transparent', cursor: 'pointer', textAlign: 'left' as const }}
-                    onMouseEnter={e => (e.currentTarget.style.borderLeftColor = GC)}
-                    onMouseLeave={e => (e.currentTarget.style.borderLeftColor = 'transparent')}>
-                    <span style={{ fontFamily: inter, fontSize: 13, color: '#8a7a6a' }}>{d.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── CONSTANTS ──────────────────────────────────────────────────────────────────
 
-const KINGDOM_ORDER = ['Hell', 'Darkness', 'Air', 'Water', 'Earth', 'Witchcraft', 'Occult']
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
@@ -712,7 +670,7 @@ export function SpiritNetwork({ demons, isMobile, getToken: _getToken }: SpiritN
   const [searchQuery,      setSearchQuery]      = useState('')
   const [resources,        setResources]        = useState<any[]>([])
   const [loadingResources, setLoadingResources] = useState(false)
-  const [navStack,         setNavStack]         = useState<Demon[]>([])
+  const [,                 setNavStack]         = useState<Demon[]>([])
   const [libraryHits,      setLibraryHits]      = useState<any[]>([])
   const [loadingLibrary,   setLoadingLibrary]   = useState(false)
   const [recentSpirits,    setRecentSpirits]    = useState<any[]>([])
@@ -720,8 +678,6 @@ export function SpiritNetwork({ demons, isMobile, getToken: _getToken }: SpiritN
   const [compareQuery,     setCompareQuery]     = useState('')
   const [comparison,       setComparison]       = useState<{ text: string; spirit1: string; spirit2: string } | null>(null)
   const [comparingLoading, setComparingLoading] = useState(false)
-  const _touchStartX = useRef(0)
-
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
@@ -786,7 +742,7 @@ Be direct and practical. This is for active ministry use.`,
     finally { setComparingLoading(false) }
   }
 
-  const searchResults = searchQuery.length > 1
+  const searchResults: Demon[] = searchQuery.length > 1
     ? demons.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
     : []
 
@@ -862,14 +818,6 @@ Be direct and practical. This is for active ministry use.`,
     fetchLibraryIntel(demon)
   }, [fetchResources, fetchLibraryIntel])
 
-  // Navigate to a breadcrumb item at a given stack index
-  const navigateToHistory = useCallback((index: number, demon: Demon) => {
-    setNavStack(prev => prev.slice(0, index))
-    setSelectedSpirit(demon)
-    fetchResources(demon)
-    fetchLibraryIntel(demon)
-  }, [fetchResources, fetchLibraryIntel])
-
   // Search select — clears history
   const searchSelect = useCallback((demon: Demon) => {
     setNavStack([])
@@ -892,17 +840,6 @@ Be direct and practical. This is for active ministry use.`,
     }
   }, [fetchResources, fetchLibraryIntel, _getToken])
 
-  const groupedByKingdom = demons.reduce((acc: Record<string, Demon[]>, d) => {
-    const k = d.kingdom || 'Other'; if (!acc[k]) acc[k] = []; acc[k].push(d); return acc
-  }, {})
-
-  const kingdoms = Object.keys(groupedByKingdom).sort((a, b) => {
-    const ai = KINGDOM_ORDER.indexOf(a), bi = KINGDOM_ORDER.indexOf(b)
-    if (ai === -1 && bi === -1) return a.localeCompare(b)
-    if (ai === -1) return 1; if (bi === -1) return -1
-    return ai - bi
-  })
-
   const companionNames = selectedSpirit
     ? String(selectedSpirit.companionSpirits || '').split(',').map(s => s.trim()).filter(Boolean)
     : []
@@ -916,7 +853,7 @@ Be direct and practical. This is for active ministry use.`,
   // ── MOBILE ─────────────────────────────────────────────────────────────────
   if (isMobile) {
     const mobileTab = selectedSpirit ? mode : 'network'
-    const visibleDemons = searchQuery.length > 1 ? searchResults : demons
+    const visibleDemons: Demon[] = searchQuery.length > 1 ? searchResults : demons
 
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: DARK, overflow: 'hidden' }}>
@@ -951,7 +888,7 @@ Be direct and practical. This is for active ministry use.`,
                 {/* Ancestry chain breadcrumb */}
                 {navChain.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap' as const, alignItems: 'center', gap: 4, marginBottom: 16 }}>
-                    {navChain.map((a, i) => (
+                    {navChain.map((a) => (
                       <span key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <button onClick={() => { selectSpirit(a); setMode('network') }}
                           style={{ background: 'transparent', border: 'none', color: GC, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', opacity: 0.7, padding: 0, textDecoration: 'underline', letterSpacing: '0.06em' }}>
@@ -1053,7 +990,7 @@ Be direct and practical. This is for active ministry use.`,
                 {visibleDemons.length === 0 && (
                   <div style={{ fontFamily: inter, fontSize: 13, color: DIM, textAlign: 'center' as const, paddingTop: 40 }}>No spirits found</div>
                 )}
-                {visibleDemons.map(d => {
+                {visibleDemons.map((d: Demon) => {
                   const comps = d.companionSpirits
                     ? String(d.companionSpirits).split(',').map(s => s.trim()).filter(Boolean).slice(0, 3)
                     : []

@@ -22,8 +22,6 @@ const STREAM_APP_ID = '1609751'
 const TIER_COLORS: Record<string, string> = {
   Free: '#6a6080', Soldier: '#5C7CBF', Commander: '#7C5CBF', General: '#C9A84C',
 }
-const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
-
 const FILE_ICONS: Record<string, string> = {
   pdf: '📄', docx: '📝', mp3: '🎵', png: '🖼', jpg: '🖼', jpeg: '🖼',
 }
@@ -2269,24 +2267,6 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setDupeScanned(true)
   }
 
-  async function handleKeepEntry(group: { key: string; entries: any[] }, keepIdx: number) {
-    const toDelete = group.entries.filter((_, i) => i !== keepIdx)
-    setDupeResolving(group.key)
-    const token = await getToken()
-    for (const d of toDelete) {
-      try {
-        await fetch(`/api/admin-demon?id=${d.airtableId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-      } catch {}
-    }
-    setDupeGroups(prev => prev.filter(g => g.key !== group.key))
-    setDupeLog(prev => [...prev, `Kept "${group.entries[keepIdx].name}" — deleted ${toDelete.length} duplicate${toDelete.length !== 1 ? 's' : ''}`])
-    for (const d of toDelete) {
-      recordDupeResolution(group.entries[keepIdx].name || '', d.name || '', 'kept_one')
-    }
-    setDupeResolving(null)
-    fetchDemons()
-  }
-
   async function handleDeleteEntry(group: { key: string; entries: any[] }, delIdx: number) {
     const d = group.entries[delIdx]
     setDupeResolving(group.key)
@@ -2566,14 +2546,6 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   }
 
   useEffect(() => { fetchPosts(); fetchLinks(); fetchDemons() }, [])
-  const emptySeq = dLoading ? null : demons.filter(d => {
-    const val = d.deliveranceSequence || d['Deliverance Sequence'] || d.deliverance_sequence
-    return !val || String(val).trim() === ''
-  }).length
-  const emptySc = dLoading ? null : demons.filter(d => {
-    const val = d.counterScriptures || d['Counter Scriptures'] || d.counter_scriptures
-    return !val || String(val).trim() === ''
-  }).length
   const emptyNotes = dLoading ? null : demons.filter(d =>
     !d.operationalNotes || String(d.operationalNotes).trim() === ''
   ).length
@@ -5386,7 +5358,6 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
 
 // ─── LIBRARY MANAGER ─────────────────────────────────────────────────────────
 function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
-  const LBG   = isDark ? '#0D0B14' : '#FAF8F5'
   const LSURF = isDark ? '#13111a' : '#fff'
   const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
@@ -5410,11 +5381,6 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [retagRunning, setRetagRunning] = useState(false)
   const [retagProgress, setRetagProgress] = useState<{ done: number; total: number; updated: number } | null>(null)
 
-  // Library summary state
-  const [libSummary, setLibSummary]     = useState<{ summary: string; books: any[] } | null>(null)
-  const [libSummaryOpen, setLibSummaryOpen] = useState(false)
-  const [libSummaryLoading, setLibSummaryLoading] = useState(false)
-
   // Staged files state
   type StagedFile = {
     id: string; file: File; title: string; author: string; notes: string
@@ -5437,7 +5403,6 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [selectAllBooks, setSelectAllBooks] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{ action: string; current: number; total: number; done: boolean; errors: string[] } | null>(null)
   const fileInputRef        = useRef<HTMLInputElement>(null)
-  const pdfInputRef         = useRef<HTMLInputElement>(null)
   const libraryFileInputRef = useRef<HTMLInputElement>(null)
 
   const inp: React.CSSProperties = {
@@ -5962,12 +5927,6 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setEditLoading(false)
   }
 
-  /** Unused but kept to avoid TS warning — remove if desired */
-  async function handleAiRename(book: any) {
-    openEdit(book)
-    await aiRenameInPanel()
-  }
-
   const GENERIC_TAGS = new Set([
     'demons', 'territorial spirits', 'supernatural forces', 'evil spirits',
     'demonic forces', 'dark forces', 'spiritual entities', 'evil forces',
@@ -6130,17 +6089,6 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     await loadBooks()
     setSelectedBooks(new Set())
     setSelectAllBooks(false)
-  }
-
-  async function loadLibrarySummary() {
-    if (libSummaryLoading) return
-    setLibSummaryLoading(true)
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/library-summary', { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) { const d = await res.json(); setLibSummary(d) }
-    } catch { /* ignore */ }
-    setLibSummaryLoading(false)
   }
 
   const anyUploading = stagedFiles.some(f => f.status === 'uploading')
@@ -7217,20 +7165,6 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
   })
   const [form, setForm] = useState<any>(blankForm())
 
-  async function load() {
-    setLoading(true)
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/field-manual', { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) {
-        const d = await res.json()
-        const all: any[] = []
-        for (const cat of d.categories || []) for (const a of cat.articles || []) all.push({ ...a, category: cat.category, category_slug: cat.category_slug, category_order: cat.category_order, category_icon: cat.category_icon })
-        setArticles(all)
-      }
-    } finally { setLoading(false) }
-  }
-
   // Also load all (including unpublished) for admin
   async function loadAll() {
     setLoading(true)
@@ -7772,8 +7706,6 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [bulkProgress, setBulkProgress] = useState('')
   const [bulkComplete, setBulkComplete] = useState<{ succeeded: number; failed: number; duplicates: number; total: number; newDbTotal: number } | null>(null)
   const [existingSpiritNames, setExistingSpiritNames] = useState<Set<string>>(new Set())
-  const [existingSpiritTotal, setExistingSpiritTotal] = useState(0)
-
   // Content query state
   const [cqQuery, setCqQuery] = useState('')
   const [cqLoading, setCqLoading] = useState(false)
@@ -7840,7 +7772,6 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       // Client-side dedup — fetch fresh Airtable names as belt-and-suspenders
       const { names, total } = await fetchDemonNames()
       setExistingSpiritNames(names)
-      setExistingSpiritTotal(total)
 
       const genuinelyNew = (data.gaps || []).filter((g: any) => {
         const nl = (g.name || '').toLowerCase().trim()
@@ -7921,7 +7852,6 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       const fresh = await fetchDemonNames()
       names = fresh.names
       setExistingSpiritNames(fresh.names)
-      setExistingSpiritTotal(fresh.total)
     }
     if (names.has(spiritName.toLowerCase().trim())) {
       // Mark row as already-in-DB (shows amber badge instead of button)
@@ -7950,9 +7880,8 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setBulkProgress('Checking existing database...')
 
     // Fetch fresh list to pre-filter before sending anything
-    const { names: freshNames, total: freshTotal } = await fetchDemonNames()
+    const { names: freshNames } = await fetchDemonNames()
     setExistingSpiritNames(freshNames)
-    setExistingSpiritTotal(freshTotal)
 
     const allSelected = selectedGaps.map(i => gapResults[i])
     const toAdd = allSelected.filter(s => !freshNames.has((s.name || '').toLowerCase().trim()))
@@ -8023,7 +7952,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setSelectedGaps([])
     setBulkAdding(false)
     setBulkProgress('')
-    setBulkComplete({ succeeded, failed, duplicates, total: allSelected.length, newDbTotal: freshTotal + succeeded })
+    setBulkComplete({ succeeded, failed, duplicates, total: allSelected.length, newDbTotal: succeeded })
   }
 
   async function confirmAdd(spirit: any) {
@@ -8395,7 +8324,6 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({})
   const [processing, setProcessing] = useState<Record<string, boolean>>({})
   const adGold2 = isDark ? G : '#A07C2C'
-  const bg2 = isDark ? BG : '#F5F0E8'
   const surf2 = isDark ? SURF : '#EDE6D3'
   const bdr2 = isDark ? BDR : 'rgba(139,105,20,0.25)'
   const txt2 = isDark ? TXT : '#2D2924'
@@ -8503,7 +8431,6 @@ function SpiritualMappingAdmin({ isDark }: { isDark: boolean }) {
 
 function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
-  const surf = isDark ? 'rgba(201,168,76,0.06)' : '#FFFFFF'
   const bdr  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
   const txt  = isDark ? '#E8D5B0' : '#2D2924'
   const mut  = isDark ? '#8B7355' : '#5C5248'

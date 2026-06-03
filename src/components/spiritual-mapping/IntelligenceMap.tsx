@@ -187,10 +187,6 @@ export function IntelligenceMap({ userTier }: Props) {
   }, [mapReady, regions])
 
   const spirits = selectedRegion?.spirits || []
-  const tier4 = spirits.filter(s => s.tier_level === 4)
-  const tier3 = spirits.filter(s => s.tier_level === 3)
-  const tier2 = spirits.filter(s => s.tier_level === 2)
-  const tier1 = spirits.filter(s => s.tier_level === 1)
 
   if (!hasAccess) {
     return (
@@ -198,7 +194,7 @@ export function IntelligenceMap({ userTier }: Props) {
         {/* Blurred preview */}
         <div style={{ filter: 'blur(8px)', height: '100%', background: 'linear-gradient(180deg, #0a0a1a 0%, #111428 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           {/* Decorative pins */}
-          {[[35, -84], [36, -82], [34, -85], [33.5, -83]].map(([lat, lng], i) => (
+          {[[35, -84], [36, -82], [34, -85], [33.5, -83]].map(([_lat, _lng], i) => (
             <div key={i} style={{ position: 'absolute', left: `${20 + i * 20}%`, top: `${20 + (i % 2) * 30}%`, width: 16, height: 16, background: G, borderRadius: '50%', boxShadow: `0 0 12px ${G}` }} />
           ))}
         </div>

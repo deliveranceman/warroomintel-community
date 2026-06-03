@@ -97,7 +97,7 @@ function AskSolPage() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {messages.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 16px 0', maxWidth: 480, margin: '0 auto' }}>
-              <SolIcon size={40} color={`${G}44`} />
+              <SolIcon size={40} />
               <div style={{ fontFamily: cinzel, fontSize: 12, color: DIM, letterSpacing: '0.15em', marginTop: 20, marginBottom: 8 }}>SENTINEL OF LIGHT</div>
               <div style={{ fontFamily: crimson, fontSize: 16, color: DIM, lineHeight: 1.7 }}>
                 Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, legal grounds, prayer strategy, or any ministry question.
