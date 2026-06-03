@@ -994,7 +994,7 @@ Be direct and practical. This is for active ministry use.`,
                   const comps = d.companionSpirits
                     ? String(d.companionSpirits).split(',').map(s => s.trim()).filter(Boolean).slice(0, 3)
                     : []
-                  const isActive = selectedSpirit?.id === d.id
+                  const isActive = (selectedSpirit as Demon | null)?.id === d.id
                   return (
                     <div key={d.id} onClick={() => { searchSelect(d); setMode('network') }}
                       style={{ marginBottom: 10, padding: '12px 14px', background: isActive ? 'rgba(201,168,76,0.08)' : SURF, border: `1px solid ${isActive ? 'rgba(201,168,76,0.4)' : BDR}`, borderRadius: 8, cursor: 'pointer', borderLeft: `3px solid ${isActive ? GC : 'transparent'}` }}>
