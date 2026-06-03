@@ -8358,7 +8358,12 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
   const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol'>('all')
   const [searchQuery, setSearchQuery]         = useState('')
   const [callActive, setCallActive]           = React.useState<{ type: 'audio' | 'video'; otherUser: { id: string; name: string } } | null>(null)
+  const [showNewDM, setShowNewDM]             = React.useState(false)
+  const [dmSearch, setDmSearch]               = React.useState('')
+  const [dmMembers, setDmMembers]             = React.useState<any[]>([])
+  const [loadingMembers, setLoadingMembers]   = React.useState(false)
   const messagesEndRef   = useRef<HTMLDivElement>(null)
+  const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef   = useRef<Blob[]>([])
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -8441,6 +8446,47 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
     } catch (e) { console.error('selectConversation error', e) }
     setLoadingMessages(false)
   }, [token, getToken])
+
+  // ── Fetch members when new DM panel opens ──
+  React.useEffect(() => {
+    if (!showNewDM) return
+    setLoadingMembers(true)
+    getToken().then(t => {
+      if (!t) { setLoadingMembers(false); return }
+      fetch('/api/stream-messages?action=list-members', {
+        headers: { Authorization: `Bearer ${t}` },
+      }).then(r => r.json()).then(data => {
+        setDmMembers(Array.isArray(data) ? data : [])
+        setLoadingMembers(false)
+      }).catch(() => setLoadingMembers(false))
+    })
+  }, [showNewDM])
+
+  // ── Poll active conversation every 8s ──
+  React.useEffect(() => {
+    if (pollRef.current) clearInterval(pollRef.current)
+    if (!activeConvoId || !token) return
+    pollRef.current = setInterval(async () => {
+      const activeChannelId = activeConvoId === 'sol'
+        ? conversations.find((c: any) => c.otherMember?.id === 'sol-bot')?.channelId || activeConvoId
+        : activeConvoId
+      if (!activeChannelId || activeChannelId === 'sol') return
+      const msgs = await api(`get-messages&channelId=${activeChannelId}`, 'GET')
+      if (msgs.messages?.length) setMessages(msgs.messages)
+    }, 8000)
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [activeConvoId, token])
+
+  // ── Poll conversation list every 15s ──
+  React.useEffect(() => {
+    if (!token) return
+    const interval = setInterval(() => {
+      api('list-conversations').then(data => {
+        if (data.conversations) setConversations(data.conversations)
+      })
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [token])
 
   // ── Send message ──
   const sendMessage = useCallback(async () => {
@@ -8602,12 +8648,13 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
         flexDirection: 'column' as const,
         overflow: 'hidden',
         background: 'rgba(0,0,0,0.3)',
+        position: 'relative' as const,
       }}>
         {/* Header */}
         <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <span style={{ fontSize: 16, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
           <button
-            onClick={() => console.log('new DM')}
+            onClick={() => setShowNewDM(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex', alignItems: 'center' }}
             title="New message"
           >
@@ -8715,6 +8762,64 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
             )
           })}
         </div>
+        {/* ── New DM member picker overlay ── */}
+        {showNewDM && (
+          <div style={{ position: 'absolute', inset: 0, background: BG, zIndex: 10, display: 'flex', flexDirection: 'column' as const }}>
+            {/* Header */}
+            <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>New Message</span>
+              <button onClick={() => { setShowNewDM(false); setDmSearch('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, fontSize: 18, lineHeight: 1 }}>✕</button>
+            </div>
+            {/* Search */}
+            <div style={{ padding: '8px 12px', flexShrink: 0 }}>
+              <input
+                value={dmSearch}
+                onChange={e => setDmSearch(e.target.value)}
+                placeholder="Search soldiers…"
+                autoFocus
+                style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '7px 10px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }}
+              />
+            </div>
+            {/* Member list */}
+            <div style={{ flex: 1, overflowY: 'auto' as const }}>
+              {loadingMembers ? (
+                <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>Loading…</div>
+              ) : dmMembers.filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase())).length === 0 ? (
+                <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No members found</div>
+              ) : dmMembers
+                  .filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase()))
+                  .map(member => (
+                    <button
+                      key={member.id}
+                      onClick={async () => {
+                        setShowNewDM(false); setDmSearch('')
+                        const data = await api('create-dm', 'POST', { otherUserId: member.id })
+                        if (data.channelId) {
+                          const convData = await api('list-conversations')
+                          if (convData.conversations) setConversations(convData.conversations)
+                          selectConversation(data.channelId)
+                        }
+                      }}
+                      style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '1.5px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                        {member.imageUrl
+                          ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: GLD }}>{member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
+                        }
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                        <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
+                      </div>
+                    </button>
+                  ))
+              }
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── CENTER PANEL: Chat thread ── */}

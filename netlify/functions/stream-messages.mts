@@ -217,6 +217,29 @@ async function uploadVoice(userId: string, req: Request): Promise<Response> {
   return json({ url: publicUrl, duration: 0 })
 }
 
+async function listMembers(currentUserId: string): Promise<Response> {
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  if (!clerkSecretKey) return json({ error: 'Clerk secret key not configured' }, 500)
+
+  const res = await fetch('https://api.clerk.com/v1/users?limit=50', {
+    headers: { Authorization: `Bearer ${clerkSecretKey}` },
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    return json({ error: 'Clerk API error', detail: err }, res.status)
+  }
+  const users = await res.json() as any[]
+  const members = users
+    .filter((u: any) => u.id !== currentUserId)
+    .map((u: any) => ({
+      id: u.id,
+      name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id,
+      tier: (u.public_metadata?.tier as string) || 'watchman',
+      imageUrl: u.image_url || '',
+    }))
+  return json(members)
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
@@ -253,6 +276,10 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (action === 'upload-voice') {
     return uploadVoice(userId, req)
+  }
+
+  if (action === 'list-members') {
+    return listMembers(userId)
   }
 
   return json({ error: `Unknown action: ${action}` }, 405)
