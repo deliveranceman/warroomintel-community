@@ -3659,11 +3659,19 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [spiritResources, setSpiritResources] = useState<any[]>([])
   const [loadingResources, setLoadingResources] = useState(false)
-  const [modalTab, setModalTab] = useState<'overview' | 'intelligence' | 'warfare' | 'scholarly'>('overview')
+  const [modalTab, setModalTab] = useState<'overview' | 'intelligence' | 'warfare' | 'scholarly' | 'protocol'>('overview')
   const [rankFilter, setRankFilter] = useState('')
   const [generationalFilter, setGenerationalFilter] = useState(false)
   const [territorialFilter, setTerritorialFilter] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
+  const [protocolResult, setProtocolResult] = useState<any>(null)
+  const [protocolLoading, setProtocolLoading] = useState(false)
+  const [protocolError, setProtocolError] = useState('')
+  const [manifestationInput, setManifestationInput] = useState('')
+  const [includeCluster, setIncludeCluster] = useState(true)
+  const [activeProtocolSection, setActiveProtocolSection] = useState(0)
+  const [checkedGrounds, setCheckedGrounds] = useState<Record<string, boolean>>({})
+  const [invFromInvestigator, setInvFromInvestigator] = useState<any>(null)
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -3701,7 +3709,18 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     const jump = localStorage.getItem('wri_jump_to_spirit')
     if (jump && demonsProp.length > 0) {
       const match = demonsProp.find((d: any) => d.name?.toLowerCase() === jump.toLowerCase())
-      if (match) { setSelectedEntry(match); localStorage.removeItem('wri_jump_to_spirit') }
+      if (match) {
+        setSelectedEntry(match)
+        localStorage.removeItem('wri_jump_to_spirit')
+        const invData = localStorage.getItem('wri_protocol_inv_data')
+        if (invData) {
+          try {
+            setInvFromInvestigator(JSON.parse(invData))
+            setModalTab('protocol')
+          } catch {}
+          localStorage.removeItem('wri_protocol_inv_data')
+        }
+      }
     }
   }, [demonsProp])
 
@@ -3749,6 +3768,39 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   const dbBorder = dbIsDark ? 'rgba(201,168,76,0.15)' : '#D4C4B0'
   const dbText   = dbIsDark ? '#f0e8d8' : '#1C1410'
   const dbDim    = dbIsDark ? '#c8b99a' : '#4A3728'
+
+  async function handleGenerateProtocol(mode: 'spirit' | 'manifestation' = 'spirit') {
+    if (!selectedEntry && mode === 'spirit') return
+    setProtocolLoading(true); setProtocolError(''); setProtocolResult(null)
+    try {
+      const token = await getToken()
+      const clusterNames = selectedEntry
+        ? parseSpiritNames(selectedEntry.subordinates || selectedEntry.clusterSpirits || '').slice(0, 10)
+        : []
+      const body: any = {
+        mode,
+        spiritData: selectedEntry || null,
+        spiritNames: clusterNames,
+        includeCluster,
+        manifestationDescription: invFromInvestigator?.symptoms || manifestationInput,
+        manifestationCandidates: invFromInvestigator?.probableSpirits || [],
+      }
+      const res = await fetch('/api/deliverance-protocol', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Protocol generation failed')
+      setProtocolResult(data)
+      setActiveProtocolSection(0)
+      setCheckedGrounds({})
+    } catch (e: any) {
+      setProtocolError(e.message || 'Protocol generation failed')
+    } finally {
+      setProtocolLoading(false)
+    }
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: dbBg, overflow: 'hidden', minHeight: 0 }}>
@@ -4100,6 +4152,12 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     {t.label}
                   </button>
                 ))}
+                {atLeast('commander') && (
+                  <button onClick={() => setModalTab('protocol')}
+                    style={{ padding: '8px 16px', background: modalTab === 'protocol' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: modalTab === 'protocol' ? `2px solid ${G}` : '2px solid transparent', color: modalTab === 'protocol' ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
+                    ⚔ PROTOCOL
+                  </button>
+                )}
               </div>
 
               {/* TAB 1: OVERVIEW */}
@@ -4347,6 +4405,275 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   )}
                   <FieldBlock label="WRI Exorcist Notes" value={entry.wriNotes} />
                 </TierGate>
+              )}
+
+              {/* TAB 5: PROTOCOL ENGINE — Commander+ */}
+              {modalTab === 'protocol' && (
+                <div>
+                  {!atLeast('commander') ? (
+                    <TierLock tierName="Commander" />
+                  ) : !protocolResult ? (
+                    <div>
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>⚔ PROTOCOL ENGINE</div>
+                        <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6 }}>
+                          Generate a complete deliverance session protocol for {entry.name} — including legal ground checklist, renunciation prayers, command prayers, and aftercare.
+                        </div>
+                      </div>
+                      {invFromInvestigator && (
+                        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', marginBottom: 6 }}>LINKED FROM SYMPTOM INVESTIGATOR</div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>
+                            {invFromInvestigator.probableSpirits?.length} spirits identified — protocol will incorporate investigation results
+                          </div>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.06em' }}>
+                          <input type="checkbox" checked={includeCluster} onChange={e => setIncludeCluster(e.target.checked)}
+                            style={{ accentColor: G, width: 14, height: 14 }} />
+                          Include cluster spirits
+                        </label>
+                      </div>
+                      {protocolError && (
+                        <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 6, padding: '10px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 16 }}>
+                          {protocolError}
+                        </div>
+                      )}
+                      <button onClick={() => handleGenerateProtocol('spirit')} disabled={protocolLoading}
+                        style={{ width: '100%', padding: '14px', background: protocolLoading ? 'rgba(201,168,76,0.3)' : G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', cursor: protocolLoading ? 'not-allowed' : 'pointer', textTransform: 'uppercase' as const }}>
+                        {protocolLoading ? '⏳ GENERATING PROTOCOL...' : '⚔ GENERATE SESSION PROTOCOL'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Protocol header + regenerate */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>⚔ SESSION PROTOCOL</div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>{entry.name}</div>
+                        </div>
+                        <button onClick={() => { setProtocolResult(null); setInvFromInvestigator(null) }}
+                          style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
+                          ↺ REGENERATE
+                        </button>
+                      </div>
+
+                      {/* Section nav pills */}
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+                        {['Pre-Session Intel', 'Legal Grounds', 'Renunciation', 'Intercession', 'Command Prayers', 'Aftercare', 'Resources'].map((sec, i) => (
+                          <button key={i} onClick={() => setActiveProtocolSection(i)}
+                            style={{ padding: '4px 10px', borderRadius: 20, fontSize: 9, fontFamily: cinzel, letterSpacing: '0.04em', cursor: 'pointer', border: `1px solid ${activeProtocolSection === i ? G : bdr}`, background: activeProtocolSection === i ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeProtocolSection === i ? G : mut }}>
+                            {sec}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Section 0: Pre-Session Intel */}
+                      {activeProtocolSection === 0 && protocolResult.protocol?.preSessionIntel && (() => {
+                        const intel = protocolResult.protocol.preSessionIntel
+                        return (
+                          <div>
+                            <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
+                              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7 }}>{intel.summary}</div>
+                            </div>
+                            {intel.keyLegalGrounds?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Key Legal Grounds</div>
+                                {intel.keyLegalGrounds.map((g: string, i: number) => (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                                    <span style={{ color: G, flexShrink: 0, fontSize: 10, marginTop: 2 }}>▸</span>
+                                    <span style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5 }}>{g}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {intel.keyScriptures?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Key Scriptures</div>
+                                {intel.keyScriptures.map((s: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: G, fontStyle: 'italic', marginBottom: 5, paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>{s}</div>
+                                ))}
+                              </div>
+                            )}
+                            {intel.warningFlags?.length > 0 && (
+                              <div style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 8, padding: '12px 16px' }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Warning Flags</div>
+                                {intel.warningFlags.map((w: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 4 }}>• {w}</div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Section 1: Legal Ground Checklist */}
+                      {activeProtocolSection === 1 && (
+                        <div>
+                          <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6, marginBottom: 16 }}>
+                            Go through each ground with the person. Check off what applies — this forms the basis for renunciation.
+                          </div>
+                          {(protocolResult.protocol?.legalGroundChecklist || []).map((item: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: checkedGrounds[i] ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${checkedGrounds[i] ? 'rgba(201,168,76,0.3)' : bdr}`, borderRadius: 8, marginBottom: 8, cursor: 'pointer' }}
+                              onClick={() => setCheckedGrounds(prev => ({ ...prev, [i]: !prev[i] }))}>
+                              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 4, border: `2px solid ${checkedGrounds[i] ? G : bdr}`, background: checkedGrounds[i] ? G : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                                {checkedGrounds[i] && <span style={{ color: '#0D0B14', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 10, color: checkedGrounds[i] ? G : txt, letterSpacing: '0.06em', marginBottom: 4 }}>{item.ground}</div>
+                                <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', lineHeight: 1.5, marginBottom: 4 }}>"{item.question}"</div>
+                                {item.scripture && <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '99', letterSpacing: '0.04em' }}>{item.scripture}</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Section 2: Renunciation Prayers */}
+                      {activeProtocolSection === 2 && (
+                        <div>
+                          {(protocolResult.protocol?.renunciationPrayers || []).map((prayer: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 20, background: 'rgba(255,255,255,0.02)', border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px' }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>{prayer.title}</div>
+                              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', marginBottom: 10, paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.3)` }}>
+                                {prayer.prayer}
+                              </div>
+                              {prayer.notes && (
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.04em', background: 'rgba(201,168,76,0.05)', borderRadius: 4, padding: '6px 10px' }}>
+                                  📋 {prayer.notes}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Section 3: Intercession */}
+                      {activeProtocolSection === 3 && protocolResult.protocol?.intercession && (() => {
+                        const ic = protocolResult.protocol.intercession
+                        return (
+                          <div>
+                            {ic.opening && (
+                              <div style={{ marginBottom: 20 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Opening Intercession</div>
+                                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.3)` }}>{ic.opening}</div>
+                              </div>
+                            )}
+                            {ic.declarations?.length > 0 && (
+                              <div style={{ marginBottom: 20 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Declarations</div>
+                                {ic.declarations.map((d: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6, marginBottom: 8, paddingLeft: 12, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>{d}</div>
+                                ))}
+                              </div>
+                            )}
+                            {ic.binding && (
+                              <div>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Binding Prayer</div>
+                                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', paddingLeft: 14, borderLeft: `3px solid rgba(220,38,38,0.4)` }}>{ic.binding}</div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Section 4: Command Prayers */}
+                      {activeProtocolSection === 4 && (
+                        <div>
+                          {(protocolResult.protocol?.commandPrayers || []).map((prayer: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 20, background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.15)', borderLeft: '3px solid rgba(220,38,38,0.5)', borderRadius: 10, padding: '16px 18px' }}>
+                              <div style={{ fontFamily: cinzel, fontSize: 10, color: '#f87171', letterSpacing: '0.08em', marginBottom: 10 }}>TARGET: {prayer.target}</div>
+                              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', marginBottom: 10 }}>
+                                {prayer.command}
+                              </div>
+                              {prayer.authority && (
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '99', letterSpacing: '0.04em' }}>⚔ Authority: {prayer.authority}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Section 5: Aftercare */}
+                      {activeProtocolSection === 5 && protocolResult.protocol?.aftercare && (() => {
+                        const ac = protocolResult.protocol.aftercare
+                        return (
+                          <div>
+                            {ac.initialSteps?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Immediate Steps</div>
+                                {ac.initialSteps.map((s: string, i: number) => (
+                                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                                    <span style={{ color: G, flexShrink: 0, fontFamily: cinzel, fontSize: 11, marginTop: 1 }}>{i + 1}.</span>
+                                    <span style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5 }}>{s}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {ac.dailyPractices?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Daily Practices</div>
+                                {ac.dailyPractices.map((p: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5, marginBottom: 6, paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.15)` }}>• {p}</div>
+                                ))}
+                              </div>
+                            )}
+                            {ac.warningSignsToWatch?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Warning Signs to Watch</div>
+                                {ac.warningSignsToWatch.map((w: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 5 }}>• {w}</div>
+                                ))}
+                              </div>
+                            )}
+                            {ac.followUpQuestions?.length > 0 && (
+                              <div>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Follow-Up Questions</div>
+                                {ac.followUpQuestions.map((q: string, i: number) => (
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic', marginBottom: 6 }}>• {q}</div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Section 6: Arsenal Resources */}
+                      {activeProtocolSection === 6 && (
+                        <div>
+                          {protocolResult.arsenalResources?.length > 0 ? (
+                            <div>
+                              <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6, marginBottom: 16 }}>
+                                Resources matched to this protocol based on spirit domain and legal grounds.
+                              </div>
+                              {protocolResult.arsenalResources.map((r: any, i: number) => (
+                                <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${bdr}`, borderRadius: 8, marginBottom: 8 }}>
+                                  <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>📄</span>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, marginBottom: 3 }}>{r.title}</div>
+                                    {r.relevance && <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5, marginBottom: 4 }}>{r.relevance}</div>}
+                                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '80', letterSpacing: '0.04em' }}>{r.category || 'Resource'}</div>
+                                  </div>
+                                  {r.file_path && (
+                                    <a href={r.file_path} target="_blank" rel="noopener noreferrer"
+                                      style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none', alignSelf: 'flex-start', flexShrink: 0 }}>
+                                      ↗ VIEW
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center' as const, color: mut, fontFamily: crimson, fontSize: 14, padding: '32px 0' }}>
+                              No matched arsenal resources for this spirit.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
             </div>
@@ -4963,8 +5290,8 @@ const CONFIDENCE_COLORS = {
 }
 
 // ── INVESTIGATOR VIEW ──────────────────────────────────────
-function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
-  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void
 }) {
   const { getToken } = useAuth()
   const [invInput, setInvInput]   = useState('')
@@ -5198,12 +5525,29 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen }: {
               </section>
             )}
 
+            {setActiveSection && invResult.probableSpirits?.length > 0 && (
+              <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '20px 24px', textAlign: 'center' as const }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ READY FOR DELIVERANCE?</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: '#8B7355', lineHeight: 1.6, marginBottom: 14 }}>
+                  Generate a complete session protocol for {invResult.probableSpirits[0].name} with legal grounds, prayers, and aftercare.
+                </div>
+                <button onClick={() => {
+                  const topSpirit = invResult!.probableSpirits[0]
+                  localStorage.setItem('wri_jump_to_spirit', topSpirit.name)
+                  localStorage.setItem('wri_protocol_inv_data', JSON.stringify({
+                    symptoms: invInput,
+                    probableSpirits: invResult!.probableSpirits,
+                  }))
+                  setActiveSection('database')
+                }} style={{ background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+                  ⚔ LAUNCH PROTOCOL ENGINE →
+                </button>
+              </div>
+            )}
+
             <p style={{ fontSize: 12, color: '#3a3228', textAlign: 'center' as const, lineHeight: 1.6, marginTop: 8, fontFamily: crimson }}>
               This analysis is an intelligence aid for trained ministers. Always lead with prayer, discernment, and the Holy Spirit. This tool does not replace ministerial judgment.
             </p>
-            <div style={{ fontSize: 11, color: '#5a4f3a', textAlign: 'center' as const, fontStyle: 'italic', fontFamily: crimson }}>
-              📋 Feature coming: Export this report as a PDF — submit a field report to track this session
-            </div>
           </div>
         )}
       </div>
@@ -9561,7 +9905,7 @@ function CommunityPage() {
             <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
           </div>
         )}
-        {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+        {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
         {activeSection === 'arsenal'     && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />

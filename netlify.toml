@@ -198,3 +198,6 @@
 
 [functions."spirit-bulk-import"]
   timeout = 300
+
+[functions."deliverance-protocol"]
+  timeout = 60
