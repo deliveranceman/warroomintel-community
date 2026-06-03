@@ -80,6 +80,7 @@ export default async function handler(req: Request) {
     line_items: [{ price: priceId, quantity: 1 }],
     ...(user.email ? { customer_email: user.email } : {}),
     client_reference_id: user.userId,
+    allow_promotion_codes: true,
     metadata: { userId: user.userId, tier: tierKey },
     success_url: `${SITE_URL}/community?upgraded=1`,
     cancel_url: `${SITE_URL}/membership`,
