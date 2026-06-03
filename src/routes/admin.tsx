@@ -4832,7 +4832,7 @@ const FB_STATUS_COLORS: Record<string, string> = {
   'open': G, 'in-progress': '#38bdf8', 'resolved': '#4ade80', 'closed': '#6b7280',
 }
 
-function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
+function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?: { template?: string }) => Promise<string | null>; section?: 'feedback' | 'testimony' | 'forum' | 'fieldreports' }) {
   const [feedback, setFeedback]   = useState<any[]>([])
   const [fbLoading, setFbLoading] = useState(true)
   const [editingFb, setEditingFb] = useState<string | null>(null)
@@ -4881,122 +4881,136 @@ function ModerationPanel({ getToken }: { getToken: (opts?: { template?: string }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Moderation: Community Feedback</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM }}>{feedback.length} report{feedback.length !== 1 ? 's' : ''} submitted by members</div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Community →</a>
-          <a href={`https://dashboard.getstream.io/app/${STREAM_APP_ID}/moderation`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Stream →</a>
-        </div>
-      </div>
-
-      {fbLoading ? (
-        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>Loading feedback...</div>
-      ) : feedback.length === 0 ? (
-        <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: DIM }}>No feedback submitted yet</div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {feedback.map(fb => (
-            <div key={fb.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${fb.type === 'bug' ? '#f87171' : G}`, borderRadius: 10, padding: '14px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' as const, marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13 }}>{fb.type === 'bug' ? '🐛' : '✦'}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 12, color: fb.type === 'bug' ? '#f87171' : G }}>{fb.title}</span>
-                  <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${FB_STATUS_COLORS[fb.status] || DIM}20`, color: FB_STATUS_COLORS[fb.status] || DIM, border: `1px solid ${FB_STATUS_COLORS[fb.status] || DIM}40` }}>{fb.status}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, color: DIM }}>{fb.submitted_by_name} · {fb.submitted_by_tier} · {fb.priority}</span>
-                  <button onClick={() => { setEditingFb(fb.id); setEditStatus(fb.status); setEditNotes(fb.admin_notes || '') }} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Edit</button>
-                  <button onClick={() => deleteFeedback(fb.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Delete</button>
-                </div>
-              </div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.5, marginBottom: fb.admin_notes ? 8 : 0 }}>{fb.description}</div>
-              {fb.admin_notes && <div style={{ fontSize: 12, color: DIM, fontStyle: 'italic', fontFamily: crimson }}>Admin: {fb.admin_notes}</div>}
-              {editingFb === fb.id && (
-                <div style={{ marginTop: 12, padding: '12px 14px', background: SURF2, borderRadius: 8, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>STATUS</label>
-                    <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 12, padding: '3px 8px' }}>
-                      {['open', 'in-progress', 'resolved', 'closed'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} placeholder="Admin notes..." style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 13, padding: '6px 8px', resize: 'vertical' as const, outline: 'none' }} />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => updateFeedback(fb.id)} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>Save</button>
-                    <button onClick={() => setEditingFb(null)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Cancel</button>
-                  </div>
-                </div>
-              )}
+      {/* ── COMMUNITY FEEDBACK ── */}
+      {section === 'feedback' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Community Feedback</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: DIM }}>{feedback.length} report{feedback.length !== 1 ? 's' : ''} submitted by members</div>
             </div>
-          ))}
-        </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Community →</a>
+              <a href={`https://dashboard.getstream.io/app/${STREAM_APP_ID}/moderation`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Stream →</a>
+            </div>
+          </div>
+          {fbLoading ? (
+            <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>Loading feedback...</div>
+          ) : feedback.length === 0 ? (
+            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const }}>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: DIM }}>No feedback submitted yet</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {feedback.map(fb => (
+                <div key={fb.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${fb.type === 'bug' ? '#f87171' : G}`, borderRadius: 10, padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13 }}>{fb.type === 'bug' ? '🐛' : '✦'}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 12, color: fb.type === 'bug' ? '#f87171' : G }}>{fb.title}</span>
+                      <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${FB_STATUS_COLORS[fb.status] || DIM}20`, color: FB_STATUS_COLORS[fb.status] || DIM, border: `1px solid ${FB_STATUS_COLORS[fb.status] || DIM}40` }}>{fb.status}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: DIM }}>{fb.submitted_by_name} · {fb.submitted_by_tier} · {fb.priority}</span>
+                      <button onClick={() => { setEditingFb(fb.id); setEditStatus(fb.status); setEditNotes(fb.admin_notes || '') }} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Edit</button>
+                      <button onClick={() => deleteFeedback(fb.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Delete</button>
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.5, marginBottom: fb.admin_notes ? 8 : 0 }}>{fb.description}</div>
+                  {fb.admin_notes && <div style={{ fontSize: 12, color: DIM, fontStyle: 'italic', fontFamily: crimson }}>Admin: {fb.admin_notes}</div>}
+                  {editingFb === fb.id && (
+                    <div style={{ marginTop: 12, padding: '12px 14px', background: SURF2, borderRadius: 8, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>STATUS</label>
+                        <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 12, padding: '3px 8px' }}>
+                          {['open', 'in-progress', 'resolved', 'closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} placeholder="Admin notes..." style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 13, padding: '6px 8px', resize: 'vertical' as const, outline: 'none' }} />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => updateFeedback(fb.id)} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setEditingFb(null)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* ── TESTIMONY QUEUE ── */}
-      <div style={{ marginTop: 32, borderTop: `1px solid ${BDR}`, paddingTop: 24 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14 }}>
-          TESTIMONY QUEUE: {testimonies.filter(t => t.status === 'pending').length} pending
-        </div>
-        {testLoading ? (
-          <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading...</div>
-        ) : (
-          <div>
-            {testimonies.map(t => (
-              <div key={t.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <div>
-                    <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 2 }}>{t.title}</div>
-                    <div style={{ fontSize: 10, color: DIM }}>{t.user_name} · {t.category} · {new Date(t.created_at).toLocaleDateString()}</div>
-                  </div>
-                  <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: t.status === 'approved' ? 'rgba(74,222,128,0.1)' : t.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.1)', color: t.status === 'approved' ? '#4ade80' : t.status === 'rejected' ? '#ef4444' : G, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
-                    {t.status}
-                  </span>
-                </div>
-                <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, lineHeight: 1.5, marginBottom: 10 }}>
-                  {t.body.slice(0, 150)}{t.body.length > 150 ? '...' : ''}
-                </div>
-                {t.status === 'pending' && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={async () => {
-                        const token = await getToken()
-                        await fetch(`/api/testimonies?id=${t.id}`, {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({ status: 'approved' }),
-                        })
-                        setTestimonies(prev => prev.map(x => x.id === t.id ? { ...x, status: 'approved', approved_at: new Date().toISOString() } : x))
-                      }}
-                      style={{ padding: '4px 14px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 5, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-                    >✓ Approve</button>
-                    <button
-                      onClick={async () => {
-                        const token = await getToken()
-                        await fetch(`/api/testimonies?id=${t.id}`, {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({ status: 'rejected' }),
-                        })
-                        setTestimonies(prev => prev.map(x => x.id === t.id ? { ...x, status: 'rejected' } : x))
-                      }}
-                      style={{ padding: '4px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-                    >✗ Reject</button>
-                  </div>
-                )}
-              </div>
-            ))}
-            {testimonies.length === 0 && (
-              <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No testimonies yet</div>
-            )}
+      {section === 'testimony' && (
+        <>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>
+            Testimony Queue — {testimonies.filter(t => t.status === 'pending').length} pending
           </div>
-        )}
-      </div>
+          {testLoading ? (
+            <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading...</div>
+          ) : (
+            <div>
+              {testimonies.map(t => (
+                <div key={t.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 2 }}>{t.title}</div>
+                      <div style={{ fontSize: 10, color: DIM }}>{t.user_name} · {t.category} · {new Date(t.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: t.status === 'approved' ? 'rgba(74,222,128,0.1)' : t.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.1)', color: t.status === 'approved' ? '#4ade80' : t.status === 'rejected' ? '#ef4444' : G, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                      {t.status}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, lineHeight: 1.5, marginBottom: 10 }}>
+                    {t.body.slice(0, 150)}{t.body.length > 150 ? '...' : ''}
+                  </div>
+                  {t.status === 'pending' && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={async () => {
+                          const token = await getToken()
+                          await fetch(`/api/testimonies?id=${t.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ status: 'approved' }),
+                          })
+                          setTestimonies(prev => prev.map(x => x.id === t.id ? { ...x, status: 'approved', approved_at: new Date().toISOString() } : x))
+                        }}
+                        style={{ padding: '4px 14px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 5, color: '#4ade80', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                      >✓ Approve</button>
+                      <button
+                        onClick={async () => {
+                          const token = await getToken()
+                          await fetch(`/api/testimonies?id=${t.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ status: 'rejected' }),
+                          })
+                          setTestimonies(prev => prev.map(x => x.id === t.id ? { ...x, status: 'rejected' } : x))
+                        }}
+                        style={{ padding: '4px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#ef4444', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                      >✗ Reject</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {testimonies.length === 0 && (
+                <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No testimonies yet</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
-      <ForumModerationPanel getToken={getToken} />
+      {/* ── FORUM BOARD ── */}
+      {section === 'forum' && <ForumModerationPanel getToken={getToken} />}
+
+      {/* ── FIELD REPORTS ── */}
+      {section === 'fieldreports' && (
+        <div style={{ padding: '48px 0', textAlign: 'center' as const, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.14em' }}>
+          FIELD REPORTS — COMING SOON
+        </div>
+      )}
     </div>
   )
 }
@@ -9414,8 +9428,8 @@ function ContentSuggestions({ getToken, isDark }: { getToken: any; isDark: boole
         body: JSON.stringify({ title: editForm.title, summary: editForm.summary, type: 'field_manual' }),
       })
       const data = await res.json()
-      if (data.content) setEditForm(p => ({ ...p, full_draft: data.content }))
-      else setAiGenError('Generation failed — try again')
+      if (res.ok && data.content) setEditForm(p => ({ ...p, full_draft: data.content }))
+      else setAiGenError(data.error || 'Generation failed — try again')
     } catch { setAiGenError('Generation failed — try again') }
     setAiGenerating(false)
   }
@@ -9843,7 +9857,8 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members'>('dashboard')
+  const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports'>('feedback')
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
@@ -9898,39 +9913,34 @@ function AdminPage() {
     { label: 'DASHBOARD', items: [
       { key: 'dashboard', label: '⚡ Dashboard' },
     ]},
-    { label: 'CONTENT', items: [
-      { key: 'content-suggestions', label: '✦ Content AI'     },
-      { key: 'intel',               label: 'Intel Archive'    },
-      { key: 'library',             label: 'Ministry Library' },
-      { key: 'arsenal',             label: 'Arsenal'          },
-      { key: 'documents',           label: 'Documents'        },
-      { key: 'field-ministry',      label: 'Field Ministry'   },
+    { label: 'SOL', items: [
+      { key: 'content-suggestions', label: 'Content AI'           },
+      { key: 'ai-command',          label: 'AI Command'           },
+      { key: 'ai-usage-admin',      label: 'AI Usage'             },
+      { key: 'ai-context',          label: 'AI Context'           },
+      { key: 'lib-intel',           label: 'Content Intelligence' },
     ]},
-    { label: 'COMMUNITY', items: [
-      { key: 'moderation',  label: 'Moderation'  },
-      { key: 'training',    label: 'Training'    },
-      { key: 'daily-brief', label: 'Daily Brief' },
+    { label: 'INTEL ARCHIVE', items: [
+      { key: 'intel',             label: 'Intel Archive'    },
+      { key: 'taxonomy',          label: 'Taxonomy Review'  },
+      { key: 'spiritual-mapping', label: 'Spiritual Mapping'},
+    ]},
+    { label: 'MODERATION', items: [
+      { key: 'moderation', label: '📋 Moderation' },
+    ]},
+    { label: 'CONTENT', items: [
+      { key: 'library',        label: 'Ministry Library' },
+      { key: 'arsenal',        label: 'Arsenal'          },
+      { key: 'documents',      label: 'Documents'        },
+      { key: 'training',       label: 'Training'         },
+      { key: 'daily-brief',    label: 'Daily Brief'      },
+      { key: 'field-ministry', label: 'Field Ministry'   },
     ]},
     { label: 'OPERATIONS', items: [
-      { key: 'spiritual-mapping', label: 'Spiritual Mapping' },
-      { key: 'tracker',           label: 'Tracker'           },
-      { key: 'notifications',     label: '🔔 Notifications'  },
-      { key: 'admin-chat',        label: 'Admin Chat'        },
-    ]},
-    { label: 'INTELLIGENCE', items: [
-      { key: 'lib-intel',      label: 'Library Intel'  },
-      { key: 'ai-command',     label: 'AI Command'     },
-      { key: 'ai-context',     label: '🧠 AI Context'  },
-      { key: 'ai-usage-admin', label: '📊 AI Usage'    },
-    ]},
-    { label: 'TOOLS', items: [
-      { key: 'taxonomy',        label: 'Taxonomy'       },
-      { key: 'enrichment',      label: 'Enrichment'     },
-      { key: 'internal-books',  label: 'Internal Books' },
-      { key: 'suggested-edits', label: '🚩 Flags'       },
-    ]},
-    { label: 'COMMAND', items: [
-      { key: 'testing', label: '🧪 Testing' },
+      { key: 'members',       label: 'Members'          },
+      { key: 'notifications', label: '🔔 Notifications' },
+      { key: 'admin-chat',    label: 'Admin Chat'       },
+      { key: 'tracker',       label: 'Tracker'          },
     ]},
   ] as const
 
@@ -9985,9 +9995,16 @@ function AdminPage() {
           }}>
             {SIDEBAR_GROUPS.map(group => (
               <div key={group.label} style={{ marginBottom: 8 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
-                  {group.label}
-                </div>
+                {group.label === 'SOL' ? (
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: '#C9A84C', letterSpacing: '0.2em', padding: '10px 20px 4px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' }}>
+                    <img src="/images/sol/sol-icon.png" width={14} height={14} style={{ objectFit: 'contain' as const, marginRight: 5 }} alt="" />
+                    SOL — AI COMMAND CENTER
+                  </div>
+                ) : (
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
+                    {group.label}
+                  </div>
+                )}
                 {group.items.map(item => {
                   const active = tab === item.key
                   return (
@@ -10025,56 +10042,55 @@ function AdminPage() {
             {tab === 'dashboard'         && <DashboardView getToken={getToken} isDark={isDark} setTab={(t: string) => setTab(t as any)} />}
             {tab === 'arsenal'           && <ArsenalManager getToken={getToken} />}
             {tab === 'intel'             && <IntelArchive getToken={getToken} isDark={isDark} />}
-            {tab === 'moderation'        && <ModerationPanel getToken={getToken} />}
+            {tab === 'moderation'        && (
+              <div>
+                <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${adBdr}` }}>
+                  {([
+                    { key: 'feedback',     label: 'Community Feedback' },
+                    { key: 'testimony',    label: 'Testimony Queue'    },
+                    { key: 'forum',        label: 'Forum Board'        },
+                    { key: 'fieldreports', label: 'Field Reports'      },
+                  ] as const).map(t => (
+                    <button key={t.key} onClick={() => setModTab(t.key)}
+                      style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: modTab === t.key ? `2px solid ${adGold}` : '2px solid transparent', color: modTab === t.key ? adGold : adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: -1, whiteSpace: 'nowrap' as const }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                <ModerationPanel getToken={getToken} section={modTab} />
+              </div>
+            )}
             {tab === 'training'          && <TrainingManager getToken={getToken} isDark={isDark} />}
             {tab === 'daily-brief'       && <DailyBriefManager getToken={getToken} isDark={isDark} />}
             {tab === 'field-ministry'    && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
             {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
             {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}
             {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
-            {tab === 'lib-intel'         && (
+            {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
+            {tab === 'ai-command'        && (
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em' }}>Also available at:</span>
-                  <button onClick={() => setTab('intel')} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textDecoration: 'underline' }}>
-                    Intel Archive → Gap Analysis
-                  </button>
+                <AICommandManager getToken={getToken} isDark={isDark} />
+                <div style={{ marginTop: 32, borderTop: `1px solid ${adBdr}`, paddingTop: 28 }}>
+                  <LibraryIntelligence getToken={getToken} isDark={isDark} />
                 </div>
-                <LibraryIntelligence getToken={getToken} isDark={isDark} />
               </div>
             )}
-            {tab === 'ai-command'        && <AICommandManager getToken={getToken} isDark={isDark} />}
             {tab === 'ai-context'        && <MinistryContextManager getToken={getToken} isDark={isDark} />}
-            {tab === 'taxonomy'          && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em' }}>Also available at:</span>
-                  <button onClick={() => setTab('intel')} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textDecoration: 'underline' }}>
-                    Intel Archive → Taxonomy
-                  </button>
-                </div>
-                <TaxonomyReview getToken={getToken} isDark={isDark} />
-              </div>
-            )}
+            {tab === 'taxonomy'          && <TaxonomyReview getToken={getToken} isDark={isDark} />}
             {tab === 'content-suggestions' && <ContentSuggestions getToken={getToken} isDark={isDark} />}
             {tab === 'notifications'     && <NotificationsAdmin getToken={getToken} isDark={isDark} />}
-            {tab === 'ai-usage-admin'   && <AIUsageAdmin getToken={getToken} isDark={isDark} />}
+            {tab === 'ai-usage-admin'    && <AIUsageAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
             {tab === 'internal-books'    && <InternalBooks getToken={getToken} isDark={isDark} />}
             {tab === 'admin-chat'        && <AdminChat getToken={getToken} isDark={isDark} />}
-            {tab === 'enrichment'        && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em' }}>Also available at:</span>
-                  <button onClick={() => setTab('intel')} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#C9A84C', background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textDecoration: 'underline' }}>
-                    Intel Archive → Enrichment
-                  </button>
-                </div>
-                <EnrichmentSuggestions getToken={getToken} isDark={isDark} />
-              </div>
-            )}
+            {tab === 'enrichment'        && <EnrichmentSuggestions getToken={getToken} isDark={isDark} />}
             {tab === 'suggested-edits'   && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'testing'           && <AdminTestingPanel getToken={getToken} isDark={isDark} />}
+            {tab === 'members'           && (
+              <div style={{ padding: '32px 0', textAlign: 'center' as const, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
+                MEMBERS — COMING SOON
+              </div>
+            )}
           </div>
         </div>
 
