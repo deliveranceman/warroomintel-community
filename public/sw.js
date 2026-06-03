@@ -28,6 +28,14 @@ self.addEventListener('fetch', function(event) {
 
 self.addEventListener('push', event => {
   const data = event.data?.json() || {}
+
+  // Broadcast to open tabs so MessengerSection can update without a reload
+  if (data.type === 'new-dm') {
+    const bc = new BroadcastChannel('wri-messages')
+    bc.postMessage({ type: 'new-dm', channelId: data.channelId })
+    bc.close()
+  }
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'War Room Intel', {
       body: data.body || 'New activity in the War Room',

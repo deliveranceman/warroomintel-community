@@ -137,6 +137,46 @@ async function solDMReply(messageText: string, channelId: string, senderId: stri
   console.log(`[stream-webhook] SOL DM replied channel=${channelId} user=${senderId}`)
 }
 
+// ── DM push notification ──────────────────────────────────────────────────────
+
+async function sendDMPush(channelId: string, senderUserId: string, senderName: string, messageText: string): Promise<void> {
+  const chRes = await fetch(`https://chat.stream-io-api.com/channels/messaging/${encodeURIComponent(channelId)}?api_key=${streamApiKey}`, {
+    method: 'GET',
+    headers: streamHeaders(serverToken()),
+  })
+  if (!chRes.ok) { console.warn(`[stream-webhook] sendDMPush: channel fetch ${chRes.status}`); return }
+  const chData = await chRes.json() as any
+  const members: any[] = chData.members ?? []
+  const recipientId = members.find((m: any) => m.user?.id !== senderUserId)?.user?.id
+  if (!recipientId) return
+
+  const sb = createClient(supabaseUrl, serviceRoleKey)
+  const { data: subs } = await sb.from('push_subscriptions').select('*').eq('user_id', recipientId)
+  if (!subs?.length) return
+
+  const preview = messageText?.slice(0, 60) || '🎙 Voice message'
+  const payload = JSON.stringify({
+    type: 'new-dm',
+    channelId,
+    senderId: senderUserId,
+    senderName,
+    preview,
+    title: 'War Room Intel',
+    body: `${senderName}: ${preview}`,
+  })
+
+  await Promise.allSettled(
+    subs.map(async (row: any) => {
+      try {
+        await webpush.sendNotification(row.subscription, payload)
+      } catch (err: any) {
+        if (err.statusCode === 410) await sb.from('push_subscriptions').delete().eq('id', row.id).catch(() => {})
+      }
+    })
+  )
+  console.log(`[stream-webhook] DM push channelId=${channelId} recipient=${recipientId}`)
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
@@ -180,8 +220,12 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
     }
 
-    // SOL DM autoreply — any messaging channel not from sol-bot
+    // SOL DM autoreply + DM push notification
     if (channelType === 'messaging') {
+      const senderName = (body.user as any)?.name || senderUserId
+      sendDMPush(channelId, senderUserId, senderName, messageText).catch(err =>
+        console.error('[stream-webhook] sendDMPush error:', err)
+      )
       solDMReply(messageText, channelId, senderUserId).catch(err =>
         console.error('[stream-webhook] solDMReply error:', err)
       )

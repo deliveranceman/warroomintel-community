@@ -8364,6 +8364,7 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
   const [loadingMembers, setLoadingMembers]   = React.useState(false)
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const sseRef           = React.useRef<EventSource | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef   = useRef<Blob[]>([])
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -8477,16 +8478,66 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [activeConvoId, token])
 
-  // ── Poll conversation list every 15s ──
+  // ── SSE real-time updates ──
   React.useEffect(() => {
     if (!token) return
-    const interval = setInterval(() => {
-      api('list-conversations').then(data => {
-        if (data.conversations) setConversations(data.conversations)
-      })
-    }, 15000)
-    return () => clearInterval(interval)
+
+    const connect = () => {
+      if (sseRef.current) sseRef.current.close()
+      const es = new EventSource(`/api/stream-sse?token=${encodeURIComponent(token)}`)
+      sseRef.current = es
+
+      es.onmessage = async (e) => {
+        let data: any
+        try { data = JSON.parse(e.data) } catch { return }
+        if (data.type === 'ping') return
+        if (data.type === 'reconnect') {
+          es.close()
+          setTimeout(connect, 1000)
+          return
+        }
+        if (data.type === 'new-message') {
+          const convData = await api('list-conversations')
+          if (convData.conversations) setConversations(convData.conversations)
+          const activeChannelId = activeConvoId === 'sol'
+            ? conversations.find((c: any) => c.otherMember?.id === 'sol-bot')?.channelId
+            : activeConvoId
+          if (activeChannelId && activeChannelId === data.channelId) {
+            const msgs = await api(`get-messages&channelId=${data.channelId}`, 'GET')
+            if (msgs.messages?.length) setMessages(msgs.messages)
+          }
+        }
+      }
+
+      es.onerror = () => {
+        es.close()
+        setTimeout(connect, 3000)
+      }
+    }
+
+    connect()
+    return () => { sseRef.current?.close(); sseRef.current = null }
   }, [token])
+
+  // ── BroadcastChannel: receive push-triggered events from service worker ──
+  React.useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const bc = new BroadcastChannel('wri-messages')
+    bc.onmessage = async (e) => {
+      if (e.data.type === 'new-dm') {
+        const convData = await api('list-conversations')
+        if (convData.conversations) setConversations(convData.conversations)
+        const activeChannelId = activeConvoId === 'sol'
+          ? conversations.find((c: any) => c.otherMember?.id === 'sol-bot')?.channelId
+          : activeConvoId
+        if (activeChannelId && activeChannelId === e.data.channelId) {
+          const msgs = await api(`get-messages&channelId=${e.data.channelId}`, 'GET')
+          if (msgs.messages?.length) setMessages(msgs.messages)
+        }
+      }
+    }
+    return () => bc.close()
+  }, [activeConvoId, token])
 
   // ── Send message ──
   const sendMessage = useCallback(async () => {

@@ -24,6 +24,9 @@
   targetPort = 3000
   port = 8888
 
+[functions."stream-sse"]
+  timeout = 26
+
 [functions."ai-spirit-enhance-background"]
   timeout = 26
 
