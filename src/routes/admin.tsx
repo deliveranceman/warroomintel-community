@@ -9420,6 +9420,8 @@ function ContentSuggestions({ getToken, isDark }: { getToken: any; isDark: boole
   const [scheduleTime, setScheduleTime]     = useState('')
   const [topicInput, setTopicInput]   = useState('')
   const [pendingCount, setPendingCount] = useState(0)
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiGenError, setAiGenError]     = useState('')
 
   async function load() {
     setLoading(true)
@@ -9471,6 +9473,24 @@ function ContentSuggestions({ getToken, isDark }: { getToken: any; isDark: boole
     setEditingId(s.id)
     setEditForm({ title: s.title, summary: s.summary, full_draft: s.full_draft || '', notes: s.notes || '' })
     setMsg('')
+    setAiGenError('')
+  }
+
+  async function handleGenerateDraft() {
+    if (!editForm.title?.trim() || !editForm.summary?.trim()) { setAiGenError('Enter Title and Summary first'); return }
+    setAiGenerating(true); setAiGenError('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-content-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: editForm.title, summary: editForm.summary, type: 'field_manual' }),
+      })
+      const data = await res.json()
+      if (data.content) setEditForm(p => ({ ...p, full_draft: data.content }))
+      else setAiGenError('Generation failed — try again')
+    } catch { setAiGenError('Generation failed — try again') }
+    setAiGenerating(false)
   }
 
   const STATUS_COLORS: Record<string, string> = {
@@ -9543,7 +9563,17 @@ function ContentSuggestions({ getToken, isDark }: { getToken: any; isDark: boole
                 <textarea value={editForm.summary} onChange={e => setEditForm(p => ({ ...p, summary: e.target.value }))} rows={3} style={{ ...inp, resize: 'vertical' as const }} />
               </div>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em', marginBottom: 6 }}>FULL DRAFT (MARKDOWN)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.1em' }}>FULL DRAFT (MARKDOWN)</label>
+                  <button
+                    type="button"
+                    disabled={aiGenerating}
+                    onClick={handleGenerateDraft}
+                    style={{ fontFamily: 'Cinzel, serif', fontSize: 9, letterSpacing: '0.1em', color: '#1a1305', background: '#C9A84C', border: 'none', borderRadius: 2, padding: '4px 12px', cursor: 'pointer', opacity: aiGenerating ? 0.6 : 1 }}>
+                    {aiGenerating ? 'Generating...' : '✦ Generate Draft'}
+                  </button>
+                  {aiGenError && <span style={{ fontSize: 12, color: '#ef4444' }}>{aiGenError}</span>}
+                </div>
                 <textarea value={editForm.full_draft} onChange={e => setEditForm(p => ({ ...p, full_draft: e.target.value }))} rows={10} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 12 }} />
               </div>
               <div style={{ marginBottom: 16 }}>

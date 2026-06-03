@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as DonateRouteImport } from './routes/donate'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SubmitDemonRouteImport } from './routes/submit-demon'
 import { Route as SignUpRouteImport } from './routes/sign-up'
@@ -59,6 +61,16 @@ import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DonateRoute = DonateRouteImport.update({
+  id: '/donate',
+  path: '/donate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -315,10 +327,12 @@ export interface FileRoutesByFullPath {
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
+  '/donate': typeof DonateRoute
   '/help': typeof HelpRoute
   '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -365,10 +379,12 @@ export interface FileRoutesByTo {
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
+  '/donate': typeof DonateRoute
   '/help': typeof HelpRoute
   '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -417,10 +433,12 @@ export interface FileRoutesById {
   '/assessment': typeof AssessmentRoute
   '/assessment-board': typeof AssessmentBoardRoute
   '/community': typeof CommunityRoute
+  '/donate': typeof DonateRoute
   '/help': typeof HelpRoute
   '/investigate': typeof InvestigateRoute
   '/join': typeof JoinRoute
   '/membership': typeof MembershipRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -470,10 +488,12 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/assessment-board'
     | '/community'
+    | '/donate'
     | '/help'
     | '/investigate'
     | '/join'
     | '/membership'
+    | '/pricing'
     | '/privacy'
     | '/sign-in'
     | '/sign-up'
@@ -520,10 +540,12 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/assessment-board'
     | '/community'
+    | '/donate'
     | '/help'
     | '/investigate'
     | '/join'
     | '/membership'
+    | '/pricing'
     | '/privacy'
     | '/sign-in'
     | '/sign-up'
@@ -571,10 +593,12 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/assessment-board'
     | '/community'
+    | '/donate'
     | '/help'
     | '/investigate'
     | '/join'
     | '/membership'
+    | '/pricing'
     | '/privacy'
     | '/sign-in'
     | '/sign-up'
@@ -623,10 +647,12 @@ export interface RootRouteChildren {
   AssessmentRoute: typeof AssessmentRoute
   AssessmentBoardRoute: typeof AssessmentBoardRoute
   CommunityRoute: typeof CommunityRoute
+  DonateRoute: typeof DonateRoute
   HelpRoute: typeof HelpRoute
   InvestigateRoute: typeof InvestigateRoute
   JoinRoute: typeof JoinRoute
   MembershipRoute: typeof MembershipRoute
+  PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
@@ -667,6 +693,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/donate': {
+      id: '/donate'
+      path: '/donate'
+      fullPath: '/donate'
+      preLoaderRoute: typeof DonateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -1033,10 +1073,12 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentRoute: AssessmentRoute,
   AssessmentBoardRoute: AssessmentBoardRoute,
   CommunityRoute: CommunityRoute,
+  DonateRoute: DonateRoute,
   HelpRoute: HelpRoute,
   InvestigateRoute: InvestigateRoute,
   JoinRoute: JoinRoute,
   MembershipRoute: MembershipRoute,
+  PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,

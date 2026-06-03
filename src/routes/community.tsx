@@ -1308,8 +1308,9 @@ interface PrayerViewProps {
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   founderIds?: Set<string>
+  isMinister?: boolean
 }
-function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen, founderIds }: PrayerViewProps) {
+function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen, founderIds, isMinister = false }: PrayerViewProps) {
   const V = {
     bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
     card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
@@ -1437,7 +1438,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             apiKey={apiKey}
             onReaction={fetchPrayers}
             isFounder={founderIds?.has(m.user?.id || '')}
-            actions={m.user?.id === userId || user?.publicMetadata?.role === 'minister' ? (
+            actions={m.user?.id === userId || isMinister ? (
               editingPostId === m.id ? (
                 <div>
                   <textarea
@@ -1852,6 +1853,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 36px', minHeight: 0 }}>
+      <div style={!isMobile ? { maxWidth: 720, margin: '0 auto', width: '100%' } : {}}>
       {/* Header */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row' as const, gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1953,6 +1955,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -2141,6 +2144,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
   const [episodeSidebarCollapsed, setEpisodeSidebarCollapsed] = useState(false)
   const [expandedDescCourseId, setExpandedDescCourseId] = useState<string | null>(null)
   const [courseAboutExpanded, setCourseAboutExpanded] = useState(false)
+  const [readMoreEpisode, setReadMoreEpisode] = useState<any>(null)
 
   function extractYouTubeId(url: string): string | null {
     if (!url) return null
@@ -2438,16 +2442,13 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
       {selectedEpisode && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflow: 'hidden' }}>
           {/* 16:9 responsive video container */}
-          <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', flexShrink: 0, width: '100%' }}>
-            {extractYouTubeId(selectedEpisode.youtube_url) ? (
-              <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
-            ) : (
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut }}>
-                <div style={{ fontSize: 48 }}>🎬</div>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em' }}>Video Coming Soon</div>
-              </div>
-            )}
-          </div>
+          {selectedEpisode.youtube_url && (
+            <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', flexShrink: 0, width: '100%' }}>
+              {extractYouTubeId(selectedEpisode.youtube_url) ? (
+                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+              ) : null}
+            </div>
+          )}
           {isMobile ? (
             <div style={{ padding: '10px 14px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -2463,7 +2464,14 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
             <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
               <div>
                 <div style={{ fontFamily: cinzel, fontSize: 15, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedEpisode.title}</div>
-                {selectedEpisode.description && <div style={{ fontFamily: crimson, fontSize: 13, color: mut }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />}
+                {selectedEpisode.description && (
+                  <>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: mut, ...(selectedEpisode.description.length > 200 ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } : {}) }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />
+                    {selectedEpisode.description.length > 200 && (
+                      <button onClick={() => setReadMoreEpisode(selectedEpisode)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 0 0', opacity: 0.8 }}>READ MORE ↓</button>
+                    )}
+                  </>
+                )}
               </div>
               <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
                 style={{ flexShrink: 0, padding: '7px 14px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
@@ -2634,6 +2642,17 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                 }
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* READ MORE modal */}
+      {readMoreEpisode && (
+        <div onClick={() => setReadMoreEpisode(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '100%', marginTop: '10vh', padding: 32, background: '#0d0d0d', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setReadMoreEpisode(null)} style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', color: '#9a8c74', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 16, color: '#C9A84C', letterSpacing: '0.06em', marginBottom: 16 }}>{readMoreEpisode.title}</div>
+            <div style={{ fontFamily: 'Crimson Pro, Georgia, serif', fontSize: 15, color: '#f0e8d8', lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(readMoreEpisode.description || readMoreEpisode.notes || '')} />
           </div>
         </div>
       )}
@@ -2964,7 +2983,7 @@ async function handleUpgrade(tier: string, getToken: () => Promise<string | null
     if (!res.ok) throw new Error('Checkout failed')
     const data = await res.json()
     if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
-    if (data.url) window.location.href = data.url
+    if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
   } catch (err) {
     console.error('Upgrade error:', err)
   }
@@ -3546,26 +3565,44 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                 ✦ Latest Arsenal Drops
               </div>
               <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
-                {recentResources.map((r, i) => (
-                  <div key={r.id} style={{
-                    padding: '10px 14px',
-                    borderBottom: i < recentResources.length - 1 ? `1px solid ${bdr}` : 'none',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
-                      <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{r.category} · {r.tier}</div>
+                {recentResources.map((r, i) => {
+                  const TIER_LVL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
+                  const required = TIER_LVL[(r.tier || 'watchman').toLowerCase()] ?? 0
+                  const userTierNum = tierNum(userTier)
+                  const hasAccess = userTierNum >= required
+                  return (
+                    <div key={r.id} style={{
+                      padding: '10px 14px',
+                      borderBottom: i < recentResources.length - 1 ? `1px solid ${bdr}` : 'none',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
+                        <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{r.category} · {r.tier}</div>
+                      </div>
+                      {hasAccess ? (
+                        <button
+                          onClick={() => setActiveSection('arsenal')}
+                          style={{ fontSize: 9, color: GG, background: 'transparent', border: `1px solid ${GG}`, borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
+                        >VIEW</button>
+                      ) : (
+                        <button
+                          onClick={() => { window.location.href = '/membership' }}
+                          title={`${r.tier || 'Soldier'} tier required`}
+                          style={{ fontSize: 9, color: 'rgba(201,168,76,0.4)', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
+                        >🔒</button>
+                      )}
                     </div>
-                    <button
-                      onClick={() => { if (r.file_url) { window.open(r.file_url, '_blank') } else { setActiveSection('arsenal') } }}
-                      style={{ fontSize: 9, color: GG, background: 'transparent', border: `1px solid ${GG}`, borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
-                    >VIEW</button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
+              <button
+                onClick={() => setActiveSection('arsenal')}
+                style={{ width: '100%', marginTop: 8, background: 'transparent', border: 'none', color: GG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textAlign: 'right' as const, padding: '2px 0', opacity: 0.7 }}
+              >Open Arsenal →</button>
             </div>
           )}
 
@@ -7730,7 +7767,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
       const res = await fetch(`/api/forum-posts?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       if (res.ok) {
         const d = await res.json()
-        setPosts(prev => appendMode ? [...prev, ...(d.posts || [])] : (d.posts || []))
+        setPosts(prev => appendMode ? [...prev, ...(d.posts || []).map((p: any) => ({ ...p, voted: p.voted ?? false }))] : (d.posts || []).map((p: any) => ({ ...p, voted: p.voted ?? false })))
         setHasMore(d.hasMore)
       }
     } catch {}
@@ -7781,7 +7818,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
             </button>
           )}
           {!isMobile && !canPost && (
-            <button onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+            <button onClick={() => { window.location.href = '/membership' }}
               style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 9, padding: '7px 14px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
               🔒 Soldier+ to Post
             </button>
@@ -7819,7 +7856,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
               </button>
             )}
             {isMobile && !canPost && (
-              <button onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+              <button onClick={() => { window.location.href = '/membership' }}
                 style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 10, padding: '11px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
                 🔒 Soldier+ tier required to post → Upgrade
               </button>
@@ -7850,10 +7887,18 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
           {/* Right sidebar */}
           {!isMobile && (
             <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-              <button onClick={() => setComposing(true)}
-                style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 10, color: G, fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
-                ＋ New Post
-              </button>
+              {canPost ? (
+                <button onClick={() => setComposing(true)}
+                  style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 10, color: G, fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                  ＋ New Post
+                </button>
+              ) : (
+                <button onClick={() => { window.location.href = '/membership' }}
+                  title="Soldier tier required to post"
+                  style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, color: 'rgba(201,168,76,0.4)', fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                  🔒 Soldier+ to Post
+                </button>
+              )}
               {trendingTags.length > 0 && (
                 <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
                   <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>🔥 Trending Tags</div>
@@ -9649,7 +9694,7 @@ function CommunityPage() {
       >
 
         {/* ── QUICK ACCESS ICON STRIP ── */}
-        {!(sidebarCollapsed && !isMobile) && <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const }} onMouseLeave={() => setTooltipVisible(null)}>
+        {!(sidebarCollapsed && !isMobile) && <div style={{ display: 'flex', justifyContent: isMobile ? 'space-around' : 'flex-start', gap: isMobile ? 0 : 6, alignItems: 'flex-start', padding: '10px 6px', borderBottom: 'rgba(201,168,76,0.12) 1px solid', marginBottom: 4, position: 'relative' as const, ...(isMobile && { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)', width: '100%', boxSizing: 'border-box' as const, minHeight: 52 }) }} onMouseLeave={() => setTooltipVisible(null)}>
           {([
             { icon: <MessageSquare size={16} strokeWidth={1.6} />, label: 'War Room Chat',     mobileLabel: 'Chat',      section: 'war-room-chat'  },
             { icon: <Inbox size={16} strokeWidth={1.6} />,         label: 'Direct Messages',   mobileLabel: 'Messages',  section: 'dms'            },
@@ -9663,7 +9708,7 @@ function CommunityPage() {
                 onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
                 onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
                 onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
-                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
+                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
               >
                 {icon}
                 {section === 'dms' && unreadDMs > 0 && (
@@ -10014,6 +10059,7 @@ function CommunityPage() {
             isMobile={isMobile}
             setSidebarOpen={setSidebarOpen}
             founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))}
+            isMinister={(user?.publicMetadata?.role as string) === 'minister'}
           />
         )}
         {activeSection === 'dms' && (
@@ -10026,7 +10072,7 @@ function CommunityPage() {
                     Direct messaging is available to Soldier members and above.
                   </div>
                   <button
-                    onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+                    onClick={() => handleUpgrade('soldier', getToken)}
                     style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
                   >
                     UPGRADE TO SOLDIER →

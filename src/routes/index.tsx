@@ -61,12 +61,15 @@ async function handleUpgrade(tier: string, getToken: () => Promise<string | null
 const DEMON_TYPES = ['All Types','Principality','Power','Strongman','Spirit','Fallen Angel','Duke of Hell','Prince of Hell','Female Demon','Spirit of Infirmity','Spirit of Rebellion','Spirit of Divination','Familiar Spirit','Unclean Spirit','Other']
 
 const FEATURES = [
-  { icon: '⚔', title: 'Master Demon Database', desc: 'A growing database of documented spirits: names, aliases, types, functions, and manifestations. Free members see full entries. Detailed fields unlock with membership.', cls: 'IV' as const },
-  { icon: '📋', title: 'Ministry Assessment Tool', desc: 'A confidential 9-step intake wizard. Submit your situation and receive a personal response from our deliverance team.', cls: 'IV' as const },
-  { icon: '📄', title: 'Protocol PDF Library', desc: 'Step-by-step deliverance protocols for every major strongman: Freemasonry, soul ties, occult doorways, lust, addiction and more.', cls: 'III' as const },
-  { icon: '🗣', title: 'Live Ministry Calls', desc: 'Monthly group calls for Soldier members. Bi-weekly Q&A for Commander. Weekly intimate sessions for General members.', cls: 'III' as const },
-  { icon: '✦', title: 'Scripture — Special Warfare Edition', desc: "Full KJV Bible with Finis Jennings Dake's complete annotation notes — 20,399 notes across the entire Bible. Ask the AI questions using Dake's commentary, your ministry library, and the Intel Archive as combined context.", cls: 'III' as const },
-  { icon: '🗡', title: 'Community Submissions', desc: 'Submit new demon entries, suggest corrections, and contribute to the most comprehensive spiritual warfare database available.', cls: 'IV' as const },
+  { icon: '⚔', title: 'Intel Archive', desc: '322+ spirit dossiers with full intelligence data' },
+  { icon: '🧠', title: 'AI Symptom Investigator', desc: 'Describe what you\'re seeing. AI maps it to spirits.' },
+  { icon: '🗺', title: 'Body Map', desc: 'Anatomical map of 131 manifestation hotspots' },
+  { icon: '📡', title: 'Spirit Network', desc: 'Visualize spirit hierarchies and territorial structures' },
+  { icon: '🔍', title: 'Gateway Investigator', desc: 'Trace spiritual entry points through culture and exposure' },
+  { icon: '📋', title: 'Session HQ', desc: 'Case files, intake forms, and session document builder' },
+  { icon: '📖', title: 'Daily Brief', desc: 'AI-generated daily prayer, scripture, and devotional' },
+  { icon: '🛡', title: 'Arsenal', desc: 'Tier-gated PDF library of ministry protocols and guides' },
+  { icon: '🌐', title: 'Fringe Intelligence', desc: 'Classified research into occult systems and dark territory' },
 ]
 
 const FAQ = [
@@ -195,10 +198,10 @@ function TierCallout({ title, desc, url, btnLabel }: { title: string; desc: stri
 function ClassifiedTicker() {
   const items = [...TICKER_ITEMS, ...TICKER_ITEMS]
   return (
-    <div style={{ overflow: 'hidden', borderTop: '1px solid var(--gold-line)', borderBottom: '1px solid var(--gold-line)', background: 'rgba(201,168,76,0.04)', padding: '7px 0' }}>
+    <div style={{ overflow: 'hidden', height: 32, display: 'flex', alignItems: 'center', background: 'rgba(201,168,76,0.08)', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
       <div style={{ display: 'flex', gap: '3rem', animation: 'ticker 40s linear infinite', width: 'max-content', whiteSpace: 'nowrap' as const }}>
         {items.map((item, i) => (
-          <span key={i} style={{ fontFamily: mono, fontSize: 10, letterSpacing: '0.12em', color: 'var(--t-3)', textTransform: 'uppercase' as const, flexShrink: 0 }}>
+          <span key={i} style={{ fontFamily: mono, fontSize: 11, letterSpacing: '0.12em', color: 'var(--t-3)', textTransform: 'uppercase' as const, flexShrink: 0 }}>
             <span style={{ color: GOLD, marginRight: 10 }}>⬥</span>{item}
           </span>
         ))}
@@ -224,11 +227,6 @@ function TacticalHero() {
       {/* Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem 3rem', position: 'relative', zIndex: 1, textAlign: 'center' }}>
 
-        {/* Logo */}
-        <div style={{ animation: 'fadeUp 0.7s 0s both', marginBottom: 32, position: 'relative' }}>
-          <img src="/logo.png" alt="War Room Intel" style={{ height: 130, width: 130, objectFit: 'contain', filter: 'drop-shadow(0 0 50px rgba(201,168,76,0.25))' }} />
-        </div>
-
         <div style={{ animation: 'fadeUp 0.7s 0.1s both', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
           <HUDChip active style={{ fontSize: 9, letterSpacing: '0.2em' }}>CLASSIFIED INTEL</HUDChip>
           <span style={{ fontFamily: mono, fontSize: 9, color: 'var(--t-4)', letterSpacing: '0.15em' }}>A MINISTRY OF STAFFORDTOWN CHURCH · COPPERHILL, TN</span>
@@ -250,11 +248,11 @@ function TacticalHero() {
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}>
             ⚔ Search the Database
           </a>
-          <a href="/assessment"
+          <a href="#ministry-help"
             style={{ display: 'inline-flex', alignItems: 'center', padding: '13px 28px', background: 'transparent', color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', textDecoration: 'none', borderRadius: 2, border: '1px solid var(--gold-line-hi)', transition: 'background 0.2s' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-            Take Assessment →
+            Request Ministry Help →
           </a>
           <SignedOut>
             <SignInButton mode="modal">
@@ -292,8 +290,6 @@ function TacticalHero() {
         </div>
       </div>
 
-      {/* Ticker */}
-      <ClassifiedTicker />
     </section>
   )
 }
@@ -597,208 +593,122 @@ function FeaturesSection() {
           </div>
           <p style={{ fontSize: 16, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Not theory. Not inspiration content. Real tools for real spiritual warfare.</p>
         </div>
-        <div className="wri-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="wri-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
           {FEATURES.map(f => (
             <TacticalCard key={f.title} brackets style={{ display: 'flex', flexDirection: 'column' as const, height: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 24 }}>{f.icon}</span>
-                <ClassBadge level={f.cls} label={f.cls === 'IV' ? 'FREE' : 'MEMBER'} />
-              </div>
+              <span style={{ fontSize: 24, marginBottom: 12, display: 'block' }}>{f.icon}</span>
               <div style={{ fontFamily: cinzel, fontSize: 13, fontWeight: 600, color: 'var(--t-0)', marginBottom: 8, letterSpacing: '0.03em' }}>{f.title}</div>
               <p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading, margin: 0 }}>{f.desc}</p>
             </TacticalCard>
           ))}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 32 }}>
+          <SignUpButton mode="modal">
+            <button style={{ padding: '14px 32px', background: GOLD, color: '#1a1305', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', border: 'none', borderRadius: 2, cursor: 'pointer', fontWeight: 700 }}>
+              Join Free to Access All Features →
+            </button>
+          </SignUpButton>
         </div>
       </div>
     </section>
   )
 }
 
-// ── CONSULTATION INTAKE FORM ──────────────────────────────
-function IntakeFormSection() {
-  const ISSUE_OPTIONS = ['Addiction', 'Anxiety / Fear', 'Depression', 'Freemasonry / Occult', 'Generational Bondage', 'Lust / Sexual Sin', 'Rage / Anger', 'Rejection', 'Soul Ties', 'Witchcraft', 'Other']
-
-  const [form, setForm] = useState({
-    name: '', email: '', phone: '', issues: [] as string[],
-    duration: '', received_before: false, description: '', contact_method: 'email',
-    honeypot: '',
-  })
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
-
-  function toggle(issue: string) {
-    setForm(f => ({
-      ...f,
-      issues: f.issues.includes(issue) ? f.issues.filter(i => i !== issue) : [...f.issues, issue],
-    }))
-  }
+// ── MINISTRY INTAKE FORM ─────────────────────────────────
+function MinistryIntakeForm() {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', location: '', description: '', prior_ministry: '', urgency: '', referral: '', website: '' })
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (form.honeypot) return
-    if (!form.name.trim() || !form.email.trim()) return
-    setStatus('sending')
+    if (form.website) return // honeypot
+    setSubmitting(true); setError('')
     try {
-      const res = await fetch('/api/intake-request', {
+      const res = await fetch('/api/ministry-intake', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name, email: form.email, phone: form.phone,
-          issues: form.issues, duration: form.duration,
-          received_before: form.received_before, description: form.description,
-          contact_method: form.contact_method,
-        }),
+        body: JSON.stringify(form),
       })
-      if (res.ok) setStatus('sent')
-      else setStatus('error')
-    } catch {
-      setStatus('error')
-    }
+      const data = await res.json()
+      if (data.success) setSubmitted(true)
+      else setError('Submission failed. Please try again or email exorcist@warroomintel.com')
+    } catch { setError('Network error. Please try again.') }
+    setSubmitting(false)
   }
 
-  const inputStyle = { width: '100%', background: 'var(--bg-1)', border: '1px solid var(--gold-line)', borderRadius: 2, padding: '10px 12px', fontFamily: reading, fontSize: 14, color: 'var(--t-0)', outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }
+  const fieldStyle: React.CSSProperties = { width: '100%', background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '10px 14px', color: 'var(--t-0)', fontFamily: reading, fontSize: 15, outline: 'none', boxSizing: 'border-box' }
+  const labelStyle: React.CSSProperties = { display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: 'var(--t-3)', textTransform: 'uppercase', marginBottom: 6 }
 
-  if (status === 'sent') {
-    return (
-      <section style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
-        <TacticalCard brackets glow style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center', padding: 40 }}>
-          <div style={{ fontSize: 40, marginBottom: 20 }}>⚔</div>
-          <div style={{ fontFamily: cinzel, fontSize: 18, color: G, marginBottom: 12, letterSpacing: '0.04em' }}>Assessment Received</div>
-          <p style={{ fontSize: 15, color: 'var(--t-2)', fontFamily: reading, lineHeight: 1.8 }}>Your ministry assessment has been submitted. Our team will personally respond within 24–72 hours. Check your email for a confirmation.</p>
-        </TacticalCard>
-      </section>
-    )
-  }
+  if (submitted) return (
+    <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+      <div style={{ fontSize: 40, marginBottom: 16 }}>✝</div>
+      <div style={{ fontFamily: cinzel, fontSize: 16, color: GOLD, letterSpacing: '0.08em', marginBottom: 12 }}>Request Received</div>
+      <div style={{ fontFamily: reading, fontSize: 15, color: 'var(--t-2)', lineHeight: 1.7 }}>Pastor Justin Payne personally reviews every submission. You will hear from us within 48–72 hours.<br />You are not alone. There is freedom through Jesus Christ.</div>
+    </div>
+  )
 
   return (
-    <section id="consultation" style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 32 }}>
-        <SectionLabel>Free Ministry Assessment</SectionLabel>
-        <div style={{ fontFamily: cinzel, fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 700, color: 'var(--t-0)', marginTop: 12, marginBottom: 8 }}>
-          Take the Free <span style={{ color: G }}>Ministry Consultation</span>
-        </div>
-        <p style={{ fontSize: 15, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Confidential · 9-step intake · Personal response from our team · No account required</p>
+    <form onSubmit={handleSubmit} style={{ maxWidth: 680, margin: '0 auto' }}>
+      {/* Honeypot */}
+      <input type="text" name="website" value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+
+      <div className="intake-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div><label style={labelStyle}>Full Name *</label><input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fieldStyle} /></div>
+        <div><label style={labelStyle}>Email *</label><input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={fieldStyle} /></div>
+        <div><label style={labelStyle}>Phone</label><input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={fieldStyle} /></div>
+        <div><label style={labelStyle}>Location / City, State</label><input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} style={fieldStyle} /></div>
       </div>
 
-      <div className="wri-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
-        <TacticalCard brackets>
-          <form onSubmit={handleSubmit}>
-            {/* Honeypot */}
-            <input name="website" value={form.honeypot} onChange={e => setForm(f => ({ ...f, honeypot: e.target.value }))} style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>What are you experiencing? *</label>
+        <textarea required rows={5} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe the manifestations, duration, and severity — be specific. Nothing you say will surprise us." style={{ ...fieldStyle, resize: 'vertical' }} />
+      </div>
 
-            <div className="intake-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-              <div>
-                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>NAME *</label>
-                <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
-              </div>
-              <div>
-                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>EMAIL *</label>
-                <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
-              </div>
-            </div>
-
-            <div className="intake-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-              <div>
-                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>PHONE (optional)</label>
-                <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
-              </div>
-              <div>
-                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>HOW LONG STRUGGLING?</label>
-                <select value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
-                  style={{ ...inputStyle, fontFamily: mono, fontSize: 10 }}>
-                  <option value="">Select...</option>
-                  {['Less than a year', '1–3 years', '3–10 years', '10+ years', 'Since childhood'].map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 10 }}>AREAS OF STRUGGLE (select all that apply)</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
-                {ISSUE_OPTIONS.map(issue => {
-                  const active = form.issues.includes(issue)
-                  return (
-                    <button key={issue} type="button" onClick={() => toggle(issue)}
-                      style={{ padding: '5px 12px', fontFamily: mono, fontSize: 10, letterSpacing: '0.06em', borderRadius: 2, border: `1px solid ${active ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, background: active ? 'rgba(201,168,76,0.12)' : 'transparent', color: active ? G : 'var(--t-3)', cursor: 'pointer', transition: 'all 0.15s' }}>
-                      {issue}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>RECEIVED DELIVERANCE MINISTRY BEFORE?</label>
-              <div style={{ display: 'flex', gap: 16 }}>
-                {[{ v: true, l: 'Yes' }, { v: false, l: 'No' }].map(({ v, l }) => (
-                  <button key={l} type="button" onClick={() => setForm(f => ({ ...f, received_before: v }))}
-                    style={{ padding: '6px 20px', fontFamily: mono, fontSize: 10, letterSpacing: '0.08em', borderRadius: 2, border: `1px solid ${form.received_before === v ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, background: form.received_before === v ? 'rgba(201,168,76,0.12)' : 'transparent', color: form.received_before === v ? G : 'var(--t-3)', cursor: 'pointer' }}>
-                    {l}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>DESCRIBE YOUR SITUATION (optional)</label>
-              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4}
-                placeholder="Share what you're dealing with in your own words..."
-                style={{ ...inputStyle, resize: 'vertical' as const, minHeight: 100 }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold-line-hi)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'var(--gold-line)')} />
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-3)', display: 'block', marginBottom: 6 }}>PREFERRED CONTACT METHOD</label>
-              <div style={{ display: 'flex', gap: 10 }}>
-                {['email', 'phone', 'either'].map(m => (
-                  <button key={m} type="button" onClick={() => setForm(f => ({ ...f, contact_method: m }))}
-                    style={{ padding: '6px 16px', fontFamily: mono, fontSize: 10, letterSpacing: '0.06em', borderRadius: 2, border: `1px solid ${form.contact_method === m ? 'var(--gold-line-hi)' : 'var(--gold-line)'}`, background: form.contact_method === m ? 'rgba(201,168,76,0.12)' : 'transparent', color: form.contact_method === m ? G : 'var(--t-3)', cursor: 'pointer', textTransform: 'capitalize' as const }}>
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {status === 'error' && (
-              <p style={{ fontFamily: mono, fontSize: 11, color: 'var(--crit)', marginBottom: 14 }}>Something went wrong. Please try again or email exorcist@warroomintel.com</p>
-            )}
-
-            <GoldButton type="submit" full disabled={status === 'sending'}>
-              {status === 'sending' ? 'Submitting...' : 'Submit Ministry Assessment ⚔'}
-            </GoldButton>
-          </form>
-        </TacticalCard>
-
-        {/* Side panel */}
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-          <TacticalCard>
-            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>WHAT HAPPENS NEXT</div>
-            {[
-              { n: '01', t: 'Submission Reviewed', b: 'Our ministry team reads every assessment personally.' },
-              { n: '02', t: 'Mapped to Strongholds', b: 'We identify likely spiritual strongholds from your intake.' },
-              { n: '03', t: 'Personal Response', b: 'Pastor Justin responds personally — typically within 72 hours.' },
-            ].map(step => (
-              <div key={step.n} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                <MonoTime size={11} color="var(--gold)">{step.n}</MonoTime>
-                <div>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', marginBottom: 4 }}>{step.t}</div>
-                  <div style={{ fontSize: 12, color: 'var(--t-3)', fontFamily: reading }}>{step.b}</div>
-                </div>
-              </div>
-            ))}
-          </TacticalCard>
-          <TacticalCard>
-            <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.15em', color: 'var(--t-4)', marginBottom: 10 }}>CONFIDENTIALITY</div>
-            <p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading, fontStyle: 'italic', margin: 0 }}>All assessment information is seen only by our ministry team. It is never published, shared, or sold. Anything posted to the public response board is fully anonymized with your permission.</p>
-          </TacticalCard>
+      <div className="intake-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div>
+          <label style={labelStyle}>Prior Deliverance Ministry?</label>
+          <select value={form.prior_ministry} onChange={e => setForm(f => ({ ...f, prior_ministry: e.target.value }))} style={fieldStyle}>
+            <option value="">Select...</option>
+            <option>No</option>
+            <option>Yes, partial</option>
+            <option>Yes, full session</option>
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Urgency</label>
+          <select value={form.urgency} onChange={e => setForm(f => ({ ...f, urgency: e.target.value }))} style={fieldStyle}>
+            <option value="">Select...</option>
+            <option>Monitoring</option>
+            <option>Active struggle</option>
+            <option>Crisis — need help now</option>
+          </select>
         </div>
       </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <label style={labelStyle}>How did you hear about us?</label>
+        <input value={form.referral} onChange={e => setForm(f => ({ ...f, referral: e.target.value }))} style={fieldStyle} />
+      </div>
+
+      {error && <div style={{ color: '#ef4444', fontFamily: reading, fontSize: 14, marginBottom: 12 }}>{error}</div>}
+
+      <button type="submit" disabled={submitting} style={{ width: '100%', padding: '14px', background: GOLD, color: '#1a1305', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', border: 'none', borderRadius: 2, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}>
+        {submitting ? 'Submitting...' : 'Submit for Review →'}
+      </button>
+    </form>
+  )
+}
+
+function MinistryHelpSection() {
+  return (
+    <section id="ministry-help" style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 'clamp(22px,4vw,32px)', color: GOLD, letterSpacing: '0.06em', marginBottom: 12 }}>Are You in Active Spiritual Warfare?</div>
+        <div style={{ fontFamily: reading, fontSize: 16, color: 'var(--t-2)', maxWidth: 600, margin: '0 auto', lineHeight: 1.7, fontStyle: 'italic' }}>If you or someone you love is experiencing demonic oppression, torment, or spiritual attack — we want to help. Submit your situation below and Pastor Justin will personally review it.</div>
+      </div>
+      <MinistryIntakeForm />
     </section>
   )
 }
@@ -808,10 +718,10 @@ function FieldCommandersSection() {
   const commanders = [
     {
       name: 'Pastor Justin Payne',
-      role: 'Founder · Lead Exorcist',
+      role: 'Senior Pastor · Chief Investigator Officer · Chief Exorcist',
       sub: 'GENERAL',
       cls: 'I' as const,
-      bio: 'Lead pastor of Staffordtown Church. 10+ years in deliverance ministry. Founder of War Room Intel and developer of the Intel Archive database.',
+      bio: 'I have spent over 30 years in active ministry, working in the gifts of the Spirit and personally expelling thousands of demonic entities. War Room Intel was born out of that work — a mission to give every deliverance minister the intelligence, tools, and community they need to fight and win.',
       badge: 'General',
     },
     {
@@ -932,6 +842,15 @@ function PricingSection() {
           Enter Community →
         </a>
       </TacticalCard>
+
+      {/* Charter callout */}
+      <div style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.05) 100%)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '16px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: GOLD, letterSpacing: '0.12em', marginBottom: 4 }}>⚡ Charter Founding Member Slots Available — First 100 Only</div>
+          <div style={{ fontFamily: reading, fontSize: 14, color: 'var(--t-2)' }}>Lock in your rate for life. Charter Soldier: $9/mo. Charter Commander: $20/mo.</div>
+        </div>
+        <a href="/membership" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#1a1305', background: GOLD, padding: '9px 20px', borderRadius: 2, textDecoration: 'none', whiteSpace: 'nowrap' as const }}>Claim Charter Access →</a>
+      </div>
 
       <div className="wri-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {tiers.map(tier => (
@@ -1113,7 +1032,7 @@ function TacticalFooter() {
           </div>
           <div>
             <div style={{ fontFamily: mono, fontSize: 8, letterSpacing: '0.2em', color: G, marginBottom: 12 }}>MINISTRY TOOLS</div>
-            {[{ label: 'Demon Database', href: '#database' }, { label: 'Take Assessment', href: '/assessment' }, { label: 'Response Board', href: '/assessment-board' }, { label: 'Submit a Demon', href: '/submit-demon' }].map(({ label, href }) => (
+            {[{ label: 'Demon Database', href: '#database' }, { label: 'Ministry Help', href: '#ministry-help' }, { label: 'Submit a Demon', href: '/submit-demon' }, { label: 'Donate', href: '/donate' }].map(({ label, href }) => (
               <div key={label} style={{ marginBottom: 8 }}>
                 <a href={href} style={{ fontSize: 12, color: 'var(--t-4)', textDecoration: 'none', transition: 'color 0.2s', fontFamily: reading }}
                   onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
@@ -1172,7 +1091,7 @@ function TacticalFooter() {
         <div style={{ borderTop: '1px solid var(--gold-line)', paddingTop: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
           <MonoTime size={10} color="var(--t-4)">© {new Date().getFullYear()} WAR ROOM INTEL · A MINISTRY OF STAFFORDTOWN CHURCH · COPPERHILL, TN</MonoTime>
           <div style={{ display: 'flex', gap: 20 }}>
-            {[{ l: 'Terms of Service', h: '/terms' }, { l: 'Privacy Policy', h: '/privacy' }].map(({ l, h }) => (
+            {[{ l: 'Terms of Service', h: '/terms' }, { l: 'Privacy Policy', h: '/privacy' }, { l: 'Donate', h: '/donate' }].map(({ l, h }) => (
               <a key={l} href={h} style={{ fontSize: 11, color: 'var(--t-4)', textDecoration: 'none', fontFamily: reading, transition: 'color 0.2s' }}
                 onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-4)')}>
@@ -1186,16 +1105,62 @@ function TacticalFooter() {
   )
 }
 
+// ── VIDEO SECTION ────────────────────────────────────────
+function VideoSection() {
+  return (
+    <section style={{ padding: '60px 24px', maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 'clamp(20px,3vw,28px)', color: GOLD, letterSpacing: '0.06em', marginBottom: 8 }}>Why I Built War Room Intel</div>
+      <div style={{ fontFamily: reading, fontSize: 15, color: 'var(--t-3)', fontStyle: 'italic', marginBottom: 28 }}>A word from Pastor Justin Payne, Staffordtown Church</div>
+      <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '60px 24px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16 }}>
+        <div style={{ fontSize: 48 }}>▶</div>
+        <div style={{ fontFamily: cinzel, fontSize: 14, color: 'var(--t-2)', letterSpacing: '0.06em' }}>Video Coming Soon</div>
+        <a href="https://youtube.com/@warroomintel" target="_blank" rel="noopener noreferrer" style={{ fontFamily: reading, fontSize: 14, color: GOLD, textDecoration: 'none' }}>Subscribe to our YouTube channel to be notified when this releases →</a>
+      </div>
+    </section>
+  )
+}
+
+// ── DATABASE GATE (signed-out view) ──────────────────────
+function DatabaseGate() {
+  return (
+    <section id="database" style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '40px 48px', textAlign: 'center' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 'clamp(18px,3vw,26px)', color: GOLD, letterSpacing: '0.08em', marginBottom: 16 }}>⚔ Intel Archive — 322+ Spirit Dossiers</div>
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, maxWidth: 480, margin: '0 auto 28px', textAlign: 'left' }}>
+          {['Full dossier per entity — names, aliases, rank, assignments, manifestations', 'AI-enhanced intelligence with ministry context', 'Body map of 131 anatomical manifestation hotspots', 'Spirit hierarchy — trace companion spirits and territorial networks'].map(f => (
+            <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontFamily: reading, fontSize: 15, color: 'var(--t-2)' }}>
+              <span style={{ color: GOLD, flexShrink: 0 }}>⚔</span>{f}
+            </div>
+          ))}
+        </div>
+        <SignUpButton mode="modal">
+          <button style={{ padding: '14px 32px', background: GOLD, color: '#1a1305', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', border: 'none', borderRadius: 2, cursor: 'pointer' }}>
+            Access the Database — Free to Join →
+          </button>
+        </SignUpButton>
+        <div style={{ marginTop: 12, fontFamily: reading, fontSize: 13, color: 'var(--t-4)', fontStyle: 'italic' }}>Creating an account is free. No credit card required.</div>
+      </div>
+    </section>
+  )
+}
+
 // ── PAGE ─────────────────────────────────────────────────
 function WarRoomHome() {
   return (
     <div style={{ background: 'var(--bg-0)', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
       <style>{pageStyles}</style>
       <TacticalHero />
+      <ClassifiedTicker />
       <MissionBriefing />
-      <DatabaseSection />
+      <SignedIn>
+        <DatabaseSection />
+      </SignedIn>
+      <SignedOut>
+        <DatabaseGate />
+      </SignedOut>
       <FeaturesSection />
-      <IntakeFormSection />
+      <VideoSection />
+      <MinistryHelpSection />
       <FieldCommandersSection />
       <PricingSection />
       <FAQSection />
