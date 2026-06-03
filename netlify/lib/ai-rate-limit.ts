@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
 export type AIFeature =
   | 'ask_dake'
   | 'ai_assistant'
@@ -130,7 +132,7 @@ function getLimit(tier: string, feature: AIFeature): number {
 }
 
 function sb() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+  return createClient(supabaseUrl, supabaseServiceKey)
 }
 
 export async function checkAndIncrementUsage(
