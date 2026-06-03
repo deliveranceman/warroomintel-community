@@ -6487,8 +6487,14 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
   const [imgOpacity,      setImgOpacity]      = useState(0)
   const [debugMode,       setDebugMode]       = useState(false)
   const [debugClick,      setDebugClick]      = useState<{x: number; y: number} | null>(null)
-  const touchStartX = React.useRef(0)
-  const touchStartY = React.useRef(0)
+  const [mapScale, setMapScale]           = React.useState(1)
+  const [mapOffset, setMapOffset]         = React.useState({ x: 0, y: 0 })
+  const [bodyMapHintDismissed, setBodyMapHintDismissed] = React.useState(false)
+  const mapContainerRef                   = React.useRef<HTMLDivElement>(null)
+  const lastTouchRef                      = React.useRef<{ x: number; y: number } | null>(null)
+  const lastPinchDistRef                  = React.useRef<number | null>(null)
+  const mapScaleRef                       = React.useRef(1)
+  const didPanRef                         = React.useRef(false)
 
   // Preload all 4 figure images on mount so tab switches are instant
   useEffect(() => {
@@ -6503,6 +6509,56 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
   // Reset fade-in when figure changes
   useEffect(() => { setImgOpacity(0) }, [activeFigure])
 
+  // Non-passive wheel + touchmove for pinch-to-zoom and pan
+  useEffect(() => {
+    const el = mapContainerRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      setMapScale(prev => {
+        const next = Math.min(4, Math.max(1, prev * delta))
+        mapScaleRef.current = next
+        if (next > 1) setBodyMapHintDismissed(true)
+        return next
+      })
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (lastPinchDistRef.current !== null) {
+          const ratio = dist / lastPinchDistRef.current
+          setMapScale(prev => {
+            const next = Math.min(4, Math.max(1, prev * ratio))
+            mapScaleRef.current = next
+            if (next > 1) setBodyMapHintDismissed(true)
+            return next
+          })
+        }
+        lastPinchDistRef.current = dist
+      } else if (e.touches.length === 1 && mapScaleRef.current > 1) {
+        e.preventDefault()
+        const touch = e.touches[0]
+        if (lastTouchRef.current) {
+          const dx = touch.clientX - lastTouchRef.current.x
+          const dy = touch.clientY - lastTouchRef.current.y
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true
+          setMapOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+        }
+        lastTouchRef.current = { x: touch.clientX, y: touch.clientY }
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [])
+
   function closeSheet() {
     setSheetOpen(false)
     setSelectedHotspot(null)
@@ -6510,6 +6566,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
   }
 
   function handleHotspotClick(h: BMHotspot) {
+    if (didPanRef.current) { didPanRef.current = false; return }
     setSelectedHotspot(h)
     setSheetOpen(true)
   }
@@ -6607,6 +6664,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
 
   return (
     <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
+      <style>{`@keyframes bmDot{0%,100%{opacity:0.7}50%{opacity:1}}.bm-dot{animation:bmDot 2.2s ease-in-out infinite}`}</style>
       {/* Header */}
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {isMobile && (
@@ -6645,25 +6703,47 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
 
         {/* Scrollable image column */}
         <div
-          style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any,
+          ref={mapContainerRef}
+          style={{ flex: 1, overflowY: mapScale > 1 ? 'hidden' : 'auto', WebkitOverflowScrolling: 'touch' as any,
             paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20,
-            display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            touchAction: mapScale > 1 ? 'none' : 'pan-y', position: 'relative' }}
           onTouchStart={e => {
-            touchStartX.current = e.touches[0].clientX
-            touchStartY.current = e.touches[0].clientY
-          }}
-          onTouchEnd={e => {
-            const dx = touchStartX.current - e.changedTouches[0].clientX
-            const dy = Math.abs(touchStartY.current - e.changedTouches[0].clientY)
-            if (Math.abs(dx) > 50 && Math.abs(dx) > dy) {
-              if (dx > 0) setActiveFigure(prev => Math.min(BM_FIGURES.length - 1, prev + 1))
-              else        setActiveFigure(prev => Math.max(0, prev - 1))
-              closeSheet()
+            lastPinchDistRef.current = null
+            didPanRef.current = false
+            if (e.touches.length === 1) {
+              lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
             }
           }}
+          onTouchEnd={() => {
+            lastTouchRef.current = null
+            lastPinchDistRef.current = null
+          }}
         >
-          {/* SVG body map — single coordinate space, no DOM measurement needed */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: isMobile ? '100%' : 480, lineHeight: 0 }}>
+          {/* SVG body map — pinch/pan zoom wrapper */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: isMobile ? '100%' : 480 }}>
+            {/* Reset zoom button */}
+            {mapScale > 1.05 && (
+              <button
+                onClick={() => { setMapScale(1); mapScaleRef.current = 1; setMapOffset({ x: 0, y: 0 }) }}
+                style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, background: 'rgba(13,11,20,0.92)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '4px 12px', fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                RESET ZOOM
+              </button>
+            )}
+            {/* Zoom level indicator */}
+            {mapScale > 1.05 && (
+              <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 20, background: 'rgba(13,11,20,0.85)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '3px 10px', fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.7)', letterSpacing: '0.1em', pointerEvents: 'none' }}>
+                {Math.round(mapScale * 100)}%
+              </div>
+            )}
+            {/* Pinch-to-zoom hint (mobile only, dismisses once used) */}
+            {isMobile && !bodyMapHintDismissed && mapScale === 1 && (
+              <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(13,11,20,0.85)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 12, padding: '4px 14px', fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.08em', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                PINCH TO ZOOM
+              </div>
+            )}
+            {/* Transform layer */}
+            <div style={{ transform: `scale(${mapScale}) translate(${mapOffset.x / mapScale}px, ${mapOffset.y / mapScale}px)`, transformOrigin: 'center top', willChange: 'transform', transition: mapScale === 1 ? 'transform 0.25s ease' : 'none', lineHeight: 0 }}>
             <svg
               key={figure.image}
               viewBox="0 0 100 150"
@@ -6726,6 +6806,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
                     <circle
                       cx={cx} cy={cy} r={1.2}
                       fill={isActive ? '#C9A84C' : 'rgba(201,168,76,0.90)'}
+                      className={isActive ? undefined : 'bm-dot'}
                       style={{ pointerEvents: 'none' }}
                     />
                   </g>
@@ -6758,6 +6839,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
                 x: {debugClick.x}% · y: {debugClick.y}%
               </div>
             )}
+            </div>{/* end transform layer */}
           </div>
         </div>
 
