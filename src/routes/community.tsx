@@ -6645,7 +6645,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
         {/* Scrollable image column */}
         <div
           style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any,
-            paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20 }}
+            paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20,
+            display: 'flex', flexDirection: 'column', alignItems: 'center' }}
           onTouchStart={e => {
             touchStartX.current = e.touches[0].clientX
             touchStartY.current = e.touches[0].clientY
@@ -6661,7 +6662,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
           }}
         >
           {/* SVG body map — single coordinate space, no DOM measurement needed */}
-          <div style={{ position: 'relative', maxWidth: isMobile ? '100%' : 480, margin: '0 auto', lineHeight: 0 }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: isMobile ? '100%' : 480, lineHeight: 0 }}>
             <svg
               key={figure.image}
               viewBox="0 0 100 150"
@@ -6669,6 +6670,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
               style={{
                 width: '100%',
                 height: 'auto',
+                maxHeight: 'calc(100dvh - 220px)',
                 display: 'block',
                 opacity: imgOpacity,
                 transition: 'opacity 0.3s',
@@ -6709,20 +6711,20 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
                     onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleHotspotClick(h) }}
                     style={{ cursor: 'pointer' }}
                   >
-                    {/* invisible tap target — larger hit area on mobile */}
-                    <circle cx={cx} cy={cy} r={isMobile ? 5 : 3.5} fill="transparent" style={{ touchAction: 'none' }} />
-                    {/* visible ring */}
+                    {/* invisible tap target — larger hit area; rgba fill instead of transparent so iOS receives touch events */}
+                    <circle cx={cx} cy={cy} r={isMobile ? 5 : 3.5} fill="rgba(0,0,0,0.001)" style={{ touchAction: 'none' }} />
+                    {/* visible ring — filled gold, not hollow */}
                     <circle
                       cx={cx} cy={cy} r={r}
-                      fill={isActive ? 'rgba(201,168,76,0.20)' : isHov ? 'rgba(201,168,76,0.12)' : 'rgba(201,168,76,0.06)'}
-                      stroke={isActive ? 'rgba(201,168,76,0.95)' : isHov ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.35)'}
-                      strokeWidth={0.6}
+                      fill={isActive ? 'rgba(201,168,76,0.45)' : isHov ? 'rgba(201,168,76,0.30)' : 'rgba(201,168,76,0.18)'}
+                      stroke={isActive ? '#C9A84C' : isHov ? 'rgba(201,168,76,0.90)' : 'rgba(201,168,76,0.65)'}
+                      strokeWidth={0.7}
                       style={{ pointerEvents: 'none', transition: 'fill 0.15s, stroke 0.15s' }}
                     />
-                    {/* gold center dot — always visible so users can find hotspots */}
+                    {/* gold center dot */}
                     <circle
-                      cx={cx} cy={cy} r={0.8}
-                      fill={isActive ? '#C9A84C' : 'rgba(201,168,76,0.55)'}
+                      cx={cx} cy={cy} r={1.2}
+                      fill={isActive ? '#C9A84C' : 'rgba(201,168,76,0.90)'}
                       style={{ pointerEvents: 'none' }}
                     />
                   </g>
