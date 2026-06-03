@@ -12,6 +12,10 @@ export default async (req: Request, _context: Context) => {
     })
   }
 
+  const stream = JSON.parse(process.env.STREAM || '{}')
+  const streamApiKey = stream.apiKey
+  const streamApiSecret = stream.apiSecret
+
   try {
     const { userId: rawUserId, userName, userImage } = await req.json()
 
@@ -25,8 +29,8 @@ export default async (req: Request, _context: Context) => {
     // Stream requires user IDs to contain only alphanumeric, underscore, hyphen
     const userId = rawUserId.replace(/[^a-zA-Z0-9_-]/g, '_')
 
-    const apiKey    = process.env.VITE_STREAM_API_KEY!
-    const apiSecret = process.env.STREAM_API_SECRET!
+    const apiKey    = streamApiKey!
+    const apiSecret = streamApiSecret!
 
     if (!apiKey || !apiSecret) {
       return new Response(JSON.stringify({ error: 'Stream not configured' }), {

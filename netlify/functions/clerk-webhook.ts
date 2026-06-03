@@ -72,8 +72,9 @@ export default async function handler(req: Request) {
   const { type, data } = event
   console.log('[clerk-webhook] Event:', type)
 
-  const streamApiKey    = process.env.VITE_STREAM_API_KEY || process.env.STREAM_API_KEY
-  const streamApiSecret = process.env.STREAM_API_SECRET
+  const _stream = JSON.parse(process.env.STREAM || '{}')
+  const streamApiKey    = _stream.apiKey
+  const streamApiSecret = _stream.apiSecret
 
   try {
     if (type === 'user.created') {

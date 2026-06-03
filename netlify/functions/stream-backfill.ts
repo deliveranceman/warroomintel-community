@@ -33,8 +33,9 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
   }
 
-  const streamApiKey    = process.env.VITE_STREAM_API_KEY || process.env.STREAM_API_KEY
-  const streamApiSecret = process.env.STREAM_API_SECRET
+  const _stream = JSON.parse(process.env.STREAM || '{}')
+  const streamApiKey    = _stream.apiKey
+  const streamApiSecret = _stream.apiSecret
   const clerkSecret     = process.env.CLERK_SECRET_KEY
 
   console.log('STREAM_API_KEY set:', !!streamApiKey)

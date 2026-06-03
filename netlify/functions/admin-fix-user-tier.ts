@@ -94,8 +94,9 @@ export default async function handler(req: Request) {
 
   // 3. Sync Stream channel membership
   const streamResults: Record<string, string> = {}
-  const streamApiKey    = process.env.VITE_STREAM_API_KEY || process.env.STREAM_API_KEY
-  const streamApiSecret = process.env.STREAM_API_SECRET
+  const _stream = JSON.parse(process.env.STREAM || '{}')
+  const streamApiKey    = _stream.apiKey
+  const streamApiSecret = _stream.apiSecret
 
   if (streamApiKey && streamApiSecret) {
     const streamUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_')

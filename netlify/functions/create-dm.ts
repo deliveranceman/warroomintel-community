@@ -27,6 +27,10 @@ export default async (req: Request, _context: Context) => {
     })
   }
 
+  const stream = JSON.parse(process.env.STREAM || '{}')
+  const streamApiKey = stream.apiKey
+  const streamApiSecret = stream.apiSecret
+
   try {
     const { userId, otherUserId } = await req.json()
     if (!userId || !otherUserId) {
@@ -36,8 +40,8 @@ export default async (req: Request, _context: Context) => {
       })
     }
 
-    const apiKey    = process.env.VITE_STREAM_API_KEY!
-    const apiSecret = process.env.STREAM_API_SECRET!
+    const apiKey    = streamApiKey!
+    const apiSecret = streamApiSecret!
     const token     = makeServerToken(apiSecret)
 
     const sortedIds = [userId, otherUserId].sort()

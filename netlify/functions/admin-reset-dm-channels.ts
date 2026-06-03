@@ -26,8 +26,11 @@ export default async (req: Request, _context: Context) => {
     })
   }
 
-  const apiKey    = process.env.VITE_STREAM_API_KEY!
-  const apiSecret = process.env.STREAM_API_SECRET!
+  const stream = JSON.parse(process.env.STREAM || '{}')
+  const streamApiKey = stream.apiKey
+  const streamApiSecret = stream.apiSecret
+  const apiKey    = streamApiKey!
+  const apiSecret = streamApiSecret!
 
   if (!apiKey || !apiSecret) {
     return new Response(JSON.stringify({ error: 'Stream not configured' }), {

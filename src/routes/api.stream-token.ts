@@ -25,8 +25,9 @@ export const Route = createFileRoute('/api/stream-token')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const STREAM_API_KEY    = process.env.STREAM_API_KEY
-        const STREAM_API_SECRET = process.env.STREAM_API_SECRET
+        const _stream = JSON.parse(process.env.STREAM || '{}')
+        const STREAM_API_KEY    = _stream.apiKey
+        const STREAM_API_SECRET = _stream.apiSecret
 
         if (!STREAM_API_KEY || !STREAM_API_SECRET) {
           return Response.json({ error: 'Missing env vars' }, { status: 500 })

@@ -10,7 +10,7 @@
 //   #20 Deliverance Protocol sidebar link (commander+) | #21 Terms popup 3-paragraph disclaimer |
 //   #23 AI connection error (content-type guard) | #24/#25 scripture Dake→SOL rename
 // REQUIRES JUSTIN: Weekly Intel post "Oppression vs. Possession" body is empty — add content in admin.
-//   Stream API key / secret must be set in Netlify env (VITE_STREAM_API_KEY, STREAM_API_SECRET).
+//   Stream credentials must be set in Netlify env as STREAM JSON: {"appId":"...","apiKey":"...","apiSecret":"..."}.
 //   Testimony "pending" needs minister approval via admin panel PATCH /api/testimonies.
 import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { useAuth, useUser, SignOutButton } from '@clerk/tanstack-start'

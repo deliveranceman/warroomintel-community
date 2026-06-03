@@ -36,8 +36,9 @@ const STREAM_TIER_CHANNELS: Record<string, string[]> = {
 }
 
 async function addToStreamChannels(clerkUserId: string, tier: string) {
-  const streamApiKey    = process.env.VITE_STREAM_API_KEY
-  const streamApiSecret = process.env.STREAM_API_SECRET
+  const _stream = JSON.parse(process.env.STREAM || '{}')
+  const streamApiKey    = _stream.apiKey
+  const streamApiSecret = _stream.apiSecret
   if (!streamApiKey || !streamApiSecret) return
 
   const channelIds = STREAM_TIER_CHANNELS[tier.toLowerCase()] || ['war-room-general']
