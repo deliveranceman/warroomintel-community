@@ -144,118 +144,64 @@ async function streamFetch(
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 async function listConversations(userId: string): Promise<Response> {
-  const { status, data } = await streamFetch('/channels', 'POST', serverToken(), {
-    filter_conditions: { type: 'messaging', members: { $in: [userId] } },
-    sort: [{ field: 'last_message_at', direction: -1 }],
-    limit: 30,
-    state: true,
-    watch: false,
-    message_limit: 1,
-  })
+  console.log('[list-conv] userId:', userId)
+  console.log('[list-conv] querying Supabase for accepted DMs...')
 
-  console.log('[list-conversations] userId:', userId, 'stream status:', status)
+  // Supabase is source of truth — query accepted dm_requests for this user
+  const dmRes = await fetch(
+    SB(`/dm_requests?or=(requester_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&status=eq.accepted&channel_id=not.is.null&select=*&order=created_at.desc`),
+    { headers: sbH },
+  )
+  const dmRows: any[] = await dmRes.json().catch(() => [])
+  console.log('[list-conv] accepted DMs:', JSON.stringify(dmRows))
 
-  if (status !== 200) return json({ error: 'Stream error', detail: data }, status)
+  if (!Array.isArray(dmRows) || dmRows.length === 0) {
+    return json({ conversations: [] })
+  }
 
-  const channels = (data as any).channels ?? []
-  console.log('[list-conversations] stream channels returned:', channels.length)
-  channels.forEach((ch: any) => {
-    const members = (ch.members ?? []).map((m: any) => m.user?.id)
-    console.log('[list-conversations] channel:', ch.channel?.id, 'members:', members)
-  })
-
-  const conversations = channels.map((ch: any) => {
-    const channel      = ch.channel ?? {}
-    const members: any[] = ch.members ?? []
-    const messages: any[] = ch.messages ?? []
-    const readState: any[] = ch.read ?? []
-
-    const otherMember = members.find((m: any) => m.user?.id !== userId)?.user ?? null
-    const lastMessage = messages[0]
-      ? {
-          text:       messages[0].text ?? '',
-          type:       messages[0].type ?? 'regular',
-          created_at: messages[0].created_at,
-          user: {
-            id:   messages[0].user?.id ?? '',
-            name: messages[0].user?.name ?? '',
-          },
-        }
-      : null
-    const unreadCount = readState.find((r: any) => r.user?.id === userId)?.unread_messages ?? 0
-
-    return {
-      channelId:   channel.id,
-      channelType: 'messaging',
-      members: members.map((m: any) => ({
-        id:     m.user?.id ?? '',
-        name:   m.user?.name ?? '',
-        image:  m.user?.image ?? '',
-        online: m.user?.online ?? false,
-      })),
-      otherMember: otherMember
-        ? { id: otherMember.id, name: otherMember.name ?? '', image: otherMember.image ?? '', online: otherMember.online ?? false }
-        : null,
-      lastMessage,
-      unreadCount,
-    }
-  })
-
-  // Belt-and-suspenders: fetch accepted dm_requests from Supabase and merge
-  // any channels not already returned by Stream (handles Stream propagation lag)
-  try {
-    const dmRes = await fetch(
-      SB(`/dm_requests?or=(requester_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&status=eq.accepted&select=*`),
-      { headers: sbH },
+  // For each accepted DM, fetch the channel from Stream to get live state
+  const conversations: any[] = []
+  for (const r of dmRows) {
+    if (!r.channel_id) continue
+    const { status: cs, data: cd } = await streamFetch(
+      `/channels/messaging/${encodeURIComponent(r.channel_id)}/query`,
+      'POST',
+      serverToken(),
+      { messages: { limit: 1 }, state: true, watch: false },
     )
-    const dmRows: any[] = await dmRes.json().catch(() => [])
-    const streamIds = new Set(conversations.map((c: any) => c.channelId))
-
-    for (const r of (Array.isArray(dmRows) ? dmRows : [])) {
-      if (!r.channel_id || streamIds.has(r.channel_id)) continue
-      console.log('[list-conversations] merging Supabase accepted DM:', r.channel_id)
-      // Fetch the channel directly from Stream to get real member/message state
-      const { status: cs, data: cd } = await streamFetch(
-        `/channels/messaging/${encodeURIComponent(r.channel_id)}/query`,
-        'POST',
-        serverToken(),
-        { messages: { limit: 1 }, state: true, watch: false },
-      )
-      if (cs === 200) {
-        const d = cd as any
-        const chMembers: any[] = d.members ?? []
-        const chMessages: any[] = d.messages ?? []
-        const chRead: any[] = d.read ?? []
-        const otherM = chMembers.find((m: any) => m.user?.id !== userId)?.user ?? null
-        const lastMsg = chMessages[0]
-          ? { text: chMessages[0].text ?? '', type: chMessages[0].type ?? 'regular', created_at: chMessages[0].created_at, user: { id: chMessages[0].user?.id ?? '', name: chMessages[0].user?.name ?? '' } }
-          : null
-        const unread = chRead.find((x: any) => x.user?.id === userId)?.unread_messages ?? 0
-        conversations.push({
-          channelId: r.channel_id,
-          channelType: 'messaging',
-          members: chMembers.map((m: any) => ({ id: m.user?.id ?? '', name: m.user?.name ?? '', image: m.user?.image ?? '', online: m.user?.online ?? false })),
-          otherMember: otherM ? { id: otherM.id, name: otherM.name ?? '', image: otherM.image ?? '', online: otherM.online ?? false } : null,
-          lastMessage: lastMsg,
-          unreadCount: unread,
-        })
-      } else {
-        // Stream can't return it — build a stub from Supabase data so the conversation appears
-        const isRequester = r.requester_id === userId
-        conversations.push({
-          channelId: r.channel_id,
-          channelType: 'messaging',
-          members: [],
-          otherMember: isRequester
-            ? { id: r.recipient_id, name: 'Member', image: '', online: false }
-            : { id: r.requester_id, name: r.requester_name ?? 'Member', image: '', online: false },
-          lastMessage: null,
-          unreadCount: 0,
-        })
-      }
+    console.log('[list-conv] channel', r.channel_id, 'stream status:', cs)
+    if (cs === 200) {
+      const d = cd as any
+      const chMembers: any[] = d.members ?? []
+      const chMessages: any[] = d.messages ?? []
+      const chRead: any[] = d.read ?? []
+      const otherM = chMembers.find((m: any) => m.user?.id !== userId)?.user ?? null
+      const lastMsg = chMessages[0]
+        ? { text: chMessages[0].text ?? '', type: chMessages[0].type ?? 'regular', created_at: chMessages[0].created_at, user: { id: chMessages[0].user?.id ?? '', name: chMessages[0].user?.name ?? '' } }
+        : null
+      const unread = chRead.find((x: any) => x.user?.id === userId)?.unread_messages ?? 0
+      conversations.push({
+        channelId: r.channel_id,
+        channelType: 'messaging',
+        members: chMembers.map((m: any) => ({ id: m.user?.id ?? '', name: m.user?.name ?? '', image: m.user?.image ?? '', online: m.user?.online ?? false })),
+        otherMember: otherM ? { id: otherM.id, name: otherM.name ?? '', image: otherM.image ?? '', online: otherM.online ?? false } : null,
+        lastMessage: lastMsg,
+        unreadCount: unread,
+      })
+    } else {
+      // Stream can't return it — build stub from Supabase so conversation still appears
+      const isRequester = r.requester_id === userId
+      conversations.push({
+        channelId: r.channel_id,
+        channelType: 'messaging',
+        members: [],
+        otherMember: isRequester
+          ? { id: r.recipient_id, name: 'Member', image: '', online: false }
+          : { id: r.requester_id, name: r.requester_name ?? 'Member', image: '', online: false },
+        lastMessage: null,
+        unreadCount: 0,
+      })
     }
-  } catch (e: any) {
-    console.error('[list-conversations] Supabase merge error:', e.message)
   }
 
   return json({ conversations })
