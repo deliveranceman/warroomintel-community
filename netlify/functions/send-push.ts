@@ -2,7 +2,11 @@ import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
-const { publicKey: vapidPublicKey, privateKey: vapidPrivateKey, email: vapidEmail } = JSON.parse(process.env.VAPID || '{}')
+// Prefer individual env vars; fall back to legacy VAPID JSON bundle
+const _vapidJson = JSON.parse(process.env.VAPID || '{}')
+const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY  || _vapidJson.publicKey  || ''
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || _vapidJson.privateKey || ''
+const vapidEmail      = _vapidJson.email || ''
 
 const HEADERS = {
   'Content-Type': 'application/json',
@@ -81,13 +85,13 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'VAPID keys not configured' }), { status: 500, headers: HEADERS })
   }
 
+  const vapidContact = vapidEmail
+    ? (vapidEmail.startsWith('mailto:') ? vapidEmail : `mailto:${vapidEmail}`)
+    : 'mailto:exorcist@warroomintel.com'
+
   try {
-    webpush.setVapidDetails(
-      `mailto:${vapidEmail}`,
-      vapidPublicKey!,
-      vapidPrivateKey!
-    )
-    console.log('[send-push] VAPID configured successfully')
+    webpush.setVapidDetails(vapidContact, vapidPublicKey!, vapidPrivateKey!)
+    console.log('[send-push] VAPID configured successfully, contact:', vapidContact)
   } catch (err: any) {
     console.error('[send-push] VAPID setup failed:', err.message)
     return new Response(JSON.stringify({ error: 'VAPID config error', detail: err.message }), { status: 500, headers: HEADERS })
@@ -148,11 +152,13 @@ export default async function handler(req: Request) {
     })
 
     try {
-      await webpush.sendNotification(pushSub, payload)
+      await webpush.sendNotification(pushSub, payload, { TTL: 86400 })
       console.log('[send-push] Success:', row.user_id)
       sent++
     } catch (err: any) {
-      console.error('[send-push] statusCode:', err.statusCode)
+      const sc = err.statusCode ?? 0
+      console.error(`[send-push] FAILED user=${row.user_id} status=${sc} endpoint=${endpointHost}`)
+      if (sc === 403) console.error('[send-push] 403 BadJwtToken — check VAPID keys match subscription origin')
       console.error('[send-push] body:', err.body)
       console.error('[send-push] headers:', JSON.stringify(err.headers))
 
@@ -165,9 +171,9 @@ export default async function handler(req: Request) {
         endpointHost,
       })
 
-      if (err.statusCode === 410) {
+      if (err.statusCode === 410 || err.statusCode === 400) {
         await client.from('push_subscriptions').delete().eq('endpoint', pushSub.endpoint)
-        console.log('[send-push] Deleted expired subscription:', pushSub.endpoint.slice(-40))
+        console.log('[send-push] Deleted stale subscription (status=%d):', err.statusCode, pushSub.endpoint.slice(-40))
       }
     }
   }

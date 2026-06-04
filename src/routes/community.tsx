@@ -32,6 +32,34 @@ const G      = '#C9A84C'
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 
+const ATMOSPHERE_STATUSES = [
+  { id: 'covered',            label: 'Covered',            category: 'green',  emoji: '🛡' },
+  { id: 'peaceful',           label: 'Peaceful',           category: 'green',  emoji: '🕊' },
+  { id: 'victorious',         label: 'Victorious',         category: 'green',  emoji: '⚔' },
+  { id: 'focused',            label: 'Focused',            category: 'green',  emoji: '🎯' },
+  { id: 'hopeful',            label: 'Hopeful',            category: 'green',  emoji: '✨' },
+  { id: 'grateful',           label: 'Grateful',           category: 'green',  emoji: '🙏' },
+  { id: 'weary',              label: 'Weary',              category: 'amber',  emoji: '😔' },
+  { id: 'need-prayer',        label: 'Need Prayer',        category: 'amber',  emoji: '🤲' },
+  { id: 'burned-out',         label: 'Burned Out',         category: 'amber',  emoji: '🔥' },
+  { id: 'dry',                label: 'Dry',                category: 'amber',  emoji: '🏜' },
+  { id: 'anxious',            label: 'Anxious',            category: 'amber',  emoji: '⚡' },
+  { id: 'discouraged',        label: 'Discouraged',        category: 'amber',  emoji: '🌧' },
+  { id: 'lonely',             label: 'Lonely',             category: 'amber',  emoji: '🕯' },
+  { id: 'grieving',           label: 'Grieving',           category: 'amber',  emoji: '💧' },
+  { id: 'under-assignment',   label: 'Under Assignment',   category: 'purple', emoji: '📡' },
+  { id: 'interceding',        label: 'Interceding',        category: 'purple', emoji: '🔥' },
+  { id: 'in-battle',          label: 'In Battle',          category: 'purple', emoji: '⚔' },
+  { id: 'discernment-active', label: 'Discernment Active', category: 'purple', emoji: '👁' },
+  { id: 'fasting',            label: 'Fasting',            category: 'purple', emoji: '✦' },
+  { id: 'standing',           label: 'Standing',           category: 'purple', emoji: '🗡' },
+] as const
+
+const ATM_COLORS: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
+  green:  { bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   text: '#4ade80', dot: '#22c55e', label: 'Covered'  },
+  amber:  { bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.35)',  text: '#fbbf24', dot: '#f59e0b', label: 'Carrying' },
+  purple: { bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)', text: '#c084fc', dot: '#a855f7', label: 'Assigned' },
+}
 
 const THEME_CSS = `
 @keyframes pulse { 0%,100% { opacity: 0.4 } 50% { opacity: 0.8 } }
@@ -1414,6 +1442,29 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const [archive, setArchive]     = useState<any[]>([])
   const [showArchive, setShowArchive] = useState(false)
 
+  // Atmosphere check-in state
+  const [atmStatus, setAtmStatus]       = useState<string | null>(null)
+  const [atmNote, setAtmNote]           = useState('')
+  const [atmLoading, setAtmLoading]     = useState(false)
+  const [atmChecked, setAtmChecked]     = useState(false)
+  const [atmCommunity, setAtmCommunity] = useState<{ tally: Record<string, number>; total: number } | null>(null)
+  const [atmShowAll, setAtmShowAll]     = useState(false)
+
+  useEffect(() => {
+    async function loadAtm() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${token}` } })
+        if (res.ok) {
+          const d = await res.json()
+          if (d.my) { setAtmStatus(d.my.status); setAtmChecked(true) }
+          if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 })
+        }
+      } catch {}
+    }
+    loadAtm()
+  }, [])
+
   function extractYouTubeId(url: string): string | null {
     if (!url) return null
     const patterns = [/youtu\.be\/([^?&#]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/, /youtube(?:\.com)?\/live\/([^?&#]+)/]
@@ -1568,6 +1619,142 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                 <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.evening_prayer}</div>
               </div>
             </LockedSection>
+          )}
+
+          {/* ── Watchman Atmosphere Check-In ── */}
+          {isToday && (
+            <div style={{ marginTop: 32, borderTop: `1px solid ${bdr}`, paddingTop: 28 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.18em', marginBottom: 4 }}>📡 WATCHMAN CHECK-IN</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 16 }}>
+                {atmChecked ? 'Your atmosphere reading for today is recorded.' : 'How is your spiritual atmosphere today?'}
+              </div>
+
+              {/* Status pills — show fewer by default */}
+              {(() => {
+                const visible = atmShowAll ? ATMOSPHERE_STATUSES : ATMOSPHERE_STATUSES.slice(0, 10)
+                return (
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
+                    {visible.map(s => {
+                      const col = ATM_COLORS[s.category]
+                      const active = atmStatus === s.id
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => { if (!atmLoading) setAtmStatus(prev => prev === s.id ? null : s.id) }}
+                          style={{
+                            padding: '6px 12px', borderRadius: 20,
+                            background: active ? col.bg : 'transparent',
+                            border: `1px solid ${active ? col.border : bdr}`,
+                            color: active ? col.text : mut,
+                            fontFamily: crimson, fontSize: 13, cursor: 'pointer',
+                            transition: 'all 0.15s',
+                            touchAction: 'manipulation',
+                            WebkitTapHighlightColor: 'transparent',
+                          } as React.CSSProperties}
+                        >
+                          {s.emoji} {s.label}
+                        </button>
+                      )
+                    })}
+                    <button
+                      onClick={() => setAtmShowAll(p => !p)}
+                      style={{ padding: '6px 12px', borderRadius: 20, background: 'transparent', border: `1px solid ${bdr}`, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+                    >
+                      {atmShowAll ? 'LESS' : 'MORE'}
+                    </button>
+                  </div>
+                )
+              })()}
+
+              {/* Note input */}
+              {atmStatus && (
+                <textarea
+                  value={atmNote}
+                  onChange={e => setAtmNote(e.target.value)}
+                  placeholder="Add a brief note (optional, max 280 chars)…"
+                  maxLength={280}
+                  rows={2}
+                  style={{
+                    width: '100%', boxSizing: 'border-box' as const,
+                    background: isDark ? 'rgba(13,11,20,0.8)' : '#F5F3EF',
+                    border: `1px solid ${bdr}`, borderRadius: 6,
+                    color: txt, fontFamily: crimson, fontSize: 14,
+                    padding: '8px 12px', resize: 'none' as const,
+                    outline: 'none', marginBottom: 10,
+                  }}
+                />
+              )}
+
+              {/* Submit button */}
+              {atmStatus && (
+                <button
+                  onClick={async () => {
+                    setAtmLoading(true)
+                    try {
+                      const token = await getToken()
+                      const res = await fetch('/api/atmosphere?action=checkin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ status: atmStatus, note: atmNote || undefined }),
+                      })
+                      if (res.ok) {
+                        setAtmChecked(true)
+                        // Refresh community tally
+                        const t2 = await getToken()
+                        const r2 = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${t2}` } })
+                        if (r2.ok) { const d = await r2.json(); if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 }) }
+                      }
+                    } catch {}
+                    setAtmLoading(false)
+                  }}
+                  disabled={atmLoading}
+                  style={{
+                    padding: '8px 24px', borderRadius: 6,
+                    background: ATM_COLORS[ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || 'green'].dot,
+                    border: 'none', color: '#0D0B14',
+                    fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em',
+                    cursor: atmLoading ? 'wait' : 'pointer',
+                    touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+                  } as React.CSSProperties}
+                >
+                  {atmLoading ? 'RECORDING…' : atmChecked ? 'UPDATE CHECK-IN' : 'RECORD CHECK-IN'}
+                </button>
+              )}
+
+              {/* Community tally */}
+              {atmCommunity && atmCommunity.total > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 8 }}>
+                    COMMUNITY ATMOSPHERE — {atmCommunity.total} WARRIORS CHECKED IN
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
+                    {(['green', 'amber', 'purple'] as const).map(cat => {
+                      const col = ATM_COLORS[cat]
+                      const count = atmCommunity.tally[cat] || 0
+                      const pct = atmCommunity.total > 0 ? Math.round((count / atmCommunity.total) * 100) : 0
+                      return (
+                        <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot }} />
+                          <span style={{ fontFamily: cinzel, fontSize: 9, color: col.text, letterSpacing: '0.08em' }}>
+                            {col.label.toUpperCase()} {pct}%
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Visual bar */}
+                  <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 8, background: bdr }}>
+                    {(['green', 'amber', 'purple'] as const).map(cat => {
+                      const count = atmCommunity.tally[cat] || 0
+                      const pct = atmCommunity.total > 0 ? (count / atmCommunity.total) * 100 : 0
+                      return pct > 0 ? (
+                        <div key={cat} style={{ width: `${pct}%`, background: ATM_COLORS[cat].dot, transition: 'width 0.4s ease' }} />
+                      ) : null
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -2889,6 +3076,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   const [arsenalDrops, setArsenalDrops]       = useState<any[]>([])
   const [arsenalLoading, setArsenalLoading]   = useState(false)
   const [sotw, setSotw]           = useState<any>(null)
+  const [atmTrend, setAtmTrend]   = useState<any[]>([])
 
   const [showReportForm, setShowReportForm] = useState(false)
   const [reportForm, setReportForm]         = useState({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
@@ -2920,6 +3108,15 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
     }
     fetchAll()
     return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    getToken().then(token =>
+      fetch('/api/atmosphere?action=weekly-trend', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.trend) setAtmTrend(d.trend) })
+        .catch(() => {})
+    )
   }, [])
 
   useEffect(() => {
@@ -3005,6 +3202,40 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
           >View in Spirit Network</button>
         </div>
       )}
+
+      {/* ── Atmosphere Trend ── */}
+      {atmTrend.length > 0 && (() => {
+        const maxTotal = Math.max(...atmTrend.map(d => d.total), 1)
+        return (
+          <div style={{ marginBottom: 28, background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 20px' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.18em', marginBottom: 14 }}>📡 WATCHMAN ATMOSPHERE — 7 DAY TREND</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 60 }}>
+              {atmTrend.map((day: any) => {
+                const total = day.total || 0
+                const barH  = total > 0 ? Math.max(4, Math.round((total / maxTotal) * 52)) : 4
+                const dom   = day.green >= day.amber && day.green >= day.purple ? 'green'
+                            : day.purple >= day.amber ? 'purple' : 'amber'
+                const col   = ATM_COLORS[dom]
+                const label = new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1)
+                return (
+                  <div key={day.date} style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: '100%', height: barH, background: col.dot, borderRadius: 3, opacity: total > 0 ? 1 : 0.15 }} title={`${day.date}: ${total} check-ins`} />
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.05em' }}>{label}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 10 }}>
+              {(['green','amber','purple'] as const).map(cat => (
+                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: ATM_COLORS[cat].dot }} />
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.06em' }}>{ATM_COLORS[cat].label.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* FULL WIDTH — Intel Briefing */}
       <div style={{ marginBottom: 32 }}>
@@ -8512,7 +8743,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, g
 }
 
 // ── MAIN PAGE ──────────────────────────────────────────────
-const VAPID_PUBLIC_KEY = 'BO08S4Y49Q5vv1I-E_bV9NSaygiXF5GKgZ_Zmq6vQ5AWc9PG0Z_9qnSpP21TucVowWky6SHe6YlNRir_tdHeW-Q'
+const VAPID_PUBLIC_KEY = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) || 'BF6-rlBLdjhcPm9z7RQ9_Vn5WoGjor5l48KqyWmZGLqfK5iErWceIMAG-uBoMT1l4scB1trTWH-HjbvY0RdQ9nU'
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)

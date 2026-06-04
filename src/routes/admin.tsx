@@ -19,6 +19,12 @@ const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
 const STREAM_APP_ID = '1609751'
 
+const ATM_COLORS_ADMIN: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
+  green:  { bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   text: '#4ade80', dot: '#22c55e', label: 'Covered'  },
+  amber:  { bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.35)',  text: '#fbbf24', dot: '#f59e0b', label: 'Carrying' },
+  purple: { bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)', text: '#c084fc', dot: '#a855f7', label: 'Assigned' },
+}
+
 const TIER_COLORS: Record<string, string> = {
   Free: '#6a6080', Soldier: '#5C7CBF', Commander: '#7C5CBF', General: '#C9A84C',
 }
@@ -10129,10 +10135,222 @@ function TestSOLPanel({ getToken, isDark }: { getToken: any; isDark: boolean }) 
   )
 }
 
+function AtmosphereAdmin({ getToken, isDark }: { getToken: () => Promise<string | null>; isDark: boolean }) {
+  const G   = isDark ? '#C9A84C' : '#8B6914'
+  const bg  = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf = isDark ? SURF : '#FFFFFF'
+  const bdr  = isDark ? BDR : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT : '#2D2924'
+  const mut  = isDark ? DIM : '#5C5248'
+
+  const [summary, setSummary]       = useState<any>(null)
+  const [trend, setTrend]           = useState<any[]>([])
+  const [checkins, setCheckins]     = useState<any[]>([])
+  const [alertMsg, setAlertMsg]     = useState('')
+  const [alertSending, setAlertSending] = useState(false)
+  const [alertResult, setAlertResult]   = useState<string | null>(null)
+  const [testSending, setTestSending]   = useState(false)
+  const [testResult, setTestResult]     = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken()
+      const h = { Authorization: `Bearer ${token}` }
+      const [sumRes, trendRes, todayRes] = await Promise.allSettled([
+        fetch('/api/atmosphere?action=community-summary', { headers: h }).then(r => r.json()),
+        fetch('/api/atmosphere?action=weekly-trend', { headers: h }).then(r => r.json()),
+        fetch('/api/atmosphere?action=today', { headers: h }).then(r => r.json()),
+      ])
+      if (sumRes.status === 'fulfilled')   setSummary(sumRes.value.summary || null)
+      if (trendRes.status === 'fulfilled') setTrend(trendRes.value.trend || [])
+      if (todayRes.status === 'fulfilled') {
+        const d = todayRes.value
+        const counts: Record<string, number> = d.statusCounts || {}
+        setCheckins(Object.entries(counts).map(([status, count]) => ({ status, count })).sort((a: any, b: any) => b.count - a.count))
+      }
+    }
+    load()
+  }, [])
+
+  async function sendSolAlert() {
+    setAlertSending(true); setAlertResult(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/atmosphere?action=sol-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: alertMsg || undefined }),
+      })
+      const d = await res.json()
+      setAlertResult(d.alert || (d.error ? `Error: ${d.error}` : 'Sent'))
+      setAlertMsg('')
+    } catch (e: any) {
+      setAlertResult(`Error: ${e.message}`)
+    }
+    setAlertSending(false)
+  }
+
+  async function sendTestPush() {
+    setTestSending(true); setTestResult(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/test-atmosphere-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: '📡 Test Atmosphere Alert', message: 'Watchman push notification test.' }),
+      })
+      const d = await res.json()
+      setTestResult(d.push ? `Sent: ${d.push.sent}, Failed: ${d.push.failed}` : `Error: ${d.error || 'unknown'}`)
+    } catch (e: any) {
+      setTestResult(`Error: ${e.message}`)
+    }
+    setTestSending(false)
+  }
+
+  async function triggerSnapshot() {
+    const token = await getToken()
+    const res = await fetch('/api/atmosphere?action=snapshot', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const d = await res.json()
+    if (d.ok) setSummary(d.snapshot)
+  }
+
+  const maxTotal = Math.max(...trend.map(d => d.total), 1)
+
+  return (
+    <div style={{ background: bg, minHeight: '100%', padding: '28px 0' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.14em', marginBottom: 6 }}>📡 WATCHMAN ATMOSPHERE</div>
+      <div style={{ fontFamily: crimson, fontSize: 14, color: mut, marginBottom: 28 }}>
+        Community atmosphere readings, SOL alert broadcasting, and sentinel oversight.
+      </div>
+
+      {/* Today summary */}
+      {summary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+          {[
+            { label: 'TOTAL CHECK-INS', value: summary.total_checkins, color: G },
+            { label: 'COVERED', value: summary.green_count, color: ATM_COLORS_ADMIN.green.dot },
+            { label: 'CARRYING', value: summary.amber_count, color: ATM_COLORS_ADMIN.amber.dot },
+            { label: 'ASSIGNED', value: summary.purple_count, color: ATM_COLORS_ADMIN.purple.dot },
+          ].map(s => (
+            <div key={s.label} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 16px' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.14em', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 22, color: s.color }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Top statuses today */}
+      {checkins.length > 0 && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px 20px', marginBottom: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.14em', marginBottom: 12 }}>TODAY'S STATUS DISTRIBUTION</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+            {checkins.slice(0, 10).map((c: any) => (
+              <div key={c.status} style={{ padding: '4px 10px', borderRadius: 12, background: 'rgba(201,168,76,0.08)', border: `1px solid ${bdr}` }}>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: txt }}>{c.status}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: G, marginLeft: 6 }}>{c.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 7-day trend */}
+      {trend.length > 0 && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px 20px', marginBottom: 24 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.14em', marginBottom: 14 }}>7-DAY ATMOSPHERE TREND</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 80 }}>
+            {trend.map((day: any) => {
+              const total = day.total || 0
+              const barH = total > 0 ? Math.max(4, Math.round((total / maxTotal) * 68)) : 4
+              const dom  = day.green >= day.amber && day.green >= day.purple ? 'green'
+                         : day.purple >= day.amber ? 'purple' : 'amber'
+              const col  = ATM_COLORS_ADMIN[dom]
+              const label = new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3)
+              return (
+                <div key={day.date} style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: mut }}>{total}</div>
+                  <div style={{ width: '100%', height: barH, background: col.dot, borderRadius: 3, opacity: total > 0 ? 1 : 0.15 }} />
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: mut }}>{label}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+            {(['green','amber','purple'] as const).map(cat => (
+              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: ATM_COLORS_ADMIN[cat].dot }} />
+                <span style={{ fontFamily: cinzel, fontSize: 8, color: mut }}>{ATM_COLORS_ADMIN[cat].label.toUpperCase()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SOL Alert */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.14em', marginBottom: 10 }}>📡 SOL ATMOSPHERE ALERT</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 12 }}>
+          SOL will analyze today's community atmosphere and generate a prophetic alert broadcast. You can optionally add a minister instruction.
+        </div>
+        <textarea
+          value={alertMsg}
+          onChange={e => setAlertMsg(e.target.value)}
+          placeholder="Optional minister instruction for SOL (e.g. 'Focus on the fasting warriors')"
+          rows={3}
+          style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5', border: `1px solid ${bdr}`, borderRadius: 6, color: txt, fontFamily: crimson, fontSize: 14, padding: '8px 12px', resize: 'vertical' as const, outline: 'none', marginBottom: 10 }}
+        />
+        {alertResult && (
+          <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', fontFamily: crimson, fontSize: 14, color: txt, marginBottom: 10 }}>
+            <strong style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em' }}>SOL ALERT SENT:</strong><br />
+            {alertResult}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={sendSolAlert}
+            disabled={alertSending}
+            style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 5, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: alertSending ? 'wait' : 'pointer' }}
+          >
+            {alertSending ? 'GENERATING…' : 'SEND SOL ALERT'}
+          </button>
+          <button
+            onClick={triggerSnapshot}
+            style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}
+          >
+            SAVE SNAPSHOT
+          </button>
+        </div>
+      </div>
+
+      {/* Test push */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '16px 20px' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.14em', marginBottom: 8 }}>🔔 TEST PUSH NOTIFICATION</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 10 }}>
+          Send a test atmosphere push to all subscribers.
+        </div>
+        {testResult && (
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: testResult.startsWith('Error') ? '#ef4444' : '#4ade80', marginBottom: 8 }}>{testResult}</div>
+        )}
+        <button
+          onClick={sendTestPush}
+          disabled={testSending}
+          style={{ padding: '7px 18px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 5, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: testSending ? 'wait' : 'pointer' }}
+        >
+          {testSending ? 'SENDING…' : 'SEND TEST PUSH'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere'>('dashboard')
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -10228,6 +10446,7 @@ function AdminPage() {
       { key: 'notifications', label: '🔔 Notifications' },
       { key: 'admin-chat',    label: 'Admin Chat'       },
       { key: 'tracker',       label: 'Tracker'          },
+      { key: 'atmosphere',    label: '📡 Atmosphere'    },
     ]},
   ] as const
 
@@ -10381,6 +10600,7 @@ function AdminPage() {
                 MEMBERS — COMING SOON
               </div>
             )}
+            {tab === 'atmosphere'        && <AtmosphereAdmin getToken={getToken} isDark={isDark} />}
           </div>
         </div>
 
