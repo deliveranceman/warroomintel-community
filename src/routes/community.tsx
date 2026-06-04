@@ -1874,10 +1874,12 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                     } catch {}
                   }
                 }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.08em', padding: '4px 0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                  📖 Matthew Henry Commentary {showCommentary ? '▴' : '▾'}
+                  📖 SOL Commentary {showCommentary ? '▴' : '▾'}
                 </button>
                 {showCommentary && (
                   <div style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 12, marginTop: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.14em', marginBottom: 4 }}>📖 SOL COMMENTARY</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em', marginBottom: 10 }}>Dake's Annotated Bible · Spiritual Warfare Notes</div>
                     {commentary
                       ? <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.7 }}>{commentary.slice(0, 400)}{commentary.length > 400 ? '…' : ''}</div>
                       : <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>Commentary coming soon</div>
