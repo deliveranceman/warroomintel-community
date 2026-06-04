@@ -1433,12 +1433,23 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const GD   = isDark ? '#C9A84C' : '#8B6914'
   const { getToken } = useAuth()
 
+  // Time-aware mode — computed once on mount, never changes
+  const currentHour = new Date().getHours()
+  const timeMode = currentHour >= 4 && currentHour < 12 ? 'morning'
+                 : currentHour >= 12 && currentHour < 16 ? 'midday'
+                 : 'evening'
+  const timeGreeting = timeMode === 'morning' ? 'Good Morning, Soldier'
+                     : timeMode === 'midday'  ? 'Midday Report'
+                     : 'Evening Debrief'
+  const timeIcon = timeMode === 'morning' ? '🌅' : timeMode === 'midday' ? '☀' : '🌙'
+  const todayStr = new Date().toISOString().slice(0, 10)
+
   const TIER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
   const userLvl = TIER[(userTier || '').toLowerCase()] ?? 0
 
   const [devotion, setDevotion]   = useState<any>(null)
   const [loading, setLoading]     = useState(true)
-  const [currentDate, setCurrentDate] = useState(new Date().toISOString().slice(0, 10))
+  const [currentDate, setCurrentDate] = useState(todayStr)
   const [archive, setArchive]     = useState<any[]>([])
   const [showArchive, setShowArchive] = useState(false)
 
@@ -1450,6 +1461,24 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const [atmCommunity, setAtmCommunity] = useState<{ tally: Record<string, number>; total: number } | null>(null)
   const [atmShowAll, setAtmShowAll]     = useState(false)
 
+  // New state — all before any returns
+  const [spiritOfDay, setSpiritOfDay]           = useState<any>(null)
+  const [dailyMissions, setDailyMissions]       = useState<any[]>([])
+  const [completedMissions, setCompletedMissions] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`wri-missions-${new Date().toISOString().slice(0, 10)}`)
+      return new Set(saved ? JSON.parse(saved) : [])
+    } catch { return new Set() }
+  })
+  const [showCommentary, setShowCommentary]     = useState(false)
+  const [commentary, setCommentary]             = useState('')
+  const [showEveningPrayer, setShowEveningPrayer] = useState(timeMode === 'evening')
+  const [debriefChoice, setDebriefChoice]       = useState<string | null>(() => {
+    try { return localStorage.getItem(`wri-debrief-${new Date().toISOString().slice(0, 10)}`) } catch { return null }
+  })
+  const [showTomorrow, setShowTomorrow]         = useState(false)
+  const [tomorrowSpirit, setTomorrowSpirit]     = useState<any>(null)
+
   useEffect(() => {
     async function loadAtm() {
       try {
@@ -1457,12 +1486,38 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
         const res = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${token}` } })
         if (res.ok) {
           const d = await res.json()
-          if (d.my) { setAtmStatus(d.my.status); setAtmChecked(true) }
+          if (d.my) {
+            setAtmStatus(d.my.status); setAtmChecked(true)
+            // Store category in localStorage for sidebar ring
+            try { localStorage.setItem(`wri-atm-cat-${new Date().toISOString().slice(0, 10)}`, d.my.category || '') } catch {}
+          }
           if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 })
         }
       } catch {}
     }
     loadAtm()
+  }, [])
+
+  useEffect(() => {
+    async function loadSpiritAndMissions() {
+      try {
+        const token = await getToken()
+        const h = { Authorization: `Bearer ${token}` }
+        const [sodRes, missionsRes] = await Promise.allSettled([
+          fetch('/api/spirit-of-day', { headers: h }),
+          fetch('/api/atmosphere?action=missions', { headers: h }),
+        ])
+        if (sodRes.status === 'fulfilled' && sodRes.value.ok) {
+          const d = await sodRes.value.json()
+          setSpiritOfDay(d.spirit || null)
+        }
+        if (missionsRes.status === 'fulfilled' && missionsRes.value.ok) {
+          const d = await missionsRes.value.json()
+          setDailyMissions(d.missions || [])
+        }
+      } catch {}
+    }
+    loadSpiritAndMissions()
   }, [])
 
   function extractYouTubeId(url: string): string | null {
@@ -1526,8 +1581,11 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>☀️ Daily Brief</div>
-            <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>{displayDate}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>☀️ Daily Brief</div>
+              <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: mut, border: `1px solid ${bdr}`, borderRadius: 10, padding: '2px 8px' }}>{timeIcon} {timeMode.toUpperCase()}</span>
+            </div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>{timeGreeting} · {displayDate}</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1566,26 +1624,101 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
         </div>
       ) : (
         <div style={{ maxWidth: 680 }}>
-          {devotion.title && <div style={{ fontFamily: cinzel, fontSize: 20, color: txt, letterSpacing: '0.05em', marginBottom: 24, fontWeight: 700 }}>{devotion.title}</div>}
 
-          {/* Morning Prayer (watchman+) */}
-          {devotion.morning_prayer && (
-            <LockedSection tierNeeded={0}>
-              <div style={{ borderLeft: `4px solid ${GD}`, paddingLeft: 20, marginBottom: 28, background: 'rgba(201,168,76,0.04)', borderRadius: '0 8px 8px 0', padding: '16px 20px', borderTop: `1px solid ${bdr}`, borderRight: `1px solid ${bdr}`, borderBottom: `1px solid ${bdr}` }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 10 }}>MORNING PRAYER</div>
-                <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.morning_prayer}</div>
+          {/* ── 1. WATCHMAN CHECK-IN (top) ── */}
+          {isToday && (
+            <div style={{ marginBottom: 28, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 20px', background: isDark ? 'rgba(201,168,76,0.03)' : surf }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.18em', marginBottom: 4 }}>📡 WATCHMAN CHECK-IN</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 16 }}>
+                {atmChecked ? 'Your atmosphere reading for today is recorded.' : 'How is your spiritual atmosphere today?'}
               </div>
-            </LockedSection>
+              {timeMode === 'midday' && atmChecked && atmCommunity && atmCommunity.total > 0 && (
+                <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(201,168,76,0.05)', border: `1px solid ${bdr}`, borderRadius: 8, fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>
+                  THE REGIMENT AT MIDDAY: <span style={{ color: '#22c55e' }}>{atmCommunity.tally.green || 0} COVERED</span> · <span style={{ color: '#f59e0b' }}>{atmCommunity.tally.amber || 0} CARRYING</span> · <span style={{ color: '#a855f7' }}>{atmCommunity.tally.purple || 0} ASSIGNED</span>
+                </div>
+              )}
+              {(() => {
+                const visible = atmShowAll ? ATMOSPHERE_STATUSES : ATMOSPHERE_STATUSES.slice(0, 10)
+                return (
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
+                    {visible.map(s => {
+                      const col = ATM_COLORS[s.category]
+                      const active = atmStatus === s.id
+                      return (
+                        <button key={s.id} onClick={() => { if (!atmLoading) setAtmStatus(prev => prev === s.id ? null : s.id) }}
+                          style={{ padding: '6px 12px', borderRadius: 20, background: active ? col.bg : 'transparent', border: `1px solid ${active ? col.border : bdr}`, color: active ? col.text : mut, fontFamily: crimson, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                          {s.emoji} {s.label}
+                        </button>
+                      )
+                    })}
+                    <button onClick={() => setAtmShowAll(p => !p)}
+                      style={{ padding: '6px 12px', borderRadius: 20, background: 'transparent', border: `1px solid ${bdr}`, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                      {atmShowAll ? 'LESS' : 'MORE'}
+                    </button>
+                  </div>
+                )
+              })()}
+              {atmStatus && (
+                <textarea value={atmNote} onChange={e => setAtmNote(e.target.value)} placeholder="Add a brief note (optional, max 280 chars)…" maxLength={280} rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#F5F3EF', border: `1px solid ${bdr}`, borderRadius: 6, color: txt, fontFamily: crimson, fontSize: 14, padding: '8px 12px', resize: 'none' as const, outline: 'none', marginBottom: 10 }} />
+              )}
+              {atmStatus && (
+                <button onClick={async () => {
+                  setAtmLoading(true)
+                  try {
+                    const token = await getToken()
+                    const res = await fetch('/api/atmosphere?action=checkin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: atmStatus, note: atmNote || undefined }) })
+                    if (res.ok) {
+                      setAtmChecked(true)
+                      const cat = ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || ''
+                      try { localStorage.setItem(`wri-atm-cat-${todayStr}`, cat) } catch {}
+                      const t2 = await getToken()
+                      const r2 = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${t2}` } })
+                      if (r2.ok) { const d = await r2.json(); if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 }) }
+                    }
+                  } catch {}
+                  setAtmLoading(false)
+                }} disabled={atmLoading}
+                  style={{ padding: '8px 24px', borderRadius: 6, background: ATM_COLORS[ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || 'green'].dot, border: 'none', color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: atmLoading ? 'wait' : 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                  {atmLoading ? 'RECORDING…' : atmChecked ? 'UPDATE CHECK-IN' : 'RECORD CHECK-IN'}
+                </button>
+              )}
+              {atmCommunity && atmCommunity.total > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 8 }}>COMMUNITY ATMOSPHERE — {atmCommunity.total} WARRIORS CHECKED IN</div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+                    {(['green', 'amber', 'purple'] as const).map(cat => {
+                      const col = ATM_COLORS[cat]
+                      const count = atmCommunity.tally[cat] || 0
+                      const pct = atmCommunity.total > 0 ? Math.round((count / atmCommunity.total) * 100) : 0
+                      return (
+                        <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot }} />
+                          <span style={{ fontFamily: cinzel, fontSize: 9, color: col.text, letterSpacing: '0.08em' }}>{col.label.toUpperCase()} {pct}%</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: bdr }}>
+                    {(['green', 'amber', 'purple'] as const).map(cat => {
+                      const count = atmCommunity.tally[cat] || 0
+                      const pct = atmCommunity.total > 0 ? (count / atmCommunity.total) * 100 : 0
+                      return pct > 0 ? <div key={cat} style={{ width: `${pct}%`, background: ATM_COLORS[cat].dot, transition: 'width 0.4s ease' }} /> : null
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Scripture (soldier+) */}
-          {devotion.scripture && (
-            <LockedSection tierNeeded={1}>
-              <div style={{ textAlign: 'center' as const, marginBottom: 28, padding: '20px' }}>
-                <div style={{ fontFamily: crimson, fontSize: 20, color: GD, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 8 }}>"{devotion.scripture}"</div>
-                {devotion.scripture_reference && <div style={{ fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.1em' }}>— {devotion.scripture_reference}</div>}
-              </div>
-            </LockedSection>
+          <div style={{ height: 1, background: `rgba(201,168,76,0.08)`, marginBottom: 28 }} />
+
+          {/* ── 2. TODAY'S BRIEFING ── */}
+          {devotion.title && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 8 }}>TODAY'S BRIEFING — Your morning field briefing</div>
+              <div style={{ fontFamily: cinzel, fontSize: 20, color: txt, letterSpacing: '0.05em', marginBottom: 16, fontWeight: 700 }}>{devotion.title}</div>
+            </div>
           )}
 
           {/* Devotional text (soldier+) */}
@@ -1595,7 +1728,154 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
             </LockedSection>
           )}
 
-          {/* Daily video (commander+) */}
+          <div style={{ height: 1, background: `rgba(201,168,76,0.08)`, marginBottom: 24 }} />
+
+          {/* ── 3. SPIRIT OF THE DAY ── */}
+          {isToday && spiritOfDay && (
+            <div style={{ marginBottom: 28, border: '1px solid rgba(167,139,250,0.25)', borderRadius: 10, padding: '16px 20px', background: isDark ? 'rgba(167,139,250,0.04)' : surf }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(167,139,250,0.8)', letterSpacing: '0.14em', marginBottom: 8 }}>⚡ SPIRIT INTELLIGENCE — TODAY'S FOCUS</div>
+              <div style={{ fontFamily: cinzel, fontSize: 18, color: GD, marginBottom: 14 }}>{spiritOfDay.name}</div>
+              {spiritOfDay.manifestation && (
+                <div style={{ marginBottom: 10 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>PRIMARY MANIFESTATION</span>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: txt, marginTop: 3, lineHeight: 1.5 }}>{spiritOfDay.manifestation}</div>
+                </div>
+              )}
+              {spiritOfDay.legalGround && (
+                <div style={{ marginBottom: 10 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>LEGAL GROUND</span>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: txt, marginTop: 3, lineHeight: 1.5 }}>{spiritOfDay.legalGround}</div>
+                </div>
+              )}
+              {spiritOfDay.scripture && (
+                <div style={{ marginBottom: 14 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>KEY SCRIPTURE</span>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: txt, marginTop: 3 }}>{spiritOfDay.scripture}</div>
+                </div>
+              )}
+              <button onClick={() => {}} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.08em', padding: 0, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                View Full Dossier →
+              </button>
+            </div>
+          )}
+
+          {/* ── 4. DAILY MISSIONS ── */}
+          {isToday && dailyMissions.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ height: 1, background: `rgba(201,168,76,0.08)`, marginBottom: 20 }} />
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.14em', marginBottom: 12 }}>⚑ TODAY'S ASSIGNMENTS</div>
+              {timeMode !== 'morning' && (
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, marginBottom: 10 }}>{completedMissions.size}/3 assignments complete</div>
+              )}
+              {timeMode === 'evening' && completedMissions.size === dailyMissions.length ? (
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: GD, padding: '10px 0' }}>⚔ All assignments complete — well fought</div>
+              ) : timeMode === 'evening' && completedMissions.size === 0 ? (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 8 }}>Tomorrow is a new day</div>
+              ) : null}
+              {dailyMissions.map((m: any, i: number) => {
+                const done = completedMissions.has(m.id)
+                if (timeMode === 'evening' && done) return null
+                return (
+                  <div key={m.id} onClick={() => {
+                    setCompletedMissions(prev => {
+                      const next = new Set(prev)
+                      if (next.has(m.id)) next.delete(m.id); else next.add(m.id)
+                      try { localStorage.setItem(`wri-missions-${todayStr}`, JSON.stringify([...next])) } catch {}
+                      return next
+                    })
+                  }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < dailyMissions.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: done ? GD : 'transparent', border: done ? 'none' : '1.5px solid rgba(201,168,76,0.3)' }}>
+                      {done && <span style={{ color: '#0D0B14', fontSize: 10, fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <span style={{ fontFamily: crimson, fontSize: 13, lineHeight: 1.5, color: done ? mut : txt, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.5 : 1 }}>{m.text}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <div style={{ height: 1, background: `rgba(201,168,76,0.08)`, marginBottom: 24 }} />
+
+          {/* ── 5. TODAY'S SCRIPTURE with commentary toggle ── */}
+          {devotion.scripture && (
+            <LockedSection tierNeeded={1}>
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 12 }}>TODAY'S SCRIPTURE</div>
+                <div style={{ textAlign: 'center' as const, padding: '16px 20px', background: 'rgba(201,168,76,0.03)', border: `1px solid ${bdr}`, borderRadius: 8, marginBottom: 8 }}>
+                  <div style={{ fontFamily: crimson, fontSize: 20, color: GD, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 8 }}>"{devotion.scripture}"</div>
+                  {devotion.scripture_reference && <div style={{ fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.1em' }}>— {devotion.scripture_reference}</div>}
+                </div>
+                <button onClick={async () => {
+                  const next = !showCommentary
+                  setShowCommentary(next)
+                  if (next && !commentary && devotion.scripture_reference) {
+                    try {
+                      const token = await getToken()
+                      const res = await fetch(`/api/bible-ask?reference=${encodeURIComponent(devotion.scripture_reference)}&commentary=true`, { headers: { Authorization: `Bearer ${token}` } })
+                      if (res.ok) { const d = await res.json(); setCommentary(d.commentary || '') }
+                    } catch {}
+                  }
+                }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.08em', padding: '4px 0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                  📖 Matthew Henry Commentary {showCommentary ? '▴' : '▾'}
+                </button>
+                {showCommentary && (
+                  <div style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 12, marginTop: 8 }}>
+                    {commentary
+                      ? <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.7 }}>{commentary.slice(0, 400)}{commentary.length > 400 ? '…' : ''}</div>
+                      : <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>Commentary coming soon</div>
+                    }
+                  </div>
+                )}
+              </div>
+            </LockedSection>
+          )}
+
+          {/* ── 6. MORNING PRAYER ── */}
+          {devotion.morning_prayer && (
+            <LockedSection tierNeeded={0}>
+              <div style={{ marginBottom: 24 }}>
+                {timeMode !== 'morning' && (
+                  <button onClick={() => {}} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.08em', padding: '10px 0', display: 'block', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                    ☀ Morning Prayer ▾
+                  </button>
+                )}
+                {timeMode === 'morning' && (
+                  <div style={{ marginBottom: 28, background: 'rgba(201,168,76,0.04)', borderRadius: '0 8px 8px 0', padding: '16px 20px', border: `1px solid ${bdr}`, borderLeft: `4px solid ${GD}` }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.18em', marginBottom: 10 }}>MORNING PRAYER</div>
+                    <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.morning_prayer}</div>
+                  </div>
+                )}
+              </div>
+            </LockedSection>
+          )}
+
+          {/* ── 7. EVENING PRAYER (featured in evening, collapsed otherwise) ── */}
+          {devotion.evening_prayer && (
+            <LockedSection tierNeeded={2}>
+              <div style={{ marginBottom: 28 }}>
+                {timeMode === 'evening' ? (
+                  <div style={{ background: 'rgba(61,90,128,0.06)', borderRadius: '0 8px 8px 0', padding: '16px 20px', border: '1px solid rgba(61,90,128,0.2)', borderLeft: '4px solid #3d5a80' }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5c7cbf', letterSpacing: '0.18em', marginBottom: 10 }}>EVENING PRAYER</div>
+                    <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.evening_prayer}</div>
+                  </div>
+                ) : (
+                  <>
+                    <button onClick={() => setShowEveningPrayer(v => !v)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.08em', padding: '10px 0', display: 'block', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                      🌙 {timeMode === 'midday' ? 'Evening Prayer approaching' : 'Evening Prayer'} {showEveningPrayer ? '▴' : '▾'}
+                    </button>
+                    {showEveningPrayer && (
+                      <div style={{ background: 'rgba(61,90,128,0.06)', borderRadius: '0 8px 8px 0', padding: '16px 20px', border: '1px solid rgba(61,90,128,0.2)', borderLeft: '4px solid #3d5a80', marginTop: 8 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5c7cbf', letterSpacing: '0.18em', marginBottom: 10 }}>EVENING PRAYER</div>
+                        <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.evening_prayer}</div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </LockedSection>
+          )}
+
+          {/* ── Daily video (commander+) ── */}
           {devotion.youtube_url && (
             <LockedSection tierNeeded={2}>
               <div style={{ marginBottom: 28 }}>
@@ -1611,151 +1891,54 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
             </LockedSection>
           )}
 
-          {/* Evening Prayer (commander+) */}
-          {devotion.evening_prayer && (
-            <LockedSection tierNeeded={2}>
-              <div style={{ borderLeft: '4px solid #3d5a80', paddingLeft: 20, marginBottom: 28, background: 'rgba(61,90,128,0.06)', borderRadius: '0 8px 8px 0', padding: '16px 20px', borderTop: `1px solid rgba(61,90,128,0.2)`, borderRight: `1px solid rgba(61,90,128,0.2)`, borderBottom: `1px solid rgba(61,90,128,0.2)` }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5c7cbf', letterSpacing: '0.18em', marginBottom: 10 }}>EVENING PRAYER</div>
-                <div style={{ fontFamily: crimson, fontSize: 16, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{devotion.evening_prayer}</div>
-              </div>
-            </LockedSection>
-          )}
-
-          {/* ── Watchman Atmosphere Check-In ── */}
-          {isToday && (
-            <div style={{ marginTop: 32, borderTop: `1px solid ${bdr}`, paddingTop: 28 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.18em', marginBottom: 4 }}>📡 WATCHMAN CHECK-IN</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 16 }}>
-                {atmChecked ? 'Your atmosphere reading for today is recorded.' : 'How is your spiritual atmosphere today?'}
-              </div>
-
-              {/* Status pills — show fewer by default */}
-              {(() => {
-                const visible = atmShowAll ? ATMOSPHERE_STATUSES : ATMOSPHERE_STATUSES.slice(0, 10)
-                return (
-                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
-                    {visible.map(s => {
-                      const col = ATM_COLORS[s.category]
-                      const active = atmStatus === s.id
-                      return (
-                        <button
-                          key={s.id}
-                          onClick={() => { if (!atmLoading) setAtmStatus(prev => prev === s.id ? null : s.id) }}
-                          style={{
-                            padding: '6px 12px', borderRadius: 20,
-                            background: active ? col.bg : 'transparent',
-                            border: `1px solid ${active ? col.border : bdr}`,
-                            color: active ? col.text : mut,
-                            fontFamily: crimson, fontSize: 13, cursor: 'pointer',
-                            transition: 'all 0.15s',
-                            touchAction: 'manipulation',
-                            WebkitTapHighlightColor: 'transparent',
-                          } as React.CSSProperties}
-                        >
-                          {s.emoji} {s.label}
-                        </button>
-                      )
-                    })}
-                    <button
-                      onClick={() => setAtmShowAll(p => !p)}
-                      style={{ padding: '6px 12px', borderRadius: 20, background: 'transparent', border: `1px solid ${bdr}`, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                    >
-                      {atmShowAll ? 'LESS' : 'MORE'}
+          {/* ── 8. EVENING DEBRIEF (evening mode only) ── */}
+          {isToday && timeMode === 'evening' && (
+            <div style={{ marginTop: 8, marginBottom: 28, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 20px' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.14em', marginBottom: 12 }}>🌙 EVENING DEBRIEF</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, marginBottom: 16 }}>How did today go?</div>
+              {debriefChoice ? (
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: GD }}>{debriefChoice === 'victory' ? '⚔ Victory recorded' : debriefChoice === 'held' ? '🛡 Held ground recorded' : '🌧 Heavy day noted — rest, warrior'}</div>
+              ) : (
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[{ key: 'victory', label: '⚔ Victory' }, { key: 'held', label: '🛡 Held Ground' }, { key: 'heavy', label: '🌧 Heavy Day' }].map(opt => (
+                    <button key={opt.key} onClick={() => {
+                      setDebriefChoice(opt.key)
+                      try { localStorage.setItem(`wri-debrief-${todayStr}`, opt.key) } catch {}
+                    }} style={{ flex: 1, padding: '12px 8px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 8, fontFamily: cinzel, fontSize: 10, color: GD, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                      {opt.label}
                     </button>
-                  </div>
-                )
-              })()}
-
-              {/* Note input */}
-              {atmStatus && (
-                <textarea
-                  value={atmNote}
-                  onChange={e => setAtmNote(e.target.value)}
-                  placeholder="Add a brief note (optional, max 280 chars)…"
-                  maxLength={280}
-                  rows={2}
-                  style={{
-                    width: '100%', boxSizing: 'border-box' as const,
-                    background: isDark ? 'rgba(13,11,20,0.8)' : '#F5F3EF',
-                    border: `1px solid ${bdr}`, borderRadius: 6,
-                    color: txt, fontFamily: crimson, fontSize: 14,
-                    padding: '8px 12px', resize: 'none' as const,
-                    outline: 'none', marginBottom: 10,
-                  }}
-                />
-              )}
-
-              {/* Submit button */}
-              {atmStatus && (
-                <button
-                  onClick={async () => {
-                    setAtmLoading(true)
-                    try {
-                      const token = await getToken()
-                      const res = await fetch('/api/atmosphere?action=checkin', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ status: atmStatus, note: atmNote || undefined }),
-                      })
-                      if (res.ok) {
-                        setAtmChecked(true)
-                        // Refresh community tally
-                        const t2 = await getToken()
-                        const r2 = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${t2}` } })
-                        if (r2.ok) { const d = await r2.json(); if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 }) }
-                      }
-                    } catch {}
-                    setAtmLoading(false)
-                  }}
-                  disabled={atmLoading}
-                  style={{
-                    padding: '8px 24px', borderRadius: 6,
-                    background: ATM_COLORS[ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || 'green'].dot,
-                    border: 'none', color: '#0D0B14',
-                    fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em',
-                    cursor: atmLoading ? 'wait' : 'pointer',
-                    touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
-                  } as React.CSSProperties}
-                >
-                  {atmLoading ? 'RECORDING…' : atmChecked ? 'UPDATE CHECK-IN' : 'RECORD CHECK-IN'}
-                </button>
-              )}
-
-              {/* Community tally */}
-              {atmCommunity && atmCommunity.total > 0 && (
-                <div style={{ marginTop: 20 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 8 }}>
-                    COMMUNITY ATMOSPHERE — {atmCommunity.total} WARRIORS CHECKED IN
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
-                    {(['green', 'amber', 'purple'] as const).map(cat => {
-                      const col = ATM_COLORS[cat]
-                      const count = atmCommunity.tally[cat] || 0
-                      const pct = atmCommunity.total > 0 ? Math.round((count / atmCommunity.total) * 100) : 0
-                      return (
-                        <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot }} />
-                          <span style={{ fontFamily: cinzel, fontSize: 9, color: col.text, letterSpacing: '0.08em' }}>
-                            {col.label.toUpperCase()} {pct}%
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {/* Visual bar */}
-                  <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 8, background: bdr }}>
-                    {(['green', 'amber', 'purple'] as const).map(cat => {
-                      const count = atmCommunity.tally[cat] || 0
-                      const pct = atmCommunity.total > 0 ? (count / atmCommunity.total) * 100 : 0
-                      return pct > 0 ? (
-                        <div key={cat} style={{ width: `${pct}%`, background: ATM_COLORS[cat].dot, transition: 'width 0.4s ease' }} />
-                      ) : null
-                    })}
-                  </div>
+                  ))}
                 </div>
               )}
             </div>
           )}
+
+          {/* ── 9. TOMORROW TEASER (evening mode only) ── */}
+          {isToday && timeMode === 'evening' && (
+            <div style={{ marginBottom: 28 }}>
+              <button onClick={async () => {
+                const next = !showTomorrow
+                setShowTomorrow(next)
+                if (next && !tomorrowSpirit) {
+                  try {
+                    const token = await getToken()
+                    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+                    const tDate = tomorrow.toISOString().slice(0, 10)
+                    const res = await fetch(`/api/spirit-of-day?date=${tDate}`, { headers: { Authorization: `Bearer ${token}` } })
+                    if (res.ok) { const d = await res.json(); setTomorrowSpirit(d.spirit || null) }
+                  } catch {}
+                }
+              }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.08em', padding: '8px 0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                Tomorrow's Focus {showTomorrow ? '▴' : '▾'}
+              </button>
+              {showTomorrow && tomorrowSpirit && (
+                <div style={{ padding: '10px 14px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${bdr}`, borderRadius: 8, marginTop: 6 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 12, color: GD }}>⚡ {tomorrowSpirit.name}</span>
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       )}
       </div>
@@ -11549,19 +11732,23 @@ function CommunityPage() {
     <>
       {/* Compact sidebar header */}
       <div style={{ padding: sidebarCollapsed && !isMobile ? '10px 4px' : '10px 14px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed && !isMobile ? 'center' : undefined, gap: 10, flexShrink: 0, overflow: 'hidden' }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: '50%',
-          background: 'rgba(201,168,76,0.15)',
-          border: `1px solid ${V.bdr}`,
-          flexShrink: 0, overflow: 'hidden',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: cinzel, fontSize: 11, color: G,
-        }}>
-          {user?.imageUrl
-            ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : (user?.firstName?.[0] || 'W')
-          }
-        </div>
+        {(() => {
+          let ringColor = 'rgba(201,168,76,0.3)'
+          try {
+            const cat = localStorage.getItem(`wri-atm-cat-${new Date().toISOString().slice(0, 10)}`)
+            if (cat === 'green') ringColor = '#22c55e'
+            else if (cat === 'amber') ringColor = '#f59e0b'
+            else if (cat === 'purple') ringColor = '#a855f7'
+          } catch {}
+          return (
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, boxShadow: `0 0 0 2px ${ringColor}` }}>
+              {user?.imageUrl
+                ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (user?.firstName?.[0] || 'W')
+              }
+            </div>
+          )
+        })()}
         {!(sidebarCollapsed && !isMobile) && (
           <>
             <div style={{ flex: 1, minWidth: 0 }}>

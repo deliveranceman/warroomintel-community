@@ -214,3 +214,6 @@
 
 [functions."deliverance-protocol"]
   timeout = 30
+
+[functions."spirit-of-day"]
+  timeout = 15

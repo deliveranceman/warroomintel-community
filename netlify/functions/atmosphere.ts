@@ -288,6 +288,72 @@ async function solAlert(userId: string, body: any): Promise<Response> {
   return json({ ok: true, alert: alertText })
 }
 
+async function getMissions(): Promise<Response> {
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Return cached missions if available
+  const cacheRes = await fetch(SB(`/daily_missions_cache?cache_date=eq.${today}&select=*`), { headers: sbH })
+  const cacheRows: any[] = await cacheRes.json().catch(() => [])
+  if (Array.isArray(cacheRows) && cacheRows[0]) {
+    return json({ missions: cacheRows[0].missions || [] })
+  }
+
+  // Fetch community summary for context
+  const { data: rows } = await sbFetch(
+    `/atmosphere_checkins?date=eq.${today}&is_public=eq.true&select=category,status`,
+  )
+  const arr: any[] = Array.isArray(rows) ? rows : []
+  const tally: Record<string, number> = { green: 0, amber: 0, purple: 0 }
+  let prayerRequested = 0
+  for (const r of arr) {
+    tally[r.category] = (tally[r.category] || 0) + 1
+    if (r.status === 'need-prayer') prayerRequested++
+  }
+
+  const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+  const context = {
+    date: today,
+    dayOfWeek,
+    greenCount: tally.green,
+    amberCount: tally.amber,
+    purpleCount: tally.purple,
+    totalCheckins: arr.length,
+    prayerRequested,
+  }
+
+  const Anthropic = (await import('@anthropic-ai/sdk')).default
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+
+  let missions: any[] = []
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 300,
+      system: 'You are SOL, War Room Intel\'s AI officer. Generate exactly 3 short kingdom assignments for deliverance ministers based on today\'s community data. Each mission must be one sentence, actionable, specific, and ministry-focused. Return as JSON array: [{"id":"m1","text":"...","type":"intercession"},{"id":"m2","text":"...","type":"encouragement"},{"id":"m3","text":"...","type":"prayer"}] where type is one of: intercession, encouragement, posting, prayer, outreach. Return ONLY the JSON array, no other text.',
+      messages: [{ role: 'user', content: `Today\'s data: ${JSON.stringify(context)}` }],
+    })
+    const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '[]'
+    const match = text.match(/\[[\s\S]*\]/)
+    missions = match ? JSON.parse(match[0]) : []
+  } catch {
+    missions = [
+      { id: 'm1', text: 'Intercede for the warriors carrying amber status today — stand in the gap for their burdens.', type: 'intercession' },
+      { id: 'm2', text: 'Post an encouraging word in the War Room for those who are weary.', type: 'posting' },
+      { id: 'm3', text: 'Pray over your ministry assignments from the past 7 days and release them to the Lord.', type: 'prayer' },
+    ]
+  }
+
+  // Cache for today
+  await sbFetch('/daily_missions_cache', 'POST', { cache_date: today, missions })
+    .then(async r => {
+      if (r.status === 409 || r.status >= 400) {
+        await sbFetch(`/daily_missions_cache?cache_date=eq.${today}`, 'PATCH', { missions })
+      }
+    }).catch(() => {})
+
+  return json({ missions })
+}
+
 async function snapshot(): Promise<Response> {
   // Compute and store today's snapshot (called by scheduled function or manually)
   const today = new Date().toISOString().slice(0, 10)
@@ -351,6 +417,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'community-summary') return communitySummary()
   if (action === 'my-history')        return myHistory(userId, url.searchParams)
   if (action === 'weekly-trend')      return weeklyTrend()
+  if (action === 'missions')          return getMissions()
 
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
