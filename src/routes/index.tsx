@@ -795,7 +795,7 @@ function PricingSection() {
   const tiers = [
     {
       name: 'Watchman', cls: 'IV' as const, price: '$0', period: 'forever', badge: null,
-      features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', 'Demon database — name, type, kingdom, function', 'Watchman protocol PDFs', '5 AI asks/day (Ask Dake, Bible AI)'],
+      features: ['General community discussion', 'Prayer requests board', 'Weekly devotional posts', 'Demon database — name, type, kingdom, function', 'Watchman protocol PDFs', '5 AI asks/day (Ask SOL, Bible AI)'],
       locked: ['Full database fields', 'Scripture & entry points', 'Deliverance protocols', 'Ministry calls'],
       btn: 'Join as Watchman', tier: null, featured: false, isSignup: true,
     },

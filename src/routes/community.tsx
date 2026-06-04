@@ -7499,7 +7499,7 @@ const BM_FIGURES: BMFigure[] = [
 // ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
 
 const TOOL_LABELS: Record<string, string> = {
-  'ask-dake': 'Ask Dake',
+  'ask-dake': 'Ask SOL',
   'symptom-investigator': 'Symptoms',
   'gateway-investigator': 'Gateway',
   'spirit-network': 'Spirits',
@@ -7547,7 +7547,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
   const FILTERS = ['all', 'ask-dake', 'symptom-investigator', 'gateway-investigator', 'spirit-network', 'ai-assistant']
 
   const AI_FEATURE_LABELS: Record<string, string> = {
-    ask_dake: 'Ask Dake', ai_assistant: 'AI Assistant', bible_ask: 'Bible Study',
+    ask_dake: 'Ask SOL', ai_assistant: 'AI Assistant', bible_ask: 'Bible Study',
     symptom_investigator: 'Symptom Inv.', gateway: 'Gateway Inv.',
     dream: 'Dream Interp.', document: 'Documents', session_ai: 'Session AI', assessment: 'Assessment',
   }

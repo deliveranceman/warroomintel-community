@@ -3,6 +3,7 @@ import { checkAndIncrementUsage, getUpgradeMessage, type AIFeature } from '../li
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -234,6 +235,16 @@ export default async function handler(req: Request) {
 
   const data = await res.json()
   const response = cleanAIOutput(data.content?.[0]?.text || '')
+
+  if (authUser && _sbUrl && _sbKey) {
+    const tool = (featureParam === 'ai_assistant' ? 'ai-assistant' : 'ask-dake')
+    fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
+      method: 'POST',
+      headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, tool, query: message.slice(0, 500), response: response.slice(0, 1000), context: {} }),
+    }).catch(() => {})
+  }
+
   return new Response(JSON.stringify({ response }), { status: 200, headers: CORS })
 }
 

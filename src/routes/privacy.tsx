@@ -76,7 +76,7 @@ export default function PrivacyPage() {
             <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Resend</strong> — transactional email delivery (notifications, receipts)</li>
             <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Stream Chat</strong> — real-time community messaging and direct messaging</li>
             <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>YouTube</strong> — embedded training videos (YouTube may set cookies when videos are played)</li>
-            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Anthropic AI</strong> — AI-powered research tools (Ask Dake, Spirit Network, Symptom/Gateway Investigators). Only ministry research queries are sent to Anthropic — no personally identifiable information is included in AI requests.</li>
+            <li style={{ marginBottom: 8 }}><strong style={{ color: '#e8d5b0' }}>Anthropic AI</strong> — AI-powered research tools (Ask SOL, Spirit Network, Symptom/Gateway Investigators). Only ministry research queries are sent to Anthropic — no personally identifiable information is included in AI requests.</li>
           </ul>
         </Section>
 

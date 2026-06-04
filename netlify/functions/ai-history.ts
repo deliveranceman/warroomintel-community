@@ -48,6 +48,7 @@ export default async (req: Request) => {
 
     const { data, error } = await query
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
+    console.log('[my-intel] userId:', userId, 'rows:', data?.length)
     return new Response(JSON.stringify({ history: data }), { status: 200, headers: HEADERS })
   }
 
