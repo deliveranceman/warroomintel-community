@@ -19,6 +19,40 @@ function dmChannelId(userA: string, userB: string): string {
   return ('dm' + hash(sorted[0]) + hash(sorted[1])).slice(0, 64)
 }
 
+async function notifyRecipientOfDmRequest(recipientId: string, requesterName: string): Promise<void> {
+  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+
+  // Push notification (fire-and-forget — auth via service key)
+  fetch(`${siteUrl}/api/send-push`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+    body: JSON.stringify({
+      title: '💬 New Message Request',
+      body: `${requesterName} wants to connect with you`,
+      userId: recipientId,
+      url: '/community',
+    }),
+  }).catch(e => console.error('[create-dm] push error:', e))
+
+  // SOL in-app message — upsert sol-bot, ensure channel, post message
+  try {
+    await streamFetch('/users', 'POST', serverToken(), {
+      users: { 'sol-bot': { id: 'sol-bot', name: 'SOL', role: 'user' } },
+    })
+    const solChanId = dmChannelId(recipientId, 'sol-bot')
+    await streamFetch(`/channels/messaging/${solChanId}/query`, 'POST', serverToken(), {
+      members: [recipientId, 'sol-bot'].sort(),
+      data: { created_by_id: 'sol-bot', is_dm: true },
+      state: true, watch: false, presence: false,
+    })
+    await streamFetch(`/channels/messaging/${solChanId}/message`, 'POST', userToken('sol-bot'), {
+      message: { text: `📬 **Message Request** — ${requesterName} wants to connect with you. Open Messages to accept or decline.` },
+    })
+  } catch (e: any) {
+    console.error('[create-dm] SOL notify error:', e.message)
+  }
+}
+
 async function createStreamChannel(userA: string, userB: string): Promise<{ channelId: string } | { error: string; detail?: unknown }> {
   const channelId = dmChannelId(userA, userB)
   const sorted = [userA, userB].sort()
@@ -291,6 +325,9 @@ async function createDM(userId: string, body: any): Promise<Response> {
       status: 'pending',
     }),
   }).catch(() => {})
+
+  // Notify recipient via push + SOL message (fire-and-forget)
+  notifyRecipientOfDmRequest(otherUserId, myName).catch(() => {})
 
   return json({ pending: true, message: 'DM request sent. Waiting for their acceptance.' })
 }

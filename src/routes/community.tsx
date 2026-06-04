@@ -9647,6 +9647,18 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     return res.json()
   }, [token, getToken])
 
+  // ── Fetch pending inbound DM requests ──
+  const fetchPendingInbound = useCallback(() => {
+    getToken().then(t => {
+      if (!t) return
+      fetch('/api/stream-messages?action=pending-requests', {
+        headers: { Authorization: `Bearer ${t}` },
+      }).then(r => r.json()).then(d => {
+        if (Array.isArray(d.requests)) setPendingInbound(d.requests)
+      }).catch(() => {})
+    })
+  }, [getToken])
+
   // ── Load conversations ──
   useEffect(() => {
     if (!userId) return
@@ -9674,17 +9686,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     })
   }, [userId])
 
-  // ── Fetch inbound pending DM requests ──
+  // ── Poll inbound pending DM requests every 30s ──
   useEffect(() => {
     if (!userId) return
-    getToken().then(t => {
-      if (!t) return
-      fetch('/api/stream-messages?action=pending-requests', {
-        headers: { Authorization: `Bearer ${t}` },
-      }).then(r => r.json()).then(d => {
-        if (Array.isArray(d.requests)) setPendingInbound(d.requests)
-      }).catch(() => {})
-    })
+    fetchPendingInbound()
+    const interval = setInterval(fetchPendingInbound, 30000)
+    return () => clearInterval(interval)
   }, [userId])
 
   // ── Auto-dismiss dmError ──
@@ -10036,17 +10043,30 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
-        {/* Pending inbound DM requests */}
+        {/* Pending inbound DM requests — prominent gold card */}
         {pendingInbound.length > 0 && (
-          <div style={{ margin: '0 12px 8px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '10px 12px', flexShrink: 0 }}>
-            <div style={{ fontSize: 10, color: GLD, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 8 }}>PENDING DM REQUESTS</div>
+          <div style={{ margin: '0 12px 10px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: 12, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <span style={{ fontFamily: 'var(--font-cinzel,serif)', fontSize: 10, color: GLD, fontWeight: 600, letterSpacing: '0.08em' }}>📬 MESSAGE REQUESTS</span>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%', background: GLD, flexShrink: 0,
+                animation: 'wri-pulse 1.4s ease-in-out infinite',
+              }} />
+              <style>{`@keyframes wri-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}`}</style>
+            </div>
             {pendingInbound.map(r => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <div style={{ flex: 1, fontSize: 13, color: '#e8dcc8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.requesterName}</div>
-                <span style={{ fontSize: 10, color: WMUT, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4, textTransform: 'capitalize' as const, flexShrink: 0 }}>{r.requesterTier}</span>
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
+                {/* Avatar */}
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontFamily: 'var(--font-cinzel,serif)', fontSize: 11, color: GLD }}>{r.requesterName?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: '#e8dcc8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.requesterName}</div>
+                  <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{r.requesterTier}</div>
+                </div>
                 <button
                   type="button"
-                  style={{ fontSize: 11, color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
+                  style={{ fontSize: 11, color: '#0D0B14', background: GLD, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer', touchAction: 'manipulation', fontFamily: 'var(--font-cinzel,serif)', fontWeight: 600, letterSpacing: '0.04em', flexShrink: 0 }}
                   onClick={async () => {
                     const data = await api('accept-dm', 'POST', { requestId: r.id })
                     if (data.ok && data.channelId) {
@@ -10064,12 +10084,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 >Accept</button>
                 <button
                   type="button"
-                  style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
+                  style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '5px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
                   onClick={async () => {
                     await api('decline-dm', 'POST', { requestId: r.id })
                     setPendingInbound(prev => prev.filter(x => x.id !== r.id))
                   }}
-                >Decline</button>
+                >✕</button>
               </div>
             ))}
           </div>
