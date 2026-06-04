@@ -9647,6 +9647,18 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     return res.json()
   }, [token, getToken])
 
+  // ── Fetch conversations from Stream ──
+  const fetchConversations = useCallback(async () => {
+    try {
+      const t = token || await getToken() || ''
+      if (!t) return
+      const data = await fetch('/api/stream-messages?action=list-conversations', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      }).then(r => r.json()).catch(() => ({}))
+      if (Array.isArray(data.conversations)) setConversations(data.conversations)
+    } catch {}
+  }, [token, getToken])
+
   // ── Fetch pending inbound DM requests ──
   const fetchPendingInbound = useCallback(() => {
     getToken().then(t => {
@@ -9693,6 +9705,18 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     const interval = setInterval(fetchPendingInbound, 30000)
     return () => clearInterval(interval)
   }, [userId])
+
+  // ── Re-fetch on tab visibility ──
+  useEffect(() => {
+    const handleVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchConversations()
+        fetchPendingInbound()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisible)
+    return () => document.removeEventListener('visibilitychange', handleVisible)
+  }, [fetchConversations, fetchPendingInbound])
 
   // ── Auto-dismiss dmError ──
   useEffect(() => {
@@ -10072,13 +10096,14 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     if (data.ok && data.channelId) {
                       setPendingInbound(prev => prev.filter(x => x.id !== r.id))
                       const cid = data.channelId
-                      setConversations(prev => [{
-                        channelId: cid,
-                        otherMember: { id: r.requesterId, name: r.requesterName, image: '', online: false },
-                        lastMessage: null,
-                        unreadCount: 0,
-                      }, ...prev.filter((c: any) => c.channelId !== cid)])
+                      const rId = data.requesterId || r.requesterId
+                      const rName = data.requesterName || r.requesterName
+                      setConversations(prev => {
+                        if (prev.find((c: any) => c.channelId === cid)) return prev
+                        return [{ channelId: cid, otherMember: { id: rId, name: rName, image: '', online: false }, lastMessage: null, unreadCount: 0 }, ...prev]
+                      })
                       selectConversation(cid)
+                      setTimeout(() => fetchConversations(), 1500)
                     }
                   }}
                 >Accept</button>
@@ -11091,6 +11116,18 @@ function CommunityPage() {
   const [chatLoading, setChatLoading]     = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // SOL floating drag
+  const [solPos, setSolPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = localStorage.getItem('wri-sol-pos')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return { x: (typeof window !== 'undefined' ? window.innerWidth : 400) - 88, y: (typeof window !== 'undefined' ? window.innerHeight : 700) - 108 }
+  })
+  const [isDraggingSol, setIsDraggingSol] = useState(false)
+  const solDragStart = useRef<{ px: number; py: number; bx: number; by: number } | null>(null)
+  const solMoved = useRef(false)
+
   // Standalone Protocol Engine state
   const [stpMode, setStpMode]                     = useState<'spirit' | 'manifestation'>('spirit')
   const [stpSpiritName, setStpSpiritName]         = useState('')
@@ -11101,6 +11138,40 @@ function CommunityPage() {
   const [stpError, setStpError]                   = useState<string | null>(null)
   const [stpTab, setStpTab]                       = useState<'intel' | 'legal' | 'renunciation' | 'command' | 'post'>('intel')
   const [stpChecked, setStpChecked]               = useState<Record<string, boolean>>({})
+
+  // ── SOL drag effect ──
+  useEffect(() => {
+    if (!isDraggingSol) return
+    const solSize = isMobile ? 52 : 72
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!solDragStart.current) return
+      const p = 'touches' in e ? e.touches[0] : e
+      const dx = p.clientX - solDragStart.current.px
+      const dy = p.clientY - solDragStart.current.py
+      if (!solMoved.current && Math.abs(dx) + Math.abs(dy) > 5) solMoved.current = true
+      const nx = Math.max(0, Math.min(window.innerWidth - solSize, solDragStart.current.bx + dx))
+      const ny = Math.max(0, Math.min(window.innerHeight - solSize, solDragStart.current.by + dy))
+      setSolPos({ x: nx, y: ny })
+    }
+    const onUp = () => {
+      setIsDraggingSol(false)
+      solDragStart.current = null
+      setSolPos(pos => {
+        try { localStorage.setItem('wri-sol-pos', JSON.stringify(pos)) } catch {}
+        return pos
+      })
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('mouseup', onUp)
+    document.addEventListener('touchend', onUp)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('touchend', onUp)
+    }
+  }, [isDraggingSol, isMobile])
 
   async function sendChat(msg: string) {
     if (!msg.trim() || chatLoading) return
@@ -13162,28 +13233,38 @@ function CommunityPage() {
         </div>
       )}
       {!isAdminPage && (() => {
-        const solIsMessaging = ['dms', 'war-room-chat', 'prayer-wall', 'testimony-wall'].includes(activeSection)
         const solSize = isMobile ? 52 : 72
         return (
           <button
-            onClick={() => setChatOpen(o => !o)}
+            onMouseDown={e => {
+              solMoved.current = false
+              solDragStart.current = { px: e.clientX, py: e.clientY, bx: solPos.x, by: solPos.y }
+              setIsDraggingSol(true)
+            }}
+            onTouchStart={e => {
+              solMoved.current = false
+              const t = e.touches[0]
+              solDragStart.current = { px: t.clientX, py: t.clientY, bx: solPos.x, by: solPos.y }
+              setIsDraggingSol(true)
+            }}
+            onClick={() => { if (!solMoved.current) setChatOpen(o => !o) }}
             style={{
               position: 'fixed',
-              ...(solIsMessaging
-                ? { top: '20px', right: '16px' }
-                : { bottom: isMobile ? '80px' : '24px', right: '16px' }),
+              left: solPos.x,
+              top: solPos.y,
               zIndex: 999,
               background: 'none',
               border: 'none',
               padding: 0,
-              cursor: 'pointer',
+              cursor: isDraggingSol ? 'grabbing' : 'pointer',
               display: 'flex',
               width: solSize,
               height: solSize,
               borderRadius: '50%',
               overflow: 'hidden',
               boxShadow: '0 0 20px 6px rgba(255, 180, 50, 0.4)',
-              touchAction: 'manipulation',
+              touchAction: 'none',
+              userSelect: 'none',
             }}
             title="Ask SOL"
           >
@@ -13191,7 +13272,7 @@ function CommunityPage() {
               src="/images/sol/sol-icon.png"
               width={solSize}
               height={solSize}
-              style={{ objectFit: 'contain' }}
+              style={{ objectFit: 'contain', pointerEvents: 'none' }}
               alt="Ask SOL"
             />
           </button>
