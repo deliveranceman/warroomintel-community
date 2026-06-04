@@ -9610,6 +9610,8 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
   )
 }
 
+const plural = (count: number, word: string) => `${count} ${count === 1 ? word : word + 's'}`
+
 // ── MessengerSection ──────────────────────────────────────────────────────────
 
 interface MConversation {
@@ -10156,7 +10158,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <span style={{ fontSize: 16, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
-            {(() => { const n = conversations.filter(c => c.otherMember?.online).length; return n > 0 ? <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#4ade80', letterSpacing: '0.1em', marginTop: 1 }}><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#22c55e', marginRight: 4, verticalAlign: 'middle' }} />{n} soldier{n !== 1 ? 's' : ''} online</div> : null })()}</div>
+            {(() => { const n = conversations.filter(c => c.otherMember?.online).length; return n > 0 ? <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#4ade80', letterSpacing: '0.1em', marginTop: 1 }}><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#22c55e', marginRight: 4, verticalAlign: 'middle' }} />{plural(n, 'soldier')} online</div> : null })()}</div>
           <button
             onClick={() => setShowNewDM(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex', alignItems: 'center' }}
@@ -10211,11 +10213,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               <span style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: '#b48ee0', fontWeight: 600, letterSpacing: '0.08em' }}>⚔ SENTINEL REQUESTS</span>
             </div>
             {sentinelRequests.map(r => {
-              const displayName = r.requesterName && r.requesterName.length > 1
-                ? r.requesterName
-                : r.requester_name && r.requester_name.length > 1
-                  ? r.requester_name
-                  : (r.requesterId || r.requester_id || '').slice(0, 8) || '?'
+              const displayName = r.requesterName || r.requester_name || 'Minister'
               const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
               return (
                 <div key={r.id} style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(107,69,150,0.3)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
@@ -11018,7 +11016,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         {activeFireTeam.assignmentType?.toUpperCase()}
                       </span>
                     </div>
-                    <div style={{ fontSize: 11, color: WMUT }}>{activeFireTeam.memberCount} members</div>
+                    <div style={{ fontSize: 11, color: WMUT }}>{activeFireTeam.assignmentType?.charAt(0).toUpperCase()}{activeFireTeam.assignmentType?.slice(1)} · {plural(activeFireTeam.memberCount ?? 0, 'member')}</div>
                   </div>
                   <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
                     <MoreHorizontal size={16} strokeWidth={1.8} />
