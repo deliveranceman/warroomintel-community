@@ -196,7 +196,7 @@ async function listConversations(userId: string): Promise<Response> {
         channelType: 'messaging',
         members: [],
         otherMember: isRequester
-          ? { id: r.recipient_id, name: 'Member', image: '', online: false }
+          ? { id: r.recipient_id, name: r.recipient_name ?? 'Member', image: '', online: false }
           : { id: r.requester_id, name: r.requester_name ?? 'Member', image: '', online: false },
         lastMessage: null,
         unreadCount: 0,
@@ -273,7 +273,8 @@ async function createDM(userId: string, body: any): Promise<Response> {
 
   const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
 
-  // Check recipient Clerk tier
+  // Check recipient Clerk tier + extract their name
+  let recipientName = otherUserName || 'Member'
   if (clerkSecretKey) {
     const clerkRes = await fetch(`https://api.clerk.com/v1/users/${otherUserId}`, {
       headers: { Authorization: `Bearer ${clerkSecretKey}` },
@@ -284,6 +285,7 @@ async function createDM(userId: string, body: any): Promise<Response> {
       if (tier === 'watchman') {
         return json({ watchman: true, message: `${otherUserName || 'This user'} is on the free tier and cannot receive DMs.` })
       }
+      recipientName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(' ') || clerkUser.username || recipientName
     }
   }
 
@@ -334,6 +336,7 @@ async function createDM(userId: string, body: any): Promise<Response> {
       requester_name: myName,
       requester_tier: myTier,
       recipient_id: otherUserId,
+      recipient_name: recipientName,
       status: 'pending',
     }),
   }).catch(() => {})

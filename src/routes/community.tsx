@@ -9860,9 +9860,20 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     if (!messageText.trim() || !resolvedChannelId) return
     const text = messageText.trim()
     setMessageText('')
-    const data = await api('send-message', 'POST', { channelId: resolvedChannelId, text })
-    if (data.message) setMessages(prev => [...prev, data.message])
-  }, [messageText, resolvedChannelId, api])
+    // Optimistic: show immediately so the UI feels instant
+    const tempId = `temp-${Date.now()}`
+    setMessages(prev => [...prev, {
+      id: tempId,
+      text,
+      type: 'regular',
+      user: { id: userId, name: 'You' },
+      created_at: new Date().toISOString(),
+    }])
+    // Send to Stream then replace optimistic with confirmed messages
+    await api('send-message', 'POST', { channelId: resolvedChannelId, text })
+    const msgs = await api(`get-messages&channelId=${resolvedChannelId}`, 'GET')
+    if (msgs.messages?.length) setMessages(msgs.messages)
+  }, [messageText, resolvedChannelId, api, userId])
 
   // ── Voice recording ──
   const startRecording = useCallback(async () => {
