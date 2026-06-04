@@ -9963,6 +9963,8 @@ interface SitrepActivity {
   verb: string
   time: string
   actor: string
+  userName?: string
+  userTier?: string
   data?: {
     type?: string
     text?: string
@@ -9991,7 +9993,8 @@ function SitrepCard({
   const typeStyle = SITREP_TYPE_STYLE[verb] || SITREP_TYPE_STYLE.thought
   const bodyText = activity.data?.text || activity.text || ''
   const counts = activity.reaction_counts || {}
-  const shortActor = (activity.actor || '').slice(-4).toUpperCase() || '??'
+  const displayName = activity.userName || activity.actor || 'SOLDIER'
+  const shortActor  = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || displayName.slice(-4).toUpperCase() || '??'
 
   return (
     <div style={{
@@ -10008,7 +10011,7 @@ function SitrepCard({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.06em' }}>{activity.actor?.slice(0, 8) || 'SOLDIER'}</span>
+            <span style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.06em' }}>{displayName.toUpperCase()}</span>
             {activity.data?.tier && (
               <span style={{ fontFamily: cinzel, fontSize: 7, color: typeStyle.text, background: typeStyle.bg, border: `1px solid ${typeStyle.text}40`, borderRadius: 3, padding: '1px 5px', letterSpacing: '0.06em' }}>{activity.data.tier.toUpperCase()}</span>
             )}
@@ -10137,7 +10140,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
         setHasMore(false)
         setCursor(null)
       } else {
-        const params: Record<string, string> = { action: 'get-timeline', limit: '20' }
+        const params: Record<string, string> = { action: 'get-timeline', limit: '20', tab }
         if (!reset && cursor) params.id_lt = cursor
         data = await api(params)
         if (reset) setActivities(data.activities || [])

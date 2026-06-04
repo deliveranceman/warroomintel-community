@@ -109,14 +109,14 @@ export default async function handler(req: Request) {
         // 4. Upsert into Stream Feeds (fire-and-forget — separate API from Chat)
         const feedsJWT = (() => {
           const h = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-          const p = Buffer.from(JSON.stringify({ server: true })).toString('base64url')
+          const p = Buffer.from(JSON.stringify({ resource: '*', action: '*', feed_id: '*' })).toString('base64url')
           const s = crypto.createHmac('sha256', streamApiSecret).update(`${h}.${p}`).digest('base64url')
           return `${h}.${p}.${s}`
         })()
-        fetch(`https://feeds.stream-io-api.com/api/v1.0/users/?api_key=${streamApiKey}`, {
+        fetch(`https://us-east-api.stream-io-api.com/api/v1.0/users/?api_key=${streamApiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': feedsJWT, 'Stream-Auth-Type': 'jwt' },
-          body: JSON.stringify({ id: streamUserId, data: { name } }),
+          body: JSON.stringify({ users: [{ id: streamUserId, name }] }),
         }).catch(e => console.error('[clerk-webhook] Feeds upsert error:', e))
       }
     }

@@ -65,16 +65,19 @@ function extractUserId(authHeader: string | null): string | null {
   } catch { return null }
 }
 
-async function resolveUserTier(userId: string): Promise<string> {
+async function resolveUserInfo(userId: string): Promise<{ tier: string; name: string }> {
   try {
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return 'watchman'
+    if (!res.ok) return { tier: 'watchman', name: userId }
     const data = await res.json()
-    return (data.public_metadata?.tier as string)?.toLowerCase() ||
-           (data.public_metadata?.role === 'minister' ? 'minister' : 'watchman')
-  } catch { return 'watchman' }
+    const tier = (data.public_metadata?.tier as string)?.toLowerCase() ||
+                 (data.public_metadata?.role === 'minister' ? 'minister' : 'watchman')
+    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') ||
+                 data.username || userId
+    return { tier, name }
+  } catch { return { tier: 'watchman', name: userId } }
 }
 
 // ── Response helpers ───────────────────────────────────────────────────────────
@@ -140,7 +143,7 @@ async function uploadPhoto(userId: string, req: Request): Promise<Response> {
   return json({ url: publicUrl })
 }
 
-async function postActivity(userId: string, userTier: string, body: any): Promise<Response> {
+async function postActivity(userId: string, userTier: string, userName: string, body: any): Promise<Response> {
   const { type, text, imageUrl, scriptureRef, spiritTag, locationTag, photoUrl, resourceUrl } = body
   const validTypes = ['thought', 'scripture', 'testimony', 'resource', 'photo', 'prayer', 'revelation', 'field']
   if (!validTypes.includes(type)) return json({ error: 'Invalid type' }, 400)
@@ -157,6 +160,10 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
     time: new Date().toISOString(),
     text: String(text || '').slice(0, 1000),
     actor: userId,
+    userName,
+    userTier,
+    // fan-out: Stream copies this activity to wri-community feed automatically
+    to: ['user:wri-community'],
     data: {
       type,
       imageUrl: imageUrl || null,
@@ -165,39 +172,41 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
       locationTag: locationTag || null,
       photoUrl: photoUrl || null,
       resourceUrl: resourceUrl || null,
-      tier: userTier,
     },
   }
 
   // Ensure user exists in Feeds before posting
-  await upsertUser(userId)
+  await upsertUser(userId, userName)
 
-  // v2 API requires activities wrapped in { activities: [...] }
-  const wrapped = { activities: [activityBody] }
+  const { status, data } = await feedFetch(feedUrl(`/feed/user/${userId}/`), 'POST', { activities: [activityBody] })
 
-  const [userRes] = await Promise.all([
-    feedFetch(feedUrl(`/feed/user/${userId}/`), 'POST', wrapped),
-    feedFetch(feedUrl(`/feed/user/wri-community/`), 'POST', wrapped),
-  ])
-
-  if (userRes.status >= 400) {
-    return json({ error: 'Failed to post', detail: userRes.data }, 502)
+  if (status >= 400) {
+    return json({ error: 'Failed to post', detail: data }, 502)
   }
 
-  // v2 returns { activities: [...] }, v1 returned { activity: {...} }
-  const activity = (userRes.data as any)?.activities?.[0] || activityBody
+  // v2 returns { activities: [...] }
+  const activity = (data as any)?.activities?.[0] || activityBody
   return json({ ok: true, activityId: activity.id || `post:${userId}:${now}`, activity })
 }
 
 async function getTimeline(userId: string, params: URLSearchParams): Promise<Response> {
   const limit = parseInt(params.get('limit') || '20', 10)
   const idLt  = params.get('id_lt') || ''
+  const tab   = params.get('tab') || 'all'
 
-  // Fire-and-forget user upsert so timeline feed exists
+  // Fire-and-forget: upsert user + auto-follow community feed (idempotent)
   upsertUser(userId).catch(() => {})
+  feedFetch(feedUrl(`/feed/timeline/${userId}/follows/`), 'POST', {
+    target: 'user:wri-community', activity_copy_limit: 300,
+  }).catch(() => {})
 
   const ltParam = idLt ? `&id_lt=${encodeURIComponent(idLt)}` : ''
-  const { data } = await feedFetch(feedUrl(`/feed/timeline/${userId}/?limit=${limit}${ltParam}`))
+  // 'all' tab reads the global community feed; 'following' reads the personalized timeline
+  const feedPath = tab === 'following'
+    ? `/feed/timeline/${userId}/?limit=${limit}${ltParam}`
+    : `/feed/user/wri-community/?limit=${limit}${ltParam}`
+
+  const { data } = await feedFetch(feedUrl(feedPath))
 
   const activities: any[] = (data as any)?.results || []
   activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
@@ -328,8 +337,8 @@ export default async function handler(req: Request): Promise<Response> {
   const body = await req.json().catch(() => ({}))
 
   if (action === 'post') {
-    const userTier = await resolveUserTier(userId)
-    return postActivity(userId, userTier, body)
+    const { tier, name } = await resolveUserInfo(userId)
+    return postActivity(userId, tier, name, body)
   }
 
   if (action === 'follow') return follow(userId, body)
