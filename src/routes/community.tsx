@@ -9412,7 +9412,14 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       try {
                         const data = await api('create-dm', 'POST', { otherUserId: member.id, otherUserName: member.name })
                         if (data.channelId) {
-                          selectConversation(data.channelId)
+                          const cid = data.channelId
+                          setConversations(prev => [{
+                            channelId: cid,
+                            otherMember: { id: member.id, name: member.name, image: member.imageUrl || '', online: false },
+                            lastMessage: null,
+                            unreadCount: 0,
+                          }, ...prev.filter((c: any) => c.channelId !== cid)])
+                          selectConversation(cid)
                           api('list-conversations').then((convData: any) => {
                             if (convData.conversations) setConversations(convData.conversations)
                           }).catch(() => {})

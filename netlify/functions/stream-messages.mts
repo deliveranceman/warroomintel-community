@@ -186,13 +186,14 @@ async function createDM(userId: string, body: any): Promise<Response> {
   if (!otherUserId) return json({ error: 'otherUserId required' }, 400)
 
   const channelId = [userId, otherUserId].sort().join('-')
+  console.log('[create-dm]', { userId, otherUserId, channelId })
 
   const res = await fetch(`https://chat.stream-io-api.com/channels/messaging/${encodeURIComponent(channelId)}?api_key=${apiKey}`, {
     method: 'POST',
     headers: streamHeaders(serverToken()),
     body: JSON.stringify({
       created_by_id: userId,
-      data: { members: [userId, otherUserId] },
+      data: { members: [userId, otherUserId], is_dm: true },
     }),
   })
 
@@ -200,6 +201,10 @@ async function createDM(userId: string, body: any): Promise<Response> {
   try { data = await res.json() } catch { data = {} }
   console.log('[create-dm] Stream response:', res.status, JSON.stringify(data).slice(0, 300))
 
+  // 409 means channel already exists — return channelId as success
+  if (res.status === 409 || (data as any)?.code === 4 || JSON.stringify(data).includes('already exists')) {
+    return json({ ok: true, channelId })
+  }
   if (!res.ok) return json({ error: 'Stream error', detail: data }, res.status)
   return json({ ok: true, channelId: (data as any).channel?.id ?? channelId })
 }
