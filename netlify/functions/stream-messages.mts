@@ -24,9 +24,12 @@ async function createStreamChannel(userA: string, userB: string): Promise<{ chan
   const sorted = [userA, userB].sort()
   const token = serverToken()
   const { status: s1, data: d1 } = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', token, {
-    data: { created_by_id: userA }, state: true, watch: false, presence: false,
+    members: sorted,
+    data: { created_by_id: userA, is_dm: true },
+    state: true, watch: false, presence: false,
   })
   if (s1 >= 500) return { error: 'Stream query failed', detail: d1 }
+  // force-add both members idempotently in case query didn't seat them
   const { status: s2, data: d2 } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, {
     add_members: sorted.map(id => ({ user_id: id })),
   })
