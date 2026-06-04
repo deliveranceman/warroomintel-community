@@ -6510,32 +6510,51 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
   useEffect(() => { setImgOpacity(0) }, [activeFigure])
 
   // Non-passive wheel + touchmove for pinch-to-zoom and pan
+  // Uses translate(tx,ty) scale(S) with transformOrigin 0 0 so all points pan uniformly
   useEffect(() => {
     const el = mapContainerRef.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
+      const prevScale = mapScaleRef.current
       const delta = e.deltaY > 0 ? 0.9 : 1.1
-      setMapScale(prev => {
-        const next = Math.min(4, Math.max(1, prev * delta))
-        mapScaleRef.current = next
-        if (next > 1) setBodyMapHintDismissed(true)
-        return next
+      const newScale = Math.min(4, Math.max(1, prevScale * delta))
+      const ratio = newScale / prevScale
+      mapScaleRef.current = newScale
+      if (newScale > 1) setBodyMapHintDismissed(true)
+      // Zoom anchored to mouse position within the container
+      const rect = el.getBoundingClientRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      setMapScale(newScale)
+      setMapOffset(prev => {
+        if (newScale <= 1) return { x: 0, y: 0 }
+        return { x: mx * (1 - ratio) + prev.x * ratio, y: my * (1 - ratio) + prev.y * ratio }
       })
     }
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault()
-        const dx = e.touches[0].clientX - e.touches[1].clientX
-        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const t0 = e.touches[0], t1 = e.touches[1]
+        const dx = t0.clientX - t1.clientX
+        const dy = t0.clientY - t1.clientY
         const dist = Math.sqrt(dx * dx + dy * dy)
+        const rect = el.getBoundingClientRect()
+        // Midpoint of the two fingers, relative to container
+        const midX = (t0.clientX + t1.clientX) / 2 - rect.left
+        const midY = (t0.clientY + t1.clientY) / 2 - rect.top
         if (lastPinchDistRef.current !== null) {
-          const ratio = dist / lastPinchDistRef.current
-          setMapScale(prev => {
-            const next = Math.min(4, Math.max(1, prev * ratio))
-            mapScaleRef.current = next
-            if (next > 1) setBodyMapHintDismissed(true)
-            return next
+          const prevScale = mapScaleRef.current
+          const pinchRatio = dist / lastPinchDistRef.current
+          const newScale = Math.min(4, Math.max(1, prevScale * pinchRatio))
+          const actualRatio = newScale / prevScale
+          mapScaleRef.current = newScale
+          if (newScale > 1) setBodyMapHintDismissed(true)
+          setMapScale(newScale)
+          // Anchor zoom to pinch midpoint so content under fingers stays fixed
+          setMapOffset(prev => {
+            if (newScale <= 1) return { x: 0, y: 0 }
+            return { x: midX * (1 - actualRatio) + prev.x * actualRatio, y: midY * (1 - actualRatio) + prev.y * actualRatio }
           })
         }
         lastPinchDistRef.current = dist
@@ -6546,6 +6565,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
           const dx = touch.clientX - lastTouchRef.current.x
           const dy = touch.clientY - lastTouchRef.current.y
           if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true
+          // Direct screen-pixel pan — correct with translate(tx,ty) scale(S)
           setMapOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
         }
         lastTouchRef.current = { x: touch.clientX, y: touch.clientY }
@@ -6742,8 +6762,8 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
                 PINCH TO ZOOM
               </div>
             )}
-            {/* Transform layer */}
-            <div style={{ transform: `scale(${mapScale}) translate(${mapOffset.x / mapScale}px, ${mapOffset.y / mapScale}px)`, transformOrigin: 'center top', willChange: 'transform', transition: mapScale === 1 ? 'transform 0.25s ease' : 'none', lineHeight: 0 }}>
+            {/* Transform layer — translate(tx,ty) scale(S) with origin 0 0 gives uniform pan at all zoom levels */}
+            <div style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapScale})`, transformOrigin: '0 0', willChange: 'transform', transition: mapScale === 1 ? 'transform 0.25s ease' : 'none', lineHeight: 0, position: 'relative' }}>
             <svg
               key={figure.image}
               viewBox="0 0 100 150"
@@ -8842,6 +8862,7 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
                   .map(member => (
                     <button
                       key={member.id}
+                      type="button"
                       onClick={async () => {
                         setShowNewDM(false); setDmSearch('')
                         const data = await api('create-dm', 'POST', { otherUserId: member.id })
@@ -8851,17 +8872,17 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
                           selectConversation(data.channelId)
                         }
                       }}
-                      style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const }}
+                      style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, WebkitTapHighlightColor: 'transparent' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                     >
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '1.5px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '1.5px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', pointerEvents: 'none' }}>
                         {member.imageUrl
-                          ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: GLD }}>{member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
+                          ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                          : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: GLD, pointerEvents: 'none' }}>{member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
                         }
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ flex: 1, minWidth: 0, pointerEvents: 'none' }}>
                         <div style={{ fontSize: 13, color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
                         <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
                       </div>
@@ -10504,7 +10525,7 @@ function CommunityPage() {
                   {stpMode === 'spirit' ? (
                     <div style={{ marginBottom: 20 }}>
                       <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SPIRIT OR SPIRIT LINE NAME</label>
-                      <input value={stpSpiritName} onChange={e => setStpSpiritName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && stpSpiritName.trim()) generateStandaloneProtocol() }} placeholder="e.g. Python, Leviathan, Jezebel" style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', boxSizing: 'border-box' as const }} />
+                      <input type="text" value={stpSpiritName} onChange={e => setStpSpiritName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && stpSpiritName.trim()) generateStandaloneProtocol() }} placeholder="e.g. Python, Leviathan, Jezebel" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', boxSizing: 'border-box' as const }} />
                       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
                         <input type="checkbox" checked={stpIncludeCluster} onChange={e => setStpIncludeCluster(e.target.checked)} style={{ accentColor: G }} />
                         <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#9a8874' : '#5C5248' }}>Include cluster spirits</span>
