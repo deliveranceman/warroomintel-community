@@ -1,6 +1,8 @@
 import crypto from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
+const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -98,11 +100,36 @@ async function getToken(userId: string): Promise<Response> {
   return json({ token })
 }
 
+async function uploadPhoto(userId: string, req: Request): Promise<Response> {
+  const formData = await req.formData()
+  const file = formData.get('file')
+  if (!file || typeof file === 'string') return json({ error: 'file required' }, 400)
+
+  const f = file as File
+  if (!f.type.startsWith('image/')) return json({ error: 'image files only' }, 400)
+  if (f.size > 10 * 1024 * 1024) return json({ error: 'max 10MB' }, 400)
+
+  const arrayBuffer = await f.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+  const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const fileName = `sitrep/${userId}/${Date.now()}-${safeName}`
+
+  const sb = createClient(supabaseUrl, serviceRoleKey)
+  const { error } = await sb.storage
+    .from('sitrep-photos')
+    .upload(fileName, buffer, { contentType: f.type, upsert: false })
+
+  if (error) return json({ error: error.message }, 500)
+
+  const { data: { publicUrl } } = sb.storage.from('sitrep-photos').getPublicUrl(fileName)
+  return json({ url: publicUrl })
+}
+
 async function postActivity(userId: string, userTier: string, body: any): Promise<Response> {
-  const { type, text, imageUrl, scriptureRef, spiritTag, locationTag } = body
-  const validTypes = ['field_report', 'prayer_request', 'victory', 'scripture', 'sitrep', 'intel_drop']
+  const { type, text, imageUrl, scriptureRef, spiritTag, locationTag, photoUrl, resourceUrl } = body
+  const validTypes = ['thought', 'scripture', 'testimony', 'resource', 'photo', 'prayer', 'revelation', 'field']
   if (!validTypes.includes(type)) return json({ error: 'Invalid type' }, 400)
-  if (!text?.trim()) return json({ error: 'text required' }, 400)
+  if (type !== 'photo' && !text?.trim()) return json({ error: 'text required' }, 400)
 
   const tierLevel = TIER_LEVEL[userTier] ?? 0
   if (tierLevel < 1) return json({ error: 'Soldier tier required to post' }, 403)
@@ -113,7 +140,7 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
     object: `post:${now}`,
     foreign_id: `post:${userId}:${now}`,
     time: new Date().toISOString(),
-    text: String(text).slice(0, 1000),
+    text: String(text || '').slice(0, 1000),
     actor: userId,
     data: {
       type,
@@ -121,8 +148,16 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
       scriptureRef: scriptureRef || null,
       spiritTag: spiritTag || null,
       locationTag: locationTag || null,
+      photoUrl: photoUrl || null,
+      resourceUrl: resourceUrl || null,
       tier: userTier,
     },
+  }
+
+  // Upsert user into Stream Feeds before posting — required for first-time posters
+  const feedsUpsert = await feedFetch(feedUrl('/users/'), 'POST', { id: userId, data: { name: userId } })
+  if ((feedsUpsert.status as number) >= 400) {
+    console.error('[sitrep/post] Feeds upsert failed:', feedsUpsert.data)
   }
 
   const [userRes, allRes] = await Promise.all([
@@ -139,6 +174,13 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
 }
 
 async function getTimeline(userId: string, params: URLSearchParams): Promise<Response> {
+  // Fire-and-forget: register user in Feeds so they can post later
+  fetch(`${FEEDS_BASE}/users/?api_key=${apiKey}`, {
+    method: 'POST',
+    headers: feedHeaders(),
+    body: JSON.stringify({ id: userId, data: { name: userId } }),
+  }).catch(e => console.error('[sitrep/timeline] Feeds upsert error:', e))
+
   const limit = parseInt(params.get('limit') || '20', 10)
   const idLt  = params.get('id_lt') || ''
 
@@ -276,6 +318,8 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'get-user-feed') return getUserFeed(url.searchParams)
 
   if (action === 'get-followers') return getFollowers(userId, url.searchParams)
+
+  if (action === 'upload-photo') return uploadPhoto(userId, req)
 
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 

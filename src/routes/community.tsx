@@ -10243,13 +10243,17 @@ function CommunityPage() {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: streamToken, 'stream-auth-type': 'jwt' },
-            body: JSON.stringify({ state: true, presence: true, watch: false }),
+            body: JSON.stringify({ state: true, messages: { limit: 50 } }),
           }
         )
         const data = await res.json()
         const presenceMap: Record<string, { online: boolean, lastActive: string | null }> = {}
         ;(data.members || []).forEach((m: any) => {
-          if (m.user?.id) presenceMap[m.user.id] = { online: m.user.online === true, lastActive: m.user.last_active || null }
+          if (m.user?.id) {
+            const lastActive = m.user.last_active || null
+            const minsAgo = lastActive ? (Date.now() - new Date(lastActive).getTime()) / 60000 : Infinity
+            presenceMap[m.user.id] = { online: minsAgo <= 15, lastActive }
+          }
         })
         setMemberPresence(presenceMap)
       } catch(e) {
@@ -11432,7 +11436,7 @@ function CommunityPage() {
                                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} />
                                         <span style={{ fontSize: 8, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>ONLINE</span>
                                       </span>
-                                    ) : lastActive && (Date.now() - new Date(lastActive).getTime()) / 60000 <= 30 ? (
+                                    ) : lastActive && (Date.now() - new Date(lastActive).getTime()) / 60000 <= 120 ? (
                                       <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', display: 'inline-block', flexShrink: 0 }} />
                                         <span style={{ fontSize: 8, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>RECENT</span>
