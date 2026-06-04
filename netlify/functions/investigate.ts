@@ -3,6 +3,7 @@ import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 // Simple in-memory rate limiter: max 10 requests per IP per minute
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -129,6 +130,14 @@ export default async function handler(req: Request) {
     const text = cleanAIOutput(message.content[0].type === 'text' ? (message.content[0].text ?? '') : '')
     const clean = text.replace(/```json|```/g, '').trim()
     const parsed = JSON.parse(clean)
+
+    if (userId !== 'anonymous' && _sbUrl && _sbKey) {
+      fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
+        method: 'POST',
+        headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, tool: 'symptom-investigator', query: symptoms.slice(0, 500), response: text.slice(0, 1000), context: {} }),
+      }).catch(() => {})
+    }
 
     return new Response(JSON.stringify(parsed), { status: 200, headers: jsonHeaders })
 

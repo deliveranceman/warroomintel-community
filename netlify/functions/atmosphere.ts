@@ -288,6 +288,48 @@ async function solAlert(userId: string, body: any): Promise<Response> {
   return json({ ok: true, alert: alertText })
 }
 
+// Module-level vibe cache (lives for process lifetime, ~30 min on Netlify)
+let vibeCache = { text: '', generatedAt: 0 }
+
+async function getDailyVibe(): Promise<Response> {
+  if (vibeCache.text && Date.now() - vibeCache.generatedAt < 30 * 60 * 1000) {
+    return json({ vibe: vibeCache.text })
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: rows } = await sbFetch(
+    `/atmosphere_checkins?date=eq.${today}&is_public=eq.true&select=category`,
+  )
+  const arr: any[] = Array.isArray(rows) ? rows : []
+  const tally: Record<string, number> = { green: 0, amber: 0, purple: 0 }
+  for (const r of arr) { tally[r.category] = (tally[r.category] || 0) + 1 }
+  const total = arr.length
+
+  if (total < 3) return json({ vibe: null })
+
+  let vibe = ''
+  try {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 60,
+      system: "You are SOL, War Room Intel's intelligence officer. Generate ONE sentence (max 15 words) describing the spiritual atmosphere of a community of deliverance ministers based on their check-in data. Be direct and ministerially useful. No fluff. No quotes.",
+      messages: [{ role: 'user', content: `Green: ${tally.green}, Amber: ${tally.amber}, Purple: ${tally.purple}, Total: ${total}` }],
+    })
+    vibe = msg.content[0].type === 'text' ? msg.content[0].text.trim().replace(/^"|"$/g, '') : ''
+  } catch {
+    const dominant = tally.green >= tally.amber && tally.green >= tally.purple ? 'green'
+      : tally.purple >= tally.amber ? 'purple' : 'amber'
+    if (dominant === 'green') vibe = 'The Regiment is largely covered — a strong day for advancing.'
+    else if (dominant === 'purple') vibe = 'Heavy intercessory presence — many soldiers on active assignment today.'
+    else vibe = 'Mixed atmosphere — cover your team before stepping into ministry.'
+  }
+
+  if (vibe) vibeCache = { text: vibe, generatedAt: Date.now() }
+  return json({ vibe: vibe || null })
+}
+
 async function getMissions(): Promise<Response> {
   const today = new Date().toISOString().slice(0, 10)
 
@@ -418,6 +460,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'my-history')        return myHistory(userId, url.searchParams)
   if (action === 'weekly-trend')      return weeklyTrend()
   if (action === 'missions')          return getMissions()
+  if (action === 'daily-vibe')        return getDailyVibe()
 
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 

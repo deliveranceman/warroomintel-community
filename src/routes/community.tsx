@@ -21,7 +21,7 @@ import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, Sect
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
 import CallOverlay from '../components/CallOverlay'
-import { Home, FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
+import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -1460,6 +1460,8 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const [atmChecked, setAtmChecked]     = useState(false)
   const [atmCommunity, setAtmCommunity] = useState<{ tally: Record<string, number>; total: number } | null>(null)
   const [atmShowAll, setAtmShowAll]     = useState(false)
+  const [atmExpanded, setAtmExpanded]   = useState(false)
+  const [dailyVibe, setDailyVibe]       = useState<string | null>(null)
 
   // New state — all before any returns
   const [spiritOfDay, setSpiritOfDay]           = useState<any>(null)
@@ -1483,15 +1485,21 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
     async function loadAtm() {
       try {
         const token = await getToken()
-        const res = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${token}` } })
-        if (res.ok) {
-          const d = await res.json()
+        const [atmRes, vibeRes] = await Promise.allSettled([
+          fetch('/api/atmosphere?action=today',      { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/atmosphere?action=daily-vibe', { headers: { Authorization: `Bearer ${token}` } }),
+        ])
+        if (atmRes.status === 'fulfilled' && atmRes.value.ok) {
+          const d = await atmRes.value.json()
           if (d.my) {
             setAtmStatus(d.my.status); setAtmChecked(true)
-            // Store category in localStorage for sidebar ring
             try { localStorage.setItem(`wri-atm-cat-${new Date().toISOString().slice(0, 10)}`, d.my.category || '') } catch {}
           }
           if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 })
+        }
+        if (vibeRes.status === 'fulfilled' && vibeRes.value.ok) {
+          const d = await vibeRes.value.json()
+          setDailyVibe(d.vibe || null)
         }
       } catch {}
     }
@@ -1628,85 +1636,135 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           {/* ── 1. WATCHMAN CHECK-IN (top) ── */}
           {isToday && (
             <div style={{ marginBottom: 28, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 20px', background: isDark ? 'rgba(201,168,76,0.03)' : surf }}>
-              <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.18em', marginBottom: 4 }}>📡 WATCHMAN CHECK-IN</div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 16 }}>
-                {atmChecked ? 'Your atmosphere reading for today is recorded.' : 'How is your spiritual atmosphere today?'}
-              </div>
-              {timeMode === 'midday' && atmChecked && atmCommunity && atmCommunity.total > 0 && (
-                <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(201,168,76,0.05)', border: `1px solid ${bdr}`, borderRadius: 8, fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>
-                  THE REGIMENT AT MIDDAY: <span style={{ color: '#22c55e' }}>{atmCommunity.tally.green || 0} COVERED</span> · <span style={{ color: '#f59e0b' }}>{atmCommunity.tally.amber || 0} CARRYING</span> · <span style={{ color: '#a855f7' }}>{atmCommunity.tally.purple || 0} ASSIGNED</span>
-                </div>
-              )}
-              {(() => {
-                const visible = atmShowAll ? ATMOSPHERE_STATUSES : ATMOSPHERE_STATUSES.slice(0, 10)
-                return (
-                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
-                    {visible.map(s => {
-                      const col = ATM_COLORS[s.category]
-                      const active = atmStatus === s.id
-                      return (
-                        <button key={s.id} onClick={() => { if (!atmLoading) setAtmStatus(prev => prev === s.id ? null : s.id) }}
-                          style={{ padding: '6px 12px', borderRadius: 20, background: active ? col.bg : 'transparent', border: `1px solid ${active ? col.border : bdr}`, color: active ? col.text : mut, fontFamily: crimson, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
-                          {s.emoji} {s.label}
-                        </button>
-                      )
-                    })}
-                    <button onClick={() => setAtmShowAll(p => !p)}
-                      style={{ padding: '6px 12px', borderRadius: 20, background: 'transparent', border: `1px solid ${bdr}`, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
-                      {atmShowAll ? 'LESS' : 'MORE'}
-                    </button>
-                  </div>
-                )
-              })()}
-              {atmStatus && (
-                <textarea value={atmNote} onChange={e => setAtmNote(e.target.value)} placeholder="Add a brief note (optional, max 280 chars)…" maxLength={280} rows={2}
-                  style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#F5F3EF', border: `1px solid ${bdr}`, borderRadius: 6, color: txt, fontFamily: crimson, fontSize: 14, padding: '8px 12px', resize: 'none' as const, outline: 'none', marginBottom: 10 }} />
-              )}
-              {atmStatus && (
-                <button onClick={async () => {
-                  setAtmLoading(true)
-                  try {
-                    const token = await getToken()
-                    const res = await fetch('/api/atmosphere?action=checkin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: atmStatus, note: atmNote || undefined }) })
-                    if (res.ok) {
-                      setAtmChecked(true)
-                      const cat = ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || ''
-                      try { localStorage.setItem(`wri-atm-cat-${todayStr}`, cat) } catch {}
-                      const t2 = await getToken()
-                      const r2 = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${t2}` } })
-                      if (r2.ok) { const d = await r2.json(); if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 }) }
-                    }
-                  } catch {}
-                  setAtmLoading(false)
-                }} disabled={atmLoading}
-                  style={{ padding: '8px 24px', borderRadius: 6, background: ATM_COLORS[ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || 'green'].dot, border: 'none', color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: atmLoading ? 'wait' : 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
-                  {atmLoading ? 'RECORDING…' : atmChecked ? 'UPDATE CHECK-IN' : 'RECORD CHECK-IN'}
-                </button>
-              )}
-              {atmCommunity && atmCommunity.total > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 8 }}>COMMUNITY ATMOSPHERE — {atmCommunity.total} WARRIORS CHECKED IN</div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginBottom: 8 }}>
-                    {(['green', 'amber', 'purple'] as const).map(cat => {
-                      const col = ATM_COLORS[cat]
-                      const count = atmCommunity.tally[cat] || 0
-                      const pct = atmCommunity.total > 0 ? Math.round((count / atmCommunity.total) * 100) : 0
-                      return (
-                        <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot }} />
-                          <span style={{ fontFamily: cinzel, fontSize: 9, color: col.text, letterSpacing: '0.08em' }}>{col.label.toUpperCase()} {pct}%</span>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.18em', marginBottom: 8 }}>📡 WATCHMAN CHECK-IN</div>
+
+              {atmChecked && !atmExpanded ? (
+                /* ── Collapsed: already checked in ── */
+                (() => {
+                  const myS = ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)
+                  const myCat = (myS?.category || 'green') as 'green' | 'amber' | 'purple'
+                  const myCol = ATM_COLORS[myCat]
+                  const dotList: string[] = []
+                  if (atmCommunity) {
+                    const t = atmCommunity.tally
+                    for (let i = 0; i < (t.green || 0) && dotList.length < 20; i++) dotList.push('green')
+                    for (let i = 0; i < (t.amber || 0) && dotList.length < 20; i++) dotList.push('amber')
+                    for (let i = 0; i < (t.purple || 0) && dotList.length < 20; i++) dotList.push('purple')
+                  }
+                  return (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: dailyVibe || dotList.length > 0 ? 10 : 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: myCol.dot, flexShrink: 0 }} />
+                          <span style={{ fontFamily: cinzel, fontSize: 12, color: myCol.text, letterSpacing: '0.06em' }}>{myS?.emoji} {myS?.label || atmStatus}</span>
                         </div>
-                      )
-                    })}
+                        <button onClick={() => setAtmExpanded(true)}
+                          style={{ background: 'none', border: 'none', color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: 0, touchAction: 'manipulation' } as React.CSSProperties}>
+                          Update ▾
+                        </button>
+                      </div>
+                      {dailyVibe && (
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? '#b0846a' : '#8b5e4a', fontStyle: 'italic', lineHeight: 1.5, marginBottom: dotList.length > 0 ? 10 : 0 }}>
+                          {dailyVibe}
+                        </div>
+                      )}
+                      {dotList.length > 0 && (
+                        <>
+                          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 3, marginBottom: 4 }}>
+                            {dotList.map((cat, i) => (
+                              <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: ATM_COLORS[cat as 'green'|'amber'|'purple'].dot }} />
+                            ))}
+                          </div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>{atmCommunity!.total} SOLDIERS CHECKED IN TODAY</div>
+                        </>
+                      )}
+                    </>
+                  )
+                })()
+              ) : (
+                /* ── Full form ── */
+                <>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 16 }}>
+                    {atmChecked ? 'Update your atmosphere reading for today.' : 'How is your spiritual atmosphere today?'}
                   </div>
-                  <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: bdr }}>
-                    {(['green', 'amber', 'purple'] as const).map(cat => {
-                      const count = atmCommunity.tally[cat] || 0
-                      const pct = atmCommunity.total > 0 ? (count / atmCommunity.total) * 100 : 0
-                      return pct > 0 ? <div key={cat} style={{ width: `${pct}%`, background: ATM_COLORS[cat].dot, transition: 'width 0.4s ease' }} /> : null
-                    })}
-                  </div>
-                </div>
+                  {timeMode === 'midday' && atmChecked && atmCommunity && atmCommunity.total > 0 && (
+                    <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(201,168,76,0.05)', border: `1px solid ${bdr}`, borderRadius: 8, fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>
+                      THE REGIMENT AT MIDDAY: <span style={{ color: '#22c55e' }}>{atmCommunity.tally.green || 0} COVERED</span> · <span style={{ color: '#f59e0b' }}>{atmCommunity.tally.amber || 0} CARRYING</span> · <span style={{ color: '#a855f7' }}>{atmCommunity.tally.purple || 0} ASSIGNED</span>
+                    </div>
+                  )}
+                  {(() => {
+                    const visible = atmShowAll ? ATMOSPHERE_STATUSES : ATMOSPHERE_STATUSES.slice(0, 10)
+                    return (
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
+                        {visible.map(s => {
+                          const col = ATM_COLORS[s.category]
+                          const active = atmStatus === s.id
+                          return (
+                            <button key={s.id} onClick={() => { if (!atmLoading) setAtmStatus(prev => prev === s.id ? null : s.id) }}
+                              style={{ padding: '6px 12px', borderRadius: 20, background: active ? col.bg : 'transparent', border: `1px solid ${active ? col.border : bdr}`, color: active ? col.text : mut, fontFamily: crimson, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                              {s.emoji} {s.label}
+                            </button>
+                          )
+                        })}
+                        <button onClick={() => setAtmShowAll(p => !p)}
+                          style={{ padding: '6px 12px', borderRadius: 20, background: 'transparent', border: `1px solid ${bdr}`, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                          {atmShowAll ? 'LESS' : 'MORE'}
+                        </button>
+                      </div>
+                    )
+                  })()}
+                  {atmStatus && (
+                    <textarea value={atmNote} onChange={e => setAtmNote(e.target.value)} placeholder="Add a brief note (optional, max 280 chars)…" maxLength={280} rows={2}
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: isDark ? 'rgba(13,11,20,0.8)' : '#F5F3EF', border: `1px solid ${bdr}`, borderRadius: 6, color: txt, fontFamily: crimson, fontSize: 14, padding: '8px 12px', resize: 'none' as const, outline: 'none', marginBottom: 10 }} />
+                  )}
+                  {atmStatus && (
+                    <button onClick={async () => {
+                      setAtmLoading(true)
+                      try {
+                        const token = await getToken()
+                        const res = await fetch('/api/atmosphere?action=checkin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: atmStatus, note: atmNote || undefined }) })
+                        if (res.ok) {
+                          setAtmChecked(true)
+                          setAtmExpanded(false)
+                          const cat = ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || ''
+                          try { localStorage.setItem(`wri-atm-cat-${todayStr}`, cat) } catch {}
+                          const t2 = await getToken()
+                          const r2 = await fetch('/api/atmosphere?action=today', { headers: { Authorization: `Bearer ${t2}` } })
+                          if (r2.ok) { const d = await r2.json(); if (d.tally) setAtmCommunity({ tally: d.tally, total: d.total || 0 }) }
+                        }
+                      } catch {}
+                      setAtmLoading(false)
+                    }} disabled={atmLoading}
+                      style={{ padding: '8px 24px', borderRadius: 6, background: ATM_COLORS[ATMOSPHERE_STATUSES.find(s => s.id === atmStatus)?.category || 'green'].dot, border: 'none', color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: atmLoading ? 'wait' : 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                      {atmLoading ? 'RECORDING…' : atmChecked ? 'UPDATE CHECK-IN' : 'RECORD CHECK-IN'}
+                    </button>
+                  )}
+                  {atmCommunity && atmCommunity.total > 0 && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 8 }}>COMMUNITY ATMOSPHERE — {atmCommunity.total} WARRIORS CHECKED IN</div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+                        {(['green', 'amber', 'purple'] as const).map(cat => {
+                          const col = ATM_COLORS[cat]
+                          const count = atmCommunity.tally[cat] || 0
+                          const pct = atmCommunity.total > 0 ? Math.round((count / atmCommunity.total) * 100) : 0
+                          return (
+                            <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot }} />
+                              <span style={{ fontFamily: cinzel, fontSize: 9, color: col.text, letterSpacing: '0.08em' }}>{col.label.toUpperCase()} {pct}%</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: bdr }}>
+                        {(['green', 'amber', 'purple'] as const).map(cat => {
+                          const count = atmCommunity.tally[cat] || 0
+                          const pct = atmCommunity.total > 0 ? (count / atmCommunity.total) * 100 : 0
+                          return pct > 0 ? <div key={cat} style={{ width: `${pct}%`, background: ATM_COLORS[cat].dot, transition: 'width 0.4s ease' }} /> : null
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -10935,7 +10993,7 @@ function CommunityPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
   })
-  const [activeSection, setActiveSection] = useState('intel')
+  const [activeSection, setActiveSection] = useState('daily-brief')
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
 
   // Preserve sidebar scroll across activeSection changes
@@ -11907,8 +11965,8 @@ function CommunityPage() {
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
-        {navItem('SITREP', 'sitrep', <span style={{ fontSize: 14, lineHeight: 1 }}>📡</span>)}
         {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
+        {navItem('SITREP', 'sitrep', <span style={{ fontSize: 14, lineHeight: 1 }}>📡</span>)}
         {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
         {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
         {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
@@ -13083,36 +13141,42 @@ function CommunityPage() {
           </div>
         </div>
       )}
-      {!isAdminPage && (
-        <button
-          onClick={() => setChatOpen(o => !o)}
-          style={{
-            position: 'fixed',
-            bottom: isMobile ? '80px' : '24px',
-            right: '16px',
-            zIndex: 999,
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            display: 'flex',
-            width: isMobile ? 56 : 72,
-            height: isMobile ? 56 : 72,
-            borderRadius: '50%',
-            overflow: 'hidden',
-            boxShadow: '0 0 20px 6px rgba(255, 180, 50, 0.4)',
-          }}
-          title="Ask SOL"
-        >
-          <img
-            src="/images/sol/sol-icon.png"
-            width={isMobile ? 56 : 72}
-            height={isMobile ? 56 : 72}
-            style={{ objectFit: 'contain' }}
-            alt="Ask SOL"
-          />
-        </button>
-      )}
+      {!isAdminPage && (() => {
+        const solIsMessaging = ['dms', 'war-room-chat', 'prayer-wall', 'testimony-wall'].includes(activeSection)
+        const solSize = isMobile ? 52 : 72
+        return (
+          <button
+            onClick={() => setChatOpen(o => !o)}
+            style={{
+              position: 'fixed',
+              ...(solIsMessaging
+                ? { top: '20px', right: '16px' }
+                : { bottom: isMobile ? '80px' : '24px', right: '16px' }),
+              zIndex: 999,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              display: 'flex',
+              width: solSize,
+              height: solSize,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              boxShadow: '0 0 20px 6px rgba(255, 180, 50, 0.4)',
+              touchAction: 'manipulation',
+            }}
+            title="Ask SOL"
+          >
+            <img
+              src="/images/sol/sol-icon.png"
+              width={solSize}
+              height={solSize}
+              style={{ objectFit: 'contain' }}
+              alt="Ask SOL"
+            />
+          </button>
+        )
+      })()}
 
       {/* Terms acceptance modal — blocks access until accepted */}
       {termsAccepted === false && user?.id && (
@@ -13268,8 +13332,8 @@ function CommunityPage() {
 
       <BottomNav
         tabs={[
-          { id: 'intel',    label: 'Home',     icon: <Home size={20} strokeWidth={1.6} /> },
-          { id: 'sitrep',   label: 'SITREP',   icon: <span style={{ fontSize: 18 }}>📡</span> },
+          { id: 'daily-brief', label: 'Daily',   icon: <span style={{ fontSize: 18 }}>☀️</span> },
+          { id: 'sitrep',      label: 'SITREP', icon: <span style={{ fontSize: 18 }}>📡</span> },
           { id: 'database', label: 'Database', icon: <Library size={20} strokeWidth={1.6} /> },
           { id: 'forum',    label: 'Ops',      icon: <MessageSquare size={20} strokeWidth={1.6} /> },
           { id: 'ai',       label: 'AI',       icon: <Zap size={20} strokeWidth={1.6} /> },

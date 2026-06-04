@@ -3,6 +3,7 @@ import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const AIRTABLE_TOKEN = airtableToken!
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
@@ -221,6 +222,16 @@ export default async function handler(req: Request) {
   try {
     const dbContext = spiritName?.trim() ? await fetchSpiritContext(spiritName.trim()) : ''
     const report = await callClaude(spiritName?.trim() || '', dbContext, personContext?.trim() || '')
+
+    if (auth.userId && _sbUrl && _sbKey) {
+      const q = [spiritName?.trim(), personContext?.trim()].filter(Boolean).join(' | ').slice(0, 500)
+      fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
+        method: 'POST',
+        headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: auth.userId, tool: 'gateway-investigator', query: q, response: JSON.stringify(report).slice(0, 1000), context: {} }),
+      }).catch(() => {})
+    }
+
     return new Response(JSON.stringify(report), { status: 200, headers })
   } catch (e: any) {
     console.error('[gateway-investigator] Error:', e.message)

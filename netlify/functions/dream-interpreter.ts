@@ -7,6 +7,7 @@ const HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json',
 }
+const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 async function resolveUser(token: string): Promise<{ ok: boolean; tier: string; userId: string }> {
   try {
@@ -161,6 +162,15 @@ export default async function handler(req: Request) {
 
   try {
     const report = await callClaude(dreamDescription.trim(), dreamerContext?.trim() || '')
+
+    if (auth.userId && _sbUrl && _sbKey) {
+      fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
+        method: 'POST',
+        headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: auth.userId, tool: 'dream-interpreter', query: dreamDescription.trim().slice(0, 500), response: JSON.stringify(report).slice(0, 1000), context: {} }),
+      }).catch(() => {})
+    }
+
     return new Response(JSON.stringify(report), { status: 200, headers: HEADERS })
   } catch (e: any) {
     console.error('[dream-interpreter] Error:', e.message)
