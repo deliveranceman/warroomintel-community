@@ -902,29 +902,41 @@ async function createCoverAll(userId: string, body: any, authHeader: string | nu
       stream_channel_id: channelId, member_count: allMembers.length, active: true,
     }),
   })
+  if (!grpRes.ok) {
+    const errBody = await grpRes.text().catch(() => '')
+    console.error('[cover-all] groups INSERT failed', grpRes.status, errBody)
+    return json({ error: 'Failed to save group — please try again' }, 500)
+  }
   const grpRows: any[] = await grpRes.json().catch(() => [])
   const groupId = Array.isArray(grpRows) && grpRows[0]?.id ? grpRows[0].id : null
+  if (!groupId) {
+    console.error('[cover-all] groups INSERT returned no id', JSON.stringify(grpRows))
+    return json({ error: 'Failed to save group — please try again' }, 500)
+  }
 
-  if (groupId) {
-    await fetch(SB('/cover_all_members'), {
+  // Insert leader + all invited members into cover_all_members so everyone sees the group
+  const memberInserts = [
+    { group_id: groupId, user_id: userId, user_name: userName, role: 'leader', status: 'active' },
+    ...inviteUserIds.map((id: string) => ({ group_id: groupId, user_id: id, user_name: '', role: 'member', status: 'active' })),
+  ]
+  await fetch(SB('/cover_all_members'), {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify(memberInserts),
+  }).catch(e => console.error('[cover-all] members INSERT failed', e))
+
+  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+  for (const inviteId of inviteUserIds) {
+    fetch(`${siteUrl}/api/send-push`, {
       method: 'POST',
-      headers: sbH,
-      body: JSON.stringify({ group_id: groupId, user_id: userId, user_name: userName, role: 'leader', status: 'active' }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({
+        title: '🛡 Cover All Invitation',
+        body: `${userName} invited you to join "${name}" Cover All group`,
+        userId: inviteId,
+        url: '/community',
+      }),
     }).catch(() => {})
-
-    const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
-    for (const inviteId of inviteUserIds) {
-      fetch(`${siteUrl}/api/send-push`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
-        body: JSON.stringify({
-          title: '🛡 Cover All Invitation',
-          body: `${userName} invited you to join "${name}" Cover All group`,
-          userId: inviteId,
-          url: '/community',
-        }),
-      }).catch(() => {})
-    }
   }
 
   return json({ ok: true, channelId, groupId })

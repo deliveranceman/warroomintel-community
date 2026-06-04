@@ -10894,10 +10894,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       body: JSON.stringify({ name: caName.trim(), territory: caTerritory.trim(), inviteUserIds: caInvites }),
                     }).then(r => r.json()).catch(() => null)
                     setCaCreating(false)
-                    if (res?.channelId) {
+                    if (res?.channelId && res?.groupId) {
                       setShowCreateCoverAll(false)
                       fetchCoverAll()
                       selectConversation(res.channelId)
+                      setTimeout(() => fetchCoverAll(), 1500)
+                    } else if (res?.error) {
+                      alert(res.error)
                     }
                   }}
                   style={{
