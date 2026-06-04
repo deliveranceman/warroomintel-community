@@ -22,7 +22,7 @@ const TIER_LEVEL: Record<string, number> = {
   minister: 99,
 }
 
-// ── JWT helpers ────────────────────────────────────────────────────────────────
+// ── JWT helper (client tokens only) ───────────────────────────────────────────
 
 function streamJWT(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
@@ -31,14 +31,22 @@ function streamJWT(payload: Record<string, unknown>): string {
   return `${header}.${body}.${sig}`
 }
 
-function serverToken(): string { return streamJWT({ server: true }) }
+// ── Server auth ── Basic auth: apiKey:feedsSecret (base64) ────────────────────
+// Stream Activity Feeds REST API uses Basic auth for server-side calls
+
+function feedsBasicAuth(): string {
+  return 'Basic ' + Buffer.from(`${apiKey}:${feedsSecret}`).toString('base64')
+}
 
 function feedHeaders(): Record<string, string> {
+  const usingFeedsSecret = !!process.env.STREAM_FEEDS_SECRET
+  console.log('[sitrep] feedsBase:', FEEDS_BASE)
+  console.log('[sitrep] apiKey:', apiKey)
+  console.log('[sitrep] feedsSecret exists:', !!feedsSecret)
+  console.log('[sitrep] auth header type:', usingFeedsSecret ? 'FEEDS_SECRET (dedicated)' : 'FALLBACK to Chat secret')
   return {
     'Content-Type': 'application/json',
-    Authorization: serverToken(),
-    'stream-auth-type': 'jwt',
-    'X-Stream-Client': 'stream-javascript-client-node-0',
+    Authorization: feedsBasicAuth(),
   }
 }
 
@@ -155,12 +163,6 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
     },
   }
 
-  // Upsert user into Stream Feeds before posting — required for first-time posters
-  const feedsUpsert = await feedFetch(feedUrl('/users/'), 'POST', { id: userId, data: { name: userId } })
-  if ((feedsUpsert.status as number) >= 400) {
-    console.error('[sitrep/post] Feeds upsert failed:', feedsUpsert.data)
-  }
-
   const [userRes, allRes] = await Promise.all([
     feedFetch(feedUrl(`/feed/user/${userId}/`), 'POST', activityBody),
     feedFetch(feedUrl(`/feed/flat/wri-all/`), 'POST', activityBody),
@@ -175,13 +177,6 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
 }
 
 async function getTimeline(userId: string, params: URLSearchParams): Promise<Response> {
-  // Fire-and-forget: register user in Feeds so they can post later
-  fetch(`${FEEDS_BASE}/users/?api_key=${apiKey}`, {
-    method: 'POST',
-    headers: feedHeaders(),
-    body: JSON.stringify({ id: userId, data: { name: userId } }),
-  }).catch(e => console.error('[sitrep/timeline] Feeds upsert error:', e))
-
   const limit = parseInt(params.get('limit') || '20', 10)
   const idLt  = params.get('id_lt') || ''
 
