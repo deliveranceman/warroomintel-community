@@ -15,6 +15,12 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  optimizeDeps: {
+    include: ['@stream-io/video-react-sdk'],
+  },
+  ssr: {
+    external: ['@stream-io/video-react-sdk'],
+  },
 })
 
 export default config
