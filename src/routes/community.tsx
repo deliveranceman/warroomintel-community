@@ -21,6 +21,7 @@ import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, Sect
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
 import CallOverlay from '../components/CallOverlay'
+import AudioPrayerCallOverlay from '../components/AudioPrayerCallOverlay'
 import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
 import { searchHelp, getArticlesByCategory } from '@/utils/helpSearch'
 import { helpCategories, helpArticles, type HelpArticle } from '@/data/helpContent'
@@ -9663,6 +9664,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol'>('all')
   const [searchQuery, setSearchQuery]         = useState('')
   const [callActive, setCallActive]           = React.useState<{ type: 'audio' | 'video'; otherUser: { id: string; name: string } } | null>(null)
+  const [activePrayerCall, setActivePrayerCall] = React.useState<{ callId: string; callType: string; channelId: string; recipientName: string; recipientId: string; isCaller: boolean } | null>(null)
+  const [incomingCall, setIncomingCall]         = React.useState<any | null>(null)
   const [showNewDM, setShowNewDM]             = React.useState(false)
   const [dmSearch, setDmSearch]               = React.useState('')
   const [dmMembers, setDmMembers]             = React.useState<any[]>([])
@@ -9846,6 +9849,27 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     document.addEventListener('visibilitychange', handleVisible)
     return () => document.removeEventListener('visibilitychange', handleVisible)
   }, [fetchConversations, fetchPendingInbound, fetchFireTeams, fetchSentinels, fetchSentinelRequests, fetchCoverAll])
+
+  // ── Poll for incoming prayer calls every 10s ──
+  useEffect(() => {
+    if (!token) return
+    const poll = async () => {
+      if (activePrayerCall || document.visibilityState !== 'visible') return
+      try {
+        const t = await getToken()
+        if (!t) return
+        const d = await fetch('/api/stream-call?action=status', {
+          headers: { Authorization: `Bearer ${t}` },
+        }).then(r => r.json()).catch(() => ({ calls: [] }))
+        if (Array.isArray(d.calls) && d.calls.length > 0) {
+          setIncomingCall(d.calls[0])
+        }
+      } catch {}
+    }
+    poll()
+    const id = setInterval(poll, 10000)
+    return () => clearInterval(id)
+  }, [token, activePrayerCall, getToken])
 
   // ── Auto-dismiss dmError ──
   useEffect(() => {
@@ -10129,6 +10153,92 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
   return (
     <>
+    {/* ── Active prayer call overlay ── */}
+    {activePrayerCall && (
+      <AudioPrayerCallOverlay
+        {...activePrayerCall}
+        onEnd={async () => {
+          const t = await getToken()
+          if (t) {
+            fetch('/api/stream-call?action=end', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ callId: activePrayerCall.callId }),
+            }).catch(() => {})
+          }
+          setActivePrayerCall(null)
+        }}
+      />
+    )}
+
+    {/* ── Incoming prayer call banner ── */}
+    {incomingCall && !activePrayerCall && (
+      <div style={{
+        position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 1999, background: '#0D0B14', border: '1px solid rgba(201,168,76,0.5)',
+        borderRadius: 12, padding: '14px 20px', minWidth: 300,
+        boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
+        display: 'flex', flexDirection: 'column' as const, gap: 10,
+        fontFamily: "'Cinzel',serif",
+      }}>
+        <div style={{ fontSize: 10, color: 'rgba(201,168,76,0.7)', letterSpacing: '0.12em' }}>
+          🎙 INCOMING PRAYER CALL
+        </div>
+        <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>
+          {incomingCall.caller_name || incomingCall.caller_id?.slice(0, 8) || 'A soldier'} wants to pray
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            type="button"
+            onClick={async () => {
+              const callerDisplayName = incomingCall.caller_name || incomingCall.caller_id?.slice(0, 8) || 'Soldier'
+              setActivePrayerCall({
+                callId: incomingCall.call_id,
+                callType: incomingCall.call_type || 'audio_room',
+                channelId: incomingCall.channel_id,
+                recipientName: callerDisplayName,
+                recipientId: incomingCall.caller_id,
+                isCaller: false,
+              })
+              setIncomingCall(null)
+              const t = await getToken()
+              if (t) {
+                fetch('/api/stream-call?action=answer', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ callId: incomingCall.call_id }),
+                }).catch(() => {})
+              }
+            }}
+            style={{
+              flex: 1, height: 40, background: '#16a34a', border: 'none', borderRadius: 8,
+              color: '#fff', fontFamily: "'Cinzel',serif", fontSize: 10,
+              letterSpacing: '0.1em', cursor: 'pointer', touchAction: 'manipulation',
+            }}
+          >✓ ACCEPT</button>
+          <button
+            type="button"
+            onClick={async () => {
+              const t = await getToken()
+              if (t) {
+                fetch('/api/stream-call?action=end', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ callId: incomingCall.call_id }),
+                }).catch(() => {})
+              }
+              setIncomingCall(null)
+            }}
+            style={{
+              flex: 1, height: 40, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)',
+              borderRadius: 8, color: '#ef4444', fontFamily: "'Cinzel',serif", fontSize: 10,
+              letterSpacing: '0.1em', cursor: 'pointer', touchAction: 'manipulation',
+            }}
+          >✗ DECLINE</button>
+        </div>
+      </div>
+    )}
+
     {callActive && token && (
       <CallOverlay
         callType={callActive.type}
@@ -11059,9 +11169,52 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       </span>
                     </div>
                   </div>
-                  <div style={{ fontSize: 10, fontFamily: 'var(--font-cinzel,serif)', color: 'rgba(201,168,76,0.4)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '3px 10px', letterSpacing: '0.08em' }}>
-                    CALLS COMING SOON
-                  </div>
+                  {activeConvo && activeConvo.otherMember?.id !== 'sol-bot' && (
+                    <button
+                      type="button"
+                      title="Start Prayer Call"
+                      onClick={async () => {
+                        const t = await getToken()
+                        if (!t || !activeConvo?.otherMember) return
+                        const res = await fetch('/api/stream-call?action=create', {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ channelId: activeConvoId, targetUserId: activeConvo.otherMember.id }),
+                        }).then(r => r.json()).catch(() => null)
+                        if (res?.callId) {
+                          // Push notify the recipient
+                          fetch('/api/send-push', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+                            body: JSON.stringify({
+                              userId: activeConvo.otherMember.id,
+                              title: '🎙 Prayer Call',
+                              body: 'Tap to join',
+                              url: '/community',
+                              data: { type: 'audio_call', channelId: activeConvoId, callId: res.callId, callType: res.callType },
+                            }),
+                          }).catch(() => {})
+                          setActivePrayerCall({
+                            callId: res.callId,
+                            callType: res.callType,
+                            channelId: activeConvoId ?? '',
+                            recipientName: activeConvo.otherMember.name || 'Soldier',
+                            recipientId: activeConvo.otherMember.id,
+                            isCaller: true,
+                          })
+                        }
+                      }}
+                      style={{
+                        background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)',
+                        borderRadius: 10, padding: '4px 12px', cursor: 'pointer',
+                        fontFamily: 'var(--font-cinzel,serif)', fontSize: 9, letterSpacing: '0.1em',
+                        color: '#C9A84C', display: 'flex', alignItems: 'center', gap: 5,
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      🎙 PRAYER CALL
+                    </button>
+                  )}
                   <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
                     <MoreHorizontal size={16} strokeWidth={1.8} />
                   </button>
