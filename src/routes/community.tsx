@@ -6043,280 +6043,432 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
 }
 
 // ── BETA TRACKER VIEW ──────────────────────────────────────
-function BetaTrackerView({ theme, userTier, isMobile, setSidebarOpen, userId, userName: _userName }: {
-  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
+function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTier }: {
+  isDark: boolean; isMobile: boolean; getToken: () => Promise<string | null>; userId: string; userTier: string
 }) {
-  const { getToken } = useAuth()
-  const isDark = theme !== 'light'
+  const G      = '#C9A84C'
   const bg     = isDark ? '#0D0B14' : '#FAF8F5'
-  const surf   = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
   const bdr    = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
   const text   = isDark ? '#E8D5B0' : '#2D2924'
   const muted  = isDark ? '#8B7355' : '#5C5248'
+  const surf   = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
   const isMinister = userTier === 'minister'
 
-  const REPORT_TYPES = ['bug', 'feature', 'crash', 'ui', 'performance', 'other'] as const
-  type ReportType = typeof REPORT_TYPES[number]
-  const TYPE_LABEL: Record<ReportType, string>  = { bug: '🐛 Bug', feature: '✨ Feature', crash: '💥 Crash', ui: '🎨 UI', performance: '⚡ Perf', other: '📝 Other' }
-  const TYPE_COLOR: Record<ReportType, string>  = { bug: '#ef4444', feature: '#4ade80', crash: '#f97316', ui: '#a78bfa', performance: '#38bdf8', other: '#8B7355' }
-  const STATUS_COLOR: Record<string, string>    = { open: '#C9A84C', in_progress: '#4a90d9', done: '#4ade80', wont_fix: '#6b7280' }
-  const PRIORITY_COLOR: Record<string, string>  = { low: '#6b7280', normal: '#C9A84C', high: '#f97316', critical: '#ef4444' }
+  // ── State ───────────────────────────────────────────────────────────────────
+  const [reports, setReports]               = useState<any[]>([])
+  const [stats, setStats]                   = useState<any>(null)
+  const [loading, setLoading]               = useState(true)
+  const [activeTab, setActiveTab]           = useState<'all'|'bugs'|'features'|'questions'|'praise'>('all')
+  const [statusFilter, setStatusFilter]     = useState<'open'|'fixed'|'all'>('open')
+  const [sortBy, setSortBy]                 = useState<'new'|'top'>('new')
+  const [showComposer, setShowComposer]     = useState(false)
+  const [composerType, setComposerType]     = useState<'bug'|'feature'|'question'|'praise'>('bug')
+  const [composerTitle, setComposerTitle]   = useState('')
+  const [composerDesc, setComposerDesc]     = useState('')
+  const [composerSection, setComposerSection] = useState('')
+  const [screenshots, setScreenshots]       = useState<File[]>([])
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([])
+  const [submitting, setSubmitting]         = useState(false)
+  const [uploadingCount, setUploadingCount] = useState(0)
+  const [expandedIds, setExpandedIds]       = useState<Set<string>>(new Set())
+  const [triageOpenIds, setTriageOpenIds]   = useState<Set<string>>(new Set())
+  const [triageData, setTriageData]         = useState<Record<string, any>>({})
+  const [successMsg, setSuccessMsg]         = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [reports, setReports]         = useState<any[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [activeTab, setActiveTab]     = useState<ReportType | 'all'>('all')
-  const [sort, setSort]               = useState<'new' | 'top'>('new')
-  const [showComposer, setShowComposer] = useState(false)
-  const [cType, setCType]             = useState<ReportType>('bug')
-  const [cPage, setCPage]             = useState('')
-  const [cTitle, setCTitle]           = useState('')
-  const [cDesc, setCDesc]             = useState('')
-  const [cScreenshotUrl, setCScreenshotUrl] = useState('')
-  const [uploading, setUploading]     = useState(false)
-  const [submitting, setSubmitting]   = useState(false)
-  const [submitError, setSubmitError] = useState('')
-  const [triageId, setTriageId]       = useState<string | null>(null)
-  const [triageStatus, setTriageStatus]     = useState('open')
-  const [triagePriority, setTriagePriority] = useState('normal')
-  const [triageNotes, setTriageNotes]       = useState('')
-  const [triageSaving, setTriageSaving]     = useState(false)
-
-  const betaFileRef = useRef<HTMLInputElement>(null)
-
-  async function loadReports() {
+  // ── Data fetching ──────────────────────────────────────────────────────────
+  async function fetchReports() {
     setLoading(true)
     try {
       const token = await getToken()
-      const res = await fetch('/api/beta-reports?action=list', { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) { const d = await res.json(); setReports(d.reports || []) }
+      const params = new URLSearchParams({ sort: sortBy })
+      if (activeTab !== 'all') params.set('type', activeTab.replace(/s$/, ''))
+      if (statusFilter === 'open')       params.set('status', 'open')
+      else if (statusFilter === 'fixed') params.set('status', 'fixed')
+      const res = await fetch(`/api/beta-reports?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await res.json()
+      setReports(d.reports || [])
     } catch {} finally { setLoading(false) }
   }
 
-  useEffect(() => { loadReports() }, [])
-
-  async function handleScreenshotUpload(file: File) {
-    setUploading(true)
+  async function fetchStats() {
     try {
       const token = await getToken()
-      const fd = new FormData(); fd.append('file', file)
-      const res = await fetch('/api/beta-reports?action=upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
-      if (res.ok) { const d = await res.json(); setCScreenshotUrl(d.url || '') }
-    } catch {} finally { setUploading(false) }
+      const res = await fetch('/api/beta-reports?action=stats', { headers: { Authorization: `Bearer ${token}` } })
+      const d = await res.json()
+      setStats(d)
+    } catch {}
+  }
+
+  useEffect(() => { fetchReports() }, [activeTab, statusFilter, sortBy])
+  useEffect(() => { fetchStats() }, [])
+  useEffect(() => {
+    const id = setInterval(fetchReports, 30000)
+    return () => clearInterval(id)
+  }, [activeTab, statusFilter, sortBy])
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const newFiles = Array.from(e.target.files || []).slice(0, 3 - screenshots.length)
+    setScreenshots(prev => [...prev, ...newFiles].slice(0, 3))
+    setScreenshotPreviews(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))].slice(0, 3))
+    e.target.value = ''
+  }
+
+  function removeScreenshot(idx: number) {
+    URL.revokeObjectURL(screenshotPreviews[idx])
+    setScreenshots(prev => prev.filter((_, i) => i !== idx))
+    setScreenshotPreviews(prev => prev.filter((_, i) => i !== idx))
   }
 
   async function handleSubmit() {
-    if (!cTitle.trim()) return
-    setSubmitting(true); setSubmitError('')
+    if (!composerTitle.trim() || !composerDesc.trim() || submitting) return
+    setSubmitting(true)
     try {
       const token = await getToken()
-      const res = await fetch('/api/beta-reports?action=submit', {
+      const urls: string[] = []
+      for (let i = 0; i < screenshots.length; i++) {
+        setUploadingCount(i + 1)
+        const fd = new FormData(); fd.append('file', screenshots[i])
+        const r = await fetch('/api/beta-reports?action=upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
+        const d = await r.json(); if (d.url) urls.push(d.url)
+      }
+      const res = await fetch('/api/beta-reports', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: cType, page_section: cPage, title: cTitle, description: cDesc, screenshot_url: cScreenshotUrl }),
+        body: JSON.stringify({ type: composerType, title: composerTitle, description: composerDesc, pageSection: composerSection || undefined, screenshotUrl: urls[0] || null, screenshotUrl2: urls[1] || null, screenshotUrl3: urls[2] || null }),
       })
-      if (res.ok) {
-        setCTitle(''); setCDesc(''); setCPage(''); setCScreenshotUrl(''); setShowComposer(false)
-        await loadReports()
-      } else {
-        const d = await res.json().catch(() => ({}))
-        setSubmitError(d.error || 'Failed to submit')
+      const d = await res.json()
+      if (d.report) {
+        setReports(prev => [d.report, ...prev])
+        setStats((s: any) => s ? { ...s, total: (s.total||0)+1, byType: { ...s.byType, [composerType]: (s.byType?.[composerType]||0)+1 }, byStatus: { ...s.byStatus, new: (s.byStatus?.new||0)+1 } } : s)
       }
-    } catch (e: any) { setSubmitError(e.message || 'Error') } finally { setSubmitting(false) }
+      setComposerTitle(''); setComposerDesc(''); setComposerSection('')
+      screenshotPreviews.forEach(u => URL.revokeObjectURL(u))
+      setScreenshots([]); setScreenshotPreviews([]); setUploadingCount(0); setShowComposer(false)
+      setSuccessMsg('Report transmitted'); setTimeout(() => setSuccessMsg(''), 2000)
+    } catch {} finally { setSubmitting(false) }
   }
 
-  async function handleUpvote(id: string) {
-    const token = await getToken()
-    await fetch('/api/beta-reports?action=upvote', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    await loadReports()
+  async function handleUpvote(report: any) {
+    try {
+      const token  = await getToken()
+      const voted  = (report.upvoted_by || []).includes(userId)
+      setReports(prev => prev.map(r => r.id !== report.id ? r : {
+        ...r,
+        upvoted_by: voted ? (r.upvoted_by||[]).filter((id: string) => id !== userId) : [...(r.upvoted_by||[]), userId],
+        upvotes: voted ? Math.max(0, (r.upvotes||0)-1) : (r.upvotes||0)+1,
+      }))
+      await fetch('/api/beta-reports?action=upvote', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ reportId: report.id }) })
+    } catch {}
   }
 
-  async function handleTriage(id: string) {
-    setTriageSaving(true)
+  async function handleTriage(reportId: string) {
     try {
       const token = await getToken()
-      await fetch('/api/beta-reports?action=triage', {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: triageStatus, priority: triagePriority, minister_notes: triageNotes }),
-      })
-      setTriageId(null)
-      await loadReports()
-    } finally { setTriageSaving(false) }
+      const td    = triageData[reportId] || {}
+      const res   = await fetch('/api/beta-reports', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reportId, status: td.status, priority: td.priority, adminNotes: td.adminNotes, fixSummary: td.fixSummary }) })
+      const d     = await res.json()
+      if (d.report) setReports(prev => prev.map(r => r.id === reportId ? d.report : r))
+    } catch {}
   }
 
-  const filtered = reports
-    .filter(r => activeTab === 'all' || r.type === activeTab)
-    .sort((a, b) => sort === 'top'
-      ? (b.upvotes || 0) - (a.upvotes || 0)
-      : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-
-  const stats = {
-    open:        reports.filter(r => r.status === 'open').length,
-    in_progress: reports.filter(r => r.status === 'in_progress').length,
-    done:        reports.filter(r => r.status === 'done').length,
-    total:       reports.length,
+  // ── Config ─────────────────────────────────────────────────────────────────
+  function timeAgo(iso: string): string {
+    const s = (Date.now() - new Date(iso).getTime()) / 1000
+    if (s < 60) return `${Math.floor(s)}s`; if (s < 3600) return `${Math.floor(s/60)}m`
+    if (s < 86400) return `${Math.floor(s/3600)}h`; return `${Math.floor(s/86400)}d`
   }
 
+  const iStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 12px', color: text, fontFamily: cinzel, fontSize: 10, outline: 'none' }
+
+  const STATUS_CFG: Record<string, { bg: string; color: string; label: string }> = {
+    new:         { bg: 'rgba(120,120,120,0.12)', color: '#888',    label: 'NEW' },
+    confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa', label: 'CONFIRMED' },
+    in_progress: { bg: 'rgba(212,144,58,0.12)',  color: '#d4903a', label: 'IN PROGRESS' },
+    fixed:       { bg: 'rgba(34,197,94,0.12)',   color: '#4ade80', label: '✓ FIXED' },
+    deployed:    { bg: 'rgba(34,211,102,0.15)',  color: '#22d366', label: '✓ DEPLOYED' },
+    wont_fix:    { bg: 'rgba(239,68,68,0.08)',   color: '#f87171', label: "WON'T FIX" },
+    by_design:   { bg: 'transparent',            color: '#888',    label: 'By Design' },
+    duplicate:   { bg: 'transparent',            color: '#888',    label: 'Duplicate' },
+  }
+  const TYPE_CFG: Record<string, { bg: string; color: string }> = {
+    bug:      { bg: 'rgba(239,68,68,0.15)',  color: '#f87171' },
+    feature:  { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa' },
+    question: { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
+    praise:   { bg: 'rgba(34,197,94,0.15)',  color: '#4ade80' },
+  }
+
+  const STAT_PILLS = [
+    { emoji: '🔴', label: 'New',         count: stats?.byStatus?.new||0,                                             fv: 'open'  as const },
+    { emoji: '🟡', label: 'In Progress', count: stats?.byStatus?.in_progress||0,                                    fv: 'open'  as const },
+    { emoji: '🟢', label: 'Fixed',       count: (stats?.byStatus?.fixed||0)+(stats?.byStatus?.deployed||0),         fv: 'fixed' as const },
+    { emoji: '📊', label: 'Total',       count: stats?.total||0,                                                     fv: 'all'   as const },
+  ]
+  const TABS = [
+    { key: 'all',       label: 'All' },
+    { key: 'bugs',      label: '🐛 Bugs',     typeKey: 'bug' },
+    { key: 'features',  label: '✦ Features',  typeKey: 'feature' },
+    { key: 'questions', label: '❓ Questions', typeKey: 'question' },
+    { key: 'praise',    label: '🙌 Praise',    typeKey: 'praise' },
+  ]
+  const criticalOpen = reports.filter(r => r.priority === 'critical' && ['new','confirmed','in_progress'].includes(r.status))
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: bg }}>
-      {/* Header */}
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, background: isDark ? 'rgba(201,168,76,0.03)' : surf }}>
-        {isMobile && (
-          <button onClick={() => setSidebarOpen(true)} style={{ minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: '#C9A84C', fontSize: 20, flexShrink: 0 }}>☰</button>
-        )}
-        <span style={{ fontSize: 18, flexShrink: 0 }}>⚑</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: '"Cinzel", serif', fontSize: 13, letterSpacing: '0.12em', color: '#C9A84C' }}>BETA COMMAND CENTER</div>
-          <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 12, color: muted, fontStyle: 'italic', marginTop: 1 }}>Report issues · request features · track progress</div>
-        </div>
-        <button
-          onClick={() => setShowComposer(v => !v)}
-          style={{ padding: '6px 14px', background: showComposer ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, fontFamily: '"Cinzel", serif', fontSize: 10, letterSpacing: '0.08em', color: '#C9A84C', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}
-        >{showComposer ? 'CANCEL' : '+ REPORT'}</button>
-      </div>
+      <style>{`@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.5)}}`}</style>
 
-      {/* Stats row */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
-        {([['OPEN', stats.open, STATUS_COLOR.open], ['IN PROGRESS', stats.in_progress, STATUS_COLOR.in_progress], ['RESOLVED', stats.done, STATUS_COLOR.done], ['TOTAL', stats.total, muted]] as [string, number, string][]).map(([label, count, color], i) => (
-          <div key={label} style={{ flex: 1, padding: '8px 0', textAlign: 'center', borderRight: i < 3 ? `1px solid ${bdr}` : 'none' }}>
-            <div style={{ fontFamily: '"Cinzel", serif', fontSize: 18, color, fontWeight: 700 }}>{count}</div>
-            <div style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.08em', color: muted, marginTop: 1 }}>{label}</div>
-          </div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
+        <span style={{ fontFamily: cinzel, fontSize: 17, color: G, letterSpacing: '0.08em', flex: 1 }}>⚑ BETA COMMAND</span>
+        <button onClick={() => setShowComposer(v => !v)}
+          style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${G}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+          ＋ REPORT
+        </button>
+      </div>
+      {successMsg && (
+        <div style={{ padding: '4px 20px 6px', fontFamily: cinzel, fontSize: 10, color: '#4ade80', background: 'rgba(34,197,94,0.07)', flexShrink: 0 }}>✓ {successMsg}</div>
+      )}
+
+      {/* Stats Row */}
+      <div style={{ display: 'flex', gap: 8, padding: '10px 16px', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none', flexWrap: 'nowrap' }}>
+        {STAT_PILLS.map(p => (
+          <button key={p.label} onClick={() => setStatusFilter(p.fv)}
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20, background: p.fv === statusFilter ? G : 'rgba(201,168,76,0.07)', border: `1px solid ${G}`, fontFamily: cinzel, fontSize: 10, color: p.fv === statusFilter ? '#1a1625' : G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+            {p.emoji} {p.count} {p.label}
+          </button>
         ))}
       </div>
 
-      {/* Composer */}
-      {showComposer && (
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, background: surf, flexShrink: 0 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-            {REPORT_TYPES.map(t => (
-              <button key={t} onClick={() => setCType(t)}
-                style={{ padding: '4px 10px', borderRadius: 12, border: `1px solid ${cType === t ? TYPE_COLOR[t] : bdr}22`, background: cType === t ? `${TYPE_COLOR[t]}22` : 'transparent', fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: cType === t ? TYPE_COLOR[t] : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                {TYPE_LABEL[t]}
-              </button>
-            ))}
-          </div>
-          <input value={cPage} onChange={e => setCPage(e.target.value)} placeholder="Page / section (e.g. SITREP, DMs, Profile)"
-            style={{ width: '100%', padding: '7px 10px', marginBottom: 8, background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Crimson Text", serif', fontSize: 14, color: text, outline: 'none', boxSizing: 'border-box' }} />
-          <input value={cTitle} onChange={e => setCTitle(e.target.value)} placeholder="Title — brief description of the issue or request"
-            style={{ width: '100%', padding: '7px 10px', marginBottom: 8, background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Crimson Text", serif', fontSize: 14, color: text, outline: 'none', boxSizing: 'border-box' }} />
-          <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} placeholder="Additional details, steps to reproduce, expected behavior…" rows={3}
-            style={{ width: '100%', padding: '7px 10px', marginBottom: 8, background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Crimson Text", serif', fontSize: 14, color: text, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <input ref={betaFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleScreenshotUpload(f) }} />
-            <button onClick={() => betaFileRef.current?.click()}
-              style={{ padding: '5px 12px', background: 'rgba(201,168,76,0.07)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-              {uploading ? '⌛ UPLOADING…' : cScreenshotUrl ? '✓ SCREENSHOT ATTACHED' : '📎 ATTACH SCREENSHOT'}
+      {/* Tab Bar */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, overflowX: 'auto', scrollbarWidth: 'none', flexShrink: 0, padding: '0 16px' }}>
+        {TABS.map(tab => {
+          const cnt = (tab as any).typeKey ? stats?.byType?.[(tab as any).typeKey] : null
+          const active = activeTab === tab.key
+          return (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
+              style={{ flexShrink: 0, padding: '10px 14px', background: 'transparent', border: 'none', borderBottom: `2px solid ${active ? G : 'transparent'}`, fontFamily: cinzel, fontSize: 10, color: active ? G : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', whiteSpace: 'nowrap' }}>
+              {tab.label}{cnt != null ? ` (${cnt})` : ''}
             </button>
-          </div>
-          {submitError && <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 13, color: '#ef4444', marginBottom: 8 }}>{submitError}</div>}
-          <button onClick={handleSubmit} disabled={submitting || !cTitle.trim()}
-            style={{ padding: '8px 20px', background: cTitle.trim() ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.04)', border: `1px solid ${cTitle.trim() ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius: 6, fontFamily: '"Cinzel", serif', fontSize: 10, letterSpacing: '0.1em', color: cTitle.trim() ? '#C9A84C' : muted, cursor: cTitle.trim() ? 'pointer' : 'not-allowed', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-            {submitting ? 'SUBMITTING…' : 'SUBMIT REPORT'}
+          )
+        })}
+      </div>
+
+      {/* Sort Row */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 16px', flexShrink: 0, gap: 8 }}>
+        <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>Sort:</span>
+        {(['new','top'] as const).map(s => (
+          <button key={s} onClick={() => setSortBy(s)}
+            style={{ background: 'transparent', border: 'none', padding: '2px 6px', fontFamily: cinzel, fontSize: 9, color: sortBy === s ? G : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+            {s === 'new' ? 'Latest' : 'Top Voted'}
           </button>
+        ))}
+      </div>
+
+      {/* Minister Command Panel */}
+      {isMinister && (stats?.topUpvoted?.length > 0 || criticalOpen.length > 0) && (
+        <div style={{ background: isDark ? 'rgba(0,0,0,0.3)' : surf, border: `1px solid ${G}`, borderRadius: 8, padding: '14px 16px', margin: '0 0 12px 0', flexShrink: 0 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>⚡ BETA COMMAND</div>
+          {criticalOpen.length > 0 && (
+            <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontFamily: cinzel, fontSize: 11, color: '#f87171' }}>
+              🔴 {criticalOpen.length} critical bug{criticalOpen.length > 1 ? 's' : ''} need attention
+            </div>
+          )}
+          {stats?.topUpvoted?.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {stats.topUpvoted.map((r: any) => {
+                const sc = STATUS_CFG[r.status] || STATUS_CFG.new
+                return (
+                  <div key={r.id} style={{ flexShrink: 0, background: 'rgba(201,168,76,0.06)', borderRadius: 6, padding: '6px 10px', minWidth: 120, maxWidth: 160 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{(r.title||'').slice(0,35)}{(r.title||'').length > 35 ? '…' : ''}</div>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 9, color: G }}>⚔ {r.upvotes}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, color: sc.color, background: sc.bg, padding: '1px 5px', borderRadius: 4 }}>{sc.label}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Tab bar + sort */}
-      <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${bdr}`, flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {(['all', ...REPORT_TYPES] as (ReportType | 'all')[]).map(t => (
-          <button key={t} onClick={() => setActiveTab(t)}
-            style={{ padding: '8px 12px', whiteSpace: 'nowrap', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === t ? '#C9A84C' : 'transparent'}`, fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: activeTab === t ? '#C9A84C' : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>
-            {t === 'all' ? 'ALL' : TYPE_LABEL[t as ReportType].toUpperCase()}
-          </button>
-        ))}
-        <div style={{ flex: 1 }} />
-        <button onClick={() => setSort(s => s === 'new' ? 'top' : 'new')}
-          style={{ padding: '8px 14px', background: 'transparent', border: 'none', fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>
-          {sort === 'new' ? '↓ NEW' : '↑ TOP'}
-        </button>
-      </div>
-
-      {/* Report list */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, fontFamily: '"Cinzel", serif', fontSize: 11, color: muted }}>Loading…</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180 }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>⚑</div>
-            <div style={{ fontFamily: '"Cinzel", serif', fontSize: 11, letterSpacing: '0.1em', color: muted }}>No reports yet</div>
-            <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 13, color: muted, fontStyle: 'italic', marginTop: 4 }}>Be the first to submit feedback</div>
+      {/* Composer */}
+      {showComposer && (
+        <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: 20, margin: '12px 16px', flexShrink: 0 }}>
+          {/* Type pills */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            {(['bug','feature','question','praise'] as const).map(t => {
+              const tc = TYPE_CFG[t]; const sel = composerType === t
+              return (
+                <button key={t} onClick={() => setComposerType(t)}
+                  style={{ padding: '4px 12px', borderRadius: 10, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', border: `1px solid ${sel ? tc.color : 'rgba(201,168,76,0.25)'}`, background: sel ? 'rgba(201,168,76,0.9)' : 'rgba(0,0,0,0.3)', fontFamily: cinzel, fontSize: 9, color: sel ? '#1a1625' : tc.color }}>
+                  {t === 'bug' ? '🐛' : t === 'feature' ? '✦' : t === 'question' ? '❓' : '🙌'}{' '}{t[0].toUpperCase() + t.slice(1)}
+                </button>
+              )
+            })}
           </div>
-        ) : filtered.map(r => (
-          <div key={r.id} style={{ borderBottom: `1px solid ${bdr}`, padding: '14px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 10, border: `1px solid ${TYPE_COLOR[r.type as ReportType] || muted}44`, color: TYPE_COLOR[r.type as ReportType] || muted, background: `${TYPE_COLOR[r.type as ReportType] || muted}11`, flexShrink: 0, marginTop: 3 }}>
-                {TYPE_LABEL[r.type as ReportType] || r.type}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: '"Cinzel", serif', fontSize: 12, color: text, letterSpacing: '0.04em', marginBottom: 3 }}>{r.title}</div>
-                {r.page_section && <div style={{ fontFamily: '"Cinzel", serif', fontSize: 9, color: muted, letterSpacing: '0.06em', marginBottom: 4 }}>{r.page_section}</div>}
-                {r.description && <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 14, color: muted, lineHeight: 1.5, marginBottom: 6 }}>{r.description.length > 220 ? r.description.slice(0, 220) + '…' : r.description}</div>}
-                {r.screenshot_url && (
-                  <a href={r.screenshot_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginBottom: 8 }}>
-                    <img src={r.screenshot_url} alt="screenshot" style={{ maxWidth: 200, maxHeight: 110, borderRadius: 4, border: `1px solid ${bdr}`, objectFit: 'cover' }} />
-                  </a>
-                )}
-                {r.minister_notes && (
-                  <div style={{ background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '6px 10px', marginBottom: 8 }}>
-                    <div style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.08em', color: '#C9A84C', marginBottom: 2 }}>COMMAND NOTES</div>
-                    <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 13, color: text, lineHeight: 1.4 }}>{r.minister_notes}</div>
-                  </div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                  <span style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', color: STATUS_COLOR[r.status] || muted, padding: '2px 6px', border: `1px solid ${STATUS_COLOR[r.status] || muted}44`, borderRadius: 4 }}>{(r.status || 'open').replace('_', ' ').toUpperCase()}</span>
-                  {r.priority && r.priority !== 'normal' && (
-                    <span style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', color: PRIORITY_COLOR[r.priority] || muted, padding: '2px 6px', border: `1px solid ${PRIORITY_COLOR[r.priority] || muted}44`, borderRadius: 4 }}>{r.priority.toUpperCase()}</span>
-                  )}
-                  <span style={{ fontFamily: '"Crimson Text", serif', fontSize: 12, color: muted, fontStyle: 'italic' }}>{r.submitted_by_name} · {new Date(r.created_at).toLocaleDateString()}</span>
-                  <button onClick={() => handleUpvote(r.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 3, background: (r.upvoter_ids || []).includes(userId) ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${(r.upvoter_ids || []).includes(userId) ? 'rgba(201,168,76,0.3)' : bdr}`, borderRadius: 12, padding: '2px 8px', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                    <span style={{ fontSize: 9, color: (r.upvoter_ids || []).includes(userId) ? '#C9A84C' : muted }}>▲</span>
-                    <span style={{ fontFamily: '"Cinzel", serif', fontSize: 9, color: (r.upvoter_ids || []).includes(userId) ? '#C9A84C' : muted }}>{r.upvotes || 0}</span>
-                  </button>
-                  {isMinister && (
-                    <button
-                      onClick={() => { if (triageId === r.id) { setTriageId(null) } else { setTriageId(r.id); setTriageStatus(r.status || 'open'); setTriagePriority(r.priority || 'normal'); setTriageNotes(r.minister_notes || '') } }}
-                      style={{ background: triageId === r.id ? 'rgba(201,168,76,0.15)' : 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, padding: '2px 8px', fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', color: '#C9A84C', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                      TRIAGE
-                    </button>
-                  )}
+
+          {/* Page section */}
+          <select value={composerSection} onChange={e => setComposerSection(e.target.value)}
+            style={{ ...iStyle, marginBottom: 12, appearance: 'none' as any }}>
+            <option value="">Select a section (optional)</option>
+            <optgroup label="COMMUNITY">{['Daily Brief','Weekly Intel','Ops Board','Field Ministry','Training','Events','SITREP Feed'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
+            <optgroup label="FIELD OPS">{['Ops Dashboard','Case Files','Session Center','Document Creator','My Intel'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
+            <optgroup label="INTELLIGENCE">{['Intel Archive','Symptom Investigator','Body Map','Spirit Network','Gateway Investigator','Dream Interpreter','Fringe Intelligence'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
+            <optgroup label="FOUNDATION">{['Arsenal','Scripture'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
+            <optgroup label="MESSAGING">{['War Room Chat','Direct Messages','Prayer Wall','Testimony Wall'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
+            <optgroup label="OTHER">{['Login/Signup','Profile/Settings','Membership/Billing','Navigation/Layout','Mobile/PWA','Beta Tracker','Other'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
+          </select>
+
+          {/* Title */}
+          <input value={composerTitle} onChange={e => setComposerTitle(e.target.value.slice(0,120))} maxLength={120}
+            placeholder={composerType === 'bug' ? 'What broke? Be specific (e.g. Body Map not tapping on iPhone)' : composerType === 'feature' ? 'What feature would help your ministry?' : composerType === 'question' ? "What's your question?" : "What's working great?"}
+            style={{ ...iStyle, marginBottom: 4 }} />
+          <div style={{ textAlign: 'right', fontFamily: cinzel, fontSize: 8, color: muted, marginBottom: 8 }}>{composerTitle.length}/120</div>
+
+          {/* Description */}
+          <textarea value={composerDesc} onChange={e => setComposerDesc(e.target.value.slice(0,3000))} maxLength={3000} rows={4}
+            placeholder={composerType === 'bug' ? 'Steps to reproduce: 1) Go to... 2) Tap... 3) Expected... Actual...' : composerType === 'feature' ? 'Describe the feature and why it matters for ministry...' : ''}
+            style={{ ...iStyle, resize: 'vertical', marginBottom: 4 }} />
+          <div style={{ textAlign: 'right', fontFamily: cinzel, fontSize: 8, color: muted, marginBottom: 12 }}>{composerDesc.length}/3000</div>
+
+          {/* Screenshots */}
+          <input type="file" ref={fileInputRef} accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+          <div onClick={() => fileInputRef.current?.click()}
+            style={{ border: '1px dashed rgba(201,168,76,0.3)', borderRadius: 8, padding: 14, textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', marginBottom: screenshotPreviews.length ? 8 : 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: G, marginBottom: 4 }}>📎 Tap to attach screenshots</div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: muted }}>Up to 3 images</div>
+          </div>
+          {screenshotPreviews.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {screenshotPreviews.map((src, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img src={src} alt="" style={{ height: 60, borderRadius: 4, objectFit: 'cover' }} />
+                  <button onClick={() => removeScreenshot(i)}
+                    style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: '#ef4444', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>×</button>
                 </div>
-              </div>
+              ))}
             </div>
-            {isMinister && triageId === r.id && (
-              <div style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-                  <select value={triageStatus} onChange={e => setTriageStatus(e.target.value)}
-                    style={{ padding: '5px 8px', background: isDark ? '#1a1625' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 4, fontFamily: '"Cinzel", serif', fontSize: 10, color: text, cursor: 'pointer' }}>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="done">Done</option>
-                    <option value="wont_fix">Won't Fix</option>
-                  </select>
-                  <select value={triagePriority} onChange={e => setTriagePriority(e.target.value)}
-                    style={{ padding: '5px 8px', background: isDark ? '#1a1625' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 4, fontFamily: '"Cinzel", serif', fontSize: 10, color: text, cursor: 'pointer' }}>
-                    <option value="low">Low</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
+          )}
+
+          {/* Submit row */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setShowComposer(false); setComposerTitle(''); setComposerDesc(''); setComposerSection(''); screenshotPreviews.forEach(u => URL.revokeObjectURL(u)); setScreenshots([]); setScreenshotPreviews([]) }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: muted, padding: '10px 12px', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+              Cancel
+            </button>
+            <button onClick={handleSubmit} disabled={!composerTitle.trim() || !composerDesc.trim() || submitting}
+              style={{ padding: '10px 20px', borderRadius: 8, background: G, color: '#1a1625', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.06em', border: 'none', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', opacity: (!composerTitle.trim() || !composerDesc.trim() || submitting) ? 0.5 : 1 }}>
+              {submitting ? (uploadingCount > 0 ? `Uploading ${uploadingCount}/${screenshots.length}...` : 'Posting...') : '⚑ TRANSMIT REPORT'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Scrollable List */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: `calc(16px + env(safe-area-inset-bottom))` }}>
+        {loading && <div style={{ textAlign: 'center', padding: 40, fontFamily: cinzel, fontSize: 10, color: muted }}>Loading reports...</div>}
+        {!loading && reports.length === 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 60 }}>
+            <span style={{ fontSize: 32 }}>⚑</span>
+            <span style={{ fontFamily: cinzel, fontSize: 10, color: muted }}>No reports yet. Be first to file a report.</span>
+          </div>
+        )}
+        {!loading && reports.map(report => {
+          const tc     = TYPE_CFG[report.type] || { bg: 'rgba(120,120,120,0.12)', color: '#888' }
+          const sc     = STATUS_CFG[report.status] || STATUS_CFG.new
+          const exp    = expandedIds.has(report.id)
+          const tOpen  = triageOpenIds.has(report.id)
+          const td     = triageData[report.id] || {}
+          const voted  = (report.upvoted_by || []).includes(userId)
+          return (
+            <div key={report.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.1)', borderRadius: 10, padding: '14px 16px' }}>
+              {/* Row 1: badges + time */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, padding: '2px 8px', borderRadius: 10, background: tc.bg, color: tc.color }}>{report.type}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, ...(report.status === 'by_design' || report.status === 'duplicate' ? { fontStyle: 'italic' as const } : {}) }}>{sc.label}</span>
                 </div>
-                <textarea value={triageNotes} onChange={e => setTriageNotes(e.target.value)} placeholder="Notes visible to all users…" rows={2}
-                  style={{ width: '100%', padding: '6px 8px', background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 4, fontFamily: '"Crimson Text", serif', fontSize: 13, color: text, outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: 8 }} />
-                <button onClick={() => handleTriage(r.id)} disabled={triageSaving}
-                  style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.08em', color: '#C9A84C', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                  {triageSaving ? 'SAVING…' : 'SAVE TRIAGE'}
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>{timeAgo(report.created_at)}</span>
+              </div>
+              {/* Row 2: Title */}
+              <div style={{ fontFamily: cinzel, fontSize: 14, color: text, fontWeight: 700, marginBottom: 6 }}>{report.title}</div>
+              {/* Row 3: Page section */}
+              {report.page_section && (
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: muted, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '2px 10px', display: 'inline-block' }}>📍 {report.page_section}</span>
+                </div>
+              )}
+              {/* Row 4: Description */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: muted, lineHeight: 1.5, ...(exp ? {} : { overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const }) }}>{report.description}</div>
+                {(report.description||'').length > 150 && (
+                  <button onClick={() => setExpandedIds(prev => { const n = new Set(prev); exp ? n.delete(report.id) : n.add(report.id); return n })}
+                    style={{ background: 'transparent', border: 'none', padding: '4px 0 0', fontFamily: cinzel, fontSize: 9, color: G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                    {exp ? 'show less' : 'show more'}
+                  </button>
+                )}
+              </div>
+              {/* Row 5: Screenshots */}
+              {[report.screenshot_url, report.screenshot_url_2, report.screenshot_url_3].filter(Boolean).length > 0 && (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {[report.screenshot_url, report.screenshot_url_2, report.screenshot_url_3].filter(Boolean).map((url: string, i: number) => (
+                    <img key={i} src={url} alt="" style={{ height: 56, borderRadius: 4, cursor: 'pointer', objectFit: 'cover' }} onClick={() => window.open(url, '_blank')} />
+                  ))}
+                </div>
+              )}
+              {/* Row 6: Fix summary */}
+              {report.fix_summary && ['fixed','deployed'].includes(report.status) && (
+                <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
+                  <span style={{ fontFamily: crimson, fontSize: 13, color: '#4ade80', fontStyle: 'italic' }}>🔧 {report.fix_summary}</span>
+                </div>
+              )}
+              {/* Row 7: Avatar + upvote */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: G, color: '#1a1625', fontFamily: cinzel, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(report.user_name||'?')[0].toUpperCase()}</div>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: muted }}>{report.user_name||'Warrior'}</span>
+                  <span style={{ color: muted, fontSize: 8 }}>·</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, color: muted }}>{timeAgo(report.created_at)}</span>
+                </div>
+                <button onClick={() => handleUpvote(report)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: voted ? 'rgba(201,168,76,0.15)' : 'rgba(0,0,0,0.2)', border: `1px solid ${voted ? G : 'rgba(201,168,76,0.2)'}`, borderRadius: 20, padding: '4px 10px', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', fontFamily: cinzel, fontSize: 9, color: voted ? G : muted }}>
+                  <span>⚔</span><span>{report.upvotes||0}</span>
                 </button>
               </div>
-            )}
-          </div>
-        ))}
+              {/* Triage (minister only) */}
+              {isMinister && (
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    onClick={() => setTriageOpenIds(prev => { const n = new Set(prev); if (n.has(report.id)) { n.delete(report.id) } else { n.add(report.id); setTriageData(d => ({ ...d, [report.id]: { status: report.status, priority: report.priority, adminNotes: report.admin_notes||'', fixSummary: report.fix_summary||'' } })) } return n })}
+                    style={{ background: 'transparent', border: 'none', padding: '2px 0', fontFamily: cinzel, fontSize: 10, color: G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                    ▾ Triage
+                  </button>
+                  {tOpen && (
+                    <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <select value={td.status||report.status} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,status:e.target.value}}))} style={{ ...iStyle, flex: 1 }}>
+                          {['new','confirmed','in_progress','fixed','deployed','wont_fix','by_design','duplicate'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
+                        </select>
+                        <select value={td.priority||report.priority} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,priority:e.target.value}}))} style={{ ...iStyle, flex: 1 }}>
+                          {['critical','high','medium','low'].map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      <input value={td.fixSummary??''} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,fixSummary:e.target.value}}))} placeholder="What was fixed? (shown to all users)" style={iStyle} />
+                      <textarea value={td.adminNotes??''} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,adminNotes:e.target.value}}))} placeholder="Internal notes (not shown to users)" rows={2} style={{ ...iStyle, resize: 'vertical' }} />
+                      <button onClick={() => handleTriage(report.id)}
+                        style={{ padding: '6px 16px', background: G, color: '#1a1625', border: 'none', borderRadius: 6, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', alignSelf: 'flex-start' }}>
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -11617,7 +11769,7 @@ function CommunityPage() {
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
-        {activeSection === 'beta-test'  && <BetaTrackerView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
+        {activeSection === 'beta-test'  && <BetaTrackerView isDark={isDark} isMobile={isMobile} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
         {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
