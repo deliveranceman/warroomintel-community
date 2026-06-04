@@ -9751,8 +9751,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(realId)}`, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
       }).then(r => r.json())
-      console.log('[selectConversation] channelId:', realId, 'message count:', msgs.messages?.length ?? 0)
-      setMessages(msgs.messages || [])
+      const msgList = msgs.messages || msgs.detail?.messages || []
+      console.log('[selectConversation] channelId:', realId, 'message count:', msgList.length)
+      setMessages(msgList)
       if (channelId !== 'sol') {
         fetch('/api/stream-messages?action=mark-read', {
           method: 'POST',
@@ -9790,7 +9791,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         : activeConvoId
       if (!activeChannelId || activeChannelId === 'sol') return
       const msgs = await api(`get-messages&channelId=${activeChannelId}`, 'GET')
-      if (Array.isArray(msgs.messages)) setMessages(msgs.messages)
+      const msgList = msgs.messages || msgs.detail?.messages
+      if (Array.isArray(msgList)) setMessages(msgList)
     }, 3000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [activeConvoId, token])
@@ -9870,10 +9872,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       user: { id: userId, name: 'You' },
       created_at: new Date().toISOString(),
     }])
-    // Send to Stream then replace optimistic with confirmed messages
+    // Send to Stream then refetch after short delay to ensure Stream has persisted
     await api('send-message', 'POST', { channelId: resolvedChannelId, text })
-    const msgs = await api(`get-messages&channelId=${resolvedChannelId}`, 'GET')
-    if (msgs.messages?.length) setMessages(msgs.messages)
+    setTimeout(async () => {
+      const msgs = await api(`get-messages&channelId=${resolvedChannelId}`, 'GET')
+      const msgList = msgs.messages || msgs.detail?.messages
+      if (Array.isArray(msgList) && msgList.length) setMessages(msgList)
+    }, 500)
   }, [messageText, resolvedChannelId, api, userId])
 
   // ── Voice recording ──

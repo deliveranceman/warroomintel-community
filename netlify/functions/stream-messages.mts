@@ -170,12 +170,14 @@ async function listConversations(userId: string): Promise<Response> {
       { messages: { limit: 1 }, state: true, watch: false },
     )
     console.log('[list-conv] channel', r.channel_id, 'stream status:', cs, 'data:', JSON.stringify(cd).slice(0, 400))
-    if (cs === 200) {
+    if (cs >= 200 && cs < 300) {
       const d = cd as any
       const chMembers: any[] = d.members ?? []
       const chMessages: any[] = d.messages ?? []
       const chRead: any[] = d.read ?? []
-      const otherM = chMembers.find((m: any) => m.user?.id !== userId)?.user ?? null
+      const otherM = chMembers.find((m: any) => m.user?.id !== userId && m.user_id !== userId)?.user ?? null
+      console.log('[list-conv] otherMember:', otherM?.name, 'members count:', chMembers.length)
+      const otherName = otherM?.name || (r.requester_id === userId ? r.recipient_name : r.requester_name) || 'Member'
       const lastMsg = chMessages[0]
         ? { text: chMessages[0].text ?? '', type: chMessages[0].type ?? 'regular', created_at: chMessages[0].created_at, user: { id: chMessages[0].user?.id ?? '', name: chMessages[0].user?.name ?? '' } }
         : null
@@ -184,7 +186,9 @@ async function listConversations(userId: string): Promise<Response> {
         channelId: r.channel_id,
         channelType: 'messaging',
         members: chMembers.map((m: any) => ({ id: m.user?.id ?? '', name: m.user?.name ?? '', image: m.user?.image ?? '', online: m.user?.online ?? false })),
-        otherMember: otherM ? { id: otherM.id, name: otherM.name ?? '', image: otherM.image ?? '', online: otherM.online ?? false } : null,
+        otherMember: otherM
+          ? { id: otherM.id, name: otherName, image: otherM.image ?? '', online: otherM.online ?? false }
+          : { id: r.requester_id === userId ? r.recipient_id : r.requester_id, name: otherName, image: '', online: false },
         lastMessage: lastMsg,
         unreadCount: unread,
       })
@@ -220,7 +224,7 @@ async function getMessages(userId: string, channelId: string): Promise<Response>
   )
 
   console.log('[get-messages] Stream status:', status)
-  if (status !== 200) {
+  if (status < 200 || status >= 300) {
     console.log('[get-messages] Stream error:', JSON.stringify(data).slice(0, 300))
     return json({ error: 'Stream error', detail: data }, status)
   }
@@ -287,10 +291,6 @@ async function createDM(userId: string, body: any): Promise<Response> {
     })
     if (clerkRes.ok) {
       const clerkUser = await clerkRes.json()
-      const tier = (clerkUser.public_metadata?.tier as string) || 'watchman'
-      if (tier === 'watchman') {
-        return json({ watchman: true, message: `${otherUserName || 'This user'} is on the free tier and cannot receive DMs.` })
-      }
       recipientName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(' ') || clerkUser.username || recipientName
     }
   }
