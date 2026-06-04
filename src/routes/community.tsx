@@ -1440,7 +1440,7 @@ function stripMdPreview(raw: string, maxChars = 120): string {
 }
 
 // ── DAILY DEVOTION VIEW ────────────────────────────────────
-function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
+function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId }: any) {
   const isDark = theme !== 'light'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -1464,11 +1464,14 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const TIER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
   const userLvl = TIER[(userTier || '').toLowerCase()] ?? 0
 
+  const isAdmin = userId === 'user_3DlxgBsnfU83SRVMjkVxCkIr7tk' || (userTier || '').toLowerCase() === 'general'
+
   const [devotion, setDevotion]   = useState<any>(null)
   const [loading, setLoading]     = useState(true)
   const [currentDate, setCurrentDate] = useState(todayStr)
   const [archive, setArchive]     = useState<any[]>([])
   const [showArchive, setShowArchive] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
   // Atmosphere check-in state
   const [atmStatus, setAtmStatus]       = useState<string | null>(null)
@@ -1647,6 +1650,28 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           <div style={{ fontSize: 48 }}>☀️</div>
           <div style={{ fontFamily: cinzel, fontSize: 14, color: GD, letterSpacing: '0.08em' }}>Today's brief is being prepared</div>
           <div style={{ fontFamily: crimson, fontSize: 15, color: mut }}>Check back soon. The minister is preparing today's word.</div>
+          {isAdmin && (
+            <button
+              disabled={generating}
+              onClick={async () => {
+                setGenerating(true)
+                try {
+                  const token = await getToken()
+                  const res = await fetch('/api/generate-daily-brief', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                    body: JSON.stringify({ date: todayStr }),
+                  })
+                  const d = await res.json()
+                  if (d.devotion) setDevotion(d.devotion)
+                } catch (e) { console.error('[daily-brief] generate failed', e) }
+                finally { setGenerating(false) }
+              }}
+              style={{ marginTop: 8, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: 'rgba(201,168,76,0.15)', color: GD, border: `1px solid ${GD}`, borderRadius: 6, padding: '10px 20px', cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.6 : 1 }}
+            >
+              {generating ? 'Generating…' : '⚡ Generate Today\'s Brief'}
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ maxWidth: 680 }}>
@@ -1693,7 +1718,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                               <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: ATM_COLORS[cat as 'green'|'amber'|'purple'].dot }} />
                             ))}
                           </div>
-                          <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>{atmCommunity!.total} SOLDIERS CHECKED IN TODAY</div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em' }}>{atmCommunity!.total} SOLDIER{atmCommunity!.total !== 1 ? 'S' : ''} CHECKED IN TODAY</div>
                         </>
                       )}
                     </>
@@ -3762,7 +3787,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                         )
                       })}
                       <div style={{ fontSize: 11, color: mut, marginTop: 8, fontFamily: cinzel, letterSpacing: '0.08em' }}>
-                        {totalVotes} SOLDIERS HAVE RESPONDED
+                        {totalVotes} SOLDIER{totalVotes !== 1 ? 'S' : ''} HAVE RESPONDED
                       </div>
                     </div>
                   )}
@@ -9877,6 +9902,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     if (pollRef.current) clearInterval(pollRef.current)
     if (!activeConvoId || !token) return
     pollRef.current = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return
       const activeChannelId = activeConvoId === 'sol'
         ? conversations.find((c: any) => c.otherMember?.id === 'sol-bot')?.channelId || activeConvoId
         : activeConvoId
@@ -9884,7 +9910,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       const msgs = await api(`get-messages&channelId=${activeChannelId}`, 'GET')
       const msgList = msgs.messages || msgs.detail?.messages
       if (Array.isArray(msgList)) setMessages(msgList)
-    }, 3000)
+    }, 8000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [activeConvoId, token])
 
@@ -13552,7 +13578,7 @@ function CommunityPage() {
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
         {activeSection === 'beta-test'  && <BetaTrackerView isDark={isDark} isMobile={isMobile} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
         {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
-        {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+        {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
         {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
         {activeSection === 'forum'       && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
