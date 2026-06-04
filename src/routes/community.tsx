@@ -12267,7 +12267,7 @@ function CommunityPage() {
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const tier     = (user?.publicMetadata?.tier as string) || 'Watchman'
+  const tier     = (user?.publicMetadata?.tier as string) || (user?.id ? 'general' : 'watchman')
   const tierLevel = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[tier.toLowerCase()] ?? 0
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
 

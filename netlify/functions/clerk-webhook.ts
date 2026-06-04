@@ -82,7 +82,7 @@ export default async function handler(req: Request) {
       const { id, first_name, last_name, email_addresses } = data
       const email = email_addresses?.[0]?.email_address || ''
       const name  = `${first_name || ''} ${last_name || ''}`.trim() || email || 'Warrior'
-      const tier  = 'watchman'
+      const tier  = 'general' // BETA: all new users start at general
 
       // 1. Set default Clerk publicMetadata
       await fetch(`https://api.clerk.com/v1/users/${id}`, {
@@ -93,7 +93,7 @@ export default async function handler(req: Request) {
         },
         body: JSON.stringify({ public_metadata: { tier } }),
       })
-      console.log(`[clerk-webhook] Set tier=watchman for ${id}`)
+      console.log(`[clerk-webhook] Set tier=general (beta default) for ${id}`)
 
       if (streamApiKey && streamApiSecret) {
         const client = new StreamChat(streamApiKey, streamApiSecret)
