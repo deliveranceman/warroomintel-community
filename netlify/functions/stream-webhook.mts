@@ -132,7 +132,7 @@ async function solDMReply(messageText: string, channelId: string, senderId: stri
 
   await sb
     .from('ai_search_history')
-    .insert({ user_id: senderId, query: messageText, result: reply, source: 'sol-dm' })
+    .insert({ user_id: senderId, tool: 'sol-dm', query: messageText.slice(0, 500), response: reply.slice(0, 1000), context: {} })
     .catch(err => console.error('[stream-webhook] ai_search_history insert error:', err))
 
   console.log(`[stream-webhook] SOL DM replied channel=${channelId} user=${senderId}`)
