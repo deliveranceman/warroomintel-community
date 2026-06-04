@@ -210,17 +210,23 @@ async function listConversations(userId: string): Promise<Response> {
 
 async function getMessages(userId: string, channelId: string): Promise<Response> {
   if (!channelId) return json({ error: 'channelId required' }, 400)
+  console.log('[get-messages] channelId:', channelId, 'userId:', userId)
 
   const { status, data } = await streamFetch(
     `/channels/messaging/${encodeURIComponent(channelId)}/query`,
     'POST',
-    userToken(userId),
+    serverToken(),
     { messages: { limit: 50 }, state: true, watch: false },
   )
 
-  if (status !== 200) return json({ error: 'Stream error', detail: data }, status)
+  console.log('[get-messages] Stream status:', status)
+  if (status !== 200) {
+    console.log('[get-messages] Stream error:', JSON.stringify(data).slice(0, 300))
+    return json({ error: 'Stream error', detail: data }, status)
+  }
 
   const d = data as any
+  console.log('[get-messages] message count:', d.messages?.length ?? 0)
   return json({
     messages: d.messages ?? [],
     members:  (d.members ?? []).map((m: any) => ({

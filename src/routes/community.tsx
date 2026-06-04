@@ -9751,6 +9751,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(realId)}`, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
       }).then(r => r.json())
+      console.log('[selectConversation] channelId:', realId, 'message count:', msgs.messages?.length ?? 0)
       setMessages(msgs.messages || [])
       if (channelId !== 'sol') {
         fetch('/api/stream-messages?action=mark-read', {
@@ -9779,7 +9780,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     })
   }, [showNewDM])
 
-  // ── Poll active conversation every 8s ──
+  // ── Poll active conversation every 3s ──
   React.useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current)
     if (!activeConvoId || !token) return
@@ -9789,8 +9790,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         : activeConvoId
       if (!activeChannelId || activeChannelId === 'sol') return
       const msgs = await api(`get-messages&channelId=${activeChannelId}`, 'GET')
-      if (msgs.messages?.length) setMessages(msgs.messages)
-    }, 8000)
+      if (Array.isArray(msgs.messages)) setMessages(msgs.messages)
+    }, 3000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [activeConvoId, token])
 
