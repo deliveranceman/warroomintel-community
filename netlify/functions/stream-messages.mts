@@ -265,6 +265,7 @@ async function listMembers(currentUserId: string): Promise<Response> {
       name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id,
       tier: (u.public_metadata?.tier as string) || 'watchman',
       imageUrl: u.image_url || '',
+      expertiseTags: (u.public_metadata?.expertiseTags as string[]) || [],
     }))
   return json(members)
 }

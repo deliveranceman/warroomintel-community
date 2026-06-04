@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { Webhook } from 'svix'
 import { StreamChat } from 'stream-chat'
 
@@ -98,12 +99,25 @@ export default async function handler(req: Request) {
         const client = new StreamChat(streamApiKey, streamApiSecret)
         const streamUserId = id.replace(/[^a-zA-Z0-9_-]/g, '_')
 
-        // 2. Upsert user in Stream — required before addMembers
+        // 2. Upsert user in Stream Chat — required before addMembers
         await client.upsertUser({ id: streamUserId, name, role: 'user' })
 
         // 3. Add to war-room-general (all tiers)
         await addUserToStreamChannels(client, streamUserId, tier)
         console.log(`[clerk-webhook] Stream setup complete for ${streamUserId}`)
+
+        // 4. Upsert into Stream Feeds (fire-and-forget — separate API from Chat)
+        const feedsJWT = (() => {
+          const h = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+          const p = Buffer.from(JSON.stringify({ server: true })).toString('base64url')
+          const s = crypto.createHmac('sha256', streamApiSecret).update(`${h}.${p}`).digest('base64url')
+          return `${h}.${p}.${s}`
+        })()
+        fetch(`https://feeds.stream-io-api.com/api/v1.0/users/?api_key=${streamApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': feedsJWT, 'Stream-Auth-Type': 'jwt' },
+          body: JSON.stringify({ id: streamUserId, data: { name } }),
+        }).catch(e => console.error('[clerk-webhook] Feeds upsert error:', e))
       }
     }
 

@@ -33,7 +33,7 @@ export default async (req: Request, _context: Context) => {
     return new Response(JSON.stringify({ error: 'Could not identify user' }), { status: 401 })
   }
 
-  const { bio, city, state } = await req.json()
+  const { bio, city, state, expertiseTags } = await req.json()
 
   // Fetch existing metadata to preserve other fields
   const getRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
@@ -54,6 +54,7 @@ export default async (req: Request, _context: Context) => {
         ...(bio !== undefined && { bio }),
         ...(city !== undefined && { city }),
         ...(state !== undefined && { state }),
+        ...(expertiseTags !== undefined && { expertiseTags }),
       },
     }),
   })

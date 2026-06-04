@@ -221,15 +221,18 @@ interface EditProfileModalProps {
   existingBio: string
   existingCity: string
   existingState: string
+  existingExpertiseTags: string[]
   onClose: () => void
   isDark: boolean
 }
-function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, existingBio, existingCity, existingState, onClose, isDark }: EditProfileModalProps) {
+function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, existingBio, existingCity, existingState, existingExpertiseTags, onClose, isDark }: EditProfileModalProps) {
   const { getToken } = useAuth()
   const { user }     = useUser()
-  const [bio,     setBio]     = useState(existingBio)
-  const [city,    setCity]    = useState(existingCity)
-  const [state,   setState]   = useState(existingState)
+  const [bio,           setBio]           = useState(existingBio)
+  const [city,          setCity]          = useState(existingCity)
+  const [state,         setState]         = useState(existingState)
+  const [expertiseTags, setExpertiseTags] = useState<string[]>(existingExpertiseTags)
+  const [tagInput,      setTagInput]      = useState('')
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [saveErr, setSaveErr] = useState('')
@@ -421,7 +424,7 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
       const res = await fetch('/api/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ bio, city, state }),
+        body: JSON.stringify({ bio, city, state, expertiseTags }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -498,6 +501,52 @@ function EditProfileModal({ userId: _userId, firstName, lastName, imageUrl, exis
             style={{ ...inputStyle, resize: 'vertical' as const }}
           />
           <div style={{ fontSize: '10px', color: bio.length > 250 ? '#f97316' : dim, textAlign: 'right' as const, marginTop: '3px' }}>{bio.length}/280</div>
+        </div>
+
+        {/* Expertise Tags */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={labelStyle}>Spirits I've Worked With Most</label>
+          {expertiseTags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 8 }}>
+              {expertiseTags.map(tag => (
+                <span key={tag} style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: mc, fontSize: 9, color: 'rgba(201,168,76,0.8)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '3px 8px' }}>
+                  {tag}
+                  <button onClick={() => setExpertiseTags(t => t.filter(x => x !== tag))} style={{ background: 'none', border: 'none', color: 'rgba(201,168,76,0.6)', cursor: 'pointer', padding: '0 0 0 2px', fontSize: 10, lineHeight: 1 }}>✕</button>
+                </span>
+              ))}
+            </div>
+          )}
+          {expertiseTags.length < 6 && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && tagInput.trim() && expertiseTags.length < 6) {
+                    e.preventDefault()
+                    const tag = tagInput.trim()
+                    if (!expertiseTags.includes(tag)) setExpertiseTags(t => [...t, tag])
+                    setTagInput('')
+                  }
+                }}
+                placeholder="Type a spirit name, press Enter"
+                style={{ ...inputStyle, flex: 1 }}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const tag = tagInput.trim()
+                  if (tag && expertiseTags.length < 6 && !expertiseTags.includes(tag)) {
+                    setExpertiseTags(t => [...t, tag])
+                    setTagInput('')
+                  }
+                }}
+                style={{ padding: '10px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: '6px', color: '#C9A84C', fontFamily: mc, fontSize: 10, cursor: 'pointer', flexShrink: 0 }}
+              >Add</button>
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: dim, fontFamily: cr, marginTop: 4 }}>{expertiseTags.length}/6 tags</div>
         </div>
 
         {/* Actions */}
@@ -672,6 +721,16 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
           {member.publicMetadata?.bio && (
             <div style={{ fontFamily: crimson, fontSize: 12, color: muted, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, marginBottom: 6, textAlign: 'center' as const }}>
               {member.publicMetadata.bio}
+            </div>
+          )}
+          {Array.isArray(member.publicMetadata?.expertiseTags) && member.publicMetadata.expertiseTags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, justifyContent: 'center', marginBottom: 6 }}>
+              {(member.publicMetadata.expertiseTags as string[]).slice(0, 4).map((tag: string) => (
+                <span key={tag} style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.8)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '2px 8px' }}>{tag}</span>
+              ))}
+              {member.publicMetadata.expertiseTags.length > 4 && (
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>+{member.publicMetadata.expertiseTags.length - 4} more</span>
+              )}
             </div>
           )}
           <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:4, flexWrap:'wrap' as const }}>
@@ -857,6 +916,10 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
   const [editingPostId,   setEditingPostId]   = useState<string | null>(null)
   const [editDraft,       setEditDraft]       = useState('')
   const [showPrayerEmoji, setShowPrayerEmoji] = useState(false)
+  const [standingIds,     setStandingIds]     = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('standing-prayers') || '[]')) } catch { return new Set() }
+  })
+  const [standingCounts,  setStandingCounts]  = useState<Record<string, number>>({})
   const [prayerJoined,    setPrayerJoined]    = useState<boolean>(() => {
     try { return localStorage.getItem('wri_prayer_joined') === 'true' } catch { return false }
   })
@@ -936,10 +999,6 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             disabled={prayerJoined}
             style={{ padding: '6px 14px', background: prayerJoined ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.15)', border: `1px solid ${prayerJoined ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.5)'}`, borderRadius: '6px', color: prayerJoined ? V.mut : G, fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.08em', cursor: prayerJoined ? 'default' : 'pointer', textTransform: 'uppercase' as const }}
           >{prayerJoined ? '✓ In the Chain' : '🙏 Join Prayer Chain'}</button>
-          <button
-            onClick={() => inputRef.current?.focus()}
-            style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '6px', color: G, fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
-          >+ Add Prayer</button>
         </div>
       </div>
       <div style={{ margin: '12px 20px 0', padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start', flexShrink: 0 }}>
@@ -970,43 +1029,68 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             apiKey={apiKey}
             onReaction={fetchPrayers}
             isFounder={founderIds?.has(m.user?.id || '')}
-            actions={m.user?.id === userId || isMinister ? (
-              editingPostId === m.id ? (
-                <div>
-                  <textarea
-                    value={editDraft}
-                    onChange={e => setEditDraft(e.target.value)}
-                    rows={3}
-                    style={{ width: '100%', boxSizing: 'border-box', background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 4, padding: '6px 8px', color: V.txt, fontFamily: crimson, fontSize: 14, resize: 'none' as const, outline: 'none', marginBottom: 6 }}
-                  />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      onClick={() => streamFetch(`/messages/${m.id}`, 'PUT', streamToken, apiKey, { message: { text: editDraft } }).then(() => { fetchPrayers(); setEditingPostId(null) })}
-                      style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
-                    >Save</button>
-                    <button
-                      onClick={() => setEditingPostId(null)}
-                      style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
-                    >Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    onClick={() => { setEditingPostId(m.id); setEditDraft(m.text || '') }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
-                  >✏ Edit</button>
-                  <button
-                    onClick={() => handleDeletePrayer(m.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
-                  >🗑 Delete</button>
-                </div>
-              )
-            ) : undefined}
+            actions={
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                {/* Standing With You — always shown, one-way commitment */}
+                {/* TODO: persist standing counts to Supabase */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (standingIds.has(m.id)) return
+                    const next = new Set(standingIds)
+                    next.add(m.id)
+                    setStandingIds(next)
+                    setStandingCounts(prev => ({ ...prev, [m.id]: (prev[m.id] || 0) + 1 }))
+                    try { localStorage.setItem('standing-prayers', JSON.stringify([...next])) } catch {}
+                  }}
+                  disabled={standingIds.has(m.id)}
+                  style={{ padding: '3px 10px', background: standingIds.has(m.id) ? 'rgba(201,168,76,0.18)' : 'transparent', border: `1px solid ${standingIds.has(m.id) ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.25)'}`, borderRadius: 16, color: standingIds.has(m.id) ? G : V.mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: standingIds.has(m.id) ? 'default' : 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  🙏 {standingIds.has(m.id) ? 'Standing With You' : 'Stand With Them'}
+                </button>
+                {(standingCounts[m.id] || 0) > 0 && (
+                  <span style={{ fontSize: 9, color: V.mut, fontFamily: cinzel }}>{standingCounts[m.id]} standing</span>
+                )}
+                {/* Edit/Delete — owner or minister only */}
+                {(m.user?.id === userId || isMinister) && (
+                  editingPostId === m.id ? (
+                    <div>
+                      <textarea
+                        value={editDraft}
+                        onChange={e => setEditDraft(e.target.value)}
+                        rows={3}
+                        style={{ width: '100%', boxSizing: 'border-box', background: V.card, border: `1px solid ${V.bdr}`, borderRadius: 4, padding: '6px 8px', color: V.txt, fontFamily: crimson, fontSize: 14, resize: 'none' as const, outline: 'none', marginBottom: 6 }}
+                      />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          onClick={() => streamFetch(`/messages/${m.id}`, 'PUT', streamToken, apiKey, { message: { text: editDraft } }).then(() => { fetchPrayers(); setEditingPostId(null) })}
+                          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
+                        >Save</button>
+                        <button
+                          onClick={() => setEditingPostId(null)}
+                          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: V.mut, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
+                        >Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => { setEditingPostId(m.id); setEditDraft(m.text || '') }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                      >✏ Edit</button>
+                      <button
+                        onClick={() => handleDeletePrayer(m.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
+                      >🗑 Delete</button>
+                    </div>
+                  )
+                )}
+              </div>
+            }
           />
         ))}
       </div>
@@ -9175,23 +9259,27 @@ const SITREP_TIER_LVL: Record<string, number> = {
 }
 
 const SITREP_POST_TYPES = [
-  { key: 'sitrep',        label: 'SITREP',        icon: '📡' },
-  { key: 'field_report',  label: 'FIELD REPORT',  icon: '📋' },
-  { key: 'prayer_request',label: 'PRAYER',         icon: '🙏' },
-  { key: 'victory',       label: 'VICTORY',        icon: '⚔' },
-  { key: 'scripture',     label: 'SCRIPTURE',      icon: '📖' },
-  { key: 'intel_drop',    label: 'INTEL DROP',     icon: '🔎' },
+  { key: 'thought',    label: 'THOUGHT',    icon: '💭' },
+  { key: 'scripture',  label: 'SCRIPTURE',  icon: '📖' },
+  { key: 'testimony',  label: 'TESTIMONY',  icon: '🔥' },
+  { key: 'resource',   label: 'RESOURCE',   icon: '🔗' },
+  { key: 'photo',      label: 'PHOTO',      icon: '📷' },
+  { key: 'prayer',     label: 'PRAYER',     icon: '🙏' },
+  { key: 'revelation', label: 'REVELATION', icon: '⚡' },
+  { key: 'field',      label: 'FIELD',      icon: '⚔' },
 ] as const
 
 type SitrepPostType = typeof SITREP_POST_TYPES[number]['key']
 
-const SITREP_TYPE_COLOR: Record<string, string> = {
-  field_report: '#c94a4a',
-  prayer_request: '#4a7ac9',
-  victory: '#C9A84C',
-  scripture: '#4aaa72',
-  sitrep: '#C9A84C',
-  intel_drop: '#8a4ac9',
+const SITREP_TYPE_STYLE: Record<string, { bg: string; text: string }> = {
+  thought:    { bg: 'rgba(150,150,150,0.15)',  text: '#aaa'     },
+  scripture:  { bg: 'rgba(34,197,94,0.15)',    text: '#4ade80'  },
+  testimony:  { bg: 'rgba(251,146,60,0.15)',   text: '#fb923c'  },
+  resource:   { bg: 'rgba(56,189,248,0.15)',   text: '#38bdf8'  },
+  photo:      { bg: 'rgba(167,139,250,0.15)',  text: '#a78bfa'  },
+  prayer:     { bg: 'rgba(52,211,153,0.15)',   text: '#34d399'  },
+  revelation: { bg: 'rgba(201,168,76,0.15)',   text: '#C9A84C'  },
+  field:      { bg: 'rgba(239,68,68,0.15)',    text: '#f87171'  },
 }
 
 function sitrepAgo(dateStr: string): string {
@@ -9218,6 +9306,8 @@ interface SitrepActivity {
     scriptureRef?: string | null
     spiritTag?: string | null
     locationTag?: string | null
+    photoUrl?: string | null
+    resourceUrl?: string | null
     tier?: string
   }
   text?: string
@@ -9233,8 +9323,8 @@ function SitrepCard({
   onReact: (id: string, kind: string) => void
 }) {
   const GC = '#C9A84C'
-  const verb = activity.verb || activity.data?.type || 'sitrep'
-  const typeColor = SITREP_TYPE_COLOR[verb] || GC
+  const verb = activity.verb || activity.data?.type || 'thought'
+  const typeStyle = SITREP_TYPE_STYLE[verb] || SITREP_TYPE_STYLE.thought
   const bodyText = activity.data?.text || activity.text || ''
   const counts = activity.reaction_counts || {}
   const shortActor = (activity.actor || '').slice(-4).toUpperCase() || '??'
@@ -9256,11 +9346,11 @@ function SitrepCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.06em' }}>{activity.actor?.slice(0, 8) || 'SOLDIER'}</span>
             {activity.data?.tier && (
-              <span style={{ fontFamily: cinzel, fontSize: 7, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}40`, borderRadius: 3, padding: '1px 5px', letterSpacing: '0.06em' }}>{activity.data.tier.toUpperCase()}</span>
+              <span style={{ fontFamily: cinzel, fontSize: 7, color: typeStyle.text, background: typeStyle.bg, border: `1px solid ${typeStyle.text}40`, borderRadius: 3, padding: '1px 5px', letterSpacing: '0.06em' }}>{activity.data.tier.toUpperCase()}</span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span style={{ fontFamily: cinzel, fontSize: 7, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}40`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.08em' }}>
+            <span style={{ fontFamily: cinzel, fontSize: 7, color: typeStyle.text, background: typeStyle.bg, border: `1px solid ${typeStyle.text}40`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.08em' }}>
               {SITREP_POST_TYPES.find(t => t.key === verb)?.icon} {verb.replace(/_/g, ' ').toUpperCase()}
             </span>
             <span style={{ fontFamily: cinzel, fontSize: 7, color: isDark ? '#6b5e45' : '#9a8874', letterSpacing: '0.04em' }}>{sitrepAgo(activity.time)}</span>
@@ -9274,6 +9364,16 @@ function SitrepCard({
           {bodyText}
         </p>
       ) : null}
+
+      {/* Photo */}
+      {activity.data?.photoUrl && (
+        <img
+          src={activity.data.photoUrl}
+          alt=""
+          onClick={() => window.open(activity.data!.photoUrl!, '_blank')}
+          style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', display: 'block' }}
+        />
+      )}
 
       {/* Tags */}
       {(activity.data?.spiritTag || activity.data?.scriptureRef || activity.data?.locationTag) && (
@@ -9337,7 +9437,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
   const [loading,      setLoading]      = useState(true)
   const [posting,      setPosting]      = useState(false)
   const [postText,     setPostText]     = useState('')
-  const [postType,     setPostType]     = useState<SitrepPostType>('sitrep')
+  const [postType,     setPostType]     = useState<SitrepPostType>('thought')
   const [cursor,       setCursor]       = useState<string | null>(null)
   const [hasMore,      setHasMore]      = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
@@ -9345,6 +9445,10 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
   const [spiritTag,    setSpiritTag]    = useState('')
   const [scriptureRef, setScriptureRef] = useState('')
   const [locationTag,  setLocationTag]  = useState('')
+  const [resourceUrl,  setResourceUrl]  = useState('')
+  const [photoFile,    setPhotoFile]    = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const [myReacts,     setMyReacts]     = useState<Record<string, Record<string, boolean>>>({})
   const [solBannerDismissed, setSolBannerDismissed] = useState(false)
 
@@ -9383,21 +9487,51 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
 
   useEffect(() => { loadFeed(activeTab, true) }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const TYPE_PLACEHOLDER: Record<string, string> = {
+    thought:    "What's on your heart today?",
+    scripture:  "Share a verse or passage that's speaking to you...",
+    testimony:  "What has God done? Share your praise report...",
+    resource:   "Share a resource — book, video, podcast, article...",
+    photo:      "Add a caption for your photo...",
+    prayer:     "How can the community stand with you in prayer?",
+    revelation: "What has God been showing you?",
+    field:      "What happened in the field?",
+  }
+
   async function submitPost() {
-    if (!postText.trim() || posting) return
+    if (posting) return
+    if (postType === 'photo' && !photoFile) return
+    if (postType !== 'photo' && !postText.trim()) return
     setPosting(true)
     try {
+      let photoUrl: string | undefined
+      if (photoFile) {
+        const fd = new FormData()
+        fd.append('file', photoFile)
+        const uploadToken = await getToken()
+        const uploadRes = await fetch('/api/sitrep-feed?action=upload-photo', {
+          method: 'POST',
+          headers: uploadToken ? { Authorization: `Bearer ${uploadToken}` } : {},
+          body: fd,
+        })
+        const uploadData = await uploadRes.json()
+        if (uploadData.url) photoUrl = uploadData.url
+      }
       const data = await api({ action: 'post' }, 'POST', {
         type: postType,
         text: postText.slice(0, 1000),
         spiritTag:    spiritTag    || undefined,
         scriptureRef: scriptureRef || undefined,
         locationTag:  locationTag  || undefined,
+        resourceUrl:  resourceUrl  || undefined,
+        photoUrl:     photoUrl     || undefined,
       })
       if (data.ok && data.activity) {
         setActivities(prev => [data.activity as SitrepActivity, ...prev])
       }
       setPostText(''); setSpiritTag(''); setScriptureRef(''); setLocationTag('')
+      setResourceUrl(''); setPhotoFile(null); setPhotoPreview(null)
+      if (photoInputRef.current) photoInputRef.current.value = ''
       setComposerOpen(false); setShowDetails(false)
     } catch { /* ignore */ }
     setPosting(false)
@@ -9431,7 +9565,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
           )}
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.15em', fontWeight: 700 }}>SITREP</div>
-            <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#6b5e45' : '#9a8874', letterSpacing: '0.12em', marginTop: 1 }}>FIELD REPORTS FROM THE FRONT LINES</div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#6b5e45' : '#9a8874', letterSpacing: '0.12em', marginTop: 1 }}>SHARE WHAT GOD IS DOING</div>
           </div>
         </div>
         {tierLevel >= 1 && (
@@ -9448,6 +9582,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
       {/* Composer */}
       {composerOpen && tierLevel >= 1 && (
         <div style={{ padding: '14px 16px', borderBottom: `1px solid rgba(201,168,76,0.15)`, background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.04)', flexShrink: 0 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.08em', marginBottom: 10 }}>What's on your heart?</div>
           {/* Post type pills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
             {SITREP_POST_TYPES.map(t => (
@@ -9455,7 +9590,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
                 key={t.key}
                 type="button"
                 onClick={() => setPostType(t.key)}
-                style={{ background: postType === t.key ? GC : 'transparent', border: `1px solid ${postType === t.key ? GC : 'rgba(201,168,76,0.3)'}`, borderRadius: 16, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: postType === t.key ? '#0D0B14' : GC, letterSpacing: '0.06em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', fontWeight: postType === t.key ? 700 : 400 }}
+                style={{ background: postType === t.key ? GC : 'transparent', border: `1px solid ${postType === t.key ? GC : 'rgba(201,168,76,0.3)'}`, borderRadius: 16, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: postType === t.key ? '#0D0B14' : GC, letterSpacing: '0.06em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', fontWeight: postType === t.key ? 700 : 400 }}
               >
                 {t.icon} {t.label}
               </button>
@@ -9466,11 +9601,55 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
             rows={4}
             value={postText}
             onChange={e => setPostText(e.target.value)}
-            placeholder="Send your report from the field..."
+            placeholder={TYPE_PLACEHOLDER[postType] || "What's on your heart today?"}
             maxLength={1000}
             style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
           />
           <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#4a3f2f' : '#9a8874', letterSpacing: '0.06em', textAlign: 'right', marginTop: 4 }}>{postText.length} / 1000</div>
+          {/* Resource URL input */}
+          {postType === 'resource' && (
+            <input
+              type="url"
+              value={resourceUrl}
+              onChange={e => setResourceUrl(e.target.value)}
+              placeholder="Paste a link (optional)"
+              style={{ ...inputStyle, marginTop: 8 }}
+              autoComplete="off"
+            />
+          )}
+          {/* Photo input */}
+          {postType === 'photo' && (
+            <div style={{ marginTop: 8 }}>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  setPhotoFile(file)
+                  setPhotoPreview(URL.createObjectURL(file))
+                }}
+              />
+              {photoPreview ? (
+                <div style={{ position: 'relative' }}>
+                  <img src={photoPreview} alt="" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+                  <button
+                    type="button"
+                    onClick={() => { setPhotoFile(null); setPhotoPreview(null); if (photoInputRef.current) photoInputRef.current.value = '' }}
+                    style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 24, height: 24, color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >✕</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  style={{ width: '100%', padding: '14px', background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(201,168,76,0.3)', borderRadius: 8, color: isDark ? '#6b5e45' : '#9a8874', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+                >📷 TAP TO ADD PHOTO</button>
+              )}
+            </div>
+          )}
           {/* Optional details toggle */}
           <button type="button" onClick={() => setShowDetails(d => !d)} style={{ background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#9a8874', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 0', WebkitTapHighlightColor: 'transparent' }}>
             Add Details {showDetails ? '▴' : '▾'}
@@ -9483,19 +9662,24 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
             </div>
           )}
           {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-            <button
-              type="button"
-              onClick={submitPost}
-              disabled={!postText.trim() || posting}
-              style={{ flex: 1, padding: '10px', background: !postText.trim() || posting ? 'rgba(201,168,76,0.35)' : GC, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', cursor: !postText.trim() || posting ? 'not-allowed' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
-            >
-              {posting ? '⏳ TRANSMITTING...' : '📡 TRANSMIT REPORT'}
-            </button>
-            <button type="button" onClick={() => { setComposerOpen(false); setShowDetails(false) }} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '10px 16px', color: isDark ? '#6b5e45' : '#9a8874', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-              Cancel
-            </button>
-          </div>
+          {(() => {
+            const disabled = posting || (postType === 'photo' ? !photoFile : !postText.trim())
+            return (
+              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={submitPost}
+                  disabled={disabled}
+                  style={{ flex: 1, padding: '10px', background: disabled ? 'rgba(201,168,76,0.35)' : GC, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', cursor: disabled ? 'not-allowed' : 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                >
+                  {posting ? '⏳ Posting...' : 'POST'}
+                </button>
+                <button type="button" onClick={() => { setComposerOpen(false); setShowDetails(false) }} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '10px 16px', color: isDark ? '#6b5e45' : '#9a8874', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                  Cancel
+                </button>
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -9543,7 +9727,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
           <div style={{ padding: '60px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: 32, marginBottom: 16 }}>⚔</div>
             <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? '#4a3f2f' : '#9a8874', letterSpacing: '0.12em', lineHeight: 1.8 }}>
-              No reports yet.{'\n'}Be first to transmit from the field.
+              Be the first to post.{'\n'}Share what God is doing.
             </div>
           </div>
         )}
@@ -11182,6 +11366,7 @@ function CommunityPage() {
           existingBio={(user?.publicMetadata?.bio as string) || ''}
           existingCity={(user?.publicMetadata?.city as string) || ''}
           existingState={(user?.publicMetadata?.state as string) || ''}
+          existingExpertiseTags={(user?.publicMetadata?.expertiseTags as string[]) || []}
           isDark={theme !== 'light'}
           onClose={() => setEditingProfile(false)}
         />
