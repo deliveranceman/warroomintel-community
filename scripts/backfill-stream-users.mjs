@@ -47,27 +47,12 @@ const chatRes = await fetch(`https://chat.stream-io-api.com/users?api_key=${apiK
 const chatData = await chatRes.json()
 console.log('Stream Chat upsert:', chatRes.status, JSON.stringify(chatData).slice(0, 200))
 
-// 4. Upsert each into Stream Feeds (one at a time, 150ms apart)
-const feedsBase = 'https://feeds.stream-io-api.com/api/v1.0'
-let feedsOk = 0
-for (const u of clerkUsers) {
-  const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.id
-  const r = await fetch(`${feedsBase}/users/?api_key=${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': serverJWT(),
-      'Stream-Auth-Type': 'jwt',
-    },
-    body: JSON.stringify({ id: u.id, data: { name } }),
-  })
-  if (r.ok) {
-    feedsOk++
-  } else {
-    console.error(`Feeds upsert failed for ${u.id}:`, await r.text())
-  }
-  await new Promise(res => setTimeout(res, 150))
-}
+// NOTE: Stream Activity Feeds (feeds.stream-io-api.com) is NOT enabled for this app.
+// feeds.stream-io-api.com returns 404 for all endpoints regardless of auth method.
+// To enable SITREP, go to https://dashboard.getstream.io and enable Activity Feeds
+// on your app, or migrate SITREP to use Supabase instead.
+//
+// Stream Chat (chat.stream-io-api.com) IS enabled and the upsert above covers DMs.
 
-console.log(`Stream Feeds upsert: ${feedsOk}/${clerkUsers.length} users registered`)
-console.log('Done. DMs and SITREP should now work for all users.')
+console.log(`Stream Chat upsert complete: ${Object.keys(users).length} users registered for DMs`)
+console.log('SITREP feeds require Activity Feeds to be enabled at dashboard.getstream.io')
