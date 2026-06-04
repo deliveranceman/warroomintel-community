@@ -168,9 +168,38 @@ async function sendMessage(userId: string, body: any): Promise<Response> {
   return json({ ok: true, message: (data as any).message ?? null })
 }
 
+async function getStreamToken(userId: string): Promise<Response> {
+  const token = userToken(userId)
+  // Upsert current user into Stream on every token fetch (idempotent, fire-and-forget)
+  fetch(streamUrl('/users'), {
+    method: 'POST',
+    headers: streamHeaders(serverToken()),
+    body: JSON.stringify({
+      users: { [userId]: { id: userId, name: userId, role: 'user' } },
+    }),
+  }).catch(e => console.error('Stream user upsert error:', e))
+  return json({ token })
+}
+
 async function createDM(userId: string, body: any): Promise<Response> {
-  const { otherUserId } = body ?? {}
+  const { otherUserId, otherUserName } = body ?? {}
   if (!otherUserId) return json({ error: 'otherUserId required' }, 400)
+
+  // Upsert both users into Stream before channel creation — Stream requires members to exist
+  const upsertRes = await fetch(streamUrl('/users'), {
+    method: 'POST',
+    headers: streamHeaders(serverToken()),
+    body: JSON.stringify({
+      users: {
+        [userId]:      { id: userId,      name: userId,                   role: 'user' },
+        [otherUserId]: { id: otherUserId, name: otherUserName || otherUserId, role: 'user' },
+      },
+    }),
+  })
+  if (!upsertRes.ok) {
+    const upsertErr = await upsertRes.json().catch(() => ({}))
+    console.error('Stream user upsert warning:', upsertErr)
+  }
 
   const { status, data } = await streamFetch(
     '/channels/messaging',
@@ -250,6 +279,10 @@ export default async function handler(req: Request): Promise<Response> {
 
   const userId = extractUserId(req.headers.get('Authorization'))
   if (!userId) return json({ error: 'Unauthorized' }, 401)
+
+  if (action === 'get-token') {
+    return getStreamToken(userId)
+  }
 
   if (action === 'list-conversations') {
     return listConversations(userId)
