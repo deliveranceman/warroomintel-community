@@ -10324,16 +10324,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
                 </div>
               </div>
-              <button
-                onClick={() => activeConvo?.otherMember && setCallActive({ type: 'audio', otherUser: { id: activeConvo.otherMember.id, name: activeConvo.otherMember.name || 'Soldier' } })}
-                style={{ background: 'rgba(29,158,117,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#1d9e75', cursor: 'pointer', display: 'flex' }} title="Audio call">
-                <Phone size={16} strokeWidth={1.8} />
-              </button>
-              <button
-                onClick={() => activeConvo?.otherMember && setCallActive({ type: 'video', otherUser: { id: activeConvo.otherMember.id, name: activeConvo.otherMember.name || 'Soldier' } })}
-                style={{ background: 'rgba(14,165,233,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#0ea5e9', cursor: 'pointer', display: 'flex' }} title="Video call">
-                <Video size={16} strokeWidth={1.8} />
-              </button>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-cinzel,serif)', color: 'rgba(201,168,76,0.4)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '3px 10px', letterSpacing: '0.08em' }}>
+                CALLS COMING SOON
+              </div>
               <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
                 <MoreHorizontal size={16} strokeWidth={1.8} />
               </button>

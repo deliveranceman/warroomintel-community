@@ -140,17 +140,20 @@ async function solDMReply(messageText: string, channelId: string, senderId: stri
 // ── DM push notification ──────────────────────────────────────────────────────
 
 async function sendDMPush(channelId: string, senderUserId: string, senderName: string, messageText: string): Promise<void> {
-  const chRes = await fetch(`https://chat.stream-io-api.com/channels/messaging/${encodeURIComponent(channelId)}?api_key=${streamApiKey}`, {
-    method: 'GET',
-    headers: streamHeaders(serverToken()),
-  })
-  if (!chRes.ok) { console.warn(`[stream-webhook] sendDMPush: channel fetch ${chRes.status}`); return }
-  const chData = await chRes.json() as any
-  const members: any[] = chData.members ?? []
-  const recipientId = members.find((m: any) => m.user?.id !== senderUserId)?.user?.id
-  if (!recipientId) return
-
   const sb = createClient(supabaseUrl, serviceRoleKey)
+
+  // Use Supabase dm_requests to find recipient — avoids unreliable Stream GET
+  const { data: dmRows } = await sb
+    .from('dm_requests')
+    .select('requester_id, recipient_id')
+    .eq('channel_id', channelId)
+    .eq('status', 'accepted')
+    .limit(1)
+  const dm = dmRows?.[0]
+  const recipientId = dm
+    ? (dm.requester_id === senderUserId ? dm.recipient_id : dm.requester_id)
+    : null
+  if (!recipientId) { console.log('[stream-webhook] sendDMPush: no recipient for', channelId); return }
   const { data: subs } = await sb.from('push_subscriptions').select('*').eq('user_id', recipientId)
   if (!subs?.length) return
 

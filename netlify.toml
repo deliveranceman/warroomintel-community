@@ -213,7 +213,7 @@
   external_node_modules = ["pdf-parse"]
 
 [functions."deliverance-protocol"]
-  timeout = 30
+  timeout = 25
 
 [functions."spirit-of-day"]
   timeout = 15

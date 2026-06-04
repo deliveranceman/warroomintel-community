@@ -283,7 +283,7 @@ Requirements:
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       },
-      { signal: AbortSignal.timeout(22_000) },
+      { signal: AbortSignal.timeout(18_000) },
     )
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
