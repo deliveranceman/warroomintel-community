@@ -11353,6 +11353,7 @@ function CommunityPage() {
   const [sending, setSending]         = useState(false)
   const [prayers, setPrayers]         = useState<StreamMsg[]>([])
   const [unreadDMs, setUnreadDMs]         = useState(0)
+  const [pendingDMCount, setPendingDMCount] = useState(0)
   const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null)
   const [termsTab, setTermsTab] = useState<'terms' | 'privacy'>('terms')
   const [termsChecked, setTermsChecked] = useState(false)
@@ -11832,13 +11833,14 @@ function CommunityPage() {
 
   // Phase 3 — browser tab title reflects unread DMs
   useEffect(() => {
-    if (unreadDMs > 0) {
-      document.title = `💬 (${unreadDMs}) War Room Intel`
+    const total = unreadDMs + pendingDMCount
+    if (total > 0) {
+      document.title = `💬 (${total}) War Room Intel`
     } else {
       document.title = 'War Room Intel'
     }
     return () => { document.title = 'War Room Intel' }
-  }, [unreadDMs])
+  }, [unreadDMs, pendingDMCount])
 
   async function deleteOneNotif(id: string) {
     const token = await getToken()
@@ -12074,6 +12076,22 @@ function CommunityPage() {
     const t = setInterval(loadRecentMessages, 20000)
     return () => clearInterval(t)
   }, [streamToken, apiKey, user?.id])
+
+  // ── Poll pending DM request count for nav badge ──
+  useEffect(() => {
+    if (!user?.id) return
+    const fetchPending = async () => {
+      const token = await getToken()
+      if (!token) return
+      fetch('/api/stream-messages?action=pending-requests', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => setPendingDMCount(Array.isArray(d.requests) ? d.requests.length : 0))
+        .catch(() => {})
+    }
+    fetchPending()
+    const t = setInterval(fetchPending, 30000)
+    return () => clearInterval(t)
+  }, [user?.id])
 
   useEffect(() => {
     async function loadRailEvents() {
@@ -12311,9 +12329,15 @@ function CommunityPage() {
                 style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
               >
                 {icon}
-                {section === 'dms' && unreadDMs > 0 && (
-                  <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
-                )}
+                {(() => {
+                  if (section !== 'dms') return null
+                  const totalUnread = activeSection === 'dms' ? 0 : (unreadDMs + pendingDMCount)
+                  if (totalUnread <= 0) return null
+                  const label = totalUnread > 99 ? '99+' : String(totalUnread)
+                  return (
+                    <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#C9A84C', color: '#1C1410', borderRadius: totalUnread > 9 ? 8 : '50%', minWidth: 16, height: 16, width: totalUnread > 9 ? 'auto' : 16, padding: totalUnread > 9 ? '0 3px' : 0, fontSize: 9, fontFamily: cinzel, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, boxSizing: 'border-box' as const }}>{label}</span>
+                  )
+                })()}
                 {section === 'war-room-chat' && unreadWarRoom > 0 && (
                   <span style={{ position: 'absolute' as const, top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontFamily: cinzel, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{unreadWarRoom > 9 ? '9+' : unreadWarRoom}</span>
                 )}
