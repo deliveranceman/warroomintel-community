@@ -10132,7 +10132,7 @@ function TestSOLPanel({ getToken, isDark }: { getToken: any; isDark: boolean }) 
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research'>('dashboard')
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -10205,6 +10205,7 @@ function AdminPage() {
       { key: 'ai-context',          label: 'AI Context'           },
       { key: 'lib-intel',           label: 'Content Intelligence' },
       { key: 'test-sol',            label: 'Test SOL'             },
+      { key: 'sol-research',        label: '✦ Research Drop'      },
     ]},
     { label: 'INTEL ARCHIVE', items: [
       { key: 'intel',             label: 'Intel Archive'    },
@@ -10374,6 +10375,7 @@ function AdminPage() {
             {tab === 'suggested-edits'   && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'testing'           && <AdminTestingPanel getToken={getToken} isDark={isDark} />}
             {tab === 'test-sol'          && <TestSOLPanel getToken={getToken} isDark={isDark} />}
+            {tab === 'sol-research'     && <SolResearchView getToken={getToken} isDark={isDark} />}
             {tab === 'members'           && (
               <div style={{ padding: '32px 0', textAlign: 'center' as const, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
                 MEMBERS — COMING SOON
@@ -10383,6 +10385,258 @@ function AdminPage() {
         </div>
 
       </div>
+    </div>
+  )
+}
+
+// ─── SolResearchView ─────────────────────────────────────────────────────────
+
+function SolResearchView({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const G2   = isDark ? G : '#A07C2C'
+  const surf = isDark ? SURF2 : '#FFFFFF'
+  const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT  : '#2D2924'
+  const dim  = isDark ? DIM  : '#6B5520'
+  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+  const inp  = isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE'
+
+  type InputMode = 'file' | 'url' | 'text'
+  const [inputMode, setInputMode]       = useState<InputMode>('file')
+  const [question, setQuestion]         = useState('')
+  const [file, setFile]                 = useState<File | null>(null)
+  const [filePreview, setFilePreview]   = useState<string | null>(null)
+  const [url, setUrl]                   = useState('')
+  const [pastedText, setPastedText]     = useState('')
+  const [loading, setLoading]           = useState(false)
+  const [result, setResult]             = useState<string | null>(null)
+  const [contentType, setContentType]   = useState<string | null>(null)
+  const [error, setError]               = useState<string | null>(null)
+  const [recentLog, setRecentLog]       = useState<any[]>([])
+  const [expandedLog, setExpandedLog]   = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    getToken().then((token: string | null) => {
+      if (!token) return
+      fetch('/api/sol-research', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setRecentLog(d.log || []) })
+        .catch(() => {})
+    })
+  }, [result])
+
+  function handleFileSelect(f: File) {
+    setFile(f)
+    if (f.type.startsWith('image/')) {
+      setFilePreview(URL.createObjectURL(f))
+    } else {
+      setFilePreview(null)
+    }
+  }
+
+  async function handleSubmit() {
+    setLoading(true); setError(null); setResult(null); setContentType(null)
+    try {
+      const token = await getToken()
+      let res: Response
+      if (inputMode === 'file' && file) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('question', question)
+        res = await fetch('/api/sol-research', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
+      } else if (inputMode === 'url') {
+        res = await fetch('/api/sol-research', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, question }),
+        })
+      } else {
+        res = await fetch('/api/sol-research', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: pastedText, question }),
+        })
+      }
+      const d = await res.json()
+      if (!res.ok) { setError(d.error || 'Analysis failed'); return }
+      setResult(d.answer || '')
+      setContentType(d.contentType || null)
+    } catch (e: any) {
+      setError(e.message || 'Network error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function reset() {
+    setResult(null); setError(null); setFile(null); setFilePreview(null)
+    setUrl(''); setPastedText(''); setQuestion(''); setContentType(null)
+  }
+
+  const canSubmit = !loading && (
+    (inputMode === 'file' && !!file) ||
+    (inputMode === 'url'  && !!url.trim()) ||
+    (inputMode === 'text' && !!pastedText.trim())
+  )
+
+  const QUICK_QUESTIONS = [
+    '🔍 Extract all spirits',
+    '🚪 Identify doorways',
+    '📋 Arsenal summary',
+    '⚔ Deliverance insights',
+    '📖 Scripture connections',
+  ]
+
+  const inputStyle: CSSProperties = {
+    width: '100%', padding: '9px 12px', background: inp, border: `1px solid ${bdr}`,
+    borderRadius: 6, fontFamily: crimson, fontSize: 15, color: txt, outline: 'none',
+    boxSizing: 'border-box',
+  }
+
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 0' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 20, letterSpacing: '0.14em', color: G2, marginBottom: 6 }}>✦ SOL RESEARCH DROP</div>
+        <div style={{ fontFamily: crimson, fontSize: 15, fontStyle: 'italic', color: dim }}>Drop any content — SOL will analyze it for ministry intelligence</div>
+      </div>
+
+      {result ? (
+        /* ── Result ──────────────────────────────────────────────────── */
+        <div>
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.12em', color: G2 }}>✦ SOL INTELLIGENCE REPORT</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {contentType && <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: dim, padding: '2px 6px', border: `1px solid ${bdr}`, borderRadius: 4 }}>{contentType.toUpperCase()}</span>}
+                <button
+                  onClick={() => navigator.clipboard.writeText(result)}
+                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: G2, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', touchAction: 'manipulation' }}>
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div style={{ fontFamily: crimson, fontSize: 15, lineHeight: 1.75, color: isDark ? '#F0E6C8' : txt, whiteSpace: 'pre-wrap', userSelect: 'text' }}>{result}</div>
+          </div>
+          <button onClick={reset}
+            style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: G2, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 20px', cursor: 'pointer', touchAction: 'manipulation' }}>
+            New Research
+          </button>
+        </div>
+      ) : (
+        /* ── Input form ──────────────────────────────────────────────── */
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '24px' }}>
+          {/* Mode tabs */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {(['file','url','text'] as InputMode[]).map((m, i) => (
+              <button key={m} onClick={() => setInputMode(m)}
+                style={{ padding: '6px 16px', borderRadius: 20, border: `1px solid ${inputMode === m ? G2 : bdr}`, background: inputMode === m ? `${G2}22` : 'transparent', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: inputMode === m ? G2 : dim, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                {['📎 File','🔗 URL','📝 Text'][i]}
+              </button>
+            ))}
+          </div>
+
+          {/* File mode */}
+          {inputMode === 'file' && (
+            <div style={{ marginBottom: 20 }}>
+              <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.jpg,.jpeg,.png,.webp,image/*" style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f) }} />
+              {!file ? (
+                <div onClick={() => fileRef.current?.click()}
+                  style={{ border: `2px dashed ${bdr}`, borderRadius: 8, height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: inp, gap: 8 }}>
+                  <div style={{ fontSize: 24 }}>📎</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: dim }}>Drop a PDF, article, image, or text file</div>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: dim, fontStyle: 'italic' }}>Click to browse</div>
+                </div>
+              ) : (
+                <div style={{ border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 16px', background: inp }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: filePreview ? 10 : 0 }}>
+                    <div>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: G2 }}>{file.name}</div>
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: dim }}>{(file.size / 1024).toFixed(1)} KB</div>
+                    </div>
+                    <button onClick={() => { setFile(null); setFilePreview(null) }}
+                      style={{ background: 'transparent', border: 'none', color: dim, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
+                  </div>
+                  {filePreview && <img src={filePreview} alt="preview" style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'contain', borderRadius: 6, display: 'block' }} />}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* URL mode */}
+          {inputMode === 'url' && (
+            <div style={{ marginBottom: 20 }}>
+              <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste an article URL..."
+                style={inputStyle} />
+              <div style={{ fontFamily: crimson, fontSize: 12, fontStyle: 'italic', color: dim, marginTop: 6 }}>SOL will fetch and read the page content</div>
+            </div>
+          )}
+
+          {/* Text mode */}
+          {inputMode === 'text' && (
+            <div style={{ marginBottom: 20 }}>
+              <textarea value={pastedText} onChange={e => setPastedText(e.target.value.slice(0, 50_000))}
+                placeholder="Paste any text, scripture, article content..."
+                rows={8} style={{ ...inputStyle, resize: 'vertical' }} />
+              <div style={{ fontFamily: crimson, fontSize: 11, color: dim, textAlign: 'right', marginTop: 4 }}>
+                {pastedText.length.toLocaleString()} / 50,000
+              </div>
+            </div>
+          )}
+
+          {/* Question */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: G2, marginBottom: 8 }}>Your Research Question</div>
+            <textarea value={question} onChange={e => setQuestion(e.target.value)} rows={3}
+              placeholder={`e.g. Pull all spirits from this content\ne.g. What legal grounds does this describe?\ne.g. Summarize this for the Arsenal\ne.g. What deliverance insights are here?\ne.g. What manifestations are mentioned?`}
+              style={{ ...inputStyle, resize: 'vertical' }} />
+          </div>
+
+          {/* Quick question pills */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+            {QUICK_QUESTIONS.map(q => (
+              <button key={q} onClick={() => setQuestion(q)}
+                style={{ padding: '4px 12px', borderRadius: 14, border: `1px solid ${question === q ? G2 : bdr}`, background: question === q ? `${G2}22` : 'transparent', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', color: question === q ? G2 : dim, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: crimson, fontSize: 14, color: '#ef4444' }}>{error}</div>
+          )}
+
+          <button onClick={handleSubmit} disabled={!canSubmit}
+            style={{ width: '100%', padding: '12px', background: canSubmit ? `${G2}22` : 'transparent', border: `1px solid ${canSubmit ? G2 : bdr}`, borderRadius: 6, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.14em', color: canSubmit ? G2 : dim, cursor: canSubmit ? 'pointer' : 'not-allowed', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', transition: 'all 0.15s' }}>
+            {loading ? 'SOL is analyzing…' : '✦ TRANSMIT TO SOL'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Recent research log ──────────────────────────────────────── */}
+      {recentLog.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', color: dim, marginBottom: 12 }}>RECENT RESEARCH</div>
+          {recentLog.map((entry: any) => (
+            <div key={entry.id} style={{ border: `1px solid ${bdr}`, borderRadius: 6, marginBottom: 8, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: surf, cursor: 'pointer' }}
+                onClick={() => setExpandedLog(expandedLog === entry.id ? null : entry.id)}>
+                <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: G2, padding: '2px 6px', border: `1px solid ${bdr}`, borderRadius: 4 }}>{(entry.content_type || 'text').toUpperCase()}</span>
+                <div style={{ flex: 1, fontFamily: crimson, fontSize: 13, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.question || 'Default analysis'}</div>
+                <div style={{ fontFamily: crimson, fontSize: 11, color: dim, flexShrink: 0 }}>{new Date(entry.created_at).toLocaleDateString()}</div>
+                <span style={{ color: dim, fontSize: 10 }}>{expandedLog === entry.id ? '▲' : '▼'}</span>
+              </div>
+              {expandedLog === entry.id && (
+                <div style={{ padding: '12px 14px', borderTop: `1px solid ${bdr}`, background: bg }}>
+                  {entry.content_preview && <div style={{ fontFamily: crimson, fontSize: 12, color: dim, fontStyle: 'italic', marginBottom: 10, borderLeft: `2px solid ${bdr}`, paddingLeft: 8 }}>Content: {entry.content_preview}…</div>}
+                  <div style={{ fontFamily: crimson, fontSize: 14, lineHeight: 1.7, color: txt, whiteSpace: 'pre-wrap' }}>{entry.answer}</div>
+                  {entry.tokens_used && <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, marginTop: 8 }}>{entry.tokens_used} tokens</div>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

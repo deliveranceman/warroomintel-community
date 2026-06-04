@@ -208,5 +208,9 @@
 [functions."beta-reports"]
   timeout = 15
 
+[functions."sol-research"]
+  timeout = 30
+  external_node_modules = ["pdf-parse"]
+
 [functions."deliverance-protocol"]
-  timeout = 60
+  timeout = 30

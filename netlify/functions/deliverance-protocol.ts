@@ -179,8 +179,14 @@ export default async function handler(req: Request) {
     : (manifestationCandidates as any[]).map((s: any) => s.name)
 
   const [preamble, arsenalResources] = await Promise.all([
-    buildPreamble(primaryName, description, isTerritorial),
-    scoreArsenalResources(allSpiritNames, supabase),
+    Promise.race([
+      buildPreamble(primaryName, description, isTerritorial),
+      new Promise<string>(resolve => setTimeout(() => resolve(''), 5000)),
+    ]),
+    Promise.race([
+      scoreArsenalResources(allSpiritNames, supabase),
+      new Promise<any[]>(resolve => setTimeout(() => resolve([]), 5000)),
+    ]),
   ])
 
   let contextBlock = ''
@@ -270,12 +276,15 @@ Requirements:
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    })
+    const message = await anthropic.messages.create(
+      {
+        model: 'claude-sonnet-4-5',
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      },
+      { signal: AbortSignal.timeout(22_000) },
+    )
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
     const jsonMatch = responseText.match(/\{[\s\S]*\}/)
