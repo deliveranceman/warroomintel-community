@@ -9128,6 +9128,418 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
   )
 }
 
+// ── SITREP FEED ───────────────────────────────────────────────────────────────
+
+const SITREP_TIER_LVL: Record<string, number> = {
+  watchman: 0, free: 0,
+  soldier: 1, charter_soldier: 1,
+  commander: 2, charter_commander: 2,
+  general: 3, founding_general: 3,
+  minister: 99,
+}
+
+const SITREP_POST_TYPES = [
+  { key: 'sitrep',        label: 'SITREP',        icon: '📡' },
+  { key: 'field_report',  label: 'FIELD REPORT',  icon: '📋' },
+  { key: 'prayer_request',label: 'PRAYER',         icon: '🙏' },
+  { key: 'victory',       label: 'VICTORY',        icon: '⚔' },
+  { key: 'scripture',     label: 'SCRIPTURE',      icon: '📖' },
+  { key: 'intel_drop',    label: 'INTEL DROP',     icon: '🔎' },
+] as const
+
+type SitrepPostType = typeof SITREP_POST_TYPES[number]['key']
+
+const SITREP_TYPE_COLOR: Record<string, string> = {
+  field_report: '#c94a4a',
+  prayer_request: '#4a7ac9',
+  victory: '#C9A84C',
+  scripture: '#4aaa72',
+  sitrep: '#C9A84C',
+  intel_drop: '#8a4ac9',
+}
+
+function sitrepAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 2) return 'just now'
+  if (mins < 60) return `${mins}m`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d`
+  return `${Math.floor(days / 30)}mo`
+}
+
+interface SitrepActivity {
+  id: string
+  verb: string
+  time: string
+  actor: string
+  data?: {
+    type?: string
+    text?: string
+    imageUrl?: string | null
+    scriptureRef?: string | null
+    spiritTag?: string | null
+    locationTag?: string | null
+    tier?: string
+  }
+  text?: string
+  reaction_counts?: Record<string, number>
+}
+
+function SitrepCard({
+  activity, isDark, myReacts, onReact,
+}: {
+  activity: SitrepActivity
+  isDark: boolean
+  myReacts: Record<string, boolean>
+  onReact: (id: string, kind: string) => void
+}) {
+  const GC = '#C9A84C'
+  const verb = activity.verb || activity.data?.type || 'sitrep'
+  const typeColor = SITREP_TYPE_COLOR[verb] || GC
+  const bodyText = activity.data?.text || activity.text || ''
+  const counts = activity.reaction_counts || {}
+  const shortActor = (activity.actor || '').slice(-4).toUpperCase() || '??'
+
+  return (
+    <div style={{
+      background: isDark ? 'rgba(255,255,255,0.025)' : '#fff',
+      border: `1px solid rgba(201,168,76,0.12)`,
+      borderRadius: 10,
+      padding: '14px 16px',
+      display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.18)', border: `1px solid rgba(201,168,76,0.35)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 11, color: GC, fontWeight: 700 }}>{shortActor}</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.06em' }}>{activity.actor?.slice(0, 8) || 'SOLDIER'}</span>
+            {activity.data?.tier && (
+              <span style={{ fontFamily: cinzel, fontSize: 7, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}40`, borderRadius: 3, padding: '1px 5px', letterSpacing: '0.06em' }}>{activity.data.tier.toUpperCase()}</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 7, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}40`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.08em' }}>
+              {SITREP_POST_TYPES.find(t => t.key === verb)?.icon} {verb.replace(/_/g, ' ').toUpperCase()}
+            </span>
+            <span style={{ fontFamily: cinzel, fontSize: 7, color: isDark ? '#6b5e45' : '#9a8874', letterSpacing: '0.04em' }}>{sitrepAgo(activity.time)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      {bodyText ? (
+        <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>
+          {bodyText}
+        </p>
+      ) : null}
+
+      {/* Tags */}
+      {(activity.data?.spiritTag || activity.data?.scriptureRef || activity.data?.locationTag) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {activity.data.spiritTag && (
+            <span style={{ fontFamily: cinzel, fontSize: 8, color: GC, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 8px', letterSpacing: '0.06em' }}>⚑ {activity.data.spiritTag}</span>
+          )}
+          {activity.data.scriptureRef && (
+            <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: isDark ? '#9a8874' : '#6b5e45', fontStyle: 'italic' }}>{activity.data.scriptureRef}</span>
+          )}
+          {activity.data.locationTag && (
+            <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#6b5e45' : '#9a8874', letterSpacing: '0.04em' }}>📍 {activity.data.locationTag}</span>
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[
+          { kind: 'cover', icon: '🛡', label: 'Cover' },
+          { kind: 'pray',  icon: '🙏', label: 'Pray'  },
+          { kind: 'relay', icon: '📡', label: 'Relay' },
+        ].map(({ kind, icon, label }) => {
+          const on = myReacts[kind]
+          const cnt = counts[kind] || 0
+          return (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => onReact(activity.id, kind)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: on ? 'rgba(201,168,76,0.15)' : 'transparent',
+                border: `1px solid ${on ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}`,
+                borderRadius: 16, padding: '4px 10px', cursor: 'pointer',
+                fontFamily: cinzel, fontSize: 8, color: on ? G : (isDark ? '#6b5e45' : '#9a8874'),
+                letterSpacing: '0.06em', transition: 'all 0.15s',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontSize: 11, pointerEvents: 'none' }}>{icon}</span>
+              <span style={{ pointerEvents: 'none' }}>{label}{cnt > 0 ? ` ${cnt}` : ''}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId, userTier }: {
+  theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+  getToken: () => Promise<string | null>; userId: string; userTier: string
+}) {
+  const isDark   = theme !== 'light'
+  const GC       = '#C9A84C'
+  const tierLevel = SITREP_TIER_LVL[userTier?.toLowerCase()] ?? 0
+
+  const [activeTab,    setActiveTab]    = useState<'following' | 'all' | 'sol-picks'>('all')
+  const [activities,   setActivities]   = useState<SitrepActivity[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [posting,      setPosting]      = useState(false)
+  const [postText,     setPostText]     = useState('')
+  const [postType,     setPostType]     = useState<SitrepPostType>('sitrep')
+  const [cursor,       setCursor]       = useState<string | null>(null)
+  const [hasMore,      setHasMore]      = useState(false)
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [showDetails,  setShowDetails]  = useState(false)
+  const [spiritTag,    setSpiritTag]    = useState('')
+  const [scriptureRef, setScriptureRef] = useState('')
+  const [locationTag,  setLocationTag]  = useState('')
+  const [myReacts,     setMyReacts]     = useState<Record<string, Record<string, boolean>>>({})
+  const [solBannerDismissed, setSolBannerDismissed] = useState(false)
+
+  async function api(params: Record<string, string>, method: 'GET' | 'POST' = 'GET', body?: unknown) {
+    const token = await getToken()
+    const qs = new URLSearchParams(params).toString()
+    const res = await fetch(`/api/sitrep-feed?${qs}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+    return res.json()
+  }
+
+  async function loadFeed(tab = activeTab, reset = true) {
+    setLoading(true)
+    try {
+      let data: any
+      if (tab === 'sol-picks') {
+        data = await api({ action: 'sol-picks' })
+        setActivities(data.picks || [])
+        setHasMore(false)
+        setCursor(null)
+      } else {
+        const params: Record<string, string> = { action: 'get-timeline', limit: '20' }
+        if (!reset && cursor) params.id_lt = cursor
+        data = await api(params)
+        if (reset) setActivities(data.activities || [])
+        else setActivities(prev => [...prev, ...(data.activities || [])])
+        setHasMore(!!data.next)
+        setCursor(data.next || null)
+      }
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  useEffect(() => { loadFeed(activeTab, true) }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submitPost() {
+    if (!postText.trim() || posting) return
+    setPosting(true)
+    try {
+      const data = await api({ action: 'post' }, 'POST', {
+        type: postType,
+        text: postText.slice(0, 1000),
+        spiritTag:    spiritTag    || undefined,
+        scriptureRef: scriptureRef || undefined,
+        locationTag:  locationTag  || undefined,
+      })
+      if (data.ok && data.activity) {
+        setActivities(prev => [data.activity as SitrepActivity, ...prev])
+      }
+      setPostText(''); setSpiritTag(''); setScriptureRef(''); setLocationTag('')
+      setComposerOpen(false); setShowDetails(false)
+    } catch { /* ignore */ }
+    setPosting(false)
+  }
+
+  function onReact(activityId: string, kind: string) {
+    setMyReacts(prev => ({
+      ...prev,
+      [activityId]: { ...prev[activityId], [kind]: !prev[activityId]?.[kind] },
+    }))
+    api({ action: 'react' }, 'POST', { activityId, kind })
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 12px',
+    background: isDark ? '#0f0e16' : '#fff',
+    border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6,
+    color: isDark ? '#e8dcc8' : '#2D2924',
+    fontFamily: "'Crimson Pro', serif", fontSize: 14, outline: 'none',
+    boxSizing: 'border-box',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
+
+      {/* Header */}
+      <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid rgba(201,168,76,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && (
+            <button type="button" onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>☰</button>
+          )}
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.15em', fontWeight: 700 }}>SITREP</div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#6b5e45' : '#9a8874', letterSpacing: '0.12em', marginTop: 1 }}>FIELD REPORTS FROM THE FRONT LINES</div>
+          </div>
+        </div>
+        {tierLevel >= 1 && (
+          <button
+            type="button"
+            onClick={() => setComposerOpen(o => !o)}
+            style={{ background: composerOpen ? 'rgba(201,168,76,0.18)' : 'transparent', border: `1px solid rgba(201,168,76,${composerOpen ? '0.6' : '0.35'})`, borderRadius: 6, padding: '6px 14px', color: GC, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+          >
+            ⊕ POST
+          </button>
+        )}
+      </div>
+
+      {/* Composer */}
+      {composerOpen && tierLevel >= 1 && (
+        <div style={{ padding: '14px 16px', borderBottom: `1px solid rgba(201,168,76,0.15)`, background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.04)', flexShrink: 0 }}>
+          {/* Post type pills */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            {SITREP_POST_TYPES.map(t => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setPostType(t.key)}
+                style={{ background: postType === t.key ? GC : 'transparent', border: `1px solid ${postType === t.key ? GC : 'rgba(201,168,76,0.3)'}`, borderRadius: 16, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: postType === t.key ? '#0D0B14' : GC, letterSpacing: '0.06em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', fontWeight: postType === t.key ? 700 : 400 }}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+          {/* Text area */}
+          <textarea
+            rows={4}
+            value={postText}
+            onChange={e => setPostText(e.target.value)}
+            placeholder="Send your report from the field..."
+            maxLength={1000}
+            style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
+          />
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#4a3f2f' : '#9a8874', letterSpacing: '0.06em', textAlign: 'right', marginTop: 4 }}>{postText.length} / 1000</div>
+          {/* Optional details toggle */}
+          <button type="button" onClick={() => setShowDetails(d => !d)} style={{ background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#9a8874', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 0', WebkitTapHighlightColor: 'transparent' }}>
+            Add Details {showDetails ? '▴' : '▾'}
+          </button>
+          {showDetails && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+              <input type="text" value={spiritTag} onChange={e => setSpiritTag(e.target.value)} placeholder="Spirit involved (e.g. Jezebel)" style={inputStyle} autoComplete="off" />
+              <input type="text" value={scriptureRef} onChange={e => setScriptureRef(e.target.value)} placeholder="Scripture reference (e.g. Luke 10:19)" style={inputStyle} autoComplete="off" />
+              <input type="text" value={locationTag} onChange={e => setLocationTag(e.target.value)} placeholder="City, State" style={inputStyle} autoComplete="off" />
+            </div>
+          )}
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={submitPost}
+              disabled={!postText.trim() || posting}
+              style={{ flex: 1, padding: '10px', background: !postText.trim() || posting ? 'rgba(201,168,76,0.35)' : GC, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', cursor: !postText.trim() || posting ? 'not-allowed' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
+            >
+              {posting ? '⏳ TRANSMITTING...' : '📡 TRANSMIT REPORT'}
+            </button>
+            <button type="button" onClick={() => { setComposerOpen(false); setShowDetails(false) }} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '10px 16px', color: isDark ? '#6b5e45' : '#9a8874', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: `1px solid rgba(201,168,76,0.15)`, flexShrink: 0 }}>
+        {([
+          { key: 'all',       label: 'All Soldiers' },
+          { key: 'following', label: 'Following'    },
+          { key: 'sol-picks', label: '✦ SOL Picks'  },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              flex: 1, padding: '10px 4px', background: 'transparent', border: 'none',
+              borderBottom: activeTab === tab.key ? `2px solid ${GC}` : '2px solid transparent',
+              color: activeTab === tab.key ? GC : (isDark ? '#6b5e45' : '#9a8874'),
+              fontFamily: cinzel, fontSize: isMobile ? 8 : 9,
+              letterSpacing: '0.06em', cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* SOL Picks Banner */}
+      {activeTab === 'sol-picks' && !solBannerDismissed && (
+        <div style={{ padding: '10px 16px', background: 'rgba(201,168,76,0.08)', borderBottom: `1px solid rgba(201,168,76,0.2)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.1em' }}>✦ SOL INTELLIGENCE PICKS — Top posts curated by SOL, War Room Intel's AI officer</span>
+          <button type="button" onClick={() => setSolBannerDismissed(true)} style={{ background: 'none', border: 'none', color: isDark ? '#4a3f2f' : '#9a8874', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 4px' }}>×</button>
+        </div>
+      )}
+
+      {/* Feed */}
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any, paddingBottom: `calc(16px + env(safe-area-inset-bottom, 0px))` }}>
+        {loading && (
+          <div style={{ padding: '40px 16px', textAlign: 'center', fontFamily: cinzel, fontSize: 9, color: isDark ? '#4a3f2f' : '#9a8874', letterSpacing: '0.12em' }}>
+            RECEIVING REPORTS...
+          </div>
+        )}
+        {!loading && activities.length === 0 && (
+          <div style={{ padding: '60px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>⚔</div>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? '#4a3f2f' : '#9a8874', letterSpacing: '0.12em', lineHeight: 1.8 }}>
+              No reports yet.{'\n'}Be first to transmit from the field.
+            </div>
+          </div>
+        )}
+        {!loading && activities.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 12px 0' }}>
+            {activities.map(a => (
+              <SitrepCard
+                key={a.id}
+                activity={a}
+                isDark={isDark}
+                myReacts={myReacts[a.id] || {}}
+                onReact={onReact}
+              />
+            ))}
+          </div>
+        )}
+        {!loading && hasMore && (
+          <div style={{ padding: '16px', textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => loadFeed(activeTab, false)}
+              style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '8px 24px', color: GC, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+            >
+              LOAD MORE
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── CommunityPage ─────────────────────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
@@ -10110,6 +10522,7 @@ function CommunityPage() {
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
+        {navItem('SITREP', 'sitrep', <span style={{ fontSize: 14, lineHeight: 1 }}>📡</span>)}
         {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
         {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
         {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
@@ -10411,6 +10824,7 @@ function CommunityPage() {
           )
         })()}
 
+        {activeSection === 'sitrep'         && <SitrepView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
         {activeSection === 'intel'         && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
         {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
         {activeSection === 'war-room'      && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
@@ -11432,6 +11846,7 @@ function CommunityPage() {
       <BottomNav
         tabs={[
           { id: 'intel',    label: 'Home',     icon: <Home size={20} strokeWidth={1.6} /> },
+          { id: 'sitrep',   label: 'SITREP',   icon: <span style={{ fontSize: 18 }}>📡</span> },
           { id: 'database', label: 'Database', icon: <Library size={20} strokeWidth={1.6} /> },
           { id: 'forum',    label: 'Ops',      icon: <MessageSquare size={20} strokeWidth={1.6} /> },
           { id: 'ai',       label: 'AI',       icon: <Zap size={20} strokeWidth={1.6} /> },
