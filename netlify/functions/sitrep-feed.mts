@@ -11,7 +11,7 @@ const CORS = {
 }
 const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' }
 
-const FEEDS_BASE = 'https://feeds.stream-io-api.com/api/v1.0'
+const FEEDS_BASE = 'https://us-east-api.stream-io-api.com/api/v1.0'
 
 const TIER_LEVEL: Record<string, number> = {
   watchman: 0, free: 0,

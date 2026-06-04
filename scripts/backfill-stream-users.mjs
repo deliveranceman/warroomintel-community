@@ -52,7 +52,7 @@ console.log('Stream Chat upsert:', chatRes.status, JSON.stringify(chatData).slic
 console.log('Upserting users into Stream Activity Feeds...')
 let feedsOk = 0, feedsFail = 0
 for (const u of Object.values(users)) {
-  const feedsRes = await fetch(`https://feeds.stream-io-api.com/api/v1.0/user/${u.id}/?api_key=${apiKey}`, {
+  const feedsRes = await fetch(`https://us-east-api.stream-io-api.com/api/v1.0/user/${u.id}/?api_key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
