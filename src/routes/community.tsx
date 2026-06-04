@@ -8863,7 +8863,7 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
                     const handleMemberTap = async () => {
                       setShowNewDM(false); setDmSearch('')
                       try {
-                        const data = await api('create-dm', 'POST', { otherUserId: member.id })
+                        const data = await api('create-dm', 'POST', { otherUserId: member.id, otherUserName: member.name })
                         if (data.channelId) {
                           const convData = await api('list-conversations')
                           if (convData.conversations) setConversations(convData.conversations)
