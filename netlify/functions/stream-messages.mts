@@ -169,7 +169,7 @@ async function listConversations(userId: string): Promise<Response> {
       serverToken(),
       { messages: { limit: 1 }, state: true, watch: false },
     )
-    console.log('[list-conv] channel', r.channel_id, 'stream status:', cs)
+    console.log('[list-conv] channel', r.channel_id, 'stream status:', cs, 'data:', JSON.stringify(cd).slice(0, 400))
     if (cs === 200) {
       const d = cd as any
       const chMembers: any[] = d.members ?? []
@@ -204,6 +204,7 @@ async function listConversations(userId: string): Promise<Response> {
     }
   }
 
+  console.log('[list-conv] final conversations count:', conversations.length)
   return json({ conversations })
 }
 
