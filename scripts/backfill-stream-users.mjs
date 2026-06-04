@@ -12,7 +12,7 @@ const feedsSecret = process.env.STREAM_FEEDS_SECRET || apiSecret
 
 function serverJWT(secret = apiSecret) {
   const header  = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const payload = Buffer.from(JSON.stringify({ server: true })).toString('base64url')
+  const payload = Buffer.from(JSON.stringify({ resource: '*', action: '*', feed_id: '*' })).toString('base64url')
   const sig     = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')
   return `${header}.${payload}.${sig}`
 }
@@ -48,21 +48,19 @@ const chatRes = await fetch(`https://chat.stream-io-api.com/users?api_key=${apiK
 const chatData = await chatRes.json()
 console.log('Stream Chat upsert:', chatRes.status, JSON.stringify(chatData).slice(0, 200))
 
-// 4. Upsert all into Stream Activity Feeds (uses STREAM_FEEDS_SECRET)
+// 4. Upsert all into Stream Activity Feeds — batch POST /users/ with array body
 console.log('Upserting users into Stream Activity Feeds...')
-let feedsOk = 0, feedsFail = 0
-for (const u of Object.values(users)) {
-  const feedsRes = await fetch(`https://us-east-api.stream-io-api.com/api/v1.0/user/${u.id}/?api_key=${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': serverJWT(feedsSecret),
-      'Stream-Auth-Type': 'jwt',
-    },
-    body: JSON.stringify({ data: { name: u.name } }),
-  })
-  if (feedsRes.ok || feedsRes.status === 201) { feedsOk++ }
-  else { feedsFail++; console.warn(`Feeds upsert failed for ${u.id}: ${feedsRes.status}`) }
-}
+const feedsUserArray = Object.values(users).map(u => ({ id: u.id, name: u.name }))
+const feedsRes = await fetch(`https://us-east-api.stream-io-api.com/api/v1.0/users/?api_key=${apiKey}`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': serverJWT(feedsSecret),
+    'Stream-Auth-Type': 'jwt',
+  },
+  body: JSON.stringify({ users: feedsUserArray }),
+})
+const feedsData = await feedsRes.json()
+console.log('Stream Feeds upsert:', feedsRes.status, JSON.stringify(feedsData).slice(0, 300))
 console.log(`Stream Chat upsert complete: ${Object.keys(users).length} users registered for DMs`)
-console.log(`Stream Feeds upsert complete: ${feedsOk} ok, ${feedsFail} failed`)
+console.log(`Stream Feeds upsert complete: ${feedsRes.ok ? feedsUserArray.length : 0} ok, ${feedsRes.ok ? 0 : feedsUserArray.length} failed`)
