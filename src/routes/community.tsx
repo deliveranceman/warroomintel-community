@@ -9767,7 +9767,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     if (!t) return
     try {
       const d = await fetch('/api/stream-messages?action=get-sentinel-requests', { headers: { Authorization: `Bearer ${t}` } }).then(r => r.json())
-      setSentinelRequests(Array.isArray(d.requests) ? d.requests : [])
+      const next = Array.isArray(d.requests) ? d.requests : []
+      setSentinelRequests(prev => {
+        const prevIds = prev.map((r: any) => r.id).join(',')
+        const nextIds = next.map((r: any) => r.id).join(',')
+        return prevIds === nextIds ? prev : next
+      })
     } catch {}
   }, [getToken])
 
@@ -9816,6 +9821,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     if (!userId) return
     fetchPendingInbound()
     const interval = setInterval(fetchPendingInbound, 30000)
+    return () => clearInterval(interval)
+  }, [userId])
+
+  // ── Poll sentinel requests every 30s ──
+  useEffect(() => {
+    if (!userId) return
+    const interval = setInterval(fetchSentinelRequests, 30000)
     return () => clearInterval(interval)
   }, [userId])
 
@@ -10552,10 +10564,11 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             <span style={{ fontSize: 10, color: WMUT }}>All of WRI · Low-noise announcements</span>
           </div>
         </div>
+      </div>
 
-        {/* ── Sentinel Picker modal ── */}
-        {showSentinelPicker && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      {/* ── Sentinel Picker modal ── */}
+      {showSentinelPicker && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#0f0e1a', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 12, padding: 24, maxWidth: 420, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexShrink: 0 }}>
                 <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: '#b48ee0', letterSpacing: '0.1em', fontWeight: 700 }}>⚔ REQUEST SENTINEL</span>
@@ -10625,7 +10638,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
         {/* ── Create Fire Team modal ── */}
         {showCreateFireTeam && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#0f0e1a', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: GLD, letterSpacing: '0.1em', fontWeight: 700 }}>⚔ CREATE FIRE TEAM</span>
@@ -10775,7 +10788,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
         {/* ── Cover All creation modal ── */}
         {showCreateCoverAll && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#0f0e1a', border: '1px solid rgba(106,172,239,0.35)', borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: '#6aacef', letterSpacing: '0.1em', fontWeight: 700 }}>🛡 CREATE COVER ALL</span>
@@ -10978,7 +10991,6 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             </div>
           </div>
         )}
-      </div>
 
       {/* ── CENTER PANEL: Chat thread ── */}
       <div style={{
