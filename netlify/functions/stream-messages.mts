@@ -654,7 +654,8 @@ async function requestSentinel(userId: string, body: any): Promise<Response> {
       })
       if (myRes.ok) {
         const u = await myRes.json()
-        userName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || userId
+        const full = [u.first_name, u.last_name].filter((x: any) => x && x.trim()).join(' ')
+        userName = full || u.username || u.email_addresses?.[0]?.email_address?.split('@')[0] || userId
       }
     } catch {}
   }
@@ -673,7 +674,7 @@ async function requestSentinel(userId: string, body: any): Promise<Response> {
   const existRows: any[] = await existRes.json().catch(() => [])
   if (Array.isArray(existRows) && existRows.length > 0) return json({ error: 'Sentinel relationship already exists' }, 400)
 
-  await fetch(SB('/sentinel_pairs'), {
+  const insertRes = await fetch(SB('/sentinel_pairs'), {
     method: 'POST',
     headers: sbH,
     body: JSON.stringify({
@@ -681,7 +682,12 @@ async function requestSentinel(userId: string, body: any): Promise<Response> {
       recipient_id: recipientId, recipient_name: recipientName || 'Member',
       status: 'pending',
     }),
-  }).catch(() => {})
+  }).catch(() => null)
+  if (insertRes && !insertRes.ok) {
+    const errBody = await insertRes.text().catch(() => '')
+    console.error('[sentinel] INSERT failed', insertRes.status, errBody)
+    return json({ error: 'Failed to create sentinel request' }, 500)
+  }
 
   const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
   fetch(`${siteUrl}/api/send-push`, {
@@ -811,12 +817,33 @@ async function getSentinelRequests(userId: string): Promise<Response> {
     { headers: sbH },
   )
   const rows: any[] = await res.json().catch(() => [])
-  const requests = Array.isArray(rows) ? rows.map(r => ({
+  if (!Array.isArray(rows) || rows.length === 0) return json({ requests: [] })
+
+  // Resolve full names from Clerk for any row where stored name is missing or incomplete
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  const needsLookup = rows.filter(r => !r.requester_name || r.requester_name.startsWith('user_') || !r.requester_name.includes(' '))
+  const clerkNames: Record<string, string> = {}
+  if (clerkSecretKey && needsLookup.length > 0) {
+    await Promise.all(needsLookup.map(async r => {
+      try {
+        const cr = await fetch(`https://api.clerk.com/v1/users/${r.requester_id}`, {
+          headers: { Authorization: `Bearer ${clerkSecretKey}` },
+        })
+        if (cr.ok) {
+          const u = await cr.json()
+          const full = [u.first_name, u.last_name].filter((x: any) => x && x.trim()).join(' ')
+          clerkNames[r.requester_id] = full || u.username || u.email_addresses?.[0]?.email_address?.split('@')[0] || r.requester_id
+        }
+      } catch {}
+    }))
+  }
+
+  const requests = rows.map(r => ({
     id: r.id,
     requesterId: r.requester_id,
-    requesterName: r.requester_name,
+    requesterName: clerkNames[r.requester_id] || r.requester_name || 'Member',
     createdAt: r.created_at,
-  })) : []
+  }))
   return json({ requests })
 }
 
