@@ -62,7 +62,7 @@ function RootError({ error }: { error: unknown }) {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>War Room Intel</title>
         <style>{`body{background:#0e0c09;color:#e8e0d0;font-family:'Georgia',serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:2rem;text-align:center}`}</style>
       </head>
