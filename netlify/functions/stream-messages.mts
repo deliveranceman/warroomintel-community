@@ -185,32 +185,30 @@ async function createDM(userId: string, body: any): Promise<Response> {
   const { otherUserId } = body ?? {}
   if (!otherUserId) return json({ error: 'otherUserId required' }, 400)
 
-  const channelId = [userId, otherUserId].sort().join('-')
+  // Deterministic channelId identical to the working create-dm.ts approach
+  const sortedIds = [userId, otherUserId].sort()
+  const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
+  const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
 
-  const url = `https://chat.stream-io-api.com/channels/messaging/${channelId}?api_key=${apiKey}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': serverToken(),
-      'Stream-Auth-Type': 'jwt',
-      'X-Stream-Client': 'stream-chat-javascript-client-node-latest',
-    },
-    body: JSON.stringify({
-      get_or_create: true,
-      data: {
-        created_by_id: userId,
-        members: [userId, otherUserId],
-        is_dm: true,
-      },
-    }),
-  })
+  const token = serverToken()
 
-  const data = await res.json().catch(() => ({}))
-  console.log('[create-dm] status:', res.status, 'body:', JSON.stringify(data).slice(0, 300))
+  // Step 1: /query creates the channel if it doesn't exist (watch:false avoids websocket)
+  const queryBody = { data: { created_by_id: userId }, state: true, watch: false, presence: false }
+  console.log('[create-dm] query url:', streamUrl(`/channels/messaging/${channelId}/query`))
+  console.log('[create-dm] query body:', JSON.stringify(queryBody))
+  const { status: s1, data: d1 } = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', token, queryBody)
+  console.log('[create-dm] query status:', s1, 'body:', JSON.stringify(d1).slice(0, 300))
 
-  if (!res.ok) return json({ error: 'Stream error', detail: data }, res.status)
-  return json({ ok: true, channelId: data.channel?.id ?? channelId })
+  if (s1 >= 500) return json({ error: 'Stream query failed', detail: d1 }, s1)
+
+  // Step 2: force-add both members (idempotent — safe to call even if already members)
+  const addBody = { add_members: sortedIds.map(id => ({ user_id: id })) }
+  console.log('[create-dm] add_members body:', JSON.stringify(addBody))
+  const { status: s2, data: d2 } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, addBody)
+  console.log('[create-dm] add_members status:', s2, 'body:', JSON.stringify(d2).slice(0, 300))
+
+  if (s2 >= 400) return json({ error: 'Stream add_members failed', detail: d2 }, s2)
+  return json({ ok: true, channelId })
 }
 
 async function markRead(userId: string, body: any): Promise<Response> {
