@@ -214,6 +214,7 @@
 
 [functions."stream-webhook"]
   timeout = 10
+  external_node_modules = ["web-push"]
 
 [functions."deliverance-protocol"]
   timeout = 25

@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
+import { sendWebPushToUser } from './_shared/sendWebPush.js'
 
 const { apiKey: streamApiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
 const { publicKey: vapidPublicKey, privateKey: vapidPrivateKey, email: vapidEmail } = JSON.parse(process.env.VAPID || '{}')
@@ -137,91 +138,64 @@ async function solDMReply(messageText: string, channelId: string, senderId: stri
   console.log(`[stream-webhook] SOL DM replied channel=${channelId} user=${senderId}`)
 }
 
-// ── Retry wrapper ─────────────────────────────────────────────────────────────
-
-async function fetchWithRetry(url: string, options: RequestInit, retries = 2): Promise<Response> {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      return await fetch(url, options)
-    } catch (e) {
-      if (i === retries) throw e
-      await new Promise(r => setTimeout(r, 300 * (i + 1)))
-      console.log(`[webhook] retry ${i + 1} for ${url.slice(0, 60)}`)
-    }
-  }
-  throw new Error('fetch failed after retries')
-}
-
 // ── DM push notification ──────────────────────────────────────────────────────
 
-async function sendDMPush(channelId: string, senderId: string, senderName: string, messageText: string) {
-  const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
-  const internalKey = process.env.INTERNAL_API_KEY || 'wri-internal-2026-backfill'
+async function sendDMPush(channelId: string, senderId: string, senderName: string, messageText: string): Promise<void> {
   const sbH = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` }
 
-  const dmRes = await fetchWithRetry(
+  const dmRes = await fetch(
     `${supabaseUrl}/rest/v1/dm_requests?channel_id=eq.${channelId}&status=eq.accepted&select=requester_id,recipient_id`,
     { headers: sbH },
   )
-  const dms = await dmRes.json().catch(() => [])
+  const dms: any[] = await dmRes.json().catch(() => [])
   console.log('[webhook] dm_requests found:', Array.isArray(dms) ? dms.length : 0, 'for channel:', channelId)
 
   const dm = Array.isArray(dms) ? dms[0] : null
   if (!dm) { console.log('[webhook] no accepted dm_request for channel:', channelId); return }
 
   const recipientId = dm.requester_id === senderId ? dm.recipient_id : dm.requester_id
-  console.log('[webhook] pushing to:', recipientId)
+  console.log('[webhook] sending push to recipientId:', recipientId)
 
-  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
-  const pushRes = await fetchWithRetry(`${siteUrl}/api/send-push`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-key': internalKey },
-    body: JSON.stringify({
-      userId: recipientId,
-      title: `💬 ${senderName}`,
-      body: messageText.slice(0, 100),
-      data: { type: 'dm_message', channelId, section: 'dms' },
-    }),
-  })
-  const pushData = await pushRes.json().catch(() => ({}))
-  console.log('[webhook] push result:', JSON.stringify(pushData))
+  const result = await sendWebPushToUser(
+    recipientId,
+    `💬 ${senderName}`,
+    messageText.slice(0, 100),
+    { type: 'dm_message', channelId, section: 'dms' },
+  )
+  console.log('[webhook] DM push result:', JSON.stringify(result))
 }
 
 // ── Fire Team push notification ───────────────────────────────────────────────
 
 async function sendFireTeamPush(channelId: string, senderUserId: string, senderName: string, messageText: string): Promise<void> {
-  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+  const sbH = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` }
 
   const ftTeamRes = await fetch(
     `${supabaseUrl}/rest/v1/fire_teams?stream_channel_id=eq.${encodeURIComponent(channelId)}&select=id`,
-    { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+    { headers: sbH },
   )
-  const teams = await ftTeamRes.json().catch(() => [])
+  const teams: any[] = await ftTeamRes.json().catch(() => [])
   const teamId = Array.isArray(teams) ? teams[0]?.id : null
   if (!teamId) { console.log('[webhook] no fire_team for channel:', channelId); return }
 
   const membersRes = await fetch(
     `${supabaseUrl}/rest/v1/fire_team_members?fire_team_id=eq.${encodeURIComponent(teamId)}&status=eq.active&user_id=neq.${encodeURIComponent(senderUserId)}&select=user_id`,
-    { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+    { headers: sbH },
   )
-  const members = await membersRes.json().catch(() => [])
-  console.log('[webhook] fire team push teamId:', teamId, 'members:', Array.isArray(members) ? members.length : 0)
+  const members: any[] = await membersRes.json().catch(() => [])
+  console.log('[webhook] fire team push teamId:', teamId, 'recipients:', Array.isArray(members) ? members.length : 0)
 
   await Promise.allSettled(
     (Array.isArray(members) ? members : []).map((member: any) =>
-      fetch(`${siteUrl}/api/send-push`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-internal-key': process.env.INTERNAL_API_KEY || '' },
-        body: JSON.stringify({
-          userId: member.user_id,
-          title: `⚔ ${senderName}`,
-          body: messageText.slice(0, 100),
-          data: { type: 'fire_team_message', channelId, section: 'dms' },
-        }),
-      }).catch(() => {}),
+      sendWebPushToUser(
+        member.user_id,
+        `⚔ ${senderName}`,
+        messageText.slice(0, 100),
+        { type: 'fire_team_message', channelId, section: 'dms' },
+      ).catch(() => {}),
     ),
   )
-  console.log(`[webhook] fire team push done channelId=${channelId}`)
+  console.log('[webhook] fire team push done channelId:', channelId)
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
