@@ -733,12 +733,14 @@ function FieldCommandersSection() {
       badge: 'Commander',
     },
     {
-      name: 'Dakota McAllister',
-      role: 'Field Operations',
-      sub: 'SOLDIER',
+      name: 'WRI Certified Leaders',
+      role: 'Certified Generals Network',
+      sub: 'GENERAL NETWORK',
       cls: 'III' as const,
-      bio: 'Field minister and community coordinator. Manages session scheduling, member follow-up, and front-line ministry operations.',
-      badge: 'Soldier',
+      bio: 'War Room Intel is building a global network of certified Generals — seasoned deliverance ministers trained, vetted, and equipped to carry this intelligence into their regions. Certification coming 2025.',
+      badge: 'General',
+      avatar: '⚔',
+      subRole: 'Expanding Globally',
     },
   ]
 
@@ -756,13 +758,14 @@ function FieldCommandersSection() {
           {commanders.map(c => (
             <TacticalCard key={c.name} brackets style={{ display: 'flex', flexDirection: 'column' as const }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.05))', border: '1px solid var(--gold-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 18, color: G }}>
-                  {c.name.charAt(0)}
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.05))', border: '1px solid var(--gold-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: (c as any).avatar ? 22 : 18, color: G }}>
+                  {(c as any).avatar || c.name.charAt(0)}
                 </div>
                 <ClassBadge level={c.cls} label={c.sub} />
               </div>
               <div style={{ fontFamily: cinzel, fontSize: 14, fontWeight: 600, color: 'var(--t-0)', marginBottom: 4 }}>{c.name}</div>
               <MonoTime size={10} color="var(--t-4)">{c.role}</MonoTime>
+              {(c as any).subRole && <MonoTime size={9} color={G}>{(c as any).subRole}</MonoTime>}
               <div style={{ height: 1, background: 'var(--gold-line)', margin: '14px 0' }} />
               <p style={{ fontSize: 13, color: 'var(--t-2)', lineHeight: 1.7, fontFamily: reading, fontStyle: 'italic', flex: 1, margin: 0 }}>{c.bio}</p>
             </TacticalCard>
