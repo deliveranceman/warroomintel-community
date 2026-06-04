@@ -114,6 +114,19 @@ function extractUserId(authHeader: string | null): string | null {
   }
 }
 
+function extractTierFromJWT(authHeader: string | null): string {
+  if (!authHeader) return 'watchman'
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return 'watchman'
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    return (payload?.publicMetadata?.tier || payload?.public_metadata?.tier || 'watchman') as string
+  } catch {
+    return 'watchman'
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function json(data: unknown, status = 200): Response {
@@ -809,15 +822,19 @@ async function getSentinelRequests(userId: string): Promise<Response> {
 
 // ── Cover All actions ─────────────────────────────────────────────────────────
 
-async function createCoverAll(userId: string, body: any): Promise<Response> {
+async function createCoverAll(userId: string, body: any, authHeader: string | null): Promise<Response> {
   const { name, territory, inviteUserIds } = body ?? {}
   if (!name) return json({ error: 'name required' }, 400)
   if (!Array.isArray(inviteUserIds)) return json({ error: 'inviteUserIds required' }, 400)
   if (1 + inviteUserIds.length > 20) return json({ error: 'max 20 members total' }, 400)
 
-  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  // Tier check — read from JWT first, fall back to Clerk API
+  const TIER_MAP: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+  const jwtTier = extractTierFromJWT(authHeader)
+  let userTierLevel = TIER_MAP[jwtTier] ?? 0
   let userName = userId
-  let userTierLevel = 0
+
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
   if (clerkSecretKey) {
     try {
       const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
@@ -825,13 +842,16 @@ async function createCoverAll(userId: string, body: any): Promise<Response> {
       })
       if (myRes.ok) {
         const u = await myRes.json()
-        const tier = (u.public_metadata?.tier as string) || 'watchman'
-        userTierLevel = ({ watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 } as Record<string, number>)[tier] ?? 0
+        const clerkTier = (u.public_metadata?.tier as string) || jwtTier
+        const clerkLevel = TIER_MAP[clerkTier] ?? 0
+        // Use the higher of JWT tier vs Clerk tier (Clerk is authoritative if available)
+        userTierLevel = Math.max(userTierLevel, clerkLevel)
         userName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || userId
       }
     } catch {}
   }
-  if (userTierLevel < 2) return json({ error: 'Commander+ tier required to create Cover All groups' }, 403)
+
+  if (userTierLevel < 2) return json({ error: 'Commander+ tier required to create Cover All groups', debug: { jwtTier, userTierLevel } }, 403)
 
   const channelId = `ca-${Date.now()}-${userId.slice(-6)}`
   const allMembers = [userId, ...inviteUserIds]
@@ -1031,7 +1051,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (action === 'create-cover-all') {
     const body = await req.json().catch(() => ({}))
-    return createCoverAll(userId, body)
+    return createCoverAll(userId, body, req.headers.get('Authorization'))
   }
 
   if (action === 'list-cover-all') {
