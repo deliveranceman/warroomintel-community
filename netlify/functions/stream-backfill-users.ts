@@ -33,15 +33,15 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ upserted: 0 }), { headers: HEADERS })
   }
 
-  // Build batch upsert payload (Stream accepts up to 100 per POST)
-  const users: Record<string, { id: string; name: string; role: string }> = {}
+  // Build batch upsert payload
+  const users: { id: string; name: string }[] = []
   for (const u of clerkUsers) {
     const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id
-    users[u.id] = { id: u.id, name, role: 'user' }
+    users.push({ id: u.id, name })
   }
 
-  const serverToken = streamJWT({ server: true })
-  const upsertRes = await fetch(`https://chat.stream-io-api.com/users?api_key=${apiKey}`, {
+  const serverToken = streamJWT({ resource: '*', action: '*', feed_id: '*' })
+  const upsertRes = await fetch(`https://us-east-api.stream-io-api.com/api/v1.0/users/?api_key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

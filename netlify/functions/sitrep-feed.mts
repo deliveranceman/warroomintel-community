@@ -21,24 +21,24 @@ const TIER_LEVEL: Record<string, number> = {
   minister: 99,
 }
 
-// ── JWT helpers (identical pattern to stream-messages.mts) ────────────────────
+// ── JWT helpers ────────────────────────────────────────────────────────────────
 
 function serverJWT(): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const body   = Buffer.from(JSON.stringify({ server: true })).toString('base64url')
+  const body   = Buffer.from(JSON.stringify({ resource: '*', action: '*', feed_id: '*' })).toString('base64url')
   const sig    = crypto.createHmac('sha256', apiSecret ?? '').update(`${header}.${body}`).digest('base64url')
   return `${header}.${body}.${sig}`
 }
 
 function userJWT(userId: string): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const body   = Buffer.from(JSON.stringify({ user_id: userId, feed_id: `user:${userId}` })).toString('base64url')
+  const body   = Buffer.from(JSON.stringify({ user_id: userId })).toString('base64url')
   const sig    = crypto.createHmac('sha256', apiSecret ?? '').update(`${header}.${body}`).digest('base64url')
   return `${header}.${body}.${sig}`
 }
 
 function feedHeaders(): Record<string, string> {
-  console.log('[sitrep] auth: JWT {server:true}, apiKey:', apiKey, 'secret exists:', !!apiSecret)
+  console.log('[sitrep] auth: JWT {resource:*,action:*,feed_id:*}, apiKey:', apiKey, 'secret exists:', !!apiSecret)
   return {
     'Content-Type': 'application/json',
     Authorization: serverJWT(),
@@ -98,6 +98,14 @@ async function feedFetch(
   try { data = await res.json() } catch { data = {} }
   console.log('[sitrep] response:', res.status, JSON.stringify(data).slice(0, 200))
   return { status: res.status, data }
+}
+
+// ── Feed helpers ───────────────────────────────────────────────────────────────
+
+async function upsertUser(userId: string, name?: string): Promise<void> {
+  await feedFetch(feedUrl('/users/'), 'POST', {
+    users: [{ id: userId, name: name || userId }],
+  }).catch(() => {})
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────────
@@ -162,18 +170,22 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
   }
 
   // Ensure user exists in Feeds before posting
-  await feedFetch(feedUrl(`/user/${userId}/`), 'POST', { id: userId, data: { name: userId } })
+  await upsertUser(userId)
 
-  const [userRes, allRes] = await Promise.all([
-    feedFetch(feedUrl(`/feed/user/${userId}/`), 'POST', activityBody),
-    feedFetch(feedUrl(`/feed/flat/wri-all/`), 'POST', activityBody),
+  // v2 API requires activities wrapped in { activities: [...] }
+  const wrapped = { activities: [activityBody] }
+
+  const [userRes] = await Promise.all([
+    feedFetch(feedUrl(`/feed/user/${userId}/`), 'POST', wrapped),
+    feedFetch(feedUrl(`/feed/user/wri-community/`), 'POST', wrapped),
   ])
 
   if (userRes.status >= 400) {
     return json({ error: 'Failed to post', detail: userRes.data }, 502)
   }
 
-  const activity = (userRes.data as any)?.activity || activityBody
+  // v2 returns { activities: [...] }, v1 returned { activity: {...} }
+  const activity = (userRes.data as any)?.activities?.[0] || activityBody
   return json({ ok: true, activityId: activity.id || `post:${userId}:${now}`, activity })
 }
 
@@ -182,24 +194,14 @@ async function getTimeline(userId: string, params: URLSearchParams): Promise<Res
   const idLt  = params.get('id_lt') || ''
 
   // Fire-and-forget user upsert so timeline feed exists
-  feedFetch(feedUrl(`/user/${userId}/`), 'POST', { id: userId, data: { name: userId } }).catch(() => {})
+  upsertUser(userId).catch(() => {})
 
   const ltParam = idLt ? `&id_lt=${encodeURIComponent(idLt)}` : ''
-  const [allRes, timelineRes] = await Promise.all([
-    feedFetch(feedUrl(`/feed/flat/wri-all/?limit=${limit}${ltParam}`)),
-    feedFetch(feedUrl(`/feed/timeline/${userId}/?limit=${limit}${ltParam}`)),
-  ])
+  const { data } = await feedFetch(feedUrl(`/feed/timeline/${userId}/?limit=${limit}${ltParam}`))
 
-  const allActivities: any[] = (allRes.data as any)?.results || []
-  const timelineActivities: any[] = (timelineRes.data as any)?.results || []
-
-  const seen = new Set<string>()
-  const merged: any[] = []
-  for (const a of [...allActivities, ...timelineActivities]) {
-    if (a.id && !seen.has(a.id)) { seen.add(a.id); merged.push(a) }
-  }
-  merged.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-  const page = merged.slice(0, limit)
+  const activities: any[] = (data as any)?.results || []
+  activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+  const page = activities.slice(0, limit)
   const next = page.length >= limit ? (page[page.length - 1]?.id || null) : null
 
   return json({ activities: page, next })
@@ -268,7 +270,7 @@ async function react(userId: string, body: any): Promise<Response> {
 }
 
 async function solPicks(): Promise<Response> {
-  const { data } = await feedFetch(feedUrl('/feed/flat/wri-all/?limit=50'))
+  const { data } = await feedFetch(feedUrl('/feed/user/wri-community/?limit=50'))
   const activities: any[] = (data as any)?.results || []
 
   if (!activities.length) return json({ picks: [] })
