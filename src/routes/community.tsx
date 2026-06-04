@@ -9618,6 +9618,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [loadingMembers, setLoadingMembers]   = React.useState(false)
   const [dmError, setDmError]                 = React.useState<string | null>(null)
   const [pendingInbound, setPendingInbound]   = React.useState<any[]>([])
+  const [fireTeams, setFireTeams]                   = React.useState<any[]>([])
+  const [fireTeamsLoading, setFireTeamsLoading]     = React.useState(false)
+  const [showCreateFireTeam, setShowCreateFireTeam] = React.useState(false)
+  const [ftName, setFtName]                         = React.useState('')
+  const [ftType, setFtType]                         = React.useState('intercession')
+  const [ftDescription, setFtDescription]           = React.useState('')
+  const [ftInviteIds, setFtInviteIds]               = React.useState<string[]>([])
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef           = React.useRef<EventSource | null>(null)
@@ -9671,6 +9678,19 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     })
   }, [getToken])
 
+  // ── Fetch fire teams ──
+  const fetchFireTeams = React.useCallback(async () => {
+    setFireTeamsLoading(true)
+    const t = await getToken()
+    if (!t) { setFireTeamsLoading(false); return }
+    fetch('/api/stream-messages?action=list-fire-teams', {
+      headers: { Authorization: `Bearer ${t}` },
+    }).then(r => r.json()).then(d => {
+      setFireTeams(Array.isArray(d.fireTeams) ? d.fireTeams : [])
+      setFireTeamsLoading(false)
+    }).catch(() => setFireTeamsLoading(false))
+  }, [getToken])
+
   // ── Load conversations ──
   useEffect(() => {
     if (!userId) return
@@ -9696,6 +9716,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         selectConversation(convos[0].channelId, t)
       }
     })
+    fetchFireTeams()
   }, [userId])
 
   // ── Poll inbound pending DM requests every 30s ──
@@ -9712,6 +9733,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       if (document.visibilityState === 'visible') {
         fetchConversations()
         fetchPendingInbound()
+        fetchFireTeams()
       }
     }
     document.addEventListener('visibilitychange', handleVisible)
@@ -9766,9 +9788,10 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     setLoadingMessages(false)
   }, [token, getToken])
 
-  // ── Fetch members when new DM panel opens ──
+  // ── Fetch members when new DM panel or Create Fire Team modal opens ──
   React.useEffect(() => {
-    if (!showNewDM) return
+    if (!showNewDM && !showCreateFireTeam) return
+    if (dmMembers.length > 0) return
     setLoadingMembers(true)
     getToken().then(t => {
       if (!t) { setLoadingMembers(false); return }
@@ -9779,7 +9802,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         setLoadingMembers(false)
       }).catch(() => setLoadingMembers(false))
     })
-  }, [showNewDM])
+  }, [showNewDM, showCreateFireTeam])
 
   // ── Poll active conversation every 3s ──
   React.useEffect(() => {
@@ -9946,6 +9969,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   }, [conversations, activeTab, searchQuery])
 
   const activeConvo = [SOL_CONVO, ...conversations].find(c => c.channelId === activeConvoId)
+  const activeFireTeam = fireTeams.find(t => t.channelId === activeConvoId) ?? null
 
   // ── Helpers ──
   const getInitials = (name: string) => name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
@@ -10137,6 +10161,66 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
+        {/* ── Fire Teams section ── */}
+        {(fireTeams.length > 0 || tierLevel >= 1) && (
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', marginTop: 8 }}>
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: GLD, letterSpacing: '0.14em', fontWeight: 700 }}>⚔ FIRE TEAMS</span>
+              {tierLevel >= 1 && (
+                <button
+                  type="button"
+                  onClick={() => { setShowCreateFireTeam(true); setFtName(''); setFtType('intercession'); setFtDescription(''); setFtInviteIds([]) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: GLD, fontSize: 16, lineHeight: 1, padding: '0 2px', touchAction: 'manipulation' }}
+                  title="Create Fire Team"
+                >+</button>
+              )}
+            </div>
+            {fireTeamsLoading && fireTeams.length === 0 ? (
+              <div style={{ padding: '4px 16px', fontSize: 11, color: WMUT }}>Loading…</div>
+            ) : fireTeams.length === 0 ? (
+              <div style={{ padding: '4px 16px 8px', fontSize: 11, color: WMUT }}>No active fire teams</div>
+            ) : fireTeams.map(team => {
+              const ftTypeIcons: Record<string, string> = { intercession: '🙏', warfare: '⚔', assignment: '📡', coordination: '📋', prayer: '🔥' }
+              const icon = ftTypeIcons[team.assignmentType] || '⚔'
+              const isActive = team.channelId === activeConvoId
+              const av = { bg: 'rgba(201,168,76,0.15)', color: GLD }
+              return (
+                <div
+                  key={team.fireTeamId || team.channelId}
+                  onClick={() => selectConversation(team.channelId)}
+                  style={{
+                    display: 'flex', gap: 10, padding: '8px 12px', cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent',
+                    borderBottom: `1px solid ${BDR}`,
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: av.bg, color: av.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: `1px solid rgba(201,168,76,0.3)`, flexShrink: 0 }}>
+                    {icon}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{team.teamName}</span>
+                      <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>{relativeTime(team.updatedAt)}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 10, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
+                        {team.lastMessage || `${team.memberCount} members`}
+                      </span>
+                      <span style={{ fontSize: 9, color: WMUT, flexShrink: 0, marginLeft: 4 }}>{team.memberCount}👥</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            <div style={{ padding: '6px 16px', borderBottom: `1px solid ${BDR}` }}>
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.14em' }}>DIRECT MESSAGES</span>
+            </div>
+          </div>
+        )}
+
         {/* Conversation rows */}
         <div style={{ flex: 1, overflowY: 'auto' as const }}>
           {loading ? (
@@ -10206,6 +10290,156 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             )
           })}
         </div>
+        {/* ── Create Fire Team modal ── */}
+        {showCreateFireTeam && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#0f0e1a', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: GLD, letterSpacing: '0.1em', fontWeight: 700 }}>⚔ CREATE FIRE TEAM</span>
+                <button type="button" onClick={() => setShowCreateFireTeam(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
+              </div>
+
+              {/* Team Name */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>TEAM NAME</label>
+                <input
+                  value={ftName}
+                  onChange={e => setFtName(e.target.value.slice(0, 50))}
+                  placeholder="e.g. Copper Basin Watchmen"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: "'Cinzel',serif" }}
+                />
+              </div>
+
+              {/* Assignment Type */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>ASSIGNMENT TYPE</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                  {[
+                    { value: 'intercession', label: '🙏 Intercession' },
+                    { value: 'warfare', label: '⚔ Warfare' },
+                    { value: 'assignment', label: '📡 Assignment' },
+                    { value: 'coordination', label: '📋 Coordination' },
+                    { value: 'prayer', label: '🔥 Prayer' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFtType(opt.value)}
+                      style={{
+                        padding: '6px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer', touchAction: 'manipulation',
+                        background: ftType === opt.value ? GLD : 'rgba(255,255,255,0.06)',
+                        color: ftType === opt.value ? '#000' : '#fff',
+                        border: ftType === opt.value ? 'none' : `1px solid ${BDR}`,
+                        fontWeight: ftType === opt.value ? 700 : 400,
+                      }}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>ASSIGNMENT <span style={{ color: 'rgba(255,255,255,0.3)' }}>(optional)</span></label>
+                <textarea
+                  value={ftDescription}
+                  onChange={e => setFtDescription(e.target.value.slice(0, 100))}
+                  placeholder="What is this team's assignment?"
+                  rows={2}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 12, outline: 'none', resize: 'none' as const, boxSizing: 'border-box' as const, fontFamily: 'var(--font-crimson, serif)' }}
+                />
+                <div style={{ fontSize: 10, color: WDIM, textAlign: 'right' as const }}>{ftDescription.length}/100</div>
+              </div>
+
+              {/* Invite Members */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em' }}>INVITE MEMBERS</label>
+                  {ftInviteIds.length >= 7 && <span style={{ fontSize: 9, color: '#c47070' }}>Max 7 members</span>}
+                </div>
+                {ftInviteIds.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 10 }}>
+                    {ftInviteIds.map(id => {
+                      const m = dmMembers.find(x => x.id === id)
+                      return (
+                        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '3px 10px 3px 8px', fontSize: 11, color: GLD }}>
+                          <span>{m?.name || id}</span>
+                          <button type="button" onClick={() => setFtInviteIds(prev => prev.filter(x => x !== id))} style={{ background: 'none', border: 'none', color: GLD, cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1, touchAction: 'manipulation' }}>×</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <div style={{ maxHeight: 180, overflowY: 'auto' as const, border: `1px solid ${BDR}`, borderRadius: 8 }}>
+                  {loadingMembers ? (
+                    <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>Loading…</div>
+                  ) : dmMembers.length === 0 ? (
+                    <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>No members available</div>
+                  ) : dmMembers.map(member => {
+                    const isSelected = ftInviteIds.includes(member.id)
+                    const atMax = ftInviteIds.length >= 7
+                    const disabled = !isSelected && atMax
+                    return (
+                      <button
+                        key={member.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => setFtInviteIds(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
+                        style={{ width: '100%', background: isSelected ? 'rgba(201,168,76,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
+                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.1)' : 'rgba(255,255,255,0.05)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.08)' : 'none' }}
+                      >
+                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? GLD : 'rgba(255,255,255,0.3)'}`, background: isSelected ? GLD : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
+                        </div>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: GLD, flexShrink: 0, overflow: 'hidden' }}>
+                          {member.imageUrl
+                            ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+                          }
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: '#fff', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                          <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowCreateFireTeam(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 13, padding: '8px 16px', touchAction: 'manipulation' }}>Cancel</button>
+                <button
+                  type="button"
+                  disabled={!ftName.trim() || ftInviteIds.length === 0}
+                  onClick={async () => {
+                    setShowCreateFireTeam(false)
+                    const t = await getToken()
+                    if (!t) return
+                    const res = await fetch('/api/stream-messages?action=create-fire-team', {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: ftName.trim(), assignmentType: ftType, description: ftDescription, inviteUserIds: ftInviteIds }),
+                    }).then(r => r.json()).catch(() => null)
+                    if (res?.channelId) {
+                      fetchFireTeams()
+                      selectConversation(res.channelId)
+                    }
+                  }}
+                  style={{
+                    background: !ftName.trim() || ftInviteIds.length === 0 ? 'rgba(201,168,76,0.3)' : GLD,
+                    color: '#000', border: 'none', borderRadius: 6, padding: '10px 20px', fontSize: 12,
+                    fontFamily: "'Cinzel',serif", fontWeight: 700, letterSpacing: '0.06em',
+                    cursor: !ftName.trim() || ftInviteIds.length === 0 ? 'not-allowed' : 'pointer',
+                    touchAction: 'manipulation',
+                  }}
+                >⚔ Deploy Fire Team</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── New DM member picker overlay ── */}
         {showNewDM && (
           <div style={{ position: 'absolute', inset: 0, background: BG, zIndex: 10, display: 'flex', flexDirection: 'column' as const }}>
@@ -10307,29 +10541,54 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   <ChevronLeft size={20} strokeWidth={2} />
                 </button>
               )}
-              {/* Avatar */}
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: activeConvo?.otherMember?.id === 'sol-bot' ? 'rgba(201,168,76,0.2)' : SURF, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: GLD, border: `1px solid ${BDR}` }}>
-                {activeConvo?.otherMember?.id === 'sol-bot'
-                  ? <img src="/images/sol/sol-icon.png" width={32} height={32} style={{ objectFit: 'cover' }} alt="SOL" />
-                  : activeConvo?.otherMember?.image
-                    ? <img src={activeConvo.otherMember.image} width={32} height={32} style={{ objectFit: 'cover' }} alt="" />
-                    : getInitials(activeConvo?.otherMember?.name || '?')
-                }
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                  {activeConvo?.otherMember?.name || 'Unknown'}
-                </div>
-                <div style={{ fontSize: 11, color: activeConvo?.otherMember?.online ? '#1d9e75' : WMUT }}>
-                  {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
-                </div>
-              </div>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-cinzel,serif)', color: 'rgba(201,168,76,0.4)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '3px 10px', letterSpacing: '0.08em' }}>
-                CALLS COMING SOON
-              </div>
-              <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
-                <MoreHorizontal size={16} strokeWidth={1.8} />
-              </button>
+              {activeFireTeam ? (
+                <>
+                  {/* Fire Team header */}
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                    {({ intercession: '🙏', warfare: '⚔', assignment: '📡', coordination: '📋', prayer: '🔥' } as Record<string,string>)[activeFireTeam.assignmentType] || '⚔'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                        {activeFireTeam.teamName}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#000', background: 'rgba(201,168,76,0.85)', borderRadius: 10, padding: '2px 8px', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0, fontWeight: 700 }}>
+                        {activeFireTeam.assignmentType?.toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: WMUT }}>{activeFireTeam.memberCount} members</div>
+                  </div>
+                  <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
+                    <MoreHorizontal size={16} strokeWidth={1.8} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* DM / SOL header */}
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: activeConvo?.otherMember?.id === 'sol-bot' ? 'rgba(201,168,76,0.2)' : SURF, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: GLD, border: `1px solid ${BDR}` }}>
+                    {activeConvo?.otherMember?.id === 'sol-bot'
+                      ? <img src="/images/sol/sol-icon.png" width={32} height={32} style={{ objectFit: 'cover' }} alt="SOL" />
+                      : activeConvo?.otherMember?.image
+                        ? <img src={activeConvo.otherMember.image} width={32} height={32} style={{ objectFit: 'cover' }} alt="" />
+                        : getInitials(activeConvo?.otherMember?.name || '?')
+                    }
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {activeConvo?.otherMember?.name || 'Unknown'}
+                    </div>
+                    <div style={{ fontSize: 11, color: activeConvo?.otherMember?.online ? '#1d9e75' : WMUT }}>
+                      {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--font-cinzel,serif)', color: 'rgba(201,168,76,0.4)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '3px 10px', letterSpacing: '0.08em' }}>
+                    CALLS COMING SOON
+                  </div>
+                  <button style={{ background: 'none', border: 'none', padding: 6, color: WMUT, cursor: 'pointer', display: 'flex' }}>
+                    <MoreHorizontal size={16} strokeWidth={1.8} />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Messages area */}

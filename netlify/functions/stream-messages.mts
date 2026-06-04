@@ -475,6 +475,156 @@ async function listMembers(currentUserId: string): Promise<Response> {
   return json(members)
 }
 
+// ── Fire Team actions ─────────────────────────────────────────────────────────
+
+async function createFireTeam(userId: string, body: any): Promise<Response> {
+  const { name, assignmentType, description, inviteUserIds } = body ?? {}
+
+  if (!name || name.length > 50) return json({ error: 'name required, max 50 chars' }, 400)
+  const validTypes = ['intercession', 'warfare', 'assignment', 'coordination', 'prayer']
+  if (!validTypes.includes(assignmentType)) return json({ error: 'invalid assignmentType' }, 400)
+  if (!Array.isArray(inviteUserIds) || inviteUserIds.length === 0) return json({ error: 'inviteUserIds required' }, 400)
+  if (inviteUserIds.length > 7) return json({ error: 'max 7 invited members' }, 400)
+
+  // Soldier+ tier check
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  let userName = userId
+  if (clerkSecretKey) {
+    const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${clerkSecretKey}` },
+    })
+    if (myRes.ok) {
+      const myUser = await myRes.json()
+      const tier = (myUser.public_metadata?.tier as string) || 'watchman'
+      const tl = ({ watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 } as Record<string, number>)[tier] ?? 0
+      if (tl < 1) return json({ error: 'Soldier+ tier required to create Fire Teams' }, 403)
+      userName = [myUser.first_name, myUser.last_name].filter(Boolean).join(' ') || myUser.username || userId
+    }
+  }
+
+  const channelId = `ft-${Date.now()}-${userId.slice(-6)}`
+  const allMembers = [userId, ...inviteUserIds]
+
+  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
+    method: 'POST',
+    headers: streamHeaders(serverToken()),
+    body: JSON.stringify({
+      get_or_create: true,
+      members: allMembers,
+      data: { created_by_id: userId, name, is_fire_team: true, assignment_type: assignmentType, description: description || '' },
+    }),
+  })
+  if (!chanRes.ok) {
+    const err = await chanRes.text()
+    return json({ error: 'Stream channel creation failed', detail: err }, 500)
+  }
+
+  const ftRes = await fetch(SB('/fire_teams'), {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify({
+      name, assignment_type: assignmentType, leader_id: userId, leader_name: userName,
+      stream_channel_id: channelId, description: description || '',
+      member_count: 1 + inviteUserIds.length, active: true,
+    }),
+  })
+  const ftRows: any[] = await ftRes.json().catch(() => [])
+  const fireTeamId = Array.isArray(ftRows) && ftRows[0]?.id ? ftRows[0].id : null
+
+  if (fireTeamId) {
+    await fetch(SB('/fire_team_members'), {
+      method: 'POST',
+      headers: sbH,
+      body: JSON.stringify({ fire_team_id: fireTeamId, team_id: fireTeamId, user_id: userId, user_name: userName, role: 'leader', status: 'active' }),
+    }).catch(() => {})
+
+    const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+    for (const inviteId of inviteUserIds) {
+      fetch(`${siteUrl}/api/send-push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({
+          title: '⚔ Fire Team Invitation',
+          body: `${userName} invited you to join "${name}" Fire Team`,
+          userId: inviteId,
+          url: '/community',
+        }),
+      }).catch(() => {})
+    }
+  }
+
+  return json({ ok: true, channelId, fireTeamId })
+}
+
+async function listFireTeams(userId: string): Promise<Response> {
+  const membRes = await fetch(
+    SB(`/fire_team_members?user_id=eq.${encodeURIComponent(userId)}&status=eq.active&select=fire_team_id`),
+    { headers: sbH },
+  )
+  const membRows: any[] = await membRes.json().catch(() => [])
+  if (!Array.isArray(membRows) || membRows.length === 0) return json({ fireTeams: [] })
+
+  const ids = membRows.map(r => r.fire_team_id).filter(Boolean)
+  if (ids.length === 0) return json({ fireTeams: [] })
+
+  const teamsRes = await fetch(
+    SB(`/fire_teams?id=in.(${ids.join(',')})&active=eq.true&select=*`),
+    { headers: sbH },
+  )
+  const teams: any[] = await teamsRes.json().catch(() => [])
+  if (!Array.isArray(teams) || teams.length === 0) return json({ fireTeams: [] })
+
+  const fireTeams: any[] = []
+  for (const team of teams) {
+    let lastMessage = ''
+    let updatedAt = team.created_at
+    if (team.stream_channel_id) {
+      const { status, data } = await streamFetch(
+        `/channels/messaging/${encodeURIComponent(team.stream_channel_id)}/query`,
+        'POST', serverToken(),
+        { state: true, messages: { limit: 1 }, watch: false, presence: false },
+      )
+      if (status >= 200 && status < 300) {
+        const latestMsg = (data as any).messages?.[0] ?? null
+        lastMessage = latestMsg?.text || ''
+        updatedAt = latestMsg?.created_at || team.created_at
+      }
+    }
+    fireTeams.push({
+      channelId: team.stream_channel_id || '',
+      teamName: team.name,
+      leaderName: team.leader_name || '',
+      assignmentType: team.assignment_type || team.focus || 'intercession',
+      memberCount: team.member_count || 1,
+      lastMessage, updatedAt,
+      isFireTeam: true,
+      fireTeamId: team.id,
+    })
+  }
+
+  return json({ fireTeams })
+}
+
+async function getFireTeamMembers(fireTeamId: string): Promise<Response> {
+  if (!fireTeamId) return json({ error: 'fireTeamId required' }, 400)
+  const res = await fetch(
+    SB(`/fire_team_members?fire_team_id=eq.${encodeURIComponent(fireTeamId)}&status=eq.active&select=*`),
+    { headers: sbH },
+  )
+  const members: any[] = await res.json().catch(() => [])
+  return json({ members: Array.isArray(members) ? members : [] })
+}
+
+async function leaveFireTeam(userId: string, body: any): Promise<Response> {
+  const { fireTeamId } = body ?? {}
+  if (!fireTeamId) return json({ error: 'fireTeamId required' }, 400)
+  await fetch(
+    SB(`/fire_team_members?fire_team_id=eq.${encodeURIComponent(fireTeamId)}&user_id=eq.${encodeURIComponent(userId)}`),
+    { method: 'PATCH', headers: sbH, body: JSON.stringify({ status: 'left' }) },
+  ).catch(() => {})
+  return json({ ok: true })
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
@@ -533,6 +683,24 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (action === 'pending-requests') {
     return pendingRequests(userId)
+  }
+
+  if (action === 'create-fire-team') {
+    const body = await req.json().catch(() => ({}))
+    return createFireTeam(userId, body)
+  }
+
+  if (action === 'list-fire-teams') {
+    return listFireTeams(userId)
+  }
+
+  if (action === 'get-fire-team-members') {
+    return getFireTeamMembers(url.searchParams.get('fireTeamId') ?? '')
+  }
+
+  if (action === 'leave-fire-team') {
+    const body = await req.json().catch(() => ({}))
+    return leaveFireTeam(userId, body)
   }
 
   return json({ error: `Unknown action: ${action}` }, 405)
