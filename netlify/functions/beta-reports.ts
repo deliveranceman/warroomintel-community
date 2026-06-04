@@ -1,41 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
-
-/*
-  Supabase setup — run once in SQL editor:
-
-  CREATE TABLE beta_reports (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    created_at timestamptz DEFAULT now(),
-    submitted_by_id text NOT NULL,
-    submitted_by_name text NOT NULL,
-    type text NOT NULL CHECK (type IN ('bug','feature','crash','ui','performance','other')),
-    page_section text,
-    title text NOT NULL,
-    description text,
-    screenshot_url text,
-    status text DEFAULT 'open' CHECK (status IN ('open','in_progress','done','wont_fix')),
-    priority text DEFAULT 'normal' CHECK (priority IN ('low','normal','high','critical')),
-    minister_notes text,
-    upvotes int DEFAULT 0,
-    upvoter_ids text[] DEFAULT '{}',
-    resolved_at timestamptz
-  );
-  ALTER TABLE beta_reports ENABLE ROW LEVEL SECURITY;
-  CREATE POLICY "read_all" ON beta_reports FOR SELECT USING (true);
-  CREATE POLICY "insert_any" ON beta_reports FOR INSERT WITH CHECK (true);
-  CREATE POLICY "update_any" ON beta_reports FOR UPDATE USING (true);
-
-  Storage bucket (run in SQL or Supabase dashboard):
-  INSERT INTO storage.buckets (id, name, public) VALUES ('beta-screenshots', 'beta-screenshots', true) ON CONFLICT DO NOTHING;
-  CREATE POLICY "beta_screenshots_upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'beta-screenshots');
-  CREATE POLICY "beta_screenshots_read" ON storage.objects FOR SELECT USING (bucket_id = 'beta-screenshots');
-*/
-
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
-const supabase = createClient(supabaseUrl!, serviceRoleKey!)
+const sbHeaders = {
+  apikey:          serviceRoleKey as string,
+  Authorization:   `Bearer ${serviceRoleKey as string}`,
+  'Content-Type':  'application/json',
+}
+const sb = (path: string) => `${supabaseUrl}/rest/v1${path}`
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
 }
@@ -45,151 +17,239 @@ function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS })
 }
 
-async function resolveUser(token: string) {
+function decodeToken(authHeader: string | null): { userId: string; userName: string } | null {
+  if (!authHeader) return null
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+  if (!token) return null
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
     if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData, meta: userData?.public_metadata }
+    const userName =
+      payload.name ||
+      [payload.firstName, payload.lastName].filter(Boolean).join(' ') ||
+      userId
+    return { userId, userName }
   } catch { return null }
 }
+
+async function getIsMinister(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    const meta = data.public_metadata || {}
+    return meta.role === 'minister' || meta.isAdmin === true
+  } catch { return false }
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────────
+
+async function getList(userId: string, isMinister: boolean, params: URLSearchParams): Promise<Response> {
+  const type   = params.get('type')   || ''
+  const status = params.get('status') || ''
+  const sort   = params.get('sort')   || 'new'
+  const mine   = params.get('mine') === 'true'
+
+  const selectFields = isMinister
+    ? 'id,user_id,user_name,type,title,description,page_section,screenshot_url,screenshot_url_2,screenshot_url_3,status,priority,upvotes,upvoted_by,admin_notes,fix_summary,fixed_at,created_at,updated_at'
+    : 'id,user_id,user_name,type,title,description,page_section,screenshot_url,screenshot_url_2,screenshot_url_3,status,priority,upvotes,upvoted_by,fix_summary,fixed_at,created_at,updated_at'
+
+  let url = `${sb('/beta_reports')}?select=${selectFields}&limit=200`
+
+  if (type) url += `&type=eq.${encodeURIComponent(type)}`
+  if (mine) url += `&user_id=eq.${encodeURIComponent(userId)}`
+
+  if (status === 'open') {
+    url += `&status=in.(new,confirmed,in_progress)`
+  } else if (status === 'fixed') {
+    url += `&status=in.(fixed,deployed)`
+  }
+
+  url += sort === 'top' ? `&order=upvotes.desc,created_at.desc` : `&order=created_at.desc`
+
+  const res = await fetch(url, { headers: sbHeaders })
+  if (!res.ok) return json({ error: 'Database error', detail: await res.text() }, 500)
+  return json({ reports: await res.json() })
+}
+
+async function getStats(): Promise<Response> {
+  const res = await fetch(
+    `${sb('/beta_reports')}?select=id,type,status,upvotes,title&limit=1000`,
+    { headers: sbHeaders },
+  )
+  if (!res.ok) return json({ error: 'Database error' }, 500)
+  const all: any[] = await res.json()
+
+  const byStatus: Record<string, number> = {
+    new: 0, confirmed: 0, in_progress: 0, fixed: 0, deployed: 0,
+    wont_fix: 0, by_design: 0, duplicate: 0,
+  }
+  const byType: Record<string, number> = { bug: 0, feature: 0, question: 0, praise: 0 }
+
+  for (const r of all) {
+    if (r.status in byStatus) byStatus[r.status]++
+    if (r.type in byType)     byType[r.type]++
+  }
+
+  const topUpvoted = [...all]
+    .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0))
+    .slice(0, 5)
+    .map(r => ({ id: r.id, title: r.title, upvotes: r.upvotes, status: r.status, type: r.type }))
+
+  return json({ total: all.length, byStatus, byType, topUpvoted })
+}
+
+async function submitReport(userId: string, userName: string, body: any): Promise<Response> {
+  const { type, title, description, pageSection, screenshotUrl, screenshotUrl2, screenshotUrl3 } = body || {}
+  const validTypes = ['bug', 'feature', 'question', 'praise']
+  if (!type || !validTypes.includes(type))               return json({ error: 'Invalid type' }, 400)
+  if (!title?.trim() || title.length > 120)              return json({ error: 'title required, max 120 chars' }, 400)
+  if (!description?.trim() || description.length > 3000) return json({ error: 'description required, max 3000 chars' }, 400)
+
+  const res = await fetch(`${sb('/beta_reports')}?select=*`, {
+    method: 'POST',
+    headers: { ...sbHeaders, Prefer: 'return=representation' },
+    body: JSON.stringify({
+      user_id:          userId,
+      user_name:        userName,
+      type,
+      title:            title.trim(),
+      description:      description.trim(),
+      page_section:     pageSection     || null,
+      screenshot_url:   screenshotUrl   || null,
+      screenshot_url_2: screenshotUrl2  || null,
+      screenshot_url_3: screenshotUrl3  || null,
+    }),
+  })
+  if (!res.ok) return json({ error: 'Insert failed', detail: await res.text() }, 500)
+  const rows: any[] = await res.json()
+  return json({ report: rows[0] ?? null }, 201)
+}
+
+async function upvoteReport(userId: string, body: any): Promise<Response> {
+  const { reportId } = body || {}
+  if (!reportId) return json({ error: 'reportId required' }, 400)
+
+  const getRes = await fetch(
+    `${sb('/beta_reports')}?id=eq.${encodeURIComponent(reportId)}&select=upvoted_by,upvotes`,
+    { headers: sbHeaders },
+  )
+  if (!getRes.ok) return json({ error: 'Database error' }, 500)
+  const rows: any[] = await getRes.json()
+  if (!rows.length) return json({ error: 'Not found' }, 404)
+
+  const upvotedBy: string[]  = rows[0].upvoted_by || []
+  const alreadyVoted         = upvotedBy.includes(userId)
+  const newUpvotedBy         = alreadyVoted
+    ? upvotedBy.filter(id => id !== userId)
+    : [...upvotedBy, userId]
+
+  const patchRes = await fetch(`${sb('/beta_reports')}?id=eq.${encodeURIComponent(reportId)}`, {
+    method: 'PATCH',
+    headers: { ...sbHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify({ upvoted_by: newUpvotedBy, upvotes: newUpvotedBy.length }),
+  })
+  if (!patchRes.ok) return json({ error: 'Update failed' }, 500)
+
+  return json({ upvoted: !alreadyVoted, upvotes: newUpvotedBy.length })
+}
+
+async function triageReport(userId: string, isMinister: boolean, body: any): Promise<Response> {
+  void userId
+  if (!isMinister) return json({ error: 'Forbidden' }, 403)
+  const { id, status, priority, adminNotes, fixSummary } = body || {}
+  if (!id) return json({ error: 'id required' }, 400)
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (status     !== undefined) patch.status      = status
+  if (priority   !== undefined) patch.priority    = priority
+  if (adminNotes !== undefined) patch.admin_notes = adminNotes
+  if (fixSummary !== undefined) patch.fix_summary = fixSummary
+  if (status === 'fixed' || status === 'deployed') patch.fixed_at = new Date().toISOString()
+
+  const patchRes = await fetch(`${sb('/beta_reports')}?id=eq.${encodeURIComponent(id)}&select=*`, {
+    method: 'PATCH',
+    headers: { ...sbHeaders, Prefer: 'return=representation' },
+    body: JSON.stringify(patch),
+  })
+  if (!patchRes.ok) return json({ error: 'Update failed', detail: await patchRes.text() }, 500)
+  const resRows: any[] = await patchRes.json()
+  return json({ report: resRows[0] ?? null })
+}
+
+async function uploadScreenshot(userId: string, req: Request): Promise<Response> {
+  const formData = await req.formData()
+  const file = formData.get('file')
+  if (!file || typeof file === 'string') return json({ error: 'file required' }, 400)
+
+  const f = file as File
+  if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(f.type))
+    return json({ error: 'image files only (jpeg, png, gif, webp)' }, 400)
+  if (f.size > 10 * 1024 * 1024) return json({ error: 'max 10MB' }, 400)
+
+  const buffer    = Buffer.from(await f.arrayBuffer())
+  const safeName  = f.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const timestamp = Date.now()
+  const filePath  = `beta/${userId}/${timestamp}-${safeName}`
+
+  const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/beta-screenshots/${filePath}`, {
+    method: 'POST',
+    headers: {
+      apikey:          serviceRoleKey as string,
+      Authorization:   `Bearer ${serviceRoleKey as string}`,
+      'Content-Type':  f.type,
+    },
+    body: buffer,
+  })
+  if (!uploadRes.ok) return json({ error: 'Upload failed', detail: await uploadRes.text() }, 500)
+
+  const url = `${supabaseUrl}/storage/v1/object/public/beta-screenshots/${filePath}`
+  return json({ url })
+}
+
+// ── Main handler ───────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim()
-  if (!token) return json({ error: 'Unauthorized' }, 401)
+  const auth = decodeToken(req.headers.get('Authorization'))
+  if (!auth) return json({ error: 'Unauthorized' }, 401)
+  const { userId, userName } = auth
 
-  const auth = await resolveUser(token)
-  if (!auth) return json({ error: 'Invalid session' }, 401)
-
-  const { userId, userData, meta } = auth
-  const isMinister = meta?.role === 'minister'
-  const userName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Warrior'
-
-  const url = new URL(req.url)
+  const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''
 
-  // ── list ─────────────────────────────────────────────────────────
-  if (action === 'list') {
-    const { data, error } = await supabase
-      .from('beta_reports')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200)
-    if (error) return json({ error: error.message }, 500)
-    return json({ reports: data })
-  }
+  if (action === 'upload') return uploadScreenshot(userId, req)
 
-  // ── stats ─────────────────────────────────────────────────────────
-  if (action === 'stats') {
-    const { data, error } = await supabase.from('beta_reports').select('type, status')
-    if (error) return json({ error: error.message }, 500)
-    const byType: Record<string, number> = {}
-    const byStatus: Record<string, number> = {}
-    for (const r of (data || [])) {
-      byType[r.type]     = (byType[r.type]     || 0) + 1
-      byStatus[r.status] = (byStatus[r.status] || 0) + 1
-    }
-    return json({ byType, byStatus, total: (data || []).length })
-  }
+  if (action === 'stats') return getStats()
 
-  // ── submit ────────────────────────────────────────────────────────
-  if (action === 'submit' && req.method === 'POST') {
+  if (action === 'upvote') {
     const body = await req.json().catch(() => ({}))
-    const { type, title, page_section, description, screenshot_url } = body
-    const validTypes = ['bug', 'feature', 'crash', 'ui', 'performance', 'other']
-    if (!validTypes.includes(type)) return json({ error: 'Invalid type' }, 400)
-    if (!title?.trim()) return json({ error: 'title required' }, 400)
-
-    const { data, error } = await supabase.from('beta_reports').insert({
-      submitted_by_id:   userId,
-      submitted_by_name: userName,
-      type,
-      title:          String(title).slice(0, 200),
-      page_section:   page_section || null,
-      description:    description ? String(description).slice(0, 2000) : null,
-      screenshot_url: screenshot_url || null,
-      status:         'open',
-      priority:       'normal',
-      upvotes:        0,
-      upvoter_ids:    [],
-    }).select().single()
-    if (error) return json({ error: error.message }, 500)
-    return json({ ok: true, report: data }, 201)
+    return upvoteReport(userId, body)
   }
 
-  // ── upvote (toggle) ───────────────────────────────────────────────
-  if (action === 'upvote' && req.method === 'POST') {
+  if (req.method === 'GET') {
+    const isMinister = await getIsMinister(userId)
+    return getList(userId, isMinister, url.searchParams)
+  }
+
+  if (req.method === 'POST') {
     const body = await req.json().catch(() => ({}))
-    const { id } = body
-    if (!id) return json({ error: 'id required' }, 400)
-
-    const { data: existing } = await supabase.from('beta_reports').select('upvotes, upvoter_ids').eq('id', id).single()
-    if (!existing) return json({ error: 'Not found' }, 404)
-
-    const upvoterIds: string[] = existing.upvoter_ids || []
-    const alreadyVoted = upvoterIds.includes(userId)
-    const newIds   = alreadyVoted ? upvoterIds.filter((x: string) => x !== userId) : [...upvoterIds, userId]
-    const newCount = alreadyVoted ? Math.max(0, (existing.upvotes || 0) - 1) : (existing.upvotes || 0) + 1
-
-    const { error } = await supabase.from('beta_reports').update({ upvotes: newCount, upvoter_ids: newIds }).eq('id', id)
-    if (error) return json({ error: error.message }, 500)
-    return json({ ok: true, upvotes: newCount, voted: !alreadyVoted })
+    return submitReport(userId, userName, body)
   }
 
-  // ── triage (minister only) ────────────────────────────────────────
-  if (action === 'triage' && req.method === 'PATCH') {
-    if (!isMinister) return json({ error: 'Forbidden' }, 403)
+  if (req.method === 'PATCH') {
+    const isMinister = await getIsMinister(userId)
     const body = await req.json().catch(() => ({}))
-    const { id, status, priority, minister_notes } = body
-    if (!id) return json({ error: 'id required' }, 400)
-
-    const validStatuses   = ['open', 'in_progress', 'done', 'wont_fix']
-    const validPriorities = ['low', 'normal', 'high', 'critical']
-    if (status   && !validStatuses.includes(status))     return json({ error: 'Invalid status'   }, 400)
-    if (priority && !validPriorities.includes(priority)) return json({ error: 'Invalid priority' }, 400)
-
-    const update: Record<string, unknown> = {}
-    if (status            !== undefined) update.status          = status
-    if (priority          !== undefined) update.priority        = priority
-    if (minister_notes    !== undefined) update.minister_notes  = minister_notes
-    if (status === 'done')               update.resolved_at     = new Date().toISOString()
-
-    const { error } = await supabase.from('beta_reports').update(update).eq('id', id)
-    if (error) return json({ error: error.message }, 500)
-    return json({ ok: true })
+    return triageReport(userId, isMinister, body)
   }
 
-  // ── upload screenshot ─────────────────────────────────────────────
-  if (action === 'upload' && req.method === 'POST') {
-    const formData = await req.formData()
-    const file = formData.get('file')
-    if (!file || typeof file === 'string') return json({ error: 'file required' }, 400)
-    const f = file as File
-    if (!f.type.startsWith('image/'))  return json({ error: 'image files only' }, 400)
-    if (f.size > 10 * 1024 * 1024)    return json({ error: 'max 10MB' }, 400)
-
-    const arrayBuffer = await f.arrayBuffer()
-    const buffer      = Buffer.from(arrayBuffer)
-    const safeName    = f.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const fileName    = `${userId}/${Date.now()}-${safeName}`
-
-    const { error } = await supabase.storage.from('beta-screenshots').upload(fileName, buffer, { contentType: f.type, upsert: false })
-    if (error) return json({ error: error.message }, 500)
-
-    const { data: { publicUrl } } = supabase.storage.from('beta-screenshots').getPublicUrl(fileName)
-    return json({ url: publicUrl })
-  }
-
-  return json({ error: `Unknown action: ${action}` }, 400)
+  return json({ error: 'Not found' }, 404)
 }
 
 export const config = { path: '/api/beta-reports' }
