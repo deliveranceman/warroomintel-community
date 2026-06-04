@@ -669,6 +669,11 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
         </div>
         <div style={{ textAlign:'center' as const, width:'100%' }}>
           <div style={{ fontFamily: cinzel, fontSize: large ? 13 : 11, color: txt, letterSpacing:'0.05em', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom: 6 }}>{displayName}</div>
+          {member.publicMetadata?.bio && (
+            <div style={{ fontFamily: crimson, fontSize: 12, color: muted, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, marginBottom: 6, textAlign: 'center' as const }}>
+              {member.publicMetadata.bio}
+            </div>
+          )}
           <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:4, flexWrap:'wrap' as const }}>
             <ClassBadge level={TIER_TO_CLASS[tier] || 'IV'} label={tier.toUpperCase()} />
             {member.publicMetadata?.foundingMember && <FoundingBadge />}
@@ -2771,7 +2776,7 @@ function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpe
 }
 
 // ── WEEKLY INTEL VIEW ────────────────────────────────────────────────────────
-function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection, demons: demonsProp = [] }: {
+function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection: (s: string) => void; demons?: any[]
 }) {
   const { user }     = useUser()
@@ -2805,6 +2810,11 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
   const [reportForm, setReportForm]         = useState({ spirit_names: '', manifestations: '', entry_points: '', outcome: '', notes: '', location_city: '', location_state: '' })
   const [reportSubmitting, setReportSubmitting] = useState(false)
   const [reportSuccess, setReportSuccess]       = useState(false)
+
+  const [pollVote, setPollVote] = useState<string | null>(() => {
+    try { return localStorage.getItem('wri-poll-001') } catch { return null }
+  })
+  const [pollCounts, setPollCounts] = useState<Record<string, number>>({ a: 3, b: 2, c: 5, d: 1, e: 4, f: 2 })
 
   useEffect(() => {
     let cancelled = false
@@ -2878,13 +2888,6 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
       ))}
     </div>
   )
-
-  // Use passed-in demons, sorted newest-first
-  const recentDemons = [...demonsProp].sort((a: any, b: any) => {
-    const ta = a.createdTime ? new Date(a.createdTime).getTime() : 0
-    const tb = b.createdTime ? new Date(b.createdTime).getTime() : 0
-    return tb - ta
-  }).slice(0, 6)
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0, maxWidth: '100%', boxSizing: 'border-box' as const }}>
@@ -3125,36 +3128,68 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
             })()}
           </div>
 
-          {/* New to Intel Archive */}
-          {recentDemons.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
-                📚 New to Intel Archive
-              </div>
-              <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, overflow: 'hidden' }}>
-                {recentDemons.map((d, i) => (
-                  <div
-                    key={d.id}
-                    style={{
-                      padding: '10px 14px',
-                      borderBottom: i < recentDemons.length - 1 ? `1px solid ${bdr}` : 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                    onClick={() => { localStorage.setItem('wri_jump_to_spirit', d.name); localStorage.setItem('wri_jump_from', 'intel'); setActiveSection('database') }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 11, fontFamily: cinzel, color: txt, letterSpacing: '0.04em' }}>{d.name}</div>
-                      <div style={{ fontSize: 10, color: mut, marginTop: 2 }}>{d.hierarchyCategory || d.biblicalRank || ''}</div>
-                    </div>
-                    <span style={{ fontSize: 10, color: GG, flexShrink: 0, marginLeft: 8 }}>→</span>
+          {/* Field Poll */}
+          {(() => {
+            const POLL_OPTIONS = [
+              { id: 'a', label: 'Jezebel / Control' },
+              { id: 'b', label: 'Python / Oppression' },
+              { id: 'c', label: 'Fear / Anxiety' },
+              { id: 'd', label: 'Witchcraft / Occult' },
+              { id: 'e', label: 'Rejection / Orphan Spirit' },
+              { id: 'f', label: 'Lust / Perversion' },
+            ]
+            const handlePollVote = (id: string) => {
+              if (pollVote) return
+              setPollVote(id)
+              setPollCounts(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
+              try { localStorage.setItem('wri-poll-001', id) } catch {}
+            }
+            const totalVotes = Object.values(pollCounts).reduce((a, b) => a + b, 0)
+            return (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 10, fontFamily: cinzel, color: GG, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 10 }}>
+                  📡 Field Poll
+                </div>
+                <div style={{ background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 10, padding: 18 }}>
+                  <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.6, marginBottom: 14 }}>
+                    What spirit are you encountering most in ministry right now?
                   </div>
-                ))}
+                  {!pollVote ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                      {POLL_OPTIONS.map(opt => (
+                        <button key={opt.id} type="button" onClick={() => handlePollVote(opt.id)}
+                          style={{ textAlign: 'left' as const, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 11, color: GG, letterSpacing: '0.06em', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                      {POLL_OPTIONS.map(opt => {
+                        const count = pollCounts[opt.id] || 0
+                        const pct = Math.round((count / totalVotes) * 100)
+                        const isChosen = pollVote === opt.id
+                        return (
+                          <div key={opt.id}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: cinzel, letterSpacing: '0.05em', marginBottom: 4, color: isChosen ? GG : mut }}>
+                              <span>{opt.label}</span>
+                              <span>{pct}%</span>
+                            </div>
+                            <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', border: isChosen ? '1px solid rgba(201,168,76,0.5)' : 'none' }}>
+                              <div style={{ height: '100%', borderRadius: 3, width: `${pct}%`, background: isChosen ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.2)', transition: 'width 0.4s ease' }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                      <div style={{ fontSize: 11, color: mut, marginTop: 8, fontFamily: cinzel, letterSpacing: '0.08em' }}>
+                        {totalVotes} SOLDIERS HAVE RESPONDED
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* External Intel Links */}
           {links.length > 0 && (
@@ -6893,19 +6928,6 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSec
   )
 }
 
-// ── STREAM TIME AGO (uses last_active from Stream API) ─────
-function streamTimeAgo(dateStr: string | null | undefined): string {
-  if (!dateStr) return ''
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 2) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 30) return `${days}d ago`
-  return `${Math.floor(days / 30)}mo ago`
-}
 
 // ── TIME AGO HELPER ────────────────────────────────────────
 function timeAgo(dateStr: string | null | undefined): string {
@@ -8363,7 +8385,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier }: { userId: string; getToken: () => Promise<string | null>; tier: string }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string }) {
   const [token, setToken]                     = useState('')
   const [conversations, setConversations]     = useState<MConversation[]>([])
   const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
@@ -8423,6 +8445,15 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
       const convos: MConversation[] = Array.isArray(data.conversations) ? data.conversations : []
       setConversations(convos)
       setLoading(false)
+      if (pendingDmUserId) {
+        // Opened from Members page — create or find the DM then open it
+        const dm = await fetch('/api/stream-messages?action=create-dm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ otherUserId: pendingDmUserId, otherUserName: pendingDmUserName || pendingDmUserId }),
+        }).then(r => r.json()).catch(() => null)
+        if (dm?.channelId) { selectConversation(dm.channelId, t); return }
+      }
       if (!isMobileLayout && convos.length > 0) {
         selectConversation(convos[0].channelId, t)
       }
@@ -9825,7 +9856,8 @@ function CommunityPage() {
   const [demons, setDemons]               = useState<any[]>([])
   const [viewingProfile, setViewingProfile] = useState<any>(null)
   const [editingProfile, setEditingProfile] = useState(false)
-  const [_pendingDMWith, setPendingDMWith]   = useState<string | null>(null)
+  const [pendingDmWith, setPendingDMWith]   = useState<string | null>(null)
+  const [pendingDmName, setPendingDmName]   = useState<string>('')
   const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
   const warriorHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const railFlyoutRef   = useRef<HTMLDivElement>(null)
@@ -10860,7 +10892,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'dms' && (
-          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} />
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} />
         )}
         {activeSection === 'members'     && (
           <MembersView
@@ -10869,8 +10901,9 @@ function CommunityPage() {
             currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'}
             currentUserRole={(user?.publicMetadata?.role as string) || 'member'}
             onViewProfile={setViewingProfile}
-            onStartDM={(memberId, _memberName) => {
+            onStartDM={(memberId, memberName) => {
               setPendingDMWith(memberId)
+              setPendingDmName(memberName)
               setActiveSection('dms')
             }}
             setActiveSection={setActiveSection}
@@ -11128,10 +11161,11 @@ function CommunityPage() {
           currentUserId={user?.id || ''}
           isDark={theme !== 'light'}
           onClose={() => setViewingProfile(null)}
-          onStartDM={(memberId, _memberName) => {
+          onStartDM={(memberId, memberName) => {
             setViewingProfile(null)
-            setActiveSection('dms')
             setPendingDMWith(memberId)
+            setPendingDmName(memberName)
+            setActiveSection('dms')
           }}
         />
       )}
@@ -11365,7 +11399,14 @@ function CommunityPage() {
                       </div>
                       {/* Other members */}
                       {[...members.filter(m => m.id !== user?.id)]
-                        .sort((a, b) => new Date(b.lastActiveAt || b.lastSignInAt || 0).getTime() - new Date(a.lastActiveAt || a.lastSignInAt || 0).getTime())
+                        .sort((a, b) => {
+                          const pa = memberPresence[a.id]; const pb = memberPresence[b.id]
+                          const ao = pa?.online === true;  const bo = pb?.online === true
+                          if (ao !== bo) return bo ? 1 : -1
+                          const at = pa?.lastActive ? new Date(pa.lastActive).getTime() : 0
+                          const bt = pb?.lastActive ? new Date(pb.lastActive).getTime() : 0
+                          return bt - at
+                        })
                         .slice(0, 8)
                         .map((member, index) => {
                           const memberTier = member.publicMetadata?.tier || 'Watchman'
@@ -11386,7 +11427,19 @@ function CommunityPage() {
                                   <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.03em' }}>{displayName}</div>
                                   <ClassBadge level={memberTier === 'General' ? 'I' : memberTier === 'Commander' ? 'II' : memberTier === 'Soldier' ? 'III' : 'IV'} label={memberTier.toUpperCase()} />
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                                    {isOnline ? <StatusDot kind="ok" size={4} /> : lastActive ? <span style={{ fontSize: 9, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{streamTimeAgo(lastActive)}</span> : null}
+                                    {isOnline ? (
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} />
+                                        <span style={{ fontSize: 8, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>ONLINE</span>
+                                      </span>
+                                    ) : lastActive && (Date.now() - new Date(lastActive).getTime()) / 60000 <= 30 ? (
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', display: 'inline-block', flexShrink: 0 }} />
+                                        <span style={{ fontSize: 8, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>RECENT</span>
+                                      </span>
+                                    ) : (
+                                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4b5563', display: 'inline-block' }} />
+                                    )}
                                   </div>
                                 </div>
                               </button>
@@ -11395,7 +11448,7 @@ function CommunityPage() {
                                   style={{ position: 'absolute', bottom: index > 1 ? 'calc(100% + 6px)' : 'auto', top: index > 1 ? 'auto' : 'calc(100% + 6px)', right: 0, left: 0, background: '#0f0c07', border: '1px solid #3a3020', borderTop: index > 1 ? '2px solid #C9A84C' : '1px solid #3a3020', borderBottom: index > 1 ? '1px solid #3a3020' : '2px solid #C9A84C', borderRadius: 6, padding: '12px 14px', zIndex: 200, boxShadow: index > 1 ? '0 -8px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)', minWidth: 160 }}>
                                   <div style={{ fontFamily: cinzel, fontSize: 11, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 10, borderBottom: '1px solid #1e1a0e', paddingBottom: 8 }}>{displayName}</div>
                                   <button onClick={() => setViewingProfile(member)} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 6, textAlign: 'left' as const }}>👤 PROFILE</button>
-                                  <button onClick={() => { setPendingDMWith(member.id); setActiveSection('dms') }} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'left' as const }}>💬 MESSAGE</button>
+                                  <button onClick={() => { setPendingDMWith(member.id); setPendingDmName(displayName); setActiveSection('dms') }} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'left' as const }}>💬 MESSAGE</button>
                                 </div>
                               )}
                             </div>
