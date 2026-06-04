@@ -9647,6 +9647,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [sentinels, setSentinels]                   = React.useState<any[]>([])
   const [sentinelRequests, setSentinelRequests]     = React.useState<any[]>([])
   const [coverAllGroups, setCoverAllGroups]         = React.useState<any[]>([])
+  const [showSentinelPicker, setShowSentinelPicker] = React.useState(false)
+  const [sentinelSearch, setSentinelSearch]         = React.useState('')
+  const [sentinelSent, setSentinelSent]             = React.useState<string[]>([])
   const [showCreateFireTeam, setShowCreateFireTeam] = React.useState(false)
   const [ftName, setFtName]                         = React.useState('')
   const [ftType, setFtType]                         = React.useState('intercession')
@@ -9848,9 +9851,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     setLoadingMessages(false)
   }, [token, getToken])
 
-  // ── Fetch members when new DM panel or Create Fire Team modal opens ──
+  // ── Fetch members when new DM panel, Create Fire Team, or Sentinel Picker opens ──
   React.useEffect(() => {
-    if (!showNewDM && !showCreateFireTeam) return
+    if (!showNewDM && !showCreateFireTeam && !showSentinelPicker) return
     if (dmMembers.length > 0) return
     setLoadingMembers(true)
     getToken().then(t => {
@@ -9862,7 +9865,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         setLoadingMembers(false)
       }).catch(() => setLoadingMembers(false))
     })
-  }, [showNewDM, showCreateFireTeam])
+  }, [showNewDM, showCreateFireTeam, showSentinelPicker])
 
   // ── Poll active conversation every 3s ──
   React.useEffect(() => {
@@ -10265,19 +10268,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             <button
               type="button"
               title="Request Sentinel"
-              onClick={async () => {
-                const name = window.prompt('Enter the User ID or username of your Sentinel partner:')
-                if (!name?.trim()) return
-                const t = await getToken()
-                if (!t) return
-                const res = await fetch('/api/stream-messages?action=request-sentinel', {
-                  method: 'POST',
-                  headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ recipientId: name.trim(), recipientName: name.trim() }),
-                }).then(r => r.json()).catch(() => null)
-                if (res?.ok) alert('Sentinel request sent!')
-                else if (res?.error) alert(res.error)
-              }}
+              onClick={() => { setShowSentinelPicker(true); setSentinelSearch('') }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b48ee0', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
             >⚔</button>
           </div>
@@ -10510,6 +10501,76 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             <span style={{ fontSize: 10, color: WMUT }}>All of WRI · Low-noise announcements</span>
           </div>
         </div>
+
+        {/* ── Sentinel Picker modal ── */}
+        {showSentinelPicker && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#0f0e1a', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 12, padding: 24, maxWidth: 420, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: '#b48ee0', letterSpacing: '0.1em', fontWeight: 700 }}>⚔ REQUEST SENTINEL</span>
+                <button type="button" onClick={() => setShowSentinelPicker(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
+              </div>
+              <div style={{ fontFamily: "'Crimson Text',serif", fontSize: 13, color: WMUT, marginBottom: 16, fontStyle: 'italic', flexShrink: 0 }}>
+                Choose a covenant accountability partner
+              </div>
+              <input
+                value={sentinelSearch}
+                onChange={e => setSentinelSearch(e.target.value)}
+                placeholder="Search members by name…"
+                autoFocus
+                style={{ width: '100%', padding: '9px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(107,69,150,0.4)', borderRadius: 8, color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12, fontFamily: "'Crimson Text',serif", flexShrink: 0 }}
+              />
+              <div style={{ flex: 1, overflowY: 'auto', border: `1px solid ${BDR}`, borderRadius: 8 }}>
+                {loadingMembers ? (
+                  <div style={{ padding: '16px', fontSize: 12, color: WMUT, textAlign: 'center' }}>Loading members…</div>
+                ) : (() => {
+                  const filtered = dmMembers.filter((m: any) =>
+                    m.id !== userId &&
+                    ((m.name || '').toLowerCase().includes(sentinelSearch.toLowerCase()) || sentinelSearch === '')
+                  )
+                  if (filtered.length === 0) return <div style={{ padding: '16px', fontSize: 12, color: WMUT, textAlign: 'center' }}>No members found</div>
+                  return filtered.map((m: any) => (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: `1px solid ${BDR}` }}>
+                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(107,69,150,0.2)', border: '1px solid rgba(107,69,150,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                        {m.imageUrl
+                          ? <img src={m.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, color: '#b48ee0' }}>{(m.name || '?').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}</span>
+                        }
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: '#e8dcc8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
+                        <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' }}>{m.tier}</div>
+                      </div>
+                      {sentinelSent.includes(m.id) ? (
+                        <span style={{ fontSize: 11, color: '#4ade80', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em', flexShrink: 0 }}>✓ Sent</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const t = await getToken()
+                            if (!t) return
+                            const res = await fetch('/api/stream-messages?action=request-sentinel', {
+                              method: 'POST',
+                              headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ recipientId: m.id, recipientName: m.name }),
+                            }).then(r => r.json()).catch(() => null)
+                            if (res?.ok) setSentinelSent(prev => [...prev, m.id])
+                          }}
+                          style={{ fontSize: 11, color: '#b48ee0', background: 'transparent', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em', flexShrink: 0, touchAction: 'manipulation' }}
+                        >⚔ Request</button>
+                      )}
+                    </div>
+                  ))
+                })()}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSentinelPicker(false)}
+                style={{ marginTop: 16, background: 'none', border: 'none', color: '#b48ee0', cursor: 'pointer', fontSize: 13, padding: '8px 0', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0 }}
+              >Close</button>
+            </div>
+          </div>
+        )}
 
         {/* ── Create Fire Team modal ── */}
         {showCreateFireTeam && (
