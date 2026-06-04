@@ -112,6 +112,43 @@ Keep responses focused — typically 2-4 paragraphs.${libraryContext ? `\n\nRele
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
+
+  // GET handler for SOL Commentary (Daily Brief)
+  if (req.method === 'GET') {
+    const url = new URL(req.url)
+    if (url.searchParams.get('commentary') !== 'true') {
+      return new Response(JSON.stringify({ error: 'commentary=true required' }), { status: 400, headers: HEADERS })
+    }
+    const reference = url.searchParams.get('reference') || ''
+    if (!reference) {
+      return new Response(JSON.stringify({ error: 'reference required' }), { status: 400, headers: HEADERS })
+    }
+    const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
+    if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+    const auth = await resolveUser(token)
+    if (!auth.ok) return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers: HEADERS })
+    try {
+      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 400,
+          system: `You are a theological scholar writing brief commentary in the style of Finis Jennings Dake's Annotated Reference Bible. Focus on spiritual warfare applications, prophetic significance, and deliverance ministry insights. Write 2-3 short paragraphs. No headers, plain prose only.`,
+          messages: [{ role: 'user', content: `Write a brief Dake-style commentary on ${reference}, focusing on spiritual warfare and deliverance applications.` }],
+        }),
+        signal: AbortSignal.timeout(20000),
+      })
+      if (!aiRes.ok) throw new Error(`Claude error ${aiRes.status}`)
+      const data = await aiRes.json()
+      const commentary = cleanAIOutput((data.content?.[0]?.text || '').trim())
+      return new Response(JSON.stringify({ commentary, source: 'SOL · Dake Style' }), { headers: HEADERS })
+    } catch (e: any) {
+      console.error('[bible-ask] commentary error:', e.message)
+      return new Response(JSON.stringify({ error: e.message || 'Commentary failed' }), { status: 500, headers: HEADERS })
+    }
+  }
+
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()

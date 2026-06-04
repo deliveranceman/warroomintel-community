@@ -1474,6 +1474,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   })
   const [showCommentary, setShowCommentary]     = useState(false)
   const [commentary, setCommentary]             = useState('')
+  const [commentaryLoading, setCommentaryLoading] = useState(false)
   const [showEveningPrayer, setShowEveningPrayer] = useState(timeMode === 'evening')
   const [debriefChoice, setDebriefChoice]       = useState<string | null>(() => {
     try { return localStorage.getItem(`wri-debrief-${new Date().toISOString().slice(0, 10)}`) } catch { return null }
@@ -1866,12 +1867,14 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                 <button onClick={async () => {
                   const next = !showCommentary
                   setShowCommentary(next)
-                  if (next && !commentary && devotion.scripture_reference) {
+                  if (next && !commentary && !commentaryLoading && devotion.scripture_reference) {
+                    setCommentaryLoading(true)
                     try {
                       const token = await getToken()
                       const res = await fetch(`/api/bible-ask?reference=${encodeURIComponent(devotion.scripture_reference)}&commentary=true`, { headers: { Authorization: `Bearer ${token}` } })
                       if (res.ok) { const d = await res.json(); setCommentary(d.commentary || '') }
                     } catch {}
+                    setCommentaryLoading(false)
                   }
                 }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.08em', padding: '4px 0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
                   📖 SOL Commentary {showCommentary ? '▴' : '▾'}
@@ -1880,9 +1883,11 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                   <div style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 12, marginTop: 8 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.14em', marginBottom: 4 }}>📖 SOL COMMENTARY</div>
                     <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em', marginBottom: 10 }}>Dake's Annotated Bible · Spiritual Warfare Notes</div>
-                    {commentary
-                      ? <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.7 }}>{commentary.slice(0, 400)}{commentary.length > 400 ? '…' : ''}</div>
-                      : <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>Commentary coming soon</div>
+                    {commentaryLoading
+                      ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>⚡ SOL is analyzing this passage…</div>
+                      : commentary
+                        ? <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.7 }}>{commentary.slice(0, 400)}{commentary.length > 400 ? '…' : ''}</div>
+                        : <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>Commentary coming soon</div>
                     }
                   </div>
                 )}
