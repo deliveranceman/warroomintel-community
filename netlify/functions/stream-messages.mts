@@ -186,54 +186,31 @@ async function createDM(userId: string, body: any): Promise<Response> {
   if (!otherUserId) return json({ error: 'otherUserId required' }, 400)
 
   const channelId = [userId, otherUserId].sort().join('-')
-  console.log('[create-dm]', { userId, otherUserId, channelId })
 
-  // Attempt 1: deterministic channelId + X-Stream-Client server header (no watch)
-  const requestBody = {
-    created_by_id: userId,
-    data: { members: [userId, otherUserId], is_dm: true },
-  }
-  console.log('[create-dm] request body:', JSON.stringify(requestBody))
+  const url = `https://chat.stream-io-api.com/channels/messaging/${channelId}?api_key=${apiKey}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': serverToken(),
+      'Stream-Auth-Type': 'jwt',
+      'X-Stream-Client': 'stream-chat-javascript-client-node-latest',
+    },
+    body: JSON.stringify({
+      get_or_create: true,
+      data: {
+        created_by_id: userId,
+        members: [userId, otherUserId],
+        is_dm: true,
+      },
+    }),
+  })
 
-  const serverHeaders = { ...streamHeaders(serverToken()), 'X-Stream-Client': 'stream-chat-javascript-client-node-latest' }
-
-  const res = await fetch(
-    `https://chat.stream-io-api.com/channels/messaging/${encodeURIComponent(channelId)}?api_key=${apiKey}`,
-    { method: 'POST', headers: serverHeaders, body: JSON.stringify(requestBody) },
-  )
-
-  let data: unknown
-  try { data = await res.json() } catch { data = {} }
-  console.log('[create-dm] response status:', res.status)
-  console.log('[create-dm] response body:', JSON.stringify(data).slice(0, 500))
-
-  // 409 / "already exists" — channel is there, return deterministic id
-  if (res.status === 409 || (data as any)?.code === 4 || JSON.stringify(data).includes('already exists')) {
-    return json({ ok: true, channelId })
-  }
-
-  // Watch error — fallback to auto-generated channel ID (server-side, no watch)
-  const isWatchError = !res.ok && JSON.stringify(data).toLowerCase().includes('watch')
-  if (isWatchError) {
-    console.log('[create-dm] watch error on attempt 1 — switching to auto-generated ID approach')
-    const fallbackBody = {
-      data: { members: [userId, otherUserId], created_by_id: userId, is_dm: true },
-    }
-    console.log('[create-dm] fallback request body:', JSON.stringify(fallbackBody))
-    const res2 = await fetch(
-      `https://chat.stream-io-api.com/channels/messaging?api_key=${apiKey}`,
-      { method: 'POST', headers: serverHeaders, body: JSON.stringify(fallbackBody) },
-    )
-    let data2: unknown
-    try { data2 = await res2.json() } catch { data2 = {} }
-    console.log('[create-dm] fallback response status:', res2.status)
-    console.log('[create-dm] fallback response body:', JSON.stringify(data2).slice(0, 500))
-    if (!res2.ok) return json({ error: 'Stream error (fallback)', detail: data2 }, res2.status)
-    return json({ ok: true, channelId: (data2 as any).channel?.id ?? channelId })
-  }
+  const data = await res.json().catch(() => ({}))
+  console.log('[create-dm] status:', res.status, 'body:', JSON.stringify(data).slice(0, 300))
 
   if (!res.ok) return json({ error: 'Stream error', detail: data }, res.status)
-  return json({ ok: true, channelId: (data as any).channel?.id ?? channelId })
+  return json({ ok: true, channelId: data.channel?.id ?? channelId })
 }
 
 async function markRead(userId: string, body: any): Promise<Response> {
