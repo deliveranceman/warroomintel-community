@@ -273,14 +273,14 @@ export default async function handler(req: Request): Promise<Response> {
 
       // Fire Team channel — push all active members
       if (channelId.startsWith('ft-')) {
-        sendFireTeamPush(channelId, senderUserId, senderName, messageText).catch(err =>
+        await sendFireTeamPush(channelId, senderUserId, senderName, messageText).catch(err =>
           console.error('[stream-webhook] sendFireTeamPush error:', err)
         )
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
       }
 
-      // Person-to-person DM — push recipient
-      sendDMPush(channelId, senderUserId, senderName, messageText).catch(err =>
+      // Person-to-person DM — push recipient (awaited so Lambda stays alive)
+      await sendDMPush(channelId, senderUserId, senderName, messageText).catch(err =>
         console.error('[stream-webhook] sendDMPush error:', err)
       )
       // SOL autoreply only in SOL DM channels (sol-bot is a member)

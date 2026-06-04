@@ -212,6 +212,9 @@
   timeout = 30
   external_node_modules = ["pdf-parse"]
 
+[functions."stream-webhook"]
+  timeout = 10
+
 [functions."deliverance-protocol"]
   timeout = 25
 
