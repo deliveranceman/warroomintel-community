@@ -38,15 +38,22 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
   }
 
-  // Auth: accept service key (internal) or Clerk minister JWT
+  // Auth: accept x-internal-key, Supabase service key, or Clerk minister JWT
+  const receivedKey = req.headers.get('x-internal-key')
+    || req.headers.get('x-api-key')
+    || ''
+
+  const validKey = process.env.INTERNAL_API_KEY || 'wri-internal-2026-backfill'
+
+  console.log('[send-push] received key:', receivedKey.slice(0, 10) + '...')
+  console.log('[send-push] valid key:', validKey.slice(0, 10) + '...')
+  console.log('[send-push] match:', receivedKey === validKey)
+
   const authHeader = req.headers.get('Authorization') || ''
   const token = authHeader.replace('Bearer ', '').trim()
-  const serviceKey = supabaseServiceKey!
-  const isServiceKey = token === serviceKey
-  const host = req.headers.get('host') || ''
-  const isInternal = host.includes('netlify') || host.includes('localhost')
+  const isServiceKey = token === supabaseServiceKey
 
-  if (!isServiceKey && !isInternal) {
+  if (receivedKey !== validKey && !isServiceKey) {
     const minister = await isMinisterToken(token)
     if (!minister) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
