@@ -139,33 +139,41 @@ async function solDMReply(messageText: string, channelId: string, senderId: stri
 
 // ── DM push notification ──────────────────────────────────────────────────────
 
-async function sendDMPush(channelId: string, senderUserId: string, senderName: string, messageText: string): Promise<void> {
-  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+async function sendDMPush(channelId: string, senderId: string, senderName: string, messageText: string) {
+  const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
+  const sbH = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` }
 
+  // Look up accepted DM by channel_id in Supabase
   const dmRes = await fetch(
-    `${supabaseUrl}/rest/v1/dm_requests?channel_id=eq.${encodeURIComponent(channelId)}&status=eq.accepted&select=requester_id,recipient_id`,
-    { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+    `${supabaseUrl}/rest/v1/dm_requests?channel_id=eq.${channelId}&status=eq.accepted&select=requester_id,recipient_id`,
+    { headers: sbH }
   )
-  const dms = await dmRes.json().catch(() => [])
-  console.log('[webhook] dm_requests found:', Array.isArray(dms) ? dms.length : 0, 'for channel:', channelId)
+  const dms = await dmRes.json()
+  console.log('[webhook] dm_requests found:', dms?.length, 'for channel:', channelId)
 
-  const dm = Array.isArray(dms) ? dms[0] : null
-  if (!dm) { console.log('[webhook] no dm_request found, skipping push'); return }
+  const dm = dms?.[0]
+  if (!dm) {
+    console.log('[webhook] no accepted dm_request for channel:', channelId)
+    return
+  }
 
-  const recipientId = dm.requester_id === senderUserId ? dm.recipient_id : dm.requester_id
-  console.log('[webhook] pushing to recipientId:', recipientId)
+  const recipientId = dm.requester_id === senderId ? dm.recipient_id : dm.requester_id
+  console.log('[webhook] pushing to:', recipientId)
 
-  const pushRes = await fetch(`${siteUrl}/api/send-push`, {
+  const pushRes = await fetch('https://warroomintel.com/api/send-push', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-key': process.env.INTERNAL_API_KEY || '' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-internal-key': 'wri-internal-2026-backfill'
+    },
     body: JSON.stringify({
       userId: recipientId,
       title: `💬 ${senderName}`,
       body: messageText.slice(0, 100),
-      data: { type: 'dm_message', channelId, section: 'dms' },
-    }),
+      data: { type: 'dm_message', channelId, section: 'dms' }
+    })
   })
-  const pushData = await pushRes.json().catch(() => ({}))
+  const pushData = await pushRes.json()
   console.log('[webhook] push result:', JSON.stringify(pushData))
 }
 
