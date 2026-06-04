@@ -13107,10 +13107,11 @@ function CommunityPage() {
             { icon: <Users size={16} strokeWidth={1.6} />,         label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
             { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Help Center',       mobileLabel: 'Help',      section: 'help'           },
             { icon: <span style={{ fontSize: 14, lineHeight: 1 }}>⚑</span>, label: 'Beta Reports', mobileLabel: 'Beta', section: 'beta-test' },
+            { icon: <SolIcon size={16} />, label: 'Ask SOL', mobileLabel: 'SOL', section: 'ask-sol' },
           ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
-                onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
+                onClick={() => { if (section === 'ask-sol') { window.location.href = '/community/ask-sol' } else { setActiveSection(section); if (isMobile) setSidebarOpen(false) } }}
                 onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
                 onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
                 style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
@@ -13212,6 +13213,12 @@ function CommunityPage() {
           try { localStorage.setItem('sidebar_intelligence_open', String(next)) } catch {}
         })}
         <div style={{ overflow: 'hidden', maxHeight: intelOpen ? 800 : 0, transition: 'max-height 0.2s ease' }}>
+          <a href="/community/ask-sol" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = navGold }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT; (e.currentTarget as HTMLElement).style.borderLeftColor = 'transparent' }}>
+            <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={14} /></span>
+            <span>Ask SOL</span>
+          </a>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <button
               onClick={() => { setActiveSection('database'); if (isMobile) setSidebarOpen(false) }}
