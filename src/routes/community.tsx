@@ -10699,6 +10699,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   <div style={{ padding: '16px', fontSize: 12, color: WMUT, textAlign: 'center' }}>Loading members…</div>
                 ) : (() => {
                   const filtered = dmMembers.filter((m: any) =>
+                    m.id != null && m.id !== '' &&
                     m.id !== userId &&
                     ((m.name || '').toLowerCase().includes(sentinelSearch.toLowerCase()) || sentinelSearch === '')
                   )
@@ -12125,11 +12126,15 @@ function CommunityPage() {
 
     try {
       const token = await getToken()
+      const solCtrl = new AbortController()
+      const solTimeout = setTimeout(() => solCtrl.abort(), 25000)
       const res = await fetch('/api/ai-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ message: msg.trim(), history: chatMessages, feature: 'ask_dake' }),
+        signal: solCtrl.signal,
       })
+      clearTimeout(solTimeout)
       const ct = res.headers.get('content-type') || ''
       if (!ct.includes('application/json')) {
         throw new Error(`Unexpected response type: ${ct}`)
@@ -12153,7 +12158,8 @@ function CommunityPage() {
         }
       }
     } catch (err: any) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: `Unable to connect. ${err?.message || 'Please try again.'}` }])
+      const isTimeout = err?.name === 'AbortError'
+      setChatMessages(prev => [...prev, { role: 'assistant', content: isTimeout ? 'Request timed out — please try again.' : `Unable to connect. ${err?.message || 'Please try again.'}` }])
     } finally {
       setChatLoading(false)
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -12777,7 +12783,7 @@ function CommunityPage() {
   }
 
   // ── NAV HELPERS ────────────────────────────────────────────
-  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed'])
+  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed', 'ask-sol'])
   const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network', 'gateway'])
   const intelOpen    = intelligenceOpen || INTELLIGENCE_SECTS.has(activeSection)
   const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
@@ -13111,7 +13117,7 @@ function CommunityPage() {
           ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
-                onClick={() => { if (section === 'ask-sol') { window.location.href = '/community/ask-sol' } else { setActiveSection(section); if (isMobile) setSidebarOpen(false) } }}
+                onClick={() => { if (section === 'ask-sol') { setChatOpen(o => !o); if (isMobile) setSidebarOpen(false) } else { setActiveSection(section); if (isMobile) setSidebarOpen(false) } }}
                 onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
                 onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
                 style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
