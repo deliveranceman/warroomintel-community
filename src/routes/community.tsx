@@ -9412,9 +9412,10 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       try {
                         const data = await api('create-dm', 'POST', { otherUserId: member.id, otherUserName: member.name })
                         if (data.channelId) {
-                          const convData = await api('list-conversations')
-                          if (convData.conversations) setConversations(convData.conversations)
                           selectConversation(data.channelId)
+                          api('list-conversations').then((convData: any) => {
+                            if (convData.conversations) setConversations(convData.conversations)
+                          }).catch(() => {})
                         }
                       } catch (e) { console.error('[DM picker] create-dm failed', e) }
                     }
