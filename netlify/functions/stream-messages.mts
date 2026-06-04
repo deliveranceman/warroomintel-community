@@ -4,6 +4,36 @@ import { createClient } from '@supabase/supabase-js'
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 
+// ── Supabase helpers ──────────────────────────────────────────────────────────
+const SB = (p: string) => `${supabaseUrl}/rest/v1${p}`
+const sbH: Record<string, string> = {
+  apikey: serviceRoleKey,
+  Authorization: `Bearer ${serviceRoleKey}`,
+  'Content-Type': 'application/json',
+  Prefer: 'return=representation',
+}
+
+function dmChannelId(userA: string, userB: string): string {
+  const sorted = [userA, userB].sort()
+  const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
+  return ('dm' + hash(sorted[0]) + hash(sorted[1])).slice(0, 64)
+}
+
+async function createStreamChannel(userA: string, userB: string): Promise<{ channelId: string } | { error: string; detail?: unknown }> {
+  const channelId = dmChannelId(userA, userB)
+  const sorted = [userA, userB].sort()
+  const token = serverToken()
+  const { status: s1, data: d1 } = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', token, {
+    data: { created_by_id: userA }, state: true, watch: false, presence: false,
+  })
+  if (s1 >= 500) return { error: 'Stream query failed', detail: d1 }
+  const { status: s2, data: d2 } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, {
+    add_members: sorted.map(id => ({ user_id: id })),
+  })
+  if (s2 >= 400) return { error: 'Stream add_members failed', detail: d2 }
+  return { channelId }
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -182,33 +212,146 @@ async function getStreamToken(userId: string): Promise<Response> {
 }
 
 async function createDM(userId: string, body: any): Promise<Response> {
-  const { otherUserId } = body ?? {}
+  const { otherUserId, otherUserName } = body ?? {}
   if (!otherUserId) return json({ error: 'otherUserId required' }, 400)
 
-  // Deterministic channelId identical to the working create-dm.ts approach
-  const sortedIds = [userId, otherUserId].sort()
-  const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
-  const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
+  // sol-bot always gets a direct channel — no request flow
+  if (otherUserId === 'sol-bot') {
+    const result = await createStreamChannel(userId, otherUserId)
+    if ('error' in result) return json(result, 500)
+    return json({ ok: true, channelId: result.channelId })
+  }
 
-  const token = serverToken()
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
 
-  // Step 1: /query creates the channel if it doesn't exist (watch:false avoids websocket)
-  const queryBody = { data: { created_by_id: userId }, state: true, watch: false, presence: false }
-  console.log('[create-dm] query url:', streamUrl(`/channels/messaging/${channelId}/query`))
-  console.log('[create-dm] query body:', JSON.stringify(queryBody))
-  const { status: s1, data: d1 } = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', token, queryBody)
-  console.log('[create-dm] query status:', s1, 'body:', JSON.stringify(d1).slice(0, 300))
+  // Check recipient Clerk tier
+  if (clerkSecretKey) {
+    const clerkRes = await fetch(`https://api.clerk.com/v1/users/${otherUserId}`, {
+      headers: { Authorization: `Bearer ${clerkSecretKey}` },
+    })
+    if (clerkRes.ok) {
+      const clerkUser = await clerkRes.json()
+      const tier = (clerkUser.public_metadata?.tier as string) || 'watchman'
+      if (tier === 'watchman') {
+        return json({ watchman: true, message: `${otherUserName || 'This user'} is on the free tier and cannot receive DMs.` })
+      }
+    }
+  }
 
-  if (s1 >= 500) return json({ error: 'Stream query failed', detail: d1 }, s1)
+  // Check existing outbound request (userId → otherUserId)
+  const outRes = await fetch(
+    SB(`/dm_requests?requester_id=eq.${encodeURIComponent(userId)}&recipient_id=eq.${encodeURIComponent(otherUserId)}&select=*`),
+    { headers: sbH },
+  )
+  const outRows: any[] = await outRes.json().catch(() => [])
+  const existing = Array.isArray(outRows) ? outRows[0] : null
 
-  // Step 2: force-add both members (idempotent — safe to call even if already members)
-  const addBody = { add_members: sortedIds.map(id => ({ user_id: id })) }
-  console.log('[create-dm] add_members body:', JSON.stringify(addBody))
-  const { status: s2, data: d2 } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, addBody)
-  console.log('[create-dm] add_members status:', s2, 'body:', JSON.stringify(d2).slice(0, 300))
+  if (existing) {
+    if (existing.status === 'accepted' && existing.channel_id) return json({ ok: true, channelId: existing.channel_id })
+    if (existing.status === 'declined') return json({ declined: true, message: 'Your DM request was declined.' })
+    return json({ pending: true, message: 'Your DM request is pending acceptance.' })
+  }
 
-  if (s2 >= 400) return json({ error: 'Stream add_members failed', detail: d2 }, s2)
-  return json({ ok: true, channelId })
+  // Check reverse direction — they may have sent us a request
+  const revRes = await fetch(
+    SB(`/dm_requests?requester_id=eq.${encodeURIComponent(otherUserId)}&recipient_id=eq.${encodeURIComponent(userId)}&select=*`),
+    { headers: sbH },
+  )
+  const revRows: any[] = await revRes.json().catch(() => [])
+  const reverse = Array.isArray(revRows) ? revRows[0] : null
+
+  if (reverse && reverse.status === 'accepted' && reverse.channel_id) return json({ ok: true, channelId: reverse.channel_id })
+
+  // Get requester info from Clerk
+  let myTier = 'soldier'
+  let myName = userId
+  if (clerkSecretKey) {
+    const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${clerkSecretKey}` },
+    })
+    if (myRes.ok) {
+      const myUser = await myRes.json()
+      myTier = (myUser.public_metadata?.tier as string) || 'soldier'
+      myName = [myUser.first_name, myUser.last_name].filter(Boolean).join(' ') || myUser.username || userId
+    }
+  }
+
+  // Insert pending request
+  await fetch(SB('/dm_requests'), {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify({
+      requester_id: userId,
+      requester_name: myName,
+      requester_tier: myTier,
+      recipient_id: otherUserId,
+      status: 'pending',
+    }),
+  }).catch(() => {})
+
+  return json({ pending: true, message: 'DM request sent. Waiting for their acceptance.' })
+}
+
+async function acceptDM(userId: string, body: any): Promise<Response> {
+  const { requestId } = body ?? {}
+  if (!requestId) return json({ error: 'requestId required' }, 400)
+
+  const reqRes = await fetch(
+    SB(`/dm_requests?id=eq.${encodeURIComponent(requestId)}&recipient_id=eq.${encodeURIComponent(userId)}&select=*`),
+    { headers: sbH },
+  )
+  const reqRows: any[] = await reqRes.json().catch(() => [])
+  const req = Array.isArray(reqRows) ? reqRows[0] : null
+
+  if (!req) return json({ error: 'Request not found' }, 404)
+  if (req.status !== 'pending') return json({ error: 'Request already resolved' }, 400)
+
+  const result = await createStreamChannel(userId, req.requester_id)
+  if ('error' in result) return json(result, 500)
+
+  await fetch(SB(`/dm_requests?id=eq.${encodeURIComponent(requestId)}`), {
+    method: 'PATCH',
+    headers: sbH,
+    body: JSON.stringify({ status: 'accepted', channel_id: result.channelId }),
+  }).catch(() => {})
+
+  return json({ ok: true, channelId: result.channelId })
+}
+
+async function declineDM(userId: string, body: any): Promise<Response> {
+  const { requestId } = body ?? {}
+  if (!requestId) return json({ error: 'requestId required' }, 400)
+
+  const reqRes = await fetch(
+    SB(`/dm_requests?id=eq.${encodeURIComponent(requestId)}&recipient_id=eq.${encodeURIComponent(userId)}&select=id,status`),
+    { headers: sbH },
+  )
+  const reqRows: any[] = await reqRes.json().catch(() => [])
+  if (!Array.isArray(reqRows) || !reqRows[0]) return json({ error: 'Request not found' }, 404)
+
+  await fetch(SB(`/dm_requests?id=eq.${encodeURIComponent(requestId)}`), {
+    method: 'PATCH',
+    headers: sbH,
+    body: JSON.stringify({ status: 'declined' }),
+  }).catch(() => {})
+
+  return json({ ok: true })
+}
+
+async function pendingRequests(userId: string): Promise<Response> {
+  const res = await fetch(
+    SB(`/dm_requests?recipient_id=eq.${encodeURIComponent(userId)}&status=eq.pending&select=*&order=created_at.desc`),
+    { headers: sbH },
+  )
+  const rows: any[] = await res.json().catch(() => [])
+  const requests = Array.isArray(rows) ? rows.map(r => ({
+    id: r.id,
+    requesterId: r.requester_id,
+    requesterName: r.requester_name,
+    requesterTier: r.requester_tier,
+    createdAt: r.created_at,
+  })) : []
+  return json({ requests })
 }
 
 async function markRead(userId: string, body: any): Promise<Response> {
@@ -313,6 +456,20 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (action === 'list-members') {
     return listMembers(userId)
+  }
+
+  if (action === 'accept-dm') {
+    const body = await req.json().catch(() => ({}))
+    return acceptDM(userId, body)
+  }
+
+  if (action === 'decline-dm') {
+    const body = await req.json().catch(() => ({}))
+    return declineDM(userId, body)
+  }
+
+  if (action === 'pending-requests') {
+    return pendingRequests(userId)
   }
 
   return json({ error: `Unknown action: ${action}` }, 405)

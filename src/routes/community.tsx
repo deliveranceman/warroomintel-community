@@ -9558,6 +9558,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [dmSearch, setDmSearch]               = React.useState('')
   const [dmMembers, setDmMembers]             = React.useState<any[]>([])
   const [loadingMembers, setLoadingMembers]   = React.useState(false)
+  const [dmError, setDmError]                 = React.useState<string | null>(null)
+  const [pendingInbound, setPendingInbound]   = React.useState<any[]>([])
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef           = React.useRef<EventSource | null>(null)
@@ -9613,6 +9615,26 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       }
     })
   }, [userId])
+
+  // ── Fetch inbound pending DM requests ──
+  useEffect(() => {
+    if (!userId) return
+    getToken().then(t => {
+      if (!t) return
+      fetch('/api/stream-messages?action=pending-requests', {
+        headers: { Authorization: `Bearer ${t}` },
+      }).then(r => r.json()).then(d => {
+        if (Array.isArray(d.requests)) setPendingInbound(d.requests)
+      }).catch(() => {})
+    })
+  }, [userId])
+
+  // ── Auto-dismiss dmError ──
+  useEffect(() => {
+    if (!dmError) return
+    const t = setTimeout(() => setDmError(null), 5000)
+    return () => clearTimeout(t)
+  }, [dmError])
 
   // ── Auto-scroll ──
   useEffect(() => {
@@ -9949,6 +9971,52 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           />
         </div>
 
+        {/* dmError banner */}
+        {dmError && (
+          <div style={{ margin: '0 12px 8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#fca5a5', flexShrink: 0 }}>
+            {dmError}
+          </div>
+        )}
+
+        {/* Pending inbound DM requests */}
+        {pendingInbound.length > 0 && (
+          <div style={{ margin: '0 12px 8px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '10px 12px', flexShrink: 0 }}>
+            <div style={{ fontSize: 10, color: GLD, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 8 }}>PENDING DM REQUESTS</div>
+            {pendingInbound.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <div style={{ flex: 1, fontSize: 13, color: '#e8dcc8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.requesterName}</div>
+                <span style={{ fontSize: 10, color: WMUT, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4, textTransform: 'capitalize' as const, flexShrink: 0 }}>{r.requesterTier}</span>
+                <button
+                  type="button"
+                  style={{ fontSize: 11, color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
+                  onClick={async () => {
+                    const data = await api('accept-dm', 'POST', { requestId: r.id })
+                    if (data.ok && data.channelId) {
+                      setPendingInbound(prev => prev.filter(x => x.id !== r.id))
+                      const cid = data.channelId
+                      setConversations(prev => [{
+                        channelId: cid,
+                        otherMember: { id: r.requesterId, name: r.requesterName, image: '', online: false },
+                        lastMessage: null,
+                        unreadCount: 0,
+                      }, ...prev.filter((c: any) => c.channelId !== cid)])
+                      selectConversation(cid)
+                    }
+                  }}
+                >Accept</button>
+                <button
+                  type="button"
+                  style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
+                  onClick={async () => {
+                    await api('decline-dm', 'POST', { requestId: r.id })
+                    setPendingInbound(prev => prev.filter(x => x.id !== r.id))
+                  }}
+                >Decline</button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Conversation rows */}
         <div style={{ flex: 1, overflowY: 'auto' as const }}>
           {loading ? (
@@ -10049,7 +10117,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       setShowNewDM(false); setDmSearch('')
                       try {
                         const data = await api('create-dm', 'POST', { otherUserId: member.id, otherUserName: member.name })
-                        if (data.channelId) {
+                        if (data.ok && data.channelId) {
                           const cid = data.channelId
                           setConversations(prev => [{
                             channelId: cid,
@@ -10061,6 +10129,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                           api('list-conversations').then((convData: any) => {
                             if (convData.conversations) setConversations(convData.conversations)
                           }).catch(() => {})
+                        } else if (data.watchman) {
+                          setDmError(data.message || 'This user cannot receive DMs on the free tier.')
+                        } else if (data.pending) {
+                          setDmError(data.message || 'DM request sent — waiting for acceptance.')
+                        } else if (data.declined) {
+                          setDmError(data.message || 'Your DM request was declined.')
                         }
                       } catch (e) { console.error('[DM picker] create-dm failed', e) }
                     }
