@@ -2,7 +2,6 @@ import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
-const feedsSecret = process.env.STREAM_FEEDS_SECRET || apiSecret
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const CORS = {
@@ -22,31 +21,28 @@ const TIER_LEVEL: Record<string, number> = {
   minister: 99,
 }
 
-// ── JWT helper (client tokens only) ───────────────────────────────────────────
+// ── JWT helpers (identical pattern to stream-messages.mts) ────────────────────
 
-function streamJWT(payload: Record<string, unknown>): string {
+function serverJWT(): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const body   = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const sig    = crypto.createHmac('sha256', feedsSecret ?? '').update(`${header}.${body}`).digest('base64url')
+  const body   = Buffer.from(JSON.stringify({ server: true })).toString('base64url')
+  const sig    = crypto.createHmac('sha256', apiSecret ?? '').update(`${header}.${body}`).digest('base64url')
   return `${header}.${body}.${sig}`
 }
 
-// ── Server auth ── Basic auth: apiKey:feedsSecret (base64) ────────────────────
-// Stream Activity Feeds REST API uses Basic auth for server-side calls
-
-function feedsBasicAuth(): string {
-  return 'Basic ' + Buffer.from(`${apiKey}:${feedsSecret}`).toString('base64')
+function userJWT(userId: string): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+  const body   = Buffer.from(JSON.stringify({ user_id: userId, feed_id: `user:${userId}` })).toString('base64url')
+  const sig    = crypto.createHmac('sha256', apiSecret ?? '').update(`${header}.${body}`).digest('base64url')
+  return `${header}.${body}.${sig}`
 }
 
 function feedHeaders(): Record<string, string> {
-  const usingFeedsSecret = !!process.env.STREAM_FEEDS_SECRET
-  console.log('[sitrep] feedsBase:', FEEDS_BASE)
-  console.log('[sitrep] apiKey:', apiKey)
-  console.log('[sitrep] feedsSecret exists:', !!feedsSecret)
-  console.log('[sitrep] auth header type:', usingFeedsSecret ? 'FEEDS_SECRET (dedicated)' : 'FALLBACK to Chat secret')
+  console.log('[sitrep] auth: JWT {server:true}, apiKey:', apiKey, 'secret exists:', !!apiSecret)
   return {
     'Content-Type': 'application/json',
-    Authorization: feedsBasicAuth(),
+    Authorization: serverJWT(),
+    'stream-auth-type': 'jwt',
   }
 }
 
@@ -92,6 +88,7 @@ async function feedFetch(
   method: 'GET' | 'POST' | 'DELETE' = 'GET',
   body?: unknown,
 ): Promise<{ status: number; data: unknown }> {
+  console.log('[sitrep] feedFetch:', method, url.replace(/api_key=[^&]+/, 'api_key=***'))
   const res = await fetch(url, {
     method,
     headers: feedHeaders(),
@@ -99,13 +96,14 @@ async function feedFetch(
   })
   let data: unknown
   try { data = await res.json() } catch { data = {} }
+  console.log('[sitrep] response:', res.status, JSON.stringify(data).slice(0, 200))
   return { status: res.status, data }
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────────
 
 async function getToken(userId: string): Promise<Response> {
-  const token = streamJWT({ user_id: userId, feed_id: `user:${userId}` })
+  const token = userJWT(userId)
   return json({ token })
 }
 
@@ -163,6 +161,9 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
     },
   }
 
+  // Ensure user exists in Feeds before posting
+  await feedFetch(feedUrl(`/user/${userId}/`), 'POST', { id: userId, data: { name: userId } })
+
   const [userRes, allRes] = await Promise.all([
     feedFetch(feedUrl(`/feed/user/${userId}/`), 'POST', activityBody),
     feedFetch(feedUrl(`/feed/flat/wri-all/`), 'POST', activityBody),
@@ -179,6 +180,9 @@ async function postActivity(userId: string, userTier: string, body: any): Promis
 async function getTimeline(userId: string, params: URLSearchParams): Promise<Response> {
   const limit = parseInt(params.get('limit') || '20', 10)
   const idLt  = params.get('id_lt') || ''
+
+  // Fire-and-forget user upsert so timeline feed exists
+  feedFetch(feedUrl(`/user/${userId}/`), 'POST', { id: userId, data: { name: userId } }).catch(() => {})
 
   const ltParam = idLt ? `&id_lt=${encodeURIComponent(idLt)}` : ''
   const [allRes, timelineRes] = await Promise.all([
