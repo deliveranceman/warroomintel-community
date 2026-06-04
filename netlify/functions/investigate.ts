@@ -5,17 +5,8 @@ import { cleanAIOutput } from '../lib/clean-ai-output'
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-// Simple in-memory rate limiter: max 10 requests per IP per minute
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 })
-    return true
-  }
-  if (entry.count >= 10) return false
-  entry.count++
+// Beta: IP rate limit disabled
+function checkRateLimit(_ip: string): boolean {
   return true
 }
 
