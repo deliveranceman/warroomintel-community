@@ -182,34 +182,26 @@ async function getStreamToken(userId: string): Promise<Response> {
 }
 
 async function createDM(userId: string, body: any): Promise<Response> {
-  const { otherUserId, otherUserName } = body ?? {}
+  const { otherUserId } = body ?? {}
   if (!otherUserId) return json({ error: 'otherUserId required' }, 400)
 
-  // Upsert both users into Stream before channel creation — Stream requires members to exist
-  const upsertRes = await fetch(streamUrl('/users'), {
+  const channelId = [userId, otherUserId].sort().join('-')
+
+  const res = await fetch(`https://chat.stream-io-api.com/channels/messaging/${encodeURIComponent(channelId)}?api_key=${apiKey}`, {
     method: 'POST',
     headers: streamHeaders(serverToken()),
     body: JSON.stringify({
-      users: {
-        [userId]:      { id: userId,      name: userId,                   role: 'user' },
-        [otherUserId]: { id: otherUserId, name: otherUserName || otherUserId, role: 'user' },
-      },
+      created_by_id: userId,
+      data: { members: [userId, otherUserId] },
     }),
   })
-  if (!upsertRes.ok) {
-    const upsertErr = await upsertRes.json().catch(() => ({}))
-    console.error('Stream user upsert warning:', upsertErr)
-  }
 
-  const { status, data } = await streamFetch(
-    '/channels/messaging',
-    'POST',
-    serverToken(),
-    { data: { members: [userId, otherUserId], created_by_id: userId } },
-  )
+  let data: unknown
+  try { data = await res.json() } catch { data = {} }
+  console.log('[create-dm] Stream response:', res.status, JSON.stringify(data).slice(0, 300))
 
-  if (status !== 200 && status !== 201) return json({ error: 'Stream error', detail: data }, status)
-  return json({ channelId: (data as any).channel?.id ?? null })
+  if (!res.ok) return json({ error: 'Stream error', detail: data }, res.status)
+  return json({ ok: true, channelId: (data as any).channel?.id ?? channelId })
 }
 
 async function markRead(userId: string, body: any): Promise<Response> {
