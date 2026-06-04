@@ -28,15 +28,44 @@ export default function AudioPrayerCallOverlay({
   callId, callType, recipientName, isCaller, onEnd,
 }: AudioPrayerCallOverlayProps) {
   const { getToken } = useAuth()
-  const [status, setStatus]   = useState<'connecting' | 'active' | 'error'>('connecting')
-  const [muted,  setMuted]    = useState(false)
-  const [elapsed, setElapsed] = useState(0)
+  const [status,   setStatus]   = useState<'connecting' | 'active' | 'error'>('connecting')
+  const [errorMsg, setErrorMsg] = useState('Could not connect to prayer call. Check mic permissions.')
+  const [muted,    setMuted]    = useState(false)
+  const [elapsed,  setElapsed]  = useState(0)
 
   // All SDK refs typed as any — SDK only loaded in browser via dynamic import
-  const clientRef  = useRef<any>(null)
-  const callRef    = useRef<any>(null)
-  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null)
-  const startRef   = useRef(Date.now())
+  const clientRef = useRef<any>(null)
+  const callRef   = useRef<any>(null)
+  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startRef  = useRef(Date.now())
+
+  // Ring tone for caller while connecting
+  useEffect(() => {
+    if (!isCaller || status !== 'connecting') return
+    let stopped = false
+    let ctx: AudioContext | null = null
+
+    const ring = () => {
+      if (stopped) return
+      ctx = new AudioContext()
+      const osc  = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = 440
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0)
+      osc.start()
+      osc.stop(ctx.currentTime + 1.0)
+      osc.onended = () => {
+        ctx?.close()
+        if (!stopped) setTimeout(ring, 2000)
+      }
+    }
+
+    ring()
+    return () => { stopped = true; ctx?.close() }
+  }, [isCaller, status])
 
   useEffect(() => {
     let cancelled = false
@@ -53,7 +82,7 @@ export default function AudioPrayerCallOverlay({
         const vtRes = await fetch('/api/stream-video-token', {
           headers: { Authorization: `Bearer ${authToken}` },
         })
-        if (!vtRes.ok) throw new Error('Video token failed')
+        if (!vtRes.ok) throw new Error(`Video token failed (${vtRes.status})`)
         const { apiKey, token: videoToken, userId, name } = await vtRes.json()
 
         if (cancelled) return
@@ -61,17 +90,14 @@ export default function AudioPrayerCallOverlay({
         // Init the Stream Video client
         const client = new StreamVideoClient({
           apiKey,
-          token: videoToken,
           user: { id: userId, name },
+          token: videoToken,
         })
         clientRef.current = client
 
         // Join / create the call
         const call = client.call(callType, callId)
         callRef.current = call
-
-        // Disable camera for audio-only
-        await call.camera.disable()
 
         await call.join({ create: isCaller })
 
@@ -81,6 +107,9 @@ export default function AudioPrayerCallOverlay({
           return
         }
 
+        // Disable camera after join for audio-only
+        await call.camera.disable()
+
         setStatus('active')
         startRef.current = Date.now()
         timerRef.current = setInterval(
@@ -88,8 +117,18 @@ export default function AudioPrayerCallOverlay({
           1000,
         )
       } catch (err: any) {
-        console.error('[AudioPrayerCallOverlay]', err?.message)
-        if (!cancelled) setStatus('error')
+        const msg = err?.message || String(err)
+        console.error('[AudioPrayerCallOverlay]', msg)
+        if (!cancelled) {
+          if (msg.includes('permission') || msg.includes('Permission') || msg.includes('NotAllowed')) {
+            setErrorMsg('Microphone permission denied. Please allow mic access and try again.')
+          } else if (msg.includes('token') || msg.includes('auth') || msg.includes('401')) {
+            setErrorMsg('Authentication failed. Please try again.')
+          } else {
+            setErrorMsg(`Connection failed: ${msg}`)
+          }
+          setStatus('error')
+        }
       }
     }
 
@@ -147,7 +186,7 @@ export default function AudioPrayerCallOverlay({
             CALL FAILED
           </div>
           <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginBottom: 20 }}>
-            Could not connect to prayer call. Check mic permissions.
+            {errorMsg}
           </div>
           <button
             onClick={handleEnd}
@@ -216,7 +255,7 @@ export default function AudioPrayerCallOverlay({
             {recipientName}
           </div>
           <div style={{ fontSize: 11, color: status === 'active' ? 'rgba(74,222,128,0.8)' : 'rgba(255,255,255,0.35)', letterSpacing: '0.05em' }}>
-            {status === 'connecting' ? 'Connecting…' : status === 'active' ? '● Connected' : 'Ended'}
+            {status === 'connecting' ? (isCaller ? 'Ringing…' : 'Connecting…') : status === 'active' ? '● Connected' : 'Ended'}
           </div>
         </div>
 

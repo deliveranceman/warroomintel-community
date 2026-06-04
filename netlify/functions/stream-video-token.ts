@@ -39,10 +39,14 @@ export default async function handler(req: Request): Promise<Response> {
   try {
     const client = new StreamClient(apiKey, apiSecret)
 
-    // Upsert user in Stream (both chat and video share the same user store)
-    await client.upsertUsers([{ id: userId, name }])
+    // Upsert user — log failure but don't throw; Stream auto-creates on first join
+    try {
+      await client.upsertUsers([{ id: userId, name }])
+    } catch (upsertErr: any) {
+      console.error('[stream-video-token] upsert failed (non-fatal):', upsertErr?.message)
+    }
 
-    // Generate a 1-hour video/call token
+    // Generate a 1-hour video/call token (user_id claim required by Stream Video SDK)
     const token = client.generateUserToken({ user_id: userId, validity_in_seconds: 3600 })
 
     return new Response(JSON.stringify({ apiKey, token, userId, name }), {

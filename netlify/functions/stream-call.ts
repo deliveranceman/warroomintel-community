@@ -103,11 +103,12 @@ export default async function handler(req: Request): Promise<Response> {
       data: {
         created_by_id: userId,
         members: [
-          { user_id: userId,       role: 'user' },
-          { user_id: targetUserId, role: 'user' },
+          { user_id: userId,       role: 'call_member' },
+          { user_id: targetUserId, role: 'call_member' },
         ],
         custom: { channelId, mode: 'audio', purpose: 'prayer_call' },
       },
+      ring: true,
     })
 
     // Record in Supabase
