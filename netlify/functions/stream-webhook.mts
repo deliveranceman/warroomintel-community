@@ -140,44 +140,70 @@ async function solDMReply(messageText: string, channelId: string, senderId: stri
 // ── DM push notification ──────────────────────────────────────────────────────
 
 async function sendDMPush(channelId: string, senderUserId: string, senderName: string, messageText: string): Promise<void> {
-  const sb = createClient(supabaseUrl, serviceRoleKey)
+  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
 
-  // Use Supabase dm_requests to find recipient — avoids unreliable Stream GET
-  const { data: dmRows } = await sb
-    .from('dm_requests')
-    .select('requester_id, recipient_id')
-    .eq('channel_id', channelId)
-    .eq('status', 'accepted')
-    .limit(1)
-  const dm = dmRows?.[0]
-  const recipientId = dm
-    ? (dm.requester_id === senderUserId ? dm.recipient_id : dm.requester_id)
-    : null
-  if (!recipientId) { console.log('[stream-webhook] sendDMPush: no recipient for', channelId); return }
-  const { data: subs } = await sb.from('push_subscriptions').select('*').eq('user_id', recipientId)
-  if (!subs?.length) return
+  const dmRes = await fetch(
+    `${supabaseUrl}/rest/v1/dm_requests?channel_id=eq.${encodeURIComponent(channelId)}&status=eq.accepted&select=requester_id,recipient_id`,
+    { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+  )
+  const dms = await dmRes.json().catch(() => [])
+  console.log('[webhook] dm_requests found:', Array.isArray(dms) ? dms.length : 0, 'for channel:', channelId)
 
-  const preview = messageText?.slice(0, 60) || '🎙 Voice message'
-  const payload = JSON.stringify({
-    type: 'new-dm',
-    channelId,
-    senderId: senderUserId,
-    senderName,
-    preview,
-    title: 'War Room Intel',
-    body: `${senderName}: ${preview}`,
+  const dm = Array.isArray(dms) ? dms[0] : null
+  if (!dm) { console.log('[webhook] no dm_request found, skipping push'); return }
+
+  const recipientId = dm.requester_id === senderUserId ? dm.recipient_id : dm.requester_id
+  console.log('[webhook] pushing to recipientId:', recipientId)
+
+  const pushRes = await fetch(`${siteUrl}/api/send-push`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-internal-key': process.env.INTERNAL_API_KEY || '' },
+    body: JSON.stringify({
+      userId: recipientId,
+      title: `💬 ${senderName}`,
+      body: messageText.slice(0, 100),
+      data: { type: 'dm_message', channelId, section: 'dms' },
+    }),
   })
+  const pushData = await pushRes.json().catch(() => ({}))
+  console.log('[webhook] push result:', JSON.stringify(pushData))
+}
+
+// ── Fire Team push notification ───────────────────────────────────────────────
+
+async function sendFireTeamPush(channelId: string, senderUserId: string, senderName: string, messageText: string): Promise<void> {
+  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+
+  const ftTeamRes = await fetch(
+    `${supabaseUrl}/rest/v1/fire_teams?stream_channel_id=eq.${encodeURIComponent(channelId)}&select=id`,
+    { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+  )
+  const teams = await ftTeamRes.json().catch(() => [])
+  const teamId = Array.isArray(teams) ? teams[0]?.id : null
+  if (!teamId) { console.log('[webhook] no fire_team for channel:', channelId); return }
+
+  const membersRes = await fetch(
+    `${supabaseUrl}/rest/v1/fire_team_members?fire_team_id=eq.${encodeURIComponent(teamId)}&status=eq.active&user_id=neq.${encodeURIComponent(senderUserId)}&select=user_id`,
+    { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+  )
+  const members = await membersRes.json().catch(() => [])
+  console.log('[webhook] fire team push teamId:', teamId, 'members:', Array.isArray(members) ? members.length : 0)
 
   await Promise.allSettled(
-    subs.map(async (row: any) => {
-      try {
-        await webpush.sendNotification(row.subscription, payload)
-      } catch (err: any) {
-        if (err.statusCode === 410) await sb.from('push_subscriptions').delete().eq('id', row.id).catch(() => {})
-      }
-    })
+    (Array.isArray(members) ? members : []).map((member: any) =>
+      fetch(`${siteUrl}/api/send-push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-internal-key': process.env.INTERNAL_API_KEY || '' },
+        body: JSON.stringify({
+          userId: member.user_id,
+          title: `⚔ ${senderName}`,
+          body: messageText.slice(0, 100),
+          data: { type: 'fire_team_message', channelId, section: 'dms' },
+        }),
+      }).catch(() => {}),
+    ),
   )
-  console.log(`[stream-webhook] DM push channelId=${channelId} recipient=${recipientId}`)
+  console.log(`[webhook] fire team push done channelId=${channelId}`)
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -217,15 +243,25 @@ export default async function handler(req: Request): Promise<Response> {
     const channelType  = body.channel_type ?? 'messaging'
     const senderUserId = body.user?.id ?? ''
     const messageText  = body.message?.text ?? ''
+    console.log('[webhook] message.new channelId:', channelId, 'type:', channelType, 'sender:', senderUserId)
 
     // Never process sol-bot's own messages (avoid infinite loop)
     if (senderUserId === SOL_BOT_ID) {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
     }
 
-    // SOL DM autoreply + DM push notification
     if (channelType === 'messaging') {
       const senderName = (body.user as any)?.name || senderUserId
+
+      // Fire Team channel — push all active members
+      if (channelId.startsWith('ft-')) {
+        sendFireTeamPush(channelId, senderUserId, senderName, messageText).catch(err =>
+          console.error('[stream-webhook] sendFireTeamPush error:', err)
+        )
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
+      }
+
+      // Person-to-person DM — push recipient + SOL autoreply
       sendDMPush(channelId, senderUserId, senderName, messageText).catch(err =>
         console.error('[stream-webhook] sendDMPush error:', err)
       )
