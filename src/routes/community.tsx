@@ -8859,20 +8859,25 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
                 <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No members found</div>
               ) : dmMembers
                   .filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase()))
-                  .map(member => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={async () => {
-                        setShowNewDM(false); setDmSearch('')
+                  .map(member => {
+                    const handleMemberTap = async () => {
+                      setShowNewDM(false); setDmSearch('')
+                      try {
                         const data = await api('create-dm', 'POST', { otherUserId: member.id })
                         if (data.channelId) {
                           const convData = await api('list-conversations')
                           if (convData.conversations) setConversations(convData.conversations)
                           selectConversation(data.channelId)
                         }
-                      }}
-                      style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, WebkitTapHighlightColor: 'transparent' }}
+                      } catch (e) { console.error('[DM picker] create-dm failed', e) }
+                    }
+                    return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={handleMemberTap}
+                      onTouchEnd={(e) => { e.preventDefault(); handleMemberTap() }}
+                      style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                     >
@@ -8887,7 +8892,7 @@ function MessengerSection({ userId, getToken, tier }: { userId: string; getToken
                         <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
                       </div>
                     </button>
-                  ))
+                  )})
               }
             </div>
           </div>
