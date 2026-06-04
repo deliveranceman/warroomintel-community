@@ -625,6 +625,314 @@ async function leaveFireTeam(userId: string, body: any): Promise<Response> {
   return json({ ok: true })
 }
 
+// ── Sentinel actions ──────────────────────────────────────────────────────────
+
+async function requestSentinel(userId: string, body: any): Promise<Response> {
+  const { recipientId, recipientName } = body ?? {}
+  if (!recipientId) return json({ error: 'recipientId required' }, 400)
+  if (recipientId === userId) return json({ error: 'Cannot request yourself' }, 400)
+
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  let userName = userId
+  if (clerkSecretKey) {
+    try {
+      const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${clerkSecretKey}` },
+      })
+      if (myRes.ok) {
+        const u = await myRes.json()
+        userName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || userId
+      }
+    } catch {}
+  }
+
+  const countRes = await fetch(
+    SB(`/sentinel_pairs?or=(requester_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&status=eq.active&select=id`),
+    { headers: sbH },
+  )
+  const activeRows: any[] = await countRes.json().catch(() => [])
+  if (Array.isArray(activeRows) && activeRows.length >= 4) return json({ error: 'Max 4 active sentinels' }, 400)
+
+  const existRes = await fetch(
+    SB(`/sentinel_pairs?or=(and(requester_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(recipientId)}),and(requester_id.eq.${encodeURIComponent(recipientId)},recipient_id.eq.${encodeURIComponent(userId)}))&status=in.(active,pending)&select=id`),
+    { headers: sbH },
+  )
+  const existRows: any[] = await existRes.json().catch(() => [])
+  if (Array.isArray(existRows) && existRows.length > 0) return json({ error: 'Sentinel relationship already exists' }, 400)
+
+  await fetch(SB('/sentinel_pairs'), {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify({
+      requester_id: userId, requester_name: userName,
+      recipient_id: recipientId, recipient_name: recipientName || 'Member',
+      status: 'pending',
+    }),
+  }).catch(() => {})
+
+  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+  fetch(`${siteUrl}/api/send-push`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+    body: JSON.stringify({
+      title: '⚔ Sentinel Request',
+      body: `${userName} wants to covenant with you as a Sentinel partner`,
+      userId: recipientId,
+      url: '/community',
+    }),
+  }).catch(() => {})
+
+  return json({ ok: true, message: 'Sentinel request sent' })
+}
+
+async function acceptSentinel(userId: string, body: any): Promise<Response> {
+  const { sentinelId } = body ?? {}
+  if (!sentinelId) return json({ error: 'sentinelId required' }, 400)
+
+  const rowRes = await fetch(
+    SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}&recipient_id=eq.${encodeURIComponent(userId)}&select=*`),
+    { headers: sbH },
+  )
+  const rows: any[] = await rowRes.json().catch(() => [])
+  const row = Array.isArray(rows) ? rows[0] : null
+  if (!row) return json({ error: 'Request not found' }, 404)
+  if (row.status !== 'pending') return json({ error: 'Request already resolved' }, 400)
+
+  const channelId = `sentinel-${sentinelId.slice(0, 8)}`
+  const allMembers = [row.requester_id, userId].sort()
+  const now = new Date()
+  const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
+    method: 'POST',
+    headers: streamHeaders(serverToken()),
+    body: JSON.stringify({
+      get_or_create: true,
+      members: allMembers,
+      data: { created_by_id: userId, is_sentinel: true, name: 'Sentinel Channel' },
+    }),
+  })
+  if (!chanRes.ok) return json({ error: 'Stream channel creation failed' }, 500)
+
+  await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
+    method: 'PATCH',
+    headers: sbH,
+    body: JSON.stringify({ status: 'active', started_at: now.toISOString(), ends_at: endsAt.toISOString(), stream_channel_id: channelId }),
+  }).catch(() => {})
+
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  let recipientName = userId
+  if (clerkSecretKey) {
+    try {
+      const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${clerkSecretKey}` },
+      })
+      if (myRes.ok) {
+        const u = await myRes.json()
+        recipientName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || userId
+      }
+    } catch {}
+  }
+
+  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+  fetch(`${siteUrl}/api/send-push`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+    body: JSON.stringify({
+      title: '⚔ Sentinel Activated',
+      body: `${recipientName} accepted your Sentinel covenant. 30-day sprint begins now.`,
+      userId: row.requester_id,
+      url: '/community',
+    }),
+  }).catch(() => {})
+
+  return json({ ok: true, channelId })
+}
+
+async function listSentinels(userId: string): Promise<Response> {
+  const res = await fetch(
+    SB(`/sentinel_pairs?or=(requester_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&status=eq.active&select=*`),
+    { headers: sbH },
+  )
+  const rows: any[] = await res.json().catch(() => [])
+  if (!Array.isArray(rows) || rows.length === 0) return json({ sentinels: [] })
+
+  const sentinels: any[] = []
+  for (const r of rows) {
+    let lastMessage = ''
+    let updatedAt = r.started_at || r.created_at
+    if (r.stream_channel_id) {
+      try {
+        const { status, data } = await streamFetch(
+          `/channels/messaging/${encodeURIComponent(r.stream_channel_id)}/query`,
+          'POST', serverToken(),
+          { state: true, messages: { limit: 1 }, watch: false, presence: false },
+        )
+        if (status >= 200 && status < 300) {
+          const latestMsg = (data as any).messages?.[0] ?? null
+          lastMessage = latestMsg?.text || ''
+          updatedAt = latestMsg?.created_at || updatedAt
+        }
+      } catch {}
+    }
+    const partnerName = r.requester_id === userId ? r.recipient_name : r.requester_name
+    const partnerId   = r.requester_id === userId ? r.recipient_id  : r.requester_id
+    sentinels.push({
+      id: r.id,
+      channelId: r.stream_channel_id || '',
+      partnerName: partnerName || 'Partner',
+      partnerId,
+      endsAt: r.ends_at,
+      startedAt: r.started_at,
+      lastMessage,
+      updatedAt,
+      sprintNumber: r.sprint_number || 1,
+    })
+  }
+  return json({ sentinels })
+}
+
+async function getSentinelRequests(userId: string): Promise<Response> {
+  const res = await fetch(
+    SB(`/sentinel_pairs?recipient_id=eq.${encodeURIComponent(userId)}&status=eq.pending&select=*&order=created_at.desc`),
+    { headers: sbH },
+  )
+  const rows: any[] = await res.json().catch(() => [])
+  const requests = Array.isArray(rows) ? rows.map(r => ({
+    id: r.id,
+    requesterId: r.requester_id,
+    requesterName: r.requester_name,
+    createdAt: r.created_at,
+  })) : []
+  return json({ requests })
+}
+
+// ── Cover All actions ─────────────────────────────────────────────────────────
+
+async function createCoverAll(userId: string, body: any): Promise<Response> {
+  const { name, territory, inviteUserIds } = body ?? {}
+  if (!name) return json({ error: 'name required' }, 400)
+  if (!Array.isArray(inviteUserIds)) return json({ error: 'inviteUserIds required' }, 400)
+  if (1 + inviteUserIds.length > 20) return json({ error: 'max 20 members total' }, 400)
+
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  let userName = userId
+  let userTierLevel = 0
+  if (clerkSecretKey) {
+    try {
+      const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${clerkSecretKey}` },
+      })
+      if (myRes.ok) {
+        const u = await myRes.json()
+        const tier = (u.public_metadata?.tier as string) || 'watchman'
+        userTierLevel = ({ watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 } as Record<string, number>)[tier] ?? 0
+        userName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || userId
+      }
+    } catch {}
+  }
+  if (userTierLevel < 2) return json({ error: 'Commander+ tier required to create Cover All groups' }, 403)
+
+  const channelId = `ca-${Date.now()}-${userId.slice(-6)}`
+  const allMembers = [userId, ...inviteUserIds]
+
+  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
+    method: 'POST',
+    headers: streamHeaders(serverToken()),
+    body: JSON.stringify({
+      get_or_create: true,
+      members: allMembers,
+      data: { created_by_id: userId, name, is_cover_all: true, territory: territory || '' },
+    }),
+  })
+  if (!chanRes.ok) return json({ error: 'Stream channel creation failed' }, 500)
+
+  const grpRes = await fetch(SB('/cover_all_groups'), {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify({
+      name, territory: territory || '', leader_id: userId, leader_name: userName,
+      stream_channel_id: channelId, member_count: allMembers.length, active: true,
+    }),
+  })
+  const grpRows: any[] = await grpRes.json().catch(() => [])
+  const groupId = Array.isArray(grpRows) && grpRows[0]?.id ? grpRows[0].id : null
+
+  if (groupId) {
+    await fetch(SB('/cover_all_members'), {
+      method: 'POST',
+      headers: sbH,
+      body: JSON.stringify({ group_id: groupId, user_id: userId, user_name: userName, role: 'leader', status: 'active' }),
+    }).catch(() => {})
+
+    const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+    for (const inviteId of inviteUserIds) {
+      fetch(`${siteUrl}/api/send-push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({
+          title: '🛡 Cover All Invitation',
+          body: `${userName} invited you to join "${name}" Cover All group`,
+          userId: inviteId,
+          url: '/community',
+        }),
+      }).catch(() => {})
+    }
+  }
+
+  return json({ ok: true, channelId, groupId })
+}
+
+async function listCoverAll(userId: string): Promise<Response> {
+  const membRes = await fetch(
+    SB(`/cover_all_members?user_id=eq.${encodeURIComponent(userId)}&status=eq.active&select=group_id`),
+    { headers: sbH },
+  )
+  const membRows: any[] = await membRes.json().catch(() => [])
+  if (!Array.isArray(membRows) || membRows.length === 0) return json({ groups: [] })
+
+  const ids = membRows.map(r => r.group_id).filter(Boolean)
+  if (ids.length === 0) return json({ groups: [] })
+
+  const grpsRes = await fetch(
+    SB(`/cover_all_groups?id=in.(${ids.join(',')})&active=eq.true&select=*`),
+    { headers: sbH },
+  )
+  const grps: any[] = await grpsRes.json().catch(() => [])
+  if (!Array.isArray(grps) || grps.length === 0) return json({ groups: [] })
+
+  const groups: any[] = []
+  for (const g of grps) {
+    let lastMessage = ''
+    let updatedAt = g.created_at
+    if (g.stream_channel_id) {
+      try {
+        const { status, data } = await streamFetch(
+          `/channels/messaging/${encodeURIComponent(g.stream_channel_id)}/query`,
+          'POST', serverToken(),
+          { state: true, messages: { limit: 1 }, watch: false, presence: false },
+        )
+        if (status >= 200 && status < 300) {
+          const latestMsg = (data as any).messages?.[0] ?? null
+          lastMessage = latestMsg?.text || ''
+          updatedAt = latestMsg?.created_at || g.created_at
+        }
+      } catch {}
+    }
+    groups.push({
+      id: g.id,
+      channelId: g.stream_channel_id || '',
+      name: g.name,
+      territory: g.territory || '',
+      leaderName: g.leader_name || '',
+      memberCount: g.member_count || 1,
+      lastMessage,
+      updatedAt,
+    })
+  }
+  return json({ groups })
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
@@ -701,6 +1009,33 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'leave-fire-team') {
     const body = await req.json().catch(() => ({}))
     return leaveFireTeam(userId, body)
+  }
+
+  if (action === 'request-sentinel') {
+    const body = await req.json().catch(() => ({}))
+    return requestSentinel(userId, body)
+  }
+
+  if (action === 'accept-sentinel') {
+    const body = await req.json().catch(() => ({}))
+    return acceptSentinel(userId, body)
+  }
+
+  if (action === 'list-sentinels') {
+    return listSentinels(userId)
+  }
+
+  if (action === 'get-sentinel-requests') {
+    return getSentinelRequests(userId)
+  }
+
+  if (action === 'create-cover-all') {
+    const body = await req.json().catch(() => ({}))
+    return createCoverAll(userId, body)
+  }
+
+  if (action === 'list-cover-all') {
+    return listCoverAll(userId)
   }
 
   return json({ error: `Unknown action: ${action}` }, 405)

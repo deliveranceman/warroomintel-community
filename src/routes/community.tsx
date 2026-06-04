@@ -22,6 +22,8 @@ import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
 import CallOverlay from '../components/CallOverlay'
 import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
+import { searchHelp, getArticlesByCategory } from '@/utils/helpSearch'
+import { helpCategories, helpArticles, type HelpArticle } from '@/data/helpContent'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -667,12 +669,13 @@ interface MembersViewProps {
   currentUserRole: string
   onViewProfile: (member: any) => void
   onStartDM: (memberId: string, memberName: string) => void
+  onRequestSentinel?: (memberId: string, memberName: string) => Promise<void>
   setActiveSection: (s: string) => void
   isDark: boolean
   isMobile: boolean
 }
 
-function MembersView({ members, currentUserId, currentUserTier, currentUserRole, onViewProfile, onStartDM, setActiveSection: _setActiveSection, isDark, isMobile }: MembersViewProps) {
+function MembersView({ members, currentUserId, currentUserTier, currentUserRole, onViewProfile, onStartDM, onRequestSentinel, setActiveSection: _setActiveSection, isDark, isMobile }: MembersViewProps) {
   const [search, setSearch]       = useState('')
   const [filterTier, setFilterTier] = useState('All')
 
@@ -719,6 +722,7 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
     const tierGlow    = TIER_GLOW[tier] || 'transparent'
     const isOwn       = member.id === currentUserId
     const displayName = member.firstName || member.username || 'Warrior'
+    const [sentReqSent, setSentReqSent] = React.useState(false)
     const avatarSize  = large ? 72 : 48
     const initials    = ((member.firstName?.[0]||'') + (member.lastName?.[0]||'')).toUpperCase() || displayName[0]?.toUpperCase() || 'W'
 
@@ -767,10 +771,23 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
           </div>
         </div>
         {!isOwn && (
-          <button
-            onClick={e => { e.stopPropagation(); canDM ? onStartDM(member.id, displayName) : onViewProfile(member) }}
-            style={{ marginTop:2, padding: large ? '6px 18px' : '4px 12px', background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent', border:`1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius:6, color: canDM ? '#C9A84C' : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
-          >{canDM ? '💬 Message' : '🔒 Soldier+'}</button>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, alignItems: 'center', width: '100%' }}>
+            <button
+              onClick={e => { e.stopPropagation(); canDM ? onStartDM(member.id, displayName) : onViewProfile(member) }}
+              style={{ marginTop:2, padding: large ? '6px 18px' : '4px 12px', background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent', border:`1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius:6, color: canDM ? '#C9A84C' : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
+            >{canDM ? '💬 Message' : '🔒 Soldier+'}</button>
+            {canDM && onRequestSentinel && (
+              <button
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (sentReqSent) return
+                  await onRequestSentinel(member.id, displayName)
+                  setSentReqSent(true)
+                }}
+                style={{ padding: large ? '5px 18px' : '3px 10px', background: sentReqSent ? 'rgba(201,168,76,0.08)' : 'transparent', border: `1px solid ${sentReqSent ? 'rgba(201,168,76,0.25)' : 'rgba(201,168,76,0.4)'}`, borderRadius: 6, color: sentReqSent ? 'rgba(201,168,76,0.5)' : '#C9A84C', fontFamily: mc, fontSize: 9, letterSpacing: '0.08em', cursor: sentReqSent ? 'default' : 'pointer', textTransform: 'uppercase' as const }}
+              >{sentReqSent ? '✓ Request Sent' : '⚔ Sentinel'}</button>
+            )}
+          </div>
         )}
       </TacticalCard>
     )
@@ -9627,6 +9644,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [pendingInbound, setPendingInbound]   = React.useState<any[]>([])
   const [fireTeams, setFireTeams]                   = React.useState<any[]>([])
   const [fireTeamsLoading, setFireTeamsLoading]     = React.useState(false)
+  const [sentinels, setSentinels]                   = React.useState<any[]>([])
+  const [sentinelRequests, setSentinelRequests]     = React.useState<any[]>([])
+  const [coverAllGroups, setCoverAllGroups]         = React.useState<any[]>([])
   const [showCreateFireTeam, setShowCreateFireTeam] = React.useState(false)
   const [ftName, setFtName]                         = React.useState('')
   const [ftType, setFtType]                         = React.useState('intercession')
@@ -9698,6 +9718,33 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     }).catch(() => setFireTeamsLoading(false))
   }, [getToken])
 
+  const fetchSentinels = React.useCallback(async () => {
+    const t = await getToken()
+    if (!t) return
+    try {
+      const d = await fetch('/api/stream-messages?action=list-sentinels', { headers: { Authorization: `Bearer ${t}` } }).then(r => r.json())
+      setSentinels(Array.isArray(d.sentinels) ? d.sentinels : [])
+    } catch {}
+  }, [getToken])
+
+  const fetchSentinelRequests = React.useCallback(async () => {
+    const t = await getToken()
+    if (!t) return
+    try {
+      const d = await fetch('/api/stream-messages?action=get-sentinel-requests', { headers: { Authorization: `Bearer ${t}` } }).then(r => r.json())
+      setSentinelRequests(Array.isArray(d.requests) ? d.requests : [])
+    } catch {}
+  }, [getToken])
+
+  const fetchCoverAll = React.useCallback(async () => {
+    const t = await getToken()
+    if (!t) return
+    try {
+      const d = await fetch('/api/stream-messages?action=list-cover-all', { headers: { Authorization: `Bearer ${t}` } }).then(r => r.json())
+      setCoverAllGroups(Array.isArray(d.groups) ? d.groups : [])
+    } catch {}
+  }, [getToken])
+
   // ── Load conversations ──
   useEffect(() => {
     if (!userId) return
@@ -9724,6 +9771,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       }
     })
     fetchFireTeams()
+    fetchSentinels()
+    fetchSentinelRequests()
+    fetchCoverAll()
   }, [userId])
 
   // ── Poll inbound pending DM requests every 30s ──
@@ -9741,11 +9791,14 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         fetchConversations()
         fetchPendingInbound()
         fetchFireTeams()
+        fetchSentinels()
+        fetchSentinelRequests()
+        fetchCoverAll()
       }
     }
     document.addEventListener('visibilitychange', handleVisible)
     return () => document.removeEventListener('visibilitychange', handleVisible)
-  }, [fetchConversations, fetchPendingInbound])
+  }, [fetchConversations, fetchPendingInbound, fetchFireTeams, fetchSentinels, fetchSentinelRequests, fetchCoverAll])
 
   // ── Auto-dismiss dmError ──
   useEffect(() => {
@@ -10115,6 +10168,43 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
+        {/* Pending Sentinel requests inbox */}
+        {sentinelRequests.length > 0 && (
+          <div style={{ margin: '0 12px 10px', background: 'rgba(107,69,150,0.12)', border: '1px solid rgba(107,69,150,0.4)', borderRadius: 8, padding: 12, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: '#b48ee0', fontWeight: 600, letterSpacing: '0.08em' }}>⚔ SENTINEL REQUESTS</span>
+            </div>
+            {sentinelRequests.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(107,69,150,0.2)', border: '1px solid rgba(107,69,150,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, color: '#b48ee0' }}>{r.requesterName?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: '#e8dcc8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.requesterName}</div>
+                  <div style={{ fontSize: 10, color: WMUT }}>wants to covenant as Sentinel</div>
+                </div>
+                <button
+                  type="button"
+                  style={{ fontSize: 11, color: '#0D0B14', background: '#b48ee0', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 600, letterSpacing: '0.04em', flexShrink: 0 }}
+                  onClick={async () => {
+                    const data = await api('accept-sentinel', 'POST', { sentinelId: r.id })
+                    if (data.ok && data.channelId) {
+                      setSentinelRequests(prev => prev.filter(x => x.id !== r.id))
+                      fetchSentinels()
+                      selectConversation(data.channelId)
+                    }
+                  }}
+                >Accept</button>
+                <button
+                  type="button"
+                  style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', flexShrink: 0 }}
+                  onClick={() => setSentinelRequests(prev => prev.filter(x => x.id !== r.id))}
+                >✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Pending inbound DM requests — prominent gold card */}
         {pendingInbound.length > 0 && (
           <div style={{ margin: '0 12px 10px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: 12, flexShrink: 0 }}>
@@ -10167,6 +10257,60 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             ))}
           </div>
         )}
+
+        {/* ── Sentinels section ── */}
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', marginTop: 8 }}>
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#b48ee0', letterSpacing: '0.14em', fontWeight: 700 }}>⚔ SENTINELS</span>
+            <button
+              type="button"
+              title="Request Sentinel"
+              onClick={async () => {
+                const name = window.prompt('Enter the User ID or username of your Sentinel partner:')
+                if (!name?.trim()) return
+                const t = await getToken()
+                if (!t) return
+                const res = await fetch('/api/stream-messages?action=request-sentinel', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ recipientId: name.trim(), recipientName: name.trim() }),
+                }).then(r => r.json()).catch(() => null)
+                if (res?.ok) alert('Sentinel request sent!')
+                else if (res?.error) alert(res.error)
+              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b48ee0', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+            >⚔</button>
+          </div>
+          {sentinels.length === 0 ? (
+            <div style={{ padding: '4px 16px 8px', fontSize: 11, color: WMUT }}>No active sentinels</div>
+          ) : sentinels.map(s => {
+            const isActive = s.channelId === activeConvoId
+            return (
+              <div
+                key={s.id}
+                onClick={() => s.channelId && selectConversation(s.channelId)}
+                style={{
+                  display: 'flex', gap: 10, padding: '8px 12px', cursor: s.channelId ? 'pointer' : 'default',
+                  background: isActive ? 'rgba(107,69,150,0.15)' : 'transparent',
+                  borderBottom: `1px solid ${BDR}`, transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(107,69,150,0.18)', color: '#b48ee0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: '1px solid rgba(107,69,150,0.35)', flexShrink: 0 }}>⚔</div>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.partnerName}</span>
+                    <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>{relativeTime(s.updatedAt)}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {s.lastMessage || 'Covenant Partner'}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
 
         {/* ── Fire Teams section ── */}
         {(fireTeams.length > 0 || tierLevel >= 1) && (
@@ -10222,11 +10366,62 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 </div>
               )
             })}
-            <div style={{ padding: '6px 16px', borderBottom: `1px solid ${BDR}` }}>
-              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.14em' }}>DIRECT MESSAGES</span>
-            </div>
           </div>
         )}
+
+        {/* ── Cover All section ── */}
+        {(coverAllGroups.length > 0 || tierLevel >= 2) && (
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#6aacef', letterSpacing: '0.14em', fontWeight: 700 }}>🛡 COVER ALL</span>
+              {tierLevel >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => alert('Cover All creation UI — coming soon')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6aacef', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+                  title="Create Cover All Group"
+                >+</button>
+              )}
+            </div>
+            {coverAllGroups.length === 0 ? (
+              <div style={{ padding: '4px 16px 8px', fontSize: 11, color: WMUT }}>No active groups</div>
+            ) : coverAllGroups.map(g => {
+              const isActive = g.channelId === activeConvoId
+              return (
+                <div
+                  key={g.id}
+                  onClick={() => g.channelId && selectConversation(g.channelId)}
+                  style={{
+                    display: 'flex', gap: 10, padding: '8px 12px', cursor: g.channelId ? 'pointer' : 'default',
+                    background: isActive ? 'rgba(106,172,239,0.1)' : 'transparent',
+                    borderBottom: `1px solid ${BDR}`, transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(106,172,239,0.15)', color: '#6aacef', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: '1px solid rgba(106,172,239,0.3)', flexShrink: 0 }}>🛡</div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{g.name}</span>
+                      <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>{relativeTime(g.updatedAt)}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 10, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
+                        {g.lastMessage || g.territory || `${g.memberCount} members`}
+                      </span>
+                      <span style={{ fontSize: 9, color: WMUT, flexShrink: 0, marginLeft: 4 }}>{g.memberCount}👥</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ── Direct Messages label ── */}
+        <div style={{ padding: '6px 16px', borderBottom: `1px solid ${BDR}` }}>
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.14em' }}>DIRECT MESSAGES</span>
+        </div>
 
         {/* Conversation rows */}
         <div style={{ flex: 1, overflowY: 'auto' as const }}>
@@ -10297,6 +10492,25 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             )
           })}
         </div>
+        {/* ── The Regiment ── */}
+        <div
+          onClick={() => selectConversation('war-room-general')}
+          style={{
+            display: 'flex', gap: 10, padding: '10px 12px', cursor: 'pointer', flexShrink: 0,
+            background: activeConvoId === 'war-room-general' ? 'rgba(201,168,76,0.1)' : 'rgba(0,0,0,0.15)',
+            borderTop: `1px solid ${BDR}`,
+            transition: 'background 0.12s',
+          }}
+          onMouseEnter={e => { if (activeConvoId !== 'war-room-general') (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+          onMouseLeave={e => { if (activeConvoId !== 'war-room-general') (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.15)' }}
+        >
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', color: GLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: `1px solid rgba(201,168,76,0.3)`, flexShrink: 0 }}>🎖</div>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2, justifyContent: 'center' }}>
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 700, color: GLD, letterSpacing: '0.08em' }}>THE REGIMENT</span>
+            <span style={{ fontSize: 10, color: WMUT }}>All of WRI · Low-noise announcements</span>
+          </div>
+        </div>
+
         {/* ── Create Fire Team modal ── */}
         {showCreateFireTeam && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -12220,29 +12434,192 @@ function CommunityPage() {
 
   // ── VIEWS ──────────────────────────────────────────────────
 
-  const LauncherView = ({ title, icon, href }: { title: string; icon: string; href: string }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {isMobile && (
-        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, background: V.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          <Hamburger />
-          <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>{icon} {title}</span>
+  // ── HELP CENTER ──────────────────────────────────────────────
+  const HelpSection = () => {
+    const [helpQuery, setHelpQuery]         = React.useState('')
+    const [helpResults, setHelpResults]     = React.useState<HelpArticle[]>([])
+    const [helpCategory, setHelpCategory]   = React.useState<string | null>(null)
+    const [helpArticle, setHelpArticle]     = React.useState<HelpArticle | null>(null)
+
+    const handleHelpSearch = (q: string) => {
+      setHelpQuery(q)
+      if (q.trim().length > 1) {
+        setHelpResults(searchHelp(q))
+        setHelpCategory(null)
+      } else {
+        setHelpResults([])
+      }
+    }
+
+    const bg   = isDark ? '#0D0B14' : '#FAF8F5'
+    const surf = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'
+    const bdr  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+    const txt  = isDark ? '#e8dcc8' : '#2D2924'
+    const mut  = isDark ? 'rgba(232,224,208,0.45)' : 'rgba(45,41,36,0.45)'
+
+    const QUICK_IDS = ['gs-welcome', 'gs-tiers', 'teams-sentinel', 'feat-deliverance-protocol']
+    const quickArticles = helpArticles.filter(a => QUICK_IDS.includes(a.id))
+    const POPULAR_TAGS  = ['tiers', 'sitrep', 'fire team', 'sentinel', 'sol', 'deliverance']
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: bg }}>
+        {isMobile && (
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${bdr}`, background: surf, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <Hamburger />
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>📋 HELP CENTER</span>
+          </div>
+        )}
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px', maxWidth: 680 }}>
+          {/* Header */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.12em', fontWeight: 700, marginBottom: 4 }}>📋 HELP CENTER</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>Intelligence for the Fight</div>
+          </div>
+
+          {/* Search bar */}
+          <div style={{ position: 'relative', marginBottom: 20 }}>
+            <input
+              value={helpQuery}
+              onChange={e => handleHelpSearch(e.target.value)}
+              placeholder="Search help articles…"
+              style={{
+                width: '100%', padding: '10px 36px 10px 14px', borderRadius: 8, boxSizing: 'border-box',
+                background: surf, border: `1px solid ${helpQuery ? G : bdr}`,
+                color: txt, fontSize: 14, outline: 'none', fontFamily: crimson,
+              }}
+            />
+            {helpQuery && (
+              <button
+                onClick={() => { setHelpQuery(''); setHelpResults([]) }}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: mut, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}
+              >×</button>
+            )}
+          </div>
+
+          {/* Article detail */}
+          {helpArticle ? (
+            <div>
+              <button
+                onClick={() => setHelpArticle(null)}
+                style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', marginBottom: 20, padding: 0 }}
+              >← Back</button>
+              <div style={{ fontSize: 28, textAlign: 'center', marginBottom: 12 }}>{helpArticle.icon}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 16, color: G, letterSpacing: '0.08em', marginBottom: 20, textAlign: 'center' }}>{helpArticle.title}</div>
+              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.85, whiteSpace: 'pre-line' }}>
+                {helpArticle.content.split('\n').map((line, i) => {
+                  if (line.startsWith('- ')) return <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}><span style={{ color: G, flexShrink: 0 }}>•</span><span>{line.slice(2)}</span></div>
+                  if (line.match(/^[🔭⚔🎖⭐🔱🙏📡📋🔥☀️🌤🌙]/u)) return <div key={i} style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em', marginTop: 14, marginBottom: 4 }}>{line}</div>
+                  if (!line.trim()) return <div key={i} style={{ height: 8 }} />
+                  return <div key={i} style={{ marginBottom: 4 }}>{line}</div>
+                })}
+              </div>
+            </div>
+
+          ) : helpQuery && helpResults.length > 0 ? (
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em', marginBottom: 12 }}>{helpResults.length} RESULT{helpResults.length !== 1 ? 'S' : ''} FOR "{helpQuery.toUpperCase()}"</div>
+              {helpResults.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => setHelpArticle(a)}
+                  style={{ width: '100%', background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12 }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.border = `1px solid ${G}`}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.border = `1px solid ${bdr}`}
+                >
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{a.icon}</span>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.06em', marginBottom: 2 }}>{a.title}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{helpCategories.find(c => c.id === a.category)?.label || a.category}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+          ) : helpQuery && helpResults.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: mut, marginBottom: 10 }}>No results for "{helpQuery}"</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>Try: sitrep, fire team, sentinel, tiers…</div>
+            </div>
+
+          ) : (
+            <div>
+              {/* Category pills */}
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', marginBottom: 10 }}>BROWSE BY TOPIC</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+                {helpCategories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setHelpCategory(helpCategory === cat.id ? null : cat.id)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer', fontFamily: crimson,
+                      background: helpCategory === cat.id ? G : 'transparent',
+                      color: helpCategory === cat.id ? '#0D0B14' : G,
+                      border: `1px solid ${helpCategory === cat.id ? G : 'rgba(201,168,76,0.4)'}`,
+                      fontWeight: helpCategory === cat.id ? 700 : 400,
+                    }}
+                  >{cat.icon} {cat.label}</button>
+                ))}
+              </div>
+
+              {helpCategory ? (
+                <div>
+                  {getArticlesByCategory(helpCategory).map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => setHelpArticle(a)}
+                      style={{ width: '100%', background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12 }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.border = `1px solid ${G}`}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.border = `1px solid ${bdr}`}
+                    >
+                      <span style={{ fontSize: 20, flexShrink: 0 }}>{a.icon}</span>
+                      <div>
+                        <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.06em', marginBottom: 2 }}>{a.title}</div>
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 340 }}>{a.content.split('\n').find(l => l.trim()) || ''}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  {/* Quick Access */}
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', marginBottom: 10 }}>QUICK ACCESS</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 28 }}>
+                    {quickArticles.map(a => (
+                      <button
+                        key={a.id}
+                        onClick={() => setHelpArticle(a)}
+                        style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.border = `1px solid ${G}`}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.border = `1px solid ${bdr}`}
+                      >
+                        <span style={{ fontSize: 22, flexShrink: 0 }}>{a.icon}</span>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.05em' }}>{a.title}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Popular searches */}
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.12em', marginBottom: 10 }}>POPULAR SEARCHES</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {POPULAR_TAGS.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => handleHelpSearch(tag)}
+                        style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer', fontFamily: crimson, background: 'transparent', color: mut, border: `1px solid ${bdr}` }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = G; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.4)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = mut; (e.currentTarget as HTMLElement).style.borderColor = bdr }}
+                      >{tag}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <img src="/logo.png" alt="WRI" style={{ width: 52, height: 52, objectFit: 'contain', marginBottom: 20, opacity: 0.7 }} />
-        <div style={{ fontFamily: cinzel, fontSize: 15, letterSpacing: '0.15em', color: G, marginBottom: 10 }}>{icon} {title}</div>
-        <div style={{ fontFamily: crimson, fontSize: 15, fontStyle: 'italic', color: V.dim, marginBottom: 28 }}>
-          This section opens as a full page
-        </div>
-        <button
-          onClick={() => { window.location.href = href }}
-          style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#0e0c09', background: G, border: 'none', borderRadius: 4, padding: '11px 28px', cursor: 'pointer' }}
-        >
-          Open Full Page →
-        </button>
       </div>
-    </div>
-  )
+    )
+  }
 
   // ── SIDEBAR CONTENT (shared between desktop and mobile overlay) ──
   const SidebarContent = () => (
@@ -12318,7 +12695,7 @@ function CommunityPage() {
             { icon: <Heart size={16} strokeWidth={1.6} />,         label: 'Prayer Wall',       mobileLabel: 'Prayer',    section: 'prayer-wall'    },
             { icon: <Cross size={16} strokeWidth={1.6} />,         label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
             { icon: <Users size={16} strokeWidth={1.6} />,         label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
-            { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Feedback',          mobileLabel: 'Feedback',  section: 'feedback'       },
+            { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Help Center',       mobileLabel: 'Help',      section: 'help'           },
             { icon: <span style={{ fontSize: 14, lineHeight: 1 }}>⚑</span>, label: 'Beta Reports', mobileLabel: 'Beta', section: 'beta-test' },
           ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
@@ -12363,6 +12740,7 @@ function CommunityPage() {
         {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
         {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
         {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
+        {navItem('Feedback', 'feedback', <span style={{ fontSize: 14, lineHeight: 1 }}>💬</span>)}
 
         {/* ── FIELD OPS (Commander+) ── */}
         {(['commander', 'general'].includes(((user?.publicMetadata?.tier as string) || '').toLowerCase()) || (user?.publicMetadata?.role as string) === 'minister') && (
@@ -12718,6 +13096,15 @@ function CommunityPage() {
               setPendingDmName(memberName)
               setActiveSection('dms')
             }}
+            onRequestSentinel={async (memberId, memberName) => {
+              const t = await getToken()
+              if (!t) return
+              await fetch('/api/stream-messages?action=request-sentinel', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipientId: memberId, recipientName: memberName }),
+              }).catch(() => {})
+            }}
             setActiveSection={setActiveSection}
             isDark={theme !== 'light'}
             isMobile={isMobile}
@@ -12759,7 +13146,7 @@ function CommunityPage() {
             getToken={getToken}
           />
         )}
-        {activeSection === 'help'        && <LauncherView title="Request Help"      icon="🙏" href="/help" />}
+        {activeSection === 'help'        && <HelpSection />}
         {activeSection === 'deliverance-protocol' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
             <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
