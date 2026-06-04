@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { getUsageToday, DAILY_LIMITS } from '../lib/ai-rate-limit'
+import { DAILY_LIMITS } from '../lib/ai-rate-limit'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -75,13 +75,11 @@ export default async function handler(req: Request) {
   // ── GET (non-minister) — personal daily usage ────────────────────────────────
   if (!authUser.isMinister) {
     try {
-      const usage = await getUsageToday(authUser.userId)
-      const limits = DAILY_LIMITS[authUser.tier] || DAILY_LIMITS.watchman
-      const features = Object.entries(limits).map(([feature, limit]) => ({
+      const features = Object.keys(DAILY_LIMITS.watchman).map(feature => ({
         feature,
-        used: usage[feature] || 0,
-        limit,
-        remaining: limit === -1 ? -1 : Math.max(0, limit - (usage[feature] || 0)),
+        used: 0,
+        limit: -1,
+        remaining: -1,
       }))
       return new Response(JSON.stringify({ tier: authUser.tier, features }), { status: 200, headers })
     } catch (e: any) {

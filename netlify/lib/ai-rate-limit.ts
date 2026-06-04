@@ -127,8 +127,9 @@ export const DAILY_LIMITS: Record<string, Record<AIFeature, number>> = {
   },
 }
 
-function getLimit(tier: string, feature: AIFeature): number {
-  return DAILY_LIMITS[tier]?.[feature] ?? DAILY_LIMITS.watchman[feature] ?? 0
+// BETA: unlimited — kept for future restoration
+export function getLimit(_tier: string, _feature: AIFeature): number {
+  return -1
 }
 
 function sb() {
@@ -136,57 +137,12 @@ function sb() {
 }
 
 export async function checkAndIncrementUsage(
-  userId: string,
-  tier: string,
-  feature: AIFeature,
+  _userId: string,
+  _tier: string,
+  _feature: AIFeature,
 ): Promise<{ allowed: boolean; remaining: number; limit: number; current: number }> {
-  const limit = getLimit(tier, feature)
-
-  if (limit === -1) return { allowed: true, remaining: -1, limit: -1, current: 0 }
-  if (limit === 0) return { allowed: false, remaining: 0, limit: 0, current: 0 }
-
-  const client = sb()
-  const today = new Date().toISOString().slice(0, 10)
-
-  // Try atomic increment via RPC, fall back to read-modify-write
-  try {
-    const { data: newCount, error } = await client.rpc('increment_ai_usage', {
-      p_user_id: userId,
-      p_feature: feature,
-      p_usage_date: today,
-    })
-    if (!error && typeof newCount === 'number') {
-      if (newCount > limit) {
-        return { allowed: false, remaining: 0, limit, current: newCount - 1 }
-      }
-      return { allowed: true, remaining: limit - newCount, limit, current: newCount }
-    }
-  } catch { /* fall through to manual approach */ }
-
-  // Manual read-modify-write fallback
-  const { data: row } = await client
-    .from('ai_usage_daily')
-    .select('call_count')
-    .eq('user_id', userId)
-    .eq('feature', feature)
-    .eq('usage_date', today)
-    .single()
-
-  const current = row?.call_count || 0
-  if (current >= limit) return { allowed: false, remaining: 0, limit, current }
-
-  const newCount = current + 1
-  if (!row) {
-    await client.from('ai_usage_daily').insert({
-      user_id: userId, feature, usage_date: today, call_count: 1,
-    })
-  } else {
-    await client.from('ai_usage_daily')
-      .update({ call_count: newCount, updated_at: new Date().toISOString() })
-      .eq('user_id', userId).eq('feature', feature).eq('usage_date', today)
-  }
-
-  return { allowed: true, remaining: limit - newCount, limit, current: newCount }
+  // BETA: rate limits disabled — all calls pass through
+  return { allowed: true, remaining: 999, limit: 999, current: 0 }
 }
 
 export async function getUsageToday(userId: string): Promise<Record<string, number>> {
