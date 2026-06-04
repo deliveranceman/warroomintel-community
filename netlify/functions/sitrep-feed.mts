@@ -65,19 +65,30 @@ function extractUserId(authHeader: string | null): string | null {
   } catch { return null }
 }
 
-async function resolveUserInfo(userId: string): Promise<{ tier: string; name: string }> {
+function extractTierFromJWT(authHeader: string | null): string {
+  if (!authHeader) return 'watchman'
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return 'watchman'
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    return ((payload?.publicMetadata?.tier || payload?.public_metadata?.tier) as string) || 'watchman'
+  } catch { return 'watchman' }
+}
+
+async function resolveUserInfo(userId: string, jwtTier = 'watchman'): Promise<{ tier: string; name: string }> {
   try {
     const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })
-    if (!res.ok) return { tier: 'watchman', name: userId }
+    if (!res.ok) return { tier: jwtTier, name: userId }
     const data = await res.json()
     const tier = (data.public_metadata?.tier as string)?.toLowerCase() ||
-                 (data.public_metadata?.role === 'minister' ? 'minister' : 'watchman')
+                 (data.public_metadata?.role === 'minister' ? 'minister' : jwtTier)
     const name = [data.first_name, data.last_name].filter(Boolean).join(' ') ||
                  data.username || userId
     return { tier, name }
-  } catch { return { tier: 'watchman', name: userId } }
+  } catch { return { tier: jwtTier, name: userId } }
 }
 
 // ── Response helpers ───────────────────────────────────────────────────────────
@@ -337,7 +348,8 @@ export default async function handler(req: Request): Promise<Response> {
   const body = await req.json().catch(() => ({}))
 
   if (action === 'post') {
-    const { tier, name } = await resolveUserInfo(userId)
+    const jwtTier = extractTierFromJWT(req.headers.get('Authorization'))
+    const { tier, name } = await resolveUserInfo(userId, jwtTier)
     return postActivity(userId, tier, name, body)
   }
 

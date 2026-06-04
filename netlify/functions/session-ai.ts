@@ -95,12 +95,17 @@ async function resolveSession(token: string): Promise<{ ok: boolean; tier: strin
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
     if (!userId) return { ok: false, tier: 'watchman', userId: '' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, tier: 'watchman', userId: '' }
-    const data = await res.json()
-    const tier = (data?.public_metadata?.tier as string) || 'watchman'
+    // Read tier from JWT — never gate on Clerk availability
+    let tier = ((payload?.publicMetadata?.tier || payload?.public_metadata?.tier) as string) || 'watchman'
+    try {
+      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        tier = (data?.public_metadata?.tier as string) || tier
+      }
+    } catch {}
     return { ok: true, tier, userId }
   } catch { return { ok: false, tier: 'watchman', userId: '' } }
 }

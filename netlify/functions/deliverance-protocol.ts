@@ -15,13 +15,20 @@ async function resolveUser(token: string): Promise<{ userId: string; name: strin
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
     if (!userId) return null
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Anonymous'
-    const tier = (data.public_metadata?.tier as string) || (data.public_metadata?.role === 'minister' ? 'minister' : 'watchman')
+    // Read tier from JWT — never gate on Clerk availability
+    const jwtMeta = payload?.publicMetadata || payload?.public_metadata || {}
+    let tier = (jwtMeta.tier as string) || (jwtMeta.role === 'minister' ? 'minister' : 'watchman')
+    let name = 'Minister'
+    try {
+      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || name
+        tier = (data.public_metadata?.tier as string) || (data.public_metadata?.role === 'minister' ? 'minister' : tier)
+      }
+    } catch {}
     return { userId, name, tier }
   } catch { return null }
 }

@@ -79,16 +79,19 @@ export default async function handler(req: Request) {
       try {
         const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64url').toString())
         userId = payload.sub || 'anonymous'
-        if (userId !== 'anonymous') {
-          const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-            headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-          })
-          if (clerkRes.ok) {
-            const clerkData = await clerkRes.json()
-            tier = (clerkData?.public_metadata?.tier as string) || 'watchman'
-          }
+        tier = (payload?.publicMetadata?.tier || payload?.public_metadata?.tier || 'watchman') as string
+        if (userId !== 'anonymous' && process.env.CLERK_SECRET_KEY) {
+          try {
+            const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+              headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+            })
+            if (clerkRes.ok) {
+              const clerkData = await clerkRes.json()
+              tier = (clerkData?.public_metadata?.tier as string) || tier
+            }
+          } catch {}
         }
-      } catch (e) { console.warn('JWT/Clerk resolve failed:', e) }
+      } catch (e) { console.warn('JWT resolve failed:', e) }
     }
 
     // IP-based fallback rate limit

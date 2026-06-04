@@ -10,12 +10,20 @@ async function resolveUser(token: string) {
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
     if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData, meta: userData?.public_metadata }
+    // Read meta from JWT — never gate on Clerk availability
+    const jwtMeta = payload?.publicMetadata || payload?.public_metadata || {}
+    let meta: any = jwtMeta
+    let userData: any = { first_name: '', last_name: '' }
+    try {
+      const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+      })
+      if (userRes.ok) {
+        userData = await userRes.json()
+        meta = { ...jwtMeta, ...(userData?.public_metadata ?? {}) }
+      }
+    } catch {}
+    return { userId, userData, meta }
   } catch { return null }
 }
 

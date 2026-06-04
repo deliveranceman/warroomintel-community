@@ -30,13 +30,20 @@ async function resolveUser(token: string): Promise<{ ok: boolean; isMinister: bo
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
     if (!userId) return { ok: false, isMinister: false, tier: 'watchman', userId: '' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, isMinister: false, tier: 'watchman', userId: '' }
-    const data = await res.json()
-    const isMinister = data?.public_metadata?.role === 'minister'
-    const tier = (data?.public_metadata?.tier as string) || 'watchman'
+    // Read tier and role from JWT — never gate on Clerk availability
+    const jwtMeta = payload?.publicMetadata || payload?.public_metadata || {}
+    let tier = (jwtMeta.tier as string) || 'watchman'
+    let isMinister = jwtMeta.role === 'minister'
+    try {
+      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        isMinister = data?.public_metadata?.role === 'minister'
+        tier = (data?.public_metadata?.tier as string) || tier
+      }
+    } catch {}
     return { ok: true, isMinister, tier, userId }
   } catch { return { ok: false, isMinister: false, tier: 'watchman', userId: '' } }
 }
