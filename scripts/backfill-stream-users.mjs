@@ -8,11 +8,12 @@ if (!CLERK_SECRET_KEY || !STREAM_JSON) {
   process.exit(1)
 }
 const { apiKey, apiSecret } = JSON.parse(STREAM_JSON)
+const feedsSecret = process.env.STREAM_FEEDS_SECRET || apiSecret
 
-function serverJWT() {
+function serverJWT(secret = apiSecret) {
   const header  = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
   const payload = Buffer.from(JSON.stringify({ server: true })).toString('base64url')
-  const sig     = crypto.createHmac('sha256', apiSecret).update(`${header}.${payload}`).digest('base64url')
+  const sig     = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')
   return `${header}.${payload}.${sig}`
 }
 
@@ -47,12 +48,21 @@ const chatRes = await fetch(`https://chat.stream-io-api.com/users?api_key=${apiK
 const chatData = await chatRes.json()
 console.log('Stream Chat upsert:', chatRes.status, JSON.stringify(chatData).slice(0, 200))
 
-// NOTE: Stream Activity Feeds (feeds.stream-io-api.com) is NOT enabled for this app.
-// feeds.stream-io-api.com returns 404 for all endpoints regardless of auth method.
-// To enable SITREP, go to https://dashboard.getstream.io and enable Activity Feeds
-// on your app, or migrate SITREP to use Supabase instead.
-//
-// Stream Chat (chat.stream-io-api.com) IS enabled and the upsert above covers DMs.
-
+// 4. Upsert all into Stream Activity Feeds (uses STREAM_FEEDS_SECRET)
+console.log('Upserting users into Stream Activity Feeds...')
+let feedsOk = 0, feedsFail = 0
+for (const u of Object.values(users)) {
+  const feedsRes = await fetch(`https://feeds.stream-io-api.com/api/v1.0/user/${u.id}/?api_key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': serverJWT(feedsSecret),
+      'Stream-Auth-Type': 'jwt',
+    },
+    body: JSON.stringify({ data: { name: u.name } }),
+  })
+  if (feedsRes.ok || feedsRes.status === 201) { feedsOk++ }
+  else { feedsFail++; console.warn(`Feeds upsert failed for ${u.id}: ${feedsRes.status}`) }
+}
 console.log(`Stream Chat upsert complete: ${Object.keys(users).length} users registered for DMs`)
-console.log('SITREP feeds require Activity Feeds to be enabled at dashboard.getstream.io')
+console.log(`Stream Feeds upsert complete: ${feedsOk} ok, ${feedsFail} failed`)

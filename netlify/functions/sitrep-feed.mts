@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
+const feedsSecret = process.env.STREAM_FEEDS_SECRET || apiSecret
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const CORS = {
@@ -26,7 +27,7 @@ const TIER_LEVEL: Record<string, number> = {
 function streamJWT(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
   const body   = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const sig    = crypto.createHmac('sha256', apiSecret ?? '').update(`${header}.${body}`).digest('base64url')
+  const sig    = crypto.createHmac('sha256', feedsSecret ?? '').update(`${header}.${body}`).digest('base64url')
   return `${header}.${body}.${sig}`
 }
 
