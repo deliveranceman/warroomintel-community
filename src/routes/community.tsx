@@ -6042,6 +6042,166 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
   )
 }
 
+// ── QA CHECKLIST DATA ──────────────────────────────────────
+const QA_SECTIONS = [
+  {
+    section: '🏠 NAVIGATION & LAYOUT',
+    items: [
+      { id: 'nav-sidebar', label: 'Sidebar opens and closes on mobile' },
+      { id: 'nav-all-links', label: 'All sidebar links navigate correctly' },
+      { id: 'nav-mobile-bottom', label: 'Mobile bottom nav works on all tabs' },
+      { id: 'nav-dark-mode', label: 'Dark mode renders correctly' },
+      { id: 'nav-pwa', label: 'PWA installs to home screen (iOS/Android)' },
+      { id: 'nav-header', label: 'Header does not bleed into status bar on PWA' },
+    ]
+  },
+  {
+    section: '📡 SITREP FEED',
+    items: [
+      { id: 'sitrep-loads', label: 'SITREP page loads with feed' },
+      { id: 'sitrep-post', label: 'Can post a Thought' },
+      { id: 'sitrep-scripture', label: 'Can post a Scripture' },
+      { id: 'sitrep-testimony', label: 'Can post a Testimony' },
+      { id: 'sitrep-photo', label: 'Can post a Photo with image' },
+      { id: 'sitrep-prayer', label: 'Can post a Prayer Request' },
+      { id: 'sitrep-resource', label: 'Can post a Resource with URL' },
+      { id: 'sitrep-field', label: 'Can post a Field Report' },
+      { id: 'sitrep-react', label: 'Cover / Pray / Relay reactions work' },
+      { id: 'sitrep-sol', label: 'SOL Picks tab loads' },
+    ]
+  },
+  {
+    section: '💬 MESSAGING',
+    items: [
+      { id: 'chat-warroom', label: 'War Room Chat loads and shows messages' },
+      { id: 'chat-send', label: 'Can send a message in War Room Chat' },
+      { id: 'chat-realtime', label: 'Messages appear in real time' },
+      { id: 'dm-open', label: 'Direct Messages section opens' },
+      { id: 'dm-sol', label: 'SOL Intelligence conversation loads' },
+      { id: 'dm-new', label: 'New Message picker opens and shows members' },
+      { id: 'dm-create', label: 'Can create a new DM with another user' },
+      { id: 'dm-send', label: 'Can send a message in a DM' },
+      { id: 'dm-voice', label: 'Voice message record and playback works' },
+      { id: 'dm-call', label: 'Audio call button appears in DM' },
+    ]
+  },
+  {
+    section: '🙏 PRAYER & TESTIMONY',
+    items: [
+      { id: 'prayer-loads', label: 'Prayer Wall loads with requests' },
+      { id: 'prayer-post', label: 'Can post a prayer request' },
+      { id: 'prayer-stand', label: '"Stand With Them" button works' },
+      { id: 'testimony-loads', label: 'Testimony Wall loads' },
+      { id: 'testimony-post', label: 'Can submit a testimony' },
+    ]
+  },
+  {
+    section: '📅 COMMUNITY',
+    items: [
+      { id: 'daily-brief', label: 'Daily Brief loads with content' },
+      { id: 'weekly-intel', label: 'Weekly Intel loads briefings' },
+      { id: 'weekly-poll', label: 'Field Poll shows and accepts votes' },
+      { id: 'ops-board', label: 'Ops Board loads' },
+      { id: 'field-ministry', label: 'Field Ministry page loads' },
+      { id: 'training-loads', label: 'Training courses load' },
+      { id: 'training-video', label: 'Training episode video plays' },
+      { id: 'events-loads', label: 'Events page loads' },
+    ]
+  },
+  {
+    section: '👥 MEMBERS',
+    items: [
+      { id: 'members-loads', label: 'Members page loads with list' },
+      { id: 'members-bio', label: 'Member bio shows on cards' },
+      { id: 'members-tags', label: 'Expertise tags show on cards' },
+      { id: 'members-dm', label: 'Message button on member card works' },
+      { id: 'warriors-online', label: 'Warriors Online panel shows members' },
+      { id: 'warriors-presence', label: 'Online/Recent/offline dots show correctly' },
+    ]
+  },
+  {
+    section: '⚔ FIELD OPS',
+    items: [
+      { id: 'ops-dashboard', label: 'Ops Dashboard loads' },
+      { id: 'case-files', label: 'Case Files page loads' },
+      { id: 'session-center', label: 'Session Center loads' },
+      { id: 'doc-creator', label: 'Document Creator loads' },
+      { id: 'my-intel', label: 'My Intel page loads' },
+      { id: 'field-reports-load', label: 'Field Reports load on Weekly Intel' },
+    ]
+  },
+  {
+    section: '🧠 INTELLIGENCE',
+    items: [
+      { id: 'intel-archive', label: 'Intel Archive loads spirit list' },
+      { id: 'intel-search', label: 'Spirit search works' },
+      { id: 'intel-dossier', label: 'Spirit dossier opens with all tabs' },
+      { id: 'intel-ai', label: 'AI Enhance button works on a spirit' },
+      { id: 'symptom-inv', label: 'Symptom Investigator loads and returns results' },
+      { id: 'body-map', label: 'Body Map loads with figure' },
+      { id: 'body-map-tap', label: 'Body Map hotspots are tappable' },
+      { id: 'body-map-zoom', label: 'Body Map pinch-to-zoom works' },
+      { id: 'spirit-network', label: 'Spirit Network loads hierarchy' },
+      { id: 'gateway-inv', label: 'Gateway Investigator returns results' },
+      { id: 'dream-interp', label: 'Dream Interpreter returns results' },
+      { id: 'fringe-intel', label: 'Fringe Intelligence tabs load' },
+    ]
+  },
+  {
+    section: '📚 FOUNDATION',
+    items: [
+      { id: 'arsenal-loads', label: 'Arsenal page loads with resources' },
+      { id: 'arsenal-download', label: 'Arsenal PDF opens/downloads' },
+      { id: 'scripture-loads', label: 'Scripture page loads' },
+      { id: 'field-manual', label: 'Field Manual loads with modules' },
+    ]
+  },
+  {
+    section: '🔔 NOTIFICATIONS & SETTINGS',
+    items: [
+      { id: 'notif-prompt', label: 'Notification permission prompt appears' },
+      { id: 'notif-push', label: 'Push notification received when DM arrives' },
+      { id: 'settings-loads', label: 'Settings page loads' },
+      { id: 'settings-bio', label: 'Can update bio in settings' },
+      { id: 'settings-expertise', label: 'Can add expertise tags in settings' },
+      { id: 'settings-dark', label: 'Dark/light mode toggle works' },
+    ]
+  },
+  {
+    section: '🔍 ASSESSMENT & AI',
+    items: [
+      { id: 'assessment-loads', label: 'Assessment wizard loads' },
+      { id: 'assessment-complete', label: 'Can complete all 9 steps' },
+      { id: 'assessment-result', label: 'AI diagnostic result appears' },
+      { id: 'sol-chat', label: 'SOL responds in DM' },
+      { id: 'deliverance-protocol', label: 'Deliverance Protocol Engine generates results' },
+      { id: 'spiritual-mapping', label: 'Spiritual Mapping page loads' },
+    ]
+  },
+  {
+    section: '📱 MOBILE / PWA SPECIFIC',
+    items: [
+      { id: 'mobile-scroll', label: 'All pages scroll smoothly on mobile' },
+      { id: 'mobile-tap', label: 'All buttons respond to tap (no dead zones)' },
+      { id: 'mobile-keyboard', label: 'Keyboard does not cover input fields' },
+      { id: 'mobile-safe-area', label: 'Content not hidden behind home indicator' },
+      { id: 'mobile-back', label: 'Back navigation works correctly' },
+      { id: 'ipad-layout', label: 'iPad landscape layout looks correct' },
+    ]
+  },
+  {
+    section: '⚑ BETA TRACKER',
+    items: [
+      { id: 'beta-loads', label: 'Beta Reports page loads' },
+      { id: 'beta-submit', label: 'Can submit a bug report' },
+      { id: 'beta-photo', label: 'Can attach a screenshot to a report' },
+      { id: 'beta-upvote', label: 'Upvote button works on a report' },
+      { id: 'beta-checklist', label: 'This QA checklist saves progress' },
+    ]
+  },
+]
+const QA_TOTAL = QA_SECTIONS.reduce((sum, s) => sum + s.items.length, 0)
+
 // ── BETA TRACKER VIEW ──────────────────────────────────────
 function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTier }: {
   isDark: boolean; isMobile: boolean; getToken: () => Promise<string | null>; userId: string; userTier: string
@@ -6058,7 +6218,7 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
   const [reports, setReports]               = useState<any[]>([])
   const [stats, setStats]                   = useState<any>(null)
   const [loading, setLoading]               = useState(true)
-  const [activeTab, setActiveTab]           = useState<'all'|'bugs'|'features'|'questions'|'praise'>('all')
+  const [activeTab, setActiveTab]           = useState<'all'|'bugs'|'features'|'questions'|'praise'|'checklist'>('all')
   const [statusFilter, setStatusFilter]     = useState<'open'|'fixed'|'all'>('open')
   const [sortBy, setSortBy]                 = useState<'new'|'top'>('new')
   const [showComposer, setShowComposer]     = useState(false)
@@ -6074,7 +6234,23 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
   const [triageOpenIds, setTriageOpenIds]   = useState<Set<string>>(new Set())
   const [triageData, setTriageData]         = useState<Record<string, any>>({})
   const [successMsg, setSuccessMsg]         = useState('')
+  const [checkedItems, setCheckedItems]     = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('wri-qa-checklist')
+      return new Set(saved ? JSON.parse(saved) : [])
+    } catch { return new Set() }
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const toggleCheck = (id: string) => {
+    setCheckedItems(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      try { localStorage.setItem('wri-qa-checklist', JSON.stringify([...next])) } catch {}
+      return next
+    })
+  }
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   async function fetchReports() {
@@ -6207,10 +6383,11 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
   ]
   const TABS = [
     { key: 'all',       label: 'All' },
-    { key: 'bugs',      label: '🐛 Bugs',     typeKey: 'bug' },
-    { key: 'features',  label: '✦ Features',  typeKey: 'feature' },
-    { key: 'questions', label: '❓ Questions', typeKey: 'question' },
-    { key: 'praise',    label: '🙌 Praise',    typeKey: 'praise' },
+    { key: 'bugs',      label: '🐛 Bugs',        typeKey: 'bug' },
+    { key: 'features',  label: '✦ Features',     typeKey: 'feature' },
+    { key: 'questions', label: '❓ Questions',    typeKey: 'question' },
+    { key: 'praise',    label: '🙌 Praise',       typeKey: 'praise' },
+    { key: 'checklist', label: '📋 QA Checklist' },
   ]
   const criticalOpen = reports.filter(r => r.priority === 'critical' && ['new','confirmed','in_progress'].includes(r.status))
 
@@ -6255,8 +6432,55 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
         })}
       </div>
 
+      {activeTab === 'checklist' && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', paddingBottom: `calc(16px + env(safe-area-inset-bottom))` }}>
+          {/* Checklist header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em' }}>📋 QA CHECKLIST</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: muted }}>{checkedItems.size} / {QA_TOTAL} complete</span>
+              <button onClick={() => { setCheckedItems(new Set()); try { localStorage.removeItem('wri-qa-checklist') } catch {} }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: muted, padding: '2px 6px', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                Reset
+              </button>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(checkedItems.size / QA_TOTAL) * 100}%`, background: 'rgba(201,168,76,0.7)', borderRadius: 2, transition: 'width 0.3s ease' }} />
+          </div>
+          {/* Sections */}
+          {QA_SECTIONS.map(sec => (
+            <div key={sec.section}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.14em', marginTop: 20, marginBottom: 8 }}>{sec.section}</div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {sec.items.map(item => {
+                  const checked = checkedItems.has(item.id)
+                  return (
+                    <div key={item.id}
+                      onClick={() => toggleCheck(item.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', background: checked ? 'rgba(201,168,76,0.06)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: checked ? G : 'transparent', border: checked ? 'none' : '1.5px solid rgba(201,168,76,0.3)' }}>
+                        {checked && <span style={{ color: '#1a1625', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+                      </div>
+                      <span style={{ fontFamily: crimson, fontSize: 13, lineHeight: 1.4, color: checked ? muted : text, textDecoration: checked ? 'line-through' : 'none', opacity: checked ? 0.5 : 1 }}>{item.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          {/* Completion banner */}
+          {checkedItems.size === QA_TOTAL && (
+            <div style={{ marginTop: 24, border: `1px solid ${G}`, borderRadius: 10, padding: '16px 20px', background: 'rgba(201,168,76,0.06)', textAlign: 'center' }}>
+              <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em' }}>✦ QA COMPLETE — All {QA_TOTAL} items checked. Well done, soldier.</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Sort Row */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 16px', flexShrink: 0, gap: 8 }}>
+      {activeTab !== 'checklist' && <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 16px', flexShrink: 0, gap: 8 }}>
         <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>Sort:</span>
         {(['new','top'] as const).map(s => (
           <button key={s} onClick={() => setSortBy(s)}
@@ -6264,10 +6488,10 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
             {s === 'new' ? 'Latest' : 'Top Voted'}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Minister Command Panel */}
-      {isMinister && (stats?.topUpvoted?.length > 0 || criticalOpen.length > 0) && (
+      {activeTab !== 'checklist' && isMinister && (stats?.topUpvoted?.length > 0 || criticalOpen.length > 0) && (
         <div style={{ background: isDark ? 'rgba(0,0,0,0.3)' : surf, border: `1px solid ${G}`, borderRadius: 8, padding: '14px 16px', margin: '0 0 12px 0', flexShrink: 0 }}>
           <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>⚡ BETA COMMAND</div>
           {criticalOpen.length > 0 && (
@@ -6295,7 +6519,7 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
       )}
 
       {/* Composer */}
-      {showComposer && (
+      {activeTab !== 'checklist' && showComposer && (
         <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: 20, margin: '12px 16px', flexShrink: 0 }}>
           {/* Type pills */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -6368,7 +6592,7 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
       )}
 
       {/* Scrollable List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: `calc(16px + env(safe-area-inset-bottom))` }}>
+      {activeTab !== 'checklist' && <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: `calc(16px + env(safe-area-inset-bottom))` }}>
         {loading && <div style={{ textAlign: 'center', padding: 40, fontFamily: cinzel, fontSize: 10, color: muted }}>Loading reports...</div>}
         {!loading && reports.length === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 60 }}>
@@ -6469,7 +6693,7 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
             </div>
           )
         })}
-      </div>
+      </div>}
     </div>
   )
 }
