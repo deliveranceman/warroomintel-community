@@ -6042,6 +6042,286 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
   )
 }
 
+// ── BETA TRACKER VIEW ──────────────────────────────────────
+function BetaTrackerView({ theme, userTier, isMobile, setSidebarOpen, userId, userName: _userName }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
+}) {
+  const { getToken } = useAuth()
+  const isDark = theme !== 'light'
+  const bg     = isDark ? '#0D0B14' : '#FAF8F5'
+  const surf   = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
+  const bdr    = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
+  const text   = isDark ? '#E8D5B0' : '#2D2924'
+  const muted  = isDark ? '#8B7355' : '#5C5248'
+  const isMinister = userTier === 'minister'
+
+  const REPORT_TYPES = ['bug', 'feature', 'crash', 'ui', 'performance', 'other'] as const
+  type ReportType = typeof REPORT_TYPES[number]
+  const TYPE_LABEL: Record<ReportType, string>  = { bug: '🐛 Bug', feature: '✨ Feature', crash: '💥 Crash', ui: '🎨 UI', performance: '⚡ Perf', other: '📝 Other' }
+  const TYPE_COLOR: Record<ReportType, string>  = { bug: '#ef4444', feature: '#4ade80', crash: '#f97316', ui: '#a78bfa', performance: '#38bdf8', other: '#8B7355' }
+  const STATUS_COLOR: Record<string, string>    = { open: '#C9A84C', in_progress: '#4a90d9', done: '#4ade80', wont_fix: '#6b7280' }
+  const PRIORITY_COLOR: Record<string, string>  = { low: '#6b7280', normal: '#C9A84C', high: '#f97316', critical: '#ef4444' }
+
+  const [reports, setReports]         = useState<any[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [activeTab, setActiveTab]     = useState<ReportType | 'all'>('all')
+  const [sort, setSort]               = useState<'new' | 'top'>('new')
+  const [showComposer, setShowComposer] = useState(false)
+  const [cType, setCType]             = useState<ReportType>('bug')
+  const [cPage, setCPage]             = useState('')
+  const [cTitle, setCTitle]           = useState('')
+  const [cDesc, setCDesc]             = useState('')
+  const [cScreenshotUrl, setCScreenshotUrl] = useState('')
+  const [uploading, setUploading]     = useState(false)
+  const [submitting, setSubmitting]   = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [triageId, setTriageId]       = useState<string | null>(null)
+  const [triageStatus, setTriageStatus]     = useState('open')
+  const [triagePriority, setTriagePriority] = useState('normal')
+  const [triageNotes, setTriageNotes]       = useState('')
+  const [triageSaving, setTriageSaving]     = useState(false)
+
+  const betaFileRef = useRef<HTMLInputElement>(null)
+
+  async function loadReports() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/beta-reports?action=list', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setReports(d.reports || []) }
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadReports() }, [])
+
+  async function handleScreenshotUpload(file: File) {
+    setUploading(true)
+    try {
+      const token = await getToken()
+      const fd = new FormData(); fd.append('file', file)
+      const res = await fetch('/api/beta-reports?action=upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
+      if (res.ok) { const d = await res.json(); setCScreenshotUrl(d.url || '') }
+    } catch {} finally { setUploading(false) }
+  }
+
+  async function handleSubmit() {
+    if (!cTitle.trim()) return
+    setSubmitting(true); setSubmitError('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/beta-reports?action=submit', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: cType, page_section: cPage, title: cTitle, description: cDesc, screenshot_url: cScreenshotUrl }),
+      })
+      if (res.ok) {
+        setCTitle(''); setCDesc(''); setCPage(''); setCScreenshotUrl(''); setShowComposer(false)
+        await loadReports()
+      } else {
+        const d = await res.json().catch(() => ({}))
+        setSubmitError(d.error || 'Failed to submit')
+      }
+    } catch (e: any) { setSubmitError(e.message || 'Error') } finally { setSubmitting(false) }
+  }
+
+  async function handleUpvote(id: string) {
+    const token = await getToken()
+    await fetch('/api/beta-reports?action=upvote', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    await loadReports()
+  }
+
+  async function handleTriage(id: string) {
+    setTriageSaving(true)
+    try {
+      const token = await getToken()
+      await fetch('/api/beta-reports?action=triage', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: triageStatus, priority: triagePriority, minister_notes: triageNotes }),
+      })
+      setTriageId(null)
+      await loadReports()
+    } finally { setTriageSaving(false) }
+  }
+
+  const filtered = reports
+    .filter(r => activeTab === 'all' || r.type === activeTab)
+    .sort((a, b) => sort === 'top'
+      ? (b.upvotes || 0) - (a.upvotes || 0)
+      : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+
+  const stats = {
+    open:        reports.filter(r => r.status === 'open').length,
+    in_progress: reports.filter(r => r.status === 'in_progress').length,
+    done:        reports.filter(r => r.status === 'done').length,
+    total:       reports.length,
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: bg }}>
+      {/* Header */}
+      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, background: isDark ? 'rgba(201,168,76,0.03)' : surf }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)} style={{ minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: '#C9A84C', fontSize: 20, flexShrink: 0 }}>☰</button>
+        )}
+        <span style={{ fontSize: 18, flexShrink: 0 }}>⚑</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: '"Cinzel", serif', fontSize: 13, letterSpacing: '0.12em', color: '#C9A84C' }}>BETA COMMAND CENTER</div>
+          <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 12, color: muted, fontStyle: 'italic', marginTop: 1 }}>Report issues · request features · track progress</div>
+        </div>
+        <button
+          onClick={() => setShowComposer(v => !v)}
+          style={{ padding: '6px 14px', background: showComposer ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, fontFamily: '"Cinzel", serif', fontSize: 10, letterSpacing: '0.08em', color: '#C9A84C', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}
+        >{showComposer ? 'CANCEL' : '+ REPORT'}</button>
+      </div>
+
+      {/* Stats row */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
+        {([['OPEN', stats.open, STATUS_COLOR.open], ['IN PROGRESS', stats.in_progress, STATUS_COLOR.in_progress], ['RESOLVED', stats.done, STATUS_COLOR.done], ['TOTAL', stats.total, muted]] as [string, number, string][]).map(([label, count, color], i) => (
+          <div key={label} style={{ flex: 1, padding: '8px 0', textAlign: 'center', borderRight: i < 3 ? `1px solid ${bdr}` : 'none' }}>
+            <div style={{ fontFamily: '"Cinzel", serif', fontSize: 18, color, fontWeight: 700 }}>{count}</div>
+            <div style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.08em', color: muted, marginTop: 1 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Composer */}
+      {showComposer && (
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, background: surf, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {REPORT_TYPES.map(t => (
+              <button key={t} onClick={() => setCType(t)}
+                style={{ padding: '4px 10px', borderRadius: 12, border: `1px solid ${cType === t ? TYPE_COLOR[t] : bdr}22`, background: cType === t ? `${TYPE_COLOR[t]}22` : 'transparent', fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: cType === t ? TYPE_COLOR[t] : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                {TYPE_LABEL[t]}
+              </button>
+            ))}
+          </div>
+          <input value={cPage} onChange={e => setCPage(e.target.value)} placeholder="Page / section (e.g. SITREP, DMs, Profile)"
+            style={{ width: '100%', padding: '7px 10px', marginBottom: 8, background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Crimson Text", serif', fontSize: 14, color: text, outline: 'none', boxSizing: 'border-box' }} />
+          <input value={cTitle} onChange={e => setCTitle(e.target.value)} placeholder="Title — brief description of the issue or request"
+            style={{ width: '100%', padding: '7px 10px', marginBottom: 8, background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Crimson Text", serif', fontSize: 14, color: text, outline: 'none', boxSizing: 'border-box' }} />
+          <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} placeholder="Additional details, steps to reproduce, expected behavior…" rows={3}
+            style={{ width: '100%', padding: '7px 10px', marginBottom: 8, background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Crimson Text", serif', fontSize: 14, color: text, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <input ref={betaFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleScreenshotUpload(f) }} />
+            <button onClick={() => betaFileRef.current?.click()}
+              style={{ padding: '5px 12px', background: 'rgba(201,168,76,0.07)', border: `1px solid ${bdr}`, borderRadius: 6, fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+              {uploading ? '⌛ UPLOADING…' : cScreenshotUrl ? '✓ SCREENSHOT ATTACHED' : '📎 ATTACH SCREENSHOT'}
+            </button>
+          </div>
+          {submitError && <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 13, color: '#ef4444', marginBottom: 8 }}>{submitError}</div>}
+          <button onClick={handleSubmit} disabled={submitting || !cTitle.trim()}
+            style={{ padding: '8px 20px', background: cTitle.trim() ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.04)', border: `1px solid ${cTitle.trim() ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius: 6, fontFamily: '"Cinzel", serif', fontSize: 10, letterSpacing: '0.1em', color: cTitle.trim() ? '#C9A84C' : muted, cursor: cTitle.trim() ? 'pointer' : 'not-allowed', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+            {submitting ? 'SUBMITTING…' : 'SUBMIT REPORT'}
+          </button>
+        </div>
+      )}
+
+      {/* Tab bar + sort */}
+      <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${bdr}`, flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {(['all', ...REPORT_TYPES] as (ReportType | 'all')[]).map(t => (
+          <button key={t} onClick={() => setActiveTab(t)}
+            style={{ padding: '8px 12px', whiteSpace: 'nowrap', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === t ? '#C9A84C' : 'transparent'}`, fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: activeTab === t ? '#C9A84C' : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>
+            {t === 'all' ? 'ALL' : TYPE_LABEL[t as ReportType].toUpperCase()}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setSort(s => s === 'new' ? 'top' : 'new')}
+          style={{ padding: '8px 14px', background: 'transparent', border: 'none', fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.06em', color: muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>
+          {sort === 'new' ? '↓ NEW' : '↑ TOP'}
+        </button>
+      </div>
+
+      {/* Report list */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, fontFamily: '"Cinzel", serif', fontSize: 11, color: muted }}>Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180 }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>⚑</div>
+            <div style={{ fontFamily: '"Cinzel", serif', fontSize: 11, letterSpacing: '0.1em', color: muted }}>No reports yet</div>
+            <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 13, color: muted, fontStyle: 'italic', marginTop: 4 }}>Be the first to submit feedback</div>
+          </div>
+        ) : filtered.map(r => (
+          <div key={r.id} style={{ borderBottom: `1px solid ${bdr}`, padding: '14px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 10, border: `1px solid ${TYPE_COLOR[r.type as ReportType] || muted}44`, color: TYPE_COLOR[r.type as ReportType] || muted, background: `${TYPE_COLOR[r.type as ReportType] || muted}11`, flexShrink: 0, marginTop: 3 }}>
+                {TYPE_LABEL[r.type as ReportType] || r.type}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: '"Cinzel", serif', fontSize: 12, color: text, letterSpacing: '0.04em', marginBottom: 3 }}>{r.title}</div>
+                {r.page_section && <div style={{ fontFamily: '"Cinzel", serif', fontSize: 9, color: muted, letterSpacing: '0.06em', marginBottom: 4 }}>{r.page_section}</div>}
+                {r.description && <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 14, color: muted, lineHeight: 1.5, marginBottom: 6 }}>{r.description.length > 220 ? r.description.slice(0, 220) + '…' : r.description}</div>}
+                {r.screenshot_url && (
+                  <a href={r.screenshot_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginBottom: 8 }}>
+                    <img src={r.screenshot_url} alt="screenshot" style={{ maxWidth: 200, maxHeight: 110, borderRadius: 4, border: `1px solid ${bdr}`, objectFit: 'cover' }} />
+                  </a>
+                )}
+                {r.minister_notes && (
+                  <div style={{ background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '6px 10px', marginBottom: 8 }}>
+                    <div style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.08em', color: '#C9A84C', marginBottom: 2 }}>COMMAND NOTES</div>
+                    <div style={{ fontFamily: '"Crimson Text", serif', fontSize: 13, color: text, lineHeight: 1.4 }}>{r.minister_notes}</div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                  <span style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', color: STATUS_COLOR[r.status] || muted, padding: '2px 6px', border: `1px solid ${STATUS_COLOR[r.status] || muted}44`, borderRadius: 4 }}>{(r.status || 'open').replace('_', ' ').toUpperCase()}</span>
+                  {r.priority && r.priority !== 'normal' && (
+                    <span style={{ fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', color: PRIORITY_COLOR[r.priority] || muted, padding: '2px 6px', border: `1px solid ${PRIORITY_COLOR[r.priority] || muted}44`, borderRadius: 4 }}>{r.priority.toUpperCase()}</span>
+                  )}
+                  <span style={{ fontFamily: '"Crimson Text", serif', fontSize: 12, color: muted, fontStyle: 'italic' }}>{r.submitted_by_name} · {new Date(r.created_at).toLocaleDateString()}</span>
+                  <button onClick={() => handleUpvote(r.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 3, background: (r.upvoter_ids || []).includes(userId) ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${(r.upvoter_ids || []).includes(userId) ? 'rgba(201,168,76,0.3)' : bdr}`, borderRadius: 12, padding: '2px 8px', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                    <span style={{ fontSize: 9, color: (r.upvoter_ids || []).includes(userId) ? '#C9A84C' : muted }}>▲</span>
+                    <span style={{ fontFamily: '"Cinzel", serif', fontSize: 9, color: (r.upvoter_ids || []).includes(userId) ? '#C9A84C' : muted }}>{r.upvotes || 0}</span>
+                  </button>
+                  {isMinister && (
+                    <button
+                      onClick={() => { if (triageId === r.id) { setTriageId(null) } else { setTriageId(r.id); setTriageStatus(r.status || 'open'); setTriagePriority(r.priority || 'normal'); setTriageNotes(r.minister_notes || '') } }}
+                      style={{ background: triageId === r.id ? 'rgba(201,168,76,0.15)' : 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, padding: '2px 8px', fontFamily: '"Cinzel", serif', fontSize: 8, letterSpacing: '0.06em', color: '#C9A84C', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                      TRIAGE
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            {isMinister && triageId === r.id && (
+              <div style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <select value={triageStatus} onChange={e => setTriageStatus(e.target.value)}
+                    style={{ padding: '5px 8px', background: isDark ? '#1a1625' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 4, fontFamily: '"Cinzel", serif', fontSize: 10, color: text, cursor: 'pointer' }}>
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                    <option value="wont_fix">Won't Fix</option>
+                  </select>
+                  <select value={triagePriority} onChange={e => setTriagePriority(e.target.value)}
+                    style={{ padding: '5px 8px', background: isDark ? '#1a1625' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 4, fontFamily: '"Cinzel", serif', fontSize: 10, color: text, cursor: 'pointer' }}>
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+                <textarea value={triageNotes} onChange={e => setTriageNotes(e.target.value)} placeholder="Notes visible to all users…" rows={2}
+                  style={{ width: '100%', padding: '6px 8px', background: isDark ? 'rgba(201,168,76,0.05)' : '#F5F2EE', border: `1px solid ${bdr}`, borderRadius: 4, fontFamily: '"Crimson Text", serif', fontSize: 13, color: text, outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: 8 }} />
+                <button onClick={() => handleTriage(r.id)} disabled={triageSaving}
+                  style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, fontFamily: '"Cinzel", serif', fontSize: 9, letterSpacing: '0.08em', color: '#C9A84C', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                  {triageSaving ? 'SAVING…' : 'SAVE TRIAGE'}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── FEEDBACK VIEW ──────────────────────────────────────────
 function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _userId, userName }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
@@ -10717,6 +10997,7 @@ function CommunityPage() {
             { icon: <Cross size={16} strokeWidth={1.6} />,         label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
             { icon: <Users size={16} strokeWidth={1.6} />,         label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
             { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Feedback',          mobileLabel: 'Feedback',  section: 'feedback'       },
+            { icon: <span style={{ fontSize: 14, lineHeight: 1 }}>⚑</span>, label: 'Beta Reports', mobileLabel: 'Beta', section: 'beta-test' },
           ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
@@ -10913,6 +11194,21 @@ function CommunityPage() {
         >
           <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Settings size={14} strokeWidth={1.6} /></span>
           Settings
+        </button>
+        <div style={{ height: 1, background: 'rgba(201,168,76,0.1)', margin: '0 16px 4px' }} />
+        <button
+          onClick={() => { setActiveSection('beta-test'); if (isMobile) setSidebarOpen(false) }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start', gap: sidebarCollapsed && !isMobile ? 0 : 8, width: '100%', padding: sidebarCollapsed && !isMobile ? '8px 0' : '7px 16px', background: activeSection === 'beta-test' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'beta-test' ? (isDark ? '#C9A84C' : '#8B6914') : 'transparent'}`, textAlign: 'left', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'beta-test' ? (isDark ? '#C9A84C' : '#8B6914') : (isDark ? '#b8a98a' : '#3d2e1e'), transition: 'all 0.15s' }}
+          onMouseEnter={e => { if (activeSection !== 'beta-test') { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = isDark ? '#C9A84C' : '#8B6914' } }}
+          onMouseLeave={e => { if (activeSection !== 'beta-test') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isDark ? '#b8a98a' : '#3d2e1e' } }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0, fontSize: 14, lineHeight: 1 }}>⚑</span>
+          {!(sidebarCollapsed && !isMobile) && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              Beta Reports
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9A84C', flexShrink: 0, animation: 'pulse 2s ease-in-out infinite', boxShadow: '0 0 4px #C9A84C' }} />
+            </span>
+          )}
         </button>
         <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12, alignItems: 'center' }}>
           <a href="/terms" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>TERMS</a>
@@ -11321,6 +11617,7 @@ function CommunityPage() {
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
+        {activeSection === 'beta-test'  && <BetaTrackerView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
         {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
