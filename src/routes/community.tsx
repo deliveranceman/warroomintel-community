@@ -9655,6 +9655,11 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [ftType, setFtType]                         = React.useState('intercession')
   const [ftDescription, setFtDescription]           = React.useState('')
   const [ftInviteIds, setFtInviteIds]               = React.useState<string[]>([])
+  const [showCreateCoverAll, setShowCreateCoverAll] = React.useState(false)
+  const [caName, setCaName]                         = React.useState('')
+  const [caTerritory, setCaTerritory]               = React.useState('')
+  const [caInvites, setCaInvites]                   = React.useState<string[]>([])
+  const [caCreating, setCaCreating]                 = React.useState(false)
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef           = React.useRef<EventSource | null>(null)
@@ -9853,7 +9858,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
   // ── Fetch members when new DM panel, Create Fire Team, or Sentinel Picker opens ──
   React.useEffect(() => {
-    if (!showNewDM && !showCreateFireTeam && !showSentinelPicker) return
+    if (!showNewDM && !showCreateFireTeam && !showSentinelPicker && !showCreateCoverAll) return
     if (dmMembers.length > 0) return
     setLoadingMembers(true)
     getToken().then(t => {
@@ -9865,7 +9870,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         setLoadingMembers(false)
       }).catch(() => setLoadingMembers(false))
     })
-  }, [showNewDM, showCreateFireTeam, showSentinelPicker])
+  }, [showNewDM, showCreateFireTeam, showSentinelPicker, showCreateCoverAll])
 
   // ── Poll active conversation every 3s ──
   React.useEffect(() => {
@@ -10123,7 +10128,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       }}>
         {/* Header */}
         <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
+          <div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
+            {(() => { const n = conversations.filter(c => c.otherMember?.online).length; return n > 0 ? <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#4ade80', letterSpacing: '0.1em', marginTop: 1 }}><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#22c55e', marginRight: 4, verticalAlign: 'middle' }} />{n} soldier{n !== 1 ? 's' : ''} online</div> : null })()}</div>
           <button
             onClick={() => setShowNewDM(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex', alignItems: 'center' }}
@@ -10177,34 +10184,51 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
               <span style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: '#b48ee0', fontWeight: 600, letterSpacing: '0.08em' }}>⚔ SENTINEL REQUESTS</span>
             </div>
-            {sentinelRequests.map(r => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
-                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(107,69,150,0.2)', border: '1px solid rgba(107,69,150,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, color: '#b48ee0' }}>{r.requesterName?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
+            {sentinelRequests.map(r => {
+              const displayName = r.requesterName && r.requesterName.length > 1
+                ? r.requesterName
+                : r.requester_name && r.requester_name.length > 1
+                  ? r.requester_name
+                  : (r.requesterId || r.requester_id || '').slice(0, 8) || '?'
+              const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+              return (
+                <div key={r.id} style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(107,69,150,0.3)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                  {/* Row 1 — member info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(107,69,150,0.2)', border: '1px solid rgba(107,69,150,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontFamily: "'Cinzel',serif", fontSize: 13, color: '#b48ee0' }}>{initials}</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, color: '#e8dcc8', fontWeight: 600, fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>{displayName}</div>
+                    </div>
+                  </div>
+                  {/* Row 2 — message */}
+                  <div style={{ fontSize: 12, color: WMUT, marginBottom: 12 }}>
+                    wants to covenant with you as a Sentinel partner
+                  </div>
+                  {/* Row 3 — action buttons */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      style={{ flex: 1, height: 44, fontSize: 11, color: '#0D0B14', background: '#b48ee0', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 700, letterSpacing: '0.06em', touchAction: 'manipulation' }}
+                      onClick={async () => {
+                        const data = await api('accept-sentinel', 'POST', { sentinelId: r.id })
+                        if (data.ok && data.channelId) {
+                          setSentinelRequests(prev => prev.filter(x => x.id !== r.id))
+                          fetchSentinels()
+                          selectConversation(data.channelId)
+                        }
+                      }}
+                    >✓ ACCEPT</button>
+                    <button
+                      type="button"
+                      style={{ flex: 1, height: 44, fontSize: 11, color: '#b48ee0', background: 'transparent', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 6, cursor: 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 600, letterSpacing: '0.04em', touchAction: 'manipulation' }}
+                      onClick={() => setSentinelRequests(prev => prev.filter(x => x.id !== r.id))}
+                    >✗ DECLINE</button>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: '#e8dcc8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.requesterName}</div>
-                  <div style={{ fontSize: 10, color: WMUT }}>wants to covenant as Sentinel</div>
-                </div>
-                <button
-                  type="button"
-                  style={{ fontSize: 11, color: '#0D0B14', background: '#b48ee0', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 600, letterSpacing: '0.04em', flexShrink: 0 }}
-                  onClick={async () => {
-                    const data = await api('accept-sentinel', 'POST', { sentinelId: r.id })
-                    if (data.ok && data.channelId) {
-                      setSentinelRequests(prev => prev.filter(x => x.id !== r.id))
-                      fetchSentinels()
-                      selectConversation(data.channelId)
-                    }
-                  }}
-                >Accept</button>
-                <button
-                  type="button"
-                  style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', flexShrink: 0 }}
-                  onClick={() => setSentinelRequests(prev => prev.filter(x => x.id !== r.id))}
-                >✕</button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -10288,7 +10312,10 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
                 onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(107,69,150,0.18)', color: '#b48ee0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: '1px solid rgba(107,69,150,0.35)', flexShrink: 0 }}>⚔</div>
+                <div style={{ position: 'relative' as const, flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(107,69,150,0.18)', color: '#b48ee0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: '1px solid rgba(107,69,150,0.35)' }}>⚔</div>
+                  <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#6b7280', border: '1.5px solid #0a0a12' }} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 500, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.partnerName}</span>
@@ -10368,7 +10395,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               {tierLevel >= 2 && (
                 <button
                   type="button"
-                  onClick={() => alert('Cover All creation UI — coming soon')}
+                  onClick={() => { setShowCreateCoverAll(true); setCaName(''); setCaTerritory(''); setCaInvites([]) }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6aacef', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
                   title="Create Cover All Group"
                 >+</button>
@@ -10453,8 +10480,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         : getInitials(convo.otherMember?.name || '?')
                     }
                   </div>
-                  {convo.otherMember?.online && (
-                    <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#1d9e75', border: '1.5px solid #0a0a12' }} />
+                  {!isSol && (
+                    <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: convo.otherMember?.online ? '#22c55e' : '#6b7280', border: '1.5px solid #0a0a12' }} />
                   )}
                 </div>
 
@@ -10722,6 +10749,133 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
+        {/* ── Cover All creation modal ── */}
+        {showCreateCoverAll && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#0f0e1a', border: '1px solid rgba(106,172,239,0.35)', borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: '#6aacef', letterSpacing: '0.1em', fontWeight: 700 }}>🛡 CREATE COVER ALL</span>
+                <button type="button" onClick={() => setShowCreateCoverAll(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
+              </div>
+
+              {/* Group Name */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>GROUP NAME</label>
+                <input
+                  value={caName}
+                  onChange={e => setCaName(e.target.value.slice(0, 60))}
+                  placeholder="e.g. Texas Gulf Coast Watchmen"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(106,172,239,0.4)', borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: "'Cinzel',serif" }}
+                />
+              </div>
+
+              {/* Territory */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>TERRITORY <span style={{ color: 'rgba(255,255,255,0.3)' }}>(optional)</span></label>
+                <input
+                  value={caTerritory}
+                  onChange={e => setCaTerritory(e.target.value.slice(0, 80))}
+                  placeholder="City, state, region, or nation"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'var(--font-crimson, serif)' }}
+                />
+              </div>
+
+              {/* Invite Members */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em' }}>INVITE MEMBERS</label>
+                  {caInvites.length >= 19
+                    ? <span style={{ fontSize: 9, color: '#c47070' }}>Max 19 members</span>
+                    : <span style={{ fontSize: 9, color: WDIM }}>{caInvites.length}/19 selected</span>
+                  }
+                </div>
+                {caInvites.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 10 }}>
+                    {caInvites.map(id => {
+                      const m = dmMembers.find(x => x.id === id)
+                      return (
+                        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(106,172,239,0.15)', border: '1px solid rgba(106,172,239,0.4)', borderRadius: 20, padding: '3px 10px 3px 8px', fontSize: 11, color: '#6aacef' }}>
+                          <span>{m?.name || id}</span>
+                          <button type="button" onClick={() => setCaInvites(prev => prev.filter(x => x !== id))} style={{ background: 'none', border: 'none', color: '#6aacef', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1, touchAction: 'manipulation' }}>×</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <div style={{ maxHeight: 200, overflowY: 'auto' as const, border: `1px solid ${BDR}`, borderRadius: 8 }}>
+                  {loadingMembers ? (
+                    <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>Loading…</div>
+                  ) : dmMembers.length === 0 ? (
+                    <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>No members available</div>
+                  ) : dmMembers.map(member => {
+                    const isSelected = caInvites.includes(member.id)
+                    const atMax = caInvites.length >= 19
+                    const disabled = !isSelected && atMax
+                    return (
+                      <button
+                        key={member.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => setCaInvites(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
+                        style={{ width: '100%', background: isSelected ? 'rgba(106,172,239,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
+                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.1)' : 'rgba(255,255,255,0.05)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.08)' : 'none' }}
+                      >
+                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? '#6aacef' : 'rgba(255,255,255,0.3)'}`, background: isSelected ? '#6aacef' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
+                        </div>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(106,172,239,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#6aacef', flexShrink: 0, overflow: 'hidden' }}>
+                          {member.imageUrl
+                            ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+                          }
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: '#fff', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                          <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowCreateCoverAll(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 13, padding: '8px 16px', touchAction: 'manipulation' }}>Cancel</button>
+                <button
+                  type="button"
+                  disabled={!caName.trim() || caCreating}
+                  onClick={async () => {
+                    if (!caName.trim() || caCreating) return
+                    setCaCreating(true)
+                    const t = await getToken()
+                    if (!t) { setCaCreating(false); return }
+                    const res = await fetch('/api/stream-messages?action=create-cover-all', {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: caName.trim(), territory: caTerritory.trim(), inviteUserIds: caInvites }),
+                    }).then(r => r.json()).catch(() => null)
+                    setCaCreating(false)
+                    if (res?.channelId) {
+                      setShowCreateCoverAll(false)
+                      fetchCoverAll()
+                      selectConversation(res.channelId)
+                    }
+                  }}
+                  style={{
+                    background: !caName.trim() || caCreating ? 'rgba(106,172,239,0.3)' : '#6aacef',
+                    color: '#000', border: 'none', borderRadius: 6, padding: '10px 20px', fontSize: 12,
+                    fontFamily: "'Cinzel',serif", fontWeight: 700, letterSpacing: '0.06em',
+                    cursor: !caName.trim() || caCreating ? 'not-allowed' : 'pointer',
+                    touchAction: 'manipulation',
+                  }}
+                >{caCreating ? 'Deploying…' : '🛡 Deploy Cover All'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── New DM member picker overlay ── */}
         {showNewDM && (
           <div style={{ position: 'absolute', inset: 0, background: BG, zIndex: 10, display: 'flex', flexDirection: 'column' as const }}>
@@ -10859,8 +11013,11 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       {activeConvo?.otherMember?.name || 'Unknown'}
                     </div>
-                    <div style={{ fontSize: 11, color: activeConvo?.otherMember?.online ? '#1d9e75' : WMUT }}>
-                      {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: activeConvo?.otherMember?.online ? '#22c55e' : '#6b7280', flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: activeConvo?.otherMember?.online ? '#4ade80' : WMUT }}>
+                        {activeConvo?.otherMember?.online ? 'Online' : 'Offline'}
+                      </span>
                     </div>
                   </div>
                   <div style={{ fontSize: 10, fontFamily: 'var(--font-cinzel,serif)', color: 'rgba(201,168,76,0.4)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '3px 10px', letterSpacing: '0.08em' }}>
