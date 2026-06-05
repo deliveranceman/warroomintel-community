@@ -733,11 +733,9 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   if (row.status !== 'pending') return json({ error: 'Request already resolved' }, 400)
 
   const channelId = `sentinel-${sentinelId.slice(0, 8)}`
-  const allMembers = [row.requester_id, userId].sort()
+  const allMembers = [row.requester_id, userId]
   const now = new Date()
   const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-  const allMembers = [row.requester_id, userId]
 
   const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
     method: 'POST',
