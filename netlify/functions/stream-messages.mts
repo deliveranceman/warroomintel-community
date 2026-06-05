@@ -56,39 +56,19 @@ async function notifyRecipientOfDmRequest(recipientId: string, requesterName: st
 async function createStreamChannel(userA: string, userB: string): Promise<{ channelId: string } | { error: string; detail?: unknown }> {
   const channelId = dmChannelId(userA, userB)
   const members = [userA, userB].sort()
-  // Upsert both users first
-  await fetch(streamUrl('/users'), {
+  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${serverToken()}`,
-      'Stream-Auth-Type': 'jwt',
-    },
-    body: JSON.stringify({
-      users: {
-        [userA]: { id: userA },
-        [userB]: { id: userB },
-      },
-    }),
-  }).catch(() => {})
-  // get_or_create and members at top level — not nested in data
-  const res = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${serverToken()}`,
-      'Stream-Auth-Type': 'jwt',
-    },
+    headers: streamHeaders(serverToken()),
     body: JSON.stringify({
       get_or_create: true,
       members,
       data: { created_by_id: userA, is_dm: true },
     }),
   })
-  const text = await res.text()
-  console.log('[createStreamChannel] Stream response:', res.status, text.slice(0, 300))
-  if (!res.ok && res.status !== 400) {
-    return { error: 'Stream channel creation failed', detail: text }
+  if (!chanRes.ok) {
+    const err = await chanRes.text()
+    console.error('[createStreamChannel] Stream error:', chanRes.status, err.slice(0, 300))
+    return { error: 'Stream channel creation failed', detail: err }
   }
   return { channelId }
 }
@@ -757,54 +737,23 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   const now = new Date()
   const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-  const members = [row.requester_id, userId]
+  const allMembers = [row.requester_id, userId]
 
-  // Upsert both users first
-  const upsertRes = await fetch(streamUrl('/users'), {
+  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${serverToken()}`,
-      'Stream-Auth-Type': 'jwt',
-    },
+    headers: streamHeaders(serverToken()),
     body: JSON.stringify({
-      users: {
-        [row.requester_id]: { id: row.requester_id },
-        [userId]: { id: userId },
-      },
+      get_or_create: true,
+      members: allMembers,
+      data: { created_by_id: userId, is_sentinel: true, name: 'Sentinel Covenant' },
     }),
   })
-  console.log('[accept-sentinel] upsert status:', upsertRes.status)
-
-  console.log('[accept-sentinel] sending body:', JSON.stringify({ get_or_create: true, members, data: { created_by_id: userId } }))
-
-  const chanRes = await fetch(
-    streamUrl(`/channels/messaging/${channelId}`),
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serverToken()}`,
-        'Stream-Auth-Type': 'jwt',
-      },
-      body: JSON.stringify({
-        get_or_create: true,
-        members,
-        data: {
-          created_by_id: userId,
-          is_sentinel: true,
-          name: 'Sentinel Covenant',
-        },
-      }),
-    },
-  )
-
-  const chanText = await chanRes.text()
-  console.log('[accept-sentinel] Stream response:', chanRes.status, chanText.slice(0, 300))
-
-  if (!chanRes.ok && chanRes.status !== 400) {
-    return json({ error: 'Stream channel creation failed', detail: chanText }, 500)
+  if (!chanRes.ok) {
+    const err = await chanRes.text()
+    console.error('[accept-sentinel] Stream error:', chanRes.status, err.slice(0, 300))
+    return json({ error: 'Stream channel creation failed', detail: err }, 500)
   }
+  console.log('[accept-sentinel] channel created:', channelId)
 
   await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
     method: 'PATCH',
