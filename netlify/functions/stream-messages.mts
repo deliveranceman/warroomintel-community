@@ -55,20 +55,25 @@ async function notifyRecipientOfDmRequest(recipientId: string, requesterName: st
 
 async function createStreamChannel(userA: string, userB: string): Promise<{ channelId: string } | { error: string; detail?: unknown }> {
   const channelId = dmChannelId(userA, userB)
-  const members = [userA, userB].sort()
-  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
-    method: 'POST',
-    headers: streamHeaders(serverToken()),
-    body: JSON.stringify({
-      get_or_create: true,
-      members,
-      data: { created_by_id: userA, is_dm: true },
-    }),
-  })
-  if (!chanRes.ok) {
-    const err = await chanRes.text()
-    console.error('[createStreamChannel] Stream error:', chanRes.status, err.slice(0, 300))
-    return { error: 'Stream channel creation failed', detail: err }
+  const { status: chanStatus, data: chanData } = await streamFetch(
+    `/channels/messaging/${channelId}/query`,
+    'POST',
+    serverToken(),
+    {
+      data: {
+        created_by_id: userA,
+        members: [userA, userB],
+      },
+      state: true,
+      watch: false,
+      presence: false,
+    },
+  )
+  console.log('[createStreamChannel] Stream response:', chanStatus)
+  if (chanStatus >= 400) {
+    const detail = JSON.stringify(chanData)
+    console.error('[createStreamChannel] Stream error:', chanStatus, detail)
+    return { error: 'Stream channel creation failed', detail }
   }
   return { channelId }
 }
@@ -737,21 +742,26 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   const now = new Date()
   const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
-    method: 'POST',
-    headers: streamHeaders(serverToken()),
-    body: JSON.stringify({
-      get_or_create: true,
-      members: allMembers,
-      data: { created_by_id: userId, is_sentinel: true, name: 'Sentinel Covenant' },
-    }),
-  })
-  if (!chanRes.ok) {
-    const err = await chanRes.text()
-    console.error('[accept-sentinel] Stream error:', chanRes.status, err.slice(0, 300))
-    return json({ error: 'Stream channel creation failed', detail: err }, 500)
+  const { status: chanStatus, data: chanData } = await streamFetch(
+    `/channels/messaging/${channelId}/query`,
+    'POST',
+    serverToken(),
+    {
+      data: {
+        created_by_id: userId,
+        members: [row.requester_id, userId],
+      },
+      state: true,
+      watch: false,
+      presence: false,
+    },
+  )
+  console.log('[accept-sentinel] Stream response:', chanStatus)
+  if (chanStatus >= 400) {
+    const detail = JSON.stringify(chanData)
+    console.error('[accept-sentinel] Stream error:', chanStatus, detail)
+    return json({ error: 'Stream channel creation failed', detail }, 500)
   }
-  console.log('[accept-sentinel] channel created:', channelId)
 
   await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
     method: 'PATCH',
