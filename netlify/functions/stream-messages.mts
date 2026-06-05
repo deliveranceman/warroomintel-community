@@ -53,8 +53,15 @@ async function notifyRecipientOfDmRequest(recipientId: string, requesterName: st
   }
 }
 
-async function createStreamChannel(userA: string, userB: string): Promise<{ channelId: string } | { error: string; detail?: unknown }> {
+async function createStreamChannel(userA: string, userB: string, nameA?: string, nameB?: string): Promise<{ channelId: string } | { error: string; detail?: unknown }> {
   const channelId = dmChannelId(userA, userB)
+  // Upsert both users so names show in Stream
+  await streamFetch('/users', 'POST', serverToken(), {
+    users: {
+      [userA]: { id: userA, name: nameA || userA },
+      [userB]: { id: userB, name: nameB || userB },
+    },
+  }).catch(() => {})
   const { status: chanStatus, data: chanData } = await streamFetch(
     `/channels/messaging/${channelId}/query`,
     'POST',
@@ -367,6 +374,14 @@ async function createDM(userId: string, body: any): Promise<Response> {
     }),
   }).catch(() => {})
 
+  // Upsert both users to Stream now so names are registered immediately
+  streamFetch('/users', 'POST', serverToken(), {
+    users: {
+      [userId]: { id: userId, name: myName },
+      [otherUserId]: { id: otherUserId, name: recipientName },
+    },
+  }).catch(() => {})
+
   // Notify recipient via push + SOL message (fire-and-forget)
   notifyRecipientOfDmRequest(otherUserId, myName).catch(() => {})
 
@@ -387,7 +402,7 @@ async function acceptDM(userId: string, body: any): Promise<Response> {
   if (!req) return json({ error: 'Request not found' }, 404)
   if (req.status !== 'pending') return json({ error: 'Request already resolved' }, 400)
 
-  const result = await createStreamChannel(userId, req.requester_id)
+  const result = await createStreamChannel(userId, req.requester_id, req.recipient_name, req.requester_name)
   console.log('[accept-dm] channel result:', JSON.stringify(result).slice(0, 300))
   if ('error' in result) return json(result, 500)
 
@@ -741,6 +756,14 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   const allMembers = [row.requester_id, userId]
   const now = new Date()
   const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  // Upsert both users so names show in Stream
+  await streamFetch('/users', 'POST', serverToken(), {
+    users: {
+      [row.requester_id]: { id: row.requester_id, name: row.requester_name || row.requester_id },
+      [userId]: { id: userId, name: userId },
+    },
+  }).catch(() => {})
 
   const { status: chanStatus, data: chanData } = await streamFetch(
     `/channels/messaging/${channelId}/query`,
