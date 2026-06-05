@@ -89,7 +89,7 @@
   external_node_modules = ["mammoth"]
 
 [functions."ai-assistant"]
-  timeout = 26
+  timeout = 60
 
 [functions."ai-backfill"]
   timeout = 60

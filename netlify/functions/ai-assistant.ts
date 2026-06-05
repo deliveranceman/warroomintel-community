@@ -152,55 +152,67 @@ export default async function handler(req: Request) {
   }
 
   const baseUrl = process.env.URL || 'https://warroomintel.com'
-
-  // ── Library context via semantic search ───────────────────────────────────
-  let libraryContext = ''
-  try {
-    const searchRes = await fetch(`${baseUrl}/api/library-search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: message, limit: 4 }),
-    })
-    if (searchRes.ok) {
-      const searchData = await searchRes.json()
-      const chunks = searchData.results || searchData.chunks || []
-      if (chunks.length > 0) {
-        libraryContext = '\n\nRELEVANT PASSAGES FROM MINISTER\'S LIBRARY:\n' +
-          chunks.map((c: any) =>
-            `[Source: ${c.book_title}]\n${c.chunk_text}`
-          ).join('\n\n---\n\n')
-      }
-    }
-  } catch (e) {
-    console.error('[AI-ASSISTANT] Library search failed:', e)
-  }
-
-  // ── Demon database context via Airtable ───────────────────────────────────
-  let demonContext = ''
   const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || ''
   const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'
   const AIRTABLE_TOKEN = airtableToken || ''
-  if (AIRTABLE_BASE && AIRTABLE_TOKEN) {
-    try {
-      const spiritName = message.trim().split(/\s+/).slice(0, 3).join(' ')
-      const airtableRes = await fetch(
-        `https://api.airtable.com/v0/${AIRTABLE_BASE}/${encodeURIComponent(AIRTABLE_TABLE)}?filterByFormula=SEARCH(LOWER("${spiritName.toLowerCase()}"),LOWER({Name}))&pageSize=5`,
-        { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
-      )
-      if (airtableRes.ok) {
-        const data = await airtableRes.json()
-        if (data.records?.length > 0) {
-          demonContext = '\n\nFROM WAR ROOM INTEL DATABASE:\n' +
-            data.records.map((r: any) => {
-              const f = r.fields
-              return `Spirit: ${f.Name}\nKingdom: ${f.Kingdom || 'Unknown'}\nDescription: ${f.Description || 'No description'}\nManifestations: ${f['Session Indicators'] || 'Not documented'}`
-            }).join('\n\n')
-        }
+
+  const ctxTimeout = <T>(ms: number, fallback: T) =>
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))
+
+  // ── Parallelize all three context sources with 4s timeout each ────────────
+  const [libraryContext, demonContext, ministryContext] = await Promise.all([
+    // Library semantic search
+    (async (): Promise<string> => {
+      try {
+        const res = await Promise.race([
+          fetch(`${baseUrl}/api/library-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: message, limit: 4 }),
+          }),
+          ctxTimeout(4000, null as unknown as Response),
+        ])
+        if (!res || !res.ok) return ''
+        const data = await res.json()
+        const chunks = data.results || data.chunks || []
+        if (!chunks.length) return ''
+        return '\n\nRELEVANT PASSAGES FROM MINISTER\'S LIBRARY:\n' +
+          chunks.map((c: any) => `[Source: ${c.book_title}]\n${c.chunk_text}`).join('\n\n---\n\n')
+      } catch (e) {
+        console.error('[AI-ASSISTANT] Library search failed:', e)
+        return ''
       }
-    } catch (e) {
-      console.error('[AI-ASSISTANT] Demon DB search failed:', e)
-    }
-  }
+    })(),
+
+    // Airtable demon database
+    (async (): Promise<string> => {
+      if (!AIRTABLE_BASE || !AIRTABLE_TOKEN) return ''
+      try {
+        const spiritName = message.trim().split(/\s+/).slice(0, 3).join(' ')
+        const res = await Promise.race([
+          fetch(
+            `https://api.airtable.com/v0/${AIRTABLE_BASE}/${encodeURIComponent(AIRTABLE_TABLE)}?filterByFormula=SEARCH(LOWER("${spiritName.toLowerCase()}"),LOWER({Name}))&pageSize=5`,
+            { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
+          ),
+          ctxTimeout(4000, null as unknown as Response),
+        ])
+        if (!res || !res.ok) return ''
+        const data = await res.json()
+        if (!data.records?.length) return ''
+        return '\n\nFROM WAR ROOM INTEL DATABASE:\n' +
+          data.records.map((r: any) => {
+            const f = r.fields
+            return `Spirit: ${f.Name}\nKingdom: ${f.Kingdom || 'Unknown'}\nDescription: ${f.Description || 'No description'}\nManifestations: ${f['Session Indicators'] || 'Not documented'}`
+          }).join('\n\n')
+      } catch (e) {
+        console.error('[AI-ASSISTANT] Demon DB search failed:', e)
+        return ''
+      }
+    })(),
+
+    // Ministry context from Supabase
+    Promise.race([getMinistryContext(), ctxTimeout(4000, '')]),
+  ])
 
   // ── Build enriched message ─────────────────────────────────────────────────
   const enrichedMessage = message.trim() + libraryContext + demonContext
@@ -210,7 +222,6 @@ export default async function handler(req: Request) {
     { role: 'user', content: enrichedMessage },
   ]
 
-  const ministryContext = await getMinistryContext()
   const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {

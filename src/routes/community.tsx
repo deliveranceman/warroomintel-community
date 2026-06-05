@@ -12127,11 +12127,11 @@ function CommunityPage() {
     try {
       const token = await getToken()
       const solCtrl = new AbortController()
-      const solTimeout = setTimeout(() => solCtrl.abort(), 25000)
+      const solTimeout = setTimeout(() => solCtrl.abort(), 50000)
       const res = await fetch('/api/ai-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ message: msg.trim(), history: chatMessages, feature: 'ask_dake' }),
+        body: JSON.stringify({ message: msg.trim(), history: chatMessages, feature: 'ask_sol' }),
         signal: solCtrl.signal,
       })
       clearTimeout(solTimeout)
