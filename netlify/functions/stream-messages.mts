@@ -57,7 +57,7 @@ async function createStreamChannel(userA: string, userB: string): Promise<{ chan
   const channelId = dmChannelId(userA, userB)
   const members = [userA, userB].sort()
   // Upsert both users first
-  await fetch('https://chat.stream-io-api.com/users', {
+  await fetch(streamUrl('/users'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ async function createStreamChannel(userA: string, userB: string): Promise<{ chan
     }),
   }).catch(() => {})
   // get_or_create and members at top level — not nested in data
-  const res = await fetch(`https://chat.stream-io-api.com/channels/messaging/${channelId}`, {
+  const res = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -760,7 +760,7 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   const members = [row.requester_id, userId]
 
   // Upsert both users first
-  const upsertRes = await fetch('https://chat.stream-io-api.com/users', {
+  const upsertRes = await fetch(streamUrl('/users'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -776,11 +776,10 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   })
   console.log('[accept-sentinel] upsert status:', upsertRes.status)
 
-  // get_or_create and members MUST be at top level — not nested inside data
   console.log('[accept-sentinel] sending body:', JSON.stringify({ get_or_create: true, members, data: { created_by_id: userId } }))
 
   const chanRes = await fetch(
-    `https://chat.stream-io-api.com/channels/messaging/${channelId}`,
+    streamUrl(`/channels/messaging/${channelId}`),
     {
       method: 'POST',
       headers: {
