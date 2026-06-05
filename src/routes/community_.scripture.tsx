@@ -444,7 +444,7 @@ function ScripturePage() {
             }}>
               <select
                 value={inputBook}
-                onChange={e => setInputBook(e.target.value)}
+                onChange={e => { setInputBook(e.target.value); setInputChapter(1) }}
                 style={{
                   background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
                   color: TXT, fontFamily: cinzel, fontSize: 11, padding: '6px 10px',
@@ -453,18 +453,41 @@ function ScripturePage() {
               >
                 {BIBLE_BOOKS.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
+              <button
+                onClick={() => { const prev = Math.max(1, inputChapter - 1); setInputChapter(prev); loadVerses(inputBook, prev) }}
+                disabled={loadingVerses || inputChapter <= 1}
+                title="Previous chapter"
+                style={{
+                  background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
+                  color: inputChapter <= 1 ? MUT : TXT, fontFamily: cinzel, fontSize: 14,
+                  padding: '5px 10px', cursor: inputChapter <= 1 ? 'default' : 'pointer',
+                  flexShrink: 0, lineHeight: 1,
+                }}
+              >←</button>
               <input
                 type="number"
                 value={inputChapter}
                 min={1}
                 max={150}
+                onClick={e => (e.target as HTMLInputElement).select()}
                 onChange={e => setInputChapter(Math.max(1, parseInt(e.target.value) || 1))}
                 style={{
                   background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
                   color: TXT, fontFamily: cinzel, fontSize: 11, padding: '6px 10px',
-                  outline: 'none', width: 64, flexShrink: 0,
+                  outline: 'none', width: 64, flexShrink: 0, textAlign: 'center' as const,
                 }}
               />
+              <button
+                onClick={() => { const next = inputChapter + 1; setInputChapter(next); loadVerses(inputBook, next) }}
+                disabled={loadingVerses}
+                title="Next chapter"
+                style={{
+                  background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
+                  color: TXT, fontFamily: cinzel, fontSize: 14,
+                  padding: '5px 10px', cursor: loadingVerses ? 'default' : 'pointer',
+                  flexShrink: 0, lineHeight: 1,
+                }}
+              >→</button>
               <button
                 onClick={handleLoad}
                 disabled={loadingVerses}

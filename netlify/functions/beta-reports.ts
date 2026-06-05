@@ -17,7 +17,7 @@ function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS })
 }
 
-function decodeToken(authHeader: string | null): { userId: string; userName: string } | null {
+function decodeToken(authHeader: string | null): { userId: string } | null {
   if (!authHeader) return null
   const token = authHeader.replace(/^Bearer\s+/i, '').trim()
   if (!token) return null
@@ -27,12 +27,19 @@ function decodeToken(authHeader: string | null): { userId: string; userName: str
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
     const userId = payload.sub
     if (!userId) return null
-    const userName =
-      payload.name ||
-      [payload.firstName, payload.lastName].filter(Boolean).join(' ') ||
-      userId
-    return { userId, userName }
+    return { userId }
   } catch { return null }
+}
+
+async function resolveUserName(userId: string): Promise<string> {
+  try {
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+    })
+    if (!res.ok) return 'Soldier'
+    const data = await res.json()
+    return [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Soldier'
+  } catch { return 'Soldier' }
 }
 
 async function getIsMinister(userId: string): Promise<boolean> {
@@ -219,7 +226,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const auth = decodeToken(req.headers.get('Authorization'))
   if (!auth) return json({ error: 'Unauthorized' }, 401)
-  const { userId, userName } = auth
+  const { userId } = auth
 
   const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''
@@ -240,6 +247,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (req.method === 'POST') {
     const body = await req.json().catch(() => ({}))
+    const userName = await resolveUserName(userId)
     return submitReport(userId, userName, body)
   }
 
