@@ -57,17 +57,15 @@ async function createStreamChannel(userA: string, userB: string): Promise<{ chan
   const channelId = dmChannelId(userA, userB)
   const sorted = [userA, userB].sort()
   const token = serverToken()
-  const { status: s1, data: d1 } = await streamFetch(`/channels/messaging/${channelId}/query`, 'POST', token, {
+  const { status, data } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, {
+    get_or_create: true,
     members: sorted,
     data: { created_by_id: userA, is_dm: true },
-    state: true, watch: false, presence: false,
   })
-  if (s1 >= 500) return { error: 'Stream query failed', detail: d1 }
-  // force-add both members idempotently in case query didn't seat them
-  const { status: s2, data: d2 } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, {
-    add_members: sorted.map(id => ({ user_id: id })),
-  })
-  if (s2 >= 400) return { error: 'Stream add_members failed', detail: d2 }
+  if (status >= 400) {
+    console.error('[createStreamChannel] Stream error:', status, JSON.stringify(data).slice(0, 500))
+    return { error: 'Stream channel creation failed', detail: data }
+  }
   return { channelId }
 }
 
@@ -744,7 +742,11 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
       data: { created_by_id: userId, is_sentinel: true, name: 'Sentinel Channel' },
     }),
   })
-  if (!chanRes.ok) return json({ error: 'Stream channel creation failed' }, 500)
+  if (!chanRes.ok) {
+    const errText = await chanRes.text()
+    console.error('[accept-sentinel] Stream error:', chanRes.status, errText)
+    return json({ error: 'Stream channel creation failed', detail: errText }, 500)
+  }
 
   await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
     method: 'PATCH',

@@ -9676,6 +9676,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [fireTeamsLoading, setFireTeamsLoading]     = React.useState(false)
   const [sentinels, setSentinels]                   = React.useState<any[]>([])
   const [sentinelRequests, setSentinelRequests]     = React.useState<any[]>([])
+  const [acceptingSentinels, setAcceptingSentinels] = React.useState<Set<string>>(new Set())
   const [coverAllGroups, setCoverAllGroups]         = React.useState<any[]>([])
   const [showSentinelPicker, setShowSentinelPicker] = React.useState(false)
   const [sentinelSearch, setSentinelSearch]         = React.useState('')
@@ -10356,16 +10357,23 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
-                      style={{ flex: 1, height: 44, fontSize: 11, color: '#0D0B14', background: '#b48ee0', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 700, letterSpacing: '0.06em', touchAction: 'manipulation' }}
+                      disabled={acceptingSentinels.has(r.id)}
+                      style={{ flex: 1, height: 44, fontSize: 11, color: '#0D0B14', background: acceptingSentinels.has(r.id) ? 'rgba(180,142,224,0.5)' : '#b48ee0', border: 'none', borderRadius: 6, cursor: acceptingSentinels.has(r.id) ? 'default' : 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 700, letterSpacing: '0.06em', touchAction: 'manipulation' }}
                       onClick={async () => {
-                        const data = await api('accept-sentinel', 'POST', { sentinelId: r.id })
-                        if (data.ok && data.channelId) {
-                          setSentinelRequests(prev => prev.filter(x => x.id !== r.id))
-                          fetchSentinels()
-                          selectConversation(data.channelId)
+                        if (acceptingSentinels.has(r.id)) return
+                        setAcceptingSentinels(prev => new Set(prev).add(r.id))
+                        try {
+                          const data = await api('accept-sentinel', 'POST', { sentinelId: r.id })
+                          if (data.ok && data.channelId) {
+                            setSentinelRequests(prev => prev.filter(x => x.id !== r.id))
+                            fetchSentinels()
+                            selectConversation(data.channelId)
+                          }
+                        } finally {
+                          setAcceptingSentinels(prev => { const s = new Set(prev); s.delete(r.id); return s })
                         }
                       }}
-                    >✓ ACCEPT</button>
+                    >{acceptingSentinels.has(r.id) ? 'Accepting...' : '✓ ACCEPT'}</button>
                     <button
                       type="button"
                       style={{ flex: 1, height: 44, fontSize: 11, color: '#b48ee0', background: 'transparent', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 6, cursor: 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 600, letterSpacing: '0.04em', touchAction: 'manipulation' }}
