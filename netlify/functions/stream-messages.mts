@@ -419,14 +419,27 @@ async function pendingRequests(userId: string): Promise<Response> {
     SB(`/dm_requests?recipient_id=eq.${encodeURIComponent(userId)}&status=eq.pending&select=*&order=created_at.desc`),
     { headers: sbH },
   )
-  const rows: any[] = await res.json().catch(() => [])
-  const requests = Array.isArray(rows) ? rows.map(r => ({
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    console.error('[pending-requests] Supabase error:', res.status, errText.slice(0, 200))
+    return json({ requests: [] })
+  }
+  const rows = await res.json().catch((e: any) => {
+    console.error('[pending-requests] JSON parse error:', e)
+    return []
+  })
+  if (!Array.isArray(rows)) {
+    console.error('[pending-requests] Unexpected response shape:', JSON.stringify(rows).slice(0, 200))
+    return json({ requests: [] })
+  }
+  const requests = rows.map(r => ({
     id: r.id,
     requesterId: r.requester_id,
     requesterName: r.requester_name,
     requesterTier: r.requester_tier,
     createdAt: r.created_at,
-  })) : []
+  }))
+  console.log(`[pending-requests] userId=${userId} found=${requests.length}`)
   return json({ requests })
 }
 

@@ -10403,18 +10403,26 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   type="button"
                   style={{ fontSize: 11, color: '#0D0B14', background: GLD, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer', touchAction: 'manipulation', fontFamily: 'var(--font-cinzel,serif)', fontWeight: 600, letterSpacing: '0.04em', flexShrink: 0 }}
                   onClick={async () => {
-                    const data = await api('accept-dm', 'POST', { requestId: r.id })
-                    if (data.ok && data.channelId) {
-                      setPendingInbound(prev => prev.filter(x => x.id !== r.id))
-                      const cid = data.channelId
-                      const rId = data.requesterId || r.requesterId
-                      const rName = data.requesterName || r.requesterName
-                      setConversations(prev => {
-                        if (prev.find((c: any) => c.channelId === cid)) return prev
-                        return [{ channelId: cid, otherMember: { id: rId, name: rName, image: '', online: false }, lastMessage: null, unreadCount: 0 }, ...prev]
-                      })
-                      selectConversation(cid)
-                      setTimeout(() => fetchConversations(), 1500)
+                    try {
+                      const data = await api('accept-dm', 'POST', { requestId: r.id })
+                      if (data?.ok && data?.channelId) {
+                        setPendingInbound(prev => prev.filter(x => x.id !== r.id))
+                        const cid = data.channelId
+                        const rId = data.requesterId || r.requesterId
+                        const rName = data.requesterName || r.requesterName
+                        setConversations(prev => {
+                          if (prev.find((c: any) => c.channelId === cid)) return prev
+                          return [{ channelId: cid, otherMember: { id: rId, name: rName, image: '', online: false }, lastMessage: null, unreadCount: 0 }, ...prev]
+                        })
+                        selectConversation(cid)
+                        setTimeout(() => fetchConversations(), 1500)
+                      } else if (data?.error) {
+                        console.error('[accept-dm] server error:', data.error)
+                        alert(`Could not accept request: ${data.error}`)
+                      }
+                    } catch (err: any) {
+                      console.error('[accept-dm] click error:', err)
+                      alert('Failed to accept — please try again.')
                     }
                   }}
                 >Accept</button>

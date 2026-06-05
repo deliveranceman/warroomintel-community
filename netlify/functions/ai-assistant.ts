@@ -151,6 +151,46 @@ export default async function handler(req: Request) {
     }
   }
 
+  const SOL_SYSTEM_PROMPT = `You are SOL, the AI ministry assistant for War Room Intel — a deliverance ministry intelligence platform built by Pastor Justin Payne of Staffordtown Church, Copperhill TN.
+
+You specialize in:
+- Demonic spirits, their names, hierarchies, entry points, and manifestations
+- Deliverance ministry protocol and session strategy
+- Biblical spiritual warfare (Ephesians 6, Daniel, Revelation, Job)
+- Generational iniquity, bloodline covenants, inner healing
+- Discernment of spiritual root causes behind symptoms
+
+You are direct, knowledgeable, and speak like a seasoned deliverance minister. Never add disclaimers about seeing a doctor unless it's genuinely relevant. The user is a trained minister asking ministry questions.`
+
+  // ── Fast path for Ask SOL chat — skip all context loading ─────────────────
+  if (featureParam === 'ask_sol' || featureParam === 'ask_dake') {
+    const solMessages = [
+      ...history.filter((m: any) => m.role && m.content).map((m: any) => ({ role: m.role, content: m.content })),
+      { role: 'user', content: message.trim() },
+    ]
+    const solRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 800, system: SOL_SYSTEM_PROMPT, messages: solMessages }),
+      signal: AbortSignal.timeout(45000),
+    })
+    if (!solRes.ok) return new Response(JSON.stringify({ error: `AI error ${solRes.status}` }), { status: 502, headers: CORS })
+    const solData = await solRes.json()
+    const solResponse = cleanAIOutput(solData.content?.[0]?.text || '')
+    if (authUser && _sbUrl && _sbKey) {
+      fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
+        method: 'POST',
+        headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, tool: 'ask-sol', query: message.slice(0, 500), response: solResponse.slice(0, 1000), context: {} }),
+      }).catch(() => {})
+    }
+    return new Response(JSON.stringify({ response: solResponse }), { status: 200, headers: CORS })
+  }
+
   const baseUrl = process.env.URL || 'https://warroomintel.com'
   const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || ''
   const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'

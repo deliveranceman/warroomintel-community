@@ -103,3 +103,5 @@ export default async (req: Request) => {
 
   return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
 }
+
+export const config = { path: '/api/ai-history' }
