@@ -740,35 +740,54 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   const now = new Date()
   const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-  // Upsert both users into Stream before channel creation
-  await streamFetch('/users', 'POST', serverToken(), {
-    users: {
-      [row.requester_id]: { id: row.requester_id, name: row.requester_id, role: 'user' },
-      [userId]: { id: userId, name: userId, role: 'user' },
-    },
-  }).catch(() => {})
+  const members = [row.requester_id, userId]
+  const serverJwt = serverToken()
 
-  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
-    method: 'POST',
-    headers: streamHeaders(serverToken()),
-    body: JSON.stringify({
-      get_or_create: true,
-      data: {
-        created_by_id: userId,
-        is_sentinel: true,
-        name: 'Sentinel Covenant',
+  // Upsert both users into Stream before channel creation
+  for (const uid of members) {
+    await fetch(`https://chat.stream-io-api.com/users?api_key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: serverJwt,
+        'stream-auth-type': 'jwt',
+        'x-stream-client': 'stream-chat-javascript-client-browser-2.x',
       },
-      members: [row.requester_id, userId],
-    }),
-  })
+      body: JSON.stringify({ users: { [uid]: { id: uid, role: 'user' } } }),
+    }).catch(() => {})
+  }
+
+  // Create channel with get_or_create — members inside data per Stream REST spec
+  const chanRes = await fetch(
+    `https://chat.stream-io-api.com/channels/messaging/${channelId}?api_key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: serverJwt,
+        'stream-auth-type': 'jwt',
+        'x-stream-client': 'stream-chat-javascript-client-browser-2.x',
+      },
+      body: JSON.stringify({
+        get_or_create: true,
+        data: {
+          created_by_id: userId,
+          members,
+          is_sentinel: true,
+          name: 'Sentinel Covenant',
+        },
+      }),
+    },
+  )
+
+  const chanText = await chanRes.text()
+  console.log('[accept-sentinel] Stream response:', chanRes.status, chanText.slice(0, 500))
+
   if (!chanRes.ok) {
-    const detail = await chanRes.text()
-    console.error('[accept-sentinel] Stream channel failed:', chanRes.status, detail)
-    if (!detail.includes('already exists') && !detail.includes('AlreadyExists')) {
-      return json({ error: 'Stream channel creation failed', detail }, 500)
+    if (!chanText.includes('already exists') && !chanText.includes('AlreadyExists')) {
+      return json({ error: 'Stream channel creation failed', detail: chanText }, 500)
     }
   }
-  console.log('[accept-sentinel] channel created/found:', channelId)
 
   await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
     method: 'PATCH',
