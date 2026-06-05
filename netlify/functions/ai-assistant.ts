@@ -162,11 +162,61 @@ You specialize in:
 
 You are direct, knowledgeable, and speak like a seasoned deliverance minister. Never add disclaimers about seeing a doctor unless it's genuinely relevant. The user is a trained minister asking ministry questions.`
 
-  // ── Fast path for Ask SOL chat — skip all context loading ─────────────────
+  const baseUrl = process.env.URL || 'https://warroomintel.com'
+  const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || ''
+  const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'
+  const AIRTABLE_TOKEN = airtableToken || ''
+
+  // ── Ask SOL / Ask Dake: WRI context in parallel with 3s timeout each ──────
   if (featureParam === 'ask_sol' || featureParam === 'ask_dake') {
+    const to3 = <T>(v: T) => new Promise<T>(r => setTimeout(() => r(v), 3000))
+
+    const [demonCtx, libCtx] = await Promise.all([
+      // Airtable demon lookup
+      Promise.race([
+        (async (): Promise<string> => {
+          if (!AIRTABLE_BASE || !AIRTABLE_TOKEN) return ''
+          try {
+            const spiritName = message.trim().split(/\s+/).slice(0, 3).join(' ')
+            const res = await fetch(
+              `https://api.airtable.com/v0/${AIRTABLE_BASE}/${encodeURIComponent(AIRTABLE_TABLE)}?filterByFormula=SEARCH(LOWER("${spiritName.toLowerCase()}"),LOWER({Name}))&pageSize=3`,
+              { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
+            )
+            if (!res.ok) return ''
+            const data = await res.json()
+            if (!data.records?.length) return ''
+            return '\n\nFROM WAR ROOM INTEL DATABASE:\n' + data.records.map((r: any) => {
+              const f = r.fields
+              return `Spirit: ${f.Name}\nKingdom: ${f.Kingdom || 'Unknown'}\nManifestations: ${f['Session Indicators'] || 'Not documented'}`
+            }).join('\n\n')
+          } catch { return '' }
+        })(),
+        to3(''),
+      ]),
+      // Library semantic search
+      Promise.race([
+        (async (): Promise<string> => {
+          try {
+            const res = await fetch(`${baseUrl}/api/library-search`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: message, limit: 3 }),
+            })
+            if (!res.ok) return ''
+            const data = await res.json()
+            const chunks = data.results || data.chunks || []
+            if (!chunks.length) return ''
+            return '\n\nFROM MINISTRY LIBRARY:\n' + chunks.map((c: any) => `[${c.book_title}]\n${c.chunk_text}`).join('\n\n---\n\n')
+          } catch { return '' }
+        })(),
+        to3(''),
+      ]),
+    ])
+
+    const enrichedQuery = message.trim() + demonCtx + libCtx
     const solMessages = [
       ...history.filter((m: any) => m.role && m.content).map((m: any) => ({ role: m.role, content: m.content })),
-      { role: 'user', content: message.trim() },
+      { role: 'user', content: enrichedQuery },
     ]
     const solRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -174,8 +224,14 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
         'Content-Type': 'application/json',
         'x-api-key': process.env.ANTHROPIC_API_KEY!,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
       },
-      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 800, system: SOL_SYSTEM_PROMPT, messages: solMessages }),
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        system: [{ type: 'text', text: SOL_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        messages: solMessages,
+      }),
       signal: AbortSignal.timeout(45000),
     })
     if (!solRes.ok) return new Response(JSON.stringify({ error: `AI error ${solRes.status}` }), { status: 502, headers: CORS })
@@ -190,11 +246,6 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
     }
     return new Response(JSON.stringify({ response: solResponse }), { status: 200, headers: CORS })
   }
-
-  const baseUrl = process.env.URL || 'https://warroomintel.com'
-  const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || ''
-  const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'
-  const AIRTABLE_TOKEN = airtableToken || ''
 
   const ctxTimeout = <T>(ms: number, fallback: T) =>
     new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))
@@ -270,11 +321,12 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
       'Content-Type': 'application/json',
       'x-api-key': process.env.ANTHROPIC_API_KEY!,
       'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'prompt-caching-2024-07-31',
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: 2000,
-      system: effectiveSystem,
+      system: [{ type: 'text', text: effectiveSystem, cache_control: { type: 'ephemeral' } }],
       messages,
     }),
     signal: AbortSignal.timeout(45000),

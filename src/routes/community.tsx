@@ -1648,9 +1648,13 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId }
         <div style={{ textAlign: 'center' as const, padding: '60px 20px', color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 16 }}>Loading today's brief…</div>
       ) : !devotion ? (
         <div style={{ textAlign: 'center' as const, padding: '60px 20px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 48 }}>☀️</div>
-          <div style={{ fontFamily: cinzel, fontSize: 14, color: GD, letterSpacing: '0.08em' }}>Today's brief is being prepared</div>
-          <div style={{ fontFamily: crimson, fontSize: 15, color: mut }}>Check back soon. The minister is preparing today's word.</div>
+          <div style={{ fontSize: 48 }}>{timeMode === 'evening' ? '🌙' : '☀️'}</div>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: GD, letterSpacing: '0.08em' }}>
+            {timeMode === 'evening' ? "Tonight's Evening Debrief is being prepared" : "Today's brief is being prepared"}
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 15, color: mut }}>
+            {timeMode === 'evening' ? 'Check back soon — or generate it now in Admin → Content Studio.' : 'Check back soon. The minister is preparing today\'s word.'}
+          </div>
           {isAdmin && (
             <button
               disabled={generating}
@@ -7553,6 +7557,16 @@ function intelTimeAgo(dateStr: string): string {
   return `${months} month${months === 1 ? '' : 's'} ago`
 }
 
+function extractIntelPreview(response: string): string {
+  if (!response) return ''
+  let clean = response.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+  try {
+    const parsed = JSON.parse(clean)
+    if (parsed.summary && typeof parsed.summary === 'string') return parsed.summary
+  } catch {}
+  return clean.replace(/^```\w*\s*/gm, '').replace(/```\s*$/gm, '').trim()
+}
+
 function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
   const [entries,   setEntries]   = useState<any[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -7728,7 +7742,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                     <div style={{ fontFamily: crimson, fontSize: 14, color: '#E8D5B0', lineHeight: 1.4, marginBottom: 4 }}>{entry.query}</div>
                     {entry.response && (
                       <div style={{ fontFamily: crimson, fontSize: 12, color: '#8B7355', lineHeight: 1.5 }}>
-                        {entry.response.slice(0, 100)}{entry.response.length > 100 ? '…' : ''}
+                        {(preview => `${preview.slice(0, 120)}${preview.length > 120 ? '…' : ''}`)(extractIntelPreview(entry.response))}
                       </div>
                     )}
                     {entry.context && Object.keys(entry.context).length > 0 && (
