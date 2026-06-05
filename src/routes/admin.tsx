@@ -9870,12 +9870,12 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
 
   async function loadBugs() {
     setLoadingBugs(true)
-    try { const r = await apiFetch('/api/testing-bugs'); const d = await r.json(); setBugs(d.bugs || []) } finally { setLoadingBugs(false) }
+    try { const r = await apiFetch('/api/beta-reports?type=bug&sort=new'); const d = await r.json(); setBugs(d.reports || []) } finally { setLoadingBugs(false) }
   }
 
   async function loadFeatures() {
     setLoadingFeats(true)
-    try { const r = await apiFetch('/api/testing-features'); const d = await r.json(); setFeatures(d.features || []) } finally { setLoadingFeats(false) }
+    try { const r = await apiFetch('/api/beta-reports?type=feature&sort=new'); const d = await r.json(); setFeatures(d.reports || []) } finally { setLoadingFeats(false) }
   }
 
   useEffect(() => { loadSettings(); loadBugs(); loadFeatures() }, [])
@@ -9884,7 +9884,7 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
     if (!editBugId) return
     setSavingItem(true)
     try {
-      await apiFetch('/api/testing-bugs', { method: 'PATCH', body: JSON.stringify({ id: editBugId, status: editBugStatus, resolved_note: editBugNote }) })
+      await apiFetch('/api/beta-reports', { method: 'PATCH', body: JSON.stringify({ id: editBugId, status: editBugStatus, fixSummary: editBugNote }) })
       setEditBugId(null); await loadBugs()
     } finally { setSavingItem(false) }
   }
@@ -9893,23 +9893,23 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
     if (!editFeatId) return
     setSavingItem(true)
     try {
-      await apiFetch('/api/testing-features', { method: 'PATCH', body: JSON.stringify({ id: editFeatId, status: editFeatStatus, admin_note: editFeatNote }) })
+      await apiFetch('/api/beta-reports', { method: 'PATCH', body: JSON.stringify({ id: editFeatId, status: editFeatStatus, fixSummary: editFeatNote }) })
       setEditFeatId(null); await loadFeatures()
     } finally { setSavingItem(false) }
   }
 
   function exportCSV() {
-    const rows: string[][] = [['Type','Title','Severity/Status','Category','Submitted By','Tier','Created','Status','Notes']]
-    bugs.forEach(b => rows.push(['bug', b.title, b.severity, b.category, b.submitted_by_name || '', b.submitted_by_tier || '', b.created_at, b.status, b.resolved_note || '']))
-    features.forEach(f => rows.push(['feature', f.title, '', '', f.submitted_by_name || '', f.submitted_by_tier || '', f.created_at, f.status, f.admin_note || '']))
+    const rows: string[][] = [['Type','Title','Priority','Section','Submitted By','Created','Status','Fix Summary']]
+    bugs.forEach(b => rows.push(['bug', b.title, b.priority || '', b.page_section || '', b.user_name || '', b.created_at, b.status, b.fix_summary || '']))
+    features.forEach(f => rows.push(['feature', f.title, '', '', f.user_name || '', f.created_at, f.status, f.fix_summary || '']))
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'testing-feedback.csv'; a.click()
   }
 
   const SEV_COLORS: Record<string, string> = { low: '#6b7280', medium: '#b45309', high: '#c2410c', critical: '#dc2626' }
-  const STATUS_BG: Record<string, string> = { open: 'rgba(201,168,76,0.12)', in_progress: 'rgba(59,130,246,0.12)', resolved: 'rgba(34,197,94,0.12)', wont_fix: 'rgba(100,100,100,0.12)', planned: 'rgba(147,51,234,0.12)', shipped: 'rgba(34,197,94,0.12)', declined: 'rgba(100,100,100,0.12)' }
-  const STATUS_C: Record<string, string> = { open: G, in_progress: '#60a5fa', resolved: '#4ade80', wont_fix: '#9ca3af', planned: '#c084fc', shipped: '#4ade80', declined: '#9ca3af' }
+  const STATUS_BG: Record<string, string> = { new: 'rgba(201,168,76,0.12)', confirmed: 'rgba(59,130,246,0.12)', in_progress: 'rgba(59,130,246,0.12)', fixed: 'rgba(34,197,94,0.12)', deployed: 'rgba(34,197,94,0.12)', wont_fix: 'rgba(100,100,100,0.12)', by_design: 'rgba(100,100,100,0.12)', duplicate: 'rgba(100,100,100,0.12)' }
+  const STATUS_C: Record<string, string> = { new: G, confirmed: '#60a5fa', in_progress: '#60a5fa', fixed: '#4ade80', deployed: '#4ade80', wont_fix: '#9ca3af', by_design: '#9ca3af', duplicate: '#9ca3af' }
 
   return (
     <div style={{ padding: '24px 0' }}>
@@ -9960,24 +9960,24 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 4 }}>
                   <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G }}>{bug.title}</span>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: SEV_COLORS[bug.severity] || dim, border: `1px solid ${SEV_COLORS[bug.severity] || dim}44`, padding: '1px 5px', borderRadius: 8 }}>{bug.severity}</span>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: STATUS_BG[bug.status] || 'transparent', color: STATUS_C[bug.status] || dim, padding: '1px 6px', borderRadius: 8 }}>{bug.status.replace('_',' ')}</span>
+                  {bug.priority && <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: SEV_COLORS[bug.priority] || dim, border: `1px solid ${SEV_COLORS[bug.priority] || dim}44`, padding: '1px 5px', borderRadius: 8 }}>{bug.priority}</span>}
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: STATUS_BG[bug.status] || 'transparent', color: STATUS_C[bug.status] || dim, padding: '1px 6px', borderRadius: 8 }}>{(bug.status || '').replace(/_/g,' ')}</span>
                 </div>
                 <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: txt, margin: '0 0 4px', lineHeight: 1.4 }}>{bug.description}</p>
                 <div style={{ fontSize: 11, color: dim, fontFamily: "'Crimson Pro', serif" }}>
-                  {bug.submitted_by_name} · {bug.submitted_by_tier} · {bug.category}
+                  {bug.user_name}{bug.page_section ? ` · ${bug.page_section}` : ''}
                 </div>
                 {editBugId === bug.id ? (
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                     <select style={{ ...inp, width: 'auto', fontSize: 11 }} value={editBugStatus} onChange={e => setEditBugStatus(e.target.value)}>
-                      {['open','in_progress','resolved','wont_fix'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                      {['new','confirmed','in_progress','fixed','deployed','wont_fix','by_design','duplicate'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
                     </select>
-                    <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editBugNote} onChange={e => setEditBugNote(e.target.value)} placeholder="Resolution note..." />
+                    <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editBugNote} onChange={e => setEditBugNote(e.target.value)} placeholder="Fix summary..." />
                     <button onClick={saveBug} disabled={savingItem} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: G, color: BG, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>{savingItem ? '...' : 'Save'}</button>
                     <button onClick={() => setEditBugId(null)} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : (
-                  <button onClick={() => { setEditBugId(bug.id); setEditBugStatus(bug.status); setEditBugNote(bug.resolved_note || '') }}
+                  <button onClick={() => { setEditBugId(bug.id); setEditBugStatus(bug.status); setEditBugNote(bug.fix_summary || '') }}
                     style={{ marginTop: 6, fontFamily: "'Cinzel', serif", fontSize: 8, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>
                     UPDATE STATUS
                   </button>
@@ -10003,18 +10003,18 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
                   <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: STATUS_BG[feat.status] || 'transparent', color: STATUS_C[feat.status] || dim, padding: '1px 6px', borderRadius: 8 }}>{feat.status.replace('_',' ')}</span>
                 </div>
                 <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: txt, margin: '0 0 4px', lineHeight: 1.4 }}>{feat.description}</p>
-                <div style={{ fontSize: 11, color: dim, fontFamily: "'Crimson Pro', serif" }}>{feat.submitted_by_name} · {feat.submitted_by_tier}</div>
+                <div style={{ fontSize: 11, color: dim, fontFamily: "'Crimson Pro', serif" }}>{feat.user_name}</div>
                 {editFeatId === feat.id ? (
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                     <select style={{ ...inp, width: 'auto', fontSize: 11 }} value={editFeatStatus} onChange={e => setEditFeatStatus(e.target.value)}>
-                      {['open','planned','in_progress','shipped','declined'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                      {['new','confirmed','in_progress','fixed','deployed','wont_fix','by_design','duplicate'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
                     </select>
-                    <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editFeatNote} onChange={e => setEditFeatNote(e.target.value)} placeholder="Admin note..." />
+                    <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editFeatNote} onChange={e => setEditFeatNote(e.target.value)} placeholder="Note..." />
                     <button onClick={saveFeat} disabled={savingItem} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: G, color: BG, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>{savingItem ? '...' : 'Save'}</button>
                     <button onClick={() => setEditFeatId(null)} style={{ fontFamily: "'Cinzel', serif", fontSize: 9, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : (
-                  <button onClick={() => { setEditFeatId(feat.id); setEditFeatStatus(feat.status); setEditFeatNote(feat.admin_note || '') }}
+                  <button onClick={() => { setEditFeatId(feat.id); setEditFeatStatus(feat.status); setEditFeatNote(feat.fix_summary || '') }}
                     style={{ marginTop: 6, fontFamily: "'Cinzel', serif", fontSize: 8, background: 'none', border: `1px solid ${bdr}`, color: dim, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>
                     UPDATE STATUS
                   </button>

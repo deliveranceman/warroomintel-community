@@ -25,17 +25,13 @@ interface BugReport {
   id: string
   title: string
   description: string
-  steps_to_reproduce: string | null
-  expected_behavior: string | null
-  actual_behavior: string | null
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  category: string
-  screenshot_url: string | null
-  status: 'open' | 'in_progress' | 'resolved' | 'wont_fix'
+  page_section: string | null
+  priority: string | null
+  status: string
   upvotes: number
-  submitted_by_name: string | null
-  submitted_by_tier: string | null
-  resolved_note: string | null
+  upvoted_by: string[]
+  user_name: string | null
+  fix_summary: string | null
   created_at: string
 }
 
@@ -43,12 +39,11 @@ interface FeatureRequest {
   id: string
   title: string
   description: string
-  expected_behavior: string | null
-  status: 'open' | 'planned' | 'in_progress' | 'shipped' | 'declined'
+  status: string
   upvotes: number
-  submitted_by_name: string | null
-  submitted_by_tier: string | null
-  admin_note: string | null
+  upvoted_by: string[]
+  user_name: string | null
+  fix_summary: string | null
   created_at: string
 }
 
@@ -93,13 +88,14 @@ const SEV_COLORS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  open:        { bg: 'rgba(201,168,76,0.12)', color: G },
+  new:         { bg: 'rgba(201,168,76,0.12)', color: G },
+  confirmed:   { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa' },
   in_progress: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa' },
-  resolved:    { bg: 'rgba(34,197,94,0.12)',  color: '#4ade80' },
+  fixed:       { bg: 'rgba(34,197,94,0.12)',  color: '#4ade80' },
+  deployed:    { bg: 'rgba(34,197,94,0.12)',  color: '#4ade80' },
   wont_fix:    { bg: 'rgba(100,100,100,0.12)',color: '#9ca3af' },
-  planned:     { bg: 'rgba(147,51,234,0.12)', color: '#c084fc' },
-  shipped:     { bg: 'rgba(34,197,94,0.12)',  color: '#4ade80' },
-  declined:    { bg: 'rgba(100,100,100,0.12)',color: '#9ca3af' },
+  by_design:   { bg: 'rgba(100,100,100,0.12)',color: '#9ca3af' },
+  duplicate:   { bg: 'rgba(100,100,100,0.12)',color: '#9ca3af' },
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -289,7 +285,7 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
   const [actual, setActual]           = useState('')
   const [severity, setSeverity]       = useState('medium')
   const [category, setCategory]       = useState('other')
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
+  const [_screenshotFile, setScreenshotFile] = useState<File | null>(null)
   const [submitting, setSubmitting]   = useState(false)
   // Admin edit state
   const [editId, setEditId]           = useState<string | null>(null)
@@ -300,9 +296,13 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
   async function load() {
     setLoading(true)
     try {
-      const r = await apiFetch('/api/testing-bugs')
+      const r = await apiFetch('/api/beta-reports?type=bug&sort=new')
       const d = await r.json()
-      setBugs(d.bugs || [])
+      const reports = d.reports || []
+      setBugs(reports)
+      if (_user?.id) {
+        setMyUpvotes(new Set(reports.filter((b: any) => (b.upvoted_by || []).includes(_user.id)).map((b: any) => b.id)))
+      }
     } finally { setLoading(false) }
   }
 
@@ -312,14 +312,10 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
     if (!title || !desc) return
     setSubmitting(true)
     try {
-      let screenshot_url = null
-      if (screenshotFile) {
-        // Upload to a public endpoint or just skip for now
-        screenshot_url = null
-      }
-      await apiFetch('/api/testing-bugs', {
+      const descFull = [desc, steps && `Steps: ${steps}`, expected && `Expected: ${expected}`, actual && `Actual: ${actual}`].filter(Boolean).join('\n\n')
+      await apiFetch('/api/beta-reports', {
         method: 'POST',
-        body: JSON.stringify({ title, description: desc, steps_to_reproduce: steps, expected_behavior: expected, actual_behavior: actual, severity, category, screenshot_url }),
+        body: JSON.stringify({ type: 'bug', title, description: descFull, pageSection: category !== 'other' ? category : undefined }),
       })
       setTitle(''); setDesc(''); setSteps(''); setExpected(''); setActual('')
       setSeverity('medium'); setCategory('other'); setScreenshotFile(null)
@@ -331,14 +327,14 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
   async function upvote(id: string) {
     setUpvoting(id)
     try {
-      const r = await apiFetch('/api/testing-upvote', { method: 'POST', body: JSON.stringify({ item_type: 'bug', item_id: id }) })
+      const r = await apiFetch('/api/beta-reports?action=upvote', { method: 'POST', body: JSON.stringify({ reportId: id }) })
       const d = await r.json()
       setMyUpvotes(prev => {
         const next = new Set(prev)
         d.upvoted ? next.add(id) : next.delete(id)
         return next
       })
-      setBugs(prev => prev.map(b => b.id === id ? { ...b, upvotes: d.count } : b))
+      setBugs(prev => prev.map(b => b.id === id ? { ...b, upvotes: d.upvotes } : b))
     } finally { setUpvoting(null) }
   }
 
@@ -346,16 +342,17 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
     if (!editId) return
     setEditSaving(true)
     try {
-      await apiFetch('/api/testing-bugs', { method: 'PATCH', body: JSON.stringify({ id: editId, status: editStatus, resolved_note: editNote }) })
+      await apiFetch('/api/beta-reports', { method: 'PATCH', body: JSON.stringify({ id: editId, status: editStatus, fixSummary: editNote }) })
       setEditId(null)
       await load()
     } finally { setEditSaving(false) }
   }
 
+  const CLOSED = ['fixed', 'deployed', 'wont_fix', 'by_design', 'duplicate']
   const sorted = [...bugs].sort((a, b) => {
     if (sort === 'upvotes')  return b.upvotes - a.upvotes
-    if (sort === 'critical') return (a.severity === 'critical' ? 0 : 1) - (b.severity === 'critical' ? 0 : 1)
-    if (sort === 'open')     return (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1)
+    if (sort === 'critical') return (a.priority === 'critical' ? 0 : 1) - (b.priority === 'critical' ? 0 : 1)
+    if (sort === 'open')     return (CLOSED.includes(a.status) ? 1 : 0) - (CLOSED.includes(b.status) ? 1 : 0)
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
@@ -447,8 +444,8 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, marginBottom: 6 }}>
                 <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.04em' }}>{bug.title}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: SEV_COLORS[bug.severity] || DIM, border: `1px solid ${SEV_COLORS[bug.severity] || DIM}44`, padding: '1px 6px', borderRadius: 10, textTransform: 'uppercase' as const }}>{bug.severity}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, border: `1px solid ${BDR}`, padding: '1px 6px', borderRadius: 10 }}>{bug.category}</span>
+                {bug.priority && <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: SEV_COLORS[bug.priority] || DIM, border: `1px solid ${SEV_COLORS[bug.priority] || DIM}44`, padding: '1px 6px', borderRadius: 10, textTransform: 'uppercase' as const }}>{bug.priority}</span>}
+                {bug.page_section && <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, border: `1px solid ${BDR}`, padding: '1px 6px', borderRadius: 10 }}>{bug.page_section}</span>}
                 <StatusBadge status={bug.status} />
               </div>
               <p style={{ fontFamily: crimson, fontSize: 13, color: TXT, margin: '0 0 6px', lineHeight: 1.5 }}>
@@ -461,13 +458,12 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
                 )}
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, fontSize: 11, color: DIM, fontFamily: crimson }}>
-                <span>{bug.submitted_by_name || 'Anonymous'}</span>
-                {bug.submitted_by_tier && <TierBadge tier={bug.submitted_by_tier} />}
+                <span>{bug.user_name || 'Anonymous'}</span>
                 <span>{timeAgo(bug.created_at)}</span>
               </div>
-              {bug.status === 'resolved' && bug.resolved_note && (
+              {['fixed', 'deployed'].includes(bug.status) && bug.fix_summary && (
                 <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, fontFamily: crimson, fontSize: 12, color: '#4ade80' }}>
-                  Resolved: {bug.resolved_note}
+                  Fixed: {bug.fix_summary}
                 </div>
               )}
               {isMinister && (
@@ -475,14 +471,14 @@ function BugReportsTab({ apiFetch, user: _user, isMinister }: { apiFetch: Functi
                   {editId === bug.id ? (
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                       <select style={{ ...sel, width: 'auto', fontSize: 11 }} value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                        {['open','in_progress','resolved','wont_fix'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                        {['new','confirmed','in_progress','fixed','deployed','wont_fix','by_design','duplicate'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
                       </select>
-                      <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Resolution note (optional)" />
+                      <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Fix summary (optional)" />
                       <button onClick={saveEdit} disabled={editSaving} style={{ fontFamily: cinzel, fontSize: 9, background: G, color: BG, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>{editSaving ? '...' : 'Save'}</button>
                       <button onClick={() => setEditId(null)} style={{ fontFamily: cinzel, fontSize: 9, background: 'none', border: `1px solid ${BDR}`, color: DIM, borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>Cancel</button>
                     </div>
                   ) : (
-                    <button onClick={() => { setEditId(bug.id); setEditStatus(bug.status); setEditNote(bug.resolved_note || '') }}
+                    <button onClick={() => { setEditId(bug.id); setEditStatus(bug.status); setEditNote(bug.fix_summary || '') }}
                       style={{ fontFamily: cinzel, fontSize: 8, background: 'none', border: `1px solid ${BDR}`, color: DIM, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>
                       UPDATE STATUS
                     </button>
@@ -520,9 +516,13 @@ function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: F
   async function load() {
     setLoading(true)
     try {
-      const r = await apiFetch('/api/testing-features')
+      const r = await apiFetch('/api/beta-reports?type=feature&sort=new')
       const d = await r.json()
-      setFeatures(d.features || [])
+      const reports = d.reports || []
+      setFeatures(reports)
+      if (_user?.id) {
+        setMyUpvotes(new Set(reports.filter((f: any) => (f.upvoted_by || []).includes(_user.id)).map((f: any) => f.id)))
+      }
     } finally { setLoading(false) }
   }
 
@@ -532,7 +532,8 @@ function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: F
     if (!title || !desc) return
     setSubmitting(true)
     try {
-      await apiFetch('/api/testing-features', { method: 'POST', body: JSON.stringify({ title, description: desc, expected_behavior: expected }) })
+      const descFull = [desc, expected && `Expected: ${expected}`].filter(Boolean).join('\n\n')
+      await apiFetch('/api/beta-reports', { method: 'POST', body: JSON.stringify({ type: 'feature', title, description: descFull }) })
       setTitle(''); setDesc(''); setExpected('')
       setShowForm(false)
       await load()
@@ -542,10 +543,10 @@ function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: F
   async function upvote(id: string) {
     setUpvoting(id)
     try {
-      const r = await apiFetch('/api/testing-upvote', { method: 'POST', body: JSON.stringify({ item_type: 'feature', item_id: id }) })
+      const r = await apiFetch('/api/beta-reports?action=upvote', { method: 'POST', body: JSON.stringify({ reportId: id }) })
       const d = await r.json()
       setMyUpvotes(prev => { const n = new Set(prev); d.upvoted ? n.add(id) : n.delete(id); return n })
-      setFeatures(prev => prev.map(f => f.id === id ? { ...f, upvotes: d.count } : f))
+      setFeatures(prev => prev.map(f => f.id === id ? { ...f, upvotes: d.upvotes } : f))
     } finally { setUpvoting(null) }
   }
 
@@ -553,7 +554,7 @@ function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: F
     if (!editId) return
     setEditSaving(true)
     try {
-      await apiFetch('/api/testing-features', { method: 'PATCH', body: JSON.stringify({ id: editId, status: editStatus, admin_note: editNote }) })
+      await apiFetch('/api/beta-reports', { method: 'PATCH', body: JSON.stringify({ id: editId, status: editStatus, fixSummary: editNote }) })
       setEditId(null)
       await load()
     } finally { setEditSaving(false) }
@@ -561,7 +562,7 @@ function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: F
 
   const sorted = [...features].sort((a, b) => {
     if (sort === 'upvotes') return b.upvotes - a.upvotes
-    if (sort === 'shipped') return (a.status === 'shipped' ? 0 : 1) - (b.status === 'shipped' ? 0 : 1)
+    if (sort === 'shipped') return (['fixed','deployed'].includes(a.status) ? 0 : 1) - (['fixed','deployed'].includes(b.status) ? 0 : 1)
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
@@ -617,13 +618,12 @@ function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: F
               </div>
               <p style={{ fontFamily: crimson, fontSize: 13, color: TXT, margin: '0 0 6px', lineHeight: 1.5 }}>{feat.description}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, fontSize: 11, color: DIM, fontFamily: crimson }}>
-                <span>{feat.submitted_by_name || 'Anonymous'}</span>
-                {feat.submitted_by_tier && <TierBadge tier={feat.submitted_by_tier} />}
+                <span>{feat.user_name || 'Anonymous'}</span>
                 <span>{timeAgo(feat.created_at)}</span>
               </div>
-              {(feat.status === 'planned' || feat.status === 'shipped') && feat.admin_note && (
+              {['confirmed','in_progress','fixed','deployed'].includes(feat.status) && feat.fix_summary && (
                 <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${BDR}`, borderRadius: 6, fontFamily: crimson, fontSize: 12, color: G }}>
-                  {feat.admin_note}
+                  {feat.fix_summary}
                 </div>
               )}
               {isMinister && (
@@ -631,14 +631,14 @@ function FeatureRequestsTab({ apiFetch, user: _user, isMinister }: { apiFetch: F
                   {editId === feat.id ? (
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                       <select style={{ ...sel, width: 'auto', fontSize: 11 }} value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                        {['open','planned','in_progress','shipped','declined'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                        {['new','confirmed','in_progress','fixed','deployed','wont_fix','by_design','duplicate'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
                       </select>
-                      <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Admin note (optional)" />
+                      <input style={{ ...inp, flex: 1, fontSize: 11 }} value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Note (optional)" />
                       <button onClick={saveEdit} disabled={editSaving} style={{ fontFamily: cinzel, fontSize: 9, background: G, color: BG, border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>{editSaving ? '...' : 'Save'}</button>
                       <button onClick={() => setEditId(null)} style={{ fontFamily: cinzel, fontSize: 9, background: 'none', border: `1px solid ${BDR}`, color: DIM, borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>Cancel</button>
                     </div>
                   ) : (
-                    <button onClick={() => { setEditId(feat.id); setEditStatus(feat.status); setEditNote(feat.admin_note || '') }}
+                    <button onClick={() => { setEditId(feat.id); setEditStatus(feat.status); setEditNote(feat.fix_summary || '') }}
                       style={{ fontFamily: cinzel, fontSize: 8, background: 'none', border: `1px solid ${BDR}`, color: DIM, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.08em' }}>
                       UPDATE STATUS
                     </button>

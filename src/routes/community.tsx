@@ -7178,8 +7178,8 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
               {/* Row 7: Avatar + upvote */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: G, color: '#1a1625', fontFamily: cinzel, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(report.user_name||'?')[0].toUpperCase()}</div>
-                  <span style={{ fontFamily: crimson, fontSize: 12, color: muted }}>{report.user_name||'Warrior'}</span>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: G, color: '#1a1625', fontFamily: cinzel, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(/^user_/.test(report.user_name||'') ? 'W' : (report.user_name||'W')[0]).toUpperCase()}</div>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: muted }}>{/^user_/.test(report.user_name||'') ? 'Warrior' : (report.user_name||'Warrior')}</span>
                   <span style={{ color: muted, fontSize: 8 }}>·</span>
                   <span style={{ fontFamily: cinzel, fontSize: 11, color: muted }}>{timeAgo(report.created_at)}</span>
                 </div>
@@ -9893,6 +9893,44 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     return () => clearTimeout(t)
   }, [dmError])
 
+  // Push notification tap — app already open
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!('serviceWorker' in navigator)) return
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type !== 'WRI_NOTIFICATION_TAP') return
+      const d = e.data.data || {}
+      if (d.call_id) {
+        setIncomingCall({
+          caller_name: d.caller_name || 'Unknown',
+          caller_id: d.caller_id || '',
+          call_id: d.call_id,
+          call_type: 'audio_room',
+          channel_id: d.channel_id || '',
+        })
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [])
+
+  // Cold open — app was closed, user tapped notification
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const callId = params.get('call_id')
+    if (callId) {
+      setIncomingCall({
+        caller_name: params.get('caller') || 'Unknown',
+        caller_id: params.get('caller_id') || '',
+        call_id: callId,
+        call_type: 'audio_room',
+        channel_id: params.get('channel') || '',
+      })
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   // ── Auto-scroll ──
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -11993,7 +12031,7 @@ function CommunityPage() {
     const el = sidebarScrollRef.current
     if (!el) return
     const active = el.querySelector('[data-active="true"]') as HTMLElement | null
-    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
   }, [activeSection])
 
   const [fringeExpanded, setFringeExpanded]     = useState(false)
@@ -14057,12 +14095,42 @@ function CommunityPage() {
                         </div>
                         <div>
                           <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', color: 'var(--t-0)' }}>{user?.firstName || 'You'}</div>
-                          <ClassBadge level={tier === 'General' ? 'I' : tier === 'Commander' ? 'II' : tier === 'Soldier' ? 'III' : 'IV'} label={tier.toUpperCase()} />
+                          <span style={{
+                            fontFamily: "'Cinzel', serif",
+                            fontSize: 9,
+                            letterSpacing: '0.07em',
+                            color: tier === 'General' || tier === 'Founding General' ? '#C9A84C'
+                              : tier === 'Commander' || tier === 'Charter Commander' ? '#8b5cf6'
+                              : tier === 'Soldier' || tier === 'Charter Soldier' ? '#3b82f6'
+                              : tier === 'Minister' ? '#ef4444'
+                              : '#64748b',
+                            border: `1px solid ${
+                              tier === 'General' || tier === 'Founding General' ? 'rgba(201,168,76,0.4)'
+                              : tier === 'Commander' || tier === 'Charter Commander' ? 'rgba(139,92,246,0.4)'
+                              : tier === 'Soldier' || tier === 'Charter Soldier' ? 'rgba(59,130,246,0.4)'
+                              : tier === 'Minister' ? 'rgba(239,68,68,0.4)'
+                              : 'rgba(100,116,139,0.4)'
+                            }`,
+                            borderRadius: 3,
+                            padding: '2px 6px',
+                            textTransform: 'uppercase' as const,
+                          }}>
+                            {tier || 'Watchman'}
+                          </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}><StatusDot kind="ok" size={4} /></div>
                         </div>
                       </div>
                       {/* Other members */}
-                      {[...members.filter(m => m.id !== user?.id)]
+                      {(() => {
+                        const isMemberOnline = (memberId: string, memberObj: any): boolean => {
+                          if (memberId === userId) return true
+                          if (memberPresence?.[memberId]) return true
+                          if (memberObj?.last_seen) {
+                            return Date.now() - new Date(memberObj.last_seen).getTime() < 5 * 60 * 1000
+                          }
+                          return false
+                        }
+                        return [...members.filter(m => m.id !== user?.id)]
                         .sort((a, b) => {
                           const pa = memberPresence[a.id]; const pb = memberPresence[b.id]
                           const ao = pa?.online === true;  const bo = pb?.online === true
@@ -14079,7 +14147,7 @@ function CommunityPage() {
                           const currentUserId = user?.id || ''
                           const displayName = member.firstName || (member.username && !member.username.startsWith('user_') ? member.username : '') || 'Warrior'
                           const presence = memberPresence[member.id]
-                          const isOnline = presence?.online === true
+                          const isOnline = isMemberOnline(member.id, member)
                           const lastActive = presence?.lastActive ?? null
                           return (
                             <div key={member.id} style={{ position: 'relative', overflow: 'visible' }} onMouseEnter={() => showWarriorCard(member.id)} onMouseLeave={hideWarriorCard}>
@@ -14089,7 +14157,28 @@ function CommunityPage() {
                                 </div>
                                 <div>
                                   <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.03em' }}>{displayName}</div>
-                                  <ClassBadge level={memberTier === 'General' ? 'I' : memberTier === 'Commander' ? 'II' : memberTier === 'Soldier' ? 'III' : 'IV'} label={memberTier.toUpperCase()} />
+                                  <span style={{
+                                    fontFamily: "'Cinzel', serif",
+                                    fontSize: 9,
+                                    letterSpacing: '0.07em',
+                                    color: memberTier === 'General' || memberTier === 'Founding General' ? '#C9A84C'
+                                      : memberTier === 'Commander' || memberTier === 'Charter Commander' ? '#8b5cf6'
+                                      : memberTier === 'Soldier' || memberTier === 'Charter Soldier' ? '#3b82f6'
+                                      : memberTier === 'Minister' ? '#ef4444'
+                                      : '#64748b',
+                                    border: `1px solid ${
+                                      memberTier === 'General' || memberTier === 'Founding General' ? 'rgba(201,168,76,0.4)'
+                                      : memberTier === 'Commander' || memberTier === 'Charter Commander' ? 'rgba(139,92,246,0.4)'
+                                      : memberTier === 'Soldier' || memberTier === 'Charter Soldier' ? 'rgba(59,130,246,0.4)'
+                                      : memberTier === 'Minister' ? 'rgba(239,68,68,0.4)'
+                                      : 'rgba(100,116,139,0.4)'
+                                    }`,
+                                    borderRadius: 3,
+                                    padding: '2px 6px',
+                                    textTransform: 'uppercase' as const,
+                                  }}>
+                                    {memberTier || 'Watchman'}
+                                  </span>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                                     {isOnline ? (
                                       <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -14117,7 +14206,8 @@ function CommunityPage() {
                               )}
                             </div>
                           )
-                        })}
+                        })
+                      })()}
                     </div>
                   )}
 
