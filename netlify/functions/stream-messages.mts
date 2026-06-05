@@ -55,23 +55,40 @@ async function notifyRecipientOfDmRequest(recipientId: string, requesterName: st
 
 async function createStreamChannel(userA: string, userB: string): Promise<{ channelId: string } | { error: string; detail?: unknown }> {
   const channelId = dmChannelId(userA, userB)
-  const sorted = [userA, userB].sort()
-  const token = serverToken()
-  // Upsert both users so Stream knows them before channel creation
-  await streamFetch('/users', 'POST', token, {
-    users: {
-      [userA]: { id: userA, name: userA, role: 'user' },
-      [userB]: { id: userB, name: userB, role: 'user' },
+  const members = [userA, userB].sort()
+  // Upsert both users first
+  await fetch('https://chat.stream-io-api.com/users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${serverToken()}`,
+      'Stream-Auth-Type': 'jwt',
     },
+    body: JSON.stringify({
+      users: {
+        [userA]: { id: userA },
+        [userB]: { id: userB },
+      },
+    }),
   }).catch(() => {})
-  const { status, data } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, {
-    get_or_create: true,
-    members: sorted,
-    data: { created_by_id: userA, is_dm: true },
+  // get_or_create and members at top level — not nested in data
+  const res = await fetch(`https://chat.stream-io-api.com/channels/messaging/${channelId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${serverToken()}`,
+      'Stream-Auth-Type': 'jwt',
+    },
+    body: JSON.stringify({
+      get_or_create: true,
+      members,
+      data: { created_by_id: userA, is_dm: true },
+    }),
   })
-  if (status >= 400) {
-    console.error('[createStreamChannel] Stream error:', status, JSON.stringify(data).slice(0, 500))
-    return { error: 'Stream channel creation failed', detail: data }
+  const text = await res.text()
+  console.log('[createStreamChannel] Stream response:', res.status, text.slice(0, 300))
+  if (!res.ok && res.status !== 400) {
+    return { error: 'Stream channel creation failed', detail: text }
   }
   return { channelId }
 }
@@ -741,38 +758,41 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
   const members = [row.requester_id, userId]
-  const serverJwt = serverToken()
 
-  // Upsert both users into Stream before channel creation
-  for (const uid of members) {
-    await fetch(`https://chat.stream-io-api.com/users?api_key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: serverJwt,
-        'stream-auth-type': 'jwt',
-        'x-stream-client': 'stream-chat-javascript-client-browser-2.x',
+  // Upsert both users first
+  const upsertRes = await fetch('https://chat.stream-io-api.com/users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${serverToken()}`,
+      'Stream-Auth-Type': 'jwt',
+    },
+    body: JSON.stringify({
+      users: {
+        [row.requester_id]: { id: row.requester_id },
+        [userId]: { id: userId },
       },
-      body: JSON.stringify({ users: { [uid]: { id: uid, role: 'user' } } }),
-    }).catch(() => {})
-  }
+    }),
+  })
+  console.log('[accept-sentinel] upsert status:', upsertRes.status)
 
-  // Create channel with get_or_create — members inside data per Stream REST spec
+  // get_or_create and members MUST be at top level — not nested inside data
+  console.log('[accept-sentinel] sending body:', JSON.stringify({ get_or_create: true, members, data: { created_by_id: userId } }))
+
   const chanRes = await fetch(
-    `https://chat.stream-io-api.com/channels/messaging/${channelId}?api_key=${apiKey}`,
+    `https://chat.stream-io-api.com/channels/messaging/${channelId}`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: serverJwt,
-        'stream-auth-type': 'jwt',
-        'x-stream-client': 'stream-chat-javascript-client-browser-2.x',
+        'Authorization': `Bearer ${serverToken()}`,
+        'Stream-Auth-Type': 'jwt',
       },
       body: JSON.stringify({
         get_or_create: true,
+        members,
         data: {
           created_by_id: userId,
-          members,
           is_sentinel: true,
           name: 'Sentinel Covenant',
         },
@@ -781,12 +801,10 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   )
 
   const chanText = await chanRes.text()
-  console.log('[accept-sentinel] Stream response:', chanRes.status, chanText.slice(0, 500))
+  console.log('[accept-sentinel] Stream response:', chanRes.status, chanText.slice(0, 300))
 
-  if (!chanRes.ok) {
-    if (!chanText.includes('already exists') && !chanText.includes('AlreadyExists')) {
-      return json({ error: 'Stream channel creation failed', detail: chanText }, 500)
-    }
+  if (!chanRes.ok && chanRes.status !== 400) {
+    return json({ error: 'Stream channel creation failed', detail: chanText }, 500)
   }
 
   await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
