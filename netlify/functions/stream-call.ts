@@ -1,4 +1,5 @@
 import { StreamClient } from '@stream-io/node-sdk'
+import { sendWebPushToUser } from './_shared/sendWebPush.js'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -123,6 +124,21 @@ export default async function handler(req: Request): Promise<Response> {
         status: 'ringing',
       }),
     }).catch(() => {})
+
+    // Push notification to recipient
+    sendWebPushToUser(
+      targetUserId,
+      `📞 ${callerName}`,
+      'Calling you to prayer',
+      {
+        type: 'prayer_call',
+        call_id: callId,
+        caller_name: callerName,
+        caller_id: userId,
+        channel_id: channelId,
+        url: '/community',
+      },
+    ).catch(() => {})
 
     return json({ ok: true, callId, callType })
   }

@@ -36,20 +36,42 @@ self.addEventListener('push', event => {
     bc.close()
   }
 
+  const notifData = Object.assign({ url: data.url || '/community' }, data.data || {})
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'War Room Intel', {
       body: data.body || 'New activity in the War Room',
       icon: '/apple-touch-icon.png',
       badge: '/favicon-32.png',
-      data: { url: data.url || '/community' },
+      data: notifData,
       vibrate: [200, 100, 200],
     })
   )
 })
 
-self.addEventListener('notificationclick', event => {
+self.addEventListener('notificationclick', function(event) {
   event.notification.close()
+  var data = event.notification.data || {}
+  var targetUrl = '/community'
+  if (data.call_id) {
+    targetUrl = '/community?call_id=' + data.call_id
+      + '&caller=' + encodeURIComponent(data.caller_name || '')
+      + '&caller_id=' + encodeURIComponent(data.caller_id || '')
+      + '&channel=' + encodeURIComponent(data.channel_id || '')
+  } else if (data.url) {
+    targetUrl = data.url
+  }
   event.waitUntil(
-    clients.openWindow(event.notification.data?.url || '/community')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i]
+        if ('focus' in client) {
+          client.focus()
+          client.postMessage({ type: 'WRI_NOTIFICATION_TAP', data: data })
+          return
+        }
+      }
+      return clients.openWindow(targetUrl)
+    })
   )
 })

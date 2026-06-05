@@ -14123,7 +14123,7 @@ function CommunityPage() {
                       {/* Other members */}
                       {(() => {
                         const isMemberOnline = (memberId: string, memberObj: any): boolean => {
-                          if (memberId === userId) return true
+                          if (memberId === user?.id) return true
                           if (memberPresence?.[memberId]) return true
                           if (memberObj?.last_seen) {
                             return Date.now() - new Date(memberObj.last_seen).getTime() < 5 * 60 * 1000
