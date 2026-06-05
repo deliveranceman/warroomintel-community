@@ -13917,7 +13917,7 @@ function CommunityPage() {
 
       {/* ── RIGHT RAIL — Option D: icon strip + flyout panels ── */}
       {!isMobile && !isTablet && (() => {
-        const onlineCount = Object.values(memberPresence).filter(p => p.online).length + 1
+        const onlineCount = Math.max(1, members.filter(m => memberPresence?.[m.id]?.online === true).length)
         const hasPrayers  = prayers.length > 0
         const hasMessages = unreadDMs > 0
         const hasOnline   = onlineCount > 1
@@ -14152,12 +14152,9 @@ function CommunityPage() {
                       </div>
                       {/* Other members */}
                       {(() => {
-                        const isMemberOnline = (memberId: string, memberObj: any): boolean => {
-                          if (memberId === user?.id) return true
-                          if (memberPresence?.[memberId]) return true
-                          if (memberObj?.last_seen) {
-                            return Date.now() - new Date(memberObj.last_seen).getTime() < 5 * 60 * 1000
-                          }
+                        const isMemberOnline = (memberId: string, _memberObj: any): boolean => {
+                          const presence = memberPresence?.[memberId]
+                          if (presence) return presence.online === true
                           return false
                         }
                         return [...members.filter(m => m.id !== user?.id)]
