@@ -9721,12 +9721,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [loadingMembers, setLoadingMembers]   = React.useState(false)
   const [dmError, setDmError]                 = React.useState<string | null>(null)
   const [pendingInbound, setPendingInbound]   = React.useState<any[]>([])
-  const [fireTeams, setFireTeams]                   = React.useState<any[]>([])
-  const [fireTeamsLoading, setFireTeamsLoading]     = React.useState(false)
-  const [sentinels, setSentinels]                   = React.useState<any[]>([])
-  const [sentinelRequests, setSentinelRequests]     = React.useState<any[]>([])
-  const [acceptingSentinels, setAcceptingSentinels] = React.useState<Set<string>>(new Set())
-  const [coverAllGroups, setCoverAllGroups]         = React.useState<any[]>([])
+  const [fireTeams, setFireTeams]                     = React.useState<any[]>([])
+  const [_fireTeamsLoading, setFireTeamsLoading]      = React.useState(false)
+  const [_sentinels, setSentinels]                    = React.useState<any[]>([])
+  const [sentinelRequests, setSentinelRequests]       = React.useState<any[]>([])
+  const [acceptingSentinels, setAcceptingSentinels]   = React.useState<Set<string>>(new Set())
+  const [_coverAllGroups, setCoverAllGroups]          = React.useState<any[]>([])
   const [showSentinelPicker, setShowSentinelPicker] = React.useState(false)
   const [sentinelSearch, setSentinelSearch]         = React.useState('')
   const [sentinelSent, setSentinelSent]             = React.useState<string[]>([])
@@ -10541,157 +10541,6 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 >✕</button>
               </div>
             ))}
-          </div>
-        )}
-
-        {/* ── Sentinels section ── */}
-        <div style={{ flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', marginTop: 8 }}>
-            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#b48ee0', letterSpacing: '0.14em', fontWeight: 700 }}>⚔ SENTINELS</span>
-            <button
-              type="button"
-              title="Request Sentinel"
-              onClick={() => { setShowSentinelPicker(true); setSentinelSearch('') }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b48ee0', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
-            >⚔</button>
-          </div>
-          {sentinels.length === 0 ? (
-            <div style={{ padding: '4px 16px 8px', fontSize: 11, color: WMUT }}>No active sentinels</div>
-          ) : sentinels.map(s => {
-            const isActive = s.channelId === activeConvoId
-            return (
-              <div
-                key={s.id}
-                onClick={() => s.channelId && selectConversation(s.channelId)}
-                style={{
-                  display: 'flex', gap: 10, padding: '8px 12px', cursor: s.channelId ? 'pointer' : 'default',
-                  background: isActive ? 'rgba(107,69,150,0.15)' : 'transparent',
-                  borderBottom: `1px solid ${BDR}`, transition: 'background 0.12s',
-                }}
-                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
-                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-              >
-                <div style={{ position: 'relative' as const, flexShrink: 0 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(107,69,150,0.18)', color: '#b48ee0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: '1px solid rgba(107,69,150,0.35)' }}>⚔</div>
-                  <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#6b7280', border: '1.5px solid #0a0a12' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.partnerName}</span>
-                    <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>{relativeTime(s.updatedAt)}</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {s.lastMessage || 'Covenant Partner'}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* ── Fire Teams section ── */}
-        {(fireTeams.length > 0 || tierLevel >= 1) && (
-          <div style={{ flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', marginTop: 8 }}>
-              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: GLD, letterSpacing: '0.14em', fontWeight: 700 }}>⚔ FIRE TEAMS</span>
-              {tierLevel >= 1 && (
-                <button
-                  type="button"
-                  onClick={() => { setShowCreateFireTeam(true); setFtName(''); setFtType('intercession'); setFtDescription(''); setFtInviteIds([]) }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: GLD, fontSize: 16, lineHeight: 1, padding: '0 2px', touchAction: 'manipulation' }}
-                  title="Create Fire Team"
-                >+</button>
-              )}
-            </div>
-            {fireTeamsLoading && fireTeams.length === 0 ? (
-              <div style={{ padding: '4px 16px', fontSize: 11, color: WMUT }}>Loading…</div>
-            ) : fireTeams.length === 0 ? (
-              <div style={{ padding: '4px 16px 8px', fontSize: 11, color: WMUT }}>No active fire teams</div>
-            ) : fireTeams.map(team => {
-              const ftTypeIcons: Record<string, string> = { intercession: '🙏', warfare: '⚔', assignment: '📡', coordination: '📋', prayer: '🔥' }
-              const icon = ftTypeIcons[team.assignmentType] || '⚔'
-              const isActive = team.channelId === activeConvoId
-              const av = { bg: 'rgba(201,168,76,0.15)', color: GLD }
-              return (
-                <div
-                  key={team.fireTeamId || team.channelId}
-                  onClick={() => selectConversation(team.channelId)}
-                  style={{
-                    display: 'flex', gap: 10, padding: '8px 12px', cursor: 'pointer',
-                    background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent',
-                    borderBottom: `1px solid ${BDR}`,
-                    transition: 'background 0.12s',
-                  }}
-                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
-                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                >
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: av.bg, color: av.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: `1px solid rgba(201,168,76,0.3)`, flexShrink: 0 }}>
-                    {icon}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{team.teamName}</span>
-                      <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>{relativeTime(team.updatedAt)}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 10, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
-                        {team.lastMessage || `${team.memberCount} members`}
-                      </span>
-                      <span style={{ fontSize: 9, color: WMUT, flexShrink: 0, marginLeft: 4 }}>{team.memberCount}👥</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ── Cover All section ── */}
-        {(coverAllGroups.length > 0 || tierLevel >= 2) && (
-          <div style={{ flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
-              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#6aacef', letterSpacing: '0.14em', fontWeight: 700 }}>🛡 COVER ALL</span>
-              {tierLevel >= 2 && (
-                <button
-                  type="button"
-                  onClick={() => { setShowCreateCoverAll(true); setCaName(''); setCaTerritory(''); setCaInvites([]) }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6aacef', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
-                  title="Create Cover All Group"
-                >+</button>
-              )}
-            </div>
-            {coverAllGroups.length === 0 ? (
-              <div style={{ padding: '4px 16px 8px', fontSize: 11, color: WMUT }}>No active groups</div>
-            ) : coverAllGroups.map(g => {
-              const isActive = g.channelId === activeConvoId
-              return (
-                <div
-                  key={g.id}
-                  onClick={() => g.channelId && selectConversation(g.channelId)}
-                  style={{
-                    display: 'flex', gap: 10, padding: '8px 12px', cursor: g.channelId ? 'pointer' : 'default',
-                    background: isActive ? 'rgba(106,172,239,0.1)' : 'transparent',
-                    borderBottom: `1px solid ${BDR}`, transition: 'background 0.12s',
-                  }}
-                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
-                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                >
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(106,172,239,0.15)', color: '#6aacef', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: '1px solid rgba(106,172,239,0.3)', flexShrink: 0 }}>🛡</div>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{g.name}</span>
-                      <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>{relativeTime(g.updatedAt)}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 10, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
-                        {g.lastMessage || g.territory || `${g.memberCount} members`}
-                      </span>
-                      <span style={{ fontSize: 9, color: WMUT, flexShrink: 0, marginLeft: 4 }}>{g.memberCount}👥</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
           </div>
         )}
 
@@ -12032,6 +11881,221 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
   )
 }
 
+// ── FieldTeamsSection ─────────────────────────────────────────────────────────
+function FieldTeamsSection({ isDark, setActiveSection, getToken }: {
+  isDark: boolean
+  setActiveSection: (s: string) => void
+  getToken: () => Promise<string | null>
+}) {
+  const BG   = isDark ? '#0D0B14' : '#ede8de'
+  const SURF = isDark ? 'rgba(201,168,76,0.04)' : '#e8e2d6'
+  const SURF2 = isDark ? 'rgba(255,255,255,0.03)' : '#f5f1ea'
+  const BDR  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(120,88,30,0.4)'
+  const TXT  = isDark ? '#f0e8d8' : '#0f0a06'
+  const MUT  = isDark ? '#9a8c74' : '#3d2e1a'
+  const GC   = isDark ? '#C9A84C' : '#8a6218'
+
+  const [sentinels, setSentinels] = React.useState<any[]>([])
+  const [fireTeams, setFireTeams] = React.useState<any[]>([])
+  const [coverAlls, setCoverAlls] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      const token = await getToken()
+      const h = token ? { Authorization: `Bearer ${token}` } : undefined
+      try {
+        const [sRes, fRes, cRes] = await Promise.all([
+          fetch('/api/stream-messages?action=list-sentinels', { headers: h }),
+          fetch('/api/stream-messages?action=list-fire-teams', { headers: h }),
+          fetch('/api/stream-messages?action=list-cover-all', { headers: h }),
+        ])
+        if (cancelled) return
+        const [sData, fData, cData] = await Promise.all([sRes.json(), fRes.json(), cRes.json()])
+        setSentinels(Array.isArray(sData.sentinels) ? sData.sentinels : [])
+        setFireTeams(Array.isArray(fData.fireTeams) ? fData.fireTeams : [])
+        setCoverAlls(Array.isArray(cData.groups) ? cData.groups : [])
+      } catch {}
+      if (!cancelled) setLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  const cardStyle: React.CSSProperties = {
+    background: SURF2, border: `1px solid ${BDR}`, borderRadius: 12,
+    padding: '24px', marginBottom: 20,
+  }
+  const tierBadge = (text: string, variant: 'gold' | 'blue' | 'purple') => {
+    const styles: Record<string, React.CSSProperties> = {
+      gold:   { background: 'rgba(201,168,76,0.15)', color: GC },
+      blue:   { background: 'rgba(59,130,246,0.15)',  color: '#60a5fa' },
+      purple: { background: 'rgba(139,92,246,0.15)',  color: '#a78bfa' },
+    }
+    return (
+      <span style={{ ...styles[variant], fontSize: 9, letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, fontFamily: cinzel, textTransform: 'uppercase' as const }}>
+        {text}
+      </span>
+    )
+  }
+  const actionBtn = (label: string, onClick: () => void) => (
+    <button onClick={onClick} style={{ background: GC, color: '#0D0B14', border: 'none', borderRadius: 6, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700 }}>
+      {label}
+    </button>
+  )
+  const solBtn = (prompt: string) => (
+    <a href="/community/ask-sol" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: `1px solid ${GC}`, borderRadius: 6, background: 'transparent', color: GC, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.05em', cursor: 'pointer', textDecoration: 'none' }} title={prompt}>
+      ⚡ Ask SOL
+    </a>
+  )
+
+  const daysRemaining = (endsAt: string) => {
+    if (!endsAt) return null
+    const d = Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86400000)
+    return d > 0 ? d : 0
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: BG, padding: '24px 20px', paddingBottom: 40 }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 24 }}>
+          ⚔ Field Teams
+        </div>
+
+        {/* ── THE REGIMENT ── */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🎖</span>
+              <span style={{ fontFamily: cinzel, fontSize: 16, color: TXT, fontWeight: 700 }}>The Regiment</span>
+            </div>
+            {tierBadge('All Members', 'gold')}
+          </div>
+          <p style={{ fontFamily: crimson, fontSize: 13, color: MUT, lineHeight: 1.6, margin: '0 0 16px' }}>
+            The full WRI community. Announcements, prayer, and intel flow here. All members.
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {actionBtn('Open Regiment →', () => setActiveSection('war-room'))}
+            {solBtn('Generate a prayer strategy for the Regiment')}
+          </div>
+        </div>
+
+        {/* ── SENTINELS ── */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22 }}>⚔</span>
+              <span style={{ fontFamily: cinzel, fontSize: 16, color: TXT, fontWeight: 700 }}>Sentinels</span>
+            </div>
+            {tierBadge('Soldier+', 'blue')}
+          </div>
+          <p style={{ fontFamily: crimson, fontSize: 13, color: MUT, lineHeight: 1.6, margin: '0 0 12px' }}>
+            A covenant accountability pair. Two warriors commit to 30 days of daily prayer and check-ins. Iron sharpens iron.
+          </p>
+          {loading ? (
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, marginBottom: 12 }}>Loading...</div>
+          ) : sentinels.length === 0 ? (
+            <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginBottom: 12 }}>No active sentinel pairs yet.</div>
+          ) : (
+            <div style={{ marginBottom: 14 }}>
+              {sentinels.map(s => {
+                const days = daysRemaining(s.endsAt)
+                return (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{s.partnerName}</div>
+                      <div style={{ fontFamily: crimson, fontSize: 11, color: MUT }}>Sprint #{s.sprintNumber || 1}</div>
+                    </div>
+                    {days !== null && (
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, textAlign: 'right' as const }}>
+                        <div>{days}d left</div>
+                        <div style={{ color: MUT, fontSize: 9 }}>of 30</div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {actionBtn('Find a Sentinel', () => setActiveSection('dms'))}
+            {solBtn('Generate a 30-day prayer sprint plan for my Sentinel pair')}
+          </div>
+        </div>
+
+        {/* ── FIRE TEAMS ── */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🔥</span>
+              <span style={{ fontFamily: cinzel, fontSize: 16, color: TXT, fontWeight: 700 }}>Fire Teams</span>
+            </div>
+            {tierBadge('Soldier+', 'blue')}
+          </div>
+          <p style={{ fontFamily: crimson, fontSize: 13, color: MUT, lineHeight: 1.6, margin: '0 0 12px' }}>
+            A small team of 3–8 warriors united around a specific assignment. Intercession, deliverance support, or regional mission.
+          </p>
+          {loading ? (
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, marginBottom: 12 }}>Loading...</div>
+          ) : fireTeams.length === 0 ? (
+            <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginBottom: 12 }}>No active fire teams yet.</div>
+          ) : (
+            <div style={{ marginBottom: 14 }}>
+              {fireTeams.map(t => (
+                <div key={t.fireTeamId || t.channelId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{t.teamName}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT }}>{t.memberCount} members</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {actionBtn('Create Fire Team', () => setActiveSection('dms'))}
+            {solBtn('Create an intercession assignment for my Fire Team')}
+          </div>
+        </div>
+
+        {/* ── COVER ALL ── */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🛡</span>
+              <span style={{ fontFamily: cinzel, fontSize: 16, color: TXT, fontWeight: 700 }}>Cover All</span>
+            </div>
+            {tierBadge('Commander+', 'purple')}
+          </div>
+          <p style={{ fontFamily: crimson, fontSize: 13, color: MUT, lineHeight: 1.6, margin: '0 0 12px' }}>
+            Up to 20 warriors assigned to cover a city, region, or people group in sustained intercession.
+          </p>
+          {loading ? (
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, marginBottom: 12 }}>Loading...</div>
+          ) : coverAlls.length === 0 ? (
+            <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginBottom: 12 }}>No active Cover All groups yet.</div>
+          ) : (
+            <div style={{ marginBottom: 14 }}>
+              {coverAlls.map(g => (
+                <div key={g.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid rgba(139,92,246,0.7)`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6 }}>
+                  <div>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{g.name}</div>
+                    {g.territory && <div style={{ fontFamily: crimson, fontSize: 11, color: MUT }}>{g.territory}</div>}
+                  </div>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT }}>{g.memberCount} members</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {actionBtn('Create Cover All', () => setActiveSection('dms'))}
+            {solBtn('Generate a territorial prayer strategy for my region')}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── CommunityPage ─────────────────────────────────────────────────────────────
 function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
@@ -13280,7 +13344,7 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator'].includes(activeSection)) ? 420 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator','field-teams'].includes(activeSection)) ? 500 : 0, transition: 'max-height 0.2s ease' }}>
               <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
                 data-active={activeSection === 'ops-dashboard' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
@@ -13299,6 +13363,7 @@ function CommunityPage() {
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
                 <span>Session Center</span>
               </button>
+              {navItem('Field Teams', 'field-teams', <span style={{ fontSize: 13, lineHeight: 1 }}>⚔</span>)}
               <button onClick={() => { setActiveSection('document-creator'); if (isMobile) setSidebarOpen(false) }}
                 data-active={activeSection === 'document-creator' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'document-creator' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'document-creator' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'document-creator' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
@@ -13843,6 +13908,9 @@ function CommunityPage() {
             getToken={getToken}
             setActiveSection={setActiveSection}
           />
+        )}
+        {activeSection === 'field-teams' && (
+          <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} />
         )}
         {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'session-center' && (
