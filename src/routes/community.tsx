@@ -12167,7 +12167,7 @@ function CommunityPage() {
     try {
       const token = await getToken()
       const solCtrl = new AbortController()
-      const solTimeout = setTimeout(() => solCtrl.abort(), 50000)
+      const solTimeout = setTimeout(() => solCtrl.abort(), 55000)
       const res = await fetch('/api/ai-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -12199,7 +12199,7 @@ function CommunityPage() {
       }
     } catch (err: any) {
       const isTimeout = err?.name === 'AbortError'
-      setChatMessages(prev => [...prev, { role: 'assistant', content: isTimeout ? 'Request timed out — please try again.' : `Unable to connect. ${err?.message || 'Please try again.'}` }])
+      setChatMessages(prev => [...prev, { role: 'assistant', content: isTimeout ? 'SOL is taking longer than usual. Please try again — if it keeps happening, try a shorter question.' : `Unable to connect. ${err?.message || 'Please try again.'}` }])
     } finally {
       setChatLoading(false)
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
