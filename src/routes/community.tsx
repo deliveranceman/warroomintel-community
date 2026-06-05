@@ -10377,7 +10377,17 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     <button
                       type="button"
                       style={{ flex: 1, height: 44, fontSize: 11, color: '#b48ee0', background: 'transparent', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 6, cursor: 'pointer', fontFamily: "'Cinzel',serif", fontWeight: 600, letterSpacing: '0.04em', touchAction: 'manipulation' }}
-                      onClick={() => setSentinelRequests(prev => prev.filter(x => x.id !== r.id))}
+                      onClick={async () => {
+                        const t = await getToken()
+                        if (t) {
+                          fetch('/api/stream-messages?action=decline-sentinel', {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sentinelId: r.id }),
+                          }).catch(() => {})
+                        }
+                        setSentinelRequests(prev => prev.filter(x => x.id !== r.id))
+                      }}
                     >✗ DECLINE</button>
                   </div>
                 </div>

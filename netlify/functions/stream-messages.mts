@@ -57,6 +57,13 @@ async function createStreamChannel(userA: string, userB: string): Promise<{ chan
   const channelId = dmChannelId(userA, userB)
   const sorted = [userA, userB].sort()
   const token = serverToken()
+  // Upsert both users so Stream knows them before channel creation
+  await streamFetch('/users', 'POST', token, {
+    users: {
+      [userA]: { id: userA, name: userA, role: 'user' },
+      [userB]: { id: userB, name: userB, role: 'user' },
+    },
+  }).catch(() => {})
   const { status, data } = await streamFetch(`/channels/messaging/${channelId}`, 'POST', token, {
     get_or_create: true,
     members: sorted,
@@ -733,20 +740,35 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
   const now = new Date()
   const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
+  // Upsert both users into Stream before channel creation
+  await streamFetch('/users', 'POST', serverToken(), {
+    users: {
+      [row.requester_id]: { id: row.requester_id, name: row.requester_id, role: 'user' },
+      [userId]: { id: userId, name: userId, role: 'user' },
+    },
+  }).catch(() => {})
+
   const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
     method: 'POST',
     headers: streamHeaders(serverToken()),
     body: JSON.stringify({
       get_or_create: true,
-      members: allMembers,
-      data: { created_by_id: userId, is_sentinel: true, name: 'Sentinel Channel' },
+      data: {
+        created_by_id: userId,
+        is_sentinel: true,
+        name: 'Sentinel Covenant',
+      },
+      members: [row.requester_id, userId],
     }),
   })
   if (!chanRes.ok) {
-    const errText = await chanRes.text()
-    console.error('[accept-sentinel] Stream error:', chanRes.status, errText)
-    return json({ error: 'Stream channel creation failed', detail: errText }, 500)
+    const detail = await chanRes.text()
+    console.error('[accept-sentinel] Stream channel failed:', chanRes.status, detail)
+    if (!detail.includes('already exists') && !detail.includes('AlreadyExists')) {
+      return json({ error: 'Stream channel creation failed', detail }, 500)
+    }
   }
+  console.log('[accept-sentinel] channel created/found:', channelId)
 
   await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
     method: 'PATCH',
@@ -1093,6 +1115,18 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'accept-sentinel') {
     const body = await req.json().catch(() => ({}))
     return acceptSentinel(userId, body)
+  }
+
+  if (action === 'decline-sentinel') {
+    const body = await req.json().catch(() => ({}))
+    const { sentinelId } = body ?? {}
+    if (!sentinelId) return json({ error: 'sentinelId required' }, 400)
+    await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}&recipient_id=eq.${encodeURIComponent(userId)}`), {
+      method: 'PATCH',
+      headers: sbH,
+      body: JSON.stringify({ status: 'declined' }),
+    }).catch(() => {})
+    return json({ ok: true })
   }
 
   if (action === 'list-sentinels') {
