@@ -50,9 +50,9 @@ export default async function handler(req: Request): Promise<Response> {
 
   const userId     = payload.sub as string
   const meta       = payload?.publicMetadata || payload?.public_metadata || {}
-  const first      = (payload.firstName || payload.first_name || meta.first_name || '') as string
-  const last       = (payload.lastName  || payload.last_name  || meta.last_name  || '') as string
-  const callerName = [first, last].filter(Boolean).join(' ') || (payload.name as string) || 'Soldier'
+  const first      = (payload.firstName || payload.first_name || payload.given_name || meta.first_name || '') as string
+  const last       = (payload.lastName  || payload.last_name  || payload.family_name || meta.last_name  || '') as string
+  const callerName = [first, last].filter(Boolean).join(' ') || (payload.name as string) || (payload.username as string) || 'Soldier'
 
   const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''

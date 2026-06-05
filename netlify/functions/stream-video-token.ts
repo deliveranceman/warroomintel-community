@@ -27,9 +27,9 @@ export default async function handler(req: Request): Promise<Response> {
 
   const userId    = payload.sub as string
   const meta      = payload?.publicMetadata || payload?.public_metadata || {}
-  const firstName = (payload.firstName || payload.first_name || meta.first_name || '') as string
-  const lastName  = (payload.lastName  || payload.last_name  || meta.last_name  || '') as string
-  const name      = [firstName, lastName].filter(Boolean).join(' ') || (payload.name as string) || 'Soldier'
+  const firstName = (payload.firstName || payload.first_name || payload.given_name || meta.first_name || '') as string
+  const lastName  = (payload.lastName  || payload.last_name  || payload.family_name || meta.last_name  || '') as string
+  const name      = [firstName, lastName].filter(Boolean).join(' ') || (payload.name as string) || (payload.username as string) || 'Soldier'
 
   const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
   if (!apiKey || !apiSecret) {

@@ -13917,7 +13917,7 @@ function CommunityPage() {
 
       {/* ── RIGHT RAIL — Option D: icon strip + flyout panels ── */}
       {!isMobile && !isTablet && (() => {
-        const onlineCount = Math.max(1, members.filter(m => memberPresence?.[m.id]?.online === true).length)
+        const onlineCount = 1 + members.filter(m => m.id !== user?.id && memberPresence?.[m.id]?.online === true).length
         const hasPrayers  = prayers.length > 0
         const hasMessages = unreadDMs > 0
         const hasOnline   = onlineCount > 1
@@ -14150,34 +14150,33 @@ function CommunityPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}><StatusDot kind="ok" size={4} /></div>
                         </div>
                       </div>
-                      {/* Other members */}
+                      {/* Other members — online now + recently online */}
                       {(() => {
-                        const isMemberOnline = (memberId: string, _memberObj: any): boolean => {
-                          const presence = memberPresence?.[memberId]
-                          if (presence) return presence.online === true
-                          return false
-                        }
-                        return [...members.filter(m => m.id !== user?.id)]
-                        .sort((a, b) => {
-                          const pa = memberPresence[a.id]; const pb = memberPresence[b.id]
-                          const ao = pa?.online === true;  const bo = pb?.online === true
-                          if (ao !== bo) return bo ? 1 : -1
-                          const at = pa?.lastActive ? new Date(pa.lastActive).getTime() : 0
-                          const bt = pb?.lastActive ? new Date(pb.lastActive).getTime() : 0
+                        const otherMembers = members.filter(m => m.id !== user?.id)
+                        const onlineNow = otherMembers.filter(m =>
+                          memberPresence?.[m.id]?.online === true
+                        )
+                        const recentlyOnline = otherMembers.filter(m => {
+                          if (memberPresence?.[m.id]?.online === true) return false
+                          const la = memberPresence?.[m.id]?.lastActive
+                          if (!la) return false
+                          return (Date.now() - new Date(la).getTime()) / (1000 * 60 * 60) <= 24
+                        }).sort((a, b) => {
+                          const at = memberPresence?.[a.id]?.lastActive ? new Date(memberPresence[a.id].lastActive!).getTime() : 0
+                          const bt = memberPresence?.[b.id]?.lastActive ? new Date(memberPresence[b.id].lastActive!).getTime() : 0
                           return bt - at
                         })
-                        .slice(0, 8)
-                        .map((member, index) => {
+
+                        const renderWarriorCard = (member: any, globalIdx: number, muted: boolean) => {
                           const memberTier = member.publicMetadata?.tier || 'Watchman'
                           const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
                           const tierColor = tierColors[memberTier] || '#6b6b7a'
                           const currentUserId = user?.id || ''
                           const displayName = member.firstName || (member.username && !member.username.startsWith('user_') ? member.username : '') || 'Warrior'
                           const presence = memberPresence[member.id]
-                          const isOnline = isMemberOnline(member.id, member)
                           const lastActive = presence?.lastActive ?? null
                           return (
-                            <div key={member.id} style={{ position: 'relative', overflow: 'visible' }} onMouseEnter={() => showWarriorCard(member.id)} onMouseLeave={hideWarriorCard}>
+                            <div key={member.id} style={{ position: 'relative', overflow: 'visible', opacity: muted ? 0.65 : 1 }} onMouseEnter={() => showWarriorCard(member.id)} onMouseLeave={hideWarriorCard}>
                               <button onClick={() => setViewingProfile(member)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}>
                                 <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
                                   {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
@@ -14207,25 +14206,22 @@ function CommunityPage() {
                                     {memberTier || 'Watchman'}
                                   </span>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                                    {isOnline ? (
+                                    {!muted ? (
                                       <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} />
                                         <span style={{ fontSize: 8, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>ONLINE</span>
                                       </span>
-                                    ) : lastActive && (Date.now() - new Date(lastActive).getTime()) / 60000 <= 120 ? (
-                                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', display: 'inline-block', flexShrink: 0 }} />
-                                        <span style={{ fontSize: 8, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>RECENT</span>
+                                    ) : lastActive ? (
+                                      <span style={{ fontSize: 8, color: isDark ? '#4a3e2a' : '#9a8874', fontFamily: 'var(--font-mono)' }}>
+                                        {(() => { const m = Math.floor((Date.now() - new Date(lastActive).getTime()) / 60000); return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m/60)}h ago` : `${Math.floor(m/1440)}d ago` })()}
                                       </span>
-                                    ) : (
-                                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4b5563', display: 'inline-block' }} />
-                                    )}
+                                    ) : null}
                                   </div>
                                 </div>
                               </button>
                               {hoveredWarrior === member.id && member.id !== currentUserId && (
                                 <div onMouseEnter={() => clearTimeout(warriorHoverTimer.current!)} onMouseLeave={hideWarriorCard}
-                                  style={{ position: 'absolute', bottom: index > 1 ? 'calc(100% + 6px)' : 'auto', top: index > 1 ? 'auto' : 'calc(100% + 6px)', right: 0, left: 0, background: '#0f0c07', border: '1px solid #3a3020', borderTop: index > 1 ? '2px solid #C9A84C' : '1px solid #3a3020', borderBottom: index > 1 ? '1px solid #3a3020' : '2px solid #C9A84C', borderRadius: 6, padding: '12px 14px', zIndex: 200, boxShadow: index > 1 ? '0 -8px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)', minWidth: 160 }}>
+                                  style={{ position: 'absolute', bottom: globalIdx > 1 ? 'calc(100% + 6px)' : 'auto', top: globalIdx > 1 ? 'auto' : 'calc(100% + 6px)', right: 0, left: 0, background: '#0f0c07', border: '1px solid #3a3020', borderTop: globalIdx > 1 ? '2px solid #C9A84C' : '1px solid #3a3020', borderBottom: globalIdx > 1 ? '1px solid #3a3020' : '2px solid #C9A84C', borderRadius: 6, padding: '12px 14px', zIndex: 200, boxShadow: globalIdx > 1 ? '0 -8px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)', minWidth: 160 }}>
                                   <div style={{ fontFamily: cinzel, fontSize: 11, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 10, borderBottom: '1px solid #1e1a0e', paddingBottom: 8 }}>{displayName}</div>
                                   <button onClick={() => setViewingProfile(member)} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 6, textAlign: 'left' as const }}>👤 PROFILE</button>
                                   <button onClick={() => { setPendingDMWith(member.id); setPendingDmName(displayName); setActiveSection('dms') }} onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2218')} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'transparent', border: '1px solid #2a2218', borderRadius: 4, color: '#8a7a60', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'left' as const }}>💬 MESSAGE</button>
@@ -14233,7 +14229,23 @@ function CommunityPage() {
                               )}
                             </div>
                           )
-                        })
+                        }
+
+                        return (
+                          <>
+                            {onlineNow.map((m, i) => renderWarriorCard(m, i, false))}
+                            {recentlyOnline.length > 0 && (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 6px' }}>
+                                  <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,0.1)' }} />
+                                  <span style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: isDark ? '#4a3e2a' : '#9a8874', fontFamily: 'Cinzel, serif' }}>Recently Online</span>
+                                  <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,0.1)' }} />
+                                </div>
+                                {recentlyOnline.map((m, i) => renderWarriorCard(m, onlineNow.length + i, true))}
+                              </>
+                            )}
+                          </>
+                        )
                       })()}
                     </div>
                   )}
