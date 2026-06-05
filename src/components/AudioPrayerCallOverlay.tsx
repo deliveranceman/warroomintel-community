@@ -32,12 +32,18 @@ export default function AudioPrayerCallOverlay({
   const [errorMsg, setErrorMsg] = useState('Could not connect to prayer call. Check mic permissions.')
   const [muted,    setMuted]    = useState(false)
   const [elapsed,  setElapsed]  = useState(0)
+  const [debugLog, setDebugLog] = useState<string[]>([])
 
   // All SDK refs typed as any — SDK only loaded in browser via dynamic import
   const clientRef = useRef<any>(null)
   const callRef   = useRef<any>(null)
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
   const startRef  = useRef(Date.now())
+
+  const dbg = (msg: string) => {
+    console.log('[WRI-CALL]', msg)
+    setDebugLog(prev => [...prev.slice(-8), `${new Date().toLocaleTimeString()}: ${msg}`])
+  }
 
   // Ring tone for caller while connecting
   useEffect(() => {
@@ -72,34 +78,65 @@ export default function AudioPrayerCallOverlay({
 
     const init = async () => {
       try {
+        dbg('Getting auth token...')
         const authToken = await getToken()
         if (!authToken) throw new Error('No auth token')
+        dbg('Auth token OK')
 
         // Dynamic import — never executes during SSR
+        dbg('Loading StreamVideoClient SDK...')
         const { StreamVideoClient } = await import('@stream-io/video-react-sdk')
+        dbg('SDK loaded')
 
         // Get a Stream Video token
+        dbg('Fetching video token...')
         const vtRes = await fetch('/api/stream-video-token', {
           headers: { Authorization: `Bearer ${authToken}` },
         })
-        if (!vtRes.ok) throw new Error(`Video token failed (${vtRes.status})`)
+        dbg(`Token response status: ${vtRes.status}`)
+        if (!vtRes.ok) {
+          const body = await vtRes.text()
+          dbg(`Token error body: ${body.slice(0, 200)}`)
+          throw new Error(`Token ${vtRes.status}: ${body}`)
+        }
         const { apiKey, token: videoToken, userId, name } = await vtRes.json()
+        dbg(`Token OK — callId: ${callId} userId: ${userId}`)
 
         if (cancelled) return
 
         // Init the Stream Video client
+        dbg('Creating StreamVideoClient...')
         const client = new StreamVideoClient({
           apiKey,
           user: { id: userId, name },
           token: videoToken,
         })
         clientRef.current = client
+        dbg('Client created')
 
         // Join / create the call
+        dbg(`Getting call — type: ${callType} id: ${callId}`)
         const call = client.call(callType, callId)
         callRef.current = call
+        dbg('Call object ready')
 
-        await call.join({ create: isCaller })
+        dbg('Requesting mic permission...')
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true })
+          dbg('Mic granted')
+        } catch (micErr: any) {
+          dbg(`Mic DENIED: ${micErr?.message}`)
+          throw micErr
+        }
+
+        dbg('Calling join()...')
+        try {
+          await call.join({ create: isCaller })
+          dbg('join() success — call state: ' + JSON.stringify(call.state?.callingState))
+        } catch (joinErr: any) {
+          dbg(`join() FAILED: ${joinErr?.message || JSON.stringify(joinErr)}`)
+          throw joinErr
+        }
 
         if (cancelled) {
           await call.leave().catch(() => {})
@@ -108,7 +145,9 @@ export default function AudioPrayerCallOverlay({
         }
 
         // Disable camera after join for audio-only
+        dbg('Disabling camera...')
         await call.camera.disable()
+        dbg('Camera disabled — call active')
 
         setStatus('active')
         startRef.current = Date.now()
@@ -118,6 +157,7 @@ export default function AudioPrayerCallOverlay({
         )
       } catch (err: any) {
         const msg = err?.message || String(err)
+        dbg(`INIT ERROR: ${msg}`)
         console.error('[AudioPrayerCallOverlay]', msg)
         if (!cancelled) {
           if (msg.includes('permission') || msg.includes('Permission') || msg.includes('NotAllowed')) {
@@ -161,12 +201,37 @@ export default function AudioPrayerCallOverlay({
     } catch {}
   }
 
+  const debugPanel = debugLog.length > 0 ? (
+    <div style={{
+      marginTop: 16,
+      padding: '10px 12px',
+      background: 'rgba(0,0,0,0.5)',
+      borderRadius: 8,
+      maxWidth: 320,
+      maxHeight: 200,
+      overflowY: 'auto',
+    }}>
+      {debugLog.map((line, i) => (
+        <div key={i} style={{
+          fontSize: 10,
+          color: line.includes('FAIL') || line.includes('DENIED') || line.includes('ERROR') ? '#ef4444' : '#9a8c74',
+          fontFamily: 'monospace',
+          lineHeight: 1.6,
+          wordBreak: 'break-all',
+        }}>
+          {line}
+        </div>
+      ))}
+    </div>
+  ) : null
+
   // ── Overlay styles ─────────────────────────────────────────────────────────
   const overlay: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 2000,
     background: 'rgba(5,4,15,0.96)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     backdropFilter: 'blur(8px)',
+    flexDirection: 'column',
   }
   const card: React.CSSProperties = {
     width: '100%', maxWidth: 360,
@@ -199,6 +264,7 @@ export default function AudioPrayerCallOverlay({
             CLOSE
           </button>
         </div>
+        {debugPanel}
       </div>
     )
   }
@@ -257,6 +323,9 @@ export default function AudioPrayerCallOverlay({
           <div style={{ fontSize: 11, color: status === 'active' ? 'rgba(74,222,128,0.8)' : 'rgba(255,255,255,0.35)', letterSpacing: '0.05em' }}>
             {status === 'connecting' ? (isCaller ? 'Ringing…' : 'Connecting…') : status === 'active' ? '● Connected' : 'Ended'}
           </div>
+
+          {/* Debug panel — visible during connecting and after connected */}
+          {debugPanel}
         </div>
 
         {/* Controls */}
