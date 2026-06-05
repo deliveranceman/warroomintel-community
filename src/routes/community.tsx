@@ -1929,7 +1929,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId }
                 {showCommentary && (
                   <div style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 12, marginTop: 8 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.14em', marginBottom: 4 }}>📖 SOL COMMENTARY</div>
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em', marginBottom: 10 }}>Dake's Annotated Bible · Spiritual Warfare Notes</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em', marginBottom: 10 }}>SOL · Spiritual Warfare Intel</div>
                     {commentaryLoading
                       ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>⚡ SOL is analyzing this passage…</div>
                       : commentary
@@ -7568,11 +7568,12 @@ function extractIntelPreview(response: string): string {
 }
 
 function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
-  const [entries,   setEntries]   = useState<any[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [filter,    setFilter]    = useState('all')
-  const [searchQ,   setSearchQ]   = useState('')
-  const [aiUsage,   setAIUsage]   = useState<{ tier: string; features: any[] } | null>(null)
+  const [entries,         setEntries]         = useState<any[]>([])
+  const [loading,         setLoading]         = useState(true)
+  const [filter,          setFilter]          = useState('all')
+  const [searchQ,         setSearchQ]         = useState('')
+  const [aiUsage,         setAIUsage]         = useState<{ tier: string; features: any[] } | null>(null)
+  const [expandedIntelId, setExpandedIntelId] = useState<string | null>(null)
 
   useEffect(() => {
     getToken().then((token: string | null) => {
@@ -7726,7 +7727,9 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
             {filtered.map(entry => (
-              <div key={entry.id} style={{ background: 'rgba(201,168,76,0.04)', border: `1px solid ${entry.saved ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}`, borderRadius: 10, padding: '14px 16px' }}>
+              <div key={entry.id}
+                onClick={() => setExpandedIntelId(prev => prev === entry.id ? null : entry.id)}
+                style={{ background: 'rgba(201,168,76,0.04)', border: `1px solid ${entry.saved ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
                   {/* Tool badge */}
                   <span style={{
@@ -7739,8 +7742,13 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                     {TOOL_LABELS[entry.tool] || entry.tool}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: crimson, fontSize: 14, color: '#E8D5B0', lineHeight: 1.4, marginBottom: 4 }}>{entry.query}</div>
-                    {entry.response && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ fontFamily: crimson, fontSize: 14, color: '#E8D5B0', lineHeight: 1.4, marginBottom: 4, flex: 1 }}>{entry.query}</div>
+                      <span style={{ fontSize: 10, color: '#6b5e45', marginLeft: 4, flexShrink: 0 }}>
+                        {expandedIntelId === entry.id ? '▼' : '▶'}
+                      </span>
+                    </div>
+                    {expandedIntelId !== entry.id && entry.response && (
                       <div style={{ fontFamily: crimson, fontSize: 12, color: '#8B7355', lineHeight: 1.5 }}>
                         {(preview => `${preview.slice(0, 120)}${preview.length > 120 ? '…' : ''}`)(extractIntelPreview(entry.response))}
                       </div>
@@ -7756,18 +7764,45 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                     <button
-                      onClick={() => toggleSaved(entry.id, entry.saved)}
+                      onClick={e => { e.stopPropagation(); toggleSaved(entry.id, entry.saved) }}
                       title={entry.saved ? 'Unsave' : 'Save'}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4, opacity: entry.saved ? 1 : 0.35, filter: entry.saved ? 'none' : 'grayscale(1)' }}
                     >⭐</button>
                     <button
-                      onClick={() => deleteEntry(entry.id)}
+                      onClick={e => { e.stopPropagation(); deleteEntry(entry.id) }}
                       title="Delete"
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: '#8B7355', opacity: 0.6 }}
                     >🗑</button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                {expandedIntelId === entry.id && (
+                  <div style={{
+                    marginTop: 10,
+                    paddingTop: 10,
+                    borderTop: '1px solid rgba(201,168,76,0.12)',
+                  }}>
+                    {entry.response && (
+                      <div style={{
+                        fontSize: 13, lineHeight: 1.7,
+                        color: '#d4c9b0',
+                        whiteSpace: 'pre-wrap' as const,
+                        fontFamily: crimson,
+                      }}>
+                        {extractIntelPreview(entry.response)}
+                      </div>
+                    )}
+                    {entry.query && (
+                      <div style={{
+                        marginTop: 8, fontSize: 11,
+                        color: '#9a8c74',
+                        fontFamily: crimson,
+                      }}>
+                        Query: {entry.query}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
                   <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.06em' }}>{intelTimeAgo(entry.created_at)}</span>
                   {!entry.saved && (
                     <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.04em' }}>Auto-purges in 90 days</span>
@@ -12861,7 +12896,7 @@ function CommunityPage() {
   }
 
   // ── NAV HELPERS ────────────────────────────────────────────
-  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed', 'ask-sol'])
+  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed', 'ask-sol', 'my-intel'])
   const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network', 'gateway'])
   const intelOpen    = intelligenceOpen || INTELLIGENCE_SECTS.has(activeSection)
   const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
@@ -13245,7 +13280,7 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator','my-intel'].includes(activeSection)) ? 420 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator'].includes(activeSection)) ? 420 : 0, transition: 'max-height 0.2s ease' }}>
               <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
                 data-active={activeSection === 'ops-dashboard' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
@@ -13269,12 +13304,6 @@ function CommunityPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'document-creator' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'document-creator' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'document-creator' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
                 <span>Document Creator</span>
-              </button>
-              <button onClick={() => { setActiveSection('my-intel'); if (isMobile) setSidebarOpen(false) }}
-                data-active={activeSection === 'my-intel' ? 'true' : undefined}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'my-intel' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'my-intel' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'my-intel' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={16} /></span>
-                <span>My Intel</span>
               </button>
             </div>
           </>
@@ -13303,6 +13332,7 @@ function CommunityPage() {
             <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={14} /></span>
             <span>Ask SOL</span>
           </a>
+          {navItem('My Intel', 'my-intel', <span style={{ fontSize: 14, lineHeight: 1 }}>📋</span>)}
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <button
               onClick={() => { setActiveSection('database'); if (isMobile) setSidebarOpen(false) }}
