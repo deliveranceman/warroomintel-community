@@ -144,17 +144,33 @@ export default function AudioPrayerCallOverlay({
           return
         }
 
-        // Disable camera after join for audio-only
-        dbg('Disabling camera...')
-        await call.camera.disable()
-        dbg('Camera disabled — call active')
+        // Disable camera fire-and-forget — do not await (can hang indefinitely)
+        call.camera.disable().catch(() => {})
+        dbg('join() resolved — starting call')
 
-        setStatus('active')
         startRef.current = Date.now()
         timerRef.current = setInterval(
           () => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)),
           1000,
         )
+
+        if (!isCaller) {
+          setStatus('active')
+          dbg('Callee — active')
+        } else {
+          dbg('Caller — waiting for recipient to join')
+          const ringCheck = setInterval(() => {
+            if (cancelled) { clearInterval(ringCheck); return }
+            const parts = (call.state?.participants || []) as any[]
+            dbg(`Ring check — participants: ${parts.length}`)
+            if (parts.length >= 2) {
+              setStatus('active')
+              clearInterval(ringCheck)
+              dbg('Recipient joined — active')
+            }
+          }, 2000)
+          setTimeout(() => { clearInterval(ringCheck) }, 60000)
+        }
       } catch (err: any) {
         const msg = err?.message || String(err)
         dbg(`INIT ERROR: ${msg}`)
