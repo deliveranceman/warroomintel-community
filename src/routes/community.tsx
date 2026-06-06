@@ -9698,7 +9698,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean }) {
   const [token, setToken]                     = useState('')
   const [conversations, setConversations]     = useState<MConversation[]>([])
   const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
@@ -9740,6 +9740,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [caTerritory, setCaTerritory]               = React.useState('')
   const [caInvites, setCaInvites]                   = React.useState<string[]>([])
   const [caCreating, setCaCreating]                 = React.useState(false)
+  const [sentPendingRequests, setSentPendingRequests] = React.useState<any[]>([])
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef           = React.useRef<EventSource | null>(null)
@@ -9838,6 +9839,15 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     } catch {}
   }, [getToken])
 
+  const fetchSentPending = React.useCallback(async () => {
+    const t = await getToken()
+    if (!t) return
+    try {
+      const d = await fetch('/api/dm-request?action=list-sent', { headers: { Authorization: `Bearer ${t}` } }).then(r => r.json())
+      if (Array.isArray(d.requests)) setSentPendingRequests(d.requests)
+    } catch {}
+  }, [getToken])
+
   // ── Load conversations ──
   useEffect(() => {
     if (!userId) return
@@ -9865,6 +9875,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     fetchSentinels()
     fetchSentinelRequests()
     fetchCoverAll()
+    fetchSentPending()
   }, [userId])
 
   // ── Poll inbound pending DM requests every 30s ──
@@ -9872,6 +9883,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     if (!userId) return
     fetchPendingInbound()
     const interval = setInterval(fetchPendingInbound, 30000)
+    return () => clearInterval(interval)
+  }, [userId])
+
+  // ── Poll sent pending DM requests every 30s ──
+  useEffect(() => {
+    if (!userId) return
+    const interval = setInterval(fetchSentPending, 30000)
     return () => clearInterval(interval)
   }, [userId])
 
@@ -9892,11 +9910,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         fetchSentinels()
         fetchSentinelRequests()
         fetchCoverAll()
+        fetchSentPending()
       }
     }
     document.addEventListener('visibilitychange', handleVisible)
     return () => document.removeEventListener('visibilitychange', handleVisible)
-  }, [fetchConversations, fetchPendingInbound, fetchFireTeams, fetchSentinels, fetchSentinelRequests, fetchCoverAll])
+  }, [fetchConversations, fetchPendingInbound, fetchFireTeams, fetchSentinels, fetchSentinelRequests, fetchCoverAll, fetchSentPending])
 
   // ── Poll for incoming prayer calls every 10s ──
   useEffect(() => {
@@ -9922,7 +9941,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   // ── Auto-dismiss dmError ──
   useEffect(() => {
     if (!dmError) return
-    const t = setTimeout(() => setDmError(null), 5000)
+    const t = setTimeout(() => setDmError(null), 2000)
     return () => clearTimeout(t)
   }, [dmError])
 
@@ -10216,26 +10235,28 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     return lm.text?.slice(0, 45) || 'Message'
   }
 
+  // ── Styles ──
+  const BG    = isDark ? '#0a0a12' : '#FAF8F5'
+  const SURF  = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
+  const BDR   = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const GLD   = '#C9A84C'
+  const WMUT  = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)'
+  const WDIM  = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)'
+  const TXT   = isDark ? '#e8dcc8' : '#1a1a2e'
+  const WTXT  = isDark ? '#fff' : '#1a1a2e'
+
   // ── Tier gate ──
   if (tierLevel < 1) {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0D0B14', padding: '40px 20px' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
         <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
           <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ DIRECT MESSAGES</div>
-          <div style={{ fontSize: 15, color: 'rgba(232,224,208,0.6)', marginBottom: 20, lineHeight: 1.6 }}>Direct messaging is available to Soldier members and above.</div>
+          <div style={{ fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', marginBottom: 20, lineHeight: 1.6 }}>Direct messaging is available to Soldier members and above.</div>
           <a href="/membership" style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, textDecoration: 'none', display: 'inline-block' }}>UPGRADE TO SOLDIER →</a>
         </div>
       </div>
     )
   }
-
-  // ── Styles ──
-  const BG    = '#0a0a12'
-  const SURF  = 'rgba(255,255,255,0.04)'
-  const BDR   = 'rgba(255,255,255,0.08)'
-  const GLD   = '#C9A84C'
-  const WMUT  = 'rgba(255,255,255,0.4)'
-  const WDIM  = 'rgba(255,255,255,0.25)'
 
   return (
     <>
@@ -10359,13 +10380,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         display: isMobileLayout && mobileView === 'chat' ? 'none' : 'flex',
         flexDirection: 'column' as const,
         overflow: 'hidden',
-        background: 'rgba(0,0,0,0.3)',
+        background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)',
         position: 'relative' as const,
       }}>
         {/* Header */}
         <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: WTXT, fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>Messages</span>
             {(() => { const n = conversations.filter(c => c.otherMember?.online).length; return n > 0 ? <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: '#4ade80', letterSpacing: '0.1em', marginTop: 1 }}><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#22c55e', marginRight: 4, verticalAlign: 'middle' }} />{plural(n, 'soldier')} online</div> : null })()}</div>
           <button
             onClick={() => setShowNewDM(true)}
@@ -10382,7 +10403,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
               flex: 1, padding: '8px 0', fontSize: 11, cursor: 'pointer',
               background: 'none', border: 'none',
-              color: activeTab === tab ? '#fff' : WMUT,
+              color: activeTab === tab ? WTXT : WMUT,
               borderBottom: activeTab === tab ? `2px solid ${GLD}` : '2px solid transparent',
               fontFamily: "'Cinzel',serif", letterSpacing: '0.06em',
               textTransform: 'uppercase' as const,
@@ -10400,8 +10421,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             placeholder="Search…"
             style={{
               width: '100%', padding: '7px 12px', borderRadius: 20, boxSizing: 'border-box' as const,
-              background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`,
-              color: '#fff', fontSize: 12, outline: 'none',
+              background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', border: `1px solid ${BDR}`,
+              color: WTXT, fontSize: 12, outline: 'none',
               fontFamily: 'inherit',
             }}
           />
@@ -10499,7 +10520,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   <span style={{ fontFamily: 'var(--font-cinzel,serif)', fontSize: 11, color: GLD }}>{r.requesterName?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: '#e8dcc8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.requesterName}</div>
+                  <div style={{ fontSize: 13, color: TXT, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.requesterName}</div>
                   <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{r.requesterTier}</div>
                 </div>
                 <button
@@ -10537,6 +10558,37 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     setPendingInbound(prev => prev.filter(x => x.id !== r.id))
                   }}
                 >✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Sent pending DM requests ── */}
+        {sentPendingRequests.length > 0 && (
+          <div style={{ margin: '0 12px 10px', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${BDR}`, borderRadius: 8, padding: 12, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{ fontFamily: 'var(--font-cinzel,serif)', fontSize: 10, color: WMUT, fontWeight: 600, letterSpacing: '0.08em' }}>📤 PENDING REQUESTS</span>
+            </div>
+            {sentPendingRequests.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '7px 10px', background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.04)', borderRadius: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: TXT, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.recipient_name || r.recipientName || 'Warrior'}</div>
+                  <div style={{ fontSize: 10, color: WMUT }}>Awaiting response</div>
+                </div>
+                <button
+                  type="button"
+                  style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
+                  onClick={async () => {
+                    const t = await getToken()
+                    if (!t) return
+                    await fetch(`/api/dm-request?action=cancel`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: r.id }),
+                    }).catch(() => {})
+                    setSentPendingRequests(prev => prev.filter(x => x.id !== r.id))
+                  }}
+                >Cancel</button>
               </div>
             ))}
           </div>
@@ -10587,14 +10639,14 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     }
                   </div>
                   {!isSol && (
-                    <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: convo.otherMember?.online ? '#22c55e' : '#6b7280', border: '1.5px solid #0a0a12' }} />
+                    <div style={{ position: 'absolute' as const, bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: convo.otherMember?.online ? '#22c55e' : '#6b7280', border: `1.5px solid ${BG}` }} />
                   )}
                 </div>
 
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: WTXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       {convo.otherMember?.name || 'Unknown'}
                     </span>
                     <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>
@@ -11056,6 +11108,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         setDmError(data.message || 'This user cannot receive DMs on the free tier.')
                       } else if (data.pending) {
                         setDmError(data.message || 'DM request sent — waiting for acceptance.')
+                        fetchSentPending()
                       } else if (data.declined) {
                         setDmError(data.message || 'Your DM request was declined.')
                       }
@@ -13572,7 +13625,7 @@ function CommunityPage() {
       {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
-      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} />}
+      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} />}
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
@@ -13998,7 +14051,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'dms' && (
-          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} />
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} />
         )}
         {activeSection === 'members'     && (
           <MembersView
