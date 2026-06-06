@@ -9506,26 +9506,6 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
     }
   }
 
-  async function sendTestEmail() {
-    if (!testEmailAddr) return
-    setTestEmailSending(true)
-    setTestEmailResult(null)
-    try {
-      const token = await getToken()
-      const res = await fetch(`/api/send-email?action=test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email: testEmailAddr, type: testEmailType }),
-      })
-      const data = await res.json()
-      setTestEmailResult(res.ok ? `Sent ${testEmailType} to ${testEmailAddr}` : `Error: ${data.error}`)
-    } catch (err: any) {
-      setTestEmailResult(`Error: ${err.message}`)
-    } finally {
-      setTestEmailSending(false)
-    }
-  }
-
   const lbl: CSSProperties = { fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: isDark ? '#9a8c74' : '#5C5248', display: 'block', marginBottom: 4 }
   const inp: CSSProperties = { width: '100%', padding: '8px 10px', background: isDark ? '#13111e' : '#fff', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : '#d4c4b0'}`, borderRadius: 4, color: isDark ? '#e8dcc8' : '#1C1410', fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' }
 
