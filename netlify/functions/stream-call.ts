@@ -95,7 +95,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     const callId   = `prayer-${channelId}-${Date.now()}`
-    const callType = 'audio_room'
+    const callType = 'default'
 
     // Create Stream Video call
     const client = streamClient()

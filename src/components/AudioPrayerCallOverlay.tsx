@@ -114,9 +114,9 @@ export default function AudioPrayerCallOverlay({
         clientRef.current = client
         dbg('Client created')
 
-        // Join / create the call
-        dbg(`Getting call — type: ${callType} id: ${callId}`)
-        const call = client.call(callType, callId)
+        // Join / create the call — DIAG: hardcoded 'default' to isolate call type as the WS failure variable
+        dbg(`[VIDEO DIAG] Getting call — type: default id: ${callId}`)
+        const call = client.call('default', callId)
         callRef.current = call
         dbg('Call object ready')
 
@@ -129,7 +129,7 @@ export default function AudioPrayerCallOverlay({
           throw micErr
         }
 
-        dbg(`PRE-JOIN apiKey=${!!apiKey} userId=${userId} callType=${callType} callId=${callId} isCaller=${isCaller} tokenLen=${videoToken?.length}`)
+        dbg(`[VIDEO DIAG] callType=default callId=${callId} userId=${userId} isCaller=${isCaller} tokenLen=${videoToken?.length}`)
         dbg('Calling join()...')
         try {
           await (isCaller ? call.join({ create: true }) : call.join())
