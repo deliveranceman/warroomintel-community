@@ -119,6 +119,15 @@ img, video, canvas, svg {
   }
 }
 
+/* ── Scrollable filter pill rows (no scrollbar) ───────────────── */
+.filter-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.filter-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── WRI command palette backdrop ───────────────────────────────── */
 .wri-cmd-backdrop {
   position: fixed;

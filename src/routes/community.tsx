@@ -868,7 +868,7 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
     <div
       onMouseEnter={() => onHover?.(msg.id)}
       onMouseLeave={() => onHover?.(null)}
-      style={{ position: 'relative', background: hoveredId === msg.id ? (isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.06)') : V.surf, border: `1px solid ${hoveredId === msg.id ? 'rgba(201,168,76,0.5)' : V.bdr}`, padding: 20, marginBottom: 12, overflow: 'visible', transition: 'background 0.15s, border-color 0.15s', cursor: 'default' }}
+      style={{ position: 'relative', background: hoveredId === msg.id ? (isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.06)') : V.surf, border: `1px solid ${hoveredId === msg.id ? 'rgba(201,168,76,0.5)' : V.bdr}`, borderRadius: 12, padding: 20, marginBottom: 12, overflow: 'visible', transition: 'background 0.15s, border-color 0.15s', cursor: 'default' }}
     >
       {/* Bracket corners */}
       <div style={{ position: 'absolute', top: -1, left: -1, width: 10, height: 10, borderTop: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
@@ -876,18 +876,18 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
       <div style={{ position: 'absolute', bottom: -1, left: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderRight: '1px solid var(--gold)', pointerEvents: 'none' }} />
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid var(--gold-line)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid var(--gold-line)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
           {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <MonoTime size={13}>{msg.user?.name || msg.user?.id || 'Warrior'}</MonoTime>
+            <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.04em' }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
             {isFounder && <FoundingBadge />}
             {pinned && <HUDChip>HOST</HUDChip>}
             {isNew && <StatusDot kind="ok" label="New" size={5} />}
             <MonoTime color="var(--t-3)" size={11}>{time}</MonoTime>
           </div>
-          <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: V.txt, lineHeight: 1.75, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: V.txt, lineHeight: 1.6, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
           {/* Reactions */}
           <div style={{ position: 'relative', display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 8, alignItems: 'center' }}>
             {hoveredId === msg.id && streamToken && (
@@ -1328,7 +1328,7 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
       )}
 
       {/* Category filter chips */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' as const }}>
+      <div className="filter-scroll" style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'nowrap' as const, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
         {TESTIMONY_CATEGORIES.map(cat => (
           <button key={cat} onClick={() => setActiveFilter(cat)}
             style={{ padding: '4px 12px', background: activeFilter === cat ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${activeFilter === cat ? GG : bdr}`, borderRadius: 20, color: activeFilter === cat ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
@@ -1356,12 +1356,12 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
             return (
               <div key={t.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '20px 22px', borderLeft: `3px solid ${GG}`, boxShadow: shadow }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 12, color: GG, flexShrink: 0, overflow: 'hidden' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 12, color: GG, flexShrink: 0, overflow: 'hidden' }}>
                     {t.user_image ? <img src={t.user_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} /> : initial}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, letterSpacing: '0.04em' }}>{t.user_name}</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 14, color: txt, letterSpacing: '0.04em' }}>{t.user_name}</div>
                       {t.is_founder && <FoundingBadge />}
                     </div>
                     <div style={{ fontSize: 10, color: mut, marginTop: 1 }}>
@@ -1370,7 +1370,7 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
                   </div>
                 </div>
                 <div style={{ fontFamily: cinzel, fontSize: 14, color: GG, letterSpacing: '0.04em', marginBottom: 10 }}>{t.title}</div>
-                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7, marginBottom: 12 }}>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.6, marginBottom: 12 }}>
                   {isExpanded ? t.body : preview}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1382,7 +1382,7 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
                   )}
                   <button
                     onClick={() => handleReaction(t.id)}
-                    style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', background: hasReacted ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${hasReacted ? GG : bdr}`, borderRadius: 20, color: hasReacted ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: hasReacted ? 'default' : 'pointer', textTransform: 'uppercase' as const }}>
+                    style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', minHeight: 44, background: hasReacted ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${hasReacted ? GG : bdr}`, borderRadius: 20, color: hasReacted ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: hasReacted ? 'default' : 'pointer', textTransform: 'uppercase' as const }}>
                     <span>⚔</span>
                     <span>Standing with You</span>
                     {count > 0 && <span style={{ color: GG, fontWeight: 700 }}>{count}</span>}
@@ -4068,7 +4068,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           Search by name, symptom, manifestation, entry point, or emotional pattern
         </p>
         {/* Hierarchy category filter pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, paddingBottom: 12 }}>
+        <div className="filter-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 10, paddingBottom: 8 }}>
           {HIERARCHY_CATEGORIES.map(cat => {
             const isAll = cat === 'All'
             const active = isAll ? !categoryFilter : categoryFilter === cat
@@ -4095,7 +4095,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           })}
         </div>
         {/* Biblical rank filter */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, maxWidth: '100%' }}>
+        <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 8 }}>
           {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
             <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
               style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
@@ -4104,7 +4104,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           ))}
         </div>
         {/* Generational / Territorial badges */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 6 }}>
+        <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' as const, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 6 }}>
           <button onClick={() => setGenerationalFilter(f => !f)}
             style={{ padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
             🧬 Generational
@@ -11476,18 +11476,18 @@ function SitrepCard({
     <div style={{
       background: isDark ? 'rgba(255,255,255,0.025)' : '#fff',
       border: `1px solid rgba(201,168,76,0.12)`,
-      borderRadius: 10,
+      borderRadius: 12,
       padding: '14px 16px',
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.18)', border: `1px solid rgba(201,168,76,0.35)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(201,168,76,0.18)', border: `1px solid rgba(201,168,76,0.35)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <span style={{ fontFamily: cinzel, fontSize: 11, color: GC, fontWeight: 700 }}>{shortActor}</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.06em' }}>{displayName.toUpperCase()}</span>
+            <span style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.06em' }}>{displayName.toUpperCase()}</span>
             {activity.data?.tier && (
               <span style={{ fontFamily: cinzel, fontSize: 7, color: typeStyle.text, background: typeStyle.bg, border: `1px solid ${typeStyle.text}40`, borderRadius: 3, padding: '1px 5px', letterSpacing: '0.06em' }}>{activity.data.tier.toUpperCase()}</span>
             )}
@@ -11551,7 +11551,7 @@ function SitrepCard({
                 display: 'flex', alignItems: 'center', gap: 4,
                 background: on ? 'rgba(201,168,76,0.15)' : 'transparent',
                 border: `1px solid ${on ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}`,
-                borderRadius: 16, padding: '4px 10px', cursor: 'pointer',
+                borderRadius: 16, padding: '4px 10px', minHeight: 44, cursor: 'pointer',
                 fontFamily: cinzel, fontSize: 8, color: on ? G : (isDark ? '#6b5e45' : '#9a8874'),
                 letterSpacing: '0.06em', transition: 'all 0.15s',
                 WebkitTapHighlightColor: 'transparent',
@@ -11727,7 +11727,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
         <div style={{ padding: '14px 16px', borderBottom: `1px solid rgba(201,168,76,0.15)`, background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.04)', flexShrink: 0 }}>
           <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.08em', marginBottom: 10 }}>What's on your heart?</div>
           {/* Post type pills */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+          <div className="filter-scroll" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, gap: 6, marginBottom: 12 }}>
             {SITREP_POST_TYPES.map(t => (
               <button
                 key={t.key}
