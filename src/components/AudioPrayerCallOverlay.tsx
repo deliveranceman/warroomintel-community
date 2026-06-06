@@ -129,12 +129,13 @@ export default function AudioPrayerCallOverlay({
           throw micErr
         }
 
+        dbg(`PRE-JOIN apiKey=${!!apiKey} userId=${userId} callType=${callType} callId=${callId} isCaller=${isCaller} tokenLen=${videoToken?.length}`)
         dbg('Calling join()...')
         try {
-          await call.join({ create: isCaller })
+          await (isCaller ? call.join({ create: true }) : call.join())
           dbg('join() success — call state: ' + JSON.stringify(call.state?.callingState))
         } catch (joinErr: any) {
-          dbg(`join() FAILED: ${joinErr?.message || JSON.stringify(joinErr)}`)
+          dbg(`join() FAILED: ${JSON.stringify(joinErr, Object.getOwnPropertyNames(joinErr))}`)
           throw joinErr
         }
 

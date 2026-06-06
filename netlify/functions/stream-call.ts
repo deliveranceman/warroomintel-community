@@ -109,7 +109,7 @@ export default async function handler(req: Request): Promise<Response> {
         ],
         custom: { channelId, mode: 'audio', purpose: 'prayer_call' },
       },
-      ring: true,
+      ring: false,
     })
 
     // Record in Supabase
