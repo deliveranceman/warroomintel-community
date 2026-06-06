@@ -2118,7 +2118,7 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, ge
         {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
         <div>
           <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>⚡ Ops Dashboard</div>
-          {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Minister command center</div>}
+          {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Adjutant command center</div>}
         </div>
       </div>
 
@@ -10842,8 +10842,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
         {/* ── Create Fire Team modal ── */}
         {showCreateFireTeam && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: '#0f0e1a', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
+          <div style={{ position: 'fixed', inset: 0, background: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.4)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: isDark ? '#0f0e1a' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(201,168,76,0.35)' : 'rgba(30,40,80,0.15)'}`, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: GLD, letterSpacing: '0.1em', fontWeight: 700 }}>⚔ CREATE FIRE TEAM</span>
                 <button type="button" onClick={() => setShowCreateFireTeam(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
@@ -10856,7 +10856,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   value={ftName}
                   onChange={e => setFtName(e.target.value.slice(0, 50))}
                   placeholder="e.g. Copper Basin Watchmen"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: "'Cinzel',serif" }}
+                  style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 8, padding: '9px 12px', color: isDark ? '#fff' : '#0F1523', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: "'Cinzel',serif" }}
                 />
               </div>
 
@@ -10877,8 +10877,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       onClick={() => setFtType(opt.value)}
                       style={{
                         padding: '6px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer', touchAction: 'manipulation',
-                        background: ftType === opt.value ? GLD : 'rgba(255,255,255,0.06)',
-                        color: ftType === opt.value ? '#000' : '#fff',
+                        background: ftType === opt.value ? GLD : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                        color: ftType === opt.value ? '#000' : (isDark ? '#fff' : '#0F1523'),
                         border: ftType === opt.value ? 'none' : `1px solid ${BDR}`,
                         fontWeight: ftType === opt.value ? 700 : 400,
                       }}
@@ -10895,7 +10895,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   onChange={e => setFtDescription(e.target.value.slice(0, 100))}
                   placeholder="What is this team's assignment?"
                   rows={2}
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 12, outline: 'none', resize: 'none' as const, boxSizing: 'border-box' as const, fontFamily: 'var(--font-crimson, serif)' }}
+                  style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7', border: `1px solid ${BDR}`, borderRadius: 8, padding: '9px 12px', color: isDark ? '#fff' : '#0F1523', fontSize: 12, outline: 'none', resize: 'none' as const, boxSizing: 'border-box' as const, fontFamily: 'var(--font-crimson, serif)' }}
                 />
                 <div style={{ fontSize: 10, color: WDIM, textAlign: 'right' as const }}>{ftDescription.length}/100</div>
               </div>
@@ -10935,20 +10935,20 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         disabled={disabled}
                         onClick={() => setFtInviteIds(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
                         style={{ width: '100%', background: isSelected ? 'rgba(201,168,76,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
-                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.1)' : 'rgba(255,255,255,0.05)' }}
+                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.1)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,40,80,0.04)') }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.08)' : 'none' }}
                       >
-                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? GLD : 'rgba(255,255,255,0.3)'}`, background: isSelected ? GLD : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? GLD : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(30,40,80,0.3)')}`, background: isSelected ? GLD : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
                         </div>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: GLD, flexShrink: 0, overflow: 'hidden' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? 'rgba(201,168,76,0.15)' : '#E8ECF1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: isDark ? GLD : '#4A5568', flexShrink: 0, overflow: 'hidden' }}>
                           {member.imageUrl
                             ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
                           }
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: '#fff', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                          <div style={{ fontSize: 12, color: isDark ? '#d4c9b0' : '#0F1523', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
                           <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
                         </div>
                       </button>
@@ -10992,8 +10992,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
         {/* ── Cover All creation modal ── */}
         {showCreateCoverAll && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: '#0f0e1a', border: '1px solid rgba(106,172,239,0.35)', borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
+          <div style={{ position: 'fixed', inset: 0, background: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.4)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: isDark ? '#0f0e1a' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(106,172,239,0.35)' : 'rgba(30,40,80,0.15)'}`, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' as const, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: '#6aacef', letterSpacing: '0.1em', fontWeight: 700 }}>🛡 CREATE COVER ALL</span>
                 <button type="button" onClick={() => setShowCreateCoverAll(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
@@ -11006,7 +11006,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   value={caName}
                   onChange={e => setCaName(e.target.value.slice(0, 60))}
                   placeholder="e.g. Texas Gulf Coast Watchmen"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(106,172,239,0.4)', borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: "'Cinzel',serif" }}
+                  style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7', border: '1px solid rgba(106,172,239,0.4)', borderRadius: 8, padding: '9px 12px', color: isDark ? '#fff' : '#0F1523', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: "'Cinzel',serif" }}
                 />
               </div>
 
@@ -11017,7 +11017,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   value={caTerritory}
                   onChange={e => setCaTerritory(e.target.value.slice(0, 80))}
                   placeholder="City, state, region, or nation"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'var(--font-crimson, serif)' }}
+                  style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7', border: `1px solid ${BDR}`, borderRadius: 8, padding: '9px 12px', color: isDark ? '#fff' : '#0F1523', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'var(--font-crimson, serif)' }}
                 />
               </div>
 
@@ -11059,20 +11059,20 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         disabled={disabled}
                         onClick={() => setCaInvites(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
                         style={{ width: '100%', background: isSelected ? 'rgba(106,172,239,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
-                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.1)' : 'rgba(255,255,255,0.05)' }}
+                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.1)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,40,80,0.04)') }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.08)' : 'none' }}
                       >
-                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? '#6aacef' : 'rgba(255,255,255,0.3)'}`, background: isSelected ? '#6aacef' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? '#6aacef' : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(30,40,80,0.3)')}`, background: isSelected ? '#6aacef' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
                         </div>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(106,172,239,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#6aacef', flexShrink: 0, overflow: 'hidden' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? 'rgba(106,172,239,0.15)' : '#E8ECF1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: isDark ? '#6aacef' : '#4A5568', flexShrink: 0, overflow: 'hidden' }}>
                           {member.imageUrl
                             ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
                           }
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: '#fff', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                          <div style={{ fontSize: 12, color: isDark ? '#d4c9b0' : '#0F1523', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
                           <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
                         </div>
                       </button>
@@ -11125,7 +11125,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           onClick={() => { setShowNewDM(false); setDmSearch('') }}
           style={{
             position: 'fixed', inset: 0, zIndex: 400,
-            background: 'rgba(0,0,0,0.6)',
+            background: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.4)',
             display: showNewDM ? 'block' : 'none',
           }}
         />
@@ -11133,9 +11133,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           position: 'fixed',
           bottom: 0, left: 0, right: 0,
           zIndex: 401,
-          background: '#1C1410',
+          background: isDark ? '#1C1410' : '#FFFFFF',
           borderRadius: '16px 16px 0 0',
-          borderTop: '1px solid rgba(201,168,76,0.2)',
+          borderTop: isDark ? '1px solid rgba(201,168,76,0.2)' : '1px solid rgba(30,40,80,0.15)',
           paddingBottom: 'env(safe-area-inset-bottom)',
           maxHeight: '70dvh',
           display: 'flex',
@@ -11146,9 +11146,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           {/* Drag handle */}
           <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(201,168,76,0.3)', margin: '12px auto 0', flexShrink: 0 }} />
           {/* Header */}
-          <div style={{ padding: '12px 16px', fontFamily: "'Cinzel',serif", fontSize: 13, color: GLD, letterSpacing: '0.1em', borderBottom: '1px solid rgba(201,168,76,0.1)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '12px 16px', fontFamily: "'Cinzel',serif", fontSize: 13, color: isDark ? GLD : '#A07830', letterSpacing: '0.1em', borderBottom: isDark ? '1px solid rgba(201,168,76,0.1)' : '1px solid rgba(30,40,80,0.1)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>NEW MESSAGE</span>
-            <button onClick={() => { setShowNewDM(false); setDmSearch('') }} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
+            <button onClick={() => { setShowNewDM(false); setDmSearch('') }} style={{ background: 'none', border: 'none', color: isDark ? WMUT : '#4A5568', cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
           </div>
           {/* Search */}
           <div style={{ padding: '12px 16px', flexShrink: 0 }}>
@@ -11157,7 +11157,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               onChange={e => setDmSearch(e.target.value)}
               placeholder="Search soldiers…"
               autoFocus={showNewDM}
-              style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: '#e8dcc8', fontFamily: "'Cinzel',serif", fontSize: 12, boxSizing: 'border-box' as const, outline: 'none' }}
+              style={{ width: '100%', padding: '10px 14px', background: isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7', border: isDark ? '1px solid rgba(201,168,76,0.2)' : '1px solid rgba(30,40,80,0.15)', borderRadius: 8, color: isDark ? '#e8dcc8' : '#0F1523', fontFamily: "'Cinzel',serif", fontSize: 12, boxSizing: 'border-box' as const, outline: 'none' }}
             />
           </div>
           {/* Member list */}
@@ -11202,17 +11202,17 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     onClick={handleMemberTap}
                     onTouchEnd={(e) => { e.preventDefault(); handleMemberTap() }}
                     style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                    onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,40,80,0.04)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                   >
-                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '1.5px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: isDark ? 'rgba(201,168,76,0.15)' : '#E8ECF1', border: '1.5px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', pointerEvents: 'none' }}>
                       {member.imageUrl
                         ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
-                        : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: GLD, pointerEvents: 'none' }}>{member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
+                        : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: isDark ? GLD : '#4A5568', pointerEvents: 'none' }}>{member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
                       }
                     </div>
                     <div style={{ flex: 1, minWidth: 0, pointerEvents: 'none' }}>
-                      <div style={{ fontSize: 13, color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                      <div style={{ fontSize: 13, color: isDark ? '#d4c9b0' : '#0F1523', fontWeight: 500, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
                       <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
                     </div>
                   </button>
