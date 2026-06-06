@@ -45,16 +45,19 @@ export default async function handler(req: Request) {
     }
 
     // Single update
-    const { id, title, tier, topic, notes, tags, spirit_tags } = body || {}
+    const { id, title, tier, topic, notes, tags, spirit_tags, content_tier, access_tier, draft } = body || {}
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 })
 
     const updates: Record<string, any> = {}
-    if (title       !== undefined) updates.title       = title
-    if (tier        !== undefined) updates.tier        = tier
-    if (topic       !== undefined) updates.topic       = topic
-    if (notes       !== undefined) updates.notes       = notes
-    if (tags        !== undefined) updates.tags        = Array.isArray(tags) ? tags : []
-    if (spirit_tags !== undefined) updates.spirit_tags = Array.isArray(spirit_tags) ? spirit_tags : []
+    if (title        !== undefined) updates.title        = title
+    if (tier         !== undefined) updates.tier         = tier
+    if (topic        !== undefined) updates.topic        = topic
+    if (notes        !== undefined) updates.notes        = notes
+    if (tags         !== undefined) updates.tags         = Array.isArray(tags) ? tags : []
+    if (spirit_tags  !== undefined) updates.spirit_tags  = Array.isArray(spirit_tags) ? spirit_tags : []
+    if (content_tier !== undefined) updates.content_tier = content_tier === null ? null : Number(content_tier)
+    if (access_tier  !== undefined) updates.access_tier  = access_tier
+    if (draft        !== undefined) updates.draft        = draft === true || draft === 'true'
 
     const { data: row, error } = await supabase
       .from('resources')

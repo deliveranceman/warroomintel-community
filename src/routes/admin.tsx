@@ -90,6 +90,16 @@ async function authFetch(url: string, getToken: () => Promise<string | null>, op
   })
 }
 
+const ARSENAL_TIERS = [
+  { tier: 1, label: 'Spirit Intelligence', icon: '⚔', description: 'Principalities, powers, spirit line dossiers — Eph 6:12', categories: ['Spirit Line Dossier','Individual Spirit Dossier','Spirit Network Map','Territorial Dossier','Cluster Intelligence'] },
+  { tier: 2, label: 'Warfare Arsenal',      icon: '🛡', description: 'Combat prayers, renunciations, declarations',            categories: ['Warfare Prayer','Renunciation','Declaration','Courts of Heaven','Covering & Protection'] },
+  { tier: 3, label: 'Healing & Wholeness',  icon: '🩹', description: 'Soul wounds, inner healing, bloodline breaking',         categories: ['Soul Wounds','Bloodline & Generational','Inner Healing','Identity & Restoration'] },
+  { tier: 4, label: 'Institutional Intel',  icon: '🏛', description: 'Rulers of darkness through earthly systems',            categories: ['Freemasonry & Secret Societies','Occult & Witchcraft Systems','False Religion & Cults','Cultural & Media Gateways','Government & Political Spirits'] },
+  { tier: 5, label: 'Ministry Training',    icon: '📋', description: 'Deliverance protocols, field manual, training',          categories: ['Deliverance Ministry','Spiritual Discernment','Session Preparation','Field Manual','Spiritual Mapping'] },
+  { tier: 6, label: 'Devotional & Scripture',icon: '📖', description: 'Scripture studies, teaching series, devotionals',      categories: ['Scripture Study','Teaching Series','Devotional','Weekly Intel'] },
+  { tier: 7, label: 'Helps',                icon: '👥', description: '1 Cor 12:28 — general community helps',                 categories: ["Men's Ministry","Women's Ministry",'Marriage & Family','Youth & Next Generation','General Sermon','Encouragement'] },
+]
+
 // ─── ARSENAL MANAGER ─────────────────────────────────────────────────────────
 function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
   const [resources, setResources]       = useState<any[]>([])
@@ -102,6 +112,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
     status: 'pending'|'uploading'|'done'|'error'|'duplicate'; errorMsg?: string;
     topic?: string; description?: string; spirit_tags?: string[]; aiStatus?: 'idle'|'loading'|'done'|'error';
     duplicateMatch?: any;
+    content_tier?: number; access_tier?: string; draft?: boolean; tags?: string[];
   }[]>([])
   const [listExpanded, setListExpanded] = useState(true)
   const [bulkUploading, setBulkUploading] = useState(false)
@@ -332,7 +343,10 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         fd.append('topic', sf.topic || 'Spiritual Warfare')
         fd.append('description', sf.description || '')
         fd.append('spirit_tags', JSON.stringify(sf.spirit_tags || []))
-        fd.append('tags', '[]')
+        fd.append('tags', JSON.stringify(sf.tags || []))
+        if (sf.content_tier) fd.append('content_tier', String(sf.content_tier))
+        if (sf.access_tier)  fd.append('access_tier', sf.access_tier)
+        if (sf.draft)        fd.append('draft', 'true')
         const token = await getToken()
         const res = await fetch('/api/admin-upload', {
           method: 'POST',
@@ -503,6 +517,50 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                             {sf.spirit_tags.map(tag => (
                               <span key={tag} style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 10, padding: '1px 6px' }}>{tag}</span>
                             ))}
+                          </div>
+                        )}
+                        {(sf.status === 'pending' || sf.status === 'duplicate') && (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 5, alignItems: 'center' }}>
+                            <select
+                              value={sf.content_tier ?? ''}
+                              onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, content_tier: e.target.value ? Number(e.target.value) : undefined, topic: undefined } : x))}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
+                            >
+                              <option value=''>Tier…</option>
+                              {ARSENAL_TIERS.map(t => <option key={t.tier} value={t.tier}>{t.icon} {t.tier}. {t.label}</option>)}
+                            </select>
+                            <select
+                              value={sf.topic ?? ''}
+                              onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, topic: e.target.value } : x))}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
+                            >
+                              <option value=''>Category…</option>
+                              {(sf.content_tier
+                                ? (ARSENAL_TIERS.find(t => t.tier === sf.content_tier)?.categories ?? [])
+                                : ARSENAL_TIERS.flatMap(t => t.categories)
+                              ).map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <select
+                              value={sf.access_tier ?? 'watchman'}
+                              onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, access_tier: e.target.value } : x))}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
+                            >
+                              <option value='watchman'>Watchman (Free)</option>
+                              <option value='soldier'>Soldier+</option>
+                              <option value='commander'>Commander+</option>
+                              <option value='general'>General+</option>
+                              <option value='minister'>Adjutant Only</option>
+                            </select>
+                            <input
+                              placeholder="tags, comma-separated"
+                              value={(sf.tags || []).join(', ')}
+                              onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : x))}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: crimson, fontSize: 10, outline: 'none', width: 130 }}
+                            />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: DIM }}>
+                              <input type="checkbox" checked={!!sf.draft} onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, draft: e.target.checked } : x))} style={{ accentColor: G }} />
+                              Draft
+                            </label>
                           </div>
                         )}
                         {sf.status === 'duplicate' && (
@@ -813,6 +871,41 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
               </button>
               <button onClick={() => setMassDelConfirm(false)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 20px', color: DIM, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draft Approval Queue */}
+      {resources.filter((r: any) => r.draft).length > 0 && (
+        <div style={{ marginTop: 28, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '16px 20px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.14em', color: G, marginBottom: 12 }}>
+            📋 DRAFT QUEUE — {resources.filter((r: any) => r.draft).length} Pending Approval
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+            {resources.filter((r: any) => r.draft).map((r: any) => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: SURF, border: `1px solid ${BDR}`, borderLeft: '3px solid rgba(201,168,76,0.5)', borderRadius: 6, padding: '10px 14px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title?.replace(/_arsenal$/i, '') || r.filename}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 11, color: DIM }}>{r.topic} · {r.tier}</div>
+                </div>
+                <button
+                  onClick={async () => {
+                    const token = await getToken()
+                    const res = await fetch('/api/admin-resources', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ id: r.id, draft: false }),
+                    })
+                    if (res.ok) setResources((prev: any[]) => prev.map((x: any) => x.id === r.id ? { ...x, draft: false } : x))
+                  }}
+                  style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
+                >✓ Approve</button>
+                <button
+                  onClick={() => handleDelete(r.id)}
+                  style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}
+                >🗑</button>
+              </div>
+            ))}
           </div>
         </div>
       )}

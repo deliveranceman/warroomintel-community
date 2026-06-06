@@ -5031,6 +5031,17 @@ function cleanArsenalTitle(title: string): string {
     .trim()
 }
 
+const ARSENAL_TIERS = [
+  { tier: 1, label: 'Spirit Intelligence',  icon: '⚔', description: 'Principalities, powers, spirit line dossiers — Eph 6:12', categories: ['Spirit Line Dossier','Individual Spirit Dossier','Spirit Network Map','Territorial Dossier','Cluster Intelligence'] },
+  { tier: 2, label: 'Warfare Arsenal',       icon: '🛡', description: 'Combat prayers, renunciations, declarations',            categories: ['Warfare Prayer','Renunciation','Declaration','Courts of Heaven','Covering & Protection'] },
+  { tier: 3, label: 'Healing & Wholeness',   icon: '🩹', description: 'Soul wounds, inner healing, bloodline breaking',         categories: ['Soul Wounds','Bloodline & Generational','Inner Healing','Identity & Restoration'] },
+  { tier: 4, label: 'Institutional Intel',   icon: '🏛', description: 'Rulers of darkness through earthly systems',            categories: ['Freemasonry & Secret Societies','Occult & Witchcraft Systems','False Religion & Cults','Cultural & Media Gateways','Government & Political Spirits'] },
+  { tier: 5, label: 'Ministry Training',     icon: '📋', description: 'Deliverance protocols, field manual, training',          categories: ['Deliverance Ministry','Spiritual Discernment','Session Preparation','Field Manual','Spiritual Mapping'] },
+  { tier: 6, label: 'Devotional & Scripture',icon: '📖', description: 'Scripture studies, teaching series, devotionals',       categories: ['Scripture Study','Teaching Series','Devotional','Weekly Intel'] },
+  { tier: 7, label: 'Helps',                 icon: '👥', description: '1 Cor 12:28 — general community helps',                 categories: ["Men's Ministry","Women's Ministry",'Marriage & Family','Youth & Next Generation','General Sermon','Encouragement'] },
+]
+const ACCESS_TIERS_ORDER: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
+
 // ── ARSENAL VIEW ──────────────────────────────────────────
 function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
@@ -5057,6 +5068,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [massApplying, setMassApplying]         = useState(false)
   const isMinister = userTier === 'minister'
   const [activeCategory, setActiveCategory]     = useState<string | null>(null)
+  const [activeTierNum, setActiveTierNum]       = useState<number | null>(null)
   const [expandedId, setExpandedId]             = useState<string | null>(null)
   const [arsenalSort, setArsenalSort]           = useState<'newest'|'az'|'tier'>('newest')
   const [showCategorySheet, setShowCategorySheet] = useState(false)
@@ -5182,14 +5194,18 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   }, {} as Record<string, number>)
   const dynamicTopics = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a])
 
+  const userAccessLevel = ACCESS_TIERS_ORDER[userTier?.toLowerCase()] ?? 0
+
   const filtered = arsenalItems.filter(r => {
+    if (r.draft) return false
     const matchSearch = !query ||
       r.title?.toLowerCase().includes(query.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(query.toLowerCase()) ||
       (Array.isArray(r.tags) ? r.tags.some((t: string) => t.toLowerCase().includes(query.toLowerCase())) : false)
     const matchTier  = tierFilter === 'All' || (tierFilter === 'Watchman' ? (r.tier === 'Free' || r.tier === 'free' || r.tier === 'Watchman') : r.tier === tierFilter)
     const matchTopic = !activeCategory || activeCategory === '__search__' || r.topic === activeCategory || r.category === activeCategory
-    return matchSearch && matchTier && matchTopic
+    const matchContentTier = activeTierNum === null || r.content_tier === activeTierNum || !r.content_tier
+    return matchSearch && matchTier && matchTopic && matchContentTier
   })
 
   const recent = [...arsenalItems]
@@ -5203,7 +5219,8 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   })
 
   const ResourceRow = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
-    const hasAccess  = tierLvl(userTier) >= tierLvl(resource.tier)
+    const accessRequired = resource.access_tier ? (ACCESS_TIERS_ORDER[resource.access_tier] ?? 0) : tierLvl(resource.tier)
+    const hasAccess  = userAccessLevel >= accessRequired
     const tc         = TIER_COLORS[resource.tier] || G
     const isExp      = expandedId === resource.id
     const tierLabel  = (resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier
@@ -5243,6 +5260,16 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
             {resource.topic && (
               <span style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{resource.topic}</span>
             )}
+            {Array.isArray(resource.tags) && resource.tags.length > 0 && (
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 4 }}>
+                {resource.tags.map((tag: string) => (
+                  <button key={tag} onClick={e => { e.stopPropagation(); setQuery(tag); setActiveCategory('__search__') }}
+                    style={{ background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 999, padding: '1px 7px', fontFamily: cinzel, fontSize: 7, color: G, cursor: 'pointer', letterSpacing: '0.05em' }}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -5257,10 +5284,40 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
           {isMobile && (
             <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
           )}
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>✦ Arsenal</div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>✦ Arsenal</div>
+            {!isMobile && <div style={{ fontFamily: crimson, fontSize: 11, color: muted, fontStyle: 'italic', marginTop: 2 }}>"For we wrestle not against flesh and blood..." — Eph 6:12</div>}
+          </div>
         </div>
         {!isMobile && <div style={{ fontSize: 12, color: muted, textAlign: 'right' as const }}>Ministry resources, protocols, and teaching documents</div>}
       </div>
+
+      {/* Ephesians 6 Tier Filter */}
+      <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' as any, paddingBottom: 4, marginBottom: 14 }}>
+        <button
+          onClick={() => { setActiveTierNum(null); setActiveCategory(null) }}
+          style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+        >All</button>
+        {ARSENAL_TIERS.map(t => (
+          <button key={t.tier}
+            onClick={() => { setActiveTierNum(activeTierNum === t.tier ? null : t.tier); setActiveCategory(null) }}
+            title={t.description}
+            style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+          >{t.icon} {t.label}</button>
+        ))}
+      </div>
+
+      {/* Sub-category pills when tier selected */}
+      {activeTierNum !== null && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const, marginBottom: 14 }}>
+          {(ARSENAL_TIERS.find(t => t.tier === activeTierNum)?.categories ?? []).map(cat => (
+            <button key={cat}
+              onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
+              style={{ padding: '3px 10px', borderRadius: 999, border: `1px solid ${activeCategory === cat ? G : 'rgba(201,168,76,0.18)'}`, background: activeCategory === cat ? 'rgba(201,168,76,0.12)' : 'transparent', color: activeCategory === cat ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+            >{cat}</button>
+          ))}
+        </div>
+      )}
 
       {/* Global search */}
       <div style={{ position: 'relative', marginBottom: 20 }}>
@@ -5281,7 +5338,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         <div style={{ textAlign: 'center', padding: 40, color: muted, fontFamily: cinzel, fontSize: 13 }}>Loading arsenal...</div>
       ) : arsenalError ? (
         <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{arsenalError}</div>
-      ) : activeCategory === null ? (
+      ) : activeCategory === null && activeTierNum === null ? (
         <>
           {/* Mobile: Browse Topics button */}
           {isMobile && (
@@ -8283,7 +8340,7 @@ const FORUM_POST_TYPES: Record<string, { label: string; color: string; bg: strin
 }
 
 const FORUM_TIER_STYLES: Record<string, { label: string; color: string; bg: string }> = {
-  minister:  { label: 'Minister',  color: '#C9A84C', bg: 'rgba(201,168,76,0.15)'  },
+  minister:  { label: 'Adjutant',  color: '#C9A84C', bg: 'rgba(201,168,76,0.15)'  },
   general:   { label: 'General',   color: '#e2c96e', bg: 'rgba(226,201,110,0.12)' },
   commander: { label: 'Commander', color: '#a0c4e8', bg: 'rgba(160,196,232,0.12)' },
   soldier:   { label: 'Soldier',   color: '#9de0ad', bg: 'rgba(157,224,173,0.12)' },
@@ -14616,8 +14673,25 @@ function CommunityPage() {
                         <HUDChip>{onlineCount} online</HUDChip>
                       </div>
                       {/* Current user */}
+                      {(() => {
+                        const MY_TIER_BADGE: Record<string, { bg: string; color: string; border: string; label: string }> = {
+                          watchman:          { bg: 'rgba(100,100,100,0.2)',  color: '#9ca3af', border: 'rgba(100,116,139,0.4)', label: 'Watchman' },
+                          free:              { bg: 'rgba(100,100,100,0.2)',  color: '#9ca3af', border: 'rgba(100,116,139,0.4)', label: 'Watchman' },
+                          soldier:           { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa', border: 'rgba(59,130,246,0.4)',  label: 'Soldier' },
+                          charter_soldier:   { bg: 'rgba(59,130,246,0.2)',   color: '#93c5fd', border: 'rgba(59,130,246,0.4)',  label: 'Soldier ✦' },
+                          commander:         { bg: 'rgba(139,92,246,0.15)',  color: '#a78bfa', border: 'rgba(139,92,246,0.4)',  label: 'Commander' },
+                          charter_commander: { bg: 'rgba(139,92,246,0.2)',   color: '#c4b5fd', border: 'rgba(139,92,246,0.4)',  label: 'Commander ✦' },
+                          general:           { bg: 'rgba(201,168,76,0.15)',  color: '#C9A84C', border: 'rgba(201,168,76,0.4)',  label: 'General' },
+                          founding_general:  { bg: 'rgba(201,168,76,0.25)', color: '#fbbf24', border: 'rgba(201,168,76,0.5)',  label: 'General ✦' },
+                          minister:          { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.4)',   label: 'Adjutant' },
+                          commandant:        { bg: 'rgba(201,168,76,0.4)',   color: '#0D0B14', border: 'rgba(201,168,76,0.8)',  label: 'Commandant' },
+                        }
+                        const myBadge = MY_TIER_BADGE[(tier || 'watchman').toLowerCase()] || MY_TIER_BADGE.watchman
+                        const myRole = ((user?.publicMetadata?.role as string) || '').toLowerCase()
+                        const effectiveBadge = myRole === 'minister' ? MY_TIER_BADGE.minister : myBadge
+                        return (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${effectiveBadge.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 10, color: G, overflow: 'hidden', flexShrink: 0 }}>
                           {user?.imageUrl ? <img src={user.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
                         </div>
                         <div>
@@ -14626,27 +14700,20 @@ function CommunityPage() {
                             fontFamily: "'Cinzel', serif",
                             fontSize: 9,
                             letterSpacing: '0.07em',
-                            color: tier === 'General' || tier === 'Founding General' ? '#C9A84C'
-                              : tier === 'Commander' || tier === 'Charter Commander' ? '#8b5cf6'
-                              : tier === 'Soldier' || tier === 'Charter Soldier' ? '#3b82f6'
-                              : tier === 'Minister' ? '#ef4444'
-                              : '#64748b',
-                            border: `1px solid ${
-                              tier === 'General' || tier === 'Founding General' ? 'rgba(201,168,76,0.4)'
-                              : tier === 'Commander' || tier === 'Charter Commander' ? 'rgba(139,92,246,0.4)'
-                              : tier === 'Soldier' || tier === 'Charter Soldier' ? 'rgba(59,130,246,0.4)'
-                              : tier === 'Minister' ? 'rgba(239,68,68,0.4)'
-                              : 'rgba(100,116,139,0.4)'
-                            }`,
+                            color: effectiveBadge.color,
+                            background: effectiveBadge.bg,
+                            border: `1px solid ${effectiveBadge.border}`,
                             borderRadius: 3,
                             padding: '2px 6px',
                             textTransform: 'uppercase' as const,
                           }}>
-                            {tier || 'Watchman'}
+                            {effectiveBadge.label}
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}><StatusDot kind="ok" size={4} /></div>
                         </div>
                       </div>
+                        )
+                      })()}
                       {/* Other members — online now + recently online */}
                       {(() => {
                         const otherMembers = members.filter(m => m.id !== user?.id)
@@ -14664,18 +14731,29 @@ function CommunityPage() {
                           return bt - at
                         })
 
+                        const TIER_BADGE: Record<string, { bg: string; color: string; border: string; label: string }> = {
+                          watchman:          { bg: 'rgba(100,100,100,0.2)',  color: '#9ca3af', border: 'rgba(100,116,139,0.4)', label: 'Watchman' },
+                          free:              { bg: 'rgba(100,100,100,0.2)',  color: '#9ca3af', border: 'rgba(100,116,139,0.4)', label: 'Watchman' },
+                          soldier:           { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa', border: 'rgba(59,130,246,0.4)',  label: 'Soldier' },
+                          charter_soldier:   { bg: 'rgba(59,130,246,0.2)',   color: '#93c5fd', border: 'rgba(59,130,246,0.4)',  label: 'Soldier ✦' },
+                          commander:         { bg: 'rgba(139,92,246,0.15)',  color: '#a78bfa', border: 'rgba(139,92,246,0.4)',  label: 'Commander' },
+                          charter_commander: { bg: 'rgba(139,92,246,0.2)',   color: '#c4b5fd', border: 'rgba(139,92,246,0.4)',  label: 'Commander ✦' },
+                          general:           { bg: 'rgba(201,168,76,0.15)',  color: '#C9A84C', border: 'rgba(201,168,76,0.4)',  label: 'General' },
+                          founding_general:  { bg: 'rgba(201,168,76,0.25)', color: '#fbbf24', border: 'rgba(201,168,76,0.5)',  label: 'General ✦' },
+                          minister:          { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.4)',   label: 'Adjutant' },
+                          commandant:        { bg: 'rgba(201,168,76,0.4)',   color: '#0D0B14', border: 'rgba(201,168,76,0.8)',  label: 'Commandant' },
+                        }
                         const renderWarriorCard = (member: any, globalIdx: number, muted: boolean) => {
-                          const memberTier = member.publicMetadata?.tier || 'Watchman'
-                          const tierColors: Record<string, string> = { General: '#C9A84C', Commander: '#8B9DCA', Soldier: '#7a9e7e', Watchman: '#6b6b7a' }
-                          const tierColor = tierColors[memberTier] || '#6b6b7a'
+                          const memberTierRaw = (member.publicMetadata?.tier || 'watchman').toLowerCase()
+                          const badge = TIER_BADGE[memberTierRaw] || TIER_BADGE.watchman
                           const currentUserId = user?.id || ''
-                          const displayName = member.firstName || (member.username && !member.username.startsWith('user_') ? member.username : '') || 'Warrior'
+                          const displayName = (member.username && !member.username.startsWith('user_') ? member.username : '') || member.firstName || 'Warrior'
                           const presence = memberPresence[member.id]
                           const lastActive = presence?.lastActive ?? null
                           return (
                             <div key={member.id} style={{ position: 'relative', overflow: 'visible', opacity: muted ? 0.65 : 1 }} onMouseEnter={() => showWarriorCard(member.id)} onMouseLeave={hideWarriorCard}>
                               <button onClick={() => setViewingProfile(member)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' as const }}>
-                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-3)', border: `1px solid ${badge.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: cinzel, color: '#C9A84C', overflow: 'hidden', flexShrink: 0 }}>
                                   {member.imageUrl ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayName[0]?.toUpperCase()}
                                 </div>
                                 <div>
@@ -14684,23 +14762,14 @@ function CommunityPage() {
                                     fontFamily: "'Cinzel', serif",
                                     fontSize: 9,
                                     letterSpacing: '0.07em',
-                                    color: memberTier === 'General' || memberTier === 'Founding General' ? '#C9A84C'
-                                      : memberTier === 'Commander' || memberTier === 'Charter Commander' ? '#8b5cf6'
-                                      : memberTier === 'Soldier' || memberTier === 'Charter Soldier' ? '#3b82f6'
-                                      : memberTier === 'Minister' ? '#ef4444'
-                                      : '#64748b',
-                                    border: `1px solid ${
-                                      memberTier === 'General' || memberTier === 'Founding General' ? 'rgba(201,168,76,0.4)'
-                                      : memberTier === 'Commander' || memberTier === 'Charter Commander' ? 'rgba(139,92,246,0.4)'
-                                      : memberTier === 'Soldier' || memberTier === 'Charter Soldier' ? 'rgba(59,130,246,0.4)'
-                                      : memberTier === 'Minister' ? 'rgba(239,68,68,0.4)'
-                                      : 'rgba(100,116,139,0.4)'
-                                    }`,
+                                    color: badge.color,
+                                    background: badge.bg,
+                                    border: `1px solid ${badge.border}`,
                                     borderRadius: 3,
                                     padding: '2px 6px',
                                     textTransform: 'uppercase' as const,
                                   }}>
-                                    {memberTier || 'Watchman'}
+                                    {badge.label}
                                   </span>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                                     {!muted ? (

@@ -548,7 +548,7 @@ async function listMembers(currentUserId: string): Promise<Response> {
     .filter((u: any) => u.id !== currentUserId)
     .map((u: any) => ({
       id: u.id,
-      name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id,
+      name: (u.username && !u.username.startsWith('user_') ? u.username : null) || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.id,
       tier: (u.public_metadata?.tier as string) || 'watchman',
       imageUrl: u.image_url || '',
       expertiseTags: (u.public_metadata?.expertiseTags as string[]) || [],

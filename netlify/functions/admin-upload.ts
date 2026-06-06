@@ -48,11 +48,15 @@ export default async function handler(req: Request) {
   const description = (formData.get('description') as string || '').trim()
   const tier        = (formData.get('tier') as string) || 'Free'
   const topic       = (formData.get('topic') as string) || (formData.get('category') as string) || 'General Ministry'
-  const tagsRaw       = formData.get('tags') as string
-  const tags          = tagsRaw ? JSON.parse(tagsRaw) : []
-  const spiritTagsRaw = formData.get('spirit_tags') as string
-  const spirit_tags   = spiritTagsRaw ? JSON.parse(spiritTagsRaw) : []
-  const aiAnalyze     = formData.get('aiAnalyze') === 'true'
+  const tagsRaw         = formData.get('tags') as string
+  const tags            = tagsRaw ? JSON.parse(tagsRaw) : []
+  const spiritTagsRaw   = formData.get('spirit_tags') as string
+  const spirit_tags     = spiritTagsRaw ? JSON.parse(spiritTagsRaw) : []
+  const contentTierRaw  = formData.get('content_tier') as string
+  const content_tier    = contentTierRaw ? Number(contentTierRaw) : null
+  const access_tier     = (formData.get('access_tier') as string) || 'watchman'
+  const draft           = formData.get('draft') === 'true'
+  const aiAnalyze       = formData.get('aiAnalyze') === 'true'
 
   if (aiAnalyze) {
     if (!file) {
@@ -181,11 +185,14 @@ Respond with valid JSON only.`
       description: description || null,
       tier,
       topic,
-      tags: tags.length > 0 ? tags : [],
-      spirit_tags: spirit_tags.length > 0 ? spirit_tags : [],
-      file_path: filePath,
-      file_type: file.type,
-      file_size: file.size,
+      tags:         tags.length > 0 ? tags : [],
+      spirit_tags:  spirit_tags.length > 0 ? spirit_tags : [],
+      content_tier: content_tier || null,
+      access_tier:  access_tier,
+      draft:        draft,
+      file_path:    filePath,
+      file_type:    file.type,
+      file_size:    file.size,
       // ⚠️ ARSENAL marker — arsenal-resources.ts filters on source_type to separate Arsenal from Ministry Library
       source_type: 'arsenal',
     })

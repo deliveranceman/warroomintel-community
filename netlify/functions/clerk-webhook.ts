@@ -85,16 +85,36 @@ export default async function handler(req: Request) {
       const name  = `${first_name || ''} ${last_name || ''}`.trim() || email || 'Warrior'
       const tier  = 'general' // BETA: all new users start at general
 
-      // 1. Set default Clerk publicMetadata
+      // Generate warrior username: e.g. "justin4521"
+      const baseUsername = (first_name || 'warrior').toLowerCase().replace(/[^a-z0-9]/g, '')
+      const username = `${baseUsername || 'warrior'}${Math.floor(1000 + Math.random() * 9000)}`
+
+      // 1. Set default Clerk publicMetadata + username
       await fetch(`https://api.clerk.com/v1/users/${id}`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ public_metadata: { tier } }),
+        body: JSON.stringify({ username, public_metadata: { tier } }),
       })
-      console.log(`[clerk-webhook] Set tier=general (beta default) for ${id}`)
+      console.log(`[clerk-webhook] Set tier=general, username=${username} for ${id}`)
+
+      // 2. Upsert into Supabase members table
+      const _sb = JSON.parse(process.env.SUPABASE || '{}')
+      if (_sb.url && _sb.serviceRoleKey) {
+        const { createClient } = await import('@supabase/supabase-js')
+        const sbClient = createClient(_sb.url, _sb.serviceRoleKey)
+        const { error: upsertErr } = await sbClient.from('members').upsert({
+          clerk_id: id,
+          full_name: name,
+          username,
+          email,
+          tier,
+          created_at: new Date().toISOString(),
+        }, { onConflict: 'clerk_id' })
+        if (upsertErr) console.error('[clerk-webhook] members upsert error:', upsertErr.message)
+      }
 
       if (streamApiKey && streamApiSecret) {
         const client = new StreamChat(streamApiKey, streamApiSecret)
