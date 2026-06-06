@@ -83,6 +83,19 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ book }), { status: 200, headers })
     }
 
+    // Pending books sub-query — returns full ai_summary fields for review UI
+    const statusFilter = url.searchParams.get('status')
+    if (statusFilter === 'pending') {
+      const { data: pending, error: pendErr } = await sb
+        .from('resources')
+        .select('id,title,author,notes,topic,spirit_tags,created_at,ai_summary,summary_status,summary_error,source_public_domain_confirmed,status,description')
+        .eq('topic', 'ministry-library')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+      if (pendErr) return new Response(JSON.stringify({ error: pendErr.message }), { status: 500, headers })
+      return new Response(JSON.stringify({ books: pending || [] }), { status: 200, headers })
+    }
+
     const { data, error } = await sb
       .from('resources')
       .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags,extracted_text,source_type')

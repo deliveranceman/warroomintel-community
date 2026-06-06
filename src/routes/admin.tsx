@@ -5550,6 +5550,16 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const fileInputRef        = useRef<HTMLInputElement>(null)
   const libraryFileInputRef = useRef<HTMLInputElement>(null)
 
+  // Pending-approval queue state
+  const [pendingBooks, setPendingBooks]           = useState<any[]>([])
+  const [summaryingId, setSummaryingId]           = useState<string | null>(null)
+  const [summaryErrors, setSummaryErrors]         = useState<Record<string, string>>({})
+  const [approveExpanded, setApproveExpanded]     = useState<string | null>(null)
+  const [rejectExpanded, setRejectExpanded]       = useState<string | null>(null)
+  const [pdConfirmed, setPdConfirmed]             = useState<Record<string, boolean>>({})
+  const [rejectReasons, setRejectReasons]         = useState<Record<string, string>>({})
+  const [approvingId, setApprovingId]             = useState<string | null>(null)
+
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
@@ -5557,7 +5567,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     padding: '8px 12px', color: LTXT, fontFamily: crimson, fontSize: 14, outline: 'none',
   }
 
-  useEffect(() => { loadBooks() }, [])
+  useEffect(() => { loadBooks(); loadPendingBooks() }, [])
 
   // Auto-clear staged files 3s after all reach done/error, then refresh book list
   useEffect(() => {
@@ -5579,6 +5589,57 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       if (res.ok) { const d = await res.json(); setBooks(d.books || []) }
     } catch { /* ignore */ }
     setBooksLoading(false)
+  }
+
+  async function loadPendingBooks() {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-library?status=pending', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) { const d = await res.json(); setPendingBooks(d.books || []) }
+    } catch { /* ignore */ }
+  }
+
+  async function handleGenerateSummary(bookId: string) {
+    setSummaryingId(bookId)
+    setSummaryErrors(prev => { const n = { ...prev }; delete n[bookId]; return n })
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/library-summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ resourceId: bookId }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Summary failed')
+      await loadPendingBooks()
+    } catch (e: any) {
+      setSummaryErrors(prev => ({ ...prev, [bookId]: e.message }))
+    }
+    setSummaryingId(null)
+  }
+
+  async function handleLibraryApprove(bookId: string, action: 'approve' | 'reject') {
+    setApprovingId(bookId)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/library-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          resourceId: bookId,
+          action,
+          publicDomainConfirmed: action === 'approve' ? (pdConfirmed[bookId] || false) : undefined,
+          rejectionReason: action === 'reject' ? (rejectReasons[bookId] || '') : undefined,
+        }),
+      })
+      if (res.ok) {
+        setPendingBooks(prev => prev.filter(b => b.id !== bookId))
+        setApproveExpanded(null)
+        setRejectExpanded(null)
+        if (action === 'approve') await loadBooks()
+      }
+    } catch { /* ignore */ }
+    setApprovingId(null)
   }
 
   function findDuplicateBook(file: File): any | null {
@@ -6285,6 +6346,127 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         </div>
       </div>
+
+      {/* ══ AWAITING REVIEW ════════════════════════════════════════════════════ */}
+      {pendingBooks.length > 0 && (
+        <div style={{ border: `1px solid ${LG}44`, borderRadius: 10, padding: 20, marginBottom: 32, background: 'rgba(201,168,76,0.04)' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: LG, marginBottom: 16 }}>
+            ✦ AWAITING REVIEW — {pendingBooks.length} text{pendingBooks.length !== 1 ? 's' : ''}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+            {pendingBooks.map((book: any) => {
+              const sum   = book.ai_summary
+              const sstat = book.summary_status || 'pending'
+              const isApproveOpen = approveExpanded === book.id
+              const isRejectOpen  = rejectExpanded  === book.id
+              const wrel  = sum?.warfare_relevance
+              const relColor = wrel === 'high' ? G : wrel === 'medium' ? '#7ab4e0' : DIM
+              return (
+                <div key={book.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '16px 18px' }}>
+                  {/* Header */}
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, letterSpacing: '0.06em' }}>{book.title}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: LMUT, marginTop: 2 }}>{book.author}</div>
+                  </div>
+                  {/* Tags */}
+                  {Array.isArray(book.spirit_tags) && book.spirit_tags.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 10 }}>
+                      {book.spirit_tags.slice(0, 6).map((t: string) => (
+                        <span key={t} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: '#c084fc', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 3, padding: '2px 6px' }}>{t}</span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Summary status */}
+                  {sstat === 'pending' && (
+                    <button
+                      onClick={() => handleGenerateSummary(book.id)}
+                      disabled={summaryingId === book.id}
+                      style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: LG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer', marginBottom: 12 }}
+                    >✦ Generate Summary</button>
+                  )}
+                  {(sstat === 'processing' || summaryingId === book.id) && (
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: LMUT, letterSpacing: '0.08em', marginBottom: 12 }}>⏳ Analyzing...</div>
+                  )}
+                  {sstat === 'failed' && (
+                    <div style={{ marginBottom: 12 }}>
+                      <span style={{ fontFamily: crimson, fontSize: 12, color: '#f87171' }}>Summary failed: {book.summary_error || 'Unknown error'}</span>
+                      <button onClick={() => handleGenerateSummary(book.id)} style={{ marginLeft: 10, fontFamily: cinzel, fontSize: 8, color: LG, background: 'none', border: `1px solid ${BDR}`, borderRadius: 3, padding: '3px 8px', cursor: 'pointer' }}>Retry</button>
+                    </div>
+                  )}
+                  {summaryErrors[book.id] && (
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: '#f87171', marginBottom: 10 }}>Error: {summaryErrors[book.id]}</div>
+                  )}
+                  {sstat === 'complete' && sum && (
+                    <div style={{ marginBottom: 12 }}>
+                      <p style={{ fontFamily: crimson, fontSize: 13, color: LTXT, lineHeight: 1.7, margin: '0 0 10px' }}>{sum.summary}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' as const }}>
+                        {wrel && (
+                          <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: relColor, border: `1px solid ${relColor}44`, borderRadius: 4, padding: '2px 8px' }}>
+                            {wrel.toUpperCase()} RELEVANCE
+                          </span>
+                        )}
+                        {Array.isArray(sum.key_topics) && sum.key_topics.slice(0, 5).map((t: string) => (
+                          <span key={t} style={{ fontFamily: cinzel, fontSize: 8, color: LMUT, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 6px' }}>{t}</span>
+                        ))}
+                      </div>
+                      {Array.isArray(sum.key_quotes) && sum.key_quotes.length > 0 && (
+                        <div style={{ marginBottom: 6 }}>
+                          {sum.key_quotes.map((q: string, i: number) => (
+                            <p key={i} style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', margin: '2px 0' }}>"{q}"</p>
+                          ))}
+                        </div>
+                      )}
+                      {sum.minister_note && (
+                        <p style={{ fontFamily: crimson, fontSize: 12, color: LMUT, fontStyle: 'italic', margin: '4px 0 0' }}>{sum.minister_note}</p>
+                      )}
+                    </div>
+                  )}
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                    <button
+                      onClick={() => { setApproveExpanded(isApproveOpen ? null : book.id); setRejectExpanded(null) }}
+                      style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#4ade80', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }}
+                    >{isApproveOpen ? 'Cancel' : '✓ APPROVE'}</button>
+                    <button
+                      onClick={() => { setRejectExpanded(isRejectOpen ? null : book.id); setApproveExpanded(null) }}
+                      style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }}
+                    >{isRejectOpen ? 'Cancel' : '✗ REJECT'}</button>
+                  </div>
+                  {isApproveOpen && (
+                    <div style={{ marginTop: 10, padding: '12px 14px', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 6 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: cinzel, fontSize: 9, color: LTXT, marginBottom: 10, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={!!pdConfirmed[book.id]} onChange={e => setPdConfirmed(p => ({ ...p, [book.id]: e.target.checked }))} />
+                        Public domain confirmed
+                      </label>
+                      <button
+                        onClick={() => handleLibraryApprove(book.id, 'approve')}
+                        disabled={approvingId === book.id}
+                        style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#0D0B14', background: '#4ade80', border: 'none', borderRadius: 4, padding: '7px 16px', cursor: 'pointer' }}
+                      >Confirm Approve</button>
+                    </div>
+                  )}
+                  {isRejectOpen && (
+                    <div style={{ marginTop: 10, padding: '12px 14px', background: 'rgba(248,113,113,0.04)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 6 }}>
+                      <textarea
+                        value={rejectReasons[book.id] || ''}
+                        onChange={e => setRejectReasons(p => ({ ...p, [book.id]: e.target.value }))}
+                        placeholder="Reason (optional)"
+                        rows={2}
+                        style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: LTXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const, marginBottom: 8 }}
+                      />
+                      <button
+                        onClick={() => handleLibraryApprove(book.id, 'reject')}
+                        disabled={approvingId === book.id}
+                        style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '7px 16px', cursor: 'pointer' }}
+                      >Confirm Reject</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ══ AI KNOWLEDGE BASE ══════════════════════════════════════════════════ */}
       <div style={{ marginBottom: 40 }}>
@@ -10347,10 +10529,323 @@ function AtmosphereAdmin({ getToken, isDark }: { getToken: () => Promise<string 
   )
 }
 
+// ─── SPIRIT CANDIDATES MANAGER ───────────────────────────────────────────────
+function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const SSURF = isDark ? '#13111a' : '#fff'
+  const SBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const STXT  = isDark ? '#e8e0d0' : '#2D2924'
+  const SMUT  = isDark ? '#9a8c74' : '#5C5248'
+  const SG    = '#C9A84C'
+
+  const [candidates, setCandidates]       = useState<any[]>([])
+  const [stats, setStats]                 = useState<any>({ pending: 0, approvedWeek: 0, duplicates: 0, total: 0 })
+  const [loading, setLoading]             = useState(true)
+  const [filter, setFilter]               = useState<'all'|'pending'|'approved'|'rejected'|'duplicate'>('pending')
+  const [search, setSearch]               = useState('')
+  const [expandedId, setExpandedId]       = useState<string|null>(null)
+  const [enrichingId, setEnrichingId]     = useState<string|null>(null)
+  const [enrichErrors, setEnrichErrors]   = useState<Record<string,string>>({})
+  const [previewData, setPreviewData]     = useState<{preview: Record<string,string>; candidateId: string}|null>(null)
+  const [confirmingId, setConfirmingId]   = useState<string|null>(null)
+  const [confirmedIds, setConfirmedIds]   = useState<Set<string>>(new Set())
+  const [airtableIds, setAirtableIds]     = useState<Record<string,string>>({})
+  const [rejectExpanded, setRejectExpanded] = useState<string|null>(null)
+  const [rejectReason, setRejectReason]   = useState('')
+  const [demonsTotal, setDemonsTotal]     = useState<number|null>(null)
+
+  useEffect(() => {
+    loadCandidates()
+    fetch('/api/demons').then(r => r.json()).then(d => setDemonsTotal((d.demons || []).length)).catch(() => {})
+  }, [filter, search])
+
+  async function loadCandidates() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const params = new URLSearchParams({ stats: 'true' })
+      if (filter !== 'all') params.set('status', filter)
+      if (search) params.set('search', search)
+      const res = await fetch(`/api/spirit-candidates?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const d = await res.json()
+        setCandidates(d.candidates || [])
+        if (d.stats) setStats(d.stats)
+      }
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  async function handleEnrich(id: string) {
+    setEnrichingId(id)
+    setEnrichErrors(p => { const n = { ...p }; delete n[id]; return n })
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-candidate-enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ candidateId: id }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Enrich failed')
+      setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...d.enriched } : c))
+    } catch (e: any) {
+      setEnrichErrors(p => ({ ...p, [id]: e.message }))
+    }
+    setEnrichingId(null)
+  }
+
+  async function handleGetPreview(id: string) {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-candidate-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ candidateId: id }),
+      })
+      const d = await res.json()
+      if (res.ok) setPreviewData({ preview: d.preview, candidateId: d.candidateId })
+    } catch { /* ignore */ }
+  }
+
+  async function handleConfirmPush(candidateId: string) {
+    setConfirmingId(candidateId)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-candidate-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ candidateId, confirmed: true }),
+      })
+      const d = await res.json()
+      if (res.ok) {
+        setConfirmedIds(p => new Set([...p, candidateId]))
+        setAirtableIds(p => ({ ...p, [candidateId]: d.airtableId || '' }))
+        setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, status: 'approved' } : c))
+        setPreviewData(null)
+        loadCandidates()
+      }
+    } catch { /* ignore */ }
+    setConfirmingId(null)
+  }
+
+  async function handleAction(action: string, id: string, extra?: any) {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, candidateId: id, ...extra }),
+      })
+      if (res.ok) {
+        setRejectExpanded(null)
+        setRejectReason('')
+        loadCandidates()
+      }
+    } catch { /* ignore */ }
+  }
+
+  const CONF_COLORS: Record<string, string> = { high: '#4ade80', medium: SG, low: SMUT }
+  const STAT_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+    pending:   { bg: 'rgba(201,168,76,0.08)',  border: 'rgba(201,168,76,0.3)',  text: SG },
+    approved:  { bg: 'rgba(74,222,128,0.08)',  border: 'rgba(74,222,128,0.25)', text: '#4ade80' },
+    rejected:  { bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)',text: '#f87171' },
+    duplicate: { bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)', text: '#fbbf24' },
+  }
+
+  return (
+    <div style={{ color: STXT, fontFamily: crimson }}>
+      {/* Stats bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+        {[
+          { label: 'AIRTABLE DB', value: demonsTotal !== null ? demonsTotal : '--' },
+          { label: 'PENDING',     value: stats.pending       },
+          { label: 'THIS WEEK',   value: stats.approvedWeek  },
+          { label: 'DUPLICATES',  value: stats.duplicates    },
+        ].map(s => (
+          <div key={s.label} style={{ background: SSURF, border: `1px solid ${SBDR}`, borderRadius: 7, padding: '12px 16px' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.14em', color: SMUT, marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 22, color: SG }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter row */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+        {(['all','pending','approved','rejected','duplicate'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', padding: '5px 12px', borderRadius: 4, border: `1px solid ${filter === f ? SG : SBDR}`, background: filter === f ? 'rgba(201,168,76,0.1)' : 'transparent', color: filter === f ? SG : SMUT, cursor: 'pointer', textTransform: 'capitalize' as const }}
+          >{f}</button>
+        ))}
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search name..."
+          style={{ background: SSURF, border: `1px solid ${SBDR}`, borderRadius: 5, padding: '5px 10px', color: STXT, fontFamily: crimson, fontSize: 13, outline: 'none', width: 180 }}
+        />
+      </div>
+
+      {/* Table */}
+      <div style={{ background: SSURF, border: `1px solid ${SBDR}`, borderRadius: 8, overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '200px 80px 1fr 100px 90px 90px', gap: 8, padding: '10px 14px', background: isDark ? '#1a1726' : '#f5f3ef', borderBottom: `1px solid ${SBDR}` }}>
+          {['NAME','CONF','SOURCE','KINGDOM','RANK','STATUS'].map(h => (
+            <div key={h} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: SMUT }}>{h}</div>
+          ))}
+        </div>
+
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center' as const, fontFamily: cinzel, fontSize: 10, color: SMUT, letterSpacing: '0.1em' }}>Loading...</div>
+        ) : candidates.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center' as const, fontFamily: crimson, fontSize: 14, color: SMUT, fontStyle: 'italic' }}>No candidates match the current filter.</div>
+        ) : candidates.map(c => {
+          const isExpanded    = expandedId === c.id
+          const sc            = STAT_COLORS[c.status] || STAT_COLORS['pending']
+          const isConfirmed   = confirmedIds.has(c.id)
+          const isRejectOpen  = rejectExpanded === c.id
+          return (
+            <div key={c.id} style={{ borderBottom: `1px solid ${SBDR}`, background: isConfirmed ? 'rgba(201,168,76,0.05)' : 'transparent' }}>
+              {/* Row */}
+              <div
+                onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                style={{ display: 'grid', gridTemplateColumns: '200px 80px 1fr 100px 90px 90px', gap: 8, padding: '10px 14px', cursor: 'pointer', transition: 'background 0.1s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.03)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              >
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: isConfirmed ? SG : STXT, letterSpacing: '0.04em' }}>
+                  {c.name}
+                  {isConfirmed && <span style={{ marginLeft: 6, fontSize: 9, color: SG }}>✓</span>}
+                </div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: CONF_COLORS[c.confidence] || SMUT }}>{(c.confidence || '').toUpperCase()}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{c.source_name || '--'}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT }}>{c.kingdom || '--'}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT }}>{c.biblical_rank || '--'}</div>
+                <div>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: sc.text, background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 3, padding: '2px 7px' }}>{c.status}</span>
+                </div>
+              </div>
+
+              {/* Expanded detail */}
+              {isExpanded && (
+                <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.02)', borderTop: `1px solid ${SBDR}` }}>
+                  {/* Enrichment fields */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                    {[
+                      { label: 'Function',     value: c.function         },
+                      { label: 'Manifestations', value: c.manifestations  },
+                      { label: 'Scripture',    value: c.scripture_context },
+                      { label: 'Sub-Kingdom',  value: c.sub_kingdom       },
+                      { label: 'Also Known As',value: c.also_known_as     },
+                      { label: 'Notes',        value: c.ai_notes          },
+                    ].map(f => f.value ? (
+                      <div key={f.label}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: SMUT, marginBottom: 3 }}>{f.label.toUpperCase()}</div>
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: STXT, lineHeight: 1.5 }}>{f.value}</div>
+                      </div>
+                    ) : null)}
+                  </div>
+
+                  {/* Duplicate warning */}
+                  {c.duplicate_of && (
+                    <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 5 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: '#fbbf24', letterSpacing: '0.08em', marginBottom: 6 }}>May already exist as: {c.duplicate_of}</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => handleAction('unmark-duplicate', c.id)} style={{ fontFamily: cinzel, fontSize: 8, color: SG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${SBDR}`, borderRadius: 3, padding: '4px 10px', cursor: 'pointer' }}>It's Different — Keep</button>
+                        <button onClick={() => handleAction('mark-duplicate', c.id)}   style={{ fontFamily: cinzel, fontSize: 8, color: '#fbbf24', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 3, padding: '4px 10px', cursor: 'pointer' }}>Mark as Duplicate</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enrichment status */}
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: SMUT, letterSpacing: '0.08em', marginBottom: 10 }}>
+                    ENRICHMENT: {(c.enrichment_status || 'pending').toUpperCase()}
+                    {c.enrichment_error && <span style={{ color: '#f87171', marginLeft: 6 }}>{c.enrichment_error}</span>}
+                    {enrichErrors[c.id] && <span style={{ color: '#f87171', marginLeft: 6 }}>{enrichErrors[c.id]}</span>}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                    {(c.enrichment_status === 'pending' || c.enrichment_status === 'failed') && (
+                      <button
+                        onClick={() => handleEnrich(c.id)}
+                        disabled={enrichingId === c.id}
+                        style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: 'rgba(122,180,224,0.08)', border: '1px solid rgba(122,180,224,0.25)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
+                      >{enrichingId === c.id ? 'Enriching...' : '✦ Enrich with AI'}</button>
+                    )}
+                    {c.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleGetPreview(c.id)}
+                          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: SG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${SBDR}`, borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
+                        >Preview for Approval</button>
+                        <button
+                          onClick={() => { setRejectExpanded(isRejectOpen ? null : c.id); setRejectReason('') }}
+                          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
+                        >{isRejectOpen ? 'Cancel' : '✗ Reject'}</button>
+                      </>
+                    )}
+                    {isConfirmed && airtableIds[c.id] && (
+                      <span style={{ fontFamily: cinzel, fontSize: 9, color: SG, letterSpacing: '0.06em' }}>Pushed: {airtableIds[c.id]}</span>
+                    )}
+                  </div>
+
+                  {/* Reject inline form */}
+                  {isRejectOpen && (
+                    <div style={{ marginTop: 10, padding: '10px 12px', background: 'rgba(248,113,113,0.04)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 5 }}>
+                      <textarea
+                        value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        placeholder="Reason (optional)"
+                        rows={2}
+                        style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${SBDR}`, borderRadius: 4, padding: '6px 10px', color: STXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const, marginBottom: 8 }}
+                      />
+                      <button
+                        onClick={() => handleAction('reject', c.id, { rejectionReason: rejectReason })}
+                        style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }}
+                      >Confirm Reject</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Preview modal */}
+      {previewData && (
+        <div style={{ position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${SG}44`, borderRadius: 10, padding: 28, width: '100%', maxWidth: 520, maxHeight: '80vh', overflowY: 'auto' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: SG, letterSpacing: '0.1em', marginBottom: 18 }}>AIRTABLE RECORD PREVIEW</div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 20 }}>
+              {Object.entries(previewData.preview).map(([k, v]) => v ? (
+                <div key={k}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: SMUT, letterSpacing: '0.1em', marginBottom: 2 }}>{k.toUpperCase()}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: STXT, lineHeight: 1.5 }}>{v as string}</div>
+                </div>
+              ) : null)}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => handleConfirmPush(previewData.candidateId)}
+                disabled={confirmingId === previewData.candidateId}
+                style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#0D0B14', background: SG, border: 'none', borderRadius: 5, padding: '10px 22px', cursor: 'pointer' }}
+              >{confirmingId === previewData.candidateId ? 'Pushing...' : '✓ CONFIRM — PUSH TO DATABASE'}</button>
+              <button
+                onClick={() => setPreviewData(null)}
+                style={{ fontFamily: cinzel, fontSize: 10, color: SMUT, background: 'none', border: `1px solid ${SBDR}`, borderRadius: 5, padding: '10px 18px', cursor: 'pointer' }}
+              >Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates'>('dashboard')
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -10426,9 +10921,10 @@ function AdminPage() {
       { key: 'sol-research',        label: '✦ Research Drop'      },
     ]},
     { label: 'INTEL ARCHIVE', items: [
-      { key: 'intel',             label: 'Intel Archive'    },
-      { key: 'taxonomy',          label: 'Taxonomy Review'  },
-      { key: 'spiritual-mapping', label: 'Spiritual Mapping'},
+      { key: 'intel',              label: 'Intel Archive'     },
+      { key: 'spirit-candidates',  label: 'Spirit Candidates' },
+      { key: 'taxonomy',           label: 'Taxonomy Review'   },
+      { key: 'spiritual-mapping',  label: 'Spiritual Mapping' },
     ]},
     { label: 'MODERATION', items: [
       { key: 'moderation', label: '📋 Moderation' },
@@ -10572,6 +11068,7 @@ function AdminPage() {
             {tab === 'field-ministry'    && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
             {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
             {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}
+            {tab === 'spirit-candidates' && <SpiritCandidatesManager getToken={getToken} isDark={isDark} />}
             {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
             {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
             {tab === 'ai-command'        && (
