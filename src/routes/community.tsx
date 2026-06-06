@@ -9704,7 +9704,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void }) {
   const [token, setToken]                     = useState('')
   const [conversations, setConversations]     = useState<MConversation[]>([])
   const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
@@ -9747,6 +9747,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [caInvites, setCaInvites]                   = React.useState<string[]>([])
   const [caCreating, setCaCreating]                 = React.useState(false)
   const [sentPendingRequests, setSentPendingRequests] = React.useState<any[]>([])
+  const [pendingExpanded, setPendingExpanded] = React.useState(false)
   React.useEffect(() => { onPendingChange?.(sentPendingRequests) }, [sentPendingRequests])
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
@@ -9853,6 +9854,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       const d = await fetch('/api/dm-request?action=list-sent', { headers: { Authorization: `Bearer ${t}` } }).then(r => r.json())
       if (Array.isArray(d.requests)) {
         setSentPendingRequests(d.requests)
+        if (d.requests.length <= 3) setPendingExpanded(true)
       }
     } catch {}
   }, [getToken])
@@ -10572,32 +10574,47 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
-        {/* ── Sent pending DM requests — compact badge row ── */}
+        {/* ── Sent pending DM requests (collapsible) ── */}
         {sentPendingRequests.length > 0 && (
-          <div
-            onClick={() => onOpenNotifs?.()}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 16px', flexShrink: 0,
-              background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(30,40,80,0.04)',
-              borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.1)' : 'rgba(30,40,80,0.08)'}`,
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13 }}>📬</span>
-              <div>
-                <div style={{ fontSize: 11, fontFamily: 'Cinzel, serif', color: isDark ? '#C9A84C' : '#A07830', letterSpacing: '0.08em' }}>
-                  PENDING REQUESTS
-                </div>
-                <div style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#4A5568', marginTop: 1 }}>
-                  {sentPendingRequests.length} awaiting response · tap to manage
-                </div>
+          <div style={{ flexShrink: 0, borderBottom: `1px solid ${BDR}` }}>
+            <button
+              type="button"
+              onClick={() => setPendingExpanded(p => !p)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.04)', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13 }}>📬</span>
+                <span style={{ fontSize: 10, fontFamily: 'Cinzel, serif', color: isDark ? '#C9A84C' : '#A07830', letterSpacing: '0.08em', fontWeight: 600 }}>PENDING REQUESTS</span>
+                <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 9, fontWeight: 600 }}>{sentPendingRequests.length}</span>
               </div>
-            </div>
-            <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 600 }}>
-              {sentPendingRequests.length}
-            </span>
+              <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block', transition: 'transform 0.2s', transform: pendingExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▼</span>
+            </button>
+            {pendingExpanded && (
+              <div style={{ padding: '4px 12px 10px' }}>
+                {sentPendingRequests.map(r => (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, padding: '7px 10px', background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.04)', borderRadius: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: TXT, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.recipient_name || r.recipientName || 'Warrior'}</div>
+                      <div style={{ fontSize: 10, color: WMUT }}>Awaiting response</div>
+                    </div>
+                    <button
+                      type="button"
+                      style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
+                      onClick={async () => {
+                        const t = await getToken()
+                        if (!t) return
+                        await fetch('/api/dm-request?action=cancel', {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: r.id }),
+                        }).catch(() => {})
+                        setSentPendingRequests(prev => prev.filter(x => x.id !== r.id))
+                      }}
+                    >Cancel</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
