@@ -9859,9 +9859,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         }).then(r => r.json()).catch(() => null)
         if (dm?.channelId) { selectConversation(dm.channelId, t); return }
       }
-      if (!isMobileLayout && convos.length > 0) {
-        selectConversation(convos[0].channelId, t)
-      }
+      // No auto-select — user must choose a conversation explicitly
     })
     fetchFireTeams()
     fetchSentinels()
@@ -11074,10 +11072,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         flexDirection: 'column' as const, minWidth: 0, overflow: 'hidden',
       }}>
         {!activeConvoId ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ textAlign: 'center' as const }}>
-              <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.3 }}>✉</div>
-              <div style={{ fontSize: 14, color: WMUT }}>Select a conversation</div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40 }}>
+            <img src="/images/sol/sol-icon.png" style={{ width: 56, opacity: 0.35 }} alt="" />
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: WMUT, letterSpacing: '0.1em', textAlign: 'center' as const }}>
+              SELECT A CONVERSATION
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', textAlign: 'center' as const, maxWidth: 240, lineHeight: 1.6 }}>
+              Choose a direct message from the left, or start a new conversation.
             </div>
           </div>
         ) : (
