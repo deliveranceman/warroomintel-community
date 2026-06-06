@@ -9704,7 +9704,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void }) {
   const [token, setToken]                     = useState('')
   const [conversations, setConversations]     = useState<MConversation[]>([])
   const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
@@ -9747,6 +9747,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [caInvites, setCaInvites]                   = React.useState<string[]>([])
   const [caCreating, setCaCreating]                 = React.useState(false)
   const [sentPendingRequests, setSentPendingRequests] = React.useState<any[]>([])
+  React.useEffect(() => { onPendingChange?.(sentPendingRequests) }, [sentPendingRequests])
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef           = React.useRef<EventSource | null>(null)
@@ -9850,7 +9851,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     if (!t) return
     try {
       const d = await fetch('/api/dm-request?action=list-sent', { headers: { Authorization: `Bearer ${t}` } }).then(r => r.json())
-      if (Array.isArray(d.requests)) setSentPendingRequests(d.requests)
+      if (Array.isArray(d.requests)) {
+        setSentPendingRequests(d.requests)
+      }
     } catch {}
   }, [getToken])
 
@@ -10427,8 +10430,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             placeholder="Search…"
             style={{
               width: '100%', padding: '7px 12px', borderRadius: 20, boxSizing: 'border-box' as const,
-              background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', border: `1px solid ${BDR}`,
-              color: WTXT, fontSize: 12, outline: 'none',
+              background: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(201,168,76,0.15)' : 'rgba(30,40,80,0.2)'}`,
+              color: isDark ? '#f0e8d8' : '#0F1523', fontSize: 12, outline: 'none',
               fontFamily: 'inherit',
             }}
           />
@@ -10569,40 +10572,38 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
-        {/* ── Sent pending DM requests ── */}
+        {/* ── Sent pending DM requests — compact badge row ── */}
         {sentPendingRequests.length > 0 && (
-          <div style={{ margin: '0 12px 10px', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${BDR}`, borderRadius: 8, padding: 12, flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <span style={{ fontFamily: 'var(--font-cinzel,serif)', fontSize: 10, color: WMUT, fontWeight: 600, letterSpacing: '0.08em' }}>📤 PENDING REQUESTS</span>
-            </div>
-            {sentPendingRequests.map(r => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '7px 10px', background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.04)', borderRadius: 6 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: TXT, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.recipient_name || r.recipientName || 'Warrior'}</div>
-                  <div style={{ fontSize: 10, color: WMUT }}>Awaiting response</div>
+          <div
+            onClick={() => onOpenNotifs?.()}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 16px', flexShrink: 0,
+              background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(30,40,80,0.04)',
+              borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.1)' : 'rgba(30,40,80,0.08)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13 }}>📬</span>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: 'Cinzel, serif', color: isDark ? '#C9A84C' : '#A07830', letterSpacing: '0.08em' }}>
+                  PENDING REQUESTS
                 </div>
-                <button
-                  type="button"
-                  style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', touchAction: 'manipulation', flexShrink: 0 }}
-                  onClick={async () => {
-                    const t = await getToken()
-                    if (!t) return
-                    await fetch(`/api/dm-request?action=cancel`, {
-                      method: 'POST',
-                      headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ id: r.id }),
-                    }).catch(() => {})
-                    setSentPendingRequests(prev => prev.filter(x => x.id !== r.id))
-                  }}
-                >Cancel</button>
+                <div style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#4A5568', marginTop: 1 }}>
+                  {sentPendingRequests.length} awaiting response · tap to manage
+                </div>
               </div>
-            ))}
+            </div>
+            <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 600 }}>
+              {sentPendingRequests.length}
+            </span>
           </div>
         )}
 
         {/* ── Direct Messages label ── */}
         <div style={{ padding: '6px 16px', borderBottom: `1px solid ${BDR}` }}>
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.14em' }}>DIRECT MESSAGES</span>
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: isDark ? '#4a3e2a' : '#4A5568', letterSpacing: '0.14em' }}>DIRECT MESSAGES</span>
         </div>
 
         {/* Conversation rows */}
@@ -10625,7 +10626,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   borderBottom: `1px solid ${BDR}`,
                   transition: 'background 0.12s',
                 }}
-                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(30,40,80,0.05)' }}
                 onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 {/* Avatar */}
@@ -10652,7 +10653,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: WTXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#d4c9b0' : '#0F1523', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       {convo.otherMember?.name || 'Unknown'}
                     </span>
                     <span style={{ fontSize: 10, color: WDIM, flexShrink: 0 }}>
@@ -10660,7 +10661,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 11, color: WMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
+                    <span style={{ fontSize: 11, color: isDark ? '#6b5e45' : '#4A5568', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>
                       {renderPreview(convo)}
                     </span>
                     {convo.unreadCount > 0 && (
@@ -12213,7 +12214,14 @@ function CommunityPage() {
     const el = sidebarScrollRef.current
     if (!el) return
     const active = el.querySelector('[data-active="true"]') as HTMLElement | null
-    if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
+    if (active) {
+      const elTop    = el.scrollTop
+      const elBottom = elTop + el.clientHeight
+      const itemTop  = active.offsetTop
+      const itemBot  = itemTop + active.offsetHeight
+      if (itemTop < elTop) el.scrollTop = itemTop - 8
+      else if (itemBot > elBottom) el.scrollTop = itemBot - el.clientHeight + 8
+    }
   }, [activeSection])
 
   const [fringeExpanded, setFringeExpanded]     = useState(false)
@@ -12225,6 +12233,9 @@ function CommunityPage() {
   })
   const [fieldOpsOpen, setFieldOpsOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_field_ops_open') !== 'false' } catch { return true }
+  })
+  const [fieldMinistryOpen, setFieldMinistryOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_field_ministry_open') !== 'false' } catch { return false }
   })
   const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
 
@@ -12261,6 +12272,7 @@ function CommunityPage() {
   const [notifsList, setNotifsList]       = useState<any[]>([])
   const [deletingNotifs, setDeletingNotifs] = useState(false)
   const [hoveredNotifId, setHoveredNotifId] = useState<string | null>(null)
+  const [dmPendingRequests, setDmPendingRequests] = useState<any[]>([])
   const [showInstallBanner, setShowInstallBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (typeof navigator === 'undefined') return false
@@ -12899,7 +12911,7 @@ function CommunityPage() {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: streamToken, 'stream-auth-type': 'jwt' },
-            body: JSON.stringify({ state: true, messages: { limit: 50 } }),
+            body: JSON.stringify({ state: true, presence: true, messages: { limit: 1 } }),
           }
         )
         const data = await res.json()
@@ -12907,8 +12919,10 @@ function CommunityPage() {
         ;(data.members || []).forEach((m: any) => {
           if (m.user?.id) {
             const lastActive = m.user.last_active || null
-            const minsAgo = lastActive ? (Date.now() - new Date(lastActive).getTime()) / 60000 : Infinity
-            presenceMap[m.user.id] = { online: minsAgo <= 15, lastActive }
+            presenceMap[m.user.id] = {
+              online: m.user.online === true,
+              lastActive,
+            }
           }
         })
         setMemberPresence(presenceMap)
@@ -12917,7 +12931,7 @@ function CommunityPage() {
       }
     }
     fetchPresence()
-    const interval = setInterval(fetchPresence, 60000)
+    const interval = setInterval(fetchPresence, 30000)
     return () => clearInterval(interval)
   }, [streamToken, apiKey])
 
@@ -13414,7 +13428,27 @@ function CommunityPage() {
         {navItem('SITREP', 'sitrep', <span style={{ fontSize: 14, lineHeight: 1 }}>📡</span>)}
         {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
         {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
-        {navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />)}
+        {/* ── Field Ministry (expandable) ── */}
+        {(sidebarCollapsed && !isMobile) ? navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />) : (
+          <>
+            <button
+              onClick={() => {
+                const next = !fieldMinistryOpen
+                setFieldMinistryOpen(next)
+                try { localStorage.setItem('sidebar_field_ministry_open', String(next)) } catch {}
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: `2px solid transparent`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: (['field-ministry','field-teams'].includes(activeSection)) ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><BookOpen size={16} strokeWidth={1.6} /></span>
+              <span style={{ flex: 1 }}>Field Ministry</span>
+              <span style={chevronStyle(fieldMinistryOpen || ['field-ministry','field-teams'].includes(activeSection))}>›</span>
+            </button>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldMinistryOpen || ['field-ministry','field-teams'].includes(activeSection)) ? 200 : 0, transition: 'max-height 0.2s ease' }}>
+              {navItem('Ministry Hub', 'field-ministry', <span style={{ fontSize: 13, lineHeight: 1 }}>✝</span>)}
+              {navItem('Field Teams', 'field-teams', <span style={{ fontSize: 13, lineHeight: 1 }}>⚔</span>)}
+            </div>
+          </>
+        )}
         {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
         {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
         {navItem('Feedback', 'feedback', <span style={{ fontSize: 14, lineHeight: 1 }}>💬</span>)}
@@ -13427,7 +13461,7 @@ function CommunityPage() {
               setFieldOpsOpen(next)
               try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
             })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator','field-teams'].includes(activeSection)) ? 500 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator'].includes(activeSection)) ? 500 : 0, transition: 'max-height 0.2s ease' }}>
               <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
                 data-active={activeSection === 'ops-dashboard' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
@@ -13446,7 +13480,6 @@ function CommunityPage() {
                 <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
                 <span>Session Center</span>
               </button>
-              {navItem('Field Teams', 'field-teams', <span style={{ fontSize: 13, lineHeight: 1 }}>⚔</span>)}
               <button onClick={() => { setActiveSection('document-creator'); if (isMobile) setSidebarOpen(false) }}
                 data-active={activeSection === 'document-creator' ? 'true' : undefined}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'document-creator' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'document-creator' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'document-creator' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
@@ -13631,7 +13664,7 @@ function CommunityPage() {
       {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
-      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} />}
+      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} />}
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
@@ -14057,7 +14090,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'dms' && (
-          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} />
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} />
         )}
         {activeSection === 'members'     && (
           <MembersView
@@ -14376,7 +14409,7 @@ function CommunityPage() {
           { id: 'warriors', icon: <Users size={18} strokeWidth={1.6} />,         label: 'Warriors Online',      dot: hasOnline },
           { id: 'arsenal',  icon: <Archive size={18} strokeWidth={1.6} />,       label: 'Latest Arsenal Drops', dot: false },
           { id: 'archive',  icon: <BookOpen size={18} strokeWidth={1.6} />,      label: 'New to Intel Archive', dot: false },
-          { id: 'notifs',   icon: <Bell size={18} strokeWidth={1.6} />,          label: 'Notifications',        dot: unreadNotifs > 0, count: unreadNotifs > 0 ? unreadNotifs : undefined },
+          { id: 'notifs',   icon: <Bell size={18} strokeWidth={1.6} />,          label: 'Notifications',        dot: (unreadNotifs + dmPendingRequests.length) > 0, count: (unreadNotifs + dmPendingRequests.length) > 0 ? (unreadNotifs + dmPendingRequests.length) : undefined },
         ]
 
         return (
@@ -14770,6 +14803,46 @@ function CommunityPage() {
                   {/* ── NOTIFICATIONS ── */}
                   {activeRailSection === 'notifs' && (
                     <div>
+                      {/* Pending DM requests at top of panel */}
+                      {dmPendingRequests.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 9, letterSpacing: '0.15em', color: '#C9A84C', fontFamily: cinzel, textTransform: 'uppercase' as const, marginBottom: 10 }}>
+                            📬 Pending Message Requests
+                          </div>
+                          {dmPendingRequests.map((req: any) => (
+                            <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+                              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#C9A84C', flexShrink: 0, fontFamily: cinzel }}>
+                                {((req.recipient_name || req.recipientName || '?')[0]).toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, color: 'var(--t-0)', fontWeight: 500 }}>
+                                  {req.recipient_name || req.recipientName || 'Warrior'}
+                                </div>
+                                <div style={{ fontSize: 10, color: 'var(--t-4)', marginTop: 1 }}>
+                                  ⏳ Awaiting acceptance
+                                </div>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  const t = await getToken()
+                                  if (!t) return
+                                  await fetch(`/api/dm-request?action=cancel`, {
+                                    method: 'POST',
+                                    headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: req.id }),
+                                  }).catch(() => {})
+                                  setDmPendingRequests((prev: any[]) => prev.filter((r: any) => r.id !== req.id))
+                                }}
+                                style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 4, padding: '3px 10px', fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.06em', flexShrink: 0 }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ))}
+                          <div style={{ height: 1, background: 'rgba(201,168,76,0.1)', margin: '8px 0 16px' }} />
+                        </div>
+                      )}
+
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>RECENT NOTIFICATIONS</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

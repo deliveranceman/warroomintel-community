@@ -11305,6 +11305,11 @@ function AdminPage() {
     if (typeof window === 'undefined') return true
     return localStorage.getItem('wri-theme') !== 'light'
   })
+  const [solOpen,        setSolOpen]        = useState(() => { try { return localStorage.getItem('adm_sol_open') !== 'false' } catch { return true } })
+  const [intelOpen,      setIntelOpen]      = useState(() => { try { return localStorage.getItem('adm_intel_open') !== 'false' } catch { return true } })
+  const [moderationOpen, setModerationOpen] = useState(() => { try { return localStorage.getItem('adm_mod_open') !== 'false' } catch { return true } })
+  const [contentOpen,    setContentOpen]    = useState(() => { try { return localStorage.getItem('adm_content_open') !== 'false' } catch { return true } })
+  const [operationsOpen, setOperationsOpen] = useState(() => { try { return localStorage.getItem('adm_ops_open') !== 'false' } catch { return true } })
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
@@ -11434,46 +11439,79 @@ function AdminPage() {
             paddingTop: 16, paddingBottom: 32,
             ...(isMobile ? { position: 'absolute' as const, top: 0, left: 0, bottom: 0, zIndex: 50, boxShadow: '4px 0 24px rgba(0,0,0,0.45)' } : {}),
           }}>
-            {SIDEBAR_GROUPS.map(group => (
-              <div key={group.label} style={{ marginBottom: 8 }}>
-                {group.label === 'SOL' ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '10px 20px 4px' }}>
-                    <img src="/images/sol/sol-icon.png" width={12} height={12} style={{ objectFit: 'contain' as const, marginRight: 0, filter: 'drop-shadow(0 0 4px rgba(201,168,76,0.8))' }} alt="" />
-                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.2em', color: '#C9A84C', textTransform: 'uppercase' as const }}>SOL</span>
+            {(() => {
+              const groupOpenMap: Record<string, boolean> = {
+                DASHBOARD: true,
+                SOL: solOpen,
+                'INTEL ARCHIVE': intelOpen,
+                MODERATION: moderationOpen,
+                CONTENT: contentOpen,
+                OPERATIONS: operationsOpen,
+              }
+              const groupToggleMap: Record<string, () => void> = {
+                SOL:           () => { const n = !solOpen;        setSolOpen(n);        try { localStorage.setItem('adm_sol_open', String(n)) } catch {} },
+                'INTEL ARCHIVE': () => { const n = !intelOpen;    setIntelOpen(n);      try { localStorage.setItem('adm_intel_open', String(n)) } catch {} },
+                MODERATION:    () => { const n = !moderationOpen; setModerationOpen(n); try { localStorage.setItem('adm_mod_open', String(n)) } catch {} },
+                CONTENT:       () => { const n = !contentOpen;    setContentOpen(n);    try { localStorage.setItem('adm_content_open', String(n)) } catch {} },
+                OPERATIONS:    () => { const n = !operationsOpen; setOperationsOpen(n); try { localStorage.setItem('adm_ops_open', String(n)) } catch {} },
+              }
+              return SIDEBAR_GROUPS.map(group => {
+                const open = groupOpenMap[group.label] ?? true
+                const toggle = groupToggleMap[group.label]
+                const isDash = group.label === 'DASHBOARD'
+                return (
+                  <div key={group.label} style={{ marginBottom: 2 }}>
+                    {isDash ? null : (
+                      toggle ? (
+                        <button onClick={toggle} style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '10px 20px 4px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+                          {group.label === 'SOL' ? (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1 }}>
+                              <img src="/images/sol/sol-icon.png" width={12} height={12} style={{ objectFit: 'contain' as const, filter: 'drop-shadow(0 0 4px rgba(201,168,76,0.8))' }} alt="" />
+                              <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.2em', color: '#C9A84C', textTransform: 'uppercase' as const }}>SOL</span>
+                            </span>
+                          ) : (
+                            <span style={{ flex: 1, fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', textTransform: 'uppercase' as const }}>{group.label}</span>
+                          )}
+                          <span style={{ fontSize: 9, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+                        </button>
+                      ) : (
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
+                          {group.label}
+                        </div>
+                      )
+                    )}
+                    <div style={{ overflow: 'hidden', maxHeight: (isDash || open) ? 600 : 0, transition: 'max-height 0.2s ease' }}>
+                      {group.items.map(item => {
+                        const active = tab === item.key
+                        return (
+                          <button
+                            key={item.key}
+                            onClick={() => { setTab(item.key as any); if (isMobile) setSidebarOpen(false) }}
+                            style={{
+                              width: '100%', textAlign: 'left' as const,
+                              padding: '8px 20px 8px 18px',
+                              background: active ? (isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)') : 'transparent',
+                              border: 'none',
+                              borderLeft: `2px solid ${active ? adGold : 'transparent'}`,
+                              color: active ? adGold : adDim,
+                              fontFamily: cinzel, fontSize: 10,
+                              letterSpacing: '0.06em',
+                              cursor: 'pointer',
+                              transition: 'color 0.12s, background 0.12s',
+                              display: 'block',
+                            }}
+                            onMouseEnter={e => { if (!active) e.currentTarget.style.color = isDark ? 'rgba(201,168,76,0.8)' : '#8B6914' }}
+                            onMouseLeave={e => { if (!active) e.currentTarget.style.color = adDim }}
+                          >
+                            {item.label}{(item.key as string) === 'moderation' && modBadge > 0 && <span style={{ background: '#ef4444', color: 'white', borderRadius: '50%', fontSize: 9, padding: '1px 5px', marginLeft: 4, lineHeight: 1.4 }}>{modBadge}</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                ) : (
-                  <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', padding: '10px 20px 4px', textTransform: 'uppercase' as const }}>
-                    {group.label}
-                  </div>
-                )}
-                {group.items.map(item => {
-                  const active = tab === item.key
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => { setTab(item.key as any); if (isMobile) setSidebarOpen(false) }}
-                      style={{
-                        width: '100%', textAlign: 'left' as const,
-                        padding: '8px 20px 8px 18px',
-                        background: active ? (isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)') : 'transparent',
-                        border: 'none',
-                        borderLeft: `2px solid ${active ? adGold : 'transparent'}`,
-                        color: active ? adGold : adDim,
-                        fontFamily: cinzel, fontSize: 10,
-                        letterSpacing: '0.06em',
-                        cursor: 'pointer',
-                        transition: 'color 0.12s, background 0.12s',
-                        display: 'block',
-                      }}
-                      onMouseEnter={e => { if (!active) e.currentTarget.style.color = isDark ? 'rgba(201,168,76,0.8)' : '#8B6914' }}
-                      onMouseLeave={e => { if (!active) e.currentTarget.style.color = adDim }}
-                    >
-                      {item.label}{(item.key as string) === 'moderation' && modBadge > 0 && <span style={{ background: '#ef4444', color: 'white', borderRadius: '50%', fontSize: 9, padding: '1px 5px', marginLeft: 4, lineHeight: 1.4 }}>{modBadge}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            ))}
+                )
+              })
+            })()}
           </div>
         )}
 
