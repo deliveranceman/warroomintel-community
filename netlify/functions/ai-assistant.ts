@@ -1,6 +1,7 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage, type AIFeature } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
+import { assembleWRIContext } from './_shared/assembleWRIContext'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -167,56 +168,15 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
   const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'
   const AIRTABLE_TOKEN = airtableToken || ''
 
-  // ── Ask SOL / Ask Dake: WRI context in parallel with 3s timeout each ──────
+  // ── Ask SOL / Ask Dake: full WRI context assembled from all sources ─────────
   if (featureParam === 'ask_sol' || featureParam === 'ask_dake') {
-    const to3 = <T>(v: T) => new Promise<T>(r => setTimeout(() => r(v), 3000))
-
-    const [demonCtx, libCtx] = await Promise.all([
-      // Airtable demon lookup
-      Promise.race([
-        (async (): Promise<string> => {
-          if (!AIRTABLE_BASE || !AIRTABLE_TOKEN) return ''
-          try {
-            const spiritName = message.trim().split(/\s+/).slice(0, 3).join(' ')
-            const res = await fetch(
-              `https://api.airtable.com/v0/${AIRTABLE_BASE}/${encodeURIComponent(AIRTABLE_TABLE)}?filterByFormula=SEARCH(LOWER("${spiritName.toLowerCase()}"),LOWER({Name}))&pageSize=3`,
-              { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
-            )
-            if (!res.ok) return ''
-            const data = await res.json()
-            if (!data.records?.length) return ''
-            return '\n\nFROM WAR ROOM INTEL DATABASE:\n' + data.records.map((r: any) => {
-              const f = r.fields
-              return `Spirit: ${f.Name}\nKingdom: ${f.Kingdom || 'Unknown'}\nManifestations: ${f['Session Indicators'] || 'Not documented'}`
-            }).join('\n\n')
-          } catch { return '' }
-        })(),
-        to3(''),
-      ]),
-      // Library semantic search
-      Promise.race([
-        (async (): Promise<string> => {
-          try {
-            const res = await fetch(`${baseUrl}/api/library-search`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query: message, limit: 3 }),
-            })
-            if (!res.ok) return ''
-            const data = await res.json()
-            const chunks = data.results || data.chunks || []
-            if (!chunks.length) return ''
-            return '\n\nFROM MINISTRY LIBRARY:\n' + chunks.map((c: any) => `[${c.book_title}]\n${c.chunk_text}`).join('\n\n---\n\n')
-          } catch { return '' }
-        })(),
-        to3(''),
-      ]),
-    ])
-
-    const enrichedQuery = message.trim() + demonCtx + libCtx
+    const wriContext = await assembleWRIContext({ query: message, maxChars: 6000 })
+    const solSystemWithContext = wriContext
+      ? `WRI KNOWLEDGE BASE:\n${wriContext}\n\n---\n\n${SOL_SYSTEM_PROMPT}`
+      : SOL_SYSTEM_PROMPT
     const solMessages = [
       ...history.filter((m: any) => m.role && m.content).map((m: any) => ({ role: m.role, content: m.content })),
-      { role: 'user', content: enrichedQuery },
+      { role: 'user', content: message.trim() },
     ]
     const solRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -229,7 +189,7 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 800,
-        system: [{ type: 'text', text: SOL_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        system: [{ type: 'text', text: solSystemWithContext, cache_control: { type: 'ephemeral' } }],
         messages: solMessages,
       }),
       signal: AbortSignal.timeout(45000),

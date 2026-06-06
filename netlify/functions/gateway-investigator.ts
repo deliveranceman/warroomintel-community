@@ -1,6 +1,6 @@
-import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
+import { assembleWRIContext } from './_shared/assembleWRIContext'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -75,7 +75,7 @@ async function fetchSpiritContext(spiritName: string): Promise<string> {
   } catch { return '' }
 }
 
-async function callClaude(spiritName: string, dbContext: string, personContext: string): Promise<any> {
+async function callClaude(spiritName: string, dbContext: string, personContext: string, wriContext: string): Promise<any> {
   const subject = spiritName || personContext.slice(0, 60) || 'General Analysis'
 
   const systemPrompt = `You are a spiritual warfare intelligence system specializing in demonic gateway analysis for deliverance ministers.
@@ -127,8 +127,9 @@ Rules:
 - Session questions must reference specific things the person may have been exposed to
 - Return ONLY the JSON. Nothing else.`
 
-  const ministryContext = await getMinistryContext()
-  const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${systemPrompt}` : systemPrompt
+  const effectiveSystem = wriContext
+    ? `WRI KNOWLEDGE BASE:\n${wriContext}\n\n---\n\n${systemPrompt}`
+    : systemPrompt
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -227,8 +228,15 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const dbContext = spiritName?.trim() ? await fetchSpiritContext(spiritName.trim()) : ''
-    const report = await callClaude(spiritName?.trim() || '', dbContext, personContext?.trim() || '')
+    const [dbContext, wriContext] = await Promise.all([
+      spiritName?.trim() ? fetchSpiritContext(spiritName.trim()) : Promise.resolve(''),
+      assembleWRIContext({
+        query: [spiritName?.trim(), personContext?.trim()].filter(Boolean).join(' '),
+        spiritName: spiritName?.trim() || undefined,
+        maxChars: 3000,
+      }),
+    ])
+    const report = await callClaude(spiritName?.trim() || '', dbContext, personContext?.trim() || '', wriContext)
 
     if (auth.userId && _sbUrl && _sbKey) {
       const q = [spiritName?.trim(), personContext?.trim()].filter(Boolean).join(' | ').slice(0, 500)

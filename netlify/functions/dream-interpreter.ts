@@ -1,6 +1,6 @@
-import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
+import { assembleWRIContext } from './_shared/assembleWRIContext'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -27,7 +27,7 @@ async function resolveUser(token: string): Promise<{ ok: boolean; tier: string; 
   } catch { return { ok: false, tier: '', userId: '' } }
 }
 
-async function callClaude(dreamDescription: string, dreamerContext: string): Promise<any> {
+async function callClaude(dreamDescription: string, dreamerContext: string, wriContext: string): Promise<any> {
   const systemPrompt = `You are a prophetic and spiritual dream interpreter for deliverance ministers.
 You analyze dreams through three lenses:
 1. Biblical/Prophetic — what God may be communicating through symbols and narrative; specific Scripture references
@@ -81,8 +81,9 @@ Rules:
 - Each section must have 2-5 specific, actionable items
 - Return ONLY the JSON. Nothing else.`
 
-  const ministryContext = await getMinistryContext()
-  const effectiveSystem = ministryContext ? `${ministryContext}\n\n---\n\n${systemPrompt}` : systemPrompt
+  const effectiveSystem = wriContext
+    ? `WRI KNOWLEDGE BASE:\n${wriContext}\n\n---\n\n${systemPrompt}`
+    : systemPrompt
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -161,7 +162,8 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const report = await callClaude(dreamDescription.trim(), dreamerContext?.trim() || '')
+    const wriContext = await assembleWRIContext({ query: dreamDescription, maxChars: 4000 })
+    const report = await callClaude(dreamDescription.trim(), dreamerContext?.trim() || '', wriContext)
 
     if (auth.userId && _sbUrl && _sbKey) {
       fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
