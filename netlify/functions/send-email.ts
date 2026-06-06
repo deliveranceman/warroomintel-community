@@ -21,15 +21,9 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS })
   }
 
-  const { type, to, name, submissionId, details } = body || {}
-
-  if (!type || !to) {
-    return new Response(JSON.stringify({ error: 'type and to are required' }), { status: 400, headers: HEADERS })
-  }
-
   const resend = new Resend(process.env.RESEND_API_KEY)
 
-  // Test endpoint — send any template to any address
+  // Test endpoint — must be checked BEFORE the generic type/to validation
   const action = new URL(req.url).searchParams.get('action')
   if (action === 'test') {
     const { email: toEmail, type: testType = 'welcome' } = body || {}
@@ -115,6 +109,12 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: 'Failed to send test email' }), { status: 500, headers: HEADERS })
     }
     return new Response(JSON.stringify({ success: true, sent_to: toEmail, type: testType }), { status: 200, headers: HEADERS })
+  }
+
+  const { type, to, name, submissionId, details } = body || {}
+
+  if (!type || !to) {
+    return new Response(JSON.stringify({ error: 'type and to are required' }), { status: 400, headers: HEADERS })
   }
 
   let emailPayload: Parameters<typeof resend.emails.send>[0]

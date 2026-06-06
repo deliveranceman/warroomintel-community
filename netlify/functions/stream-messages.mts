@@ -304,7 +304,8 @@ async function getMessages(userId: string, channelId: string): Promise<Response>
 
 async function sendMessage(userId: string, body: any): Promise<Response> {
   const { channelId, text, attachments } = body ?? {}
-  if (!channelId || !text) return json({ error: 'channelId and text required' }, 400)
+  if (!channelId) return json({ error: 'channelId required' }, 400)
+  if (!text && (!Array.isArray(attachments) || attachments.length === 0)) return json({ error: 'text or attachments required' }, 400)
 
   const { status, data } = await streamFetch(
     `/channels/messaging/${encodeURIComponent(channelId)}/message`,
