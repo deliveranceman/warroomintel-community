@@ -10151,6 +10151,28 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
   const STATUS_BG: Record<string, string> = { new: 'rgba(201,168,76,0.12)', confirmed: 'rgba(59,130,246,0.12)', in_progress: 'rgba(59,130,246,0.12)', fixed: 'rgba(34,197,94,0.12)', deployed: 'rgba(34,197,94,0.12)', wont_fix: 'rgba(100,100,100,0.12)', by_design: 'rgba(100,100,100,0.12)', duplicate: 'rgba(100,100,100,0.12)' }
   const STATUS_C: Record<string, string> = { new: G, confirmed: '#60a5fa', in_progress: '#60a5fa', fixed: '#4ade80', deployed: '#4ade80', wont_fix: '#9ca3af', by_design: '#9ca3af', duplicate: '#9ca3af' }
 
+  const bugNumbers = useMemo<Record<string, number>>(() => {
+    const asc = [...bugs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    return Object.fromEntries(asc.map((r, i) => [r.id, i + 1]))
+  }, [bugs])
+
+  const featNumbers = useMemo<Record<string, number>>(() => {
+    const asc = [...features].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    return Object.fromEntries(asc.map((r, i) => [r.id, i + 1]))
+  }, [features])
+
+  async function deleteBug(id: string) {
+    if (!confirm('Delete this bug report? This cannot be undone.')) return
+    await apiFetch(`/api/beta-reports?id=${id}`, { method: 'DELETE' })
+    setBugs(prev => prev.filter(b => b.id !== id))
+  }
+
+  async function deleteFeat(id: string) {
+    if (!confirm('Delete this feature request? This cannot be undone.')) return
+    await apiFetch(`/api/beta-reports?id=${id}`, { method: 'DELETE' })
+    setFeatures(prev => prev.filter(f => f.id !== id))
+  }
+
   return (
     <div style={{ padding: '24px 0' }}>
       <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>🧪 TESTING COMMAND CENTER</div>
@@ -10199,6 +10221,7 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' as const }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: G }}>#{bugNumbers[bug.id] ?? '?'}</span>
                   <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G }}>{bug.title}</span>
                   {bug.priority && <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: SEV_COLORS[bug.priority] || dim, border: `1px solid ${SEV_COLORS[bug.priority] || dim}44`, padding: '1px 5px', borderRadius: 8 }}>{bug.priority}</span>}
                   <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: STATUS_BG[bug.status] || 'transparent', color: STATUS_C[bug.status] || dim, padding: '1px 6px', borderRadius: 8 }}>{(bug.status || '').replace(/_/g,' ')}</span>
@@ -10207,6 +10230,15 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
                 <div style={{ fontSize: 11, color: dim, fontFamily: "'Crimson Pro', serif" }}>
                   {bug.user_name}{bug.page_section ? ` · ${bug.page_section}` : ''}
                 </div>
+                <textarea
+                  key={`notes-${bug.id}`}
+                  defaultValue={bug.admin_notes || ''}
+                  placeholder="Admin notes (internal only)..."
+                  onBlur={async e => {
+                    await apiFetch('/api/beta-reports', { method: 'PATCH', body: JSON.stringify({ id: bug.id, admin_notes: e.target.value }) })
+                  }}
+                  style={{ ...inp, minHeight: 52, marginTop: 8, resize: 'vertical' as const, fontSize: 11 }}
+                />
                 {editBugId === bug.id ? (
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                     <select style={{ ...inp, width: 'auto', fontSize: 11 }} value={editBugStatus} onChange={e => setEditBugStatus(e.target.value)}>
@@ -10223,7 +10255,10 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
                   </button>
                 )}
               </div>
-              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>▲ {bug.upvotes}</span>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>▲ {bug.upvotes}</span>
+                <button onClick={() => deleteBug(bug.id)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>Delete</button>
+              </div>
             </div>
           </div>
         ))}
@@ -10239,11 +10274,21 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' as const }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: G }}>#{featNumbers[feat.id] ?? '?'}</span>
                   <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: G }}>{feat.title}</span>
                   <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: STATUS_BG[feat.status] || 'transparent', color: STATUS_C[feat.status] || dim, padding: '1px 6px', borderRadius: 8 }}>{feat.status.replace('_',' ')}</span>
                 </div>
                 <p style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: txt, margin: '0 0 4px', lineHeight: 1.4 }}>{feat.description}</p>
                 <div style={{ fontSize: 11, color: dim, fontFamily: "'Crimson Pro', serif" }}>{feat.user_name}</div>
+                <textarea
+                  key={`notes-${feat.id}`}
+                  defaultValue={feat.admin_notes || ''}
+                  placeholder="Admin notes (internal only)..."
+                  onBlur={async e => {
+                    await apiFetch('/api/beta-reports', { method: 'PATCH', body: JSON.stringify({ id: feat.id, admin_notes: e.target.value }) })
+                  }}
+                  style={{ ...inp, minHeight: 52, marginTop: 8, resize: 'vertical' as const, fontSize: 11 }}
+                />
                 {editFeatId === feat.id ? (
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                     <select style={{ ...inp, width: 'auto', fontSize: 11 }} value={editFeatStatus} onChange={e => setEditFeatStatus(e.target.value)}>
@@ -10260,7 +10305,10 @@ function AdminTestingPanel({ getToken, isDark }: { getToken: () => Promise<strin
                   </button>
                 )}
               </div>
-              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>▲ {feat.upvotes}</span>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: dim }}>▲ {feat.upvotes}</span>
+                <button onClick={() => deleteFeat(feat.id)} style={{ fontFamily: "'Cinzel', serif", fontSize: 8, background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>Delete</button>
+              </div>
             </div>
           </div>
         ))}

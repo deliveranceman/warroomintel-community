@@ -7126,7 +7126,10 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
             <span style={{ fontFamily: cinzel, fontSize: 10, color: muted }}>No reports yet. Be first to file a report.</span>
           </div>
         )}
-        {!loading && reports.map(report => {
+        {!loading && (() => {
+          const _sorted = [...reports].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          const numMap: Record<string, number> = Object.fromEntries(_sorted.map((r, i) => [r.id, i + 1]))
+          return reports.map(report => {
           const tc     = TYPE_CFG[report.type] || { bg: 'rgba(120,120,120,0.12)', color: '#888' }
           const sc     = STATUS_CFG[report.status] || STATUS_CFG.new
           const exp    = expandedIds.has(report.id)
@@ -7144,7 +7147,9 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
                 <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>{timeAgo(report.created_at)}</span>
               </div>
               {/* Row 2: Title */}
-              <div style={{ fontFamily: cinzel, fontSize: 14, color: text, fontWeight: 700, marginBottom: 6 }}>{report.title}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 14, color: text, fontWeight: 700, marginBottom: 6 }}>
+                <span style={{ fontSize: 9, color: G, fontFamily: cinzel, marginRight: 6 }}>#{numMap[report.id] ?? '?'}</span>{report.title}
+              </div>
               {/* Row 3: Page section */}
               {report.page_section && (
                 <div style={{ marginBottom: 8 }}>
@@ -7218,7 +7223,8 @@ function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTi
               )}
             </div>
           )
-        })}
+        })
+        })()}
       </div>}
     </div>
   )

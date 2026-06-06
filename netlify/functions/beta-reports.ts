@@ -8,8 +8,8 @@ const sb = (path: string) => `${supabaseUrl}/rest/v1${path}`
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-internal-key',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
 }
 const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' }
 
@@ -63,7 +63,7 @@ async function getList(userId: string, isMinister: boolean, params: URLSearchPar
   const mine   = params.get('mine') === 'true'
 
   const selectFields = isMinister
-    ? 'id,user_id,user_name,type,title,description,page_section,screenshot_url,screenshot_url_2,screenshot_url_3,status,priority,upvotes,upvoted_by,admin_notes,fix_summary,fixed_at,created_at,updated_at'
+    ? 'id,user_id,user_name,type,title,description,page_section,screenshot_url,screenshot_url_2,screenshot_url_3,status,priority,upvotes,upvoted_by,admin_notes,fix_summary,fixed_at,resolved_at,source,created_at,updated_at'
     : 'id,user_id,user_name,type,title,description,page_section,screenshot_url,screenshot_url_2,screenshot_url_3,status,priority,upvotes,upvoted_by,fix_summary,fixed_at,created_at,updated_at'
 
   let url = `${sb('/beta_reports')}?select=${selectFields}&limit=200`
@@ -170,14 +170,18 @@ async function triageReport(userId: string, isMinister: boolean, body: any): Pro
   void userId
   if (!isMinister) return json({ error: 'Forbidden' }, 403)
   const { id, status, priority, adminNotes, fixSummary } = body || {}
+  // Support both camelCase (adminNotes) and snake_case (admin_notes) from callers
+  const adminNotesValue = adminNotes ?? body?.admin_notes
+  const fixSummaryValue = fixSummary ?? body?.fix_summary
   if (!id) return json({ error: 'id required' }, 400)
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  if (status     !== undefined) patch.status      = status
-  if (priority   !== undefined) patch.priority    = priority
-  if (adminNotes !== undefined) patch.admin_notes = adminNotes
-  if (fixSummary !== undefined) patch.fix_summary = fixSummary
-  if (status === 'fixed' || status === 'deployed') patch.fixed_at = new Date().toISOString()
+  if (status           !== undefined) patch.status      = status
+  if (priority         !== undefined) patch.priority    = priority
+  if (adminNotesValue  !== undefined) patch.admin_notes = adminNotesValue
+  if (fixSummaryValue  !== undefined) patch.fix_summary = fixSummaryValue
+  if (status === 'fixed' || status === 'deployed')  patch.fixed_at    = new Date().toISOString()
+  if (status === 'resolved')                        patch.resolved_at = new Date().toISOString()
 
   const patchRes = await fetch(`${sb('/beta_reports')}?id=eq.${encodeURIComponent(id)}&select=*`, {
     method: 'PATCH',
@@ -187,6 +191,111 @@ async function triageReport(userId: string, isMinister: boolean, body: any): Pro
   if (!patchRes.ok) return json({ error: 'Update failed', detail: await patchRes.text() }, 500)
   const resRows: any[] = await patchRes.json()
   return json({ report: resRows[0] ?? null })
+}
+
+async function deleteReport(isMinister: boolean, id: string | null): Promise<Response> {
+  if (!isMinister) return json({ error: 'Forbidden' }, 403)
+  if (!id) return json({ error: 'id required' }, 400)
+
+  const delRes = await fetch(`${sb('/beta_reports')}?id=eq.${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { ...sbHeaders, Prefer: 'return=minimal' },
+  })
+  if (!delRes.ok) return json({ error: 'Delete failed', detail: await delRes.text() }, 500)
+  return json({ success: true })
+}
+
+async function systemIntake(req: Request): Promise<Response> {
+  const key = req.headers.get('x-internal-key')
+  if (key !== 'wri-internal-2026-backfill') return json({ error: 'Forbidden' }, 403)
+
+  const body = await req.json().catch(() => ({}))
+  const { title, description, priority, category } = body as any
+  if (!title) return json({ error: 'title required' }, 400)
+
+  const res = await fetch(`${sb('/beta_reports')}?select=id`, {
+    method: 'POST',
+    headers: { ...sbHeaders, Prefer: 'return=representation' },
+    body: JSON.stringify({
+      title,
+      description: description || '',
+      type:        category    || 'bug',
+      priority:    priority    || 'medium',
+      status:      'new',
+      user_name:   'System',
+      source:      'system',
+    }),
+  })
+  if (!res.ok) return json({ error: 'Insert failed', detail: await res.text() }, 500)
+  return json({ success: true })
+}
+
+const SYSTEM_BUGS = [
+  {
+    title: 'Audio Prayer Call not connecting on iPad',
+    priority: 'critical',
+    description: 'iPad recipient accepts call, hangs at Connecting... Screen. Desktop caller shows Connected. Stream Backstage was disabled but issue persists. Mic-before-join fix deployed but unconfirmed.',
+  },
+  {
+    title: 'Presence showing only current user online',
+    priority: 'high',
+    description: 'Warriors panel only shows current user as online. Soldier01 does not appear even after stream-backfill. memberPresence map may not be updating from war-room-general channel correctly.',
+  },
+  {
+    title: 'Nav jump on sidebar click',
+    priority: 'medium',
+    description: 'Clicking certain sidebar items causes the main content area to scroll to top instead of navigating correctly. behavior: instant was set but issue persists per HAR.',
+  },
+  {
+    title: 'DM request takes full screen on mobile',
+    priority: 'medium',
+    description: 'Pending requests section takes full screen on iPhone. Should be a compact section above the DM list.',
+  },
+  {
+    title: 'Field Teams not appearing in sidebar',
+    priority: 'medium',
+    description: 'Field Teams page was built and pushed but not visible in community sidebar under Field Ops.',
+  },
+  {
+    title: 'Tier badges not visible in Warriors panel',
+    priority: 'low',
+    description: 'Tier badges shipped in warriors panel commit but not confirmed visible in screenshots.',
+  },
+  {
+    title: 'Admin 403 on stats, members, moderation',
+    priority: 'high',
+    description: 'admin-quick-stats, admin-members, admin-moderation all returning 403 Forbidden for minister/general role. Functions check for admin role only, need to accept minister too.',
+  },
+]
+
+async function systemSeed(req: Request): Promise<Response> {
+  const key = req.headers.get('x-internal-key')
+  if (key !== 'wri-internal-2026-backfill') return json({ error: 'Forbidden' }, 403)
+
+  // One-time flag: check if system bugs already exist
+  const checkRes = await fetch(`${sb('/beta_reports')}?user_name=eq.System&select=id&limit=1`, { headers: sbHeaders })
+  if (checkRes.ok) {
+    const existing = await checkRes.json()
+    if (existing.length > 0) return json({ skipped: true, reason: 'already seeded' })
+  }
+
+  const rows = SYSTEM_BUGS.map(bug => ({
+    title:       bug.title,
+    description: bug.description,
+    type:        'bug',
+    priority:    bug.priority,
+    status:      'new',
+    user_name:   'System',
+    source:      'system',
+  }))
+
+  const res = await fetch(`${sb('/beta_reports')}?select=id`, {
+    method: 'POST',
+    headers: { ...sbHeaders, Prefer: 'return=representation' },
+    body: JSON.stringify(rows),
+  })
+  if (!res.ok) return json({ error: 'Seed failed', detail: await res.text() }, 500)
+  return json({ success: true, seeded: rows.length })
 }
 
 async function uploadScreenshot(userId: string, req: Request): Promise<Response> {
@@ -224,20 +333,29 @@ async function uploadScreenshot(userId: string, req: Request): Promise<Response>
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
+  const url    = new URL(req.url)
+  const action = url.searchParams.get('action') ?? ''
+
+  // System-level actions — use internal key, no user auth needed
+  if (action === 'system-intake') return systemIntake(req)
+  if (action === 'system-seed')   return systemSeed(req)
+
   const auth = decodeToken(req.headers.get('Authorization'))
   if (!auth) return json({ error: 'Unauthorized' }, 401)
   const { userId } = auth
 
-  const url    = new URL(req.url)
-  const action = url.searchParams.get('action') ?? ''
-
   if (action === 'upload') return uploadScreenshot(userId, req)
-
-  if (action === 'stats') return getStats()
+  if (action === 'stats')  return getStats()
 
   if (action === 'upvote') {
     const body = await req.json().catch(() => ({}))
     return upvoteReport(userId, body)
+  }
+
+  if (req.method === 'DELETE') {
+    const id = url.searchParams.get('id')
+    const isMinister = await getIsMinister(userId)
+    return deleteReport(isMinister, id)
   }
 
   if (req.method === 'GET') {
