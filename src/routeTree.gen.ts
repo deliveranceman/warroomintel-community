@@ -60,6 +60,7 @@ import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-
 import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminChurchFathersLibraryRouteImport } from './routes/admin.church-fathers-library'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -318,6 +319,12 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminChurchFathersLibraryRoute =
+  AdminChurchFathersLibraryRouteImport.update({
+    id: '/church-fathers-library',
+    path: '/church-fathers-library',
+    getParentRoute: () => AdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -339,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/submit-demon': typeof SubmitDemonRoute
   '/terms': typeof TermsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -391,6 +399,7 @@ export interface FileRoutesByTo {
   '/submit-demon': typeof SubmitDemonRoute
   '/terms': typeof TermsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -445,6 +454,7 @@ export interface FileRoutesById {
   '/submit-demon': typeof SubmitDemonRoute
   '/terms': typeof TermsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -500,6 +510,7 @@ export interface FileRouteTypes {
     | '/submit-demon'
     | '/terms'
     | '/admin/login'
+    | '/admin/church-fathers-library'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -552,6 +563,7 @@ export interface FileRouteTypes {
     | '/submit-demon'
     | '/terms'
     | '/admin/login'
+    | '/admin/church-fathers-library'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -605,6 +617,7 @@ export interface FileRouteTypes {
     | '/submit-demon'
     | '/terms'
     | '/admin/login'
+    | '/admin/church-fathers-library'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -1050,16 +1063,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/church-fathers-library': {
+      id: '/admin/church-fathers-library'
+      path: '/church-fathers-library'
+      fullPath: '/admin/church-fathers-library'
+      preLoaderRoute: typeof AdminChurchFathersLibraryRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminChurchFathersLibraryRoute: typeof AdminChurchFathersLibraryRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
+  AdminChurchFathersLibraryRoute: AdminChurchFathersLibraryRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 

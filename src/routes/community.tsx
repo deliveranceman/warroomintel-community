@@ -10987,84 +10987,105 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
-        {/* ── New DM member picker overlay ── */}
-        {showNewDM && (
-          <div style={{ position: 'absolute', inset: 0, background: BG, zIndex: 10, display: 'flex', flexDirection: 'column' as const }}>
-            {/* Header */}
-            <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>New Message</span>
-              <button onClick={() => { setShowNewDM(false); setDmSearch('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, fontSize: 18, lineHeight: 1 }}>✕</button>
-            </div>
-            {/* Search */}
-            <div style={{ padding: '8px 12px', flexShrink: 0 }}>
-              <input
-                value={dmSearch}
-                onChange={e => setDmSearch(e.target.value)}
-                placeholder="Search soldiers…"
-                autoFocus
-                style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '7px 10px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }}
-              />
-            </div>
-            {/* Member list */}
-            <div style={{ flex: 1, overflowY: 'auto' as const }}>
-              {loadingMembers ? (
-                <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>Loading…</div>
-              ) : dmMembers.filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase())).length === 0 ? (
-                <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No members found</div>
-              ) : dmMembers
-                  .filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase()))
-                  .map(member => {
-                    const handleMemberTap = async () => {
-                      setShowNewDM(false); setDmSearch('')
-                      try {
-                        const data = await api('create-dm', 'POST', { otherUserId: member.id, otherUserName: member.name })
-                        if (data.ok && data.channelId) {
-                          const cid = data.channelId
-                          setConversations(prev => [{
-                            channelId: cid,
-                            otherMember: { id: member.id, name: member.name, image: member.imageUrl || '', online: false },
-                            lastMessage: null,
-                            unreadCount: 0,
-                          }, ...prev.filter((c: any) => c.channelId !== cid)])
-                          selectConversation(cid)
-                          api('list-conversations').then((convData: any) => {
-                            if (convData.conversations) setConversations(convData.conversations)
-                          }).catch(() => {})
-                        } else if (data.watchman) {
-                          setDmError(data.message || 'This user cannot receive DMs on the free tier.')
-                        } else if (data.pending) {
-                          setDmError(data.message || 'DM request sent — waiting for acceptance.')
-                        } else if (data.declined) {
-                          setDmError(data.message || 'Your DM request was declined.')
-                        }
-                      } catch (e) { console.error('[DM picker] create-dm failed', e) }
-                    }
-                    return (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={handleMemberTap}
-                      onTouchEnd={(e) => { e.preventDefault(); handleMemberTap() }}
-                      style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '1.5px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-                        {member.imageUrl
-                          ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
-                          : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: GLD, pointerEvents: 'none' }}>{member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
-                        }
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0, pointerEvents: 'none' }}>
-                        <div style={{ fontSize: 13, color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
-                        <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
-                      </div>
-                    </button>
-                  )})
-              }
-            </div>
+        {/* ── New DM member picker — bottom sheet ── */}
+        <div
+          onClick={() => { setShowNewDM(false); setDmSearch('') }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 400,
+            background: 'rgba(0,0,0,0.6)',
+            display: showNewDM ? 'block' : 'none',
+          }}
+        />
+        <div style={{
+          position: 'fixed',
+          bottom: 0, left: 0, right: 0,
+          zIndex: 401,
+          background: '#1C1410',
+          borderRadius: '16px 16px 0 0',
+          borderTop: '1px solid rgba(201,168,76,0.2)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          maxHeight: '70dvh',
+          display: 'flex',
+          flexDirection: 'column' as const,
+          transform: showNewDM ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.25s ease',
+        }}>
+          {/* Drag handle */}
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(201,168,76,0.3)', margin: '12px auto 0', flexShrink: 0 }} />
+          {/* Header */}
+          <div style={{ padding: '12px 16px', fontFamily: "'Cinzel',serif", fontSize: 13, color: GLD, letterSpacing: '0.1em', borderBottom: '1px solid rgba(201,168,76,0.1)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>NEW MESSAGE</span>
+            <button onClick={() => { setShowNewDM(false); setDmSearch('') }} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
           </div>
-        )}
+          {/* Search */}
+          <div style={{ padding: '12px 16px', flexShrink: 0 }}>
+            <input
+              value={dmSearch}
+              onChange={e => setDmSearch(e.target.value)}
+              placeholder="Search soldiers…"
+              autoFocus={showNewDM}
+              style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: '#e8dcc8', fontFamily: "'Cinzel',serif", fontSize: 12, boxSizing: 'border-box' as const, outline: 'none' }}
+            />
+          </div>
+          {/* Member list */}
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: '0 16px 16px' }}>
+            {loadingMembers ? (
+              <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>Loading…</div>
+            ) : dmMembers.filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase())).length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No members found</div>
+            ) : dmMembers
+                .filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase()))
+                .map(member => {
+                  const handleMemberTap = async () => {
+                    setShowNewDM(false); setDmSearch('')
+                    try {
+                      const data = await api('create-dm', 'POST', { otherUserId: member.id, otherUserName: member.name })
+                      if (data.ok && data.channelId) {
+                        const cid = data.channelId
+                        setConversations(prev => [{
+                          channelId: cid,
+                          otherMember: { id: member.id, name: member.name, image: member.imageUrl || '', online: false },
+                          lastMessage: null,
+                          unreadCount: 0,
+                        }, ...prev.filter((c: any) => c.channelId !== cid)])
+                        selectConversation(cid)
+                        api('list-conversations').then((convData: any) => {
+                          if (convData.conversations) setConversations(convData.conversations)
+                        }).catch(() => {})
+                      } else if (data.watchman) {
+                        setDmError(data.message || 'This user cannot receive DMs on the free tier.')
+                      } else if (data.pending) {
+                        setDmError(data.message || 'DM request sent — waiting for acceptance.')
+                      } else if (data.declined) {
+                        setDmError(data.message || 'Your DM request was declined.')
+                      }
+                    } catch (e) { console.error('[DM picker] create-dm failed', e) }
+                  }
+                  return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={handleMemberTap}
+                    onTouchEnd={(e) => { e.preventDefault(); handleMemberTap() }}
+                    style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '1.5px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+                      {member.imageUrl
+                        ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                        : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: GLD, pointerEvents: 'none' }}>{member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'}</span>
+                      }
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, pointerEvents: 'none' }}>
+                      <div style={{ fontSize: 13, color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                      <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
+                    </div>
+                  </button>
+                )})
+            }
+          </div>
+        </div>
 
       {/* ── CENTER PANEL: Chat thread ── */}
       <div style={{
@@ -12112,6 +12133,8 @@ function CommunityPage() {
   })
   const [isMobile, setIsMobile]       = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
   const [isTablet, setIsTablet]       = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1100)
+  const isDesktop = !isMobile && !isTablet
+  const [ipadDrawerOpen, setIpadDrawerOpen] = useState(false)
   const [activeRailSection, setActiveRailSection] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -13523,6 +13546,302 @@ function CommunityPage() {
     </>
   )
 
+  // ── Shared section renderer — iPad and mobile shells ──────────────────────
+  const renderSections = (): React.ReactNode => (
+    <>
+      {showPushBanner && !pushSubscribed && typeof window !== 'undefined' && 'Notification' in window && (() => {
+        const isIOS2 = /iphone|ipad|ipod/i.test(navigator.userAgent)
+        const isStandalone2 = (window.navigator as any).standalone === true
+        const iosNHS = isIOS2 && !isStandalone2
+        return (
+          <div style={{ flexShrink: 0, padding: '8px 16px', background: isDark ? 'rgba(201,168,76,0.07)' : 'rgba(201,168,76,0.12)', borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.35)'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: isDark ? 'var(--t-2)' : V.mut, letterSpacing: '0.04em' }}>Enable notifications for prayer requests and session alerts.</span>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                {!iosNHS && <button onClick={enablePushNotifications} style={{ padding: '4px 12px', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', background: 'var(--gold)', color: '#1a1305', border: 'none', borderRadius: 2, cursor: 'pointer' }}>Enable</button>}
+                <button onClick={() => { setShowPushBanner(false); try { localStorage.setItem('wri-push-dismissed', '1') } catch {} }} style={{ padding: '4px 8px', fontFamily: 'var(--font-mono)', fontSize: 10, background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 2, color: isDark ? 'var(--t-3)' : V.mut, cursor: 'pointer' }}>Later</button>
+              </div>
+            </div>
+            {iosNHS && <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 10, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.03em' }}>iOS: To enable push notifications, tap Share → Add to Home Screen first.</div>}
+          </div>
+        )
+      })()}
+      {activeSection === 'sitrep'         && <SitrepView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
+      {activeSection === 'intel'          && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
+      {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+      {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
+      {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+      {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
+      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} />}
+      {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
+      {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
+      {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
+      {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
+      {activeSection === 'testimony-wall' && <TestimonyWallView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={user?.firstName || 'Warrior'} userTier={tier} userImage={user?.imageUrl || ''} />}
+      {activeSection === 'assessment'     && <AssessmentUploadView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} tier={tier} tierLevel={tierLevel} user={user} getToken={getToken} />}
+      {activeSection === 'help'           && <HelpSection />}
+      {activeSection === 'fringe-feed'    && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
+      {activeSection === 'body-map'       && (tierLevel >= 2 ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><div style={{ fontSize:40, color:G, marginBottom:20 }}>⚔</div><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><a href="/membership" style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, textDecoration:'none' }}>Upgrade to Commander</a></div></div>)}
+      {activeSection === 'spirit-network' && (tierLevel >= 2 ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} /><OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} /></div> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><a href="/membership" style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, textDecoration:'none' }}>Upgrade to Commander</a></div></div>)}
+      {activeSection === 'gateway'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','The AI cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} /></div>}
+      {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
+      {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} />}
+      {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+      {activeSection === 'session-center' && <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />}
+      {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
+      {activeSection === 'feedback'       && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
+      {activeSection === 'beta-test'      && <BetaTrackerView isDark={isDark} isMobile={isMobile} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
+      {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+      {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
+      {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
+      {activeSection === 'forum'          && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} /><OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} /></div>}
+      {activeSection === 'deliverance-protocol' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
+          <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+            {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px' }}>
+            {tierLevel < 2 ? (
+              <div style={{ textAlign: 'center', maxWidth: 420, margin: '60px auto' }}>
+                <div style={{ fontSize: 40, marginBottom: 16 }}>⚔</div>
+                <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
+                <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>Upgrade to Commander to access the Protocol Engine.</p>
+                <a href="/membership" style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, textDecoration: 'none' }}>Upgrade</a>
+              </div>
+            ) : !stpResult ? (
+              <div style={{ maxWidth: 600, margin: '0 auto' }}>
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SELECT MODE</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => setStpMode('spirit')} style={{ flex: 1, padding: '10px 0', background: stpMode === 'spirit' ? G : 'transparent', border: `1px solid ${stpMode === 'spirit' ? G : 'rgba(201,168,76,0.3)'}`, borderRadius: 6, color: stpMode === 'spirit' ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: stpMode === 'spirit' ? 700 : 400 }}>⚔ SPIRIT NAME</button>
+                    <button onClick={() => setStpMode('manifestation')} style={{ flex: 1, padding: '10px 0', background: stpMode === 'manifestation' ? G : 'transparent', border: `1px solid ${stpMode === 'manifestation' ? G : 'rgba(201,168,76,0.3)'}`, borderRadius: 6, color: stpMode === 'manifestation' ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: stpMode === 'manifestation' ? 700 : 400 }}>👁 MANIFESTATION</button>
+                  </div>
+                </div>
+                {stpMode === 'spirit' ? (
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SPIRIT OR SPIRIT LINE NAME</label>
+                    <input type="text" value={stpSpiritName} onChange={e => setStpSpiritName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && stpSpiritName.trim()) generateStandaloneProtocol() }} placeholder="e.g. Python, Leviathan, Jezebel" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', boxSizing: 'border-box' as const }} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={stpIncludeCluster} onChange={e => setStpIncludeCluster(e.target.checked)} style={{ accentColor: G }} />
+                      <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#9a8874' : '#5C5248' }}>Include cluster spirits</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: 'block', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>DESCRIBE WHAT YOU ARE SEEING</label>
+                    <textarea rows={4} value={stpManifestations} onChange={e => setStpManifestations(e.target.value)} placeholder="Describe physical, emotional, or behavioral manifestations you are observing..." style={{ width: '100%', padding: '10px 14px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, color: isDark ? '#e8dcc8' : '#2D2924', fontFamily: crimson, fontSize: 15, outline: 'none', resize: 'vertical', boxSizing: 'border-box' as const }} />
+                  </div>
+                )}
+                {stpError && <div style={{ border: '1px solid rgba(239,68,68,0.4)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: crimson, fontSize: 14, color: '#ef4444' }}>{stpError}</div>}
+                <button onClick={generateStandaloneProtocol} disabled={stpLoading || (stpMode === 'spirit' ? !stpSpiritName.trim() : !stpManifestations.trim())} style={{ width: '100%', padding: '14px', background: stpLoading ? 'rgba(201,168,76,0.35)' : G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', cursor: (stpLoading || (stpMode === 'spirit' ? !stpSpiritName.trim() : !stpManifestations.trim())) ? 'not-allowed' : 'pointer' }}>
+                  {stpLoading ? '⏳ GENERATING PROTOCOL...' : '⚔ GENERATE PROTOCOL'}
+                </button>
+              </div>
+            ) : (
+              <div style={{ maxWidth: 780, margin: '0 auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em' }}>⚔ SESSION PROTOCOL</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => window.print()} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
+                    <button onClick={() => { setStpResult(null); setStpError(null) }} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↩ NEW PROTOCOL</button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid rgba(201,168,76,0.18)`, marginBottom: 24, overflowX: 'auto' as const }}>
+                  {([{ key: 'intel', label: 'PRE-SESSION INTEL' }, { key: 'legal', label: 'LEGAL GROUND' }, { key: 'renunciation', label: 'RENUNCIATIONS' }, { key: 'command', label: 'COMMAND PRAYERS' }, { key: 'post', label: 'POST-SESSION' }] as const).map(t => (
+                    <button key={t.key} onClick={() => setStpTab(t.key)} style={{ padding: '8px 14px', background: 'none', border: 'none', borderBottom: stpTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: stpTab === t.key ? G : isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>{t.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  // ── Shared overlay renderer — iPad and mobile shells ────────────────────────
+  const renderSharedOverlays = (): React.ReactNode => {
+    const solSize2 = isMobile ? 52 : 72
+    return (
+      <>
+        {sessionOpen && <SessionCommandCenter sessionId={activeSessionId} caseFile={activeSessionCF} demons={demons} onClose={() => { setSessionOpen(false); setActiveSessionId(undefined); setActiveSessionCF(undefined) }} />}
+        {viewingProfile && <ProfileModal member={viewingProfile} currentUserId={user?.id || ''} isDark={theme !== 'light'} onClose={() => setViewingProfile(null)} onStartDM={(memberId, memberName) => { setViewingProfile(null); setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} />}
+        {editingProfile && <EditProfileModal userId={user?.id || ''} firstName={user?.firstName || ''} lastName={user?.lastName || ''} imageUrl={user?.imageUrl || ''} existingBio={(user?.publicMetadata?.bio as string) || ''} existingCity={(user?.publicMetadata?.city as string) || ''} existingState={(user?.publicMetadata?.state as string) || ''} existingExpertiseTags={(user?.publicMetadata?.expertiseTags as string[]) || []} isDark={theme !== 'light'} onClose={() => setEditingProfile(false)} />}
+        {chatOpen && (
+          <div style={{ position: 'fixed', bottom: isMobile ? 66 : 84, right: isMobile ? 0 : 24, left: isMobile ? 0 : undefined, width: isMobile ? '100%' : 340, height: isMobile ? '70vh' : 460, background: '#0f0c07', border: '1px solid #3a3020', borderTop: '2px solid #C9A84C', borderRadius: isMobile ? '12px 12px 0 0' : 8, display: 'flex', flexDirection: 'column' as const, zIndex: 1001, boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}>
+            <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SolIcon size={16} /><span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>ASK SOL</span><AIUsagePill feature="ask_dake" getToken={getToken} /></div>
+              <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+              {chatMessages.length === 0 && <div style={{ textAlign: 'center' as const, padding: '32px 16px', color: '#6b5e45', fontFamily: crimson, fontSize: 13, lineHeight: 1.6 }}>Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, or any ministry question.</div>}
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: msg.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px', background: msg.role === 'user' ? 'rgba(201,168,76,0.1)' : '#1a1408', border: msg.role === 'user' ? '1px solid rgba(201,168,76,0.3)' : '1px solid #2a2010', lineHeight: 1.6 }}>
+                    {msg.role === 'user' ? <span style={{ fontFamily: crimson, fontSize: 14, color: '#e8d9b0', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span> : <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: '#a89878', lineHeight: 1.7 }} />}
+                  </div>
+                  {msg.role === 'assistant' && <button onClick={() => exportToPDF(msg.content)} style={{ marginTop: 4, background: 'none', border: 'none', color: '#6b5e45', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}>↓ EXPORT</button>}
+                </div>
+              ))}
+              {chatLoading && <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ padding: '8px 14px', background: '#1a1408', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>Analyzing…</div></div>}
+              <div ref={chatEndRef} />
+            </div>
+            <div style={{ padding: 12, borderTop: '1px solid #1e1a0e', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <textarea rows={2} value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(chatInput) } }} placeholder="Ask a question…" style={{ flex: 1, background: '#1a1408', border: '1px solid #2a2010', borderRadius: 6, padding: '8px 10px', color: '#c8b896', fontFamily: crimson, fontSize: 13, resize: 'none' as const, outline: 'none' }} />
+                <button onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '0 14px', color: G, fontFamily: cinzel, fontSize: 10, cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer', opacity: chatLoading || !chatInput.trim() ? 0.5 : 1, flexShrink: 0, letterSpacing: '0.06em' }}>SEND</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {!isAdminPage && (
+          <button
+            onMouseDown={e => { solMoved.current = false; solDragStart.current = { px: e.clientX, py: e.clientY, bx: solPos.x, by: solPos.y }; setIsDraggingSol(true) }}
+            onTouchStart={e => { solMoved.current = false; const t2 = e.touches[0]; solDragStart.current = { px: t2.clientX, py: t2.clientY, bx: solPos.x, by: solPos.y }; setIsDraggingSol(true) }}
+            onClick={() => { if (!solMoved.current) setChatOpen(o => !o) }}
+            style={{ position: 'fixed', left: solPos.x, ...(isDesktop ? { top: solPos.y } : { bottom: 'calc(70px + env(safe-area-inset-bottom))' }), zIndex: 999, background: 'none', border: 'none', padding: 0, cursor: isDraggingSol ? 'grabbing' : 'pointer', display: 'flex', width: solSize2, height: solSize2, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 20px 6px rgba(255, 180, 50, 0.4)', touchAction: 'none', userSelect: 'none' as const }}
+            title="Ask SOL"
+          >
+            <img src="/images/sol/sol-icon.png" width={solSize2} height={solSize2} style={{ objectFit: 'contain', pointerEvents: 'none' }} alt="Ask SOL" />
+          </button>
+        )}
+        {termsAccepted === false && user?.id && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <div style={{ background: '#0f0c07', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 12, maxWidth: 560, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.8)' }}>
+              <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid rgba(201,168,76,0.12)', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>⚔</div>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>Welcome to War Room Intel</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: '#9a8c74', lineHeight: 1.6 }}>War Room Intel exists for one purpose: to serve the Lord Jesus Christ and advance His Kingdom.</div>
+              </div>
+              <div style={{ display: 'flex', borderBottom: '1px solid rgba(201,168,76,0.12)', flexShrink: 0 }}>
+                {(['terms', 'privacy'] as const).map(tab => (<button key={tab} onClick={() => setTermsTab(tab)} style={{ flex: 1, padding: '10px', background: termsTab === tab ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: termsTab === tab ? `2px solid ${G}` : '2px solid transparent', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: termsTab === tab ? G : '#6a5f4f', cursor: 'pointer' }}>{tab === 'terms' ? 'TERMS OF SERVICE' : 'PRIVACY POLICY'}</button>))}
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', maxHeight: 260 }}>
+                {termsTab === 'terms' ? (<div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}><p>By accessing this platform you agree to use it solely for lawful, ministry-aligned purposes.</p><a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Terms of Service →</a></div>) : (<div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}><p>We collect your name, email, and usage data to provide and improve this ministry platform. We do not sell your data.</p><a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Privacy Policy →</a></div>)}
+              </div>
+              <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(201,168,76,0.12)', background: '#09070F' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
+                  <input type="checkbox" checked={termsChecked} onChange={e => setTermsChecked(e.target.checked)} style={{ marginTop: 3, accentColor: G, width: 16, height: 16, flexShrink: 0 }} />
+                  <span style={{ fontFamily: crimson, fontSize: 14, color: '#c8b99a', lineHeight: 1.5 }}>I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Privacy Policy</a></span>
+                </label>
+                <button disabled={!termsChecked || termsSubmitting} onClick={async () => { if (!termsChecked || termsSubmitting) return; setTermsSubmitting(true); try { const token = await getToken(); const res = await fetch('/api/accept-terms', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }); if (res.ok) setTermsAccepted(true) } catch {} setTermsSubmitting(false) }} style={{ width: '100%', padding: '12px', background: termsChecked ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: termsChecked ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: termsChecked ? 'pointer' : 'default', opacity: termsSubmitting ? 0.7 : 1 }}>{termsSubmitting ? 'SAVING...' : 'CONTINUE TO WAR ROOM →'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showInstallBanner && (
+          <div style={{ position: 'fixed', bottom: isMobile ? 72 : 24, ...(isMobile ? { left: 16, right: 16 } : { left: '50%', transform: 'translateX(-50%)', width: 420 }), zIndex: 200, maxWidth: isMobile ? 'calc(100% - 32px)' : 420, background: 'linear-gradient(135deg, #1a1408 0%, #0f0c07 100%)', border: '1px solid rgba(201,168,76,0.45)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: '#C9A84C', letterSpacing: '0.12em', marginBottom: 6 }}>ADD TO HOME SCREEN</div>
+              <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 13, color: 'rgba(232,220,200,0.8)', lineHeight: 1.5 }}>Tap <span style={{ color: '#C9A84C', fontWeight: 600 }}>"Add to Home Screen"</span> for the full app experience — works offline, no App Store needed.</div>
+              <button onClick={() => { localStorage.setItem('wri-pwa-dismissed', '1'); setShowInstallBanner(false) }} style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 12px', fontFamily: "'Cinzel',serif", fontSize: 9, color: '#6b5e45', letterSpacing: '0.1em', cursor: 'pointer', marginTop: 8 }}>DISMISS</button>
+            </div>
+            <button onClick={() => { localStorage.setItem('wri-pwa-dismissed', '1'); setShowInstallBanner(false) }} style={{ background: 'transparent', border: 'none', color: '#6b5e45', fontSize: 18, cursor: 'pointer', padding: '0 2px', flexShrink: 0, lineHeight: 1 }}>×</button>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  // ── iPad shell ──────────────────────────────────────────────────────────────
+  if (isTablet) {
+    return (
+      <div style={{ width: '100%', height: '100dvh', background: V.bg, display: 'flex', flexDirection: 'column' as const, paddingTop: 'env(safe-area-inset-top)', overflow: 'hidden' }}>
+        {/* Top bar */}
+        <div style={{ height: 52, background: '#0D0B14', flexShrink: 0, borderBottom: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.15em', flex: 1 }}>WAR ROOM INTEL</span>
+        </div>
+
+        {/* Drawer backdrop */}
+        {ipadDrawerOpen && <div onClick={() => setIpadDrawerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.5)' }} />}
+
+        {/* Slide-in drawer */}
+        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 300, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'auto' as const, transform: ipadDrawerOpen ? 'translateX(0)' : 'translateX(-300px)', transition: 'transform 0.25s ease' }}>
+          <SidebarContent />
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto' as const, minHeight: 0, paddingBottom: 'calc(72px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' as const }}>
+          {renderSections()}
+        </div>
+
+        {/* iPad bottom tab bar */}
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200, height: 72, background: '#0D0B14', borderTop: '1px solid rgba(201,168,76,0.15)', paddingBottom: 'env(safe-area-inset-bottom)', display: 'flex', alignItems: 'stretch' }}>
+          {([
+            { icon: '⚔', label: 'INTEL',     section: 'database' },
+            { icon: '🔥', label: 'COMMUNITY', section: 'war-room' },
+            { icon: '✉️', label: 'MESSAGES',  section: 'dms' },
+            { icon: '📋', label: 'SESSION',   section: 'session-center' },
+            { icon: '☰', label: 'MORE',       section: '__drawer__' },
+          ] as const).map(tab => {
+            const isActive = tab.section === '__drawer__' ? ipadDrawerOpen : activeSection === tab.section
+            return (
+              <button key={tab.section}
+                onClick={() => {
+                  if (tab.section === '__drawer__') { setIpadDrawerOpen(o => !o) }
+                  else { setActiveSection(tab.section); setIpadDrawerOpen(false) }
+                }}
+                style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: isActive ? G : '#5a4e3a' }}>
+                <span style={{ fontSize: 20 }}>{tab.icon}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em' }}>{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {renderSharedOverlays()}
+      </div>
+    )
+  }
+
+  // ── Mobile shell ─────────────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ width: '100%', height: '100dvh', background: V.bg, display: 'flex', flexDirection: 'column' as const, paddingTop: 'env(safe-area-inset-top)', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ height: 48, background: '#0D0B14', flexShrink: 0, borderBottom: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', padding: '0 16px', justifyContent: 'space-between' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em' }}>WAR ROOM INTEL</span>
+          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: G, fontSize: 24, cursor: 'pointer', padding: '8px 0 8px 16px' }}>☰</button>
+        </div>
+
+        {/* Sidebar backdrop */}
+        {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.5)' }} />}
+
+        {/* Slide-in sidebar */}
+        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 280, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'auto' as const, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-280px)', transition: 'transform 0.25s ease' }}>
+          <SidebarContent />
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto' as const, minHeight: 0, paddingBottom: 'calc(60px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' as const }}>
+          {renderSections()}
+        </div>
+
+        {/* Bottom nav */}
+        <BottomNav
+          tabs={[
+            { id: 'daily-brief', label: 'Daily',    icon: <span style={{ fontSize: 18 }}>☀️</span> },
+            { id: 'sitrep',      label: 'SITREP',  icon: <span style={{ fontSize: 18 }}>📡</span> },
+            { id: 'database',    label: 'Database', icon: <Library size={20} strokeWidth={1.6} /> },
+            { id: 'forum',       label: 'Ops',      icon: <MessageSquare size={20} strokeWidth={1.6} /> },
+            { id: 'ai',          label: 'AI',       icon: <Zap size={20} strokeWidth={1.6} /> },
+          ]}
+          activeId={activeSection}
+          onTab={(id) => { if (id === 'ai') { setChatOpen(o => !o) } else { setActiveSection(id) } }}
+          onFAB={() => setActiveSection('session-center')}
+          onLongPress={() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true })) }}
+          fabIcon={<Plus size={24} color="#1a1305" strokeWidth={2.2} />}
+        />
+
+        {renderSharedOverlays()}
+      </div>
+    )
+  }
+
   // ── FULL LAYOUT ────────────────────────────────────────────
   return (
     <div style={{
@@ -14599,7 +14918,7 @@ function CommunityPage() {
             style={{
               position: 'fixed',
               left: solPos.x,
-              top: solPos.y,
+              ...(isDesktop ? { top: solPos.y } : { bottom: 'calc(70px + env(safe-area-inset-bottom))' }),
               zIndex: 999,
               background: 'none',
               border: 'none',
