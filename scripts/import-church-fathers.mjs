@@ -56,6 +56,26 @@ for (const entry of manifest) {
     entry.gutenberg_url ? `Gutenberg: ${entry.gutenberg_url}` : null,
   ].filter(Boolean)
 
+  // Check ministry_sources safety classification for this author
+  const authorName = entry.author || ''
+  if (authorName) {
+    const { data: source } = await sb
+      .from('ministry_sources')
+      .select('status,warnings')
+      .ilike('name', authorName)
+      .maybeSingle()
+
+    if (source?.status === 'dangerous') {
+      console.log(`  SKIP  ${entry.author} — ${entry.title} (author flagged as DANGEROUS)`)
+      skipped++
+      continue
+    }
+    if (source?.status === 'monitor') {
+      console.log(`  NOTE  ${entry.author} — ${entry.title} (author flagged MONITOR: ${source.warnings || 'see admin panel'})`)
+      // still import but log the warning
+    }
+  }
+
   // Check for existing entry by title + author
   const { data: existing } = await sb
     .from('resources')

@@ -227,3 +227,6 @@
 
 [functions."scheduled-admin-summary"]
   schedule = "0 12 * * *"
+
+[functions."source-discovery-agent"]
+  schedule = "0 9 * * 0"

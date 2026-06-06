@@ -10587,6 +10587,338 @@ function AtmosphereAdmin({ getToken, isDark }: { getToken: () => Promise<string 
   )
 }
 
+// ─── MINISTRY SOURCES MASTER LIST ────────────────────────────────────────────
+const SOURCE_STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  safe:      { bg: '#C9A84C',  color: '#1a1305', label: 'SAFE'      },
+  dangerous: { bg: '#dc2626',  color: '#fff',    label: 'DANGEROUS' },
+  monitor:   { bg: '#d97706',  color: '#1a1305', label: 'MONITOR'   },
+  pending:   { bg: '#6b7280',  color: '#fff',    label: 'PENDING'   },
+  rejected:  { bg: '#374151',  color: '#9ca3af', label: 'REJECTED'  },
+}
+
+function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const SB  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
+  const ST  = isDark ? '#e8e0d0' : '#2D2924'
+  const SM  = isDark ? '#9a8c74' : '#5C5248'
+  const SG  = '#C9A84C'
+
+  const [sources,     setSources]     = useState<any[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [filter,      setFilter]      = useState<string>('all')
+  const [search,      setSearch]      = useState('')
+  const [expandedId,  setExpandedId]  = useState<string|null>(null)
+  const [updatingId,  setUpdatingId]  = useState<string|null>(null)
+  const [editNotes,   setEditNotes]   = useState<Record<string,string>>({})
+  const [showAdd,     setShowAdd]     = useState(false)
+  const [addName,     setAddName]     = useState('')
+  const [addType,     setAddType]     = useState('deliverance-minister')
+  const [addWorks,    setAddWorks]    = useState('')
+  const [adding,      setAdding]      = useState(false)
+  const [addError,    setAddError]    = useState('')
+
+  useEffect(() => { loadSources() }, [filter, search])
+
+  async function loadSources() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      const params = new URLSearchParams()
+      if (filter !== 'all') params.set('status', filter)
+      if (search.trim()) params.set('search', search.trim())
+      const res = await fetch(`/api/admin-sources?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) setSources((await res.json()).sources || [])
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  async function updateStatus(id: string, status: string) {
+    setUpdatingId(id)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-sources', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, status }),
+      })
+      if (res.ok) {
+        const { source } = await res.json()
+        setSources(prev => prev.map(s => s.id === id ? source : s))
+      }
+    } catch { /* ignore */ }
+    setUpdatingId(null)
+  }
+
+  async function saveNotes(id: string) {
+    const notes = editNotes[id]
+    if (notes === undefined) return
+    setUpdatingId(id)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-sources', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, review_notes: notes }),
+      })
+      if (res.ok) {
+        const { source } = await res.json()
+        setSources(prev => prev.map(s => s.id === id ? source : s))
+        setEditNotes(p => { const n = { ...p }; delete n[id]; return n })
+      }
+    } catch { /* ignore */ }
+    setUpdatingId(null)
+  }
+
+  async function handleAdd() {
+    if (!addName.trim()) return
+    setAdding(true)
+    setAddError('')
+    try {
+      const token = await getToken()
+      const works = addWorks.split(',').map((w: string) => w.trim()).filter(Boolean)
+      const res = await fetch('/api/admin-sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: addName.trim(), type: addType, known_works: works }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setAddError(d.error || 'Failed'); setAdding(false); return }
+      setShowAdd(false); setAddName(''); setAddWorks(''); setAddType('deliverance-minister')
+      loadSources()
+    } catch (e: any) { setAddError(e.message) }
+    setAdding(false)
+  }
+
+  const counts = sources.reduce((acc: Record<string,number>, s: any) => {
+    acc[s.status] = (acc[s.status] || 0) + 1
+    return acc
+  }, {})
+
+  const inputSt: React.CSSProperties = { width: '100%', padding: '7px 10px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid ${SB}`, borderRadius: 4, color: ST, fontFamily: 'inherit', fontSize: 13, outline: 'none', boxSizing: 'border-box' }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, marginBottom: 18, flexWrap: 'wrap' as const }}>
+        <div>
+          <h2 style={{ fontFamily: cinzel, fontSize: 16, color: SG, letterSpacing: '0.12em', margin: '0 0 4px' }}>✦ MINISTRY SOURCES</h2>
+          <p style={{ fontFamily: crimson, fontSize: 13, color: SM, margin: 0 }}>
+            Curated library of authors, ministers, and theologians. Classify sources to gate what enters the import pipeline.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(v => !v)}
+          style={{ padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', background: showAdd ? 'rgba(201,168,76,0.15)' : SG, color: showAdd ? SG : '#1a1305', border: showAdd ? `1px solid ${SG}` : 'none', borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+        >
+          {showAdd ? '✕ CANCEL' : '+ ADD SOURCE'}
+        </button>
+      </div>
+
+      {/* Add Source inline form */}
+      {showAdd && (
+        <div style={{ marginBottom: 20, padding: '16px 20px', background: isDark ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.06)', border: `1px solid ${SB}`, borderRadius: 8 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: SG, letterSpacing: '0.1em', marginBottom: 12 }}>NEW SOURCE</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 10, marginBottom: 10 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: SM, letterSpacing: '0.08em', marginBottom: 4 }}>NAME *</div>
+              <input value={addName} onChange={e => setAddName(e.target.value)} placeholder="Full name..." style={inputSt} />
+            </div>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: SM, letterSpacing: '0.08em', marginBottom: 4 }}>TYPE</div>
+              <select value={addType} onChange={e => setAddType(e.target.value)} style={{ ...inputSt }}>
+                <option value="deliverance-minister">Deliverance Minister</option>
+                <option value="author">Author</option>
+                <option value="theologian">Theologian</option>
+                <option value="speaker">Speaker</option>
+                <option value="minister">Minister</option>
+                <option value="evangelist">Evangelist</option>
+                <option value="researcher">Researcher</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: SM, letterSpacing: '0.08em', marginBottom: 4 }}>KNOWN WORKS (comma-separated)</div>
+            <input value={addWorks} onChange={e => setAddWorks(e.target.value)} placeholder="Book Title, Another Book..." style={inputSt} />
+          </div>
+          {addError && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 8 }}>{addError}</div>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={handleAdd}
+              disabled={adding || !addName.trim()}
+              style={{ padding: '8px 20px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', background: adding ? 'rgba(201,168,76,0.4)' : SG, color: '#1a1305', border: 'none', borderRadius: 4, cursor: (adding || !addName.trim()) ? 'not-allowed' : 'pointer' }}
+            >
+              {adding ? 'ADDING...' : 'ADD + GENERATE BRIEF'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Filter pills */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' as const }}>
+        {(['all','safe','monitor','dangerous','pending','rejected'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            style={{ padding: '4px 12px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', background: filter === f ? SG : 'transparent', color: filter === f ? '#1a1305' : SM, border: `1px solid ${filter === f ? SG : SB}`, borderRadius: 20, cursor: 'pointer' }}>
+            {f.toUpperCase()}{f !== 'all' && counts[f] ? ` (${counts[f]})` : ''}
+          </button>
+        ))}
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search name..."
+          style={{ marginLeft: 'auto', padding: '4px 10px', background: 'transparent', border: `1px solid ${SB}`, borderRadius: 20, color: ST, fontFamily: crimson, fontSize: 13, outline: 'none', width: 160 }}
+        />
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: SM, letterSpacing: '0.1em', padding: '24px 0' }}>LOADING...</div>
+      ) : sources.length === 0 ? (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: SM, padding: '24px 0' }}>No sources found.</div>
+      ) : (
+        <div style={{ border: `1px solid ${SB}`, borderRadius: 8, overflow: 'hidden' }}>
+          {/* Column headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 140px 100px 1fr 80px 200px', gap: 12, padding: '8px 16px', background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.08)', borderBottom: `1px solid ${SB}` }}>
+            {['NAME','TYPE','STATUS','KNOWN WORKS','PD','ACTIONS'].map(h => (
+              <div key={h} style={{ fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.1em' }}>{h}</div>
+            ))}
+          </div>
+
+          {sources.map((s: any, i: number) => {
+            const ss = SOURCE_STATUS_STYLE[s.status] || SOURCE_STATUS_STYLE.pending
+            const isExpanded = expandedId === s.id
+            const isUpdating = updatingId === s.id
+            const works = Array.isArray(s.known_works) ? s.known_works : []
+
+            return (
+              <div key={s.id} style={{ borderBottom: i < sources.length - 1 ? `1px solid ${SB}` : 'none' }}>
+                {/* Main row */}
+                <div
+                  onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                  style={{ display: 'grid', gridTemplateColumns: '2fr 140px 100px 1fr 80px 200px', gap: 12, padding: '10px 16px', alignItems: 'center', cursor: 'pointer', background: isExpanded ? (isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.05)') : 'transparent', transition: 'background 0.1s' }}
+                  onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}
+                  onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                >
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: ST }}>{s.name}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: SM }}>{s.type || '—'}</div>
+                  <div>
+                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, background: ss.bg, color: ss.color, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em' }}>{ss.label}</span>
+                  </div>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: SM, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {works.slice(0, 2).join(', ') || '—'}{works.length > 2 ? ` +${works.length - 2}` : ''}
+                  </div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: s.public_domain ? '#4ade80' : SM, letterSpacing: '0.06em' }}>{s.public_domain ? 'YES' : 'NO'}</div>
+                  <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => updateStatus(s.id, 'safe')}
+                      disabled={isUpdating || s.status === 'safe'}
+                      title="Mark Safe"
+                      style={{ flex: 1, padding: '4px 0', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', background: s.status === 'safe' ? 'rgba(201,168,76,0.2)' : 'transparent', color: s.status === 'safe' ? SG : SM, border: `1px solid ${s.status === 'safe' ? SG : SB}`, borderRadius: 3, cursor: s.status === 'safe' ? 'default' : 'pointer' }}>
+                      ✓ SAFE
+                    </button>
+                    <button
+                      onClick={() => updateStatus(s.id, 'monitor')}
+                      disabled={isUpdating || s.status === 'monitor'}
+                      title="Flag Monitor"
+                      style={{ flex: 1, padding: '4px 0', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', background: s.status === 'monitor' ? 'rgba(217,119,6,0.2)' : 'transparent', color: s.status === 'monitor' ? '#d97706' : SM, border: `1px solid ${s.status === 'monitor' ? '#d97706' : SB}`, borderRadius: 3, cursor: s.status === 'monitor' ? 'default' : 'pointer' }}>
+                      ⚠ MON
+                    </button>
+                    <button
+                      onClick={() => updateStatus(s.id, 'dangerous')}
+                      disabled={isUpdating || s.status === 'dangerous'}
+                      title="Flag Dangerous"
+                      style={{ flex: 1, padding: '4px 0', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', background: s.status === 'dangerous' ? 'rgba(220,38,38,0.2)' : 'transparent', color: s.status === 'dangerous' ? '#ef4444' : SM, border: `1px solid ${s.status === 'dangerous' ? '#ef4444' : SB}`, borderRadius: 3, cursor: s.status === 'dangerous' ? 'default' : 'pointer' }}>
+                      ✗ DAN
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div style={{ padding: '0 16px 16px', background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.04)', borderTop: `1px solid ${SB}` }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, paddingTop: 14 }}>
+                      <div>
+                        {s.brief && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.1em', marginBottom: 4 }}>AI BRIEF</div>
+                            <p style={{ fontFamily: crimson, fontSize: 13, color: ST, lineHeight: 1.6, margin: 0 }}>{s.brief}</p>
+                          </div>
+                        )}
+                        {works.length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.1em', marginBottom: 4 }}>KNOWN WORKS</div>
+                            <ul style={{ margin: 0, paddingLeft: 16, fontFamily: crimson, fontSize: 13, color: ST, lineHeight: 1.7 }}>
+                              {works.map((w: string, wi: number) => <li key={wi}>{w}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {(s.warnings) && (
+                          <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 4 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, color: '#ef4444', letterSpacing: '0.1em', marginBottom: 4 }}>⚠ WARNINGS</div>
+                            <p style={{ fontFamily: crimson, fontSize: 13, color: '#fca5a5', lineHeight: 1.6, margin: 0 }}>{s.warnings}</p>
+                          </div>
+                        )}
+                        {Array.isArray(s.source_urls) && s.source_urls.length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.1em', marginBottom: 4 }}>SOURCE URLS</div>
+                            {s.source_urls.map((u: string, ui: number) => (
+                              <div key={ui} style={{ fontFamily: crimson, fontSize: 12, color: SG, wordBreak: 'break-all' as const }}>{u}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        {s.ministry_alignment && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.1em', marginBottom: 4 }}>MINISTRY ALIGNMENT</div>
+                            <p style={{ fontFamily: crimson, fontSize: 13, color: ST, lineHeight: 1.6, margin: 0 }}>{s.ministry_alignment}</p>
+                          </div>
+                        )}
+                        {Array.isArray(s.cultural_tags) && s.cultural_tags.length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.1em', marginBottom: 4 }}>TAGS</div>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
+                              {s.cultural_tags.map((t: string, ti: number) => (
+                                <span key={ti} style={{ padding: '2px 8px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${SB}`, borderRadius: 10, fontFamily: cinzel, fontSize: 8, color: SG, letterSpacing: '0.06em' }}>{t.toUpperCase()}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.1em', marginBottom: 4 }}>REVIEW NOTES</div>
+                          <textarea
+                            rows={4}
+                            value={editNotes[s.id] !== undefined ? editNotes[s.id] : (s.review_notes || '')}
+                            onChange={e => setEditNotes(p => ({ ...p, [s.id]: e.target.value }))}
+                            placeholder="Add review notes..."
+                            style={{ width: '100%', padding: '7px 10px', background: isDark ? '#0f0e16' : '#fff', border: `1px solid ${SB}`, borderRadius: 4, color: ST, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
+                          />
+                          {editNotes[s.id] !== undefined && editNotes[s.id] !== (s.review_notes || '') && (
+                            <button
+                              onClick={() => saveNotes(s.id)}
+                              disabled={isUpdating}
+                              style={{ marginTop: 6, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', background: SG, color: '#1a1305', border: 'none', borderRadius: 3, cursor: 'pointer' }}
+                            >
+                              SAVE NOTES
+                            </button>
+                          )}
+                        </div>
+                        {s.reviewed_at && (
+                          <div style={{ marginTop: 8, fontFamily: cinzel, fontSize: 8, color: SM, letterSpacing: '0.06em' }}>
+                            Reviewed {new Date(s.reviewed_at).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── SPIRIT CANDIDATES MANAGER ───────────────────────────────────────────────
 function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const SSURF = isDark ? '#13111a' : '#fff'
@@ -10903,7 +11235,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources'>('dashboard')
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -10981,6 +11313,7 @@ function AdminPage() {
     { label: 'INTEL ARCHIVE', items: [
       { key: 'intel',              label: 'Intel Archive'     },
       { key: 'spirit-candidates',  label: 'Spirit Candidates' },
+      { key: 'sources',            label: '✦ Sources'         },
       { key: 'taxonomy',           label: 'Taxonomy Review'   },
       { key: 'spiritual-mapping',  label: 'Spiritual Mapping' },
     ]},
@@ -11127,6 +11460,7 @@ function AdminPage() {
             {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
             {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}
             {tab === 'spirit-candidates' && <SpiritCandidatesManager getToken={getToken} isDark={isDark} />}
+            {tab === 'sources'           && <SourcesMasterList getToken={getToken} isDark={isDark} />}
             {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
             {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
             {tab === 'ai-command'        && (
