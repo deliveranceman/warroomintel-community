@@ -9383,6 +9383,11 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  const [testEmailAddr,    setTestEmailAddr]    = useState('exorcist@warroomintel.com')
+  const [testEmailType,    setTestEmailType]    = useState('welcome')
+  const [testEmailSending, setTestEmailSending] = useState(false)
+  const [testEmailResult,  setTestEmailResult]  = useState<string | null>(null)
+
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -9498,6 +9503,26 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
       setResult(`Error: ${err.message}`)
     } finally {
       setSending(false)
+    }
+  }
+
+  async function sendTestEmail() {
+    if (!testEmailAddr) return
+    setTestEmailSending(true)
+    setTestEmailResult(null)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/send-email?action=test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: testEmailAddr, type: testEmailType }),
+      })
+      const data = await res.json()
+      setTestEmailResult(res.ok ? `Sent ${testEmailType} to ${testEmailAddr}` : `Error: ${data.error}`)
+    } catch (err: any) {
+      setTestEmailResult(`Error: ${err.message}`)
+    } finally {
+      setTestEmailSending(false)
     }
   }
 
@@ -9646,6 +9671,59 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
         <p style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.6, margin: 0 }}>
           Safari on iOS only supports Web Push when the app is installed as a PWA (Add to Home Screen). Users on iOS who have not installed the app will not receive push notifications. This is an Apple platform restriction.
         </p>
+      </div>
+
+      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '20px 24px', marginTop: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 16 }}>
+          ✉ Email Test Panel
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' as const }}>
+          <input
+            value={testEmailAddr}
+            onChange={e => setTestEmailAddr(e.target.value)}
+            placeholder="Send test to..."
+            style={{ flex: 1, minWidth: 200, background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontSize: 13, outline: 'none' }}
+          />
+          <select
+            value={testEmailType}
+            onChange={e => setTestEmailType(e.target.value)}
+            style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontSize: 13, outline: 'none', fontFamily: cinzel }}
+          >
+            <option value="welcome">Welcome Email</option>
+            <option value="upgrade">Upgrade Confirmation</option>
+            <option value="dm_request">DM Request</option>
+            <option value="weekly_digest">Weekly Digest</option>
+            <option value="admin_summary">Admin Daily Summary</option>
+          </select>
+          <button
+            disabled={testEmailSending}
+            onClick={async () => {
+              setTestEmailSending(true)
+              setTestEmailResult(null)
+              try {
+                const t = await getToken()
+                const res = await fetch('/api/send-email?action=test', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+                  body: JSON.stringify({ email: testEmailAddr, type: testEmailType }),
+                })
+                const d = await res.json()
+                setTestEmailResult(res.ok ? `✓ Sent to ${d.sent_to}` : `✗ ${d.error}`)
+              } catch (err: any) {
+                setTestEmailResult(`✗ ${err.message}`)
+              }
+              setTestEmailSending(false)
+            }}
+            style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 6, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', opacity: testEmailSending ? 0.6 : 1 }}
+          >
+            {testEmailSending ? 'Sending...' : 'Send Test'}
+          </button>
+        </div>
+        {testEmailResult && (
+          <div style={{ fontSize: 12, color: testEmailResult.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 4 }}>
+            {testEmailResult}
+          </div>
+        )}
       </div>
     </div>
   )

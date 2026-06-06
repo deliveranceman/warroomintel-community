@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { wriEmailTemplate } from './_shared/sendEmail'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +28,95 @@ export default async function handler(req: Request) {
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY)
+
+  // Test endpoint — send any template to any address
+  const action = new URL(req.url).searchParams.get('action')
+  if (action === 'test') {
+    const { email: toEmail, type: testType = 'welcome' } = body || {}
+    if (!toEmail) {
+      return new Response(JSON.stringify({ error: 'email required' }), { status: 400, headers: HEADERS })
+    }
+    const templates: Record<string, { subject: string; html: string }> = {
+      welcome: {
+        subject: '⚔ [TEST] Welcome to War Room Intel',
+        html: wriEmailTemplate({
+          title: 'Welcome to the War Room',
+          body: `<p>This is a TEST of the welcome email.</p><p>If you received this, Resend is wired correctly and welcome emails will fire on new signups.</p>`,
+          ctaText: 'Enter the War Room',
+          ctaUrl: 'https://warroomintel.com/community',
+        }),
+      },
+      upgrade: {
+        subject: '⚔ [TEST] Upgrade Confirmation',
+        html: wriEmailTemplate({
+          title: 'General Access Activated',
+          body: `<p>This is a TEST of the upgrade confirmation email.</p><p>Your <strong style="color:#C9A84C;">General</strong> membership is now active.</p>`,
+          ctaText: 'Access Your War Room',
+          ctaUrl: 'https://warroomintel.com/community',
+        }),
+      },
+      dm_request: {
+        subject: '⚔ [TEST] New Message Request',
+        html: wriEmailTemplate({
+          title: 'New Message Request',
+          body: `<p>This is a TEST of the DM request notification email.</p><p><strong>Test Soldier</strong> sent you a message request: <em>"Testing the prayer call system — can you connect?"</em></p>`,
+          ctaText: 'View Message Request',
+          ctaUrl: 'https://warroomintel.com/community',
+        }),
+      },
+      weekly_digest: {
+        subject: '⚔ [TEST] Weekly War Room Intel Digest',
+        html: wriEmailTemplate({
+          title: 'Weekly War Room Intel',
+          body: `
+            <p>This is a TEST of the weekly member digest.</p>
+            <p><strong style="color:#C9A84C;">This Week at WRI:</strong></p>
+            <ul style="padding-left:20px;">
+              <li>3 new warriors joined</li>
+              <li>7 Daily Briefs published</li>
+              <li>2 new Arsenal resources added</li>
+              <li>21 total community members</li>
+            </ul>
+          `,
+          ctaText: 'Visit the War Room',
+          ctaUrl: 'https://warroomintel.com/community',
+        }),
+      },
+      admin_summary: {
+        subject: '⚔ [TEST] Daily Operations Summary',
+        html: wriEmailTemplate({
+          title: 'Daily Operations Summary',
+          body: `
+            <p>This is a TEST of the admin daily summary email.</p>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#9a8c74;">New signups (24h)</td><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#f0e8d8;text-align:right;">2</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#9a8c74;">Active today</td><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#f0e8d8;text-align:right;">8</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#9a8c74;">AI calls today</td><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#f0e8d8;text-align:right;">34</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#9a8c74;">Pending DM requests</td><td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#f0e8d8;text-align:right;">1</td></tr>
+              <tr><td style="padding:8px 0;color:#9a8c74;">Today's Brief published</td><td style="padding:8px 0;color:#C9A84C;text-align:right;">✓ Yes</td></tr>
+            </table>
+          `,
+        }),
+      },
+    }
+    const template = templates[testType as string]
+    if (!template) {
+      return new Response(JSON.stringify({ error: 'unknown type' }), { status: 400, headers: HEADERS })
+    }
+    try {
+      await resend.emails.send({
+        from: 'War Room Intel <noreply@warroomintel.com>',
+        to: toEmail,
+        subject: template.subject,
+        html: template.html,
+      })
+    } catch (err: any) {
+      console.error('[send-email] test send error:', err)
+      return new Response(JSON.stringify({ error: 'Failed to send test email' }), { status: 500, headers: HEADERS })
+    }
+    return new Response(JSON.stringify({ success: true, sent_to: toEmail, type: testType }), { status: 200, headers: HEADERS })
+  }
+
   let emailPayload: Parameters<typeof resend.emails.send>[0]
 
   if (type === 'intake-confirmation') {

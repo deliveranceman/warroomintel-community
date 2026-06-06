@@ -221,3 +221,9 @@
 
 [functions."spirit-of-day"]
   timeout = 15
+
+[functions."scheduled-weekly-digest"]
+  schedule = "0 13 * * 1"
+
+[functions."scheduled-admin-summary"]
+  schedule = "0 12 * * *"

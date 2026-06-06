@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { Webhook } from 'svix'
 import { StreamChat } from 'stream-chat'
+import { sendEmail, wriEmailTemplate } from './_shared/sendEmail'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -118,6 +119,31 @@ export default async function handler(req: Request) {
           headers: { 'Content-Type': 'application/json', 'Authorization': feedsJWT, 'Stream-Auth-Type': 'jwt' },
           body: JSON.stringify({ users: [{ id: streamUserId, name }] }),
         }).catch(e => console.error('[clerk-webhook] Feeds upsert error:', e))
+      }
+
+      // 5. Welcome email
+      if (email) {
+        sendEmail({
+          to: email,
+          subject: '⚔ Welcome to War Room Intel — Your Access Is Confirmed',
+          html: wriEmailTemplate({
+            title: 'Welcome to the War Room',
+            body: `
+              <p>Warrior,</p>
+              <p>Your account has been created and you now have access to War Room Intel — the ministry intelligence platform built for deliverance ministers.</p>
+              <p><strong style="color:#C9A84C;">What's available to you now:</strong></p>
+              <ul style="padding-left:20px;margin:12px 0;">
+                <li>Daily Brief — morning prayer, scripture, and devotional</li>
+                <li>Intel Archive — 300+ spirit dossiers</li>
+                <li>Ask SOL — AI ministry intelligence assistant</li>
+                <li>War Room Community — connect with other warriors</li>
+              </ul>
+              <p>Upgrade to Soldier or higher to unlock deliverance sessions, case files, and full AI access.</p>
+            `,
+            ctaText: 'Enter the War Room',
+            ctaUrl: 'https://warroomintel.com/community',
+          }),
+        }).catch(e => console.error('[clerk-webhook] Welcome email error:', e))
       }
     }
 

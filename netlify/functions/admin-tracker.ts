@@ -1,42 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin, CORS as HEADERS } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
-
-const HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
-}
 
 function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-async function isMinister(token: string): Promise<{ ok: boolean; name: string }> {
-  try {
-    if (!token || token.split('.').length !== 3) return { ok: false, name: '' }
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { ok: false, name: '' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, name: '' }
-    const data = await res.json()
-    const ok = data?.public_metadata?.role === 'minister'
-    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Minister'
-    return { ok, name }
-  } catch { return { ok: false, name: '' } }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const { ok, name: ministerName } = await isMinister(token)
-  if (!ok) return new Response(JSON.stringify({ error: 'Minister role required' }), { status: 403, headers: HEADERS })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
+  const { userId: ministerUserId } = auth
 
   const client = sb()
 
@@ -82,7 +58,7 @@ export default async function handler(req: Request) {
     }
     // Auto-set approved_by / approved_at when status → approved
     if (fields.status === 'approved') {
-      updates.approved_by = ministerName
+      updates.approved_by = ministerUserId
       updates.approved_at = new Date().toISOString()
     } else if (fields.status && fields.status !== 'approved') {
       // Clear approval if un-approving

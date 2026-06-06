@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRequire } from 'module'
+import { requireAdmin, CORS as HEADERS } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const require = createRequire(import.meta.url)
@@ -7,39 +8,11 @@ const require = createRequire(import.meta.url)
 const BUCKET = 'ministry-library'
 const MAX_CHARS = 120_000
 
-const HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
-}
-
 function makeSupabase() {
   return createClient(
     supabaseUrl!,
     supabaseServiceKey!,
   )
-}
-
-function getUserId(authHeader: string | null): string | null {
-  if (!authHeader?.startsWith('Bearer ')) return null
-  const token = authHeader.slice(7)
-  try {
-    const parts = token.split('.')
-    if (parts.length < 2) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub || null
-  } catch { return null }
-}
-
-async function isMinister(userId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
 }
 
 async function extractText(buffer: Buffer, filename: string): Promise<string> {
@@ -73,11 +46,9 @@ export default async function handler(req: Request) {
     return Response.json({ error: 'Method not allowed' }, { status: 405 })
   }
 
-  const userId = getUserId(req.headers.get('authorization'))
-  if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const ok = await isMinister(userId)
-  if (!ok) return Response.json({ error: 'Forbidden — minister role required' }, { status: 403 })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
+  const { userId } = auth
 
   let body: any
   try {

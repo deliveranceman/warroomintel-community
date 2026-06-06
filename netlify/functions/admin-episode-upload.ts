@@ -1,39 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin, CORS as headers } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
-
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Content-Type': 'application/json',
-}
 
 const BUCKET = 'episode-files'
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
-  const auth = req.headers.get('authorization') || ''
-  const parts = auth.replace('Bearer ', '').split('.')
-  if (parts.length < 2) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-
-  let userId: string
-  try {
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    userId = payload.sub
-    if (!userId) throw new Error('No user ID')
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers })
-  }
-
-  const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-  })
-  if (!clerkRes.ok) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const clerkUser = await clerkRes.json()
-  const role = clerkUser.public_metadata?.role
-  if (role !== 'minister' && role !== 'owner') {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
-  }
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 

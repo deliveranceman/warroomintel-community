@@ -1,38 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin, CORS as HEADERS } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
-}
-
 function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
-}
-
-async function resolveAdminOrMinister(token: string): Promise<{ ok: boolean; reason: string }> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return { ok: false, reason: 'Invalid JWT' }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { ok: false, reason: 'No userId in token' }
-
-    const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!clerkRes.ok) return { ok: false, reason: `Clerk error ${clerkRes.status}` }
-    const clerkUser = await clerkRes.json()
-    const role = clerkUser?.public_metadata?.role
-    if (role !== 'admin' && role !== 'minister') {
-      return { ok: false, reason: `Forbidden — admin or minister role required (got: ${role ?? 'none'})` }
-    }
-    return { ok: true, reason: '' }
-  } catch (e: unknown) {
-    return { ok: false, reason: e instanceof Error ? e.message : 'Auth error' }
-  }
 }
 
 const ZERO_STATS = { totalCalls: 0, totalTokens: 0, totalCost: 0, topUsers: [] }
@@ -42,16 +14,8 @@ export default async function handler(req: Request) {
     return new Response(null, { status: 204, headers: HEADERS })
   }
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  }
-
-  const auth = await resolveAdminOrMinister(token)
-  if (!auth.ok) {
-    const status = auth.reason.startsWith('Forbidden') ? 403 : 401
-    return new Response(JSON.stringify({ error: auth.reason }), { status, headers: HEADERS })
-  }
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   const today = new Date().toISOString().split('T')[0]
   const supabase = sb()

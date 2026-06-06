@@ -1,56 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
 const SUPABASE_URL = supabaseUrl!
 const SUPABASE_KEY = supabaseServiceKey!
 const BUCKET       = supabaseBucket || 'resources'
 
-async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) {
-      console.error('Token is not a JWT — parts:', parts.length)
-      return null
-    }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    console.log('JWT payload sub:', payload.sub)
-    console.log('JWT payload azp:', payload.azp)
-
-    const userId = payload.sub
-    if (!userId) {
-      console.error('No sub in JWT payload')
-      return null
-    }
-
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-    })
-    console.log('User fetch status:', userRes.status)
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    console.log('publicMetadata:', JSON.stringify(userData?.public_metadata))
-    return { userId, userData }
-  } catch (e) {
-    console.error('resolveUser error:', e)
-    return null
-  }
-}
-
 export default async function handler(req: Request) {
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-
-  const auth = await resolveUser(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized — invalid session' }), { status: 401 })
-  if (auth.userData?.public_metadata?.role !== 'minister') {
-    return new Response(JSON.stringify({
-      error: 'Forbidden — minister role required',
-      debug: { userId: auth.userId, role: auth.userData?.public_metadata?.role, allMetadata: auth.userData?.public_metadata },
-    }), { status: 403 })
-  }
-  const { userId: _userId } = auth
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 

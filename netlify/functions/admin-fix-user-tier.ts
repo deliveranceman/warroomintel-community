@@ -1,10 +1,5 @@
 import { StreamChat } from 'stream-chat'
-
-const HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
-}
+import { requireAdmin, CORS as HEADERS } from './_shared/requireAdmin'
 
 const VALID_TIERS = new Set([
   'watchman', 'free', 'soldier', 'charter_soldier',
@@ -23,30 +18,12 @@ const STREAM_CHANNELS = [
   { id: 'generals-table',     minTier: 3 },
 ]
 
-async function resolveMinister(token: string): Promise<boolean> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return false
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  const ok = await resolveMinister(token)
-  if (!ok) return new Response(JSON.stringify({ error: 'Minister role required' }), { status: 403, headers: HEADERS })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS }) }

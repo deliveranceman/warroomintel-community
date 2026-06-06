@@ -1,24 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin, CORS } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Content-Type': 'application/json',
-}
-
 function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
-}
-
-function resolveUserId(token: string): string {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return ''
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
-    return payload.sub || ''
-  } catch { return '' }
 }
 
 async function semanticSearch(query: string, limit = 5): Promise<any[]> {
@@ -79,9 +65,9 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS })
 
-  const token  = req.headers.get('Authorization')?.replace('Bearer ', '').trim() || ''
-  const userId = resolveUserId(token)
-  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
+  const { userId } = auth
 
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
   if (!ANTHROPIC_KEY) return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), { status: 500, headers: CORS })

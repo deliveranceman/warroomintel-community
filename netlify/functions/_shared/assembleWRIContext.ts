@@ -99,7 +99,7 @@ async function fetchLibraryExcerpts(query: string, sbUrl: string, sbKey: string)
       const start = Math.max(0, (idx >= 0 ? idx : 0) - 80)
       const excerpt = text.slice(start, start + 400).replace(/\n+/g, ' ').trim()
       if (!excerpt) continue
-      const entry = `SOURCE: ${row.title || 'Unknown'} by ${row.author || 'Unknown'}\n${excerpt}`
+      const entry = `SOURCE: ${row.title || 'Unknown'} by ${row.author || 'Unknown'}\nSOURCE_START\n${excerpt}\nSOURCE_END`
       excerpts.push(entry)
       total += entry.length + 2
     }

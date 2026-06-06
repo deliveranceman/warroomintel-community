@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail, wriEmailTemplate } from './_shared/sendEmail'
 
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -19,8 +20,40 @@ function dmChannelId(userA: string, userB: string): string {
   return ('dm' + hash(sorted[0]) + hash(sorted[1])).slice(0, 64)
 }
 
-async function notifyRecipientOfDmRequest(recipientId: string, requesterName: string): Promise<void> {
+async function notifyRecipientOfDmRequest(recipientId: string, requesterName: string, recipientName?: string): Promise<void> {
   const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+
+  // Email notification — look up recipient email from Clerk
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
+  if (clerkSecretKey) {
+    try {
+      const clerkRes = await fetch(`https://api.clerk.com/v1/users/${recipientId}`, {
+        headers: { Authorization: `Bearer ${clerkSecretKey}` },
+      })
+      if (clerkRes.ok) {
+        const clerkUser = await clerkRes.json()
+        const recipientEmail = clerkUser.email_addresses?.[0]?.email_address as string | undefined
+        if (recipientEmail) {
+          await sendEmail({
+            to: recipientEmail,
+            subject: `⚔ ${requesterName} sent you a message on War Room Intel`,
+            html: wriEmailTemplate({
+              title: 'New Message Request',
+              body: `
+                <p>${recipientName ? recipientName + ',' : 'Warrior,'}</p>
+                <p><strong>${requesterName}</strong> has sent you a message request on War Room Intel.</p>
+                <p>Accept or decline the request in your Direct Messages.</p>
+              `,
+              ctaText: 'View Message Request',
+              ctaUrl: 'https://warroomintel.com/community',
+            }),
+          })
+        }
+      }
+    } catch (e: any) {
+      console.error('[create-dm] email notify error:', e.message)
+    }
+  }
 
   // Push notification (fire-and-forget — auth via service key)
   fetch(`${siteUrl}/api/send-push`, {
@@ -382,8 +415,8 @@ async function createDM(userId: string, body: any): Promise<Response> {
     },
   }).catch(() => {})
 
-  // Notify recipient via push + SOL message (fire-and-forget)
-  notifyRecipientOfDmRequest(otherUserId, myName).catch(() => {})
+  // Notify recipient via push + SOL message + email (fire-and-forget)
+  notifyRecipientOfDmRequest(otherUserId, myName, recipientName).catch(() => {})
 
   return json({ pending: true, message: 'DM request sent. Waiting for their acceptance.' })
 }

@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { StreamClient } from '@stream-io/node-sdk'
+import { sendEmail, wriEmailTemplate } from './_shared/sendEmail'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -173,6 +174,12 @@ export default async function handler(req: Request) {
         const isCharter = resolvedPriceId ? CHARTER_PRICE_IDS.has(resolvedPriceId) : false
 
         const charterExtra = isCharter ? { foundingMember: true, is_founder: true, charter_date: new Date().toISOString() } : undefined
+        const tierNames: Record<string, string> = {
+          soldier: 'Soldier', charter_soldier: 'Charter Soldier',
+          commander: 'Commander', charter_commander: 'Charter Commander',
+          general: 'General', founding_general: 'Founding General',
+        }
+
         if (clerkUserId) {
           await setClerkTierById(clerkUserId, tier, charterExtra)
           await addToStreamChannels(clerkUserId, tier)
@@ -183,6 +190,25 @@ export default async function handler(req: Request) {
           console.log(`✅ Upgraded ${email} to ${tier}${isCharter ? ' (charter)' : ''} (email fallback)`)
         } else {
           console.error('No user identifier in checkout session')
+        }
+
+        if (email) {
+          const tierName = tierNames[tier] || tier
+          sendEmail({
+            to: email,
+            subject: `⚔ WRI ${tierName} Access Activated`,
+            html: wriEmailTemplate({
+              title: `${tierName} Access Activated`,
+              body: `
+                <p>Warrior,</p>
+                <p>Your <strong style="color:#C9A84C;">${tierName}</strong> membership is now active.</p>
+                <p>You now have access to everything your tier unlocks — head to the platform to explore your expanded capabilities.</p>
+                <p style="font-size:12px;color:#9a8c74;">If you have any questions about your membership, reply to this email.</p>
+              `,
+              ctaText: 'Access Your War Room',
+              ctaUrl: 'https://warroomintel.com/community',
+            }),
+          }).catch(e => console.error('[stripe-webhook] Upgrade email error:', e))
         }
         break
       }

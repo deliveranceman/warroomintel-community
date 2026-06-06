@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
-const CLERK_SECRET  = process.env.CLERK_SECRET_KEY!
 const SUPABASE_URL  = supabaseUrl!
 const SUPABASE_KEY  = supabaseServiceKey!
 const BUCKET        = supabaseBucket || 'resources'
@@ -28,57 +28,13 @@ const ALLOWED_TYPES: Record<string, { maxBytes: number }> = {
 //   created_at timestamptz DEFAULT now()
 // );
 
-async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) {
-      console.error('Token is not a JWT — parts:', parts.length)
-      return null
-    }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    console.log('JWT payload sub:', payload.sub)
-    console.log('JWT payload azp:', payload.azp)
-
-    const userId = payload.sub
-    if (!userId) {
-      console.error('No sub in JWT payload')
-      return null
-    }
-
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-    })
-    console.log('User fetch status:', userRes.status)
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    console.log('publicMetadata:', JSON.stringify(userData?.public_metadata))
-    return { userId, userData }
-  } catch (e) {
-    console.error('resolveUser error:', e)
-    return null
-  }
-}
-
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
   const headers = { 'Content-Type': 'application/json' }
 
-  const authHeader = req.headers.get('Authorization')
-  const sessionToken = authHeader?.replace('Bearer ', '').trim()
-  if (!sessionToken) {
-    return new Response(JSON.stringify({ error: 'No auth token provided' }), { status: 401, headers })
-  }
-
-  const auth = await resolveUser(sessionToken)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized — invalid session' }), { status: 401, headers })
-  const role = auth.userData?.public_metadata?.role
-  if (role !== 'minister') {
-    return new Response(JSON.stringify({
-      error: 'Forbidden — minister role required',
-      debug: { userId: auth.userId, role, publicMetadata: auth.userData?.public_metadata },
-    }), { status: 403, headers })
-  }
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   let formData: FormData
   try {

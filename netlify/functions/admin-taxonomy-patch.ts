@@ -1,3 +1,4 @@
+import { requireAdmin } from './_shared/requireAdmin'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
@@ -12,33 +13,12 @@ const FIELD_MAP: Record<string, string> = {
   biblicalRank: 'Biblical Rank',
 }
 
-async function resolveMinister(token: string): Promise<{ ok: boolean; reason: string }> {
-  try {
-    if (!token || token.split('.').length !== 3) return { ok: false, reason: 'Invalid JWT' }
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'))
-    const userId = payload.sub
-    if (!userId || !String(userId).startsWith('user_')) return { ok: false, reason: 'Invalid userId' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, reason: `Clerk error ${res.status}` }
-    const data = await res.json()
-    if (data?.public_metadata?.role !== 'minister') return { ok: false, reason: 'Minister role required' }
-    return { ok: true, reason: '' }
-  } catch (e: any) {
-    return { ok: false, reason: e.message || 'Auth error' }
-  }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { status: 200, headers })
   if (req.method !== 'PATCH') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-
-  const auth = await resolveMinister(token)
-  if (!auth.ok) return new Response(JSON.stringify({ error: auth.reason }), { status: 403, headers })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers }) }
