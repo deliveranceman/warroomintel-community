@@ -98,17 +98,22 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: 'unknown type' }), { status: 400, headers: HEADERS })
     }
     try {
-      await resend.emails.send({
-        from: 'War Room Intel <noreply@warroomintel.com>',
+      const { data, error } = await resend.emails.send({
+        from: FROM,
         to: toEmail,
         subject: template.subject,
         html: template.html,
       })
+      if (error) {
+        console.error('[send-email] test send REJECTED by Resend:', JSON.stringify(error))
+        return new Response(JSON.stringify({ error: error.message || 'Resend rejected the email', resendError: error }), { status: 500, headers: HEADERS })
+      }
+      console.log('[send-email] test send OK, id:', data?.id)
+      return new Response(JSON.stringify({ success: true, sent_to: toEmail, type: testType, id: data?.id }), { status: 200, headers: HEADERS })
     } catch (err: any) {
       console.error('[send-email] test send error:', err)
       return new Response(JSON.stringify({ error: 'Failed to send test email' }), { status: 500, headers: HEADERS })
     }
-    return new Response(JSON.stringify({ success: true, sent_to: toEmail, type: testType }), { status: 200, headers: HEADERS })
   }
 
   const { type, to, name, submissionId, details } = body || {}
