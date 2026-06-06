@@ -8640,7 +8640,7 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
     setGenerating(false)
   }
 
-  async function generate14Days() {
+  async function generate7Days() {
     setGeneratingBatch(true); setMsg(''); setBatchProgress('')
     const token = await getToken()
     let created = 0; let skipped = 0
@@ -8648,11 +8648,11 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
     const archiveRes = await fetch('/api/daily-devotion?archive=true', { headers: { Authorization: `Bearer ${token}` } })
     const archiveData = archiveRes.ok ? await archiveRes.json() : { devotions: [] }
     const existingDates = new Set((archiveData.devotions || []).map((d: any) => d.date))
-    for (let i = 1; i <= 14; i++) {
+    for (let i = 0; i < 7; i++) {
       const d = new Date(); d.setDate(d.getDate() + i)
       const dateStr = d.toISOString().slice(0, 10)
       if (existingDates.has(dateStr)) { skipped++; setBatchProgress(`Skipping ${dateStr} (exists)...`); continue }
-      setBatchProgress(`Generating ${dateStr} (${i}/14)...`)
+      setBatchProgress(`Generating ${dateStr} (${i + 1}/7)...`)
       try {
         const res = await fetch('/api/generate-daily-brief', {
           method: 'POST',
@@ -8662,7 +8662,7 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
         if (res.ok) created++
         else { const e = await res.json(); setBatchProgress(`Error on ${dateStr}: ${e.error}`); break }
       } catch { setBatchProgress(`Network error on ${dateStr}`); break }
-      await new Promise(r => setTimeout(r, 800))
+      await new Promise(r => setTimeout(r, 1500))
     }
     setBatchProgress('')
     setMsg(`Batch complete — ${created} generated, ${skipped} skipped (already existed)`)
@@ -8757,9 +8757,9 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
           style={{ width: '100%', marginBottom: 6, padding: '7px 12px', background: generating ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: `1px solid ${generating ? 'rgba(201,168,76,0.2)' : GG}`, borderRadius: 6, color: generating ? mut : GG, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: generating ? 'wait' : 'pointer', opacity: generating ? 0.6 : 1 }}>
           {generating ? 'GENERATING...' : '⚡ AI GENERATE TODAY'}
         </button>
-        <button onClick={generate14Days} disabled={generating || generatingBatch}
+        <button onClick={generate7Days} disabled={generating || generatingBatch}
           style={{ width: '100%', marginBottom: 12, padding: '7px 12px', background: generatingBatch ? 'rgba(201,168,76,0.05)' : 'rgba(74,138,201,0.08)', border: `1px solid ${generatingBatch ? 'rgba(201,168,76,0.2)' : 'rgba(74,138,201,0.5)'}`, borderRadius: 6, color: generatingBatch ? mut : '#7ab4e0', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.08em', cursor: generatingBatch ? 'wait' : 'pointer', opacity: generatingBatch ? 0.6 : 1 }}>
-          {generatingBatch ? (batchProgress || 'GENERATING...') : '📅 GENERATE 14 DAYS'}
+          {generatingBatch ? (batchProgress || '⏳ GENERATING...') : '📅 GENERATE 7 DAYS'}
         </button>
         {entries.map(e => (
           <button key={e.id} onClick={() => loadEntry(e)}
