@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -25,22 +26,6 @@ const CATEGORIES = [
   'Python Spirit',
   'Witchcraft',
 ]
-
-async function resolveMinister(token: string): Promise<boolean> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return false
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
-}
 
 function cleanName(raw: string): string {
   return raw
@@ -93,10 +78,8 @@ Return only valid JSON.`
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  const ok = await resolveMinister(token)
-  if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: HEADERS })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   // GET ?id=<uuid> — autofill for an already-uploaded resource
   if (req.method === 'GET') {

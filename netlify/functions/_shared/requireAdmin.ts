@@ -16,7 +16,9 @@ export async function requireAdmin(req: Request): Promise<{ userId: string } | R
   if (!decoded?.sub) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: CORS })
 
   const meta    = decoded?.publicMetadata || decoded?.public_metadata || {}
-  const isAdmin = meta.role === 'admin' || meta.role === 'minister' || meta.tier === 'minister'
+  const isAdmin =
+    meta.role === 'admin' || meta.role === 'minister' || meta.role === 'commandant' ||
+    meta.tier === 'minister' || meta.tier === 'commandant'
 
   if (!isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: CORS })
 

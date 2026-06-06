@@ -9,6 +9,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -25,22 +26,6 @@ function sb() {
     supabaseUrl!,
     supabaseServiceKey!,
   )
-}
-
-async function resolveMinister(token: string): Promise<{ ok: boolean; userId: string }> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return { ok: false, userId: '' }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { ok: false, userId: '' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, userId }
-    const data = await res.json()
-    return { ok: data?.public_metadata?.role === 'minister', userId }
-  } catch { return { ok: false, userId: '' } }
 }
 
 async function extractText(buf: ArrayBuffer, filePath: string): Promise<string | null> {
@@ -193,11 +178,9 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: CORS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-
-  const { ok, userId } = await resolveMinister(token)
-  if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: CORS })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
+  const { userId } = auth
 
   const client = sb()
   let processed      = 0

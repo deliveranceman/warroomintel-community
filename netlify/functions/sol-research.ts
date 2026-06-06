@@ -1,3 +1,5 @@
+import { requireAdmin } from './_shared/requireAdmin'
+
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const SB_HEADERS = {
@@ -16,28 +18,6 @@ const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' }
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS })
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-async function resolveMinister(token: string): Promise<{ ok: boolean; userId: string; reason: string }> {
-  try {
-    if (!token || token.split('.').length !== 3) return { ok: false, userId: '', reason: 'Invalid JWT' }
-    const parts = token.split('.')
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
-    const userId = payload.sub || payload.userId || payload.user_id
-    if (!userId) return { ok: false, userId: '', reason: 'No userId in JWT' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, userId: '', reason: `Clerk error ${res.status}` }
-    const data = await res.json()
-    const role = data?.public_metadata?.role
-    if (role !== 'minister') return { ok: false, userId: '', reason: `Role '${role}' — minister required` }
-    return { ok: true, userId, reason: '' }
-  } catch (e: any) {
-    return { ok: false, userId: '', reason: e.message || 'Auth exception' }
-  }
 }
 
 // ── Content extraction ────────────────────────────────────────────────────────
@@ -168,11 +148,8 @@ async function logResearch(params: {
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim()
-  if (!token) return json({ error: 'Unauthorized' }, 401)
-
-  const auth = await resolveMinister(token)
-  if (!auth.ok) return json({ error: auth.reason }, 403)
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   // ── GET: recent log ───────────────────────────────────────────────────────
   if (req.method === 'GET') {

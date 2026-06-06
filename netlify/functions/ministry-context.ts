@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin } from './_shared/requireAdmin'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -10,22 +11,6 @@ const headers = {
 
 function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
-}
-
-async function resolveMinister(token: string): Promise<boolean> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return false
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
 }
 
 // In-process cache (best-effort in serverless)
@@ -56,10 +41,8 @@ export default async function handler(req: Request) {
   }
 
   // All remaining routes require minister auth
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const isMinister = await resolveMinister(token)
-  if (!isMinister) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+  const auth = await requireAdmin(req)
+  if (auth instanceof Response) return auth
 
   // ── GET ?admin=true — return all versions ordered by version DESC ─────────
   if (req.method === 'GET' && isAdmin) {
