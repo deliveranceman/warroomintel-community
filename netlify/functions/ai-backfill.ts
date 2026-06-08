@@ -1,3 +1,4 @@
+import { requireAdmin2 } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
@@ -47,22 +48,12 @@ function scoreFieldQuality(fieldValue: string | undefined): number {
   return 50
 }
 
-function resolveUserId(token: string): string {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return ''
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
-    return payload.sub || ''
-  } catch { return '' }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS })
 
-  const token  = req.headers.get('Authorization')?.replace('Bearer ', '').trim() || ''
-  const userId = resolveUserId(token)
-  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
 
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
   const body = await req.json().catch(() => ({}))

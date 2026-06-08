@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -12,14 +13,6 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-function resolveUserId(token: string): string {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return ''
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
-    return payload.sub || ''
-  } catch { return '' }
-}
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -42,11 +35,8 @@ export default async function handler(req: Request) {
 
   // POST: requires minister auth
   if (req.method === 'POST') {
-    const token  = req.headers.get('Authorization')?.replace('Bearer ', '').trim() || ''
-    const userId = resolveUserId(token)
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-    }
+    const auth = await requireAdmin2(req)
+    if (auth instanceof Response) return auth
 
     const body = await req.json().catch(() => ({}))
     const { spirit_name, minister_note, deliverance_tip } = body
@@ -66,7 +56,7 @@ export default async function handler(req: Request) {
         minister_note:  minister_note?.trim() || null,
         deliverance_tip: deliverance_tip?.trim() || null,
         active:         true,
-        created_by:     userId,
+        created_by:     auth.userId,
       })
       .select('*')
       .single()

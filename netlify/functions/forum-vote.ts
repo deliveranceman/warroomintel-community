@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -12,23 +13,12 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-async function resolveUserId(token: string): Promise<string | null> {
-  try {
-    if (!token || token.split('.').length !== 3) return null
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    return payload.sub || null
-  } catch { return null }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const userId = await resolveUserId(token)
-  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS }) }
@@ -42,7 +32,7 @@ export default async function handler(req: Request) {
   const { data: existing } = await client
     .from('forum_votes')
     .select('post_id')
-    .eq('user_id', userId)
+    .eq('user_id', auth.userId)
     .eq('post_id', postId)
     .maybeSingle()
 
@@ -51,13 +41,13 @@ export default async function handler(req: Request) {
 
   if (existing) {
     // Remove vote
-    await client.from('forum_votes').delete().eq('user_id', userId).eq('post_id', postId)
+    await client.from('forum_votes').delete().eq('user_id', auth.userId).eq('post_id', postId)
     const newCount = Math.max(0, (post.upvotes || 1) - 1)
     await client.from('forum_posts').update({ upvotes: newCount }).eq('id', postId)
     return new Response(JSON.stringify({ voted: false, upvotes: newCount }), { status: 200, headers: HEADERS })
   } else {
     // Add vote
-    await client.from('forum_votes').insert({ user_id: userId, post_id: postId })
+    await client.from('forum_votes').insert({ user_id: auth.userId, post_id: postId })
     const newCount = (post.upvotes || 0) + 1
     await client.from('forum_posts').update({ upvotes: newCount }).eq('id', postId)
     return new Response(JSON.stringify({ voted: true, upvotes: newCount }), { status: 200, headers: HEADERS })
