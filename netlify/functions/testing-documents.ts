@@ -73,7 +73,7 @@ export default async function handler(req: Request) {
         review_issues: review_issues || [],
         review_notes: review_notes || null,
         reviewed_by: auth.userId,
-        reviewed_by_name: '',
+        reviewed_by_name: auth.displayName,
         reviewed_at: new Date().toISOString(),
       })
       .eq('document_id', document_id)

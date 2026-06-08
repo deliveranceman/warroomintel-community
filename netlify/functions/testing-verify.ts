@@ -125,7 +125,7 @@ export default async function handler(req: Request) {
         status,
         notes: notes || null,
         verified_by: auth.userId,
-        verified_by_name: '',
+        verified_by_name: auth.displayName,
         verified_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -142,7 +142,7 @@ export default async function handler(req: Request) {
           category: 'functionality',
           severity: 'medium',
           submitted_by: auth.userId,
-          submitted_by_name: '',
+          submitted_by_name: auth.displayName,
           submitted_by_tier: auth.tier,
         })
       }

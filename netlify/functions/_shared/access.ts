@@ -30,11 +30,12 @@ export function tierLevel(tier?: string | null): number {
 }
 
 export interface AuthResult {
-  userId:  string
-  tier:    string
-  role:    string
-  level:   number
-  isAdmin: boolean
+  userId:      string
+  tier:        string
+  role:        string
+  level:       number
+  isAdmin:     boolean
+  displayName: string
 }
 
 function unauth(): Response {
@@ -94,7 +95,13 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
     const level   = Math.max(tierLevel(tier), roleBoost)
     const isAdmin = level >= 4
 
-    return { userId, tier, role, level, isAdmin }
+    const firstName   = ((userData.first_name  as string) || '').trim()
+    const lastName    = ((userData.last_name   as string) || '').trim()
+    const fullName    = [firstName, lastName].filter(Boolean).join(' ')
+    const emailLocal  = ((userData.email_addresses as any[])?.[0]?.email_address as string || '').split('@')[0]
+    const displayName = fullName || ((userData.username as string) || '').trim() || emailLocal || ''
+
+    return { userId, tier, role, level, isAdmin, displayName }
   } catch {
     return unauth()
   }

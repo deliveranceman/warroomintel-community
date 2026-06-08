@@ -48,7 +48,7 @@ export default async function handler(req: Request) {
         category: category || 'other',
         screenshot_url: screenshot_url || null,
         submitted_by: auth.userId,
-        submitted_by_name: '',
+        submitted_by_name: auth.displayName,
         submitted_by_tier: auth.tier,
       })
       .select()
