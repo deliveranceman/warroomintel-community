@@ -1,8 +1,10 @@
+import { verifyToken } from '@clerk/backend'
+
 // Verified server-side auth helper.
-// Uses Clerk REST API (POST /v1/sessions/verify) to cryptographically validate
-// the session token — the existing decodeJwt in _shared/clerkAuth.ts does NOT
-// verify signatures and is forgeable. This is the canonical replacement gate.
-// Do NOT use @clerk/backend (not installed). Only CLERK_SECRET_KEY + Clerk REST.
+// Uses @clerk/backend verifyToken for local cryptographic signature verification —
+// accepts the v5 JWT that getToken() produces, no API round-trip, cannot fail-open.
+// Step 2 still calls GET /v1/users/{id} to read public_metadata (tier/role) from Clerk.
+// @clerk/backend is available as a transitive dep of @clerk/tanstack-start.
 
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY!
 
@@ -62,19 +64,15 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
   if (!token) return unauth()
 
   try {
-    // Step 1 — verify session token (cryptographic check via Clerk REST API)
-    const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-      method: 'POST',
-      headers: {
-        Authorization:  `Bearer ${CLERK_SECRET_KEY}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({ token }),
-    })
-    if (!verifyRes.ok) return unauth()
-
-    const session = await verifyRes.json()
-    const userId  = session.user_id as string | undefined
+    // Step 1 — local cryptographic signature verification via @clerk/backend verifyToken
+    // Accepts the v5 JWT from getToken(); no API round-trip; fails closed on any error.
+    let claims: any
+    try {
+      claims = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY })
+    } catch {
+      return unauth()
+    }
+    const userId = claims.sub as string | undefined
     if (!userId) return unauth()
 
     // Step 2 — fetch public_metadata from Clerk (never trust claims in token payload)
