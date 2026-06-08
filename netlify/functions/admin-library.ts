@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import Busboy from 'busboy'
-import { requireAdmin } from './_shared/requireAdmin'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -44,7 +44,7 @@ function parseMultipart(_req: Request, bodyBuf: Buffer, contentType: string): Pr
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
-  const auth = await requireAdmin(req)
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
   const sb = supabaseClient()
