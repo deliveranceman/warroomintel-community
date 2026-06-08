@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { requireAdmin, CORS as HEADERS } from './_shared/requireAdmin'
+import { requireAdmin2, CORS as HEADERS } from './_shared/access'
 
 function buildPrompt(title: string, type: string): string {
   switch (type) {
@@ -62,7 +62,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
   }
 
-  const auth = await requireAdmin(req)
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
   let body: { title?: string; summary?: string; type?: string }
