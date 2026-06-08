@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireAuth } from '../../netlify/functions/_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket, signedUrlExpiry: supabaseExpiry } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -13,25 +14,28 @@ export const Route = createFileRoute('/api/resource-download')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireAuth(request)
+        if (auth instanceof Response) return auth
+
         if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
           return Response.json({ error: 'Supabase not configured — check env vars' }, { status: 500 })
         }
 
-        let body: { filePath: string; memberTier?: string; fileTier: string }
+        let body: { filePath: string; fileTier: string }
         try {
           body = await request.json()
         } catch {
           return Response.json({ error: 'Invalid JSON' }, { status: 400 })
         }
 
-        const { filePath, memberTier = 'Free', fileTier } = body
+        const { filePath, fileTier } = body
 
         if (!filePath) {
           return Response.json({ error: 'filePath required' }, { status: 400 })
         }
 
-        // Tier access check
-        const memberLevel = TIER_ORDER[memberTier] ?? 0
+        // Tier access check — use verified server-side level, never trust client-supplied tier
+        const memberLevel = auth.level
         const fileLevel   = TIER_ORDER[fileTier]   ?? 0
         if (memberLevel < fileLevel) {
           return Response.json({ error: 'Insufficient tier access' }, { status: 403 })

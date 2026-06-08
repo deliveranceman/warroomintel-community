@@ -1,9 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireTier } from '../../netlify/functions/_shared/access'
 
 export const Route = createFileRoute('/api/get-members')({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
+        const authRes = await requireTier(request, 1)
+        if (authRes instanceof Response) return authRes
         const headers = {
           'Access-Control-Allow-Origin': '*',
           'Content-Type': 'application/json',

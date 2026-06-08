@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireAuth } from '../../netlify/functions/_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 
@@ -290,6 +291,8 @@ export const Route = createFileRoute('/api/submit-assessment')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireAuth(request)
+        if (auth instanceof Response) return auth
         if (!AIRTABLE_TOKEN) return Response.json({ error: 'Missing AIRTABLE_TOKEN' }, { status: 500 })
 
         try {

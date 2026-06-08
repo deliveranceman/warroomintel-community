@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin2 } from '../../netlify/functions/_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -32,6 +33,8 @@ export const Route = createFileRoute('/api/sm-submission')({
         return Response.json({ submissions: data || [] })
       },
       PATCH: async ({ request }) => {
+        const auth = await requireAdmin2(request)
+        if (auth instanceof Response) return auth
         const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         const { id, admin_status, admin_notes, regionId } = await request.json()
         if (!id) return Response.json({ error: 'id required' }, { status: 400 })

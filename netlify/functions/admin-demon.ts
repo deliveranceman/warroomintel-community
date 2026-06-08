@@ -1,4 +1,4 @@
-import { requireAdmin } from './_shared/requireAdmin'
+import { requireAdmin2 } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
@@ -26,6 +26,9 @@ async function airtableError(res: Response): Promise<string> {
 }
 
 export default async function handler(req: Request) {
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
+
   if (req.method === 'GET') {
     const url = new URL(req.url)
     const id  = url.searchParams.get('id')
@@ -66,8 +69,6 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ record: mapped }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
 
-  const demonAuth = await requireAdmin(req)
-  if (demonAuth instanceof Response) return demonAuth
   if (req.method === 'PATCH') {
     const body = await req.json()
     const { id, fields } = body

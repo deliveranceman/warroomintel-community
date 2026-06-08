@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireTier } from '../../netlify/functions/_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 
@@ -7,7 +8,9 @@ const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 export const Route = createFileRoute('/api/demons')({
   server: {
     handlers: {
-      GET: async ({ request: _request }) => {
+      GET: async ({ request }) => {
+        const authRes = await requireTier(request, 1)
+        if (authRes instanceof Response) return authRes
         const token = airtableToken
         const BASE_ID = 'appVXEj2DLPBTJTtD'
         const TABLE_ID = 'tblcP4lgVykzOhLi4'

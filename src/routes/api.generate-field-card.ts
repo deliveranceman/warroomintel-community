@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireTier } from '../../netlify/functions/_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 
@@ -10,6 +11,8 @@ export const Route = createFileRoute('/api/generate-field-card')({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const authRes = await requireTier(request, 1)
+        if (authRes instanceof Response) return authRes
         const token = airtableToken
         if (!token) {
           return Response.json({ error: 'Missing AIRTABLE_TOKEN env var' }, { status: 500 })

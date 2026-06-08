@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireAdmin2 } from '../../netlify/functions/_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 
@@ -11,6 +12,8 @@ export const Route = createFileRoute('/api/generate-summary')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireAdmin2(request)
+        if (auth instanceof Response) return auth
         if (!AIRTABLE_TOKEN) return Response.json({ error: 'Missing AIRTABLE_TOKEN' }, { status: 500 })
         if (!ANTHROPIC_API_KEY) return Response.json({ error: 'Missing ANTHROPIC_API_KEY' }, { status: 500 })
 

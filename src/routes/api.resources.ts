@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireAuth } from '../../netlify/functions/_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket, signedUrlExpiry: supabaseExpiry } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -45,12 +46,14 @@ export const Route = createFileRoute('/api/resources')({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const auth = await requireAuth(request)
+        if (auth instanceof Response) return auth
+
         if (!AIRTABLE_TOKEN) {
           return Response.json({ error: 'Missing AIRTABLE_TOKEN' }, { status: 500 })
         }
 
         const url = new URL(request.url)
-        const tier      = url.searchParams.get('tier')      // filter by tier
         const category  = url.searchParams.get('category')  // filter by category
         const withUrls  = url.searchParams.get('withUrls') === 'true' // generate signed URLs
 
@@ -94,11 +97,8 @@ export const Route = createFileRoute('/api/resources')({
           }))
 
           // ── Filter ───────────────────────────────────────────────────────
-          if (tier) {
-            const tierLevel = TIER_ORDER[tier] ?? 0
-            // Show resources for this tier and below
-            resources = resources.filter(r => (TIER_ORDER[r.tier] ?? 0) <= tierLevel)
-          }
+          // Always gate by the verified server-side level — never trust client-supplied tier
+          resources = resources.filter(r => (TIER_ORDER[r.tier] ?? 0) <= auth.level)
           if (category) {
             resources = resources.filter(r => r.category === category)
           }
