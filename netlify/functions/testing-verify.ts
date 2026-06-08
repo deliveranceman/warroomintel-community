@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -75,31 +76,11 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-async function resolveUser(token: string): Promise<{ userId: string; name: string; tier: string } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Anonymous'
-    const tier = (data.public_metadata?.tier as string) || 'watchman'
-    return { userId, name, tier }
-  } catch { return null }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  const user = await resolveUser(token)
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
   const supabase = sb()
 
@@ -143,8 +124,8 @@ export default async function handler(req: Request) {
       .update({
         status,
         notes: notes || null,
-        verified_by: user.userId,
-        verified_by_name: user.name,
+        verified_by: auth.userId,
+        verified_by_name: '',
         verified_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -160,9 +141,9 @@ export default async function handler(req: Request) {
           description: notes,
           category: 'functionality',
           severity: 'medium',
-          submitted_by: user.userId,
-          submitted_by_name: user.name,
-          submitted_by_tier: user.tier,
+          submitted_by: auth.userId,
+          submitted_by_name: '',
+          submitted_by_tier: auth.tier,
         })
       }
     }

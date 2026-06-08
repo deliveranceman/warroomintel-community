@@ -1,33 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const supabase    = createClient(supabaseUrl!, supabaseServiceKey!)
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
-
-async function resolveUser(token: string) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData }
-  } catch { return null }
-}
 
 export default async function handler(req: Request) {
   const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
 
-  const auth = await resolveUser(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   if (req.method === 'GET') {
     const { data, error } = await supabase
@@ -61,7 +43,7 @@ export default async function handler(req: Request) {
     const url = new URL(req.url)
     const id = url.searchParams.get('id')
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
-    const role = auth.userData?.public_metadata?.role
+    const role = auth.role
     if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     const { status, admin_notes } = await req.json()
     const { data, error } = await supabase.from('feedback').update({ status, admin_notes }).eq('id', id).select().single()
@@ -73,7 +55,7 @@ export default async function handler(req: Request) {
     const url = new URL(req.url)
     const id = url.searchParams.get('id')
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
-    const role = auth.userData?.public_metadata?.role
+    const role = auth.role
     if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     await supabase.from('feedback').delete().eq('id', id)
     return new Response(JSON.stringify({ success: true }), { status: 200, headers })
