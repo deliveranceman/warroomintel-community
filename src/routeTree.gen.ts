@@ -345,8 +345,8 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/terms': typeof TermsRoute
-  '/admin/login': typeof AdminLoginRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
+  '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -398,8 +398,8 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/terms': typeof TermsRoute
-  '/admin/login': typeof AdminLoginRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
+  '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -453,8 +453,8 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/submit-demon': typeof SubmitDemonRoute
   '/terms': typeof TermsRoute
-  '/admin/login': typeof AdminLoginRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
+  '/admin/login': typeof AdminLoginRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -509,8 +509,8 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/submit-demon'
     | '/terms'
-    | '/admin/login'
     | '/admin/church-fathers-library'
+    | '/admin/login'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -562,8 +562,8 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/submit-demon'
     | '/terms'
-    | '/admin/login'
     | '/admin/church-fathers-library'
+    | '/admin/login'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -616,8 +616,8 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/submit-demon'
     | '/terms'
-    | '/admin/login'
     | '/admin/church-fathers-library'
+    | '/admin/login'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -1074,14 +1074,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
-  AdminLoginRoute: typeof AdminLoginRoute
   AdminChurchFathersLibraryRoute: typeof AdminChurchFathersLibraryRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminLoginRoute: AdminLoginRoute,
   AdminChurchFathersLibraryRoute: AdminChurchFathersLibraryRoute,
+  AdminLoginRoute: AdminLoginRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
