@@ -1,4 +1,4 @@
-import { requireAdmin } from './_shared/requireAdmin'
+import { requireAdmin2 } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN  = airtableToken!
@@ -199,7 +199,7 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { status: 200, headers })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers })
 
-  const auth = await requireAdmin(req)
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
   let body: any = {}
