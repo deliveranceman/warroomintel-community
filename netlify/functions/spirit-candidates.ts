@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAdmin, CORS } from './_shared/requireAdmin'
+import { requireAdmin2, CORS } from './_shared/access'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -8,7 +8,7 @@ function sb() { return createClient(sbUrl, sbKey) }
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const auth = await requireAdmin(req)
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
   const { userId } = auth
 
