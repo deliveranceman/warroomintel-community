@@ -49,8 +49,16 @@ function forbidden(): Response {
  * Matches the exact two-step pattern from netlify/functions/download.ts.
  */
 export async function requireAuth(req: Request): Promise<AuthResult | Response> {
-  const raw   = req.headers.get('authorization') || req.headers.get('Authorization') || ''
-  const token = raw.replace(/^Bearer\s+/i, '').trim()
+  const raw = req.headers.get('authorization') || req.headers.get('Authorization') || ''
+  let token = raw.replace(/^Bearer\s+/i, '').trim()
+
+  // Fallback: read __session cookie (present on browser navigate requests that lack a Bearer header)
+  if (!token) {
+    const cookies = req.headers.get('cookie') || ''
+    const m = cookies.match(/(?:^|;\s*)__session=([^;]+)/)
+    if (m) token = decodeURIComponent(m[1])
+  }
+
   if (!token) return unauth()
 
   try {
