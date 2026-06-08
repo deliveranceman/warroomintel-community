@@ -42,7 +42,6 @@ import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiUpdateProfileRouteImport } from './routes/api.update-profile'
 import { Route as ApiSubmitHelpRouteImport } from './routes/api.submit-help'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
-import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as ApiStreamTokenRouteImport } from './routes/api.stream-token'
 import { Route as ApiSmSubmissionRouteImport } from './routes/api.sm-submission'
 import { Route as ApiSmRegionsRouteImport } from './routes/api.sm-regions'
@@ -229,11 +228,6 @@ const ApiSubmitAssessmentRoute = ApiSubmitAssessmentRouteImport.update({
   path: '/api/submit-assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
-  id: '/api/stripe-webhook',
-  path: '/api/stripe-webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiStreamTokenRoute = ApiStreamTokenRouteImport.update({
   id: '/api/stream-token',
   path: '/api/stream-token',
@@ -363,7 +357,6 @@ export interface FileRoutesByFullPath {
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
   '/api/update-profile': typeof ApiUpdateProfileRoute
@@ -416,7 +409,6 @@ export interface FileRoutesByTo {
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
   '/api/update-profile': typeof ApiUpdateProfileRoute
@@ -471,7 +463,6 @@ export interface FileRoutesById {
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
   '/api/stream-token': typeof ApiStreamTokenRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
   '/api/update-profile': typeof ApiUpdateProfileRoute
@@ -527,7 +518,6 @@ export interface FileRouteTypes {
     | '/api/sm-regions'
     | '/api/sm-submission'
     | '/api/stream-token'
-    | '/api/stripe-webhook'
     | '/api/submit-assessment'
     | '/api/submit-help'
     | '/api/update-profile'
@@ -580,7 +570,6 @@ export interface FileRouteTypes {
     | '/api/sm-regions'
     | '/api/sm-submission'
     | '/api/stream-token'
-    | '/api/stripe-webhook'
     | '/api/submit-assessment'
     | '/api/submit-help'
     | '/api/update-profile'
@@ -634,7 +623,6 @@ export interface FileRouteTypes {
     | '/api/sm-regions'
     | '/api/sm-submission'
     | '/api/stream-token'
-    | '/api/stripe-webhook'
     | '/api/submit-assessment'
     | '/api/submit-help'
     | '/api/update-profile'
@@ -687,7 +675,6 @@ export interface RootRouteChildren {
   ApiSmRegionsRoute: typeof ApiSmRegionsRoute
   ApiSmSubmissionRoute: typeof ApiSmSubmissionRoute
   ApiStreamTokenRoute: typeof ApiStreamTokenRoute
-  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiSubmitHelpRoute: typeof ApiSubmitHelpRoute
   ApiUpdateProfileRoute: typeof ApiUpdateProfileRoute
@@ -937,13 +924,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSubmitAssessmentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/stripe-webhook': {
-      id: '/api/stripe-webhook'
-      path: '/api/stripe-webhook'
-      fullPath: '/api/stripe-webhook'
-      preLoaderRoute: typeof ApiStripeWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/stream-token': {
       id: '/api/stream-token'
       path: '/api/stream-token'
@@ -1122,7 +1102,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSmRegionsRoute: ApiSmRegionsRoute,
   ApiSmSubmissionRoute: ApiSmSubmissionRoute,
   ApiStreamTokenRoute: ApiStreamTokenRoute,
-  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiSubmitHelpRoute: ApiSubmitHelpRoute,
   ApiUpdateProfileRoute: ApiUpdateProfileRoute,

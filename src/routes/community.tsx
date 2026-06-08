@@ -12625,13 +12625,27 @@ function CommunityPage() {
     }
   }, [])
 
-  // Read ?section= URL param on mount (e.g. from Launch Session redirect)
+  // Read ?section= and ?upgraded= URL params on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const section = params.get('section')
     if (section) {
       setActiveSection(section)
       window.history.replaceState({}, '', window.location.pathname)
+    }
+    // After a successful Stripe checkout, force a fresh token so the new tier
+    // is visible immediately instead of waiting for the ~60s JWT cache to expire.
+    if (params.get('upgraded') === '1') {
+      ;(async () => {
+        try {
+          // Force a fresh JWT so the new Clerk public_metadata.tier is reflected
+          // immediately instead of waiting for the ~60s token cache to expire.
+          await getToken({ skipCache: true })
+        } catch { /* non-fatal — tier will reflect after natural token expiry */ }
+        params.delete('upgraded')
+        const clean = window.location.pathname + (params.toString() ? `?${params}` : '')
+        window.history.replaceState({}, '', clean)
+      })()
     }
   }, [])
 
