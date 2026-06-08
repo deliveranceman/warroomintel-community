@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAdmin } from './_shared/requireAdmin'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -78,7 +78,7 @@ Return only valid JSON.`
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const auth = await requireAdmin(req)
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
   // GET ?id=<uuid> — autofill for an already-uploaded resource

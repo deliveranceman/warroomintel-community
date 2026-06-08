@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAdmin } from './_shared/requireAdmin'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -521,7 +521,7 @@ export default async function handler(req: Request) {
   }
   const requestedFields: string[] = Array.isArray(reqFields) && reqFields.length > 0 ? reqFields : ENHANCE_FIELDS_DEFAULT
 
-  const adminAuth = await requireAdmin(req)
+  const adminAuth = await requireAdmin2(req)
   if (adminAuth instanceof Response) return adminAuth
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim() || ''

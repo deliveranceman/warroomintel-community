@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAdmin } from './_shared/requireAdmin'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -33,7 +33,7 @@ export default async function handler(req: Request) {
 
   const headers = { 'Content-Type': 'application/json' }
 
-  const auth = await requireAdmin(req)
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
   let formData: FormData

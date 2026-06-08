@@ -1,10 +1,10 @@
-import { requireAdmin, CORS as HEADERS } from './_shared/requireAdmin'
+import { requireAdmin2, CORS as HEADERS } from './_shared/access'
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'GET required' }), { status: 405, headers: HEADERS })
 
-  const auth = await requireAdmin(req)
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
   const url = new URL(req.url)
