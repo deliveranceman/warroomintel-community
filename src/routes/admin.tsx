@@ -2254,7 +2254,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   async function fetchDemons() {
     setDLoading(true)
     try {
-      const res = await fetch('/api/demons')
+      const token = await getToken()
+      const res = await fetch('/api/demons', { headers: { Authorization: `Bearer ${token}` } })
       const d = await res.json()
       setDemons(d.demons || [])
       if (d.demons?.length > 0) {
@@ -7238,7 +7239,7 @@ function DashboardView({ getToken, isDark, setTab }: {
         const token = await getToken()
         const authHdr = { Authorization: `Bearer ${token}` }
         const [dRes, aRes, mRes, sotwRes, qsRes] = await Promise.allSettled([
-          fetch('/api/demons').then(r => r.json()),
+          fetch('/api/demons', { headers: authHdr }).then(r => r.json()),
           fetch('/api/ai-usage', { headers: authHdr }).then(r => r.json()),
           fetch('/api/admin-members', { headers: authHdr }).then(r => r.json()),
           fetch('/api/spirit-of-week').then(r => r.json()),
@@ -11086,7 +11087,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
 
   useEffect(() => {
     loadCandidates()
-    fetch('/api/demons').then(r => r.json()).then(d => setDemonsTotal((d.demons || []).length)).catch(() => {})
+    getToken().then((token: string | null) => fetch('/api/demons', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setDemonsTotal((d.demons || []).length)).catch(() => {}))
   }, [filter, search])
 
   async function loadCandidates() {
@@ -11390,7 +11391,7 @@ function AdminPage() {
   }, [])
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
-    fetch('/api/demons').then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {})
+    getToken().then(token => fetch('/api/demons', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {}))
   }, [])
   const [isMobile, setIsMobile]     = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)

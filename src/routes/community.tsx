@@ -14,6 +14,7 @@
 //   Testimony "pending" needs minister approval via admin panel PATCH /api/testimonies.
 import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
+import { getAccessLevel } from '../lib/access'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
@@ -691,8 +692,7 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
   const muted = isDark ? 'rgba(232,224,208,0.45)' : 'rgba(45,41,36,0.45)'
   const mc   = cinzel
 
-  const tierNum = TIER_ORDER[currentUserTier || 'Watchman'] || 1
-  const canDM   = currentUserRole === 'admin' || tierNum >= 2
+  const canDM   = getAccessLevel({ tier: currentUserTier, role: currentUserRole }) >= 1
 
   const q = search.toLowerCase()
   const filtered = members
@@ -1441,7 +1441,7 @@ function stripMdPreview(raw: string, maxChars = 120): string {
 }
 
 // ── DAILY DEVOTION VIEW ────────────────────────────────────
-function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId }: any) {
+function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId: _userId }: any) {
   const isDark = theme !== 'light'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -1450,6 +1450,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId }
   const mut  = isDark ? '#9a8c74' : '#5C5248'
   const GD   = isDark ? '#C9A84C' : '#8B6914'
   const { getToken } = useAuth()
+  const { user } = useUser()
 
   // Time-aware mode — computed once on mount, never changes
   const currentHour = new Date().getHours()
@@ -1462,10 +1463,9 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId }
   const timeIcon = timeMode === 'morning' ? '🌅' : timeMode === 'midday' ? '☀' : '🌙'
   const todayStr = new Date().toISOString().slice(0, 10)
 
-  const TIER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
-  const userLvl = TIER[(userTier || '').toLowerCase()] ?? 0
+  const userLvl = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' })
 
-  const isAdmin = userId === 'user_3DlxgBsnfU83SRVMjkVxCkIr7tk' || (userTier || '').toLowerCase() === 'general'
+  const isAdmin = userLvl >= 4
 
   const [devotion, setDevotion]   = useState<any>(null)
   const [loading, setLoading]     = useState(true)
@@ -2217,6 +2217,7 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, ge
 
 // ── TRAINING VIEW ──────────────────────────────────────────
 function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
+  const { user } = useUser()
   const isDark = theme !== 'light'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -2595,9 +2596,9 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                 : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>Notes for this episode will be added shortly.</div>
             })()}
             {activeTab === 'resources' && (() => {
-              const TIER_LVL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+              const TIER_LVL: Record<string, number> = { watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 4, commandant: 5 }
               const epTierNum  = TIER_LVL[selectedEpisode.tier?.toLowerCase()] ?? 0
-              const userTierNum = TIER_LVL[userTier?.toLowerCase()] ?? 0
+              const userTierNum = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' })
               const hasResourceAccess = userTierNum >= epTierNum
               const fileIcon = (att: any) => {
                 const m = (att.mime_type || '').toLowerCase()
@@ -3086,9 +3087,6 @@ async function handleUpgrade(tier: string, getToken: () => Promise<string | null
     console.error('Upgrade error:', err)
   }
 }
-const TIER_LEVEL: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
-const tierNum = (t: string) => TIER_LEVEL[t?.toLowerCase()] ?? 0
-
 // ── MARKDOWN → HTML ─────────────────────────────────────────────────────────
 function markdownToHtml(md: string): string {
   if (!md) return ''
@@ -3593,7 +3591,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
             📡 Field Reports
           </div>
 
-        {tierNum(userTier) >= 2 ? (
+        {getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 2 ? (
           <div style={{ marginBottom: 16 }}>
             {!showReportForm && !reportSuccess && (
               <button onClick={() => setShowReportForm(true)} style={{ background: 'transparent', border: `1px solid ${GG}`, borderRadius: 6, padding: '8px 20px', fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.08em', cursor: 'pointer' }}>
@@ -3711,13 +3709,13 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
               ✦ Latest Arsenal Drops
             </div>
             {(() => {
-              const _tl = (t: string) => ({ watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 3, admin: 3 }[t?.toLowerCase()] ?? 0)
               const _ttl = (topic: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }[topic?.toLowerCase()] ?? 0)
+              const _userLevel = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' })
               return (
                 <>
                   {arsenalLoading && <div style={{ color: 'rgba(201,168,76,0.5)', fontSize: 11, padding: '8px 0' }}>Loading...</div>}
                   {arsenalDrops.map(r => {
-                    const hasAccess = _tl(userTier) >= _ttl(r.topic)
+                    const hasAccess = _userLevel >= _ttl(r.topic)
                     return (
                       <div key={r.id} onClick={() => hasAccess ? setActiveSection('arsenal') : window.open('/membership', '_blank', 'noopener,noreferrer')}
                         style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, cursor: 'pointer' }}>
@@ -3871,6 +3869,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   setActiveSection?: (s: string) => void
 }) {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const [query, setQuery]         = useState('')
   const [dbLoading] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null)
@@ -3969,8 +3968,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     return G
   }
 
-  const tierLevel = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
-  const atLeast = (required: string) => tierLevel(userTier) >= tierLevel(required)
+  const tierLevel = (t: string) => ({ watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 4, commandant: 5 }[t?.toLowerCase()] ?? 0)
+  const atLeast = (required: string) => getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= tierLevel(required)
   const TierLock = ({ tierName }: { tierName: string }) => (
     <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
       🔒 {tierName} tier. <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to access.</a>
@@ -5047,6 +5046,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
 }) {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#FAF8F5'
   const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
@@ -5066,7 +5066,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   const [massEditTier, setMassEditTier]         = useState('')
   const [massEditTopic, setMassEditTopic]       = useState('')
   const [massApplying, setMassApplying]         = useState(false)
-  const isMinister = userTier === 'minister'
+  const isMinister = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 4
   const [activeCategory, setActiveCategory]     = useState<string | null>(null)
   const [activeTierNum, setActiveTierNum]       = useState<number | null>(null)
   const [expandedId, setExpandedId]             = useState<string | null>(null)
@@ -5104,7 +5104,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     'General Ministry':               '📋',
   }
 
-  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
+  const tierLvl = (t: string) => ({ watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 4, commandant: 5 }[t?.toLowerCase()] ?? 0)
 
   useEffect(() => {
     async function load() {
@@ -5194,7 +5194,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
   }, {} as Record<string, number>)
   const dynamicTopics = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a])
 
-  const userAccessLevel = ACCESS_TIERS_ORDER[userTier?.toLowerCase()] ?? 0
+  const userAccessLevel = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' })
 
   const filtered = arsenalItems.filter(r => {
     if (r.draft) return false
@@ -5594,6 +5594,7 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void
 }) {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const [invInput, setInvInput]   = useState('')
   const [invLoading, setInvLoading] = useState(false)
   const [invResult, setInvResult] = useState<InvestigationResult | null>(null)
@@ -5610,8 +5611,7 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
     })
   }, [])
 
-  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
-  const hasAccess = tierLvl(userTier) >= tierLvl('commander')
+  const hasAccess = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 2
 
   if (!hasAccess) {
     return (
@@ -5858,6 +5858,7 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
 // ── GATEWAY INVESTIGATOR VIEW ──────────────────────────────
 function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: any) {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const isDark = theme !== 'light'
   const bg    = isDark ? '#0D0B14' : '#FAF8F5'
   const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -5872,8 +5873,7 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
   const [report, setReport]               = useState<any>(null)
   const [error, setError]                 = useState('')
 
-  const tierLvl = (t: string) => ({ free: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
-  const hasAccess = tierLvl(userTier) >= tierLvl('soldier')
+  const hasAccess = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 1
 
   if (!hasAccess) {
     return (
@@ -6034,6 +6034,7 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
 // ── FRINGE INTEL VIEW ─────────────────────────────────────
 function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const isDark  = theme !== 'light'
   const G2      = isDark ? '#C9A84C' : '#a07830'
   const SURF    = isDark ? 'rgba(201,168,76,0.03)' : '#f9f5ee'
@@ -6042,10 +6043,6 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
   const MUT     = isDark ? '#9a8c74' : '#5c4a3a'
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
-
-  function tierLevel(t: string): number {
-    return ({ free:0, watchman:0, soldier:1, commander:2, general:3, minister:3 }[t?.toLowerCase()] ?? 0)
-  }
 
   const TAG_BG: Record<string,string> = {
     disclosure:'rgba(83,74,183,0.15)', genesis6:'rgba(201,168,76,0.15)',
@@ -6057,7 +6054,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
     transhumanist:'#1D9E75', nwo:'#E87070', prophecy:'#5BADF0',
   }
 
-  const level      = tierLevel(userTier || 'free')
+  const level      = getAccessLevel({ tier: userTier || 'free', role: (user?.publicMetadata?.role as string) || '' })
   const hasSoldier = level >= 1
 
   const [feed, setFeed]       = React.useState<any[]>([])
@@ -6377,7 +6374,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   live_training: '#C9A84C', prayer_call: '#7a9e7e', q_and_a: '#8B9DCA', deliverance_workshop: '#b87333',
   group_warfare_prayer: '#9b59b6', generals_table: '#c0392b', youtube_premiere: '#e74c3c',
 }
-const TIER_LEVEL_MAP: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
+const TIER_LEVEL_MAP: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
 
 function generateICS(event: any): string {
   const start = new Date(event.event_date)
@@ -8326,10 +8323,6 @@ const F_TXT   = '#f0e8d8'
 const F_DIM   = '#8B7355'
 const F_MUT   = '#6b5e45'
 
-const FORUM_TIER_LEVELS: Record<string, number> = {
-  free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 99,
-}
-
 const FORUM_POST_TYPES: Record<string, { label: string; color: string; bg: string; placeholder: string }> = {
   discussion:   { label: 'Discussion',   color: '#C9A84C', bg: 'rgba(201,168,76,0.12)',   placeholder: 'Share your thoughts with the community…'    },
   question:     { label: 'Question',     color: '#4A9EE8', bg: 'rgba(74,158,232,0.12)',   placeholder: "What's your question for the community?"    },
@@ -8704,8 +8697,8 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
   const { getToken } = useAuth()
   const { user }     = useUser()
   const userRole     = (user?.publicMetadata?.role as string) || ''
-  const isMinister   = userRole === 'minister'
-  const canPost      = FORUM_TIER_LEVELS[userTier] >= 1 || isMinister
+  const isMinister   = getAccessLevel({ tier: userTier, role: userRole }) >= 4
+  const canPost      = getAccessLevel({ tier: userTier, role: userRole }) >= 1
 
   const [posts,       setPosts]       = useState<any[]>([])
   const [loading,     setLoading]     = useState(true)
@@ -8954,6 +8947,7 @@ function OnboardingOverlay({ storageKey, icon, title, points }: {
 
 // ── SESSION CENTER VIEW ────────────────────────────────────
 function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, demons, onLaunch, userTier }: any) {
+  const { user } = useUser()
   const isDark = theme !== 'light'
   const isCommanderOnly = (userTier || '').toLowerCase() === 'commander'
   const bg     = isDark ? '#0D0B14' : '#FAF8F5'
@@ -9024,7 +9018,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, g
     fontFamily: "'Crimson Pro', serif", fontSize: 15, outline: 'none',
   }
 
-  const tierLevel = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[(userTier||'').toLowerCase()] ?? 0
+  const tierLevel = getAccessLevel({ tier: userTier || 'free', role: (user?.publicMetadata?.role as string) || '' })
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 32px' }}>
@@ -9762,6 +9756,7 @@ function fmtDuration(s: number) {
 }
 
 function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void }) {
+  const { user } = useUser()
   const [token, setToken]                     = useState('')
   const [conversations, setConversations]     = useState<MConversation[]>([])
   const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
@@ -9816,7 +9811,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
   const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 768
   const isTabletLayout = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1200
-  const tierLevel = ({ watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 } as Record<string, number>)[tier?.toLowerCase()] ?? 0
+  const tierLevel = getAccessLevel({ tier: tier || 'free', role: (user?.publicMetadata?.role as string) || '' })
 
   // ── Auth token ──
   useEffect(() => {
@@ -11524,13 +11519,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
 // ── SITREP FEED ───────────────────────────────────────────────────────────────
 
-const SITREP_TIER_LVL: Record<string, number> = {
-  watchman: 0, free: 0,
-  soldier: 1, charter_soldier: 1,
-  commander: 2, charter_commander: 2,
-  general: 3, founding_general: 3,
-  minister: 99,
-}
+
 
 const SITREP_POST_TYPES = [
   { key: 'thought',    label: 'THOUGHT',    icon: '💭' },
@@ -11705,9 +11694,10 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
   theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
   getToken: () => Promise<string | null>; userId: string; userTier: string
 }) {
+  const { user } = useUser()
   const isDark   = theme !== 'light'
   const GC       = '#C9A84C'
-  const tierLevel = SITREP_TIER_LVL[userTier?.toLowerCase()] ?? 0
+  const tierLevel = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' })
 
   const [activeTab,    setActiveTab]    = useState<'following' | 'all' | 'sol-picks'>('all')
   const [activities,   setActivities]   = useState<SitrepActivity[]>([])
@@ -12614,7 +12604,8 @@ function CommunityPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const tier     = (user?.publicMetadata?.tier as string) || (user?.id ? 'general' : 'watchman')
-  const tierLevel = ({watchman:0,free:0,soldier:1,commander:2,general:3,minister:4} as Record<string,number>)[tier.toLowerCase()] ?? 0
+  const role     = (user?.publicMetadata?.role as string) || ''
+  const tierLevel = getAccessLevel({ tier, role })
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
 
   // Responsive breakpoint
@@ -12941,12 +12932,14 @@ function CommunityPage() {
   useEffect(() => {
     if (!user?.id) return
     const t = setTimeout(() => {
-      fetch('/api/get-members')
-        .then(r => r.json())
-        .then(data => {
-          if (Array.isArray(data.members)) setMembers(data.members)
-        })
-        .catch(err => console.error('get-members error:', err))
+      getToken().then(token => {
+        fetch('/api/get-members', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+          .then(r => r.json())
+          .then(data => {
+            if (Array.isArray(data.members)) setMembers(data.members)
+          })
+          .catch(err => console.error('get-members error:', err))
+      })
     }, 3000)
     return () => clearTimeout(t)
   }, [user?.id])
@@ -12955,10 +12948,12 @@ function CommunityPage() {
   useEffect(() => {
     if (!user?.id) return
     const t = setTimeout(() => {
-      fetch('/api/demons')
-        .then(r => r.json())
-        .then(d => setDemons(d.demons || d.records || []))
-        .catch(() => {})
+      getToken().then(token => {
+        fetch('/api/demons', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+          .then(r => r.json())
+          .then(d => setDemons(d.demons || d.records || []))
+          .catch(() => {})
+      })
     }, 2000)
     return () => clearTimeout(t)
   }, [user?.id])

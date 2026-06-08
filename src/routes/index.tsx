@@ -355,6 +355,7 @@ function MissionBriefing() {
 
 // ── DATABASE (unchanged logic) ────────────────────────────
 function DatabaseSection() {
+  const { getToken } = useAuth()
   const [entries, setEntries] = useState<DemonEntry[]>([])
   const [filtered, setFiltered] = useState<DemonEntry[]>([])
   const [search, setSearch] = useState('')
@@ -366,10 +367,12 @@ function DatabaseSection() {
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetch('/api/demons')
-      .then(r => r.json())
-      .then(data => { setEntries(data.demons || []); setFiltered(data.demons || []); setLoading(false) })
-      .catch(() => setLoading(false))
+    getToken().then(token => {
+      fetch('/api/demons', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        .then(r => r.json())
+        .then(data => { setEntries(data.demons || []); setFiltered(data.demons || []); setLoading(false) })
+        .catch(() => setLoading(false))
+    })
   }, [])
 
   useEffect(() => {
