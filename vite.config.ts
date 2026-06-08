@@ -16,6 +16,16 @@ const config = defineConfig({
     viteReact(),
   ],
 
+  // @clerk/backend is a Node server package (transitive dep of @clerk/tanstack-start).
+  // It must NOT be bundled by Rollup — it resolves at runtime in the Netlify function.
+  build: {
+    rollupOptions: {
+      external: ['@clerk/backend'],
+    },
+  },
+  ssr: {
+    external: ['@clerk/backend'],
+  },
 })
 
 export default config
