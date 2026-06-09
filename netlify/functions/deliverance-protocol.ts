@@ -10,7 +10,7 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
 
-  const auth = await requireTier(req, 1)
+  const auth = await requireTier(req, 2)
   if (auth instanceof Response) return auth
 
   let body: any = {}

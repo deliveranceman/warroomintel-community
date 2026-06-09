@@ -186,7 +186,7 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers })
 
-  const auth = await requireTier(req, 1)
+  const auth = await requireTier(req, 2)
   if (auth instanceof Response) return auth
 
   const usage = await checkAndIncrementUsage(auth.userId, auth.tier || 'watchman', 'gateway')
