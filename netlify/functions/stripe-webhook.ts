@@ -9,33 +9,41 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-04-22.dahlia',
 })
 
-const PRICE_TO_TIER: Record<string, string> = {
-  'price_1TXieT5V5uqVT9SoIrPMKSAc': 'soldier',
-  'price_1TXifB5V5uqVT9SohnQfGZuC': 'commander',
-  'price_1TXifX5V5uqVT9SogXMp79zb': 'general',
-  // Charter (founding member) prices — stored as charter_* so badge system can distinguish
-  'price_1Tb1mO5V5uqVT9So3ZRRltDC': 'charter_soldier',
-  'price_1Tb1ms5V5uqVT9Sodiu1xbrR': 'charter_commander',
+// Charter/founding plans are a BILLING fact, not an access tier.
+// tier must always be a canonical ladder value (soldier/commander/general/…).
+// founding + founding_plan carry the billing metadata separately.
+interface PriceResolution {
+  tier: string
+  founding: boolean
+  foundingPlan?: string
 }
 
 const FOUNDING_GENERAL_PRICE_ID = process.env.STRIPE_FOUNDING_GENERAL_PRICE_ID
 
-const CHARTER_PRICE_IDS = new Set([
-  'price_1Tb1mO5V5uqVT9So3ZRRltDC',
-  'price_1Tb1ms5V5uqVT9Sodiu1xbrR',
-])
+function buildPriceResolution(): Record<string, PriceResolution> {
+  const m: Record<string, PriceResolution> = {
+    'price_1TXieT5V5uqVT9SoIrPMKSAc': { tier: 'soldier',   founding: false },
+    'price_1TXifB5V5uqVT9SohnQfGZuC': { tier: 'commander', founding: false },
+    'price_1TXifX5V5uqVT9SogXMp79zb': { tier: 'general',   founding: false },
+    'price_1Tb1mO5V5uqVT9So3ZRRltDC': { tier: 'soldier',   founding: true, foundingPlan: 'charter_soldier' },
+    'price_1Tb1ms5V5uqVT9Sodiu1xbrR': { tier: 'commander', founding: true, foundingPlan: 'charter_commander' },
+  }
+  if (FOUNDING_GENERAL_PRICE_ID) {
+    m[FOUNDING_GENERAL_PRICE_ID] = { tier: 'general', founding: true, foundingPlan: 'founding_general' }
+  }
+  return m
+}
+
+const PRICE_RESOLUTION = buildPriceResolution()
 
 function getSupabase() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 const STREAM_TIER_CHANNELS: Record<string, string[]> = {
-  soldier:          ['war-room-general', 'field-reports-live'],
-  charter_soldier:  ['war-room-general', 'field-reports-live'],
-  commander:        ['war-room-general', 'field-reports-live', 'commanders-room'],
-  charter_commander:['war-room-general', 'field-reports-live', 'commanders-room'],
-  general:          ['war-room-general', 'field-reports-live', 'commanders-room', 'generals-table'],
-  founding_general: ['war-room-general', 'field-reports-live', 'commanders-room', 'generals-table'],
+  soldier:   ['war-room-general', 'field-reports-live'],
+  commander: ['war-room-general', 'field-reports-live', 'commanders-room'],
+  general:   ['war-room-general', 'field-reports-live', 'commanders-room', 'generals-table'],
 }
 
 async function addToStreamChannels(clerkUserId: string, tier: string) {
@@ -61,24 +69,26 @@ async function addToStreamChannels(clerkUserId: string, tier: string) {
   }
 }
 
-async function resolveClerkUserId(email: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(email)}&limit=1`,
-      { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } }
-    )
-    if (!res.ok) return null
-    const users = await res.json()
-    return users[0]?.id ?? null
-  } catch { return null }
-}
-
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Content-Type': 'application/json',
 }
 
-async function setClerkTierById(userId: string, tier: string, extra?: Record<string, any>) {
+interface FoundingExtra {
+  founding: true
+  founding_plan: string
+}
+
+function getFoundingExtra(resolution: PriceResolution): FoundingExtra | null {
+  if (resolution.founding && resolution.foundingPlan) {
+    return { founding: true, founding_plan: resolution.foundingPlan }
+  }
+  return null
+}
+
+// Read-merge-write: spreads existing public_metadata so no keys are clobbered.
+// founding flag is sticky — once true it is never cleared by any subsequent event.
+async function setClerkTierById(userId: string, tier: string, foundingExtra?: FoundingExtra | null) {
   const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
     headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
   })
@@ -90,7 +100,16 @@ async function setClerkTierById(userId: string, tier: string, extra?: Record<str
     ...currentMeta,
     tier,
     stripeUpdatedAt: new Date().toISOString(),
-    ...extra,
+  }
+
+  if (foundingExtra) {
+    meta.founding      = true
+    meta.founding_plan = foundingExtra.founding_plan
+  }
+
+  // Sticky: a lapsed founder who resubscribes keeps founding:true
+  if (currentMeta.founding === true) {
+    meta.founding = true
   }
 
   const updateRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
@@ -105,7 +124,7 @@ async function setClerkTierById(userId: string, tier: string, extra?: Record<str
   return userId
 }
 
-async function setClerkTier(email: string, tier: string, foundingMember?: boolean) {
+async function setClerkTier(email: string, tier: string, foundingExtra?: FoundingExtra | null) {
   const searchRes = await fetch(
     `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(email)}&limit=1`,
     { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } }
@@ -113,9 +132,7 @@ async function setClerkTier(email: string, tier: string, foundingMember?: boolea
   if (!searchRes.ok) throw new Error('Clerk search failed')
   const users = await searchRes.json()
   if (!users.length) throw new Error(`No Clerk user found for ${email}`)
-
-  const extra = foundingMember !== undefined ? { foundingMember } : undefined
-  return setClerkTierById(users[0].id, tier, extra)
+  return setClerkTierById(users[0].id, tier, foundingExtra)
 }
 
 export default async function handler(req: Request) {
@@ -143,57 +160,52 @@ export default async function handler(req: Request) {
   try {
     switch (event.type) {
 
-      // Payment succeeded — upgrade tier
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.CheckoutSession
+        const session = event.data.object as Stripe.Checkout.Session
         const clerkUserId = session.client_reference_id
         const email = session.customer_details?.email || session.customer_email
 
-        // Get price ID from subscription or payment intent
         let resolvedPriceId = session.line_items?.data?.[0]?.price?.id
         if (!resolvedPriceId && session.subscription) {
           const sub = await stripe.subscriptions.retrieve(session.subscription as string)
           resolvedPriceId = sub.items.data[0]?.price?.id
         }
 
-        // Check for founding general
-        const isFoundingGeneral = resolvedPriceId && FOUNDING_GENERAL_PRICE_ID && resolvedPriceId === FOUNDING_GENERAL_PRICE_ID
-        if (isFoundingGeneral) {
-          const userId = clerkUserId || (email ? await resolveClerkUserId(email) : null)
-          if (!userId) { console.error('No user ID for founding_general purchase'); break }
-          await setClerkTierById(userId, 'general', { foundingGeneral: true, foundingGeneralAt: new Date().toISOString() })
-          const supabase = getSupabase()
-          await supabase.from('founding_generals').upsert({ clerk_user_id: userId, stripe_session_id: session.id }, { onConflict: 'clerk_user_id' })
-          console.log(`✅ Founding General: ${userId}`)
+        const resolution = resolvedPriceId ? PRICE_RESOLUTION[resolvedPriceId] : null
+        if (!resolution) { console.error('Unknown price ID:', resolvedPriceId); break }
+
+        const foundingExtra = getFoundingExtra(resolution)
+        const displayPlan: Record<string, string> = {
+          charter_soldier: 'Charter Soldier', charter_commander: 'Charter Commander', founding_general: 'Founding General',
+        }
+        const tierDisplayNames: Record<string, string> = { soldier: 'Soldier', commander: 'Commander', general: 'General' }
+        const tierName = (resolution.foundingPlan && displayPlan[resolution.foundingPlan]) || tierDisplayNames[resolution.tier] || resolution.tier
+
+        let resolvedUserId: string | null = null
+
+        if (clerkUserId) {
+          await setClerkTierById(clerkUserId, resolution.tier, foundingExtra)
+          await addToStreamChannels(clerkUserId, resolution.tier)
+          resolvedUserId = clerkUserId
+          console.log(`✅ Upgraded ${clerkUserId} to ${resolution.tier}${foundingExtra ? ` (${resolution.foundingPlan})` : ''}`)
+        } else if (email) {
+          resolvedUserId = await setClerkTier(email, resolution.tier, foundingExtra)
+          if (resolvedUserId) await addToStreamChannels(resolvedUserId, resolution.tier)
+          console.log(`✅ Upgraded ${email} to ${resolution.tier}${foundingExtra ? ` (${resolution.foundingPlan})` : ''} (email fallback)`)
+        } else {
+          console.error('No user identifier in checkout session')
           break
         }
 
-        const tier = resolvedPriceId ? PRICE_TO_TIER[resolvedPriceId] : null
-        if (!tier) { console.error('Unknown price ID:', resolvedPriceId); break }
-
-        const isCharter = resolvedPriceId ? CHARTER_PRICE_IDS.has(resolvedPriceId) : false
-
-        const charterExtra = isCharter ? { foundingMember: true, is_founder: true, charter_date: new Date().toISOString() } : undefined
-        const tierNames: Record<string, string> = {
-          soldier: 'Soldier', charter_soldier: 'Charter Soldier',
-          commander: 'Commander', charter_commander: 'Charter Commander',
-          general: 'General', founding_general: 'Founding General',
-        }
-
-        if (clerkUserId) {
-          await setClerkTierById(clerkUserId, tier, charterExtra)
-          await addToStreamChannels(clerkUserId, tier)
-          console.log(`✅ Upgraded ${clerkUserId} to ${tier}${isCharter ? ' (charter)' : ''}`)
-        } else if (email) {
-          const userId = await setClerkTier(email, tier, isCharter)
-          if (userId) await addToStreamChannels(userId, tier)
-          console.log(`✅ Upgraded ${email} to ${tier}${isCharter ? ' (charter)' : ''} (email fallback)`)
-        } else {
-          console.error('No user identifier in checkout session')
+        if (resolvedUserId && resolution.foundingPlan === 'founding_general') {
+          const supabase = getSupabase()
+          await supabase.from('founding_generals').upsert(
+            { clerk_user_id: resolvedUserId, stripe_session_id: session.id },
+            { onConflict: 'clerk_user_id' }
+          )
         }
 
         if (email) {
-          const tierName = tierNames[tier] || tier
           sendEmail({
             to: email,
             subject: `⚔ WRI ${tierName} Access Activated`,
@@ -216,47 +228,42 @@ export default async function handler(req: Request) {
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription
         const priceId = sub.items.data[0]?.price?.id
-        const tier = priceId ? PRICE_TO_TIER[priceId] : null
-        if (!tier) break
+        const resolution = priceId ? PRICE_RESOLUTION[priceId] : null
+        if (!resolution) break
         const customer = await stripe.customers.retrieve(sub.customer as string)
         const email = (customer as Stripe.Customer).email
         if (!email) break
-        const userId = await setClerkTier(email, tier)
-        if (userId) await addToStreamChannels(userId, tier)
-        console.log(`✅ Subscription updated ${email} → ${tier}`)
+        const userId = await setClerkTier(email, resolution.tier, getFoundingExtra(resolution))
+        if (userId) await addToStreamChannels(userId, resolution.tier)
+        console.log(`✅ Subscription updated ${email} → ${resolution.tier}`)
         break
       }
 
-      // Subscription renewed — keep tier active
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice
         const email = invoice.customer_email
         if (!email) break
-
         const sub = await stripe.subscriptions.retrieve((invoice as any).subscription as string)
         const priceId = sub.items.data[0]?.price?.id
-        const tier = priceId ? PRICE_TO_TIER[priceId] : null
-        if (!tier) break
-
-        const userId = await setClerkTier(email, tier)
-        if (userId) await addToStreamChannels(userId, tier)
-        console.log(`✅ Renewed ${email} at ${tier}`)
+        const resolution = priceId ? PRICE_RESOLUTION[priceId] : null
+        if (!resolution) break
+        const userId = await setClerkTier(email, resolution.tier, getFoundingExtra(resolution))
+        if (userId) await addToStreamChannels(userId, resolution.tier)
+        console.log(`✅ Renewed ${email} at ${resolution.tier}`)
         break
       }
 
-      // Subscription cancelled — downgrade to free
+      // Downgrade to free — founding flag is preserved by the read-merge-write in setClerkTierById
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription
         const customer = await stripe.customers.retrieve(sub.customer as string)
         const email = (customer as Stripe.Customer).email
         if (!email) break
-
-        await setClerkTier(email, 'free')
+        await setClerkTier(email, 'free', null)
         console.log(`⬇ Downgraded ${email} to free (subscription cancelled)`)
         break
       }
 
-      // Payment failed — notify but keep tier for grace period
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
         console.log(`⚠ Payment failed for ${invoice.customer_email}`)
