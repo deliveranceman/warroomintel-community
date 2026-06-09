@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireTier } from './_shared/access'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -14,10 +14,10 @@ export default async function handler(req: Request) {
 
   const headers = { 'Content-Type': 'application/json' }
 
-  const auth = await requireTier(req, 1)
+  const auth = await requireAuth(req)
   if (auth instanceof Response) return auth
 
-  const userTierLevel = TIER_ORDER[auth.tier.toLowerCase()] ?? TIER_ORDER[auth.tier] ?? 0
+  const userTierLevel = auth.level
   // Include BOTH lowercase and title-case variants — the DB has mixed casing
   // (most rows: 'free','soldier','commander'; a few: 'Soldier','Commander')
   // Deduplication was removed because it stripped the lowercase variants that
