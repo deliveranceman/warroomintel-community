@@ -61,8 +61,12 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ testimonies: data || [] }), { status: 200, headers })
   }
 
-  // POST submit testimony
+  // POST submit testimony — Soldier tier required (spec).
   if (req.method === 'POST') {
+    const tierNum = (t: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }[(t || '').toLowerCase()] ?? 0)
+    if (tierNum(userTier) < 1) {
+      return new Response(JSON.stringify({ error: 'Soldier tier required to submit a testimony' }), { status: 403, headers })
+    }
     const { title, body, category, isAnonymous } = await req.json()
     if (!title?.trim() || !body?.trim()) {
       return new Response(JSON.stringify({ error: 'Title and body required' }), { status: 400, headers })

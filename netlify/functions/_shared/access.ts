@@ -36,6 +36,8 @@ export interface AuthResult {
   level:       number
   isAdmin:     boolean
   displayName: string
+  betaAccess:  boolean
+  imageUrl:    string
 }
 
 function unauth(): Response {
@@ -92,8 +94,10 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
       role === 'commandant'            ? 5 :
       role === 'minister' || role === 'admin' ? 4 :
       0
-    const level   = Math.max(tierLevel(tier), roleBoost)
-    const isAdmin = level >= 4
+    const level      = Math.max(tierLevel(tier), roleBoost)
+    const isAdmin    = level >= 4
+    const betaAccess = !!(userData.public_metadata?.beta_access as boolean | undefined)
+    const imageUrl   = ((userData.image_url as string) || '')
 
     const firstName   = ((userData.first_name  as string) || '').trim()
     const lastName    = ((userData.last_name   as string) || '').trim()
@@ -101,7 +105,7 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
     const emailLocal  = ((userData.email_addresses as any[])?.[0]?.email_address as string || '').split('@')[0]
     const displayName = fullName || ((userData.username as string) || '').trim() || emailLocal || ''
 
-    return { userId, tier, role, level, isAdmin, displayName }
+    return { userId, tier, role, level, isAdmin, displayName, betaAccess, imageUrl }
   } catch {
     return unauth()
   }
@@ -109,16 +113,19 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
 
 /**
  * Guards by minimum tier level.
- * Returns the AuthResult on success, or a 401/403 Response on failure.
+ * Pass { allowBeta: true } to also grant access when public_metadata.beta_access === true,
+ * regardless of tier — used for Coming-Soon / in-development features.
  */
 export async function requireTier(
   req: Request,
   minLevel: number,
+  options?: { allowBeta?: boolean },
 ): Promise<AuthResult | Response> {
   const auth = await requireAuth(req)
   if (auth instanceof Response) return auth
-  if (auth.level < minLevel) return forbidden()
-  return auth
+  if (auth.level >= minLevel) return auth
+  if (options?.allowBeta && auth.betaAccess) return auth
+  return forbidden()
 }
 
 /**

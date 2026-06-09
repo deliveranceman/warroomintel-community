@@ -2,6 +2,7 @@ import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage, type AIFeature } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 import { assembleWRIContext } from './_shared/assembleWRIContext'
+import { requireAuth } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -107,31 +108,16 @@ FORMATTING:
   Keep responses focused and usable during an active session.
   If lengthy, put the most actionable information first.`
 
-async function resolveAIUser(token: string): Promise<{ userId: string; tier: string } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const tier = (data?.public_metadata?.tier as string) || 'watchman'
-    return { userId, tier }
-  } catch { return null }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: CORS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  const authUser = token ? await resolveAIUser(token) : null
-  const userId = authUser?.userId || 'anonymous'
-  const tier = authUser?.tier || 'watchman'
+  // Authentication required — no anonymous passthrough.
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+
+  const userId = auth.userId
+  const tier   = auth.tier
 
   let body: any
   try { body = await req.json() } catch {
@@ -143,13 +129,11 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'message required' }), { status: 400, headers: CORS })
   }
 
-  // Rate limit — skip for anonymous (no token)
-  if (authUser) {
-    const feature = (featureParam === 'ai_assistant' ? 'ai_assistant' : 'ask_dake') as AIFeature
-    const usage = await checkAndIncrementUsage(userId, tier, feature)
-    if (!usage.allowed) {
-      return new Response(JSON.stringify({ error: getUpgradeMessage(tier, feature), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: CORS })
-    }
+  // Rate limit — always applied (no anonymous bypass).
+  const feature = (featureParam === 'ai_assistant' ? 'ai_assistant' : 'ask_dake') as AIFeature
+  const usage = await checkAndIncrementUsage(userId, tier, feature)
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(tier, feature), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: CORS })
   }
 
   const SOL_SYSTEM_PROMPT = `You are SOL, the AI ministry assistant for War Room Intel — a deliverance ministry intelligence platform built by Pastor Justin Payne of Staffordtown Church, Copperhill TN.
@@ -163,7 +147,7 @@ You specialize in:
 
 You are direct, knowledgeable, and speak like a seasoned deliverance minister. Never add disclaimers about seeing a doctor unless it's genuinely relevant. The user is a trained minister asking ministry questions.`
 
-  const baseUrl = process.env.URL || 'https://warroomintel.com'
+  const baseUrl        = process.env.URL || 'https://warroomintel.com'
   const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || ''
   const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Spirits'
   const AIRTABLE_TOKEN = airtableToken || ''
@@ -197,7 +181,7 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
     if (!solRes.ok) return new Response(JSON.stringify({ error: `AI error ${solRes.status}` }), { status: 502, headers: CORS })
     const solData = await solRes.json()
     const solResponse = cleanAIOutput(solData.content?.[0]?.text || '')
-    if (authUser && _sbUrl && _sbKey) {
+    if (_sbUrl && _sbKey) {
       fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
         method: 'POST',
         headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
@@ -299,7 +283,7 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
   const data = await res.json()
   const response = cleanAIOutput(data.content?.[0]?.text || '')
 
-  if (authUser && _sbUrl && _sbKey) {
+  if (_sbUrl && _sbKey) {
     const tool = (featureParam === 'ai_assistant' ? 'ai-assistant' : 'ask-dake')
     fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
       method: 'POST',

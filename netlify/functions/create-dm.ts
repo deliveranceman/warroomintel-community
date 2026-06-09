@@ -1,5 +1,6 @@
 import type { Context } from '@netlify/functions'
 import { createHmac } from 'crypto'
+import { requireAuth } from './_shared/access'
 
 function makeServerToken(apiSecret: string): string {
   const header  = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
@@ -16,35 +17,51 @@ function streamFetch(path: string, method: string, token: string, apiKey: string
   }).then(r => r.json())
 }
 
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
 export default async (req: Request, _context: Context) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     })
   }
 
+  // Authenticate FIRST — the caller's userId is derived from the verified token,
+  // never from the request body. The caller is always one of the two DM participants.
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+
+  const callerId = auth.userId
+
   const stream = JSON.parse(process.env.STREAM || '{}')
-  const streamApiKey = stream.apiKey
+  const streamApiKey    = stream.apiKey
   const streamApiSecret = stream.apiSecret
 
   try {
-    const { userId, otherUserId } = await req.json()
-    if (!userId || !otherUserId) {
-      return new Response(JSON.stringify({ error: 'userId and otherUserId required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
+    const body = await req.json()
+    const { otherUserId } = body as { otherUserId?: string }
+
+    if (!otherUserId) {
+      return new Response(JSON.stringify({ error: 'otherUserId required' }), { status: 400, headers: HEADERS })
+    }
+
+    if (otherUserId === callerId) {
+      return new Response(JSON.stringify({ error: 'Cannot create DM with yourself' }), { status: 400, headers: HEADERS })
     }
 
     const apiKey    = streamApiKey!
     const apiSecret = streamApiSecret!
     const token     = makeServerToken(apiSecret)
 
-    const sortedIds = [userId, otherUserId].sort()
+    const sortedIds = [callerId, otherUserId].sort()
     const hash = (s: string) => s.split('').reduce((a, c) => (Math.imul(31, a) + c.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'z')
     const channelId = ('dm' + hash(sortedIds[0]) + hash(sortedIds[1])).slice(0, 64)
 
@@ -53,13 +70,13 @@ export default async (req: Request, _context: Context) => {
       `/channels/messaging/${channelId}/query`,
       'POST', token, apiKey,
       {
-        data: { created_by_id: userId },
+        data: { created_by_id: callerId },
         state: true,
         watch: false,
         presence: false,
       }
     )
-    console.log('create-dm query result:', JSON.stringify(createRes).slice(0, 200))
+    console.log('[create-dm] query result:', JSON.stringify(createRes).slice(0, 200))
 
     // Step 2: force-add both members via update — works even if channel already existed
     const addRes = await streamFetch(
@@ -67,18 +84,12 @@ export default async (req: Request, _context: Context) => {
       'POST', token, apiKey,
       { add_members: sortedIds.map(id => ({ user_id: id })) }
     )
-    console.log('create-dm add_members result:', JSON.stringify(addRes).slice(0, 200))
+    console.log('[create-dm] add_members result:', JSON.stringify(addRes).slice(0, 200))
 
-    return new Response(JSON.stringify({ channelId }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    })
+    return new Response(JSON.stringify({ channelId }), { status: 200, headers: HEADERS })
   } catch (err: any) {
-    console.error('create-dm error:', err)
-    return new Response(JSON.stringify({ error: err.message || 'Stream error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    })
+    console.error('[create-dm] error:', err)
+    return new Response(JSON.stringify({ error: err.message || 'Stream error' }), { status: 500, headers: HEADERS })
   }
 }
 

@@ -1,12 +1,26 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
+import { requireAuth } from './_shared/access'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-// Beta: IP rate limit disabled
-function checkRateLimit(_ip: string): boolean {
+// Per-IP rate limiter — process-level in-memory (resets on cold start).
+// Defence-in-depth after requireAuth; guards against a single IP hammering via many accounts.
+const _ipWindow = new Map<string, { count: number; windowStart: number }>()
+const IP_WINDOW_MS = 60_000 // 1-minute rolling window
+const IP_MAX_CALLS = 20     // max calls per IP per window
+
+function checkIpRateLimit(ip: string): boolean {
+  const now   = Date.now()
+  const entry = _ipWindow.get(ip)
+  if (!entry || now - entry.windowStart > IP_WINDOW_MS) {
+    _ipWindow.set(ip, { count: 1, windowStart: now })
+    return true
+  }
+  if (entry.count >= IP_MAX_CALLS) return false
+  entry.count++
   return true
 }
 
@@ -59,46 +73,26 @@ export default async function handler(req: Request) {
 
   const jsonHeaders = { 'Content-Type': 'application/json' }
 
+  // Authentication required — no anonymous passthrough.
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+
+  const userId = auth.userId
+  const tier   = auth.tier
+
+  // IP rate limit — defence-in-depth after auth.
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+  if (!checkIpRateLimit(ip)) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in a minute.' }), { status: 429, headers: jsonHeaders })
+  }
+
+  // Per-user daily limit.
+  const usage = await checkAndIncrementUsage(userId, tier, 'symptom_investigator')
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(tier, 'symptom_investigator'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: jsonHeaders })
+  }
+
   try {
-    // Resolve JWT and tier for rate limiting
-    const authHeader = req.headers.get('Authorization')
-    const sessionToken = authHeader?.replace('Bearer ', '').trim()
-
-    let userId = 'anonymous'
-    let tier = 'watchman'
-    if (sessionToken && sessionToken.split('.').length === 3) {
-      try {
-        const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64url').toString())
-        userId = payload.sub || 'anonymous'
-        tier = (payload?.publicMetadata?.tier || payload?.public_metadata?.tier || 'watchman') as string
-        if (userId !== 'anonymous' && process.env.CLERK_SECRET_KEY) {
-          try {
-            const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-              headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-            })
-            if (clerkRes.ok) {
-              const clerkData = await clerkRes.json()
-              tier = (clerkData?.public_metadata?.tier as string) || tier
-            }
-          } catch {}
-        }
-      } catch (e) { console.warn('JWT resolve failed:', e) }
-    }
-
-    // IP-based fallback rate limit
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
-    if (!checkRateLimit(ip)) {
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in a minute.' }), { status: 429, headers: jsonHeaders })
-    }
-
-    // Tier-based daily limit
-    if (userId !== 'anonymous') {
-      const usage = await checkAndIncrementUsage(userId, tier, 'symptom_investigator')
-      if (!usage.allowed) {
-        return new Response(JSON.stringify({ error: getUpgradeMessage(tier, 'symptom_investigator'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: jsonHeaders })
-      }
-    }
-
     const { symptoms } = await req.json()
     if (!symptoms || typeof symptoms !== 'string' || symptoms.trim().length < 5) {
       return new Response(JSON.stringify({ error: 'Symptoms required (minimum 5 characters)' }), { status: 400, headers: jsonHeaders })
@@ -106,7 +100,6 @@ export default async function handler(req: Request) {
 
     const userMessage = `Observed symptoms and manifestations:\n\n${symptoms.trim()}`
 
-    // FIX 2 — Timeout protection around the Anthropic API call
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Analysis timeout')), 25000)
     )
@@ -121,11 +114,11 @@ export default async function handler(req: Request) {
       timeoutPromise,
     ]) as { content: Array<{ type: string; text?: string }> }
 
-    const text = cleanAIOutput(message.content[0].type === 'text' ? (message.content[0].text ?? '') : '')
+    const text  = cleanAIOutput(message.content[0].type === 'text' ? (message.content[0].text ?? '') : '')
     const clean = text.replace(/```json|```/g, '').trim()
     const parsed = JSON.parse(clean)
 
-    if (userId !== 'anonymous' && _sbUrl && _sbKey) {
+    if (_sbUrl && _sbKey) {
       fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
         method: 'POST',
         headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
@@ -136,8 +129,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify(parsed), { status: 200, headers: jsonHeaders })
 
   } catch (e: any) {
-    // FIX 3 — Return useful error messages instead of 502
-    console.error('Investigate error:', e.message)
+    console.error('[investigate] error:', e.message)
     return new Response(JSON.stringify({
       error: e.message === 'Analysis timeout'
         ? 'Analysis timed out — try a shorter description'

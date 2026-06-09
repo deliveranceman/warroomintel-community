@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -15,6 +16,10 @@ function supabase() {
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers })
+
+  // Commander+ required (beta_access users bypass tier for testing).
+  const auth = await requireTier(req, 2, { allowBeta: true })
+  if (auth instanceof Response) return auth
 
   try {
     const { regionId, assessmentId } = await req.json()
