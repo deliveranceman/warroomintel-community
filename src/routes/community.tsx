@@ -5353,26 +5353,27 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
             </div>
           )}
 
-          {/* Upgrade CTA for Watchman — show locked resource count */}
+          {/* Upgrade CTA — show count of locked resources and prompt next tier up */}
           {(() => {
-            const lockedCount = arsenalItems.filter(r => {
-              const lvl = ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 } as Record<string, number>)[(r.tier || '').toLowerCase()] ?? 0
-              return lvl > tierLvl(userTier)
-            }).length
+            const NEXT_TIER: Record<string, string> = { watchman: 'soldier', free: 'soldier', soldier: 'commander', commander: 'general', general: 'minister', minister: 'commandant' }
+            const upgradeTier = NEXT_TIER[userTier.toLowerCase()] || ''
+            if (!upgradeTier) return null
+            const lockedCount = arsenalItems.filter(r => tierLvl(r.tier) > tierLvl(userTier)).length
             if (lockedCount === 0) return null
+            const upgradeLabel = upgradeTier.charAt(0).toUpperCase() + upgradeTier.slice(1)
             return (
               <div style={{ marginTop: 20, padding: '16px', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, background: 'rgba(201,168,76,0.04)', textAlign: 'center' as const }}>
                 <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.6)', marginBottom: 6 }}>
                   🔒 {lockedCount} MORE RESOURCE{lockedCount !== 1 ? 'S' : ''} AVAILABLE
                 </div>
                 <div style={{ fontFamily: crimson, fontSize: 13, color: muted, marginBottom: 12, lineHeight: 1.5 }}>
-                  Upgrade to Soldier to unlock the full Arsenal library.
+                  Upgrade to {upgradeLabel} to unlock more of the Arsenal library.
                 </div>
                 <button
-                  onClick={() => window.open('https://warroomintel.com/pricing', '_blank')}
+                  onClick={() => handleUpgrade(upgradeTier, getToken)}
                   style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
                 >
-                  UPGRADE TO SOLDIER →
+                  UPGRADE TO {upgradeLabel.toUpperCase()} →
                 </button>
               </div>
             )
