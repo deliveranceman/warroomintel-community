@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect } from 'react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
+import { UpgradeGate } from '@/components/UpgradeGate'
 
 const MobileSubpageNav = () => (
   <>
@@ -660,23 +661,6 @@ This is not magic words. It is the application of what was already done in the s
   },
 ]
 
-// ── TIER GATE ─────────────────────────────────────────────────────────────────
-function TierGate({ tier }: { tier: string }) {
-  return (
-    <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 12, padding: '32px 28px', textAlign: 'center' as const, marginTop: 24 }}>
-      <div style={{ fontSize: 36, marginBottom: 14 }}>🔒</div>
-      <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>
-        {tier === 'soldier' ? 'SOLDIER+' : 'COMMANDER+'} ACCESS REQUIRED
-      </div>
-      <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, lineHeight: 1.6, marginBottom: 24, maxWidth: 360, margin: '0 auto 24px' }}>
-        This content is available to {tier.charAt(0).toUpperCase() + tier.slice(1)} tier members and above. Upgrade your membership to unlock full access.
-      </div>
-      <a href="https://warroomintel.com/pricing" target="_blank" rel="noopener noreferrer" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: BG, background: G, padding: '12px 28px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
-        UPGRADE MEMBERSHIP
-      </a>
-    </div>
-  )
-}
 
 // ── MODULE CONTENT ─────────────────────────────────────────────────────────────
 function ModuleContent({ mod, hasAccess, completed, onMarkComplete, saving, isMobile }: {
@@ -701,7 +685,12 @@ function ModuleContent({ mod, hasAccess, completed, onMarkComplete, saving, isMo
       </div>
 
       {!hasAccess ? (
-        <TierGate tier={mod.tier} />
+        <UpgradeGate
+          variant="screen"
+          requiredTier={mod.tier}
+          featureName="Field Manual Content"
+          description={`This content is available to ${mod.tier.charAt(0).toUpperCase() + mod.tier.slice(1)} tier members and above. Upgrade your membership to unlock full access.`}
+        />
       ) : (
         <>
           {mod.sections.map((sec, i) => (
@@ -834,7 +823,7 @@ function FieldNotesTab({ hasAccess, isMobile }: { hasAccess: boolean; isMobile: 
         <div style={{ fontFamily: crimson, fontSize: 15, color: DIM, lineHeight: 1.7, fontStyle: 'italic' }}>{selected.intro}</div>
       </div>
 
-      {!hasAccess ? <TierGate tier="soldier" /> : (
+      {!hasAccess ? <UpgradeGate variant="screen" requiredTier="soldier" featureName="Field Notes" description="This content is available to Soldier tier members and above. Upgrade your membership to unlock full access." /> : (
         <>
           {selected.sections.map((sec, i) => (
             <div key={i} style={{ marginBottom: 32 }}>

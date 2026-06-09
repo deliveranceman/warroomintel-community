@@ -15,6 +15,7 @@
 import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { getAccessLevel } from '../lib/access'
+import { UpgradeGate } from '@/components/UpgradeGate'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
@@ -3970,11 +3971,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
   const tierLevel = (t: string) => ({ watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 4, commandant: 5 }[t?.toLowerCase()] ?? 0)
   const atLeast = (required: string) => getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= tierLevel(required)
-  const TierLock = ({ tierName }: { tierName: string }) => (
-    <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
-      🔒 {tierName} tier. <a href="/membership" style={{ color: '#C9A84C' }}>Upgrade to access.</a>
-    </div>
-  )
 
   const filtered = demonsProp.filter((e: any) => {
     const matchesSearch = !query || [
@@ -4227,24 +4223,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         const surf  = dbSurf
         const txt   = dbText
         const mut   = dbDim
-        const TierGate = ({ tierName, children }: { tierName: string; children: React.ReactNode }) => {
-          if (atLeast(tierName)) return <>{children}</>
-          return (
-            <div style={{ position: 'relative', minHeight: 180 }}>
-              <div style={{ filter: 'blur(4px)', userSelect: 'none' as const, pointerEvents: 'none' as const }}>
-                {children}
-              </div>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', background: 'rgba(13,11,20,0.75)', borderRadius: 8 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ {tierName.toUpperCase()} INTEL</div>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
-                  Upgrade to {tierName} to unlock this intelligence.
-                </div>
-                <button onClick={() => handleUpgrade(tierName, getToken)} style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}>Upgrade Now</button>
-              </div>
-            </div>
-          )
-        }
-
         const FieldBlock = ({ label, value, color: c }: { label: string; value: string | null | undefined; color?: string }) => {
           if (!value) return null
           return (
@@ -4446,7 +4424,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
               {/* TAB 2: INTELLIGENCE — Soldier+ */}
               {modalTab === 'intelligence' && (
-                <TierGate tierName="Soldier">
+                <UpgradeGate variant="overlay" requiredTier="soldier" featureName="Soldier Intel">
                   <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation || entry.symptoms} />
                   <FieldBlock label="Entry Points" value={entry.entryPoints} />
                   <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
@@ -4505,12 +4483,12 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       </div>
                     )
                   })()}
-                </TierGate>
+                </UpgradeGate>
               )}
 
               {/* TAB 3: WARFARE — Commander+ */}
               {modalTab === 'warfare' && (
-                <TierGate tierName="Commander">
+                <UpgradeGate variant="overlay" requiredTier="commander" featureName="Commander Intel">
                   <FieldBlock label="Session Indicators" value={entry.sessionIndicators} />
                   <FieldBlock label="Resistance Signature" value={entry.resistanceSignature} />
                   {entry.clusterSpirits && (
@@ -4599,12 +4577,12 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       </div>
                     </div>
                   )}
-                </TierGate>
+                </UpgradeGate>
               )}
 
               {/* TAB 4: RESEARCH — General+ */}
               {modalTab === 'scholarly' && (
-                <TierGate tierName="General">
+                <UpgradeGate variant="overlay" requiredTier="general" featureName="General Intel">
                   <FieldBlock label="Etymology & Name Analysis" value={entry.etymologyNotes} />
                   <FieldBlock label="Archaeological & ANE Context" value={entry.archaeologyNotes} />
                   <FieldBlock label="Scripture Context" value={entry.scriptureContext} />
@@ -4623,14 +4601,14 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     </div>
                   )}
                   <FieldBlock label="WRI Exorcist Notes" value={entry.wriNotes} />
-                </TierGate>
+                </UpgradeGate>
               )}
 
               {/* TAB 5: PROTOCOL ENGINE — Commander+ */}
               {modalTab === 'protocol' && (
                 <div>
                   {!atLeast('commander') ? (
-                    <TierLock tierName="Commander" />
+                    <UpgradeGate variant="banner" featureName="Commander tier" requiredTier="commander" />
                   ) : !protocolResult ? (
                     <div>
                       <div style={{ marginBottom: 16 }}>
@@ -5616,17 +5594,12 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
   if (!hasAccess) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: '#0D0B14' }}>
-        <div style={{ textAlign: 'center', maxWidth: 480 }}>
-          <div style={{ fontSize: 48, marginBottom: 20 }}>🔒</div>
-          <h2 style={{ fontFamily: cinzel, color: G, fontSize: 20, marginBottom: 12 }}>Commander Tier Required</h2>
-          <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: crimson }}>
-            The Symptom Investigator is an AI-powered operational intelligence tool available to Commander and General members.
-            Upgrade to access real-time spirit analysis, deliverance sequencing, and session support.
-          </p>
-          <button onClick={() => handleUpgrade('commander', getToken)} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
-            Upgrade to Commander — $39/mo
-          </button>
-        </div>
+        <UpgradeGate
+          variant="screen"
+          featureName="Symptom Investigator"
+          description="The Symptom Investigator is an AI-powered operational intelligence tool available to Commander and General members. Upgrade to access real-time spirit analysis, deliverance sequencing, and session support."
+          requiredTier="commander"
+        />
       </div>
     )
   }
@@ -5878,14 +5851,12 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
   if (!hasAccess) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: bg }}>
-        <div style={{ textAlign: 'center', maxWidth: 480 }}>
-          <div style={{ fontSize: 48, marginBottom: 20 }}>🔒</div>
-          <h2 style={{ fontFamily: cinzel, color: G, fontSize: 20, marginBottom: 12 }}>Soldier Tier Required</h2>
-          <p style={{ color: mut, fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: "'Crimson Pro', serif" }}>
-            The Gateway Investigator is an AI-powered intake research tool that identifies cultural entry points for any spirit.
-            Available to Soldier, Commander, and General members.
-          </p>
-        </div>
+        <UpgradeGate
+          variant="screen"
+          featureName="Gateway Investigator"
+          description="The Gateway Investigator is an AI-powered intake research tool that identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members."
+          requiredTier="soldier"
+        />
       </div>
     )
   }
