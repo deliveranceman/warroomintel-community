@@ -1,48 +1,17 @@
+import { requireTier } from './_shared/access'
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json',
 }
 
-const TIER_LEVELS: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
-
-function getTierLevel(tier: string) { return TIER_LEVELS[tier?.toLowerCase()] ?? 0 }
-
-async function resolveUser(token: string): Promise<{ userId: string; name: string; tier: string } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    // Read tier from JWT — never gate on Clerk availability
-    const jwtMeta = payload?.publicMetadata || payload?.public_metadata || {}
-    let tier = (jwtMeta.tier as string) || (jwtMeta.role === 'minister' ? 'minister' : 'watchman')
-    let name = 'Minister'
-    try {
-      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || name
-        tier = (data.public_metadata?.tier as string) || (data.public_metadata?.role === 'minister' ? 'minister' : tier)
-      }
-    } catch {}
-    return { userId, name, tier }
-  } catch { return null }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const user = await resolveUser(token)
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  if (getTierLevel(user.tier) < 2) return new Response(JSON.stringify({ error: 'Commander tier required' }), { status: 403, headers: HEADERS })
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
   let body: any = {}
   try { body = await req.json() } catch {}

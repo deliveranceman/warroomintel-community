@@ -1,6 +1,7 @@
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 import { assembleWRIContext } from './_shared/assembleWRIContext'
+import { requireTier } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -16,31 +17,6 @@ const headers = {
   'Content-Type': 'application/json',
 }
 
-async function resolveUser(token: string): Promise<{ ok: boolean; tier: string; userId: string }> {
-  try {
-    if (!token || token.split('.').length !== 3) return { ok: false, tier: '', userId: '' }
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { ok: false, tier: '', userId: '' }
-    // Read tier and role from JWT — never gate on Clerk availability
-    const jwtMeta = payload?.publicMetadata || payload?.public_metadata || {}
-    let tier = (jwtMeta.tier as string) || 'watchman'
-    let role = (jwtMeta.role as string) || ''
-    const tierLvl = (t: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }[t?.toLowerCase()] ?? 0)
-    try {
-      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        role = data?.public_metadata?.role || role
-        tier = (data?.public_metadata?.tier as string) || tier
-      }
-    } catch {}
-    const hasAccess = role === 'minister' || tierLvl(tier) >= 1
-    return { ok: hasAccess, tier, userId }
-  } catch { return { ok: false, tier: '', userId: '' } }
-}
 
 async function fetchSpiritContext(spiritName: string): Promise<string> {
   try {
@@ -210,11 +186,8 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-
-  const auth = await resolveUser(token)
-  if (!auth.ok) return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers })
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
   const usage = await checkAndIncrementUsage(auth.userId, auth.tier || 'watchman', 'gateway')
   if (!usage.allowed) {
