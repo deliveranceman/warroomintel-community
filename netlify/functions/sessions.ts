@@ -17,8 +17,8 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   // Session HQ is General+ (spec: Coming Soon / in-development).
-  // beta_access allows testers to bypass tier during development.
-  const auth = await requireTier(req, 3, { allowBeta: true })
+  // Beta testers need beta_access:true AND "session_hq" in beta_features.
+  const auth = await requireTier(req, 3, { allowBeta: 'session_hq' })
   if (auth instanceof Response) return auth
 
   const sb  = getSupabase()

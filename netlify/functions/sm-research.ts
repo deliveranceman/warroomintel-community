@@ -73,8 +73,8 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers })
 
-  // Commander+ required (beta_access users bypass tier for testing).
-  const auth = await requireTier(req, 2, { allowBeta: true })
+  // Commander+ required; beta testers need beta_access:true AND "spirit_mapper" in beta_features.
+  const auth = await requireTier(req, 2, { allowBeta: 'spirit_mapper' })
   if (auth instanceof Response) return auth
 
   try {

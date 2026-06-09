@@ -30,14 +30,15 @@ export function tierLevel(tier?: string | null): number {
 }
 
 export interface AuthResult {
-  userId:      string
-  tier:        string
-  role:        string
-  level:       number
-  isAdmin:     boolean
-  displayName: string
-  betaAccess:  boolean
-  imageUrl:    string
+  userId:       string
+  tier:         string
+  role:         string
+  level:        number
+  isAdmin:      boolean
+  displayName:  string
+  betaAccess:   boolean
+  betaFeatures: string[]
+  imageUrl:     string
 }
 
 function unauth(): Response {
@@ -96,8 +97,14 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
       0
     const level      = Math.max(tierLevel(tier), roleBoost)
     const isAdmin    = level >= 4
-    const betaAccess = !!(userData.public_metadata?.beta_access as boolean | undefined)
-    const imageUrl   = ((userData.image_url as string) || '')
+    const betaAccess   = !!(userData.public_metadata?.beta_access as boolean | undefined)
+    // beta_features is an array of feature-key strings (e.g. ["session_hq","spirit_mapper"]).
+    // A tester with beta_access:true but no matching key in this array bypasses nothing.
+    const rawFeatures  = userData.public_metadata?.beta_features
+    const betaFeatures: string[] = Array.isArray(rawFeatures)
+      ? (rawFeatures as unknown[]).filter((f): f is string => typeof f === 'string')
+      : []
+    const imageUrl     = ((userData.image_url as string) || '')
 
     const firstName   = ((userData.first_name  as string) || '').trim()
     const lastName    = ((userData.last_name   as string) || '').trim()
@@ -105,7 +112,7 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
     const emailLocal  = ((userData.email_addresses as any[])?.[0]?.email_address as string || '').split('@')[0]
     const displayName = fullName || ((userData.username as string) || '').trim() || emailLocal || ''
 
-    return { userId, tier, role, level, isAdmin, displayName, betaAccess, imageUrl }
+    return { userId, tier, role, level, isAdmin, displayName, betaAccess, betaFeatures, imageUrl }
   } catch {
     return unauth()
   }
@@ -113,18 +120,29 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
 
 /**
  * Guards by minimum tier level.
- * Pass { allowBeta: true } to also grant access when public_metadata.beta_access === true,
- * regardless of tier — used for Coming-Soon / in-development features.
+ * Pass { allowBeta: '<feature-key>' } to also grant access when BOTH are true:
+ *   public_metadata.beta_access === true
+ *   AND the feature key is present in public_metadata.beta_features[]
+ * A tester with beta_access:true but an absent/empty beta_features array bypasses nothing.
+ * Used for Coming-Soon / in-development features.
+ *
+ * Defined feature keys:
+ *   "session_hq"    — Session HQ (sessions.ts, General/3)
+ *   "spirit_mapper" — Spirit Mapper AI (sm-generate-dossier.ts, sm-research.ts, Commander/2)
  */
 export async function requireTier(
   req: Request,
   minLevel: number,
-  options?: { allowBeta?: boolean },
+  options?: { allowBeta?: string },
 ): Promise<AuthResult | Response> {
   const auth = await requireAuth(req)
   if (auth instanceof Response) return auth
   if (auth.level >= minLevel) return auth
-  if (options?.allowBeta && auth.betaAccess) return auth
+  if (
+    options?.allowBeta &&
+    auth.betaAccess &&
+    auth.betaFeatures.includes(options.allowBeta)
+  ) return auth
   return forbidden()
 }
 
