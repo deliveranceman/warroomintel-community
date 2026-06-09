@@ -22,7 +22,9 @@ export interface UpgradeGateProps {
 export function UpgradeGate({ featureName, description, requiredTier, variant = 'overlay', children }: UpgradeGateProps) {
   const { getToken } = useAuth()
   const { user } = useUser()
-  const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
+  const [upgradeMsg, setUpgradeMsg]       = useState<string | null>(null)
+  const [upgradeMsgErr, setUpgradeMsgErr] = useState(false)
+  const [confirmPending, setConfirmPending] = useState(false)
 
   const tier      = (user?.publicMetadata?.tier as string) || 'watchman'
   const role      = (user?.publicMetadata?.role as string) || ''
@@ -30,86 +32,130 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
   const reqLevel  = TIER_LEVELS[requiredTier.toLowerCase()] ?? 0
   const hasAccess = userLevel >= reqLevel
   const tierLabel = requiredTier.charAt(0).toUpperCase() + requiredTier.slice(1)
+  const direction = reqLevel >= userLevel ? 'upgrade' : 'downgrade'
 
-  async function handleUpgradeClick() {
+  async function executeUpgrade() {
+    setConfirmPending(false)
     setUpgradeMsg(null)
+    setUpgradeMsgErr(false)
     const result = await callCheckoutApi(requiredTier, getToken)
     if (result.type === 'redirect') { window.location.href = result.url; return }
     if (result.type === 'modified') {
       if (result.direction === 'noop') { setUpgradeMsg("You're already on this tier."); return }
       if (result.direction === 'upgrade' && result.effective === 'now') {
         await user?.reload()
-        setUpgradeMsg("You're upgraded. Welcome up.")
+        setUpgradeMsg(`You're upgraded to ${tierLabel}. Your new tools are unlocked.`)
         return
       }
       if (result.direction === 'downgrade' && result.effective === 'period_end') {
-        setUpgradeMsg('Your plan will change at the end of your current billing period. You keep your current access until then.')
+        setUpgradeMsg(`Your plan will change to ${tierLabel} at the end of your billing period. You keep your current access until then.`)
         return
       }
     }
     if (result.type === 'error') {
-      if (result.errorCode === 'sold_out') { setUpgradeMsg('Founding General spots are sold out.'); return }
+      if (result.errorCode === 'sold_out') { setUpgradeMsgErr(true); setUpgradeMsg('Founding General spots are sold out.'); return }
+      setUpgradeMsgErr(true)
       setUpgradeMsg('Upgrade failed. Please try again.')
     }
   }
 
-  if (variant === 'overlay') {
-    if (hasAccess) return <>{children}</>
-    return (
-      <div style={{ position: 'relative', minHeight: 180 }}>
-        <div style={{ filter: 'blur(4px)', userSelect: 'none' as const, pointerEvents: 'none' as const }}>
-          {children}
+  function handleUpgradeClick() {
+    setConfirmPending(true)
+  }
+
+  const confirmDialog = confirmPending && (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 420, padding: '28px 24px' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>
+          {direction === 'upgrade' ? `UPGRADE TO ${requiredTier.toUpperCase()}` : `CHANGE TO ${requiredTier.toUpperCase()}`}
         </div>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', background: 'rgba(13,11,20,0.75)', borderRadius: 8 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ {requiredTier.toUpperCase()} INTEL</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
-            Upgrade to {tierLabel} to unlock this intelligence.
-          </div>
-          {upgradeMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: '#e8e0d0', marginBottom: 10, textAlign: 'center' as const, padding: '0 20px' }}>{upgradeMsg}</div>}
-          <button
-            onClick={handleUpgradeClick}
-            style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}
-          >
-            Upgrade to {tierLabel} to unlock
+        <div style={{ fontFamily: crimson, fontSize: 14, color: '#c8bfa8', lineHeight: 1.6, marginBottom: 24 }}>
+          {direction === 'upgrade'
+            ? `You'll be charged the prorated difference today and unlock all ${tierLabel}-tier features immediately.`
+            : `Your plan changes to ${tierLabel} at the end of your current billing period. You keep your current access until then.`}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={() => setConfirmPending(false)} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: '#a09080', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => void executeUpgrade()} style={{ padding: '9px 20px', background: G, color: '#0D0B14', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+            {direction === 'upgrade' ? 'Confirm Upgrade' : 'Confirm Change'}
           </button>
         </div>
       </div>
+    </div>
+  )
+
+  const noticeEl = upgradeMsg && (
+    <div style={{ marginTop: 10, padding: '8px 12px', background: upgradeMsgErr ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.08)', border: `1px solid ${upgradeMsgErr ? 'rgba(239,68,68,0.3)' : 'rgba(201,168,76,0.25)'}`, borderRadius: 6 }}>
+      <span style={{ fontFamily: crimson, fontSize: 13, color: upgradeMsgErr ? '#f87171' : '#e8e0d0' }}>{upgradeMsg}</span>
+    </div>
+  )
+
+  if (variant === 'overlay') {
+    if (hasAccess) return <>{children}</>
+    return (
+      <>
+        {confirmDialog}
+        <div style={{ position: 'relative', minHeight: 180 }}>
+          <div style={{ filter: 'blur(4px)', userSelect: 'none' as const, pointerEvents: 'none' as const }}>
+            {children}
+          </div>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', background: 'rgba(13,11,20,0.75)', borderRadius: 8 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ {requiredTier.toUpperCase()} INTEL</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
+              Upgrade to {tierLabel} to unlock this intelligence.
+            </div>
+            {noticeEl && <div style={{ marginBottom: 10, padding: '0 20px', width: '100%', boxSizing: 'border-box' as const }}>{noticeEl}</div>}
+            <button
+              onClick={handleUpgradeClick}
+              style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}
+            >
+              Upgrade to {tierLabel} to unlock
+            </button>
+          </div>
+        </div>
+      </>
     )
   }
 
   if (variant === 'banner') {
     return (
-      <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
-        🔒 {featureName}.{' '}
-        <button
-          onClick={handleUpgradeClick}
-          style={{ background: 'none', border: 'none', color: '#C9A84C', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
-        >
-          Upgrade to {tierLabel} to access.
-        </button>
-        {upgradeMsg && <div style={{ marginTop: 6, fontSize: 12, color: '#e8e0d0' }}>{upgradeMsg}</div>}
-      </div>
+      <>
+        {confirmDialog}
+        <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
+          🔒 {featureName}.{' '}
+          <button
+            onClick={handleUpgradeClick}
+            style={{ background: 'none', border: 'none', color: '#C9A84C', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
+          >
+            Upgrade to {tierLabel} to access.
+          </button>
+          {noticeEl && <div style={{ marginTop: 6 }}>{noticeEl}</div>}
+        </div>
+      </>
     )
   }
 
   return (
-    <div style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 12, padding: '32px 28px', textAlign: 'center' as const, marginTop: 24 }}>
-      <div style={{ fontSize: 36, marginBottom: 14 }}>🔒</div>
-      <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>
-        {requiredTier.toUpperCase()}+ ACCESS REQUIRED
-      </div>
-      {description && (
-        <div style={{ fontFamily: crimson, fontSize: 14, color: '#a09080', lineHeight: 1.6, maxWidth: 360, margin: '0 auto 24px' }}>
-          {description}
+    <>
+      {confirmDialog}
+      <div style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 12, padding: '32px 28px', textAlign: 'center' as const, marginTop: 24 }}>
+        <div style={{ fontSize: 36, marginBottom: 14 }}>🔒</div>
+        <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>
+          {requiredTier.toUpperCase()}+ ACCESS REQUIRED
         </div>
-      )}
-      {upgradeMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: '#e8e0d0', marginBottom: 12 }}>{upgradeMsg}</div>}
-      <button
-        onClick={handleUpgradeClick}
-        style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G, padding: '12px 28px', borderRadius: 4, border: 'none', cursor: 'pointer', fontWeight: 700 }}
-      >
-        Upgrade to {tierLabel} to unlock
-      </button>
-    </div>
+        {description && (
+          <div style={{ fontFamily: crimson, fontSize: 14, color: '#a09080', lineHeight: 1.6, maxWidth: 360, margin: '0 auto 24px' }}>
+            {description}
+          </div>
+        )}
+        {noticeEl && <div style={{ marginBottom: 12 }}>{noticeEl}</div>}
+        <button
+          onClick={handleUpgradeClick}
+          style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G, padding: '12px 28px', borderRadius: 4, border: 'none', cursor: 'pointer', fontWeight: 700 }}
+        >
+          Upgrade to {tierLabel} to unlock
+        </button>
+      </div>
+    </>
   )
 }

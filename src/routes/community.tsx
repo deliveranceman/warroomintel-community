@@ -17,7 +17,7 @@ import { useAuth, useUser } from '@clerk/tanstack-start'
 import { getAccessLevel } from '../lib/access'
 import { callCheckoutApi } from '../lib/upgrade'
 import { UpgradeGate } from '@/components/UpgradeGate'
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
@@ -37,6 +37,9 @@ export const Route = createFileRoute('/community')({
 const G      = '#C9A84C'
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
+const TIER_LEVELS_MAP: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
+type UpgradeFlowCtxType = { beginUpgrade: (tier: string) => void }
+const UpgradeFlowCtx = React.createContext<UpgradeFlowCtxType>({ beginUpgrade: () => {} })
 
 const ATMOSPHERE_STATUSES = [
   { id: 'covered',            label: 'Covered',            category: 'green',  emoji: '🛡' },
@@ -1453,6 +1456,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId: 
   const GD   = isDark ? '#C9A84C' : '#8B6914'
   const { getToken } = useAuth()
   const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
 
   // Time-aware mode — computed once on mount, never changes
   const currentHour = new Date().getHours()
@@ -1602,7 +1606,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId: 
         <div style={{ fontFamily: cinzel, fontSize: 11, color: GD, letterSpacing: '0.08em' }}>{labels[tierNeeded] || 'Higher'} Tier Required</div>
         <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>Upgrade your membership to access this section</div>
         <button
-          onClick={() => handleUpgrade((labels[tierNeeded] || 'soldier').toLowerCase(), getToken, () => user?.reload())}
+          onClick={() => beginUpgrade((labels[tierNeeded] || 'soldier').toLowerCase())}
           style={{ marginTop: 4, padding: '8px 20px', background: GD, color: '#0D0B14', border: 'none', borderRadius: 4, fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', cursor: 'pointer' }}
         >Upgrade to {labels[tierNeeded] || 'Higher'}</button>
       </div>
@@ -2224,6 +2228,7 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, ge
 // ── TRAINING VIEW ──────────────────────────────────────────
 function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
   const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark = theme !== 'light'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -2377,7 +2382,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                           <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
                           {hasAccess && course.watchedCount > 0 && <span style={{ fontSize: 11, color: '#4ade80', fontFamily: crimson }}>{course.watchedCount}/{course.episodeCount} watched</span>}
                         </div>
-                        {!hasAccess && <button onClick={e => { e.stopPropagation(); handleUpgrade(course.tier, getToken, () => user?.reload()) }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
+                        {!hasAccess && <button onClick={e => { e.stopPropagation(); beginUpgrade(course.tier) }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
                       </div>
                     </div>
                   )
@@ -2623,7 +2628,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                 <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' as const }}>
                   <div style={{ fontSize: 32 }}>🔒</div>
                   <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>This resource requires {selectedEpisode.tier || 'higher'} access</div>
-                  <button onClick={() => handleUpgrade(selectedEpisode.tier || 'soldier', getToken, () => user?.reload())}
+                  <button onClick={() => beginUpgrade(selectedEpisode.tier || 'soldier')}
                     style={{ padding: '8px 20px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
                     Upgrade to {selectedEpisode.tier} →
                   </button>
@@ -3075,32 +3080,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 }
 
 // ── DATABASE VIEW ──────────────────────────────────────────
-// ── STRIPE UPGRADE ────────────────────────────────────────────────────────────
-async function handleUpgrade(
-  tier: string,
-  getToken: () => Promise<string | null>,
-  reload?: () => unknown,
-): Promise<void> {
-  const result = await callCheckoutApi(tier, getToken)
-  if (result.type === 'redirect') { window.location.href = result.url; return }
-  if (result.type === 'modified') {
-    if (result.direction === 'noop') { alert("You're already on this tier."); return }
-    if (result.direction === 'upgrade' && result.effective === 'now') {
-      await reload?.()
-      alert("You're upgraded. Welcome up.")
-      return
-    }
-    if (result.direction === 'downgrade' && result.effective === 'period_end') {
-      alert('Your plan will change at the end of your current billing period. You keep your current access until then.')
-      return
-    }
-  }
-  if (result.type === 'error') {
-    if (result.errorCode === 'sold_out') { alert('Founding General spots are sold out.'); return }
-    if (result.errorCode === 'coming_soon') { alert('Upgrades coming soon — check back shortly.'); return }
-    alert('Upgrades coming soon — check back shortly.')
-  }
-}
+// ── STRIPE UPGRADE — handled via UpgradeFlowCtx in CommunityPage ─────────────
 // ── MARKDOWN → HTML ─────────────────────────────────────────────────────────
 function markdownToHtml(md: string): string {
   if (!md) return ''
@@ -3129,7 +3109,7 @@ function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpe
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
 }) {
   const { getToken } = useAuth()
-  const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark = theme !== 'light'
   const GG  = isDark ? '#C9A84C' : '#8B6914'
   const bg  = isDark ? '#0D0B14' : '#FAF8F5'
@@ -3282,7 +3262,7 @@ function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpe
             <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: mut, marginBottom: 24, lineHeight: 1.7 }}>
               This content is available to {activeArticle.min_tier} members and above.
             </div>
-            <button onClick={() => handleUpgrade(activeArticle.min_tier || 'soldier', getToken, () => user?.reload())} style={{
+            <button onClick={() => beginUpgrade(activeArticle.min_tier || 'soldier')} style={{
               display: 'inline-block', padding: '10px 28px',
               background: GG, color: '#0D0B14', borderRadius: 4,
               fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
@@ -3360,6 +3340,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
 }) {
   const { user }     = useUser()
   const { getToken } = useAuth()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isMinister   = (user?.publicMetadata?.role as string) === 'minister'
   const isDark       = theme !== 'light'
   const GG           = isDark ? '#C9A84C' : '#8B6914'
@@ -3659,7 +3640,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.06em', marginBottom: 3 }}>Commander Tier Required</div>
               <div style={{ fontSize: 12, color: mut }}>Submit field intelligence reports from your sessions.</div>
             </div>
-            <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
+            <button onClick={() => beginUpgrade('commander')} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
           </div>
         )}
 
@@ -3731,8 +3712,8 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
                   {arsenalLoading && <div style={{ color: 'rgba(201,168,76,0.5)', fontSize: 11, padding: '8px 0' }}>Loading...</div>}
                   {arsenalDrops.map(r => {
                     const hasAccess = _userLevel >= _ttl(r.topic)
-                    return (
-                      <div key={r.id} onClick={() => hasAccess ? setActiveSection('arsenal') : handleUpgrade(r.topic || 'soldier', getToken, () => user?.reload())}
+return (
+                      <div key={r.id} onClick={() => hasAccess ? setActiveSection('arsenal') : beginUpgrade(r.topic || 'soldier')}
                         style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, cursor: 'pointer' }}>
                         <div style={{ fontFamily: cinzel, fontSize: 10, color: GG, marginBottom: 3 }}>
                           {r.title?.length > 42 ? r.title.slice(0, 42) + '...' : r.title}
@@ -5039,6 +5020,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
 }) {
   const { getToken } = useAuth()
   const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#FAF8F5'
   const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
@@ -5239,7 +5221,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
                 ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                     style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
                 : null
-              : <button onClick={e => { e.stopPropagation(); handleUpgrade(resource.tier, getToken, () => user?.reload()) }}
+              : <button onClick={e => { e.stopPropagation(); beginUpgrade(resource.tier) }}
                   style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
             }
           </div>
@@ -5384,7 +5366,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
                   Upgrade to {upgradeLabel} to unlock more of the Arsenal library.
                 </div>
                 <button
-                  onClick={() => handleUpgrade(upgradeTier, getToken, () => user?.reload())}
+                  onClick={() => beginUpgrade(upgradeTier)}
                   style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
                 >
                   UPGRADE TO {upgradeLabel.toUpperCase()} →
@@ -6019,8 +6001,8 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
 
 // ── FRINGE INTEL VIEW ─────────────────────────────────────
 function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
-  const { getToken } = useAuth()
   const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark  = theme !== 'light'
   const G2      = isDark ? '#C9A84C' : '#a07830'
   const SURF    = isDark ? 'rgba(201,168,76,0.03)' : '#f9f5ee'
@@ -6149,7 +6131,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
             <div style={{fontFamily:crimson,fontSize:14,color:MUT}}>Daily briefings on prophecy, disclosure, and the hidden architecture of the antichrist system</div>
           </div>
           {!hasSoldier && (
-            <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
+            <button onClick={() => beginUpgrade('soldier')} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
           )}
         </div>
         <div style={{display:'flex',gap:2,borderBottom:'1px solid '+BDR,marginTop:14}}>
@@ -6204,7 +6186,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           {!hasSoldier && (
             <div style={{background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,padding:'14px 20px',textAlign:'center' as const}}>
               <span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 CLASSIFIED INTELLIGENCE — Govt Programs, Transhumanism, Occult Ops, NWO Watch — available to Soldier rank and above. </span>
-              <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em',background:'none',border:'none',cursor:'pointer',padding:0}}>UPGRADE NOW</button>
+              <button onClick={() => beginUpgrade('soldier')} style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em',background:'none',border:'none',cursor:'pointer',padding:0}}>UPGRADE NOW</button>
             </div>
           )}
         </div>
@@ -6251,7 +6233,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                   <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:'rgba(201,168,76,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
                 ))}
               </div>
-              <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
+              <button onClick={() => beginUpgrade('soldier')} style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
             </div>
           )}
         </div>
@@ -7614,7 +7596,7 @@ function extractIntelPreview(response: string): string {
 }
 
 function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
-  const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [entries,         setEntries]         = useState<any[]>([])
   const [loading,         setLoading]         = useState(true)
   const [filter,          setFilter]          = useState('all')
@@ -7727,7 +7709,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
               <div style={{ marginTop: 12, padding: '6px 10px', background: 'rgba(200,74,74,0.08)', border: '1px solid rgba(200,74,74,0.2)', borderRadius: 6 }}>
                 <span style={{ fontFamily: crimson, fontSize: 12, color: '#c84a4a' }}>
                   Some AI tools have reached their daily limit.{' '}
-                  <button onClick={() => { const t = aiUsage?.tier?.toLowerCase() || 'watchman'; const next = t === 'watchman' || t === 'free' ? 'soldier' : t === 'soldier' ? 'commander' : t === 'commander' ? 'general' : null; if (next) handleUpgrade(next, getToken, () => user?.reload()) }} style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Upgrade</button> for more calls.
+                  <button onClick={() => { const t = aiUsage?.tier?.toLowerCase() || 'watchman'; const next = t === 'watchman' || t === 'free' ? 'soldier' : t === 'soldier' ? 'commander' : t === 'commander' ? 'general' : null; if (next) beginUpgrade(next) }} style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Upgrade</button> for more calls.
                 </span>
               </div>
             )}
@@ -8683,6 +8665,7 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete 
 function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: boolean; userId: string; userTier: string }) {
   const { getToken } = useAuth()
   const { user }     = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const userRole     = (user?.publicMetadata?.role as string) || ''
   const isMinister   = getAccessLevel({ tier: userTier, role: userRole }) >= 4
   const canPost      = getAccessLevel({ tier: userTier, role: userRole }) >= 1
@@ -8759,7 +8742,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
             </button>
           )}
           {!isMobile && !canPost && (
-            <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())}
+            <button onClick={() => beginUpgrade('soldier')}
               style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 9, padding: '7px 14px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
               🔒 Soldier+ to Post
             </button>
@@ -8797,7 +8780,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
               </button>
             )}
             {isMobile && !canPost && (
-              <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())}
+              <button onClick={() => beginUpgrade('soldier')}
                 style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 10, padding: '11px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
                 🔒 Soldier+ tier required to post → Upgrade
               </button>
@@ -8834,7 +8817,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
                   ＋ New Post
                 </button>
               ) : (
-                <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())}
+                <button onClick={() => beginUpgrade('soldier')}
                   title="Soldier tier required to post"
                   style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, color: 'rgba(201,168,76,0.4)', fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
                   🔒 Soldier+ to Post
@@ -8935,6 +8918,7 @@ function OnboardingOverlay({ storageKey, icon, title, points }: {
 // ── SESSION CENTER VIEW ────────────────────────────────────
 function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, demons, onLaunch, userTier }: any) {
   const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark = theme !== 'light'
   const isCommanderOnly = (userTier || '').toLowerCase() === 'commander'
   const bg     = isDark ? '#0D0B14' : '#FAF8F5'
@@ -9024,7 +9008,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, g
             <p style={{ color: dim, fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: "'Crimson Pro', serif" }}>
               The Session Center is a live deliverance operations tool for Commander-tier ministers and above. Upgrade to unlock guided sessions, case file integration, and the 9-role command structure.
             </p>
-            <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ display: 'inline-block', background: gold, color: '#0D0B14', fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => beginUpgrade('commander')} style={{ display: 'inline-block', background: gold, color: '#0D0B14', fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
               Upgrade to Commander
             </button>
           </div>
@@ -9035,7 +9019,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, g
         {isCommanderOnly && (
           <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.35)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
             <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#a78bfa', letterSpacing: '0.12em', marginBottom: 4 }}>COMMANDER TIER — OFFLINE SESSION MODE</div>
-            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim, lineHeight: 1.5 }}>Your tier includes offline session capture. Sessions will launch in Quick Capture mode. <button onClick={() => handleUpgrade('general', getToken, () => user?.reload())} style={{ color: gold, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: 'inherit' }}>Upgrade to General</button> to unlock live and guided modes.</div>
+            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: dim, lineHeight: 1.5 }}>Your tier includes offline session capture. Sessions will launch in Quick Capture mode. <button onClick={() => beginUpgrade('general')} style={{ color: gold, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: 'inherit' }}>Upgrade to General</button> to unlock live and guided modes.</div>
           </div>
         )}
 
@@ -9744,6 +9728,7 @@ function fmtDuration(s: number) {
 
 function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void }) {
   const { user } = useUser()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [token, setToken]                     = useState('')
   const [conversations, setConversations]     = useState<MConversation[]>([])
   const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
@@ -10302,7 +10287,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
           <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ DIRECT MESSAGES</div>
           <div style={{ fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', marginBottom: 20, lineHeight: 1.6 }}>Direct messaging is available to Soldier members and above.</div>
-          <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
+          <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
         </div>
       </div>
     )
@@ -12595,6 +12580,39 @@ function CommunityPage() {
   const tierLevel = getAccessLevel({ tier, role })
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
 
+  const [upgradeConfirm, setUpgradeConfirm] = useState<{ tier: string; direction: 'upgrade' | 'downgrade' } | null>(null)
+  const [upgradeNotice,  setUpgradeNotice]  = useState<{ msg: string; isError: boolean } | null>(null)
+
+  async function doUpgrade(targetTier: string) {
+    setUpgradeNotice(null)
+    const result = await callCheckoutApi(targetTier, getToken)
+    if (result.type === 'redirect') { window.location.href = result.url; return }
+    const tl = targetTier.charAt(0).toUpperCase() + targetTier.slice(1)
+    if (result.type === 'modified') {
+      if (result.direction === 'noop') { setUpgradeNotice({ msg: "You're already on this tier.", isError: false }); return }
+      if (result.direction === 'upgrade' && result.effective === 'now') {
+        await user?.reload()
+        setUpgradeNotice({ msg: `You're upgraded to ${tl}. Your new tools are unlocked.`, isError: false })
+        return
+      }
+      if (result.direction === 'downgrade' && result.effective === 'period_end') {
+        setUpgradeNotice({ msg: `Your plan will change to ${tl} at the end of your billing period. You keep your current access until then.`, isError: false })
+        return
+      }
+    }
+    if (result.type === 'error') {
+      if (result.errorCode === 'sold_out') { setUpgradeNotice({ msg: 'Founding General spots are sold out.', isError: true }); return }
+      setUpgradeNotice({ msg: 'Upgrade failed. Please try again.', isError: true })
+    }
+  }
+
+  function beginUpgrade(targetTier: string) {
+    const currentLevel = TIER_LEVELS_MAP[tier.toLowerCase()] ?? 0
+    const targetLevel  = TIER_LEVELS_MAP[targetTier.toLowerCase()] ?? 0
+    const direction    = targetLevel >= currentLevel ? 'upgrade' : 'downgrade'
+    setUpgradeConfirm({ tier: targetTier, direction })
+  }
+
   // Responsive breakpoint
   useEffect(() => {
     const check = () => {
@@ -13742,8 +13760,8 @@ function CommunityPage() {
       {activeSection === 'assessment'     && <AssessmentUploadView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} tier={tier} tierLevel={tierLevel} user={user} getToken={getToken} />}
       {activeSection === 'help'           && <HelpSection />}
       {activeSection === 'fringe-feed'    && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
-      {activeSection === 'body-map'       && (tierLevel >= 2 ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><div style={{ fontSize:40, color:G, marginBottom:20 }}>⚔</div><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
-      {activeSection === 'spirit-network' && (tierLevel >= 2 ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} /><OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} /></div> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
+      {activeSection === 'body-map'       && (tierLevel >= 2 ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><div style={{ fontSize:40, color:G, marginBottom:20 }}>⚔</div><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
+      {activeSection === 'spirit-network' && (tierLevel >= 2 ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} /><OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} /></div> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
       {activeSection === 'gateway'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','The AI cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} /></div>}
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
       {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} />}
@@ -13771,7 +13789,7 @@ function CommunityPage() {
                 <div style={{ fontSize: 40, marginBottom: 16 }}>⚔</div>
                 <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
                 <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>Upgrade to Commander to access the Protocol Engine.</p>
-                <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Upgrade</button>
+                <button onClick={() => beginUpgrade('commander')} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Upgrade</button>
               </div>
             ) : !stpResult ? (
               <div style={{ maxWidth: 600, margin: '0 auto' }}>
@@ -14005,6 +14023,7 @@ function CommunityPage() {
 
   // ── FULL LAYOUT ────────────────────────────────────────────
   return (
+    <UpgradeFlowCtx.Provider value={{ beginUpgrade }}>
     <div style={{
       height: '100dvh',
       display: isMobile ? 'block' : 'flex',
@@ -14239,7 +14258,7 @@ function CommunityPage() {
                   <div style={{ fontSize: 40, marginBottom: 16 }}>⚔</div>
                   <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
                   <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>Upgrade to Commander to access the Protocol Engine.</p>
-                  <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Upgrade</button>
+                  <button onClick={() => beginUpgrade('commander')} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Upgrade</button>
                 </div>
               ) : !stpResult ? (
                 <div style={{ maxWidth: 600, margin: '0 auto' }}>
@@ -14353,7 +14372,7 @@ function CommunityPage() {
                   <div style={{ fontFamily:cinzel, fontSize:10, color:G, letterSpacing:'0.2em', marginBottom:12 }}>BODY MAP</div>
                   <h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2>
                   <p style={{ color:isDark?'#8B7355':'#5C5248', fontSize:15, lineHeight:1.7, marginBottom:28, fontFamily:crimson }}>The Body Map is an advanced session tool for Commander-tier ministers and above. Upgrade to unlock symptom-to-spirit mapping, anatomical gate analysis, and live session integration.</p>
-                  <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button>
+                  <button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button>
                 </div>
               </div>
         )}
@@ -14369,7 +14388,7 @@ function CommunityPage() {
                   <div style={{ fontFamily:cinzel, fontSize:10, color:G, letterSpacing:'0.2em', marginBottom:12 }}>SPIRIT NETWORK</div>
                   <h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2>
                   <p style={{ color:isDark?'#8B7355':'#5C5248', fontSize:15, lineHeight:1.7, marginBottom:28, fontFamily:crimson }}>The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above. Upgrade to unlock org-chart navigation, companion spirit mapping, and live network traversal.</p>
-                  <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button>
+                  <button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button>
                 </div>
               </div>
         )}
@@ -14831,7 +14850,7 @@ function CommunityPage() {
                             return (
                               <div
                                 key={r.id}
-                                onClick={() => { hasAccess ? (setActiveSection('arsenal'), setActiveRailSection(null)) : handleUpgrade(r.topic || 'soldier', getToken, () => user?.reload()) }}
+                                onClick={() => { hasAccess ? (setActiveSection('arsenal'), setActiveRailSection(null)) : beginUpgrade(r.topic || 'soldier') }}
                                 style={{ padding: '8px 10px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s' }}
                                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.1)')}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.05)')}
@@ -15331,5 +15350,34 @@ function CommunityPage() {
         fabIcon={<Plus size={24} color="#1a1305" strokeWidth={2.2} />}
       />
     </div>
+
+    {upgradeConfirm && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 420, padding: '28px 24px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>
+            {upgradeConfirm.direction === 'upgrade' ? `UPGRADE TO ${upgradeConfirm.tier.toUpperCase()}` : `CHANGE TO ${upgradeConfirm.tier.toUpperCase()}`}
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: '#c8bfa8', lineHeight: 1.6, marginBottom: 24 }}>
+            {upgradeConfirm.direction === 'upgrade'
+              ? `You'll be charged the prorated difference today and unlock all ${upgradeConfirm.tier.charAt(0).toUpperCase() + upgradeConfirm.tier.slice(1)}-tier features immediately.`
+              : `Your plan changes to ${upgradeConfirm.tier.charAt(0).toUpperCase() + upgradeConfirm.tier.slice(1)} at the end of your current billing period. You keep your current access until then.`}
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => setUpgradeConfirm(null)} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: '#a09080', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => { const t = upgradeConfirm.tier; setUpgradeConfirm(null); void doUpgrade(t) }} style={{ padding: '9px 20px', background: G, color: '#0D0B14', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+              {upgradeConfirm.direction === 'upgrade' ? 'Confirm Upgrade' : 'Confirm Change'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {upgradeNotice && (
+      <div style={{ position: 'fixed', bottom: isMobile ? 72 : 24, left: '50%', transform: 'translateX(-50%)', zIndex: 99999, background: upgradeNotice.isError ? '#2d1515' : '#1a1726', border: `1px solid ${upgradeNotice.isError ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.4)'}`, borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', maxWidth: 'calc(100vw - 32px)', minWidth: 240 }}>
+        <span style={{ fontFamily: crimson, fontSize: 14, color: upgradeNotice.isError ? '#f87171' : '#e8e0d0', flex: 1 }}>{upgradeNotice.msg}</span>
+        <button onClick={() => setUpgradeNotice(null)} style={{ background: 'none', border: 'none', color: '#6b5e4e', cursor: 'pointer', fontSize: 18, padding: 0, flexShrink: 0, lineHeight: 1 }}>×</button>
+      </div>
+    )}
+    </UpgradeFlowCtx.Provider>
   )
 }
