@@ -61,7 +61,7 @@ function MembershipPage() {
           <div style={{ textAlign: 'center', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: '8px', padding: '18px 24px', marginBottom: '28px' }}>
             <div style={{ fontFamily: cinzel, fontSize: '13px', letterSpacing: '0.12em', color: gold, marginBottom: 6 }}>⚜ You Are a Founding Member</div>
             <p style={{ fontFamily: crimson, fontSize: '15px', color: textDim, margin: 0 }}>
-              Your charter rate is locked for life. Thank you for being part of the first 100.
+              Your charter rate is locked for life. Thank you for being a founding member.
             </p>
             <a href="/community" style={{ display: 'inline-block', marginTop: 12, padding: '8px 20px', background: gold, color: '#0D0B14', fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.1em', borderRadius: 4, textDecoration: 'none' }}>Enter the War Room ⚔</a>
           </div>
@@ -69,14 +69,14 @@ function MembershipPage() {
         {/* Urgency banner — only for non-founders */}
         {!isFoundingMember && (
           <div style={{ textAlign: 'center', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: '6px', padding: '10px 20px', marginBottom: '28px', fontFamily: cinzel, fontSize: '11px', letterSpacing: '0.12em', color: gold }}>
-            ⚔ Founding Member slots are limited. First 100 only.
+            ⚔ Founding Member slots are limited.
           </div>
         )}
 
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <p style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.3em', color: gold, marginBottom: '10px' }}>✦ Charter Membership</p>
           <h2 style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 4vw, 36px)', fontWeight: 700, color: text, marginBottom: '10px', lineHeight: 1.15 }}>
-            First 100 Only: <em style={{ color: gold, fontStyle: 'normal' }}>Lock In Your Rate for Life</em>
+            Limited Founding Window: <em style={{ color: gold, fontStyle: 'normal' }}>Lock In Your Rate for Life</em>
           </h2>
           <p style={{ fontFamily: crimson, fontSize: '16px', color: textDim, fontStyle: 'italic', margin: 0 }}>
             Charter members receive a founding member badge and this price never increases, even as we add features.
@@ -102,7 +102,7 @@ function MembershipPage() {
                 'All Soldier tier access',
                 'Rate locked in for life',
                 '⚜ Founding Member badge',
-                'Limited to first 100',
+                'Limited founding window',
               ].map(f => (
                 <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.7 }}>
                   <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>
@@ -140,7 +140,7 @@ function MembershipPage() {
                 'All Commander tier access',
                 'Rate locked in for life',
                 '⚜ Founding Member badge',
-                'Limited to first 100',
+                'Limited founding window',
               ].map(f => (
                 <li key={f} style={{ fontSize: '13px', color: textDim, display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: 1.7 }}>
                   <span style={{ color: gold, fontSize: '8px', flexShrink: 0, marginTop: '5px' }}>✦</span>

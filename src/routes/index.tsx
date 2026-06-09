@@ -83,7 +83,7 @@ const FAQ = [
   { q: 'Is this a replacement for professional mental health care?', a: 'No. War Room Intel is a spiritual ministry resource only. We are not licensed therapists or medical practitioners. If you are experiencing a mental health crisis please seek professional support. We encourage maintaining any current medical or therapeutic treatment alongside ministry.' },
   { q: 'How is my assessment information kept confidential?', a: 'All assessment information is seen only by our ministry team and is never published, shared, or sold. Anything posted to the public response board is fully anonymized with your permission.' },
   { q: 'What denominations or theological traditions does this represent?', a: 'War Room Intel is rooted in Scripture and Charismatic/Pentecostal ministry tradition. We operate under the pastoral oversight of Staffordtown Church, Copperhill TN. We welcome all Spirit-filled believers regardless of denomination.' },
-  { q: 'What membership tiers are available?', a: "Membership is live now. Watchman is free forever. Soldier is $19/mo, Commander $39/mo, General's Table $97/mo. Charter pricing (Soldier $9/mo, Commander $20/mo) is locked for life for the first 100 members. All paid tiers include a 30-day free trial." },
+  { q: 'What membership tiers are available?', a: "Membership is live now. Watchman is free forever. Soldier is $19/mo, Commander $39/mo, General's Table $97/mo. Charter pricing (Soldier $9/mo, Commander $20/mo) is locked for life for founding members. All paid tiers include a 30-day free trial." },
   { q: 'Can I submit a demon that is not in the database?', a: 'Yes! Use the Submit a Demon form in the Assessment menu. All submissions are reviewed by our ministry team before being added. We credit contributors where possible.' },
   { q: 'How do I get a personal ministry response?', a: 'Submit the free Ministry Assessment. Every submission receives a personal response from Pastor Justin. Soldier tier and above receive priority response.' },
 ]
@@ -839,7 +839,7 @@ function PricingSection() {
         <div style={{ fontFamily: cinzel, fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 700, color: 'var(--t-0)', marginTop: 12, marginBottom: 8 }}>
           Join the <span style={{ color: G }}>War Room</span>
         </div>
-        <p style={{ fontSize: 15, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Start free. All paid tiers include a 30-day free trial. Charter pricing locked for life for the first 100 members.</p>
+        <p style={{ fontSize: 15, color: 'var(--t-3)', fontFamily: reading, fontStyle: 'italic' }}>Start free. All paid tiers include a 30-day free trial. Charter pricing locked for life for founding members.</p>
       </div>
 
       {/* Live banner */}
@@ -859,7 +859,7 @@ function PricingSection() {
       {/* Charter callout */}
       <div style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.05) 100%)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '16px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: GOLD, letterSpacing: '0.12em', marginBottom: 4 }}>⚡ Charter Founding Member Slots Available — First 100 Only</div>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: GOLD, letterSpacing: '0.12em', marginBottom: 4 }}>⚡ Charter Founding Member Slots Available — Limited Window</div>
           <div style={{ fontFamily: reading, fontSize: 14, color: 'var(--t-2)' }}>Lock in your rate for life. Charter Soldier: $9/mo. Charter Commander: $20/mo.</div>
         </div>
         <a href="/membership" style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#1a1305', background: GOLD, padding: '9px 20px', borderRadius: 2, textDecoration: 'none', whiteSpace: 'nowrap' as const }}>Claim Charter Access →</a>
@@ -978,7 +978,7 @@ function PricingSection() {
       {/* Charter callout — shown to non-founders */}
       {!isFoundingMember && (
         <TacticalCard style={{ marginTop: 20, textAlign: 'center' as const }}>
-          <MonoTime size={10} color="var(--gold)">⚔ Founding Member Rates Available · Charter Soldier $9/mo · Charter Commander $20/mo · First 100 Only</MonoTime>
+          <MonoTime size={10} color="var(--gold)">⚔ Founding Member Rates Available · Charter Soldier $9/mo · Charter Commander $20/mo · Limited Founding Window</MonoTime>
         </TacticalCard>
       )}
 
