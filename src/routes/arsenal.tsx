@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth, useUser, SignInButton, SignUpButton } from '@clerk/tanstack-start'
+import { callCheckoutApi } from '@/lib/upgrade'
 import { Search } from 'lucide-react'
 import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
 import type { ClassLevel } from '@/components/primitives'
@@ -108,20 +109,30 @@ function groupByTier(resources: Resource[]) {
   return groups
 }
 
-async function callUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
-  try {
-    const token = await getToken()
-    if (!token) { window.location.href = '/sign-in'; return }
-    const res = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tier }),
-    })
-    if (!res.ok) throw new Error('Checkout failed')
-    const data = await res.json()
-    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
-    if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
-  } catch (err) { console.error('Upgrade error:', err) }
+async function callUpgrade(
+  tier: string,
+  getToken: () => Promise<string | null>,
+  reload?: () => unknown,
+): Promise<void> {
+  const result = await callCheckoutApi(tier, getToken)
+  if (result.type === 'redirect') { window.location.href = result.url; return }
+  if (result.type === 'modified') {
+    if (result.direction === 'noop') { alert("You're already on this tier."); return }
+    if (result.direction === 'upgrade' && result.effective === 'now') {
+      await reload?.()
+      alert("You're upgraded. Welcome up.")
+      return
+    }
+    if (result.direction === 'downgrade' && result.effective === 'period_end') {
+      alert('Your plan will change at the end of your current billing period. You keep your current access until then.')
+      return
+    }
+  }
+  if (result.type === 'error') {
+    if (result.errorCode === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (result.errorCode === 'coming_soon') { alert('Upgrades coming soon — check back shortly.'); return }
+    alert('Upgrades coming soon — check back shortly.')
+  }
 }
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
@@ -619,7 +630,7 @@ function ArsenalPage() {
                 Upgrade to {upgradeLabel} to unlock more of the Arsenal library.
               </div>
               <button
-                onClick={() => callUpgrade(nextTierUp, getToken)}
+                onClick={() => callUpgrade(nextTierUp, getToken, () => user?.reload())}
                 style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
               >
                 UPGRADE TO {upgradeLabel.toUpperCase()} →

@@ -15,6 +15,7 @@
 import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { getAccessLevel } from '../lib/access'
+import { callCheckoutApi } from '../lib/upgrade'
 import { UpgradeGate } from '@/components/UpgradeGate'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
@@ -2372,7 +2373,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                           <span style={{ fontSize: 11, color: mut, fontFamily: crimson }}>{course.episodeCount || 0} episodes</span>
                           {hasAccess && course.watchedCount > 0 && <span style={{ fontSize: 11, color: '#4ade80', fontFamily: crimson }}>{course.watchedCount}/{course.episodeCount} watched</span>}
                         </div>
-                        {!hasAccess && <button onClick={e => { e.stopPropagation(); handleUpgrade(course.tier, getToken) }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
+                        {!hasAccess && <button onClick={e => { e.stopPropagation(); handleUpgrade(course.tier, getToken, () => user?.reload()) }} style={{ marginTop: 10, width: '100%', padding: '7px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>Upgrade to {course.tier} to unlock</button>}
                       </div>
                     </div>
                   )
@@ -2618,7 +2619,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
                 <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' as const }}>
                   <div style={{ fontSize: 32 }}>🔒</div>
                   <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>This resource requires {selectedEpisode.tier || 'higher'} access</div>
-                  <button onClick={() => handleUpgrade(selectedEpisode.tier || 'soldier', getToken)}
+                  <button onClick={() => handleUpgrade(selectedEpisode.tier || 'soldier', getToken, () => user?.reload())}
                     style={{ padding: '8px 20px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
                     Upgrade to {selectedEpisode.tier} →
                   </button>
@@ -3071,21 +3072,29 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
 
 // ── DATABASE VIEW ──────────────────────────────────────────
 // ── STRIPE UPGRADE ────────────────────────────────────────────────────────────
-async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
-  try {
-    const token = await getToken()
-    if (!token) { window.location.href = '/sign-in'; return }
-    const res = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tier }),
-    })
-    if (!res.ok) throw new Error('Checkout failed')
-    const data = await res.json()
-    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
-    if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
-  } catch (err) {
-    console.error('Upgrade error:', err)
+async function handleUpgrade(
+  tier: string,
+  getToken: () => Promise<string | null>,
+  reload?: () => unknown,
+): Promise<void> {
+  const result = await callCheckoutApi(tier, getToken)
+  if (result.type === 'redirect') { window.location.href = result.url; return }
+  if (result.type === 'modified') {
+    if (result.direction === 'noop') { alert("You're already on this tier."); return }
+    if (result.direction === 'upgrade' && result.effective === 'now') {
+      await reload?.()
+      alert("You're upgraded. Welcome up.")
+      return
+    }
+    if (result.direction === 'downgrade' && result.effective === 'period_end') {
+      alert('Your plan will change at the end of your current billing period. You keep your current access until then.')
+      return
+    }
+  }
+  if (result.type === 'error') {
+    if (result.errorCode === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (result.errorCode === 'coming_soon') { alert('Upgrades coming soon — check back shortly.'); return }
+    alert('Upgrades coming soon — check back shortly.')
   }
 }
 // ── MARKDOWN → HTML ─────────────────────────────────────────────────────────
@@ -3645,7 +3654,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.06em', marginBottom: 3 }}>Commander Tier Required</div>
               <div style={{ fontSize: 12, color: mut }}>Submit field intelligence reports from your sessions.</div>
             </div>
-            <button onClick={() => handleUpgrade('commander', getToken)} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
+            <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
           </div>
         )}
 
@@ -5225,7 +5234,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
                 ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                     style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
                 : null
-              : <button onClick={e => { e.stopPropagation(); handleUpgrade(resource.tier, getToken) }}
+              : <button onClick={e => { e.stopPropagation(); handleUpgrade(resource.tier, getToken, () => user?.reload()) }}
                   style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
             }
           </div>
@@ -5370,7 +5379,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
                   Upgrade to {upgradeLabel} to unlock more of the Arsenal library.
                 </div>
                 <button
-                  onClick={() => handleUpgrade(upgradeTier, getToken)}
+                  onClick={() => handleUpgrade(upgradeTier, getToken, () => user?.reload())}
                   style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
                 >
                   UPGRADE TO {upgradeLabel.toUpperCase()} →
@@ -6135,7 +6144,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
             <div style={{fontFamily:crimson,fontSize:14,color:MUT}}>Daily briefings on prophecy, disclosure, and the hidden architecture of the antichrist system</div>
           </div>
           {!hasSoldier && (
-            <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
+            <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.1em',background:'rgba(201,168,76,0.1)',color:G2,border:'1px solid '+G2,borderRadius:5,padding:'8px 18px',cursor:'pointer',flexShrink:0}}>UPGRADE TO SOLDIER</button>
           )}
         </div>
         <div style={{display:'flex',gap:2,borderBottom:'1px solid '+BDR,marginTop:14}}>
@@ -6190,7 +6199,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
           {!hasSoldier && (
             <div style={{background:'rgba(201,168,76,0.02)',border:'1px dashed rgba(201,168,76,0.18)',borderRadius:8,padding:'14px 20px',textAlign:'center' as const}}>
               <span style={{fontFamily:cinzel,fontSize:10,color:MUT,letterSpacing:'0.08em'}}>🔒 CLASSIFIED INTELLIGENCE — Govt Programs, Transhumanism, Occult Ops, NWO Watch — available to Soldier rank and above. </span>
-              <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em',background:'none',border:'none',cursor:'pointer',padding:0}}>UPGRADE NOW</button>
+              <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{fontFamily:cinzel,fontSize:10,color:G2,letterSpacing:'0.08em',background:'none',border:'none',cursor:'pointer',padding:0}}>UPGRADE NOW</button>
             </div>
           )}
         </div>
@@ -6237,7 +6246,7 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
                   <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:'rgba(201,168,76,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
                 ))}
               </div>
-              <button onClick={() => handleUpgrade('soldier', getToken)} style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
+              <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
             </div>
           )}
         </div>
@@ -12610,9 +12619,8 @@ function CommunityPage() {
     if (params.get('upgraded') === '1') {
       ;(async () => {
         try {
-          // Force a fresh JWT so the new Clerk public_metadata.tier is reflected
-          // immediately instead of waiting for the ~60s token cache to expire.
           await getToken({ skipCache: true })
+          await user?.reload()
         } catch { /* non-fatal — tier will reflect after natural token expiry */ }
         params.delete('upgraded')
         const clean = window.location.pathname + (params.toString() ? `?${params}` : '')

@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { getAccessLevel } from '@/lib/access'
+import { callCheckoutApi } from '@/lib/upgrade'
 
 const G      = '#C9A84C'
 const cinzel  = "'Cinzel', serif"
@@ -8,24 +9,6 @@ const crimson = "'Crimson Pro', serif"
 
 const TIER_LEVELS: Record<string, number> = {
   watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5,
-}
-
-async function callUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
-  try {
-    const token = await getToken()
-    if (!token) { window.location.href = '/sign-in'; return }
-    const res = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tier }),
-    })
-    if (!res.ok) throw new Error('Checkout failed')
-    const data = await res.json()
-    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
-    if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
-  } catch (err) {
-    console.error('Upgrade error:', err)
-  }
 }
 
 export interface UpgradeGateProps {
@@ -39,6 +22,7 @@ export interface UpgradeGateProps {
 export function UpgradeGate({ featureName, description, requiredTier, variant = 'overlay', children }: UpgradeGateProps) {
   const { getToken } = useAuth()
   const { user } = useUser()
+  const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
 
   const tier      = (user?.publicMetadata?.tier as string) || 'watchman'
   const role      = (user?.publicMetadata?.role as string) || ''
@@ -46,6 +30,28 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
   const reqLevel  = TIER_LEVELS[requiredTier.toLowerCase()] ?? 0
   const hasAccess = userLevel >= reqLevel
   const tierLabel = requiredTier.charAt(0).toUpperCase() + requiredTier.slice(1)
+
+  async function handleUpgradeClick() {
+    setUpgradeMsg(null)
+    const result = await callCheckoutApi(requiredTier, getToken)
+    if (result.type === 'redirect') { window.location.href = result.url; return }
+    if (result.type === 'modified') {
+      if (result.direction === 'noop') { setUpgradeMsg("You're already on this tier."); return }
+      if (result.direction === 'upgrade' && result.effective === 'now') {
+        await user?.reload()
+        setUpgradeMsg("You're upgraded. Welcome up.")
+        return
+      }
+      if (result.direction === 'downgrade' && result.effective === 'period_end') {
+        setUpgradeMsg('Your plan will change at the end of your current billing period. You keep your current access until then.')
+        return
+      }
+    }
+    if (result.type === 'error') {
+      if (result.errorCode === 'sold_out') { setUpgradeMsg('Founding General spots are sold out.'); return }
+      setUpgradeMsg('Upgrade failed. Please try again.')
+    }
+  }
 
   if (variant === 'overlay') {
     if (hasAccess) return <>{children}</>
@@ -59,8 +65,9 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
           <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
             Upgrade to {tierLabel} to unlock this intelligence.
           </div>
+          {upgradeMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: '#e8e0d0', marginBottom: 10, textAlign: 'center' as const, padding: '0 20px' }}>{upgradeMsg}</div>}
           <button
-            onClick={() => callUpgrade(requiredTier, getToken)}
+            onClick={handleUpgradeClick}
             style={{ padding: '8px 20px', background: G, color: '#0D0B14', borderRadius: 4, fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}
           >
             Upgrade to {tierLabel} to unlock
@@ -75,11 +82,12 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
       <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
         🔒 {featureName}.{' '}
         <button
-          onClick={() => callUpgrade(requiredTier, getToken)}
+          onClick={handleUpgradeClick}
           style={{ background: 'none', border: 'none', color: '#C9A84C', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
         >
           Upgrade to {tierLabel} to access.
         </button>
+        {upgradeMsg && <div style={{ marginTop: 6, fontSize: 12, color: '#e8e0d0' }}>{upgradeMsg}</div>}
       </div>
     )
   }
@@ -95,8 +103,9 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
           {description}
         </div>
       )}
+      {upgradeMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: '#e8e0d0', marginBottom: 12 }}>{upgradeMsg}</div>}
       <button
-        onClick={() => callUpgrade(requiredTier, getToken)}
+        onClick={handleUpgradeClick}
         style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G, padding: '12px 28px', borderRadius: 4, border: 'none', cursor: 'pointer', fontWeight: 700 }}
       >
         Upgrade to {tierLabel} to unlock

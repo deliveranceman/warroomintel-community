@@ -1,25 +1,35 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useAuth, useUser } from '@clerk/tanstack-start'
+import { callCheckoutApi } from '@/lib/upgrade'
 
 export const Route = createFileRoute('/membership')({
   component: MembershipPage,
 })
 
-async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
-  try {
-    const token = await getToken()
-    if (!token) { window.location.href = '/sign-in'; return }
-    const res = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tier }),
-    })
-    if (!res.ok) throw new Error('Checkout failed')
-    const data = await res.json()
-    if (data.url) window.location.href = data.url
-  } catch (err) {
-    console.error('Upgrade error:', err)
+async function handleUpgrade(
+  tier: string,
+  getToken: () => Promise<string | null>,
+  reload?: () => unknown,
+): Promise<void> {
+  const result = await callCheckoutApi(tier, getToken)
+  if (result.type === 'redirect') { window.location.href = result.url; return }
+  if (result.type === 'modified') {
+    if (result.direction === 'noop') { alert("You're already on this tier."); return }
+    if (result.direction === 'upgrade' && result.effective === 'now') {
+      await reload?.()
+      alert("You're upgraded. Welcome up.")
+      return
+    }
+    if (result.direction === 'downgrade' && result.effective === 'period_end') {
+      alert('Your plan will change at the end of your current billing period. You keep your current access until then.')
+      return
+    }
+  }
+  if (result.type === 'error') {
+    if (result.errorCode === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (result.errorCode === 'coming_soon') { alert('Upgrades coming soon — check back shortly.'); return }
+    alert('Upgrades coming soon — check back shortly.')
   }
 }
 
@@ -100,7 +110,7 @@ function MembershipPage() {
                 </li>
               ))}
             </ul>
-            <button onClick={() => handleUpgrade('charter_soldier', getToken)} style={{
+            <button onClick={() => handleUpgrade('charter_soldier', getToken, () => user?.reload())} style={{
               display: 'block', width: '100%', padding: '14px', textAlign: 'center',
               fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
               borderRadius: '4px', boxSizing: 'border-box',
@@ -138,7 +148,7 @@ function MembershipPage() {
                 </li>
               ))}
             </ul>
-            <button onClick={() => handleUpgrade('charter_commander', getToken)} style={{
+            <button onClick={() => handleUpgrade('charter_commander', getToken, () => user?.reload())} style={{
               display: 'block', width: '100%', padding: '14px', textAlign: 'center',
               fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
               borderRadius: '4px', boxSizing: 'border-box',
@@ -234,7 +244,7 @@ function MembershipPage() {
               </li>
             ))}
           </ul>
-          <button onClick={() => handleUpgrade('soldier', getToken)} style={{
+          <button onClick={() => handleUpgrade('soldier', getToken, () => user?.reload())} style={{
             display: 'block', width: '100%', padding: '14px', textAlign: 'center',
             fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
             borderRadius: '4px', boxSizing: 'border-box',
@@ -276,7 +286,7 @@ function MembershipPage() {
               </li>
             ))}
           </ul>
-          <button onClick={() => handleUpgrade('commander', getToken)} style={{
+          <button onClick={() => handleUpgrade('commander', getToken, () => user?.reload())} style={{
             display: 'block', width: '100%', padding: '14px', textAlign: 'center',
             fontFamily: cinzel, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
             borderRadius: '4px', boxSizing: 'border-box',

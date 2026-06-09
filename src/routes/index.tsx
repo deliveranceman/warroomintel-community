@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { useAuth, useUser, SignInButton, SignUpButton, SignedIn, SignedOut } from '@clerk/tanstack-start'
 import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
+import { callCheckoutApi } from '@/lib/upgrade'
 
 export const Route = createFileRoute('/')({
   component: WarRoomHome,
@@ -37,22 +38,28 @@ const SOLDIER_URL   = 'https://buy.stripe.com/9B6fZafJ689F1Zrb4XfrW03'
 const COMMANDER_URL = 'https://buy.stripe.com/8x24gsaoMey39rT4GzfrW04'
 const GENERAL_URL   = '/community'
 
-async function handleUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
-  try {
-    const token = await getToken()
-    if (!token) { window.location.href = '/sign-in'; return }
-    const res = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tier }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
-    if (data.error === 'coming_soon') { alert('Upgrades coming soon — check back shortly.'); return }
-    if (!res.ok) { alert('Upgrades coming soon — check back shortly.'); return }
-    if (data.url) window.location.href = data.url
-  } catch (err) {
-    console.error('Upgrade error:', err)
+async function handleUpgrade(
+  tier: string,
+  getToken: () => Promise<string | null>,
+  reload?: () => unknown,
+): Promise<void> {
+  const result = await callCheckoutApi(tier, getToken)
+  if (result.type === 'redirect') { window.location.href = result.url; return }
+  if (result.type === 'modified') {
+    if (result.direction === 'noop') { alert("You're already on this tier."); return }
+    if (result.direction === 'upgrade' && result.effective === 'now') {
+      await reload?.()
+      alert("You're upgraded. Welcome up.")
+      return
+    }
+    if (result.direction === 'downgrade' && result.effective === 'period_end') {
+      alert('Your plan will change at the end of your current billing period. You keep your current access until then.')
+      return
+    }
+  }
+  if (result.type === 'error') {
+    if (result.errorCode === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (result.errorCode === 'coming_soon') { alert('Upgrades coming soon — check back shortly.'); return }
     alert('Upgrades coming soon — check back shortly.')
   }
 }
@@ -899,7 +906,7 @@ function PricingSection() {
               </SignUpButton>
             ) : (
               <button
-                onClick={() => handleUpgrade(tier.tier!, getToken)}
+                onClick={() => handleUpgrade(tier.tier!, getToken, () => user?.reload())}
                 style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2, border: tier.featured ? 'none' : '1px solid var(--gold-line-hi)', background: tier.featured ? 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)' : 'transparent', color: tier.featured ? '#1a1305' : G, textAlign: 'center' as const, boxSizing: 'border-box' as const, cursor: 'pointer', transition: 'opacity 0.2s' }}
                 onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                 onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
@@ -944,7 +951,7 @@ function PricingSection() {
                 </ul>
                 <button
                   disabled={soldOut}
-                  onClick={() => !soldOut && handleUpgrade('founding_general', getToken)}
+                  onClick={() => !soldOut && handleUpgrade('founding_general', getToken, () => user?.reload())}
                   style={{ width: '100%', padding: '11px', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', borderRadius: 2, border: '1px solid var(--gold-line-hi)', background: soldOut ? 'transparent' : 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)', color: soldOut ? 'var(--t-4)' : '#1a1305', cursor: soldOut ? 'not-allowed' : 'pointer', opacity: soldOut ? 0.5 : 1, transition: 'opacity 0.2s', boxSizing: 'border-box' as const }}>
                   {soldOut ? 'Sold Out' : 'Secure Your Founding Seat ⚔'}
                 </button>
