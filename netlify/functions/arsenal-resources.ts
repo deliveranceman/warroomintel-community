@@ -6,7 +6,7 @@ const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBu
 const SUPABASE_URL = supabaseUrl!
 const SUPABASE_KEY = supabaseServiceKey!
 
-const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3, free: 0, soldier: 1, commander: 2, general: 3 }
+const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3, Minister: 4, Commandant: 5, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
 
 
 export default async function handler(req: Request) {
