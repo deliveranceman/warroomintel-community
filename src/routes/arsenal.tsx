@@ -5,6 +5,7 @@ import { Search } from 'lucide-react'
 import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime } from '@/components/primitives'
 import type { ClassLevel } from '@/components/primitives'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
+import { UpgradeGate } from '@/components/UpgradeGate'
 
 export const Route = createFileRoute('/arsenal')({
   component: ArsenalPage,
@@ -49,6 +50,9 @@ interface Resource {
   filePath?: string
   pageCount?: number | null
   fileSize?: string
+  // Locked stub fields (above-tier items returned as metadata-only teasers)
+  locked?: boolean
+  lockedPreview?: string
 }
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -87,6 +91,8 @@ function normalizeTier(t: string): 'Free' | 'Soldier' | 'Commander' | 'General' 
     soldier: 'Soldier', Soldier: 'Soldier',
     commander: 'Commander', Commander: 'Commander',
     general: 'General', General: 'General',
+    minister: 'General', Minister: 'General',
+    commandant: 'General', Commandant: 'General',
   }
   return map[t] ?? 'Free'
 }
@@ -110,23 +116,51 @@ function FileCard({
   onDownload: (r: Resource) => void
   downloading: string | null
 }) {
+  const isLocked      = resource.locked === true
   const memberLevel   = getTierLevel(memberTier)
   const fileLevel     = getTierLevel(resource.tier)
-  const hasAccess     = memberLevel >= fileLevel
+  const hasAccess     = !isLocked && memberLevel >= fileLevel
   const isDownloading = downloading === resource.id
 
   const fileTypeName = resource.file_type?.split('/').pop()?.toUpperCase()
     || (resource.file_path?.split('.').pop()?.toUpperCase())
     || 'PDF'
 
+  if (isLocked) {
+    return (
+      <TacticalCard brackets padding="16px" style={{ opacity: 0.78 }}>
+        {/* Header: locked badge + tier */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap' as const, gap: 6 }}>
+          <HUDChip>🔒 LOCKED</HUDChip>
+          <ClassBadge level={TIER_CLASS[normalizeTier(resource.tier)] || 'IV'} label={resource.tier.toUpperCase()} />
+        </div>
+
+        {/* Title */}
+        <div style={{ fontFamily: cinzel, fontSize: 15, color: 'var(--t-2)', lineHeight: 1.4, marginBottom: 8, letterSpacing: '0.03em' }}>
+          {resource.title}
+        </div>
+
+        {/* Teaser — first line only, never the full body */}
+        {resource.lockedPreview && (
+          <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--t-4)', lineHeight: 1.6, marginBottom: 12, fontStyle: 'italic' }}>
+            {resource.lockedPreview}…
+          </div>
+        )}
+
+        {/* Upgrade CTA via Stripe */}
+        <UpgradeGate
+          variant="banner"
+          featureName={`${normalizeTier(resource.tier)} resource`}
+          requiredTier={normalizeTier(resource.tier).toLowerCase()}
+        />
+      </TacticalCard>
+    )
+  }
+
   return (
-    <TacticalCard
-      brackets
-      padding="16px"
-      style={{ opacity: hasAccess ? 1 : 0.55, cursor: hasAccess ? 'default' : 'not-allowed' }}
-    >
+    <TacticalCard brackets padding="16px">
       {/* Header: file type + tier */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap' as const, gap: 6 }}>
         <HUDChip>{fileTypeName}</HUDChip>
         <ClassBadge level={TIER_CLASS[resource.tier] || 'IV'} label={resource.tier.toUpperCase()} />
       </div>
@@ -151,7 +185,7 @@ function FileCard({
       )}
 
       {/* Meta row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' as const }}>
         {resource.category && (
           <MonoTime color="var(--t-4)" size={10}>{resource.category.toUpperCase()}</MonoTime>
         )}
@@ -167,21 +201,15 @@ function FileCard({
 
       {/* Action */}
       {hasAccess ? (
-        <GoldButton
-          sm
-          onClick={() => onDownload(resource)}
-          disabled={isDownloading}
-          full
-        >
+        <GoldButton sm onClick={() => onDownload(resource)} disabled={isDownloading} full>
           {isDownloading ? '↓ Downloading…' : '↓ Download'}
         </GoldButton>
       ) : (
-        <div style={{ paddingTop: 8, borderTop: '1px solid var(--gold-line)' }}>
-          <span style={{ fontSize: 12, marginRight: 6 }}>🔒</span>
-          <a href={COMMUNITY_URL} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: 'var(--t-3)', textDecoration: 'none' }}>
-            Upgrade to {resource.tier} to unlock →
-          </a>
-        </div>
+        <UpgradeGate
+          variant="banner"
+          featureName={`${resource.tier} resource`}
+          requiredTier={resource.tier.toLowerCase()}
+        />
       )}
     </TacticalCard>
   )
@@ -327,7 +355,7 @@ function ArsenalPage() {
     if (search) {
       const q = search.toLowerCase()
       return r.title.toLowerCase().includes(q)
-        || (r.description ?? '').toLowerCase().includes(q)
+        || (r.description ?? r.lockedPreview ?? '').toLowerCase().includes(q)
         || (r.category ?? '').toLowerCase().includes(q)
     }
     return true

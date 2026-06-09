@@ -55,7 +55,6 @@ export default async function handler(req: Request) {
   let query = supabase
     .from('resources')
     .select('id, title, description, tier, category, topic, tags, file_path, file_type, file_size, source_type, created_at')
-    .in('tier', allowedTiers)
     .eq('source_type', 'arsenal')
     .not('tier', 'is', null)
 
@@ -69,9 +68,14 @@ export default async function handler(req: Request) {
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
 
-  // Generate signed URLs for download links — split by bucket (path format determines bucket)
+  // ── Split into accessible and locked ─────────────────────────────────────────
+  const tierLvl = (t: string) => TIER_ORDER[(t ?? '').toLowerCase()] ?? 0
+  const accessible = (data || []).filter((r: any) => tierLvl(r.tier) <= userTierLevel)
+  const lockedItems = (data || []).filter((r: any) => tierLvl(r.tier) >  userTierLevel)
+
+  // ── Generate signed URLs for accessible rows only ────────────────────────────
   const signedMap: Record<string, string> = {}
-  const allPaths = (data || []).filter((r: any) => r.file_path).map((r: any) => r.file_path as string)
+  const allPaths = accessible.filter((r: any) => r.file_path).map((r: any) => r.file_path as string)
   const libPaths = allPaths.filter(p => p.startsWith('user_'))
   const resPaths = allPaths.filter(p => !p.startsWith('user_'))
   const bucketName = supabaseBucket || 'resources'
@@ -87,10 +91,36 @@ export default async function handler(req: Request) {
       if (su.signedUrl && su.path) signedMap[su.path] = su.signedUrl
     }
   }
-  const resources = (data || []).map((r: any) => ({
+
+  // ── Accessible rows: full data + signed URL, locked: false ───────────────────
+  const accessibleRows = accessible.map((r: any) => ({
     ...r,
     file_url: r.file_path ? (signedMap[r.file_path] || null) : null,
+    locked: false,
   }))
+
+  // ── Locked stubs: teaser metadata only — NO body, file path, URLs ────────────
+  // Shape: { id, title, tier, category, lockedPreview, locked: true }
+  // Explicitly omitted: description, file_path, file_type, file_size, file_url,
+  //                     source_type, created_at, topic, tags, signed URLs
+  const lockedStubs = lockedItems.map((r: any) => {
+    const raw = (r.description as string | null | undefined) || ''
+    const lockedPreview = (raw.split('\n')[0] || raw).slice(0, 120).trimEnd()
+    return {
+      id:           r.id         as string,
+      title:        (r.title     as string) || '',
+      tier:         (r.tier      as string) || 'free',
+      category:     (r.category  as string) || '',
+      lockedPreview,
+      locked:       true,
+    }
+  }).sort((a, b) => {
+    const ta = tierLvl(a.tier), tb = tierLvl(b.tier)
+    return ta !== tb ? ta - tb : a.title.localeCompare(b.title)
+  })
+
+  // Accessible first (DB order = created_at DESC so "recently added" slice still works)
+  const resources = [...accessibleRows, ...lockedStubs]
 
   return new Response(JSON.stringify({ resources, userTier: auth.tier }), { status: 200, headers })
 }
