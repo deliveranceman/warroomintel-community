@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -36,23 +37,6 @@ const HEADERS = {
   'Content-Type': 'application/json',
 }
 
-async function resolveUser(token: string): Promise<{ ok: boolean; tier: string; userId: string }> {
-  try {
-    if (!token || token.split('.').length !== 3) return { ok: false, tier: '', userId: '' }
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { ok: false, tier: '', userId: '' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, tier: '', userId: '' }
-    const data = await res.json()
-    const role = data?.public_metadata?.role
-    const tier = data?.public_metadata?.tier || ''
-    const lvl = (t: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 99 }[t?.toLowerCase()] ?? 0)
-    return { ok: role === 'minister' || lvl(tier) >= 1, tier, userId }
-  } catch { return { ok: false, tier: '', userId: '' } }
-}
 
 async function callClaude(
   question: string,
@@ -123,10 +107,8 @@ export default async function handler(req: Request) {
     if (!reference) {
       return new Response(JSON.stringify({ error: 'reference required' }), { status: 400, headers: HEADERS })
     }
-    const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-    if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-    const auth = await resolveUser(token)
-    if (!auth.ok) return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers: HEADERS })
+    const auth = await requireTier(req, 1)
+    if (auth instanceof Response) return auth
     try {
       const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -151,11 +133,8 @@ export default async function handler(req: Request) {
 
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const auth = await resolveUser(token)
-  if (!auth.ok) return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers: HEADERS })
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
   const usage = await checkAndIncrementUsage(auth.userId, auth.tier || 'watchman', 'bible_ask')
   if (!usage.allowed) {

@@ -1,6 +1,7 @@
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 import { assembleWRIContext } from './_shared/assembleWRIContext'
+import { requireTier } from './_shared/access'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -9,23 +10,6 @@ const HEADERS = {
 }
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-async function resolveUser(token: string): Promise<{ ok: boolean; tier: string; userId: string }> {
-  try {
-    if (!token || token.split('.').length !== 3) return { ok: false, tier: '', userId: '' }
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { ok: false, tier: '', userId: '' }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { ok: false, tier: '', userId: '' }
-    const data = await res.json()
-    const role = data?.public_metadata?.role
-    const tier = data?.public_metadata?.tier || ''
-    const lvl = (t: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 99 }[t?.toLowerCase()] ?? 0)
-    return { ok: role === 'minister' || lvl(tier) >= 1, tier, userId }
-  } catch { return { ok: false, tier: '', userId: '' } }
-}
 
 async function callClaude(dreamDescription: string, dreamerContext: string, wriContext: string): Promise<any> {
   const systemPrompt = `You are a prophetic and spiritual dream interpreter for deliverance ministers.
@@ -139,11 +123,8 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const auth = await resolveUser(token)
-  if (!auth.ok) return new Response(JSON.stringify({ error: 'Soldier tier or higher required' }), { status: 403, headers: HEADERS })
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
   const usage = await checkAndIncrementUsage(auth.userId, auth.tier || 'watchman', 'dream')
   if (!usage.allowed) {

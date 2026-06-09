@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -7,48 +8,16 @@ const SUPABASE_KEY = supabaseServiceKey!
 
 const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3, free: 0, soldier: 1, commander: 2, general: 3 }
 
-async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData }
-  } catch { return null }
-}
 
 export default async function handler(req: Request) {
   if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 })
 
   const headers = { 'Content-Type': 'application/json' }
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
 
-  // Decode tier from JWT first — never 401 a logged-in user for a Clerk failure
-  let userTier = 'free'
-  try {
-    const parts = token.split('.')
-    if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-      const auth = await resolveUser(token)
-      if (auth) {
-        userTier = (auth.userData?.public_metadata?.tier as string) || 'free'
-      } else {
-        // Clerk call failed — read tier directly from JWT if present
-        userTier = payload?.public_metadata?.tier || payload?.publicMetadata?.tier || 'free'
-      }
-    }
-  } catch {
-    userTier = 'free'
-  }
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
-  const userTierLevel = TIER_ORDER[userTier.toLowerCase()] ?? TIER_ORDER[userTier] ?? 0
+  const userTierLevel = TIER_ORDER[auth.tier.toLowerCase()] ?? TIER_ORDER[auth.tier] ?? 0
   // Include BOTH lowercase and title-case variants — the DB has mixed casing
   // (most rows: 'free','soldier','commander'; a few: 'Soldier','Commander')
   // Deduplication was removed because it stripped the lowercase variants that
@@ -123,7 +92,7 @@ export default async function handler(req: Request) {
     file_url: r.file_path ? (signedMap[r.file_path] || null) : null,
   }))
 
-  return new Response(JSON.stringify({ resources, userTier }), { status: 200, headers })
+  return new Response(JSON.stringify({ resources, userTier: auth.tier }), { status: 200, headers })
 }
 
 export const config = { path: '/api/arsenal-resources' }

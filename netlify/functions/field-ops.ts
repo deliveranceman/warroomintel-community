@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -12,39 +13,14 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-const TIER_LEVELS: Record<string, number> = {
-  free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 99,
-}
-
-async function resolveUser(token: string): Promise<{ userId: string; name: string; tier: string; role: string } | null> {
-  try {
-    if (!token || token.split('.').length !== 3) return null
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Warrior'
-    const tier = data?.public_metadata?.tier || 'free'
-    const role = data?.public_metadata?.role || ''
-    return { userId, name, tier, role }
-  } catch { return null }
-}
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
-  const user = await resolveUser(token)
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const isMinister    = user.role === 'minister'
-  const isCommanderPlus = TIER_LEVELS[user.tier] >= 2 || isMinister
+  const isCommanderPlus = auth.level >= 2
 
   const url      = new URL(req.url)
   const resource = url.searchParams.get('resource')
@@ -57,7 +33,7 @@ export default async function handler(req: Request) {
       const { data, error } = await client
         .from('case_files')
         .select('*')
-        .eq('user_id', user.userId)
+        .eq('user_id', auth.userId)
         .order('updated_at', { ascending: false })
       if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
       return new Response(JSON.stringify({ cases: data ?? [] }), { status: 200, headers: HEADERS })
@@ -75,7 +51,7 @@ export default async function handler(req: Request) {
       if (!subject_name?.trim()) return new Response(JSON.stringify({ error: 'subject_name required' }), { status: 400, headers: HEADERS })
 
       const row = {
-        user_id:         user.userId,
+        user_id:         auth.userId,
         subject_name:    subject_name.trim().slice(0, 200),
         subject_alias:   subject_alias?.trim().slice(0, 100) || null,
         gender:          gender || null,
@@ -101,7 +77,7 @@ export default async function handler(req: Request) {
       try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS }) }
 
       const { data: existing } = await client.from('case_files').select('user_id').eq('id', id).single()
-      if (!existing || existing.user_id !== user.userId) {
+      if (!existing || existing.user_id !== auth.userId) {
         return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: HEADERS })
       }
 
@@ -120,7 +96,7 @@ export default async function handler(req: Request) {
       if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers: HEADERS })
 
       const { data: existing } = await client.from('case_files').select('user_id').eq('id', id).single()
-      if (!existing || existing.user_id !== user.userId) {
+      if (!existing || existing.user_id !== auth.userId) {
         return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: HEADERS })
       }
 
@@ -140,7 +116,7 @@ export default async function handler(req: Request) {
       if (!caseId) return new Response(JSON.stringify({ error: 'caseId required' }), { status: 400, headers: HEADERS })
 
       const { data: cf } = await client.from('case_files').select('user_id').eq('id', caseId).single()
-      if (!cf || cf.user_id !== user.userId) {
+      if (!cf || cf.user_id !== auth.userId) {
         return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: HEADERS })
       }
 
@@ -148,7 +124,7 @@ export default async function handler(req: Request) {
         .from('session_notes')
         .select('*')
         .eq('case_file_id', caseId)
-        .eq('user_id', user.userId)
+        .eq('user_id', auth.userId)
         .order('session_date', { ascending: false })
       if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })
       return new Response(JSON.stringify({ sessions: data ?? [] }), { status: 200, headers: HEADERS })
@@ -171,13 +147,13 @@ export default async function handler(req: Request) {
       if (!case_file_id) return new Response(JSON.stringify({ error: 'case_file_id required' }), { status: 400, headers: HEADERS })
 
       const { data: cf } = await client.from('case_files').select('user_id').eq('id', case_file_id).single()
-      if (!cf || cf.user_id !== user.userId) {
+      if (!cf || cf.user_id !== auth.userId) {
         return new Response(JSON.stringify({ error: 'Case file not found' }), { status: 404, headers: HEADERS })
       }
 
       const row = {
         case_file_id,
-        user_id:             user.userId,
+        user_id:             auth.userId,
         session_date:        session_date || new Date().toISOString().split('T')[0],
         duration_minutes:    duration_minutes ? Number(duration_minutes) : null,
         outcome:             ['breakthrough','partial','resistance','incomplete'].includes(outcome) ? outcome : 'incomplete',
@@ -215,7 +191,7 @@ export default async function handler(req: Request) {
       try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS }) }
 
       const { data: existing } = await client.from('session_notes').select('user_id').eq('id', id).single()
-      if (!existing || existing.user_id !== user.userId) {
+      if (!existing || existing.user_id !== auth.userId) {
         return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: HEADERS })
       }
 
@@ -238,7 +214,7 @@ export default async function handler(req: Request) {
         .select('user_id, case_file_id')
         .eq('id', id)
         .single()
-      if (!existing || existing.user_id !== user.userId) {
+      if (!existing || existing.user_id !== auth.userId) {
         return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: HEADERS })
       }
 
