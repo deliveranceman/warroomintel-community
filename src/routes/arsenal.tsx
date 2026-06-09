@@ -82,6 +82,11 @@ const TIER_CLASS: Record<string, ClassLevel> = {
 
 const COMMUNITY_URL = '/community'
 
+const NEXT_TIER: Record<string, string> = {
+  watchman: 'soldier', free: 'soldier', soldier: 'commander', commander: 'general',
+  general: '', minister: '', commandant: '',
+}
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function getTierLevel(tier: string) { return TIER_ORDER[(tier ?? '').toLowerCase()] ?? 0 }
 
@@ -101,6 +106,22 @@ function groupByTier(resources: Resource[]) {
   const groups: Record<string, Resource[]> = { Free: [], Soldier: [], Commander: [], General: [] }
   resources.forEach(r => { groups[normalizeTier(r.tier)]?.push(r) })
   return groups
+}
+
+async function callUpgrade(tier: string, getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    const token = await getToken()
+    if (!token) { window.location.href = '/sign-in'; return }
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tier }),
+    })
+    if (!res.ok) throw new Error('Checkout failed')
+    const data = await res.json()
+    if (data.error === 'sold_out') { alert('Founding General spots are sold out.'); return }
+    if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+  } catch (err) { console.error('Upgrade error:', err) }
 }
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
@@ -136,9 +157,16 @@ function FileCard({
         </div>
 
         {/* Title */}
-        <div style={{ fontFamily: cinzel, fontSize: 15, color: 'var(--t-2)', lineHeight: 1.4, marginBottom: 8, letterSpacing: '0.03em' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 15, color: 'var(--t-2)', lineHeight: 1.4, marginBottom: 4, letterSpacing: '0.03em' }}>
           {resource.title}
         </div>
+
+        {/* Category */}
+        {resource.category && (
+          <div style={{ marginBottom: 8 }}>
+            <MonoTime color="var(--t-4)" size={10}>{resource.category.toUpperCase()}</MonoTime>
+          </div>
+        )}
 
         {/* Teaser — first line only, never the full body */}
         {resource.lockedPreview && (
@@ -574,6 +602,31 @@ function ArsenalPage() {
             })}
           </>
         )}
+
+        {/* Upgrade summary — next tier up, count of locked stubs, hidden when 0 */}
+        {!loading && !error && (() => {
+          const nextTierUp = NEXT_TIER[(memberTier ?? '').toLowerCase()] ?? ''
+          if (!nextTierUp) return null
+          const lockedCount = resources.filter(r => r.locked === true).length
+          if (lockedCount === 0) return null
+          const upgradeLabel = nextTierUp.charAt(0).toUpperCase() + nextTierUp.slice(1)
+          return (
+            <div style={{ marginTop: 8, padding: '16px', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, background: 'rgba(201,168,76,0.04)', textAlign: 'center' as const }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.6)', marginBottom: 6 }}>
+                🔒 {lockedCount} MORE RESOURCE{lockedCount !== 1 ? 'S' : ''} AVAILABLE
+              </div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: 'var(--t-3)', marginBottom: 12, lineHeight: 1.5 }}>
+                Upgrade to {upgradeLabel} to unlock more of the Arsenal library.
+              </div>
+              <button
+                onClick={() => callUpgrade(nextTierUp, getToken)}
+                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
+              >
+                UPGRADE TO {upgradeLabel.toUpperCase()} →
+              </button>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── Footer note ── */}
