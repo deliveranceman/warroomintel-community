@@ -58,7 +58,9 @@ const crimson = "'Crimson Pro', serif"
 const TIERS = ['All', 'Free', 'Soldier', 'Commander', 'General'] as const
 const CATEGORIES = ['All', 'Session Tools', 'Teaching', 'Protocol', 'Reference', 'Renunciation', 'Worksheet', 'Foundational', 'Session', 'Prayer', 'Ministry', 'Occult']
 
-const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
+const TIER_ORDER: Record<string, number> = {
+  free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5,
+}
 
 const TIER_ICONS: Record<string, string> = {
   Free:      '✦',
@@ -77,7 +79,7 @@ const TIER_CLASS: Record<string, ClassLevel> = {
 const COMMUNITY_URL = '/community'
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-function getTierLevel(tier: string) { return TIER_ORDER[tier] ?? 0 }
+function getTierLevel(tier: string) { return TIER_ORDER[(tier ?? '').toLowerCase()] ?? 0 }
 
 function normalizeTier(t: string): 'Free' | 'Soldier' | 'Commander' | 'General' {
   const map: Record<string, 'Free' | 'Soldier' | 'Commander' | 'General'> = {
