@@ -8,7 +8,7 @@ const SUPABASE_SERVICE_KEY = supabaseServiceKey
 const SUPABASE_BUCKET      = supabaseBucket || 'resources'
 const SIGNED_URL_EXPIRY    = parseInt(supabaseExpiry || '14400')
 
-const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
+const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
 
 export const Route = createFileRoute('/api/resource-download')({
   server: {
@@ -36,7 +36,7 @@ export const Route = createFileRoute('/api/resource-download')({
 
         // Tier access check — use verified server-side level, never trust client-supplied tier
         const memberLevel = auth.level
-        const fileLevel   = TIER_ORDER[fileTier]   ?? 0
+        const fileLevel   = TIER_ORDER[(fileTier ?? '').toLowerCase()] ?? 0
         if (memberLevel < fileLevel) {
           return Response.json({ error: 'Insufficient tier access' }, { status: 403 })
         }

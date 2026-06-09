@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_KEY = supabaseServiceKey
 const SUPABASE_BUCKET      = supabaseBucket || 'resources'
 const SIGNED_URL_EXPIRY    = parseInt(supabaseExpiry || '14400')
 
-const TIER_ORDER: Record<string, number> = { Free: 0, Soldier: 1, Commander: 2, General: 3 }
+const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
 
 // ─── GENERATE SUPABASE SIGNED URL ────────────────────────────────────────────
 async function getSignedUrl(filePath: string): Promise<string | null> {
@@ -98,14 +98,14 @@ export const Route = createFileRoute('/api/resources')({
 
           // ── Filter ───────────────────────────────────────────────────────
           // Always gate by the verified server-side level — never trust client-supplied tier
-          resources = resources.filter(r => (TIER_ORDER[r.tier] ?? 0) <= auth.level)
+          resources = resources.filter(r => (TIER_ORDER[(r.tier ?? '').toLowerCase()] ?? 0) <= auth.level)
           if (category) {
             resources = resources.filter(r => r.category === category)
           }
 
           // ── Sort by tier then title ──────────────────────────────────────
           resources.sort((a, b) => {
-            const td = (TIER_ORDER[a.tier] ?? 0) - (TIER_ORDER[b.tier] ?? 0)
+            const td = (TIER_ORDER[(a.tier ?? '').toLowerCase()] ?? 0) - (TIER_ORDER[(b.tier ?? '').toLowerCase()] ?? 0)
             return td !== 0 ? td : a.title.localeCompare(b.title)
           })
 
