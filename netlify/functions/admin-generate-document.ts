@@ -33,7 +33,7 @@ function logUsage(token: string, baseUrl: string, callType: string, inputTokens:
   fetch(`${baseUrl}/api/ai-usage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ call_type: callType, input_tokens: inputTokens, output_tokens: outputTokens, model: 'claude-sonnet-4-20250514' }),
+    body: JSON.stringify({ call_type: callType, input_tokens: inputTokens, output_tokens: outputTokens, model: 'claude-sonnet-4-5' }),
   }).catch(() => {})
 }
 
@@ -118,7 +118,7 @@ Write each section with pastoral authority, biblical grounding, and practical mi
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 4000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
