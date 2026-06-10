@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAuth } from './_shared/access'
+import { requireAuth, requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -50,8 +50,8 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ comments: (data || []).map(c => ({ ...c, voted: myVotes.includes(c.id) })) }), { status: 200, headers: HEADERS })
   }
 
-  // Auth required for POST / DELETE
-  const auth = await requireAuth(req)
+  // Auth required for POST / DELETE — Soldier+ tier
+  const auth = await requireTier(req, 1)
   if (auth instanceof Response) return auth
 
   // ── POST — add comment ───────────────────────────────────────────────────
