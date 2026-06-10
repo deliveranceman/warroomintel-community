@@ -42,7 +42,6 @@ import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiUpdateProfileRouteImport } from './routes/api.update-profile'
 import { Route as ApiSubmitHelpRouteImport } from './routes/api.submit-help'
 import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-assessment'
-import { Route as ApiStreamTokenRouteImport } from './routes/api.stream-token'
 import { Route as ApiSmSubmissionRouteImport } from './routes/api.sm-submission'
 import { Route as ApiSmRegionsRouteImport } from './routes/api.sm-regions'
 import { Route as ApiSmAssessmentRouteImport } from './routes/api.sm-assessment'
@@ -228,11 +227,6 @@ const ApiSubmitAssessmentRoute = ApiSubmitAssessmentRouteImport.update({
   path: '/api/submit-assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiStreamTokenRoute = ApiStreamTokenRouteImport.update({
-  id: '/api/stream-token',
-  path: '/api/stream-token',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiSmSubmissionRoute = ApiSmSubmissionRouteImport.update({
   id: '/api/sm-submission',
   path: '/api/sm-submission',
@@ -356,7 +350,6 @@ export interface FileRoutesByFullPath {
   '/api/sm-assessment': typeof ApiSmAssessmentRoute
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
-  '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
   '/api/update-profile': typeof ApiUpdateProfileRoute
@@ -408,7 +401,6 @@ export interface FileRoutesByTo {
   '/api/sm-assessment': typeof ApiSmAssessmentRoute
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
-  '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
   '/api/update-profile': typeof ApiUpdateProfileRoute
@@ -462,7 +454,6 @@ export interface FileRoutesById {
   '/api/sm-assessment': typeof ApiSmAssessmentRoute
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
-  '/api/stream-token': typeof ApiStreamTokenRoute
   '/api/submit-assessment': typeof ApiSubmitAssessmentRoute
   '/api/submit-help': typeof ApiSubmitHelpRoute
   '/api/update-profile': typeof ApiUpdateProfileRoute
@@ -517,7 +508,6 @@ export interface FileRouteTypes {
     | '/api/sm-assessment'
     | '/api/sm-regions'
     | '/api/sm-submission'
-    | '/api/stream-token'
     | '/api/submit-assessment'
     | '/api/submit-help'
     | '/api/update-profile'
@@ -569,7 +559,6 @@ export interface FileRouteTypes {
     | '/api/sm-assessment'
     | '/api/sm-regions'
     | '/api/sm-submission'
-    | '/api/stream-token'
     | '/api/submit-assessment'
     | '/api/submit-help'
     | '/api/update-profile'
@@ -622,7 +611,6 @@ export interface FileRouteTypes {
     | '/api/sm-assessment'
     | '/api/sm-regions'
     | '/api/sm-submission'
-    | '/api/stream-token'
     | '/api/submit-assessment'
     | '/api/submit-help'
     | '/api/update-profile'
@@ -674,7 +662,6 @@ export interface RootRouteChildren {
   ApiSmAssessmentRoute: typeof ApiSmAssessmentRoute
   ApiSmRegionsRoute: typeof ApiSmRegionsRoute
   ApiSmSubmissionRoute: typeof ApiSmSubmissionRoute
-  ApiStreamTokenRoute: typeof ApiStreamTokenRoute
   ApiSubmitAssessmentRoute: typeof ApiSubmitAssessmentRoute
   ApiSubmitHelpRoute: typeof ApiSubmitHelpRoute
   ApiUpdateProfileRoute: typeof ApiUpdateProfileRoute
@@ -924,13 +911,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSubmitAssessmentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/stream-token': {
-      id: '/api/stream-token'
-      path: '/api/stream-token'
-      fullPath: '/api/stream-token'
-      preLoaderRoute: typeof ApiStreamTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/sm-submission': {
       id: '/api/sm-submission'
       path: '/api/sm-submission'
@@ -1101,7 +1081,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSmAssessmentRoute: ApiSmAssessmentRoute,
   ApiSmRegionsRoute: ApiSmRegionsRoute,
   ApiSmSubmissionRoute: ApiSmSubmissionRoute,
-  ApiStreamTokenRoute: ApiStreamTokenRoute,
   ApiSubmitAssessmentRoute: ApiSubmitAssessmentRoute,
   ApiSubmitHelpRoute: ApiSubmitHelpRoute,
   ApiUpdateProfileRoute: ApiUpdateProfileRoute,
