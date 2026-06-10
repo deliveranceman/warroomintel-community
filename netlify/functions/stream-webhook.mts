@@ -210,14 +210,15 @@ export default async function handler(req: Request): Promise<Response> {
 
   const rawBody = await req.text()
   const signature = req.headers.get('x-signature') ?? ''
-  console.log('[webhook] x-signature header present:', !!signature, 'length:', signature.length)
 
   const expected = crypto.createHmac('sha256', apiSecret ?? '').update(rawBody).digest('hex')
-  const sigValid = expected === signature
-  console.log('[webhook] signature valid:', sigValid)
+  const expectedBuf = Buffer.from(expected)
+  const signatureBuf = Buffer.from(signature)
+  const sigValid =
+    expectedBuf.length === signatureBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, signatureBuf)
   if (!sigValid) {
-    // Log but continue — temporary debug mode to confirm events are arriving
-    console.warn('[webhook] SIGNATURE MISMATCH — continuing anyway for debug')
+    return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 401, headers: HEADERS })
   }
 
   let body: {
