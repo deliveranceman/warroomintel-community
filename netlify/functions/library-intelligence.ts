@@ -72,7 +72,7 @@ async function claudeCall(system: string, user: string, opts?: { model?: string;
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
-    body:    JSON.stringify({ model: opts?.model ?? 'claude-sonnet-4-5', max_tokens: 4000, system, messages: [{ role: 'user', content: user }] }),
+    body:    JSON.stringify({ model: opts?.model ?? 'claude-sonnet-4-5', max_tokens: 1500, system, messages: [{ role: 'user', content: user }] }),
     signal:  opts?.signal,
   })
   if (!res.ok) throw new Error(`Claude API error: ${res.status}`)
@@ -179,7 +179,7 @@ export default async function handler(req: Request) {
             embeddingOk: true,
           }), { status: 400, headers })
         }
-        libraryText = chunks.map((c: any) => `[From "${c.book_title}" — similarity ${(c.similarity * 100).toFixed(0)}%]:\n${c.chunk_text}`).join('\n\n---\n\n')
+        libraryText = chunks.map((c: any) => `[From "${c.book_title}" — similarity ${(c.similarity * 100).toFixed(0)}%]:\n${c.chunk_text.slice(0, 1200)}`).join('\n\n---\n\n')
         bookTitles  = Array.from(new Set(chunks.map((c: any) => c.book_title as string)))
         console.log(`[CONTENT-QUERY] Vector search: ${chunks.length} chunks from ${bookTitles.length} books`)
       } catch (e: any) {
@@ -206,7 +206,7 @@ export default async function handler(req: Request) {
     const response = await claudeCall(
       system,
       userMsg,
-      isPathB ? { model: 'claude-haiku-4-5', signal: AbortSignal.timeout(18000) } : undefined,
+      isPathB ? { model: 'claude-haiku-4-5', signal: AbortSignal.timeout(18000) } : { signal: AbortSignal.timeout(45000) },
     )
 
     return new Response(JSON.stringify({ response, bookTitles }), { status: 200, headers })
