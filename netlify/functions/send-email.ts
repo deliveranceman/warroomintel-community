@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { wriEmailTemplate } from './_shared/sendEmail'
+import { requireAdmin2 } from './_shared/access'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,15 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
+  }
+
+  // Gate: trusted internal server-to-server key OR an authenticated admin.
+  // Closes the open relay — unauthenticated callers (incl. the ?action=test path) get 401/403.
+  const internalKey = process.env.INTERNAL_API_KEY
+  const receivedKey = req.headers.get('x-internal-key') || req.headers.get('x-internal-api-key') || req.headers.get('X-Internal-Key') || ''
+  if (!internalKey || receivedKey !== internalKey) {
+    const auth = await requireAdmin2(req)
+    if (auth instanceof Response) return auth
   }
 
   let body: any

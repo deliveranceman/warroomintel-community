@@ -47,7 +47,7 @@ export default async function handler() {
         try {
           await fetch(`${process.env.URL || 'https://warroomintel.com'}/api/send-email`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-internal-key': process.env.INTERNAL_API_KEY ?? '' },
             body: JSON.stringify({
               type: 'event-reminder',
               to: email,
