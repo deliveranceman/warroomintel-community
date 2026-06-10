@@ -9781,6 +9781,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [caCreating, setCaCreating]                 = React.useState(false)
   const [sentPendingRequests, setSentPendingRequests] = React.useState<any[]>([])
   const [pendingExpanded, setPendingExpanded] = React.useState(false)
+  const [recentCalls, setRecentCalls]         = React.useState<any[]>([])
   React.useEffect(() => { onPendingChange?.(sentPendingRequests) }, [sentPendingRequests])
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
@@ -10279,6 +10280,25 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     return lm.text?.slice(0, 45) || 'Message'
   }
 
+  // ── Recent calls for active DM ──
+  React.useEffect(() => {
+    if (!activeConvoId || activeConvoId === 'sol') { setRecentCalls([]); return }
+    let cancelled = false
+    const fetchHistory = async () => {
+      const t = token || await getToken() || ''
+      if (!t) return
+      const res = await fetch(`/api/stream-call?action=history&channelId=${encodeURIComponent(activeConvoId)}`, {
+        headers: { Authorization: `Bearer ${t}` },
+      }).catch(() => null)
+      if (!cancelled && res?.ok) {
+        const data = await res.json().catch(() => ({}))
+        setRecentCalls(Array.isArray(data.calls) ? data.calls : [])
+      }
+    }
+    fetchHistory()
+    return () => { cancelled = true }
+  }, [activeConvoId, token])
+
   // ── Styles ──
   const BG    = isDark ? '#0a0a12' : '#FAF8F5'
   const SURF  = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
@@ -10309,13 +10329,18 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       <AudioPrayerCallOverlay
         {...activePrayerCall}
         onEnd={async () => {
+          const channelId = activePrayerCall.channelId
           const t = await getToken()
           if (t) {
-            fetch('/api/stream-call?action=end', {
+            await fetch('/api/stream-call?action=end', {
               method: 'POST',
               headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ callId: activePrayerCall.callId }),
             }).catch(() => {})
+            if (channelId && channelId !== 'sol') {
+              const msgs = await api(`get-messages&channelId=${channelId}`, 'GET')
+              setMessages(msgs.messages || [])
+            }
           }
           setActivePrayerCall(null)
         }}
@@ -11488,6 +11513,31 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               {activeConvo.otherMember?.id === 'sol-bot' ? '● Active' : '○ Off'}
             </div>
           </div>
+          {activeConvo.otherMember?.id !== 'sol-bot' && (<>
+            <div style={{ width: '100%', height: 1, background: BDR }} />
+            <div style={{ width: '100%' }}>
+              <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Recent Calls</div>
+              {recentCalls.length === 0
+                ? <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontStyle: 'italic' }}>None yet</div>
+                : recentCalls.map((c, i) => {
+                    const dur = c.answered_at && c.ended_at
+                      ? Math.max(0, Math.round((Date.parse(c.ended_at) - Date.parse(c.answered_at)) / 1000))
+                      : null
+                    const direction = c.caller_id === userId ? '↑' : '↓'
+                    return (
+                      <div key={i} style={{ fontSize: 10, padding: '4px 0', borderBottom: `1px solid ${BDR}` }}>
+                        <div style={{ color: GLD }}>
+                          📞 {direction} {dur !== null && dur > 0
+                            ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`
+                            : 'Missed'}
+                        </div>
+                        <div style={{ fontSize: 9, color: WMUT }}>{relativeTime(c.ended_at || c.created_at)}</div>
+                      </div>
+                    )
+                  })
+              }
+            </div>
+          </>)}
         </div>
       )}
 

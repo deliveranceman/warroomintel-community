@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { StreamClient } from '@stream-io/node-sdk'
 import { requireAuth } from './_shared/access'
 import { sendWebPushToUser } from './_shared/sendWebPush.js'
@@ -33,6 +34,34 @@ function streamClient(): StreamClient {
   return new StreamClient(apiKey, apiSecret)
 }
 
+// Stream Chat REST helpers for posting system messages
+function chatJWT(payload: Record<string, unknown>): string {
+  const { apiSecret } = JSON.parse(process.env.STREAM || '{}')
+  const h = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+  const b = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const s = crypto.createHmac('sha256', apiSecret ?? '').update(`${h}.${b}`).digest('base64url')
+  return `${h}.${b}.${s}`
+}
+
+async function chatSendCallLog(channelId: string, callerId: string, callType: string, duration: number) {
+  const { apiKey } = JSON.parse(process.env.STREAM || '{}')
+  const token = chatJWT({ server: true })
+  await fetch(
+    `https://chat.stream-io-api.com/channels/messaging/${encodeURIComponent(channelId)}/message?api_key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: token, 'stream-auth-type': 'jwt' },
+      body: JSON.stringify({
+        message: {
+          text: '',
+          attachments: [{ type: 'call_log', call_type: callType || 'default', duration }],
+          user_id: callerId,
+        },
+      }),
+    },
+  )
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -50,6 +79,18 @@ export default async function handler(req: Request): Promise<Response> {
     const cutoff = new Date(Date.now() - 2 * 60_000).toISOString()
     const res = await fetch(
       `${sbBase()}/stream_calls?or=(caller_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&status=eq.ringing&created_at=gte.${cutoff}&select=*&order=created_at.desc`,
+      { headers: sbHeaders() },
+    )
+    const calls: any[] = await res.json().catch(() => [])
+    return json({ calls: Array.isArray(calls) ? calls : [] })
+  }
+
+  // ── GET action=history — last 5 calls for a DM channel ──────────────────────
+  if (req.method === 'GET' && action === 'history') {
+    const channelId = url.searchParams.get('channelId') ?? ''
+    if (!channelId) return json({ error: 'channelId required' }, 400)
+    const res = await fetch(
+      `${sbBase()}/stream_calls?channel_id=eq.${encodeURIComponent(channelId)}&or=(caller_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&order=created_at.desc&limit=5&select=call_type,caller_id,caller_name,recipient_id,created_at,answered_at,ended_at`,
       { headers: sbHeaders() },
     )
     const calls: any[] = await res.json().catch(() => [])
@@ -164,9 +205,9 @@ export default async function handler(req: Request): Promise<Response> {
     const { callId } = body ?? {}
     if (!callId) return json({ error: 'callId required' }, 400)
 
-    // Verify caller is a participant, and get call_type for Stream SDK
+    // Verify caller is a participant, and get fields needed for duration + chat log
     const callRes = await fetch(
-      `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}&select=caller_id,recipient_id,call_type`,
+      `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}&select=caller_id,recipient_id,call_type,answered_at,channel_id`,
       { headers: sbHeaders() },
     )
     const callRows: any[] = await callRes.json().catch(() => [])
@@ -176,15 +217,30 @@ export default async function handler(req: Request): Promise<Response> {
       return json({ error: 'Forbidden — you are not a participant in this call' }, 403)
     }
 
+    const endedAt = new Date().toISOString()
+
     // Mark ended in Supabase
     await fetch(
       `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}`,
       {
         method: 'PATCH',
         headers: sbHeaders(),
-        body: JSON.stringify({ status: 'ended', ended_at: new Date().toISOString() }),
+        body: JSON.stringify({ status: 'ended', ended_at: endedAt }),
       },
     ).catch(() => {})
+
+    // Post call_log chat attachment if the call was actually answered
+    const durationSeconds = callRow.answered_at
+      ? Math.max(0, Math.round((Date.parse(endedAt) - Date.parse(callRow.answered_at)) / 1000))
+      : 0
+    if (durationSeconds > 0 && callRow.channel_id) {
+      chatSendCallLog(
+        callRow.channel_id,
+        callRow.caller_id,
+        callRow.call_type || 'default',
+        durationSeconds,
+      ).catch(() => {})
+    }
 
     // End on Stream side (fire-and-forget)
     try {
