@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@clerk/tanstack-start'
+import { StreamVideo, StreamCall, SpeakerLayout } from '@stream-io/video-react-sdk'
 
 export interface AudioPrayerCallOverlayProps {
   callId: string
@@ -33,6 +34,7 @@ export default function AudioPrayerCallOverlay({
   const [muted,    setMuted]    = useState(false)
   const [elapsed,  setElapsed]  = useState(0)
   const [debugLog, setDebugLog] = useState<string[]>([])
+  const [joinedCall, setJoinedCall] = useState<any>(null)
 
   // All SDK refs typed as any — SDK only loaded in browser via dynamic import
   const clientRef = useRef<any>(null)
@@ -148,6 +150,7 @@ export default function AudioPrayerCallOverlay({
         // Disable camera fire-and-forget — do not await (can hang indefinitely)
         call.camera.disable().catch(() => {})
         dbg('join() resolved — starting call')
+        setJoinedCall(call)
 
         startRef.current = Date.now()
         timerRef.current = setInterval(
@@ -389,6 +392,17 @@ export default function AudioPrayerCallOverlay({
           100% { transform: scale(1.7); opacity: 0; }
         }
       `}</style>
+
+      {/* Hidden SDK providers — mounts SDK's managed <audio autoPlay> elements for remote tracks */}
+      {clientRef.current && joinedCall && (
+        <div style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }} aria-hidden="true">
+          <StreamVideo client={clientRef.current}>
+            <StreamCall call={joinedCall}>
+              <SpeakerLayout />
+            </StreamCall>
+          </StreamVideo>
+        </div>
+      )}
     </div>
   )
 }
