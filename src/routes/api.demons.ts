@@ -1,13 +1,63 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAuth } from '../../netlify/functions/_shared/access'
 
-// Fields a Watchman (level 0) may receive. Everything else is paid content and
-// is stripped server-side so the tier lock is a real boundary, not just CSS.
-const WATCHMAN_FIELDS = new Set([
-  'id', 'airtableId', 'createdTime', 'name', 'aka', 'typeRank', 'description',
-  'kingdom', 'strongman', 'subKingdom', 'biblicalRank', 'caseType', 'phonetic',
-  'images', 'isGenerational', 'isTerritorial', 'hierarchyCategory', 'region',
-])
+// Cumulative tier ladder. Each tier's response includes its own fields PLUS
+// every lower tier's — keyed off the VERIFIED Clerk level (authRes.level),
+// never the token payload or client. A lower tier's network response physically
+// does NOT contain higher-tier field values; this is the real paid-content
+// boundary, not CSS. Field-character routing: identity/orientation→Watchman,
+// operational-basics→Soldier, warfare-mechanics→Commander, deep/sensitive→General.
+const TIER_FIELDS: Record<number, string[]> = {
+  0: [
+    'id', 'airtableId', 'createdTime', 'name', 'aka', 'typeRank', 'description',
+    'function', 'strongman', 'kingdom', 'subKingdom', 'biblicalRank', 'caseType',
+    'phonetic', 'images', 'isGenerational', 'isTerritorial', 'hierarchyCategory',
+    'region', 'parentStrongman', 'relatedSpirits', 'clusterSpirits',
+    'primaryBattlefield', 'personalityPresentation', 'culturalPresence',
+  ],
+  1: ['manifestation', 'scripture', 'companionSpirits'],
+  2: [
+    'entryPoints', 'legalRights', 'deliveranceSequence', 'assignment',
+    'counterScriptures', 'sessionIndicators', 'resistanceSignature',
+    'transmissionVectors', 'legalRightsFramework', 'prayerPoints',
+    'sessionTriggerQuestions', 'scriptureContext',
+  ],
+  3: [
+    'symptoms', 'wriNotes', 'sourceOrigin', 'demonicAgreements',
+    'operationalNotes', 'aftercareNotes', 'etymologyNotes', 'archaeologyNotes',
+    'institutionalExpression',
+  ],
+}
+
+// Display names + required tier for the lockedSections hint. Only NAMES/tiers of
+// gated sections are ever sent to an under-tier caller — never their values — so
+// the dossier can render "🔒 {tier} tier — Upgrade to unlock" placeholders.
+const SECTION_LABELS: Record<string, { label: string; tier: string }> = {
+  manifestation:           { label: 'Manifestation', tier: 'soldier' },
+  scripture:               { label: 'Scripture Reference', tier: 'soldier' },
+  companionSpirits:        { label: 'Companion Spirits', tier: 'soldier' },
+  entryPoints:             { label: 'Entry Points', tier: 'commander' },
+  legalRights:             { label: 'Legal Rights', tier: 'commander' },
+  deliveranceSequence:     { label: 'Deliverance Sequence', tier: 'commander' },
+  assignment:              { label: 'Assignment', tier: 'commander' },
+  counterScriptures:       { label: 'Counter Scriptures', tier: 'commander' },
+  sessionIndicators:       { label: 'Session Indicators', tier: 'commander' },
+  resistanceSignature:     { label: 'Resistance Signature', tier: 'commander' },
+  transmissionVectors:     { label: 'Transmission Vectors', tier: 'commander' },
+  legalRightsFramework:    { label: 'Legal Rights Framework', tier: 'commander' },
+  prayerPoints:            { label: 'Prayer Points', tier: 'commander' },
+  sessionTriggerQuestions: { label: 'Session Trigger Questions', tier: 'commander' },
+  scriptureContext:        { label: 'Scripture Context', tier: 'commander' },
+  symptoms:                { label: 'Symptoms', tier: 'general' },
+  wriNotes:                { label: 'WRI Exorcist Notes', tier: 'general' },
+  sourceOrigin:            { label: 'Source / Origin', tier: 'general' },
+  demonicAgreements:       { label: 'Demonic Agreements', tier: 'general' },
+  operationalNotes:        { label: 'Operational Notes', tier: 'general' },
+  aftercareNotes:          { label: 'Aftercare Notes', tier: 'general' },
+  etymologyNotes:          { label: 'Etymology Notes', tier: 'general' },
+  archaeologyNotes:        { label: 'Archaeology Notes', tier: 'general' },
+  institutionalExpression: { label: 'Institutional Expression', tier: 'general' },
+}
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 
@@ -19,7 +69,6 @@ export const Route = createFileRoute('/api/demons')({
       GET: async ({ request }) => {
         const authRes = await requireAuth(request)
         if (authRes instanceof Response) return authRes
-        const isPaid = authRes.level >= 1
         const token = airtableToken
         const BASE_ID = 'appVXEj2DLPBTJTtD'
         const TABLE_ID = 'tblcP4lgVykzOhLi4'
@@ -77,7 +126,6 @@ export const Route = createFileRoute('/api/demons')({
               // Commander tier
               entryPoints: r.fields['Entry Points'] || '',
               legalRights: r.fields['Legal Rights'] || '',
-              protocol: r.fields['Deliverance Sequence'] || '',
               // General tier
               symptoms: r.fields['Symptoms'] || '',
               companionSpirits: r.fields['Companion Spirits'] || '',
@@ -121,17 +169,30 @@ export const Route = createFileRoute('/api/demons')({
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')
 
-          // Watchman (level 0): strip to preview fields so paid dossier content
-          // never leaves the server. Paid tiers (level >= 1) get the full record.
-          const payload = isPaid
-            ? demons
-            : demons.map((d: any) => {
-                const trimmed: any = {}
-                for (const k of Object.keys(d)) if (WATCHMAN_FIELDS.has(k)) trimmed[k] = d[k]
-                return trimmed
-              })
+          // Server-side strip keyed off the VERIFIED level. Build the cumulative
+          // allow-set for the caller, then copy ONLY those keys into each entry —
+          // higher-tier values never enter an under-tier payload. Cap at 3 so
+          // minister/admin (level >= 4) receive every field.
+          const level = Math.max(0, Math.min(3, authRes.level))
+          const allowed = new Set<string>()
+          for (let l = 0; l <= level; l++) for (const k of TIER_FIELDS[l]) allowed.add(k)
 
-          return Response.json({ demons: payload, total: payload.length })
+          // Names/tiers of sections above the caller's level — no values.
+          const lockedSections: string[] = []
+          for (let l = level + 1; l <= 3; l++) {
+            for (const k of TIER_FIELDS[l]) {
+              const s = SECTION_LABELS[k]
+              if (s) lockedSections.push(`${s.label}@${s.tier}`)
+            }
+          }
+
+          const payload = demons.map((d: any) => {
+            const entry: any = {}
+            for (const k of allowed) if (k in d) entry[k] = d[k]
+            return entry
+          })
+
+          return Response.json({ demons: payload, total: payload.length, lockedSections })
         } catch (err: any) {
           return Response.json({ error: err.message }, { status: 500 })
         }
