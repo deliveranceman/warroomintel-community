@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { verifyToken } from '@clerk/backend'
 
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
 
@@ -22,22 +23,23 @@ function streamHeaders(token: string): Record<string, string> {
   return { 'Content-Type': 'application/json', Authorization: token, 'stream-auth-type': 'jwt' }
 }
 
-function extractUserId(token: string): string | null {
-  if (!token) return null
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub ?? null
-  } catch { return null }
-}
-
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*' } })
 
   const url = new URL(req.url)
+  // EventSource cannot send an Authorization header, so the Clerk session JWT
+  // arrives in the query string. Verify it cryptographically (verifyToken) and
+  // derive the identity from the verified claims — never trust the raw value.
   const token = url.searchParams.get('token') || ''
-  const userId = extractUserId(token)
+  if (!token) return new Response('Unauthorized', { status: 401 })
+
+  let userId: string | null = null
+  try {
+    const claims = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY })
+    userId = (claims.sub as string) ?? null
+  } catch {
+    return new Response('Unauthorized', { status: 401 })
+  }
   if (!userId) return new Response('Unauthorized', { status: 401 })
 
   const encoder = new TextEncoder()
