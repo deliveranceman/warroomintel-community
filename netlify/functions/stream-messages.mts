@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, wriEmailTemplate } from './_shared/sendEmail'
+import { requireAuth } from './_shared/access'
 
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -142,35 +143,6 @@ function streamHeaders(token: string): Record<string, string> {
     'Content-Type': 'application/json',
     Authorization: token,
     'stream-auth-type': 'jwt',
-  }
-}
-
-// ── Auth: decode Clerk JWT to get userId ──────────────────────────────────────
-
-function extractUserId(authHeader: string | null): string | null {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  if (!token) return null
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub ?? null
-  } catch {
-    return null
-  }
-}
-
-function extractTierFromJWT(authHeader: string | null): string {
-  if (!authHeader) return 'watchman'
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return 'watchman'
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return (payload?.publicMetadata?.tier || payload?.public_metadata?.tier || 'watchman') as string
-  } catch {
-    return 'watchman'
   }
 }
 
@@ -936,18 +908,18 @@ async function getSentinelRequests(userId: string): Promise<Response> {
 
 // ── Cover All actions ─────────────────────────────────────────────────────────
 
-async function createCoverAll(userId: string, body: any, authHeader: string | null): Promise<Response> {
+async function createCoverAll(userId: string, body: any, verifiedLevel: number): Promise<Response> {
   const { name, territory, inviteUserIds } = body ?? {}
   if (!name) return json({ error: 'name required' }, 400)
   if (!Array.isArray(inviteUserIds)) return json({ error: 'inviteUserIds required' }, 400)
   if (1 + inviteUserIds.length > 20) return json({ error: 'max 20 members total' }, 400)
 
-  // Tier check — read from JWT first, fall back to Clerk API
-  const TIER_MAP: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
-  const jwtTier = extractTierFromJWT(authHeader)
-  let userTierLevel = TIER_MAP[jwtTier] ?? 0
-  let userName = userId
+  // Tier comes from the VERIFIED Clerk record (requireAuth), not a token payload.
+  const userTierLevel = verifiedLevel
+  if (userTierLevel < 2) return json({ error: 'Commander+ tier required to create Cover All groups', debug: { userTierLevel } }, 403)
 
+  // Resolve display name (non-authoritative — for labels only).
+  let userName = userId
   const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
   if (clerkSecretKey) {
     try {
@@ -956,16 +928,10 @@ async function createCoverAll(userId: string, body: any, authHeader: string | nu
       })
       if (myRes.ok) {
         const u = await myRes.json()
-        const clerkTier = (u.public_metadata?.tier as string) || jwtTier
-        const clerkLevel = TIER_MAP[clerkTier] ?? 0
-        // Use the higher of JWT tier vs Clerk tier (Clerk is authoritative if available)
-        userTierLevel = Math.max(userTierLevel, clerkLevel)
         userName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || userId
       }
     } catch {}
   }
-
-  if (userTierLevel < 2) return json({ error: 'Commander+ tier required to create Cover All groups', debug: { jwtTier, userTierLevel } }, 403)
 
   const channelId = `ca-${Date.now()}-${userId.slice(-6)}`
   const allMembers = [userId, ...inviteUserIds]
@@ -1087,8 +1053,11 @@ export default async function handler(req: Request): Promise<Response> {
   const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''
 
-  const userId = extractUserId(req.headers.get('Authorization'))
-  if (!userId) return json({ error: 'Unauthorized' }, 401)
+  // Verify the caller cryptographically; identity + tier come from the verified
+  // Clerk record (requireAuth), never from a forgeable inbound token payload.
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+  const userId = auth.userId
 
   if (action === 'get-token') {
     return getStreamToken(userId)
@@ -1189,7 +1158,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (action === 'create-cover-all') {
     const body = await req.json().catch(() => ({}))
-    return createCoverAll(userId, body, req.headers.get('Authorization'))
+    return createCoverAll(userId, body, auth.level)
   }
 
   if (action === 'list-cover-all') {
