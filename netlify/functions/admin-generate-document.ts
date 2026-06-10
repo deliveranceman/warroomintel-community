@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireTier } from './_shared/access'
+import { requireAdmin2 } from './_shared/access'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 
@@ -44,9 +44,8 @@ export default async function handler(req: Request) {
   // Preserve raw token for fire-and-forget logUsage → /api/ai-usage (which uses requireAuth)
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim() || ''
 
-  // Member Document Creator — Commander feature. Demon-DB spiritData path lives in
-  // admin-generate-document (requireAdmin2); this endpoint must never accept it.
-  const auth = await requireTier(req, 2)
+  // Admin Content Studio path — accepts demon-DB spiritData; minister/commandant only.
+  const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
   const usage = await checkAndIncrementUsage(auth.userId, auth.tier, 'document')
@@ -57,7 +56,7 @@ export default async function handler(req: Request) {
   let body: any
   try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers }) }
 
-  const { templateId, templateName, sections, subject, specialInstructions } = body
+  const { templateId, templateName, sections, subject, spiritData, specialInstructions } = body
   if (!templateId || !subject?.trim()) {
     return new Response(JSON.stringify({ error: 'templateId and subject required' }), { status: 400, headers })
   }
@@ -86,8 +85,12 @@ export default async function handler(req: Request) {
       .map((s: any) => `  "${s.id}" (${s.label}): ${s.instruction}`)
       .join('\n')
 
-    const userPrompt = `Generate a "${templateName}" document for: ${subject.trim()}
+    const spiritBlock = spiritData
+      ? `\nSpirit database data:\n${JSON.stringify(spiritData, null, 2)}`
+      : ''
 
+    const userPrompt = `Generate a "${templateName}" document for: ${subject.trim()}
+${spiritBlock}
 ${specialInstructions ? `\nSpecial instructions: ${specialInstructions}` : ''}
 
 Template sections to generate:
@@ -154,4 +157,4 @@ Write each section with pastoral authority, biblical grounding, and practical mi
   }
 }
 
-export const config = { path: '/api/generate-document' }
+export const config = { path: '/api/admin-generate-document' }

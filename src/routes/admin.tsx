@@ -7911,7 +7911,7 @@ function DocumentsView({ getToken, isDark, demons }: {
     setGenerating(true); setGenError(''); setDocument(null)
     try {
       const token = await getToken()
-      const res = await fetch('/api/generate-document', {
+      const res = await fetch('/api/admin-generate-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({

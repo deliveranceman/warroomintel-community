@@ -39,6 +39,9 @@
 [functions."generate-document"]
   timeout = 30
 
+[functions."admin-generate-document"]
+  timeout = 30
+
 [functions."sm-generate-dossier"]
   timeout = 30
 
