@@ -1,31 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const supabase = createClient(
-  supabaseUrl!,
-  supabaseServiceKey!
-)
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
-async function resolveUser(token: string) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData }
-  } catch { return null }
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Content-Type': 'application/json',
 }
 
 export default async function handler(req: Request) {
-  const headers = { 'Content-Type': 'application/json' }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
   if (req.method === 'GET') {
     const { data, error } = await supabase
@@ -38,12 +25,8 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ links: data }), { status: 200, headers })
   }
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const auth = await resolveUser(token)
-  if (!auth || auth.userData?.public_metadata?.role !== 'minister') {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
-  }
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
 
   if (req.method === 'POST') {
     const { title, url, note, source, tier_required } = await req.json()

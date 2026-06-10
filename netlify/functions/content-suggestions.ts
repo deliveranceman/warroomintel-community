@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -12,29 +13,11 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-async function resolveMinister(token: string): Promise<{ isMinister: boolean; userId: string | null }> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return { isMinister: false, userId: null }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { isMinister: false, userId: null }
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { isMinister: false, userId }
-    const data = await res.json()
-    return { isMinister: data?.public_metadata?.role === 'minister', userId }
-  } catch { return { isMinister: false, userId: null } }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  const { isMinister, userId } = await resolveMinister(token)
-  if (!isMinister) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: HEADERS })
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
 
   const url = new URL(req.url)
   const client = sb()
@@ -83,11 +66,11 @@ export default async function handler(req: Request) {
     }
 
     const now = new Date().toISOString()
-    const updates: Record<string, any> = { reviewed_by: userId, reviewed_at: now }
-    if (title     !== undefined) updates.title     = title
+    const updates: Record<string, any> = { reviewed_by: auth.userId, reviewed_at: now }
+    if (title      !== undefined) updates.title      = title
     if (full_draft !== undefined) updates.full_draft = full_draft
-    if (summary   !== undefined) updates.summary   = summary
-    if (notes     !== undefined) updates.notes     = notes
+    if (summary    !== undefined) updates.summary    = summary
+    if (notes      !== undefined) updates.notes      = notes
 
     if (action === 'approve') {
       updates.status = 'approved'

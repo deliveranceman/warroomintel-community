@@ -1,3 +1,5 @@
+import { requireAuth } from './_shared/access'
+
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 const sbHeaders = {
   apikey:          serviceRoleKey as string,
@@ -17,42 +19,6 @@ function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS })
 }
 
-function decodeToken(authHeader: string | null): { userId: string } | null {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  if (!token) return null
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    return { userId }
-  } catch { return null }
-}
-
-async function resolveUserName(userId: string): Promise<string> {
-  try {
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return 'Soldier'
-    const data = await res.json()
-    return [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Soldier'
-  } catch { return 'Soldier' }
-}
-
-async function getIsMinister(userId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    const meta = data.public_metadata || {}
-    return meta.role === 'minister' || meta.isAdmin === true
-  } catch { return false }
-}
 
 // ── Actions ────────────────────────────────────────────────────────────────────
 
@@ -340,9 +306,9 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'system-intake') return systemIntake(req)
   if (action === 'system-seed')   return systemSeed(req)
 
-  const auth = decodeToken(req.headers.get('Authorization'))
-  if (!auth) return json({ error: 'Unauthorized' }, 401)
-  const { userId } = auth
+  const authResult = await requireAuth(req)
+  if (authResult instanceof Response) return authResult
+  const { userId, displayName: userName, isAdmin: isMinister } = authResult
 
   if (action === 'upload') return uploadScreenshot(userId, req)
   if (action === 'stats')  return getStats()
@@ -354,23 +320,19 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (req.method === 'DELETE') {
     const id = url.searchParams.get('id')
-    const isMinister = await getIsMinister(userId)
     return deleteReport(isMinister, id)
   }
 
   if (req.method === 'GET') {
-    const isMinister = await getIsMinister(userId)
     return getList(userId, isMinister, url.searchParams)
   }
 
   if (req.method === 'POST') {
     const body = await req.json().catch(() => ({}))
-    const userName = await resolveUserName(userId)
     return submitReport(userId, userName, body)
   }
 
   if (req.method === 'PATCH') {
-    const isMinister = await getIsMinister(userId)
     const body = await req.json().catch(() => ({}))
     return triageReport(userId, isMinister, body)
   }

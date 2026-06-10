@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -12,25 +13,12 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-async function resolveUser(token: string): Promise<{ userId: string } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    return { userId }
-  } catch { return null }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  const user = await resolveUser(token)
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   let body: any = {}
   try { body = await req.json() } catch {}
@@ -51,7 +39,7 @@ export default async function handler(req: Request) {
     .select('id')
     .eq('item_type', item_type)
     .eq('item_id', item_id)
-    .eq('user_id', user.userId)
+    .eq('user_id', auth.userId)
     .maybeSingle()
 
   if (existing) {
@@ -63,7 +51,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ upvoted: false, count: newCount }), { headers: HEADERS })
   } else {
     // Add upvote
-    await supabase.from('test_upvotes').insert({ item_type, item_id, user_id: user.userId })
+    await supabase.from('test_upvotes').insert({ item_type, item_id, user_id: auth.userId })
     const { data: row } = await supabase.from(table).select('upvotes').eq('id', item_id).single()
     const newCount = (row?.upvotes || 0) + 1
     await supabase.from(table).update({ upvotes: newCount }).eq('id', item_id)

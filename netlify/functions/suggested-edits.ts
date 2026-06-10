@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -12,36 +13,11 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-async function resolveUser(token: string): Promise<{ userId: string; name: string; tier: string; role: string } | null> {
-  try {
-    if (!token || token.split('.').length !== 3) return null
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Warrior'
-    const tier = data?.public_metadata?.tier || 'free'
-    const role = data?.public_metadata?.role || ''
-    return { userId, name, tier, role }
-  } catch { return null }
-}
-
-function isAdmin(user: { tier: string; role: string }): boolean {
-  return user.role === 'admin' || user.role === 'minister'
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const user = await resolveUser(token)
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   const client = sb()
 
@@ -59,9 +35,9 @@ export default async function handler(req: Request) {
     if (!description?.trim())  return new Response(JSON.stringify({ error: 'description required' }), { status: 400, headers: HEADERS })
 
     const { data, error } = await client.from('suggested_edits').insert({
-      user_id:       user.userId,
-      user_name:     user.name,
-      user_tier:     user.tier,
+      user_id:       auth.userId,
+      user_name:     auth.displayName,
+      user_tier:     auth.tier,
       content_type:  content_type.trim(),
       content_id:    content_id.trim(),
       content_title: content_title?.trim() || null,
@@ -77,7 +53,7 @@ export default async function handler(req: Request) {
 
   // ── GET — list all suggested edits (admin only) ──────────────────────────────
   if (req.method === 'GET') {
-    if (!isAdmin(user)) return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: HEADERS })
+    if (!auth.isAdmin) return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: HEADERS })
 
     const url    = new URL(req.url)
     const status = url.searchParams.get('status')
@@ -92,7 +68,7 @@ export default async function handler(req: Request) {
 
   // ── PATCH — update status / admin_notes (admin only) ─────────────────────────
   if (req.method === 'PATCH') {
-    if (!isAdmin(user)) return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: HEADERS })
+    if (!auth.isAdmin) return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: HEADERS })
 
     let body: any
     try { body = await req.json() } catch {
@@ -103,8 +79,8 @@ export default async function handler(req: Request) {
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers: HEADERS })
 
     const patch: Record<string, any> = {}
-    if (status)      patch.status      = status
-    if (admin_notes !== undefined) patch.admin_notes = admin_notes
+    if (status)                       patch.status      = status
+    if (admin_notes !== undefined)    patch.admin_notes = admin_notes
     if (status && status !== 'pending') patch.reviewed_at = new Date().toISOString()
 
     const { data, error } = await client.from('suggested_edits').update(patch).eq('id', id).select().single()
