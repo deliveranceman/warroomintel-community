@@ -3,6 +3,7 @@ import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
+import { callCheckoutApi } from '@/lib/upgrade'
 
 export const Route = createFileRoute('/community_/dream-interpreter')({
   ssr: false,
@@ -294,7 +295,10 @@ function DreamInterpreterPage() {
         <p style={{ fontFamily: crimson, fontSize: 16, color: DIM, lineHeight: 1.6, margin: '0 0 24px' }}>
           Prophetic and spiritual dream analysis is available to Soldier tier and above.
         </p>
-        <a href="/community" style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '9px 20px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textDecoration: 'none', borderRadius: 2 }}>
+        <button onClick={() => { callCheckoutApi('soldier', getToken) }} style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '9px 20px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', border: 'none', cursor: 'pointer', borderRadius: 2, marginRight: 12 }}>
+          UPGRADE MEMBERSHIP
+        </button>
+        <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', textDecoration: 'none', borderRadius: 2 }}>
           ← Return to Community
         </a>
       </div>

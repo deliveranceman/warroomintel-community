@@ -683,6 +683,7 @@ interface MembersViewProps {
 }
 
 function MembersView({ members, currentUserId, currentUserTier, currentUserRole, onViewProfile, onStartDM, onRequestSentinel, setActiveSection: _setActiveSection, isDark, isMobile }: MembersViewProps) {
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [search, setSearch]       = useState('')
   const [filterTier, setFilterTier] = useState('All')
 
@@ -779,7 +780,7 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
         {!isOwn && (
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, alignItems: 'center', width: '100%' }}>
             <button
-              onClick={e => { e.stopPropagation(); canDM ? onStartDM(member.id, displayName) : onViewProfile(member) }}
+              onClick={e => { e.stopPropagation(); canDM ? onStartDM(member.id, displayName) : beginUpgrade('soldier') }}
               style={{ marginTop:2, padding: large ? '6px 18px' : '4px 12px', background: canDM ? 'rgba(201,168,76,0.1)' : 'transparent', border:`1px solid ${canDM ? 'rgba(201,168,76,0.4)' : bdr}`, borderRadius:6, color: canDM ? '#C9A84C' : muted, fontFamily:mc, fontSize:9, letterSpacing:'0.08em', cursor:'pointer', textTransform:'uppercase' as const }}
             >{canDM ? '💬 Message' : '🔒 Soldier+'}</button>
             {canDM && onRequestSentinel && (

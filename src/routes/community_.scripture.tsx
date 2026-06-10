@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { SolIcon } from '@/components/SolIcon'
+import { callCheckoutApi } from '@/lib/upgrade'
 
 const MobileSubpageNav = () => (
   <>
@@ -400,9 +401,9 @@ function ScripturePage() {
         <p style={{ fontFamily: crimson, fontSize: 14, color: MUT, lineHeight: 1.6, margin: '0 0 28px' }}>
           Upgrade your membership to unlock the full annotated Bible with AI theological analysis.
         </p>
-        <a href="https://warroomintel.com/pricing" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '10px 28px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textDecoration: 'none', borderRadius: 2, marginRight: 12 }}>
+        <button onClick={() => { callCheckoutApi('soldier', getToken) }} style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '10px 28px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', border: 'none', cursor: 'pointer', borderRadius: 2, marginRight: 12 }}>
           UPGRADE MEMBERSHIP
-        </a>
+        </button>
         <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, padding: '9px 20px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', textDecoration: 'none', borderRadius: 2 }}>
           Return to Community
         </a>
