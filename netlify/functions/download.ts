@@ -1,55 +1,32 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth, tierLevel } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
 const SUPABASE_URL = supabaseUrl!
 const SUPABASE_KEY = supabaseServiceKey!
 const EXPIRY_SECS  = 14400 // 4 hours
 
-const TIER_ORDER: Record<string, number> = {
-  free: 0, Free: 0,
-  soldier: 1, Soldier: 1,
-  commander: 2, Commander: 2,
-  general: 3, General: 3,
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Content-Type': 'application/json',
 }
 
 function bucketForPath(filePath: string): string {
   return filePath.startsWith('user_') ? 'ministry-library' : (supabaseBucket || 'resources')
 }
 
-async function verifyAndGetTier(token: string): Promise<{ userId: string; tier: string } | null> {
-  const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${CLERK_SECRET}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ token }),
-  })
-  if (!verifyRes.ok) return null
-  const session = await verifyRes.json()
-  const userId = session.user_id
-  if (!userId) return null
-
-  const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-  })
-  if (!userRes.ok) return null
-  const userData = await userRes.json()
-  const tier = (userData.public_metadata?.tier as string) || 'Free'
-  return { userId, tier }
-}
-
 export default async function handler(req: Request) {
-  if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers })
+  if (req.method !== 'GET') return new Response('Method not allowed', { status: 405, headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-
-  const auth = await verifyAndGetTier(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401 })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   const url = new URL(req.url)
   const id  = url.searchParams.get('id')
-  if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 })
+  if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -59,29 +36,23 @@ export default async function handler(req: Request) {
     .eq('id', id)
     .single()
 
-  if (error || !resource) return new Response(JSON.stringify({ error: 'Resource not found' }), { status: 404 })
+  if (error || !resource) return new Response(JSON.stringify({ error: 'Resource not found' }), { status: 404, headers })
 
-  // Check tier access
-  const userLevel     = TIER_ORDER[auth.tier] ?? 0
-  const resourceLevel = TIER_ORDER[resource.tier] ?? 0
-  if (userLevel < resourceLevel) {
-    return new Response(JSON.stringify({ error: `${resource.tier} tier required` }), { status: 403 })
+  const resourceLevel = tierLevel(resource.tier)
+  if (auth.level < resourceLevel) {
+    return new Response(JSON.stringify({ error: `${resource.tier} tier required` }), { status: 403, headers })
   }
 
-  // Generate signed URL — detect bucket from path format
   const bucket = bucketForPath(resource.file_path)
   const { data: signed, error: signErr } = await supabase.storage
     .from(bucket)
     .createSignedUrl(resource.file_path, EXPIRY_SECS)
 
   if (signErr || !signed?.signedUrl) {
-    return new Response(JSON.stringify({ error: 'Could not generate download link' }), { status: 500 })
+    return new Response(JSON.stringify({ error: 'Could not generate download link' }), { status: 500, headers })
   }
 
-  return new Response(JSON.stringify({ url: signed.signedUrl }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return new Response(JSON.stringify({ url: signed.signedUrl }), { status: 200, headers })
 }
 
 export const config = { path: '/api/download' }

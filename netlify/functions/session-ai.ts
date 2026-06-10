@@ -1,3 +1,4 @@
+import { requireTier } from './_shared/access'
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
@@ -79,52 +80,17 @@ function getRegionSuggestions(region: string, allDemonData: any[], activeSpirits
     .map(([name]) => name)
 }
 
-function getTierLevel(tier: string): number {
-  const levels: Record<string, number> = {
-    watchman: 0, free: 0, soldier: 1, charter_soldier: 1,
-    commander: 2, charter_commander: 2, general: 3, founding_general: 3,
-    minister: 4, admin: 4,
-  }
-  return levels[tier] ?? 0
-}
-
-async function resolveSession(token: string): Promise<{ ok: boolean; tier: string; userId: string }> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return { ok: false, tier: 'watchman', userId: '' }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return { ok: false, tier: 'watchman', userId: '' }
-    // Read tier from JWT — never gate on Clerk availability
-    let tier = ((payload?.publicMetadata?.tier || payload?.public_metadata?.tier) as string) || 'watchman'
-    try {
-      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        tier = (data?.public_metadata?.tier as string) || tier
-      }
-    } catch {}
-    return { ok: true, tier, userId }
-  } catch { return { ok: false, tier: 'watchman', userId: '' } }
-}
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: CORS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-  const { ok, tier, userId } = await resolveSession(token)
-  if (!ok) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: CORS })
-  if (getTierLevel(tier) < 2) {
-    return new Response(JSON.stringify({ error: 'Commander tier or higher required' }), { status: 403, headers: CORS })
-  }
+  const auth = await requireTier(req, 2)
+  if (auth instanceof Response) return auth
 
-  const usage = await checkAndIncrementUsage(userId, tier, 'session_ai')
+  const usage = await checkAndIncrementUsage(auth.userId, auth.tier, 'session_ai')
   if (!usage.allowed) {
-    return new Response(JSON.stringify({ error: getUpgradeMessage(tier, 'session_ai'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: CORS })
+    return new Response(JSON.stringify({ error: getUpgradeMessage(auth.tier, 'session_ai'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: CORS })
   }
 
   let body: any

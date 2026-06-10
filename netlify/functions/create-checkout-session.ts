@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -42,33 +43,6 @@ const headers = {
 
 function getSupabase() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
-}
-
-// Phase 3 item: replace raw base64 JWT decode with verifyToken from @clerk/backend.
-async function resolveUser(token: string): Promise<{
-  userId: string
-  email: string | null
-  currentTier: string
-  stripeCustomerId: string | null
-} | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const email = data.email_addresses?.find(
-      (e: any) => e.id === data.primary_email_address_id
-    )?.email_address ?? null
-    const currentTier = ((data.public_metadata?.tier as string) || 'free').toLowerCase()
-    const stripeCustomerId = (data.public_metadata?.stripe_customer_id as string) || null
-    return { userId, email, currentTier, stripeCustomerId }
-  } catch { return null }
 }
 
 // Writes stripe_customer_id to Clerk public_metadata — read-merge-write, never replaces other keys.
@@ -124,11 +98,20 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
-  const user = await resolveUser(token)
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  // Fetch email + stripeCustomerId — not exposed on AuthResult; re-fetch using verified userId
+  const clerkUserRes = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, {
+    headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+  })
+  if (!clerkUserRes.ok) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  const clerkUser = await clerkUserRes.json()
+  const email = clerkUser.email_addresses?.find(
+    (e: any) => e.id === clerkUser.primary_email_address_id
+  )?.email_address ?? null
+  const stripeCustomerId = (clerkUser.public_metadata?.stripe_customer_id as string) || null
+  const user = { userId: auth.userId, email, currentTier: auth.tier, stripeCustomerId }
 
   const body = await req.json().catch(() => ({})) as { tier?: string }
   const tierKey = (body.tier || '').toLowerCase().replace(/\s+/g, '_')

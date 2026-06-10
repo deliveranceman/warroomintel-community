@@ -1,6 +1,17 @@
+import { requireTier } from './_shared/access'
+
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Content-Type': 'application/json',
+}
+
 export default async function handler(req: Request) {
-  const headers = { 'Content-Type': 'application/json' }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers })
+
+  const auth = await requireTier(req, 1)
+  if (auth instanceof Response) return auth
 
   const body = await req.json()
   const { fileName, fileType, fileData } = body
@@ -24,7 +35,7 @@ export default async function handler(req: Request) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           max_tokens: 4000,
           messages: [{
             role: 'user',
