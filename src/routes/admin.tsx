@@ -8253,16 +8253,19 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setReindexErrors([])
     try {
       const token = await getToken()
-      const res = await fetch('/api/library-backfill', {
+      const res = await fetch('/api/library-embed-backfill', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       })
-      const text = await res.text()
-      let data: any = {}
-      try { data = text ? JSON.parse(text) : {} } catch { data = { error: text } }
-      if (!res.ok) { setReindexResult(`Error: ${data.error || data.errorMessage || `Request failed ${res.status}`}`); return }
-      setReindexResult(data.message || `Reindex complete: ${data.processed} books indexed, ${data.skippedFormat ?? data.skippedNonPdf ?? 0} skipped (unsupported format), ${data.skipped ?? 0} already indexed${data.errors ? `, ${data.errors} errors` : ''}.`)
-      if (data.errorDetails && data.errorDetails.length > 0) setReindexErrors(data.errorDetails)
+      if (res.status === 202) {
+        setReindexResult('Embedding backfill started in background — processing up to ~185 books. Check Netlify function logs for progress (takes 5–15 min).')
+      } else {
+        const text = await res.text()
+        let data: any = {}
+        try { data = text ? JSON.parse(text) : {} } catch { data = { error: text } }
+        if (!res.ok) { setReindexResult(`Error: ${data.error || `Request failed ${res.status}`}`) }
+        else setReindexResult(data.summary || `Embedding complete: ${data.embedded ?? 0} embedded, ${data.skipped ?? 0} skipped${data.failed ? `, ${data.failed} errors` : ''}.`)
+      }
     } catch (e: any) { setReindexResult(`Error: ${e.message}`) }
     setReindexing(false)
   }

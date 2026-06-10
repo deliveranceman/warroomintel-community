@@ -84,6 +84,9 @@
   timeout = 60
   external_node_modules = ["mammoth", "pdf-parse"]
 
+[functions."library-embed-backfill-background"]
+  # Netlify background function — runs up to 15 min after returning 202 to caller
+
 [functions."library-reanalyze"]
   timeout = 45
   external_node_modules = ["mammoth"]

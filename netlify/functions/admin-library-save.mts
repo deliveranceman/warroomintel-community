@@ -8,6 +8,58 @@ const require = createRequire(import.meta.url)
 const BUCKET = 'ministry-library'
 const MAX_CHARS = 120_000
 
+// Exact replica of chunkAndEmbed from library-backfill.ts — same constants, model, insert shape
+const CHUNK_SIZE    = 500
+const CHUNK_OVERLAP = 50
+
+async function chunkAndEmbed(
+  client: ReturnType<typeof makeSupabase>,
+  bookId: string,
+  bookTitle: string,
+  fullText: string,
+): Promise<number> {
+  const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
+  if (!OPENAI_KEY) return 0
+
+  const words  = fullText.split(/\s+/)
+  const chunks: string[] = []
+  for (let i = 0; i < words.length; i += CHUNK_SIZE - CHUNK_OVERLAP) {
+    const chunk = words.slice(i, i + CHUNK_SIZE).join(' ')
+    if (chunk.trim().length > 100) chunks.push(chunk)
+  }
+  if (!chunks.length) return 0
+
+  console.log(`[LIBRARY-UPLOAD] chunkAndEmbed: ${bookTitle} — ${chunks.length} chunks`)
+  await client.from('library_chunks').delete().eq('book_id', bookId)
+
+  for (let i = 0; i < chunks.length; i += 10) {
+    const batch = chunks.slice(i, i + 10)
+    try {
+      const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+        body:    JSON.stringify({ model: 'text-embedding-3-small', input: batch }),
+        signal:  AbortSignal.timeout(20000),
+      })
+      if (!embRes.ok) { console.error('[LIBRARY-UPLOAD] OpenAI error:', embRes.status); break }
+      const embData = await embRes.json()
+      const rows = batch.map((chunk, j) => ({
+        book_id:     bookId,
+        book_title:  bookTitle,
+        chunk_index: i + j,
+        chunk_text:  chunk,
+        embedding:   embData.data[j]?.embedding ?? null,
+      }))
+      const { error } = await client.from('library_chunks').insert(rows)
+      if (error) console.error('[LIBRARY-UPLOAD] Embed insert error:', error.message)
+    } catch (e: any) {
+      console.error('[LIBRARY-UPLOAD] Embed batch error:', e.message)
+    }
+  }
+
+  return chunks.length
+}
+
 function makeSupabase() {
   return createClient(
     supabaseUrl!,
@@ -143,6 +195,11 @@ export default async function handler(req: Request) {
           console.error('[LIBRARY-UPLOAD] FAILED at step: Update extracted_text', updateErr.message)
         } else {
           console.log('[LIBRARY-UPLOAD] extracted_text stored', { chars: extractedText.length, resourceId: row.id })
+          // Fire-and-forget: embed the new book so it's immediately searchable via content-query.
+          // Not awaited — response returns to the admin without waiting for embedding to complete.
+          void chunkAndEmbed(sb, row.id, title.trim(), extractedText).catch(e =>
+            console.error('[LIBRARY-UPLOAD] Embed failed:', e.message)
+          )
           // AI spirit tag extraction — best effort, non-fatal
           try {
             console.log('[LIBRARY-UPLOAD] Calling Claude for tags...')
