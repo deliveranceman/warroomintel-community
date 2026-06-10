@@ -171,98 +171,6 @@ async function deleteReport(isMinister: boolean, id: string | null): Promise<Res
   return json({ success: true })
 }
 
-async function systemIntake(req: Request): Promise<Response> {
-  const key = req.headers.get('x-internal-key')
-  if (key !== 'wri-internal-2026-backfill') return json({ error: 'Forbidden' }, 403)
-
-  const body = await req.json().catch(() => ({}))
-  const { title, description, priority, category } = body as any
-  if (!title) return json({ error: 'title required' }, 400)
-
-  const res = await fetch(`${sb('/beta_reports')}?select=id`, {
-    method: 'POST',
-    headers: { ...sbHeaders, Prefer: 'return=representation' },
-    body: JSON.stringify({
-      title,
-      description: description || '',
-      type:        category    || 'bug',
-      priority:    priority    || 'medium',
-      status:      'new',
-      user_name:   'System',
-      source:      'system',
-    }),
-  })
-  if (!res.ok) return json({ error: 'Insert failed', detail: await res.text() }, 500)
-  return json({ success: true })
-}
-
-const SYSTEM_BUGS = [
-  {
-    title: 'Audio Prayer Call not connecting on iPad',
-    priority: 'critical',
-    description: 'iPad recipient accepts call, hangs at Connecting... Screen. Desktop caller shows Connected. Stream Backstage was disabled but issue persists. Mic-before-join fix deployed but unconfirmed.',
-  },
-  {
-    title: 'Presence showing only current user online',
-    priority: 'high',
-    description: 'Warriors panel only shows current user as online. Soldier01 does not appear even after stream-backfill. memberPresence map may not be updating from war-room-general channel correctly.',
-  },
-  {
-    title: 'Nav jump on sidebar click',
-    priority: 'medium',
-    description: 'Clicking certain sidebar items causes the main content area to scroll to top instead of navigating correctly. behavior: instant was set but issue persists per HAR.',
-  },
-  {
-    title: 'DM request takes full screen on mobile',
-    priority: 'medium',
-    description: 'Pending requests section takes full screen on iPhone. Should be a compact section above the DM list.',
-  },
-  {
-    title: 'Field Teams not appearing in sidebar',
-    priority: 'medium',
-    description: 'Field Teams page was built and pushed but not visible in community sidebar under Field Ops.',
-  },
-  {
-    title: 'Tier badges not visible in Warriors panel',
-    priority: 'low',
-    description: 'Tier badges shipped in warriors panel commit but not confirmed visible in screenshots.',
-  },
-  {
-    title: 'Admin 403 on stats, members, moderation',
-    priority: 'high',
-    description: 'admin-quick-stats, admin-members, admin-moderation all returning 403 Forbidden for minister/general role. Functions check for admin role only, need to accept minister too.',
-  },
-]
-
-async function systemSeed(req: Request): Promise<Response> {
-  const key = req.headers.get('x-internal-key')
-  if (key !== 'wri-internal-2026-backfill') return json({ error: 'Forbidden' }, 403)
-
-  // One-time flag: check if system bugs already exist
-  const checkRes = await fetch(`${sb('/beta_reports')}?user_name=eq.System&select=id&limit=1`, { headers: sbHeaders })
-  if (checkRes.ok) {
-    const existing = await checkRes.json()
-    if (existing.length > 0) return json({ skipped: true, reason: 'already seeded' })
-  }
-
-  const rows = SYSTEM_BUGS.map(bug => ({
-    title:       bug.title,
-    description: bug.description,
-    type:        'bug',
-    priority:    bug.priority,
-    status:      'new',
-    user_name:   'System',
-    source:      'system',
-  }))
-
-  const res = await fetch(`${sb('/beta_reports')}?select=id`, {
-    method: 'POST',
-    headers: { ...sbHeaders, Prefer: 'return=representation' },
-    body: JSON.stringify(rows),
-  })
-  if (!res.ok) return json({ error: 'Seed failed', detail: await res.text() }, 500)
-  return json({ success: true, seeded: rows.length })
-}
 
 async function uploadScreenshot(userId: string, req: Request): Promise<Response> {
   const formData = await req.formData()
@@ -301,10 +209,6 @@ export default async function handler(req: Request): Promise<Response> {
 
   const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''
-
-  // System-level actions — use internal key, no user auth needed
-  if (action === 'system-intake') return systemIntake(req)
-  if (action === 'system-seed')   return systemSeed(req)
 
   const authResult = await requireAuth(req)
   if (authResult instanceof Response) return authResult

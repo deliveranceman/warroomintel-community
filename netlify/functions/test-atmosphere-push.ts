@@ -1,56 +1,18 @@
+import { requireAdmin2 } from './_shared/access'
+
 const HEADERS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-internal-key',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-function decodeUserId(authHeader: string | null): string | null {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub ?? null
-  } catch { return null }
-}
-
-async function isAuthorized(req: Request): Promise<boolean> {
-  // 1. x-internal-key header (used by scripts/curl)
-  const internalKey = req.headers.get('x-internal-key')
-  if (internalKey) {
-    const validKey = process.env.INTERNAL_API_KEY || 'wri-internal-2026-backfill'
-    if (internalKey === validKey) return true
-  }
-
-  // 2. Service role key in Bearer
-  const { serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
-  const authHeader = req.headers.get('Authorization') || ''
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  if (serviceRoleKey && token === serviceRoleKey) return true
-
-  // 3. Clerk minister JWT
-  const userId = decodeUserId(authHeader)
-  if (!userId) return false
-  try {
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (res.ok) {
-      const data = await res.json()
-      return data?.public_metadata?.role === 'minister'
-    }
-  } catch {}
-  return false
 }
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST only' }), { status: 405, headers: HEADERS })
 
-  const authorized = await isAuthorized(req)
-  if (!authorized) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
 
   const { serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 

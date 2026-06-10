@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendWebPushToUser } from './_shared/sendWebPush.js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const _vapidJson = JSON.parse(process.env.VAPID || '{}')
@@ -16,21 +17,6 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-async function isMinisterToken(token: string): Promise<boolean> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return false
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    return data?.public_metadata?.role === 'minister'
-  } catch { return false }
-}
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: HEADERS })
@@ -38,26 +24,16 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: HEADERS })
   }
 
-  // Auth: accept x-internal-key, Supabase service key, or Clerk minister JWT
-  const receivedKey = req.headers.get('x-internal-key')
-    || req.headers.get('x-api-key')
-    || ''
+  // Auth: x-internal-key (machine callers), Supabase service key (test-atmosphere-push), or verified Clerk JWT
+  const receivedKey  = req.headers.get('x-internal-key') || req.headers.get('x-api-key') || ''
+  const validKey     = process.env.INTERNAL_API_KEY || ''
+  const authHeader   = req.headers.get('Authorization') || ''
+  const token        = authHeader.replace('Bearer ', '').trim()
+  const isServiceKey = !!(supabaseServiceKey && token === supabaseServiceKey)
 
-  const validKey = process.env.INTERNAL_API_KEY || 'wri-internal-2026-backfill'
-
-  console.log('[send-push] received key:', receivedKey.slice(0, 10) + '...')
-  console.log('[send-push] valid key:', validKey.slice(0, 10) + '...')
-  console.log('[send-push] match:', receivedKey === validKey)
-
-  const authHeader = req.headers.get('Authorization') || ''
-  const token = authHeader.replace('Bearer ', '').trim()
-  const isServiceKey = token === supabaseServiceKey
-
-  if (receivedKey !== validKey && !isServiceKey) {
-    const minister = await isMinisterToken(token)
-    if (!minister) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-    }
+  if (!(validKey && receivedKey === validKey) && !isServiceKey) {
+    const auth = await requireAuth(req)
+    if (auth instanceof Response) return auth
   }
 
   // Parse request body

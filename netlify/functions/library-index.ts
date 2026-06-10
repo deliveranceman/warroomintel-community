@@ -1,14 +1,15 @@
 /**
  * library-index — extract and store plain text from a ministry-library file.
  *
- * Called by admin-library-save after inserting a record.  Auth is a shared
- * internal secret (INTERNAL_API_KEY env var) so this never needs a Clerk JWT.
+ * Called by admin-library-save after inserting a record.  Requires verified
+ * Clerk admin auth (requireAdmin2).
  *
  * POST /api/library-index
  * Body: { resourceId: string, filePath: string, fileType: 'pdf' | 'txt' | 'docx' }
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -16,7 +17,7 @@ const BUCKET  = 'ministry-library'
 const MAX_CHARS = 120_000          // ~30k tokens — enough context without blowing the prompt
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, x-internal-key',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json',
 }
 
@@ -66,13 +67,8 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: CORS })
   }
 
-  // Auth: shared internal key — only set server-side, never exposed to the client
-  const internalKey = process.env.INTERNAL_API_KEY || ''
-  const callerKey   = req.headers.get('x-internal-key') || ''
-  if (!internalKey || callerKey !== internalKey) {
-    console.error('[library-index] bad internal key')
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: CORS })
-  }
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
 
   let body: any
   try { body = await req.json() } catch {
