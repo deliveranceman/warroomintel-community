@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAuth } from './_shared/access'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 export default async function handler(req: Request) {
   const headers = { 'Content-Type': 'application/json' }
 
-  const auth = await requireAuth(req)
+  const auth = await requireTier(req, 1)
   if (auth instanceof Response) return auth
 
   if (req.method === 'GET') {
@@ -20,9 +20,6 @@ export default async function handler(req: Request) {
   }
 
   if (req.method === 'POST') {
-    if (auth.level < 2) {
-      return new Response(JSON.stringify({ error: 'Commander tier required to submit field reports' }), { status: 403, headers })
-    }
     const { spirit_names, manifestations, entry_points, outcome, notes, location_city, location_state } = await req.json()
     if (!spirit_names || !manifestations) {
       return new Response(JSON.stringify({ error: 'spirit_names and manifestations required' }), { status: 400, headers })
