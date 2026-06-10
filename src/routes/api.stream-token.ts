@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireAuth } from '../../netlify/functions/_shared/access'
 
 async function makeStreamJWT(payload: object, secret: string): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' }
@@ -33,29 +34,15 @@ export const Route = createFileRoute('/api/stream-token')({
           return Response.json({ error: 'Missing env vars' }, { status: 500 })
         }
 
-        const auth = request.headers.get('Authorization') ?? ''
-        if (!auth.startsWith('Bearer ')) {
-          return Response.json({ error: 'No token' }, { status: 401 })
-        }
-        const sessionToken = auth.slice(7)
+        // Verify the caller cryptographically (verifyToken via _shared/access).
+        // The Stream token is minted ONLY for the verified user id (claims.sub),
+        // never from an unverified token payload. Reading general chat stays
+        // open to all authenticated users (level 0).
+        const auth = await requireAuth(request)
+        if (auth instanceof Response) return auth
 
-        try {
-          // Decode Clerk JWT locally — extract sub claim without a network round-trip
-          const parts = sessionToken.split('.')
-          if (parts.length !== 3) throw new Error('Bad token format')
-
-          const payload = JSON.parse(
-            atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
-          )
-          const userId = payload.sub
-          if (!userId) throw new Error('No sub claim in token')
-
-          const token = await makeStreamJWT({ user_id: userId }, STREAM_API_SECRET)
-          return Response.json({ token, userId, apiKey: STREAM_API_KEY })
-
-        } catch (err: any) {
-          return Response.json({ error: 'Invalid token: ' + err.message }, { status: 401 })
-        }
+        const token = await makeStreamJWT({ user_id: auth.userId }, STREAM_API_SECRET)
+        return Response.json({ token, userId: auth.userId, apiKey: STREAM_API_KEY })
       },
     },
   },
