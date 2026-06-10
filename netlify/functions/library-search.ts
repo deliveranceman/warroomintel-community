@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -15,6 +16,16 @@ function sb() {
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS })
+
+  // Embedding cost is the surface here. Allow EITHER a trusted internal
+  // server-to-server key (ai-assistant fan-out) OR an authenticated user
+  // (SpiritNetwork, admin). No tier gate — keeps library context for free chat.
+  const internalKey = process.env.INTERNAL_API_KEY
+  const receivedKey = req.headers.get('x-internal-key') || ''
+  if (!(internalKey && receivedKey === internalKey)) {
+    const auth = await requireAuth(req)
+    if (auth instanceof Response) return auth
+  }
 
   const body = await req.json().catch(() => ({}))
   const { query, limit = 5, threshold = 0.65 } = body
