@@ -213,6 +213,7 @@ async function listConversations(userId: string): Promise<Response> {
       const streamName = otherM?.name || ''
       const streamNameIsId = !streamName || streamName.startsWith('user_')
       const otherName = realName || (streamNameIsId ? 'Member' : streamName)
+      const otherImage = (r.requester_id === userId ? r.recipient_image : r.requester_image) || ''
       const lastMsg = chMessages[0]
         ? { text: chMessages[0].text ?? '', type: chMessages[0].type ?? 'regular', created_at: chMessages[0].created_at, user: { id: chMessages[0].user?.id ?? '', name: chMessages[0].user?.name ?? '' } }
         : null
@@ -222,21 +223,22 @@ async function listConversations(userId: string): Promise<Response> {
         channelType: 'messaging',
         members: chMembers.map((m: any) => ({ id: m.user?.id ?? '', name: m.user?.name ?? '', image: m.user?.image ?? '', online: m.user?.online ?? false })),
         otherMember: otherM
-          ? { id: otherM.id, name: otherName, image: otherM.image ?? '', online: otherM.online ?? false }
-          : { id: r.requester_id === userId ? r.recipient_id : r.requester_id, name: otherName, image: '', online: false },
+          ? { id: otherM.id, name: otherName, image: otherImage || otherM.image || '', online: otherM.online ?? false }
+          : { id: r.requester_id === userId ? r.recipient_id : r.requester_id, name: otherName, image: otherImage, online: false },
         lastMessage: lastMsg,
         unreadCount: unread,
       })
     } else {
       // Stream can't return it — build stub from Supabase so conversation still appears
       const isRequester = r.requester_id === userId
+      const otherImage = (isRequester ? r.recipient_image : r.requester_image) || ''
       conversations.push({
         channelId: r.channel_id,
         channelType: 'messaging',
         members: [],
         otherMember: isRequester
-          ? { id: r.recipient_id, name: r.recipient_name ?? 'Member', image: '', online: false }
-          : { id: r.requester_id, name: r.requester_name ?? 'Member', image: '', online: false },
+          ? { id: r.recipient_id, name: r.recipient_name ?? 'Member', image: otherImage, online: false }
+          : { id: r.requester_id, name: r.requester_name ?? 'Member', image: otherImage, online: false },
         lastMessage: null,
         unreadCount: 0,
       })
@@ -321,6 +323,7 @@ async function createDM(userId: string, body: any): Promise<Response> {
 
   // Check recipient Clerk tier + extract their name
   let recipientName = otherUserName || 'Member'
+  let recipientImage = ''
   if (clerkSecretKey) {
     const clerkRes = await fetch(`https://api.clerk.com/v1/users/${otherUserId}`, {
       headers: { Authorization: `Bearer ${clerkSecretKey}` },
@@ -328,6 +331,7 @@ async function createDM(userId: string, body: any): Promise<Response> {
     if (clerkRes.ok) {
       const clerkUser = await clerkRes.json()
       recipientName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(' ') || clerkUser.username || recipientName
+      recipientImage = clerkUser.image_url || ''
     }
   }
 
@@ -358,6 +362,7 @@ async function createDM(userId: string, body: any): Promise<Response> {
   // Get requester info from Clerk
   let myTier = 'soldier'
   let myName = userId
+  let myImage = ''
   if (clerkSecretKey) {
     const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${clerkSecretKey}` },
@@ -366,6 +371,7 @@ async function createDM(userId: string, body: any): Promise<Response> {
       const myUser = await myRes.json()
       myTier = (myUser.public_metadata?.tier as string) || 'soldier'
       myName = [myUser.first_name, myUser.last_name].filter(Boolean).join(' ') || myUser.username || userId
+      myImage = myUser.image_url || ''
     }
   }
 
@@ -377,8 +383,10 @@ async function createDM(userId: string, body: any): Promise<Response> {
       requester_id: userId,
       requester_name: myName,
       requester_tier: myTier,
+      requester_image: myImage,
       recipient_id: otherUserId,
       recipient_name: recipientName,
+      recipient_image: recipientImage,
       status: 'pending',
     }),
   }).catch(() => {})
