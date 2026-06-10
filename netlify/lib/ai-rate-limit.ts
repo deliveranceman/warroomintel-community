@@ -12,172 +12,120 @@ export type AIFeature =
   | 'document'
   | 'session_ai'
   | 'assessment'
+  | 'warroom_chat'
+  | 'deliverance'
+  | 'spirit_mapping'
 
-// Daily call limits per tier per feature. -1 = unlimited.
-export const DAILY_LIMITS: Record<string, Record<AIFeature, number>> = {
-  watchman: {
-    ask_dake:             5,
-    ai_assistant:         5,
-    bible_ask:            5,
-    symptom_investigator: 0,
-    gateway:              0,
-    dream:                0,
-    document:             0,
-    session_ai:           0,
-    assessment:           1,
-  },
-  free: {
-    ask_dake:             5,
-    ai_assistant:         5,
-    bible_ask:            5,
-    symptom_investigator: 0,
-    gateway:              0,
-    dream:                0,
-    document:             0,
-    session_ai:           0,
-    assessment:           1,
-  },
-  soldier: {
-    ask_dake:             20,
-    ai_assistant:         20,
-    bible_ask:            20,
-    symptom_investigator: 0,
-    gateway:              10,
-    dream:                10,
-    document:             10,
-    session_ai:           0,
-    assessment:           5,
-  },
-  charter_soldier: {
-    ask_dake:             20,
-    ai_assistant:         20,
-    bible_ask:            20,
-    symptom_investigator: 0,
-    gateway:              10,
-    dream:                10,
-    document:             10,
-    session_ai:           0,
-    assessment:           5,
-  },
-  commander: {
-    ask_dake:             50,
-    ai_assistant:         50,
-    bible_ask:            50,
-    symptom_investigator: 30,
-    gateway:              30,
-    dream:                30,
-    document:             25,
-    session_ai:           15,
-    assessment:           15,
-  },
-  charter_commander: {
-    ask_dake:             50,
-    ai_assistant:         50,
-    bible_ask:            50,
-    symptom_investigator: 30,
-    gateway:              30,
-    dream:                30,
-    document:             25,
-    session_ai:           15,
-    assessment:           15,
-  },
-  general: {
-    ask_dake:             -1,
-    ai_assistant:         -1,
-    bible_ask:            -1,
-    symptom_investigator: -1,
-    gateway:              -1,
-    dream:                -1,
-    document:             -1,
-    session_ai:           50,
-    assessment:           -1,
-  },
-  founding_general: {
-    ask_dake:             -1,
-    ai_assistant:         -1,
-    bible_ask:            -1,
-    symptom_investigator: -1,
-    gateway:              -1,
-    dream:                -1,
-    document:             -1,
-    session_ai:           50,
-    assessment:           -1,
-  },
-  minister: {
-    ask_dake:             -1,
-    ai_assistant:         -1,
-    bible_ask:            -1,
-    symptom_investigator: -1,
-    gateway:              -1,
-    dream:                -1,
-    document:             -1,
-    session_ai:           -1,
-    assessment:           -1,
-  },
-  admin: {
-    ask_dake:             -1,
-    ai_assistant:         -1,
-    bible_ask:            -1,
-    symptom_investigator: -1,
-    gateway:              -1,
-    dream:                -1,
-    document:             -1,
-    session_ai:           -1,
-    assessment:           -1,
-  },
+export const AI_FEATURES: AIFeature[] = [
+  'ask_dake', 'ai_assistant', 'bible_ask', 'symptom_investigator',
+  'gateway', 'dream', 'document', 'session_ai', 'assessment',
+  'warroom_chat', 'deliverance', 'spirit_mapping',
+]
+
+// Single TOTAL daily AI-call cap per tier, across ALL features combined. -1 = unlimited.
+// minister/commandant/admin are unlimited; any caller with verified level >= 4 also bypasses.
+export const TIER_DAILY_CAP: Record<string, number> = {
+  watchman:          3,
+  free:              3,
+  soldier:           20,
+  charter_soldier:   25,
+  commander:         50,
+  charter_commander: 60,
+  general:           150,
+  founding_general:  150,
+  minister:          -1,
+  commandant:        -1,
+  admin:             -1,
 }
 
-// BETA: unlimited — kept for future restoration
-export function getLimit(_tier: string, _feature: AIFeature): number {
-  return -1
+// Fail-closed default for an unrecognised tier string → most-restrictive free cap.
+const DEFAULT_CAP = TIER_DAILY_CAP.watchman
+
+export function tierDailyCap(tier: string): number {
+  const cap = TIER_DAILY_CAP[(tier || '').toLowerCase()]
+  return cap === undefined ? DEFAULT_CAP : cap
+}
+
+export function getLimit(tier: string, _feature: AIFeature): number {
+  return tierDailyCap(tier)
 }
 
 function sb() {
   return createClient(supabaseUrl, supabaseServiceKey)
 }
 
+function today(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/**
+ * Enforce a single per-tier TOTAL daily cap across all AI features.
+ * Verified callers pass `level` (auth.level); level >= 4 (minister/commandant/admin) bypasses.
+ * Returns a 429-shaped result on over-limit. Fails OPEN on infra error so a DB
+ * hiccup never blocks a paying member — this is cost governance, not security.
+ */
 export async function checkAndIncrementUsage(
-  _userId: string,
-  _tier: string,
-  _feature: AIFeature,
+  userId: string,
+  tier: string,
+  feature: AIFeature,
+  level?: number,
 ): Promise<{ allowed: boolean; remaining: number; limit: number; current: number }> {
-  // BETA: rate limits disabled — all calls pass through
-  return { allowed: true, remaining: 999, limit: 999, current: 0 }
+  const cap = tierDailyCap(tier)
+  const unlimited = cap === -1 || (typeof level === 'number' && level >= 4)
+  const client = sb()
+  const date = today()
+
+  if (unlimited) {
+    // Still record the call for burn-rate accounting; ignore failures.
+    await client.rpc('increment_ai_usage', { p_user_id: userId, p_feature: feature, p_usage_date: date }).then(undefined, () => {})
+    return { allowed: true, remaining: -1, limit: -1, current: 0 }
+  }
+
+  // Sum today's calls across every feature for this user.
+  const { data: rows, error } = await client
+    .from('ai_usage_daily')
+    .select('call_count')
+    .eq('user_id', userId)
+    .eq('usage_date', date)
+
+  if (error) {
+    console.error('[ai-rate-limit] usage read failed — failing open:', error.message)
+    return { allowed: true, remaining: cap, limit: cap, current: 0 }
+  }
+
+  const current = (rows || []).reduce((sum, r: any) => sum + (r.call_count || 0), 0)
+
+  if (current >= cap) {
+    return { allowed: false, remaining: 0, limit: cap, current }
+  }
+
+  const { error: incErr } = await client.rpc('increment_ai_usage', {
+    p_user_id: userId, p_feature: feature, p_usage_date: date,
+  })
+  if (incErr) console.error('[ai-rate-limit] increment failed:', incErr.message)
+
+  return { allowed: true, remaining: Math.max(0, cap - current - 1), limit: cap, current: current + 1 }
 }
 
 export async function getUsageToday(userId: string): Promise<Record<string, number>> {
   const client = sb()
-  const today = new Date().toISOString().slice(0, 10)
   const { data } = await client
     .from('ai_usage_daily')
     .select('feature, call_count')
     .eq('user_id', userId)
-    .eq('usage_date', today)
+    .eq('usage_date', today())
   const result: Record<string, number> = {}
   for (const row of data || []) result[row.feature] = row.call_count
   return result
 }
 
-const FEATURE_LABELS: Record<AIFeature, string> = {
-  ask_dake:             'Ask Dake',
-  ai_assistant:         'AI Assistant',
-  bible_ask:            'Bible Study AI',
-  symptom_investigator: 'Symptom Investigator',
-  gateway:              'Gateway Investigator',
-  dream:                'Dream Interpreter',
-  document:             'Document Creator',
-  session_ai:           'Session AI',
-  assessment:           'Assessment Strategy',
-}
-
-export function getUpgradeMessage(tier: string, feature: AIFeature): string {
+export function getUpgradeMessage(tier: string, _feature: AIFeature): string {
   const tiers: Record<string, string> = {
     watchman: 'Soldier', free: 'Soldier',
     soldier: 'Commander', charter_soldier: 'Commander',
     commander: 'General', charter_commander: 'General',
   }
-  const nextTier = tiers[tier]
-  const label = FEATURE_LABELS[feature] || feature
-  if (!nextTier) return `You have reached your daily limit for ${label}.`
-  return `Daily limit reached for ${label}. Upgrade to ${nextTier} for more.`
+  const nextTier = tiers[(tier || '').toLowerCase()]
+  if (!nextTier) return `You have reached your daily AI usage limit.`
+  return `Daily AI usage limit reached. Upgrade to ${nextTier} for a higher cap.`
 }

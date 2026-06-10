@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAuth } from '../../netlify/functions/_shared/access'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../../netlify/lib/ai-rate-limit'
 
 const SYSTEM_PROMPT = `You are a knowledgeable assistant for The War Room Community, a members-only platform for deliverance ministers run by Staffordtown Deliverance Ministry.
 
@@ -25,6 +26,14 @@ export const Route = createFileRoute('/api/warroom-chat')({
       POST: async ({ request }) => {
         const auth = await requireAuth(request)
         if (auth instanceof Response) return auth
+
+        const usage = await checkAndIncrementUsage(auth.userId, auth.tier, 'warroom_chat', auth.level)
+        if (!usage.allowed) {
+          return Response.json(
+            { error: getUpgradeMessage(auth.tier, 'warroom_chat'), rateLimited: true, limit: usage.limit, remaining: 0 },
+            { status: 429 },
+          )
+        }
 
         try {
           const { messages } = await request.json()

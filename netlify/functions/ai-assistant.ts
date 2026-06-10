@@ -131,7 +131,7 @@ export default async function handler(req: Request) {
 
   // Rate limit — always applied (no anonymous bypass).
   const feature = (featureParam === 'ai_assistant' ? 'ai_assistant' : 'ask_dake') as AIFeature
-  const usage = await checkAndIncrementUsage(userId, tier, feature)
+  const usage = await checkAndIncrementUsage(userId, tier, feature, auth.level)
   if (!usage.allowed) {
     return new Response(JSON.stringify({ error: getUpgradeMessage(tier, feature), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: CORS })
   }

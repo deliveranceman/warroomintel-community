@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireTier } from './_shared/access'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -20,6 +21,11 @@ export default async function handler(req: Request) {
   // General+ required; beta testers need beta_access:true AND "spirit_mapper" in beta_features.
   const auth = await requireTier(req, 3, { allowBeta: 'spirit_mapper' })
   if (auth instanceof Response) return auth
+
+  const usage = await checkAndIncrementUsage(auth.userId, auth.tier, 'spirit_mapping', auth.level)
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(auth.tier, 'spirit_mapping'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers })
+  }
 
   try {
     const { regionId, assessmentId } = await req.json()

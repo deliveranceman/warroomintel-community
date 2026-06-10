@@ -87,7 +87,7 @@ export default async function handler(req: Request) {
   }
 
   // Per-user daily limit.
-  const usage = await checkAndIncrementUsage(userId, tier, 'symptom_investigator')
+  const usage = await checkAndIncrementUsage(userId, tier, 'symptom_investigator', auth.level)
   if (!usage.allowed) {
     return new Response(JSON.stringify({ error: getUpgradeMessage(tier, 'symptom_investigator'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: jsonHeaders })
   }

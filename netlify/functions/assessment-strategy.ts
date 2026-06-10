@@ -60,7 +60,7 @@ export default async function handler(req: Request) {
   const auth = await requireTier(req, 1)
   if (auth instanceof Response) return auth
 
-  const usage = await checkAndIncrementUsage(auth.userId, auth.tier, 'assessment')
+  const usage = await checkAndIncrementUsage(auth.userId, auth.tier, 'assessment', auth.level)
   if (!usage.allowed) {
     return new Response(JSON.stringify({ error: getUpgradeMessage(auth.tier, 'assessment'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers })
   }

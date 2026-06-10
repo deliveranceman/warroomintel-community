@@ -1,4 +1,5 @@
 import { requireTier } from './_shared/access'
+import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,11 @@ export default async function handler(req: Request) {
 
   const auth = await requireTier(req, 2)
   if (auth instanceof Response) return auth
+
+  const usage = await checkAndIncrementUsage(auth.userId, auth.tier, 'deliverance', auth.level)
+  if (!usage.allowed) {
+    return new Response(JSON.stringify({ error: getUpgradeMessage(auth.tier, 'deliverance'), rateLimited: true, limit: usage.limit, remaining: 0 }), { status: 429, headers: HEADERS })
+  }
 
   let body: any = {}
   try { body = await req.json() } catch {}

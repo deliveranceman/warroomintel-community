@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
-import { DAILY_LIMITS } from '../lib/ai-rate-limit'
+import { AI_FEATURES } from '../lib/ai-rate-limit'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -51,7 +51,7 @@ export default async function handler(req: Request) {
   // ── GET (non-admin) — personal daily usage ─────────────────────────────────
   if (!auth.isAdmin) {
     try {
-      const features = Object.keys(DAILY_LIMITS.watchman).map(feature => ({
+      const features = AI_FEATURES.map(feature => ({
         feature,
         used: 0,
         limit: -1,
