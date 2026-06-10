@@ -31,7 +31,7 @@ export default async function handler(req: Request) {
       submitted_by_id:   auth.userId,
       submitted_by_name: auth.displayName,
       submitted_by_tier: auth.tier,
-      is_founder:        false,
+      is_founder:        auth.founding ?? false,
       location_city:     location_city || null,
       location_state:    location_state || null,
       spirit_names, manifestations,

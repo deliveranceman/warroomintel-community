@@ -50,7 +50,7 @@ export default async function handler(req: Request) {
         user_name:    isAnonymous ? 'Anonymous Warrior' : auth.displayName,
         user_tier:    auth.tier,
         user_image:   isAnonymous ? '' : auth.imageUrl,
-        is_founder:   false,
+        is_founder:   auth.founding ?? false,
         title:        title.trim(),
         body:         body.trim(),
         category:     category || 'personal',

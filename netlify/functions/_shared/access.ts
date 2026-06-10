@@ -39,6 +39,7 @@ export interface AuthResult {
   betaAccess:   boolean
   betaFeatures: string[]
   imageUrl:     string
+  founding:     boolean
 }
 
 function unauth(): Response {
@@ -105,6 +106,7 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
       ? (rawFeatures as unknown[]).filter((f): f is string => typeof f === 'string')
       : []
     const imageUrl     = ((userData.image_url as string) || '')
+    const founding     = !!(userData.public_metadata?.founding as boolean | undefined)
 
     const firstName   = ((userData.first_name  as string) || '').trim()
     const lastName    = ((userData.last_name   as string) || '').trim()
@@ -112,7 +114,7 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
     const emailLocal  = ((userData.email_addresses as any[])?.[0]?.email_address as string || '').split('@')[0]
     const displayName = fullName || ((userData.username as string) || '').trim() || emailLocal || ''
 
-    return { userId, tier, role, level, isAdmin, displayName, betaAccess, betaFeatures, imageUrl }
+    return { userId, tier, role, level, isAdmin, displayName, betaAccess, betaFeatures, imageUrl, founding }
   } catch {
     return unauth()
   }

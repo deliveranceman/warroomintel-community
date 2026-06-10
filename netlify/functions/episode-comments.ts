@@ -48,7 +48,7 @@ export default async function handler(req: Request) {
         user_name:  auth.displayName,
         user_tier:  auth.tier,
         user_image: auth.imageUrl,
-        is_founder: false,
+        is_founder: auth.founding ?? false,
         parent_id:  parentId || null,
         body:       body.trim(),
       })
