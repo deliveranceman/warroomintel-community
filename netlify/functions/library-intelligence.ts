@@ -162,13 +162,22 @@ export default async function handler(req: Request) {
         const embData = await embRes.json()
         const vector  = embData.data?.[0]?.embedding
         if (!vector) throw new Error('No embedding vector returned')
-        const { data: chunks } = await sb().rpc('match_library_chunks', {
+        const { data: rawChunks } = await sb().rpc('match_library_chunks', {
           query_embedding: vector,
-          match_threshold: 0.6,
+          match_threshold: 0.0,
           match_count:     8,
         })
-        if (!chunks?.length) {
-          return new Response(JSON.stringify({ error: 'No matching library content found for that query — try different keywords' }), { status: 400, headers })
+        const topSimilarity = rawChunks?.[0]?.similarity ?? null
+        console.log(`[CONTENT-QUERY] Raw chunks (threshold=0): ${rawChunks?.length ?? 0}, top similarity: ${topSimilarity?.toFixed(3) ?? 'none'}`)
+        const chunks = (rawChunks || []).filter((c: any) => (c.similarity ?? 0) >= 0.3)
+        console.log(`[CONTENT-QUERY] After threshold 0.3: ${chunks.length} chunks`)
+        if (!chunks.length) {
+          return new Response(JSON.stringify({
+            error: 'No matching library content found for that query — try different keywords',
+            chunksReturned: 0,
+            topSimilarity,
+            embeddingOk: true,
+          }), { status: 400, headers })
         }
         libraryText = chunks.map((c: any) => `[From "${c.book_title}" — similarity ${(c.similarity * 100).toFixed(0)}%]:\n${c.chunk_text}`).join('\n\n---\n\n')
         bookTitles  = Array.from(new Set(chunks.map((c: any) => c.book_title as string)))

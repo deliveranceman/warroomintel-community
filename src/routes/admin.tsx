@@ -8144,6 +8144,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
   const [cqResponse, setCqResponse] = useState('')
   const [cqTitles, setCqTitles] = useState<string[]>([])
   const [cqError, setCqError] = useState('')
+  const [cqDiag, setCqDiag] = useState<{ topSimilarity: number | null; embeddingOk: boolean } | null>(null)
 
   // Reindex state
   const [reindexing, setReindexing] = useState(false)
@@ -8216,9 +8217,12 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       setGapResults(genuinelyNew)
       setGapSummary(data.summary || '')
       setGapMeta({ bookTitles: data.bookTitles || [], spiritCount: total, bookCount: data.bookCount || 0 })
-    } catch (e: any) { setGapError(e.message) }
-    setGapStatus('')
-    setGapLoading(false)
+    } catch (e: any) {
+      setGapError(e.message)
+    } finally {
+      setGapStatus('')
+      setGapLoading(false)
+    }
   }
 
   async function runContentQuery() {
@@ -8226,6 +8230,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
     setCqLoading(true)
     setCqResponse('')
     setCqError('')
+    setCqDiag(null)
     try {
       const token = await getToken()
       const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -8238,13 +8243,19 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setCqError((data as any).error || `Query failed (${res.status})`)
+        if ((data as any).topSimilarity != null || (data as any).embeddingOk != null) {
+          setCqDiag({ topSimilarity: (data as any).topSimilarity ?? null, embeddingOk: !!(data as any).embeddingOk })
+        }
         return
       }
       const data = await res.json()
       setCqResponse(data.response || '')
       setCqTitles(data.bookTitles || [])
-    } catch (e: any) { setCqError(e.message) }
-    setCqLoading(false)
+    } catch (e: any) {
+      setCqError(e.message)
+    } finally {
+      setCqLoading(false)
+    }
   }
 
   async function runReindex() {
@@ -8743,7 +8754,16 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
             {cqLoading ? 'Thinking...' : '💡 Ask'}
           </button>
         </div>
-        {cqError && <div style={{ color: '#e09090', fontFamily: "'Crimson Pro', serif", fontSize: 13, marginBottom: 12 }}>⚠ {cqError}</div>}
+        {cqError && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ color: '#e09090', fontFamily: "'Crimson Pro', serif", fontSize: 13 }}>⚠ {cqError}</div>
+            {cqDiag && (
+              <div style={{ color: mut2, fontFamily: "'Crimson Pro', serif", fontSize: 11, marginTop: 4 }}>
+                {cqDiag.embeddingOk ? 'Embedding OK' : 'Embedding failed'} · Top similarity: {cqDiag.topSimilarity != null ? (cqDiag.topSimilarity * 100).toFixed(1) + '%' : 'n/a'}
+              </div>
+            )}
+          </div>
+        )}
         {cqResponse && (
           <div>
             <div style={{ background: isDark ? BG : '#F5F0E8', border: `1px solid ${bdr2}`, borderRadius: 8, padding: '20px', marginBottom: 12 }}>
