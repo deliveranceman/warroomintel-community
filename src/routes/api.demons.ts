@@ -13,7 +13,7 @@ const TIER_FIELDS: Record<number, string[]> = {
     'function', 'strongman', 'kingdom', 'subKingdom', 'biblicalRank', 'caseType',
     'phonetic', 'images', 'isGenerational', 'isTerritorial', 'hierarchyCategory',
     'region', 'parentStrongman', 'relatedSpirits', 'clusterSpirits',
-    'primaryBattlefield', 'personalityPresentation', 'culturalPresence',
+    'culturalPresence',
   ],
   1: ['manifestation', 'scripture', 'companionSpirits'],
   2: [
@@ -21,6 +21,7 @@ const TIER_FIELDS: Record<number, string[]> = {
     'counterScriptures', 'sessionIndicators', 'resistanceSignature',
     'transmissionVectors', 'legalRightsFramework', 'prayerPoints',
     'sessionTriggerQuestions', 'scriptureContext',
+    'primaryBattlefield', 'personalityPresentation',
   ],
   3: [
     'symptoms', 'wriNotes', 'sourceOrigin', 'demonicAgreements',
@@ -48,6 +49,8 @@ const SECTION_LABELS: Record<string, { label: string; tier: string }> = {
   prayerPoints:            { label: 'Prayer Points', tier: 'commander' },
   sessionTriggerQuestions: { label: 'Session Trigger Questions', tier: 'commander' },
   scriptureContext:        { label: 'Scripture Context', tier: 'commander' },
+  primaryBattlefield:      { label: 'Primary Battlefield', tier: 'commander' },
+  personalityPresentation: { label: 'Typical Personality Presentation', tier: 'commander' },
   symptoms:                { label: 'Symptoms', tier: 'general' },
   wriNotes:                { label: 'WRI Exorcist Notes', tier: 'general' },
   sourceOrigin:            { label: 'Source / Origin', tier: 'general' },
