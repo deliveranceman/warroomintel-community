@@ -83,7 +83,7 @@ export default async function handler(req: Request) {
       const { id, first_name, last_name, email_addresses } = data
       const email = email_addresses?.[0]?.email_address || ''
       const name  = `${first_name || ''} ${last_name || ''}`.trim() || email || 'Warrior'
-      const tier  = 'general' // BETA: all new users start at general
+      const tier  = 'watchman'
 
       // Generate warrior username: e.g. "justin4521"
       const baseUsername = (first_name || 'warrior').toLowerCase().replace(/[^a-z0-9]/g, '')
