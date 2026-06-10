@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
-import { AI_FEATURES } from '../lib/ai-rate-limit'
+import { AI_FEATURES, tierDailyCap, getUsageToday } from '../lib/ai-rate-limit'
 import { costUsd } from '../lib/ai-cost'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -51,15 +51,21 @@ export default async function handler(req: Request) {
   if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 })
 
   // ── GET (non-admin) — personal daily usage ─────────────────────────────────
+  // Single per-tier daily cap across ALL AI features combined — the exact same
+  // source of truth the limiter (checkAndIncrementUsage) enforces. Display only;
+  // this branch does not gate anything.
   if (!auth.isAdmin) {
     try {
-      const features = AI_FEATURES.map(feature => ({
-        feature,
-        used: 0,
-        limit: -1,
-        remaining: -1,
-      }))
-      return new Response(JSON.stringify({ tier: auth.tier, features }), { status: 200, headers })
+      const cap       = tierDailyCap(auth.tier || 'watchman')
+      const unlimited = cap === -1 || (typeof auth.level === 'number' && auth.level >= 4)
+      const usageMap  = await getUsageToday(auth.userId)
+      const used      = Object.values(usageMap).reduce((s: number, n: any) => s + (Number(n) || 0), 0)
+      const limit     = unlimited ? -1 : cap
+      const remaining = unlimited ? -1 : Math.max(0, cap - used)
+      // Mirror the combined total onto every feature key for back-compat with
+      // callers that look usage up by feature name.
+      const features = AI_FEATURES.map(feature => ({ feature, used, limit, remaining }))
+      return new Response(JSON.stringify({ tier: auth.tier, cap: limit, used, remaining, unlimited, features }), { status: 200, headers })
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })
     }

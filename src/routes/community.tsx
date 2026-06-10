@@ -113,10 +113,18 @@ function AIUsagePill({ feature, getToken, style }: { feature: string; getToken: 
   const [info, setInfo] = React.useState<{ used: number; limit: number } | null>(null)
 
   React.useEffect(() => {
+    // Single per-tier daily cap shared across all AI tools — prefer the combined
+    // top-level used/cap; fall back to the mirrored per-feature value.
+    const pick = (d: any) => {
+      if (!d) return null
+      if (typeof d.cap === 'number') return { used: d.used ?? 0, limit: d.cap }
+      const f = d.features?.find((x: any) => x.feature === feature)
+      return f ? { used: f.used, limit: f.limit } : null
+    }
     const load = async () => {
       if (_usageCache && Date.now() - _usageCache.ts < 60000) {
-        const f = _usageCache.data?.features?.find((x: any) => x.feature === feature)
-        if (f) setInfo({ used: f.used, limit: f.limit })
+        const v = pick(_usageCache.data)
+        if (v) setInfo(v)
         return
       }
       if (!_usageFetch) {
@@ -129,11 +137,8 @@ function AIUsagePill({ feature, getToken, style }: { feature: string; getToken: 
           return d
         }).catch(() => { _usageFetch = null; return null })
       }
-      const d = await _usageFetch
-      if (d) {
-        const f = d.features?.find((x: any) => x.feature === feature)
-        if (f) setInfo({ used: f.used, limit: f.limit })
-      }
+      const v = pick(await _usageFetch)
+      if (v) setInfo(v)
     }
     load()
   }, [feature])
@@ -7612,7 +7617,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
   const [loading,         setLoading]         = useState(true)
   const [filter,          setFilter]          = useState('all')
   const [searchQ,         setSearchQ]         = useState('')
-  const [aiUsage,         setAIUsage]         = useState<{ tier: string; features: any[] } | null>(null)
+  const [aiUsage,         setAIUsage]         = useState<{ tier: string; features: any[]; cap?: number; used?: number; unlimited?: boolean } | null>(null)
   const [expandedIntelId, setExpandedIntelId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -7626,12 +7631,6 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
   }, [])
 
   const FILTERS = ['all', 'ask-dake', 'symptom-investigator', 'gateway-investigator', 'spirit-network', 'ai-assistant']
-
-  const AI_FEATURE_LABELS: Record<string, string> = {
-    ask_dake: 'Ask SOL', ai_assistant: 'AI Assistant', bible_ask: 'Bible Study',
-    symptom_investigator: 'Symptom Inv.', gateway: 'Gateway Inv.',
-    dream: 'Dream Interp.', document: 'Documents', session_ai: 'Session AI', assessment: 'Assessment',
-  }
 
   async function loadHistory(tool?: string) {
     setLoading(true)
@@ -7693,33 +7692,32 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
               <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>AI USAGE TODAY</span>
               <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4f3a', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{aiUsage.tier}</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '8px 16px' }}>
-              {aiUsage.features.filter((f: any) => f.limit !== 0).map((f: any) => {
-                const label = AI_FEATURE_LABELS[f.feature] || f.feature
-                const isUnlimited = f.limit === -1
-                const pct = isUnlimited ? 0 : f.limit > 0 ? f.used / f.limit : 1
-                const barColor = pct >= 1 ? '#c84a4a' : pct >= 0.75 ? '#e2a73c' : G
-                return (
-                  <div key={f.feature}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ fontFamily: crimson, fontSize: 11, color: '#9a8c74' }}>{label}</span>
-                      <span style={{ fontFamily: cinzel, fontSize: 8, color: isUnlimited ? '#5fae6f' : pct >= 1 ? '#c84a4a' : '#9a8c74', letterSpacing: '0.04em' }}>
-                        {isUnlimited ? '∞' : `${f.used}/${f.limit}`}
-                      </span>
-                    </div>
-                    {!isUnlimited && (
-                      <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(100, pct * 100)}%`, background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
-                      </div>
-                    )}
+            {(() => {
+              const unlimited = aiUsage.unlimited === true || aiUsage.cap === -1
+              const used = aiUsage.used ?? 0
+              const cap  = aiUsage.cap ?? 0
+              const pct  = unlimited ? 0 : cap > 0 ? used / cap : 1
+              const barColor = pct >= 1 ? '#c84a4a' : pct >= 0.75 ? '#e2a73c' : G
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontFamily: crimson, fontSize: 12, color: '#9a8c74' }}>AI calls across all tools</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, color: unlimited ? '#5fae6f' : pct >= 1 ? '#c84a4a' : '#9a8c74', letterSpacing: '0.04em' }}>
+                      {unlimited ? '∞ Unlimited' : `${used}/${cap}`}
+                    </span>
                   </div>
-                )
-              })}
-            </div>
-            {aiUsage.features.some((f: any) => f.limit > 0 && f.used >= f.limit) && (
+                  {!unlimited && (
+                    <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, pct * 100)}%`, background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+            {aiUsage.unlimited !== true && (aiUsage.cap ?? 0) > 0 && (aiUsage.used ?? 0) >= (aiUsage.cap ?? 0) && (
               <div style={{ marginTop: 12, padding: '6px 10px', background: 'rgba(200,74,74,0.08)', border: '1px solid rgba(200,74,74,0.2)', borderRadius: 6 }}>
                 <span style={{ fontFamily: crimson, fontSize: 12, color: '#c84a4a' }}>
-                  Some AI tools have reached their daily limit.{' '}
+                  You've reached today's AI limit.{' '}
                   <button onClick={() => { const t = aiUsage?.tier?.toLowerCase() || 'watchman'; const next = t === 'watchman' || t === 'free' ? 'soldier' : t === 'soldier' ? 'commander' : t === 'commander' ? 'general' : null; if (next) beginUpgrade(next) }} style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Upgrade</button> for more calls.
                 </span>
               </div>
