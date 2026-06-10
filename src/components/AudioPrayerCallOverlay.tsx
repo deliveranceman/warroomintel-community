@@ -35,10 +35,12 @@ export default function AudioPrayerCallOverlay({
   const [debugLog, setDebugLog] = useState<string[]>([])
 
   // All SDK refs typed as any — SDK only loaded in browser via dynamic import
-  const clientRef = useRef<any>(null)
-  const callRef   = useRef<any>(null)
-  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
-  const startRef  = useRef(Date.now())
+  const clientRef      = useRef<any>(null)
+  const callRef        = useRef<any>(null)
+  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startRef       = useRef(Date.now())
+  const remoteAudioRef = useRef<HTMLAudioElement>(null)
+  const subRef         = useRef<any>(null)
 
   const dbg = (msg: string) => {
     console.log('[WRI-CALL]', msg)
@@ -134,6 +136,19 @@ export default function AudioPrayerCallOverlay({
         try {
           await (isCaller ? call.join({ create: true }) : call.join())
           dbg('join() success — call state: ' + JSON.stringify(call.state?.callingState))
+
+          // Attach remote audio imperatively — no SDK JSX components, SSR-safe
+          const attach = (participants: any[]) => {
+            const remote = participants.find((p: any) => !p.isLocalParticipant)
+            const stream = remote?.audioStream
+            if (stream && remoteAudioRef.current && remoteAudioRef.current.srcObject !== stream) {
+              remoteAudioRef.current.srcObject = stream
+              remoteAudioRef.current.play().catch(() => {})
+            }
+          }
+          attach(call.state.participants || [])
+          const sub = call.state.participants$.subscribe((ps: any[]) => attach(ps || []))
+          subRef.current = sub
         } catch (joinErr: any) {
           dbg(`join() FAILED: ${JSON.stringify(joinErr, Object.getOwnPropertyNames(joinErr))}`)
           throw joinErr
@@ -194,6 +209,8 @@ export default function AudioPrayerCallOverlay({
     return () => {
       cancelled = true
       if (timerRef.current) clearInterval(timerRef.current)
+      try { subRef.current?.unsubscribe?.() } catch {}
+      if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = null }
       callRef.current?.leave().catch(() => {})
       clientRef.current?.disconnectUser().catch(() => {})
     }
@@ -382,6 +399,9 @@ export default function AudioPrayerCallOverlay({
           </button>
         </div>
       </div>
+
+      {/* Native audio element — srcObject set imperatively after join(), no SDK JSX */}
+      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
       <style>{`
         @keyframes prayer-pulse {
