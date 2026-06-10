@@ -8195,8 +8195,12 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         fetch('/api/gap-analysis-dismissed', { headers: reqHeaders }),
       ])
 
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setGapError((data as any).error || `Analysis failed (${res.status})`)
+        return
+      }
       const data = await res.json()
-      if (!res.ok) { setGapError(data.error || 'Analysis failed'); return }
 
       const dismissedData = await dismissedRes.json().catch(() => ({}))
       const dismissedNames = new Set<string>((dismissedData.dismissed || []).map((d: any) => (d.spirit_name || '').toLowerCase().trim()))
@@ -8231,8 +8235,12 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
         headers: reqHeaders,
         body: JSON.stringify({ tool: 'content-query', query: cqQuery }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setCqError((data as any).error || `Query failed (${res.status})`)
+        return
+      }
       const data = await res.json()
-      if (!res.ok) { setCqError(data.error || 'Query failed'); return }
       setCqResponse(data.response || '')
       setCqTitles(data.bookTitles || [])
     } catch (e: any) { setCqError(e.message) }

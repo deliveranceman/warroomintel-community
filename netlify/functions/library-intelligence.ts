@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin2 } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -67,11 +68,12 @@ function cleanExtractedText(raw: unknown): string {
     .trim()
 }
 
-async function claudeCall(system: string, user: string): Promise<string> {
+async function claudeCall(system: string, user: string, opts?: { model?: string; signal?: AbortSignal }): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
-    body:    JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 4000, system, messages: [{ role: 'user', content: user }] }),
+    body:    JSON.stringify({ model: opts?.model ?? 'claude-sonnet-4-5', max_tokens: 4000, system, messages: [{ role: 'user', content: user }] }),
+    signal:  opts?.signal,
   })
   if (!res.ok) throw new Error(`Claude API error: ${res.status}`)
   const data = await res.json()
@@ -89,22 +91,8 @@ export default async function handler(req: Request) {
 
   console.log('[LIBRARY-INTEL] tool:', tool, 'query:', query?.slice(0, 80))
 
-  // Safe JWT decode — never throws
-  const authHeader = req.headers.get('Authorization') || ''
-  const rawToken   = authHeader.replace('Bearer ', '').trim()
-  let userId = ''
-  if (rawToken && rawToken.split('.').length === 3) {
-    try {
-      const payload = JSON.parse(Buffer.from(rawToken.split('.')[1], 'base64url').toString('utf8'))
-      userId = payload.sub || payload.userId || ''
-    } catch (e) {
-      console.error('[LIB-INTEL] JWT decode failed:', e)
-    }
-  }
-
-  if (!userId && tool !== 'gap-analysis' && tool !== 'content-query') {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  }
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
 
   // ── TOOL 1: Spirit Gap Analysis ──────────────────────────────────────────────
   if (tool === 'gap-analysis') {
@@ -170,41 +158,47 @@ export default async function handler(req: Request) {
           body:    JSON.stringify({ model: 'text-embedding-3-small', input: [query.trim()] }),
           signal:  AbortSignal.timeout(8000),
         })
-        if (embRes.ok) {
-          const embData = await embRes.json()
-          const vector  = embData.data?.[0]?.embedding
-          if (vector) {
-            const { data: chunks } = await sb().rpc('match_library_chunks', {
-              query_embedding: vector,
-              match_threshold: 0.6,
-              match_count:     8,
-            })
-            if (chunks?.length > 0) {
-              libraryText = chunks.map((c: any) => `[From "${c.book_title}" — similarity ${(c.similarity * 100).toFixed(0)}%]:\n${c.chunk_text}`).join('\n\n---\n\n')
-              bookTitles  = Array.from(new Set(chunks.map((c: any) => c.book_title as string)))
-              console.log(`[CONTENT-QUERY] Vector search: ${chunks.length} chunks from ${bookTitles.length} books`)
-            }
-          }
+        if (!embRes.ok) throw new Error(`Embedding API error: ${embRes.status}`)
+        const embData = await embRes.json()
+        const vector  = embData.data?.[0]?.embedding
+        if (!vector) throw new Error('No embedding vector returned')
+        const { data: chunks } = await sb().rpc('match_library_chunks', {
+          query_embedding: vector,
+          match_threshold: 0.6,
+          match_count:     8,
+        })
+        if (!chunks?.length) {
+          return new Response(JSON.stringify({ error: 'No matching library content found for that query — try different keywords' }), { status: 400, headers })
         }
+        libraryText = chunks.map((c: any) => `[From "${c.book_title}" — similarity ${(c.similarity * 100).toFixed(0)}%]:\n${c.chunk_text}`).join('\n\n---\n\n')
+        bookTitles  = Array.from(new Set(chunks.map((c: any) => c.book_title as string)))
+        console.log(`[CONTENT-QUERY] Vector search: ${chunks.length} chunks from ${bookTitles.length} books`)
       } catch (e: any) {
         console.log('[CONTENT-QUERY] Vector search failed, using full-text fallback:', e.message)
       }
     }
 
-    // ── Fallback: load book full text ──────────────────────────────────────────
+    // ── Fallback: corpus sample (only if embedding threw) ──────────────────────
+    let isPathB = false
     if (!libraryText) {
-      const books = await fetchLibraryBooks()
+      const allBooks = await fetchLibraryBooks()
+      const books    = allBooks.slice(0, 5)
       if (!books.length) return new Response(JSON.stringify({ error: 'No library content available.' }), { status: 400, headers })
       bookTitles  = books.map((b: any) => `${b.title}${b.author ? ` by ${b.author}` : ''}`)
       libraryText = books.map((b: any) =>
-        `[${b.title}${b.author ? ` by ${b.author}` : ''}]:\n${cleanExtractedText(b.extracted_text).slice(0, 3000)}`
+        `[${b.title}${b.author ? ` by ${b.author}` : ''}]:\n${cleanExtractedText(b.extracted_text).slice(0, 1200)}`
       ).join('\n\n---\n\n')
+      isPathB = true
     }
 
     const system  = `You are a ministry content strategist for War Room Intel (warroomintel.com), a spiritual warfare platform for deliverance ministers. The platform has: Intel Archive (demon database), Field Ministry (knowledge base articles), Arsenal (scripture library), Assessment (diagnostic wizard), Training (courses/episodes), Fringe Intelligence (articles), Testimony Wall, Prayer Wall, Body Map, Spirit Network, Spiritual Mapping module. You have access to the admin's internal ministry library. Answer questions about what content exists in the library and how it could be used to build out the platform.`
     const userMsg = `${query.trim()}\n\nLibrary documents:\n${libraryText}`
 
-    const response = await claudeCall(system, userMsg)
+    const response = await claudeCall(
+      system,
+      userMsg,
+      isPathB ? { model: 'claude-haiku-4-5', signal: AbortSignal.timeout(18000) } : undefined,
+    )
 
     return new Response(JSON.stringify({ response, bookTitles }), { status: 200, headers })
   }
