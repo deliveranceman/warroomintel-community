@@ -208,7 +208,7 @@ Suggest the most tactically sound next action for the minister. Respond in 2-3 s
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-5',
             max_tokens: 800,
             system,
             messages: [{
@@ -271,7 +271,7 @@ Duration: ${Math.round((session.total_elapsed_seconds || 0) / 60)} minutes
 Write a structured session report with sections: Summary, Team Present, Pre-Session Status, Spirits Addressed, Breakthroughs, Areas Needing Follow-Up, Aftercare Recommendations.`
 
     try {
-      const report = cleanAIOutput(await claudeCall('claude-sonnet-4-20250514', system, prompt, 1500))
+      const report = cleanAIOutput(await claudeCall('claude-sonnet-4-5', system, prompt, 1500))
       return new Response(JSON.stringify({ report }), { status: 200, headers: CORS })
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })

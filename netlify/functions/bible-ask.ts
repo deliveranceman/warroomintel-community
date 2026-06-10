@@ -81,7 +81,7 @@ Keep responses focused — typically 2-4 paragraphs.${libraryContext ? `\n\nRele
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 1500,
       system: effectiveSystem,
       messages,
@@ -114,7 +114,7 @@ export default async function handler(req: Request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           max_tokens: 400,
           system: `You are a theological scholar writing brief commentary in the style of Finis Jennings Dake's Annotated Reference Bible. Focus on spiritual warfare applications, prophetic significance, and deliverance ministry insights. Write 2-3 short paragraphs. No headers, plain prose only.`,
           messages: [{ role: 'user', content: `Write a brief Dake-style commentary on ${reference}, focusing on spiritual warfare and deliverance applications.` }],

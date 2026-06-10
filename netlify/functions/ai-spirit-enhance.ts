@@ -547,7 +547,7 @@ export default async function handler(req: Request) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           max_tokens: 800,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
@@ -576,7 +576,7 @@ export default async function handler(req: Request) {
         fetch(`${baseUrl}/api/ai-usage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ call_type: 'enhance', spirit_name: name, input_tokens: inputTokens, output_tokens: outputTokens, model: 'claude-sonnet-4-20250514' }),
+          body: JSON.stringify({ call_type: 'enhance', spirit_name: name, input_tokens: inputTokens, output_tokens: outputTokens, model: 'claude-sonnet-4-5' }),
         }).catch(() => {})
       } catch {}
     } catch (e: any) {

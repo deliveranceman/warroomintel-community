@@ -81,7 +81,7 @@ export default async function handler(req: Request) {
   const prompt = buildPrompt(title, type)
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     max_tokens: 3000,
     system: 'You are SOL, the AI ministry intelligence engine for War Room Intel — a spiritual warfare and deliverance ministry platform operated by Pastor Justin Payne at Staffordtown Church in Copperhill, TN. Always respond with valid JSON only. No markdown code blocks, no preamble, no explanation — just the raw JSON object.',
     messages: [{ role: 'user', content: prompt }],
