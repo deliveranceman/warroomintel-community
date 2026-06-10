@@ -1,5 +1,6 @@
 import { getMinistryContext } from '../lib/getMinistryContext'
 import { checkAndIncrementUsage, getUpgradeMessage, type AIFeature } from '../lib/ai-rate-limit'
+import { pickSolModel } from '../lib/sol-model'
 import { cleanAIOutput } from '../lib/clean-ai-output'
 import { assembleWRIContext } from './_shared/assembleWRIContext'
 import { requireAuth } from './_shared/access'
@@ -268,7 +269,7 @@ You are direct, knowledgeable, and speak like a seasoned deliverance minister. N
       'anthropic-beta': 'prompt-caching-2024-07-31',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model: pickSolModel(tier),
       max_tokens: 2000,
       system: [{ type: 'text', text: effectiveSystem, cache_control: { type: 'ephemeral' } }],
       messages,
