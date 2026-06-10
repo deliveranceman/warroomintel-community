@@ -10085,11 +10085,11 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     })
   }, [showNewDM, showCreateFireTeam, showSentinelPicker, showCreateCoverAll])
 
-  // ── Poll active conversation every 3s ──
+  // ── Poll active conversation every 8s — also fires immediately on open ──
   React.useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current)
     if (!activeConvoId || !token) return
-    pollRef.current = setInterval(async () => {
+    const loadMessages = async () => {
       if (document.visibilityState !== 'visible') return
       const activeChannelId = activeConvoId === 'sol'
         ? conversations.find((c: any) => c.otherMember?.id === 'sol-bot')?.channelId || activeConvoId
@@ -10098,7 +10098,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       const msgs = await api(`get-messages&channelId=${activeChannelId}`, 'GET')
       const msgList = msgs.messages || msgs.detail?.messages
       if (Array.isArray(msgList)) setMessages(msgList)
-    }, 8000)
+    }
+    loadMessages()
+    pollRef.current = setInterval(loadMessages, 8000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [activeConvoId, token])
 
