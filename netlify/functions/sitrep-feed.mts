@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
@@ -12,14 +13,6 @@ const CORS = {
 const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' }
 
 const FEEDS_BASE = 'https://us-east-api.stream-io-api.com/api/v1.0'
-
-const TIER_LEVEL: Record<string, number> = {
-  watchman: 0, free: 0,
-  soldier: 1, charter_soldier: 1,
-  commander: 2, charter_commander: 2,
-  general: 3, founding_general: 3,
-  minister: 99,
-}
 
 // ── JWT helpers ────────────────────────────────────────────────────────────────
 
@@ -49,46 +42,6 @@ function feedHeaders(): Record<string, string> {
 function feedUrl(path: string): string {
   const sep = path.includes('?') ? '&' : '?'
   return `${FEEDS_BASE}${path}${sep}api_key=${apiKey}`
-}
-
-// ── Auth helpers ───────────────────────────────────────────────────────────────
-
-function extractUserId(authHeader: string | null): string | null {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  if (!token) return null
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub ?? null
-  } catch { return null }
-}
-
-function extractTierFromJWT(authHeader: string | null): string {
-  if (!authHeader) return 'watchman'
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return 'watchman'
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return ((payload?.publicMetadata?.tier || payload?.public_metadata?.tier) as string) || 'watchman'
-  } catch { return 'watchman' }
-}
-
-async function resolveUserInfo(userId: string, jwtTier = 'watchman'): Promise<{ tier: string; name: string }> {
-  try {
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return { tier: jwtTier, name: userId }
-    const data = await res.json()
-    const tier = (data.public_metadata?.tier as string)?.toLowerCase() ||
-                 (data.public_metadata?.role === 'minister' ? 'minister' : jwtTier)
-    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') ||
-                 data.username || userId
-    return { tier, name }
-  } catch { return { tier: jwtTier, name: userId } }
 }
 
 // ── Response helpers ───────────────────────────────────────────────────────────
@@ -154,14 +107,14 @@ async function uploadPhoto(userId: string, req: Request): Promise<Response> {
   return json({ url: publicUrl })
 }
 
-async function postActivity(userId: string, userTier: string, userName: string, body: any): Promise<Response> {
+async function postActivity(userId: string, userTier: string, userLevel: number, userName: string, body: any): Promise<Response> {
   const { type, text, imageUrl, scriptureRef, spiritTag, locationTag, photoUrl, resourceUrl } = body
   const validTypes = ['thought', 'scripture', 'testimony', 'resource', 'photo', 'prayer', 'revelation', 'field']
   if (!validTypes.includes(type)) return json({ error: 'Invalid type' }, 400)
   if (type !== 'photo' && !text?.trim()) return json({ error: 'text required' }, 400)
 
-  const tierLevel = TIER_LEVEL[userTier] ?? 0
-  if (tierLevel < 1) return json({ error: 'Soldier tier required to post' }, 403)
+  // Tier comes from the VERIFIED Clerk record (requireAuth), never a token payload.
+  if (userLevel < 1) return json({ error: 'Soldier tier required to post' }, 403)
 
   const now = Date.now()
   const activityBody = {
@@ -325,8 +278,9 @@ async function solPicks(): Promise<Response> {
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const userId = extractUserId(req.headers.get('Authorization'))
-  if (!userId) return json({ error: 'Unauthorized' }, 401)
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+  const userId = auth.userId
 
   const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''
@@ -348,9 +302,7 @@ export default async function handler(req: Request): Promise<Response> {
   const body = await req.json().catch(() => ({}))
 
   if (action === 'post') {
-    const jwtTier = extractTierFromJWT(req.headers.get('Authorization'))
-    const { tier, name } = await resolveUserInfo(userId, jwtTier)
-    return postActivity(userId, tier, name, body)
+    return postActivity(auth.userId, auth.tier, auth.level, auth.displayName || userId, body)
   }
 
   if (action === 'follow') return follow(userId, body)
