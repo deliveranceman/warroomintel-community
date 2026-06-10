@@ -134,7 +134,7 @@ export default function AudioPrayerCallOverlay({
         dbg(`[VIDEO DIAG] callType=default callId=${callId} userId=${userId} isCaller=${isCaller} tokenLen=${videoToken?.length}`)
         dbg('Calling join()...')
         try {
-          await (isCaller ? call.join({ create: true }) : call.join())
+          await call.join({ create: true })
           dbg('join() success — call state: ' + JSON.stringify(call.state?.callingState))
 
           // Attach remote audio imperatively — no SDK JSX components, SSR-safe
@@ -185,7 +185,13 @@ export default function AudioPrayerCallOverlay({
               dbg('Recipient joined — active')
             }
           }, 2000)
-          setTimeout(() => { clearInterval(ringCheck) }, 60000)
+          setTimeout(() => {
+            clearInterval(ringCheck)
+            if (!cancelled) {
+              setErrorMsg('No answer — the other person did not join.')
+              setStatus('error')
+            }
+          }, 60000)
         }
       } catch (err: any) {
         const msg = err?.message || String(err)

@@ -11286,7 +11286,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                               title: '🎙 Prayer Call',
                               body: 'Tap to join',
                               url: '/community',
-                              data: { type: 'audio_call', channelId: activeConvoId, callId: res.callId, callType: res.callType },
+                              data: { type: 'prayer_call', call_id: res.callId, call_type: res.callType, caller_id: userId, caller_name: user?.firstName || user?.username || 'Warrior', channel_id: activeConvoId, url: '/community' },
                             }),
                           }).catch(() => {})
                           setActivePrayerCall({
