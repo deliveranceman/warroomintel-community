@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { verifyToken } from '@clerk/backend'
 
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY
 
@@ -15,22 +16,15 @@ export const Route = createFileRoute('/api/user-tier')({
         }
 
         try {
-          // Verify the session and get the user
-          const verifyRes = await fetch('https://api.clerk.com/v1/sessions/verify', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
-              'Content-Type':  'application/json',
-            },
-            body: JSON.stringify({ token: sessionToken }),
-          })
-
-          if (!verifyRes.ok) {
+          // Cryptographically verify the session JWT via @clerk/backend.
+          // Derive identity only from verified claims — never trust the raw token.
+          let userId: string | undefined
+          try {
+            const claims = await verifyToken(sessionToken, { secretKey: CLERK_SECRET_KEY })
+            userId = claims.sub as string | undefined
+          } catch {
             return Response.json({ tier: 'Free', authenticated: false })
           }
-
-          const session = await verifyRes.json()
-          const userId  = session?.user_id
 
           if (!userId) {
             return Response.json({ tier: 'Free', authenticated: false })
