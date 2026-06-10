@@ -209,7 +209,10 @@ async function listConversations(userId: string): Promise<Response> {
       const chRead: any[] = d.read ?? []
       const otherM = chMembers.find((m: any) => m.user?.id !== userId && m.user_id !== userId)?.user ?? null
       console.log('[list-conv] otherMember:', otherM?.name, 'members count:', chMembers.length)
-      const otherName = otherM?.name || (r.requester_id === userId ? r.recipient_name : r.requester_name) || 'Member'
+      const realName = (r.requester_id === userId ? r.recipient_name : r.requester_name) || ''
+      const streamName = otherM?.name || ''
+      const streamNameIsId = !streamName || streamName.startsWith('user_')
+      const otherName = realName || (streamNameIsId ? 'Member' : streamName)
       const lastMsg = chMessages[0]
         ? { text: chMessages[0].text ?? '', type: chMessages[0].type ?? 'regular', created_at: chMessages[0].created_at, user: { id: chMessages[0].user?.id ?? '', name: chMessages[0].user?.name ?? '' } }
         : null
