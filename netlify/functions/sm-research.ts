@@ -143,10 +143,11 @@ export default async function handler(req: Request) {
 
       // Save to cache
       await sb.from('sm_research_cache').insert({
-        region_id: regionId,
+        region_id:    regionId,
         category,
         summary,
         search_query: userMessage,
+        created_by:   auth.userId,
       })
     }
 

@@ -1,4 +1,5 @@
 import { StreamClient } from '@stream-io/node-sdk'
+import { requireAuth } from './_shared/access'
 import { sendWebPushToUser } from './_shared/sendWebPush.js'
 
 const CORS = {
@@ -10,16 +11,6 @@ const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' }
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS })
-}
-
-function extractPayload(authHeader: string | null) {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    return JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-  } catch { return null }
 }
 
 function sbBase(): string {
@@ -45,23 +36,20 @@ function streamClient(): StreamClient {
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const payload = extractPayload(req.headers.get('Authorization'))
-  if (!payload?.sub) return json({ error: 'Unauthorized' }, 401)
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
-  const userId     = payload.sub as string
-  const meta       = payload?.publicMetadata || payload?.public_metadata || {}
-  const first      = (payload.firstName || payload.first_name || payload.given_name || meta.first_name || '') as string
-  const last       = (payload.lastName  || payload.last_name  || payload.family_name || meta.last_name  || '') as string
-  const callerName = [first, last].filter(Boolean).join(' ') || (payload.name as string) || (payload.username as string) || 'Soldier'
+  const userId     = auth.userId
+  const callerName = auth.displayName
 
   const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''
 
-  // ── GET action=status — check for incoming calls ───────────────────────────
+  // ── GET action=status — check for active/ringing calls (caller or recipient) ─
   if (req.method === 'GET' && action === 'status') {
     const cutoff = new Date(Date.now() - 2 * 60_000).toISOString()
-    const res    = await fetch(
-      `${sbBase()}/stream_calls?recipient_id=eq.${encodeURIComponent(userId)}&status=eq.ringing&created_at=gte.${cutoff}&select=*&order=created_at.desc`,
+    const res = await fetch(
+      `${sbBase()}/stream_calls?or=(caller_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&status=eq.ringing&created_at=gte.${cutoff}&select=*&order=created_at.desc`,
       { headers: sbHeaders() },
     )
     const calls: any[] = await res.json().catch(() => [])
@@ -148,6 +136,17 @@ export default async function handler(req: Request): Promise<Response> {
     const { callId } = body ?? {}
     if (!callId) return json({ error: 'callId required' }, 400)
 
+    // Verify caller is the call's recipient
+    const callRes = await fetch(
+      `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}&select=recipient_id`,
+      { headers: sbHeaders() },
+    )
+    const callRows: any[] = await callRes.json().catch(() => [])
+    if (!callRows.length) return json({ error: 'Call not found' }, 404)
+    if (callRows[0].recipient_id !== userId) {
+      return json({ error: 'Forbidden — you are not the recipient of this call' }, 403)
+    }
+
     await fetch(
       `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}`,
       {
@@ -165,6 +164,18 @@ export default async function handler(req: Request): Promise<Response> {
     const { callId } = body ?? {}
     if (!callId) return json({ error: 'callId required' }, 400)
 
+    // Verify caller is a participant, and get call_type for Stream SDK
+    const callRes = await fetch(
+      `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}&select=caller_id,recipient_id,call_type`,
+      { headers: sbHeaders() },
+    )
+    const callRows: any[] = await callRes.json().catch(() => [])
+    if (!callRows.length) return json({ error: 'Call not found' }, 404)
+    const callRow = callRows[0]
+    if (callRow.caller_id !== userId && callRow.recipient_id !== userId) {
+      return json({ error: 'Forbidden — you are not a participant in this call' }, 403)
+    }
+
     // Mark ended in Supabase
     await fetch(
       `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}`,
@@ -177,12 +188,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     // End on Stream side (fire-and-forget)
     try {
-      const rowRes = await fetch(
-        `${sbBase()}/stream_calls?call_id=eq.${encodeURIComponent(callId)}&select=call_type`,
-        { headers: sbHeaders() },
-      )
-      const rows: any[] = await rowRes.json().catch(() => [])
-      const ct = (Array.isArray(rows) && rows[0]?.call_type) ? rows[0].call_type : 'audio_room'
+      const ct = callRow.call_type || 'audio_room'
       await streamClient().video.call(ct, callId).end()
     } catch {}
 

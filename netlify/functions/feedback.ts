@@ -23,16 +23,16 @@ export default async function handler(req: Request) {
 
   if (req.method === 'POST') {
     const body = await req.json()
-    const { type, title, description, priority, submitted_by_name, submitted_by_tier } = body
+    const { type, title, description, priority } = body
     if (!title || !description || !type) {
       return new Response(JSON.stringify({ error: 'type, title, description required' }), { status: 400, headers })
     }
     const { data, error } = await supabase.from('feedback').insert({
       type, title, description,
-      priority: priority || 'medium',
+      priority:          priority || 'medium',
       submitted_by_id:   auth.userId,
-      submitted_by_name: submitted_by_name || 'Warrior',
-      submitted_by_tier: submitted_by_tier || 'free',
+      submitted_by_name: auth.displayName,
+      submitted_by_tier: auth.tier,
       status: 'open',
     }).select().single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })

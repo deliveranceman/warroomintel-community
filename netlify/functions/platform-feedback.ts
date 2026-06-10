@@ -80,9 +80,9 @@ export default async function handler(req: Request) {
     }
   }
 
-  // PATCH ?id=xxx — update status
-  // ⚠️ BATCH C: this path needs an admin gate (auth is now required but no role check yet)
+  // PATCH ?id=xxx — update status (admin only)
   if (req.method === 'PATCH' && id && !action) {
+    if (!auth.isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     const body = await req.json()
     const { data, error } = await supabase.from('platform_feedback').update({ status: body.status }).eq('id', id).select().single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })

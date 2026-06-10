@@ -180,11 +180,12 @@ Write in classified intelligence report style. Be specific, tactical, and spirit
 
     const dossier = JSON.parse(jsonMatch[0])
 
-    // Update assessment generation count
+    // Update assessment generation count + record who generated it
     await sb.from('sm_assessments').update({
-      generated_at: new Date().toISOString(),
-      generation_count: (assessment.generation_count || 0) + 1,
-      updated_at: new Date().toISOString(),
+      generated_at:      new Date().toISOString(),
+      generation_count:  (assessment.generation_count || 0) + 1,
+      last_generated_by: auth.userId,
+      updated_at:        new Date().toISOString(),
     }).eq('id', assessmentId)
 
     return new Response(JSON.stringify({ dossier }), { status: 200, headers })
