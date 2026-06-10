@@ -1,3 +1,5 @@
+import { requireAuth } from './_shared/access'
+
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const CORS = {
@@ -27,19 +29,6 @@ const STATUS_CATEGORY: Record<string, string> = {
   anxious: 'amber', discouraged: 'amber', lonely: 'amber', grieving: 'amber',
   'under-assignment': 'purple', interceding: 'purple', 'in-battle': 'purple',
   'discernment-active': 'purple', fasting: 'purple', standing: 'purple',
-}
-
-// ── Auth ───────────────────────────────────────────────────────────────────────
-
-function decodeUserId(authHeader: string | null): string | null {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub ?? null
-  } catch { return null }
 }
 
 // ── Response helpers ───────────────────────────────────────────────────────────
@@ -234,20 +223,8 @@ async function requestPrayer(userId: string, body: any): Promise<Response> {
   return json({ ok: true })
 }
 
-async function solAlert(userId: string, body: any): Promise<Response> {
-  // Minister-only: SOL generates a community atmosphere alert
-  const { data: clerkData } = await (async () => {
-    try {
-      const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-      })
-      if (!res.ok) return { data: null }
-      return { data: await res.json() }
-    } catch { return { data: null } }
-  })()
-  const role = clerkData?.public_metadata?.role
-  if (role !== 'minister') return json({ error: 'Minister access required' }, 403)
-
+async function solAlert(body: any): Promise<Response> {
+  // Minister check performed in handler via verified auth.isAdmin before this function is called.
   const { message } = body || {}
 
   // Fetch community summary for context
@@ -449,8 +426,9 @@ async function snapshot(): Promise<Response> {
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const userId = decodeUserId(req.headers.get('Authorization'))
-  if (!userId) return json({ error: 'Unauthorized' }, 401)
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+  const userId = auth.userId
 
   const url    = new URL(req.url)
   const action = url.searchParams.get('action') ?? ''
@@ -466,10 +444,14 @@ export default async function handler(req: Request): Promise<Response> {
 
   const body = await req.json().catch(() => ({}))
 
-  if (action === 'checkin')          return checkin(userId, body)
-  if (action === 'request-prayer')   return requestPrayer(userId, body)
-  if (action === 'sol-alert')        return solAlert(userId, body)
-  if (action === 'snapshot')         return snapshot()
+  if (action === 'checkin')        return checkin(userId, body)
+  if (action === 'request-prayer') return requestPrayer(userId, body)
+  if (action === 'sol-alert') {
+    // Minister role verified from the Clerk record fetched by requireAuth.
+    if (!auth.isAdmin) return json({ error: 'Minister access required' }, 403)
+    return solAlert(body)
+  }
+  if (action === 'snapshot') return snapshot()
 
   return json({ error: 'Unknown action' }, 400)
 }

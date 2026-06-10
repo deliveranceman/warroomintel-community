@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -13,20 +14,12 @@ const HEADERS = {
   'Content-Type': 'application/json',
 }
 
-function extractUserId(token: string | null): string | null {
-  if (!token || token.split('.').length !== 3) return null
-  try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    return payload.sub || null
-  } catch { return null }
-}
-
 export default async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim() || null
-  const userId = extractUserId(token)
-  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+  const userId = auth.userId
 
   const url = new URL(req.url)
 

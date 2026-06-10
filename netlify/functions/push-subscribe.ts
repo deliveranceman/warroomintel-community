@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -15,15 +16,18 @@ function sb() {
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
+
   if (req.method === 'POST') {
     let body: any
     try { body = await req.json() } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS })
     }
 
-    const { userId, subscription } = body || {}
-    if (!userId || !subscription) {
-      return new Response(JSON.stringify({ error: 'userId and subscription required' }), { status: 400, headers: HEADERS })
+    const { subscription } = body || {}
+    if (!subscription) {
+      return new Response(JSON.stringify({ error: 'subscription required' }), { status: 400, headers: HEADERS })
     }
 
     // Parse if stored as string
@@ -39,7 +43,7 @@ export default async function handler(req: Request) {
     const { error } = await sb()
       .from('push_subscriptions')
       .upsert(
-        { user_id: userId, endpoint, subscription: sub, updated_at: new Date().toISOString() },
+        { user_id: auth.userId, endpoint, subscription: sub, updated_at: new Date().toISOString() },
         { onConflict: 'endpoint' }
       )
 
@@ -52,20 +56,10 @@ export default async function handler(req: Request) {
   }
 
   if (req.method === 'DELETE') {
-    let body: any
-    try { body = await req.json() } catch {
-      return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS })
-    }
-
-    const { userId } = body || {}
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'userId required' }), { status: 400, headers: HEADERS })
-    }
-
     const { error } = await sb()
       .from('push_subscriptions')
       .delete()
-      .eq('user_id', userId)
+      .eq('user_id', auth.userId)
 
     if (error) {
       console.error('[push-subscribe] delete error:', error.message)

@@ -1,4 +1,5 @@
 import { StreamClient } from '@stream-io/node-sdk'
+import { requireAuth } from './_shared/access'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -7,29 +8,14 @@ const CORS = {
 }
 const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' }
 
-function extractPayload(authHeader: string | null) {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    return JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-  } catch { return null }
-}
-
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const payload = extractPayload(req.headers.get('Authorization'))
-  if (!payload?.sub) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: JSON_HEADERS })
-  }
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
-  const userId    = payload.sub as string
-  const meta      = payload?.publicMetadata || payload?.public_metadata || {}
-  const firstName = (payload.firstName || payload.first_name || payload.given_name || meta.first_name || '') as string
-  const lastName  = (payload.lastName  || payload.last_name  || payload.family_name || meta.last_name  || '') as string
-  const name      = [firstName, lastName].filter(Boolean).join(' ') || (payload.name as string) || (payload.username as string) || 'Soldier'
+  const userId = auth.userId
+  const name   = auth.displayName || 'Warrior'
 
   const { apiKey, apiSecret } = JSON.parse(process.env.STREAM || '{}')
   if (!apiKey || !apiSecret) {
