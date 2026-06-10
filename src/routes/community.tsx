@@ -3587,7 +3587,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
             📡 Field Reports
           </div>
 
-        {getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 2 ? (
+        {getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 1 ? (
           <div style={{ marginBottom: 16 }}>
             {!showReportForm && !reportSuccess && (
               <button onClick={() => setShowReportForm(true)} style={{ background: 'transparent', border: `1px solid ${GG}`, borderRadius: 6, padding: '8px 20px', fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.08em', cursor: 'pointer' }}>
@@ -3637,10 +3637,10 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
           <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 20 }}>🔒</span>
             <div>
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.06em', marginBottom: 3 }}>Commander Tier Required</div>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: GG, letterSpacing: '0.06em', marginBottom: 3 }}>Soldier Tier Required</div>
               <div style={{ fontSize: 12, color: mut }}>Submit field intelligence reports from your sessions.</div>
             </div>
-            <button onClick={() => beginUpgrade('commander')} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
+            <button onClick={() => beginUpgrade('soldier')} style={{ marginLeft: 'auto', background: GG, color: '#0D0B14', padding: '7px 16px', borderRadius: 5, fontSize: 11, fontFamily: "'Cinzel', serif", fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>Upgrade</button>
           </div>
         )}
 
