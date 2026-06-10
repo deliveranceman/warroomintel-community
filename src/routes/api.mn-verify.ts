@@ -1,6 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireAdmin2 } from '../../netlify/functions/_shared/access'
 
 const { token: airtableToken, membersBase: airtableMembersBase, membersTable: airtableMembersTable } = JSON.parse(process.env.AIRTABLE || '{}')
+
+// Neutralizes filterByFormula injection: a valid email or access token never
+// contains control characters, double quotes, or backslashes. Reject anything
+// that does rather than interpolate it into the formula string.
+function safeForFormula(v: string): string | null {
+  if (v.includes('"') || v.includes('\\')) return null
+  for (let i = 0; i < v.length; i++) {
+    const c = v.charCodeAt(i)
+    if (c <= 0x1f || c === 0x7f) return null
+  }
+  return v
+}
 
 // ─── ENV ─────────────────────────────────────────────────────────────────────
 const AIRTABLE_TOKEN         = airtableToken
@@ -8,18 +21,29 @@ const AIRTABLE_MEMBERS_BASE  = airtableMembersBase
 const AIRTABLE_MEMBERS_TABLE = airtableMembersTable
 
 // ─── ROUTE ───────────────────────────────────────────────────────────────────
-// Called with ?email=member@email.com from the client
-// Returns { tier, name, email } or { error }
+// Admin-only member lookup (tier/name/email from the Airtable members base).
+// Discloses another member's PII keyed by an arbitrary token/email, so it is
+// gated to admins (requireAdmin2); no normal member flow calls it.
 export const Route = createFileRoute('/api/mn-verify')({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const auth = await requireAdmin2(request)
+        if (auth instanceof Response) return auth
+
         const url   = new URL(request.url)
         const token = url.searchParams.get('token')?.trim()
         const email = url.searchParams.get('email')?.toLowerCase().trim()
 
         if (!token && !email) {
           return Response.json({ error: 'email or token required' }, { status: 400 })
+        }
+
+        // Reject values that cannot be safely placed in a filterByFormula string.
+        const lookupRaw = token || email!
+        const lookup = safeForFormula(lookupRaw)
+        if (!lookup) {
+          return Response.json({ error: 'invalid lookup value' }, { status: 400 })
         }
 
         if (!AIRTABLE_TOKEN || !AIRTABLE_MEMBERS_BASE || !AIRTABLE_MEMBERS_TABLE) {
@@ -30,8 +54,8 @@ export const Route = createFileRoute('/api/mn-verify')({
 
         try {
           const formula = token
-            ? `{Access Token} = "${token}"`
-            : `{Email} = "${email}"`
+            ? `{Access Token} = "${lookup}"`
+            : `{Email} = "${lookup}"`
 
           const atUrl = `https://api.airtable.com/v0/${AIRTABLE_MEMBERS_BASE}/${AIRTABLE_MEMBERS_TABLE}` +
             `?filterByFormula=${encodeURIComponent(formula)}&maxRecords=1`
