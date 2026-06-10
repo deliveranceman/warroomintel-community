@@ -4219,7 +4219,16 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         const txt   = dbText
         const mut   = dbDim
         const FieldBlock = ({ label, value, color: c }: { label: string; value: string | null | undefined; color?: string }) => {
-          if (!value) return null
+          if (!value) {
+            // General+ sees the full field map including empties, marked as such.
+            if (!atLeast('general')) return null
+            return (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: (c || color) + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>{label}</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic', lineHeight: 1.65 }}>No data on file.</div>
+              </div>
+            )
+          }
           return (
             <div style={{ marginBottom: 18 }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: (c || color) + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>{label}</div>
@@ -4372,8 +4381,17 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     )
                   })()}
                   {entry.aka && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', marginBottom: 14 }}>aka {entry.aka}</div>}
+                  <FieldBlock label="Type / Rank" value={entry.typeRank} />
                   <FieldBlock label="Description" value={entry.description} />
                   <FieldBlock label="Kingdom" value={entry.kingdom} />
+                  {entry.strongman ? (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Strongman</div>
+                      {(() => { const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase()); return linked ? (
+                        <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontFamily: crimson, fontSize: 14, fontWeight: 600 }} title={`View ${entry.strongman} dossier`}>{entry.strongman}</span>
+                      ) : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span> })()}
+                    </div>
+                  ) : null}
                   {entry.subKingdom && entry.subKingdom !== 'None' && (
                     <div style={{ marginBottom: 14, marginTop: -8 }}>
                       <span style={{
@@ -4424,14 +4442,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   <FieldBlock label="Entry Points" value={entry.entryPoints} />
                   <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
                   <FieldBlock label="Source & Origin" value={entry.sourceOrigin} />
-                  {entry.strongman ? (
-                    <div style={{ marginBottom: 18 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Strongman</div>
-                      {(() => { const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase()); return linked ? (
-                        <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontFamily: crimson, fontSize: 14, fontWeight: 600 }} title={`View ${entry.strongman} dossier`}>{entry.strongman}</span>
-                      ) : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span> })()}
-                    </div>
-                  ) : null}
                   {entry.parentStrongman && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Parent Strongman</div>

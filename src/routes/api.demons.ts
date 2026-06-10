@@ -1,5 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { requireTier } from '../../netlify/functions/_shared/access'
+import { requireAuth } from '../../netlify/functions/_shared/access'
+
+// Fields a Watchman (level 0) may receive. Everything else is paid content and
+// is stripped server-side so the tier lock is a real boundary, not just CSS.
+const WATCHMAN_FIELDS = new Set([
+  'id', 'airtableId', 'createdTime', 'name', 'aka', 'typeRank', 'description',
+  'kingdom', 'strongman', 'subKingdom', 'biblicalRank', 'caseType', 'phonetic',
+  'images', 'isGenerational', 'isTerritorial', 'hierarchyCategory', 'region',
+])
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 
@@ -9,8 +17,9 @@ export const Route = createFileRoute('/api/demons')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const authRes = await requireTier(request, 1)
+        const authRes = await requireAuth(request)
         if (authRes instanceof Response) return authRes
+        const isPaid = authRes.level >= 1
         const token = airtableToken
         const BASE_ID = 'appVXEj2DLPBTJTtD'
         const TABLE_ID = 'tblcP4lgVykzOhLi4'
@@ -56,6 +65,7 @@ export const Route = createFileRoute('/api/demons')({
               createdTime: r.createdTime || '',
               name: r.fields[NAME_FIELD] || '',
               aka: r.fields['Also Known As'] || '',
+              typeRank: r.fields['Type / Rank'] || '',
               kingdom: r.fields['Kingdom'] || '',
               description: r.fields['Description'] || '',
               assignment: r.fields['Assignment'] || '',
@@ -67,7 +77,7 @@ export const Route = createFileRoute('/api/demons')({
               // Commander tier
               entryPoints: r.fields['Entry Points'] || '',
               legalRights: r.fields['Legal Rights'] || '',
-              protocol: r.fields['Deliverance Protocol'] || '',
+              protocol: r.fields['Deliverance Sequence'] || '',
               // General tier
               symptoms: r.fields['Symptoms'] || '',
               companionSpirits: r.fields['Companion Spirits'] || '',
@@ -111,7 +121,17 @@ export const Route = createFileRoute('/api/demons')({
             // Skip the header row (first record has "Primary Name" as the name value)
             .filter((d: any) => d.name && d.name !== 'Primary Name')
 
-          return Response.json({ demons, total: demons.length })
+          // Watchman (level 0): strip to preview fields so paid dossier content
+          // never leaves the server. Paid tiers (level >= 1) get the full record.
+          const payload = isPaid
+            ? demons
+            : demons.map((d: any) => {
+                const trimmed: any = {}
+                for (const k of Object.keys(d)) if (WATCHMAN_FIELDS.has(k)) trimmed[k] = d[k]
+                return trimmed
+              })
+
+          return Response.json({ demons: payload, total: payload.length })
         } catch (err: any) {
           return Response.json({ error: err.message }, { status: 500 })
         }
