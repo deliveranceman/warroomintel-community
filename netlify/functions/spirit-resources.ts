@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -10,33 +11,16 @@ const headers = {
 
 const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4 }
 
-async function getUserTier(token: string): Promise<number> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return 0
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return 0
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return 0
-    const data = await res.json()
-    const tier = (data?.public_metadata?.tier as string)?.toLowerCase() || 'free'
-    const role = (data?.public_metadata?.role as string)?.toLowerCase() || ''
-    if (role === 'minister') return TIER_ORDER.minister
-    return TIER_ORDER[tier] ?? 0
-  } catch { return 0 }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 })
 
-  // Determine user tier (anonymous = 0, so only free-tier resources show)
+  // Determine user tier from the VERIFIED Clerk record. This endpoint stays open
+  // to anonymous callers (tier 0 → only free-tier resources); a token is verified
+  // when present, so the tier used for filtering can't be forged.
   let userTierNum = 0
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (token) userTierNum = await getUserTier(token)
+  const auth = await requireAuth(req)
+  if (!(auth instanceof Response)) userTierNum = auth.level
 
   const url     = new URL(req.url)
   const spirit  = url.searchParams.get('spirit') || ''

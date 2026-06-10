@@ -1,3 +1,5 @@
+import { requireAuth } from './_shared/access'
+
 const { url: supabaseUrl, serviceRoleKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 
@@ -29,17 +31,6 @@ const DAY_THEMES: Record<number, string> = {
   4: 'oppression',
   5: 'affliction',
   6: 'infirmity',
-}
-
-function decodeUserId(authHeader: string | null): string | null {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub ?? null
-  } catch { return null }
 }
 
 function json(data: unknown, status = 200): Response {
@@ -78,8 +69,8 @@ async function getRecentSpiritIds(): Promise<Set<string>> {
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  const userId = decodeUserId(req.headers.get('Authorization'))
-  if (!userId) return json({ error: 'Unauthorized' }, 401)
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   const url   = new URL(req.url)
   const today = url.searchParams.get('date') || new Date().toISOString().slice(0, 10)

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { requireAuth } from './_shared/access'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -6,27 +7,12 @@ const CORS = {
   'Content-Type': 'application/json',
 }
 
-function decodeClerkJWT(token: string): { userId: string } {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return { userId: '' }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return { userId: payload.sub || '' }
-  } catch {
-    return { userId: '' }
-  }
-}
-
 export default async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('', { headers: CORS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: CORS })
 
-  const authHeader = req.headers.get('Authorization')
-  const token = authHeader?.replace('Bearer ', '')
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-
-  const { userId } = decodeClerkJWT(token)
-  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   const body = await req.json().catch(() => ({}))
   const { spiritName, kingdom, description, aka } = body

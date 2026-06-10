@@ -1,6 +1,6 @@
+import { requireAdmin2 } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
-const CLERK_SECRET   = process.env.CLERK_SECRET_KEY!
 const AIRTABLE_TOKEN = airtableToken || process.env.AIRTABLE_API_TOKEN || ''
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
@@ -26,24 +26,6 @@ const FM: Record<string, string> = {
   assignment:        'Assignment',
   hierarchyCategory: 'Hierarchy Category',
   parentStrongman:   'Parent Strongman',
-}
-
-async function resolveUser(token: string): Promise<{ userId: string; userData: any } | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData }
-  } catch {
-    return null
-  }
 }
 
 function delay(ms: number) {
@@ -80,19 +62,8 @@ export default async function handler(req: Request) {
     return new Response('Method not allowed', { status: 405 })
   }
 
-  const authHeader = req.headers.get('Authorization') || ''
-  const token = authHeader.replace('Bearer ', '')
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
-  const auth = await resolveUser(token)
-  if (!auth) {
-    return new Response(JSON.stringify({ error: 'Unauthorized — invalid session' }), { status: 401 })
-  }
-  if (auth.userData?.public_metadata?.role !== 'minister') {
-    return new Response(JSON.stringify({ error: 'Forbidden — minister role required' }), { status: 403 })
-  }
+  const auth = await requireAdmin2(req)
+  if (auth instanceof Response) return auth
 
   let spirits: Record<string, any>[]
   try {
