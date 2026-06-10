@@ -1,3 +1,5 @@
+import { requireAuth } from './_shared/access'
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -8,16 +10,11 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
+  const userId = auth.userId
   try {
-    const parts = token.split('.')
-    if (parts.length !== 3) throw new Error('Invalid token')
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) throw new Error('No userId in token')
-
     const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
     })

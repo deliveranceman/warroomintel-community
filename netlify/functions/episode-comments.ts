@@ -1,12 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const supabase = createClient(
-  supabaseUrl!,
-  supabaseServiceKey!
-)
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -14,39 +11,15 @@ const headers = {
   'Content-Type': 'application/json',
 }
 
-async function resolveUser(token: string) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData }
-  } catch { return null }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const auth = await resolveUser(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
-  const { userId, userData } = auth
   const url = new URL(req.url)
   const episodeId = url.searchParams.get('episodeId')
   const commentId = url.searchParams.get('id')
-  const role = userData?.public_metadata?.role
-  const userName = `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim() || 'Warrior'
-  const userTier = (userData?.public_metadata?.tier as string || 'free')
-  const userImage = userData?.image_url || ''
-  const isFounder = !!(userData?.public_metadata?.foundingMember) || userTier.startsWith('charter')
 
   // GET comments for episode
   if (req.method === 'GET' && episodeId) {
@@ -71,13 +44,13 @@ export default async function handler(req: Request) {
       .from('episode_comments')
       .insert({
         episode_id: eid,
-        user_id: userId,
-        user_name: userName,
-        user_tier: userTier,
-        user_image: userImage,
-        is_founder: isFounder,
-        parent_id: parentId || null,
-        body: body.trim(),
+        user_id:    auth.userId,
+        user_name:  auth.displayName,
+        user_tier:  auth.tier,
+        user_image: auth.imageUrl,
+        is_founder: false,
+        parent_id:  parentId || null,
+        body:       body.trim(),
       })
       .select()
       .single()
@@ -86,7 +59,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ comment: data }), { status: 201, headers })
   }
 
-  // DELETE comment (owner or minister)
+  // DELETE comment (owner or admin)
   if (req.method === 'DELETE' && commentId) {
     const { data: comment } = await supabase
       .from('episode_comments')
@@ -95,7 +68,7 @@ export default async function handler(req: Request) {
       .single()
 
     if (!comment) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers })
-    if (comment.user_id !== userId && role !== 'minister') {
+    if (comment.user_id !== auth.userId && !auth.isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     }
 

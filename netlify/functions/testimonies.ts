@@ -1,12 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const supabase = createClient(
-  supabaseUrl!,
-  supabaseServiceKey!
-)
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -14,36 +11,12 @@ const headers = {
   'Content-Type': 'application/json',
 }
 
-async function resolveUser(token: string) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${CLERK_SECRET}` },
-    })
-    if (!userRes.ok) return null
-    const userData = await userRes.json()
-    return { userId, userData }
-  } catch { return null }
-}
-
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-  const auth = await resolveUser(token)
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
-  const { userId, userData } = auth
-  const userName = `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim() || 'Warrior'
-  const userTier = userData?.public_metadata?.tier || 'free'
-  const userImage = userData?.image_url || ''
-  const role = userData?.public_metadata?.role
-  const isFounder = !!(userData?.public_metadata?.foundingMember) || userTier.startsWith('charter')
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
 
@@ -53,7 +26,7 @@ export default async function handler(req: Request) {
 
     let query = supabase.from('testimonies').select('*').order('created_at', { ascending: false })
 
-    if (!showAll || role !== 'minister') {
+    if (!showAll || !auth.isAdmin) {
       query = query.eq('status', 'approved')
     }
 
@@ -61,10 +34,9 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ testimonies: data || [] }), { status: 200, headers })
   }
 
-  // POST submit testimony — Soldier tier required (spec).
+  // POST submit testimony — Soldier tier required
   if (req.method === 'POST') {
-    const tierNum = (t: string) => ({ free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }[(t || '').toLowerCase()] ?? 0)
-    if (tierNum(userTier) < 1) {
+    if (auth.level < 1) {
       return new Response(JSON.stringify({ error: 'Soldier tier required to submit a testimony' }), { status: 403, headers })
     }
     const { title, body, category, isAnonymous } = await req.json()
@@ -74,16 +46,16 @@ export default async function handler(req: Request) {
     const { data, error } = await supabase
       .from('testimonies')
       .insert({
-        user_id: userId,
-        user_name: isAnonymous ? 'Anonymous Warrior' : userName,
-        user_tier: userTier,
-        user_image: isAnonymous ? '' : userImage,
-        is_founder: !isAnonymous && isFounder,
-        title: title.trim(),
-        body: body.trim(),
-        category: category || 'personal',
+        user_id:      auth.userId,
+        user_name:    isAnonymous ? 'Anonymous Warrior' : auth.displayName,
+        user_tier:    auth.tier,
+        user_image:   isAnonymous ? '' : auth.imageUrl,
+        is_founder:   false,
+        title:        title.trim(),
+        body:         body.trim(),
+        category:     category || 'personal',
         is_anonymous: isAnonymous || false,
-        status: 'pending',
+        status:       'pending',
       })
       .select()
       .single()
@@ -100,9 +72,9 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ reaction_count: next }), { status: 200, headers })
   }
 
-  // PATCH approve/reject (minister only)
+  // PATCH approve/reject (admin only — minister+)
   if (req.method === 'PATCH' && id) {
-    if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+    if (!auth.isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     const { status } = await req.json()
     const { data, error } = await supabase
       .from('testimonies')
@@ -114,9 +86,9 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ testimony: data }), { status: 200, headers })
   }
 
-  // DELETE (minister only)
+  // DELETE (admin only — minister+)
   if (req.method === 'DELETE' && id) {
-    if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+    if (!auth.isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     await supabase.from('testimonies').delete().eq('id', id)
     return new Response(JSON.stringify({ success: true }), { status: 200, headers })
   }

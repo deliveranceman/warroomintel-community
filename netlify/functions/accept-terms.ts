@@ -1,3 +1,5 @@
+import { requireAuth } from './_shared/access'
+
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -8,20 +10,10 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
-  let userId: string | null = null
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) throw new Error('bad token')
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    userId = payload.sub || null
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: HEADERS })
-  }
-  if (!userId) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: HEADERS })
-
+  const userId = auth.userId
   const clerkSecret = process.env.CLERK_SECRET_KEY
   if (!clerkSecret) return new Response(JSON.stringify({ error: 'Server misconfigured' }), { status: 500, headers: HEADERS })
 

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -12,28 +13,6 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
-const TIER_LEVELS: Record<string, number> = {
-  free: 0, watchman: 0, soldier: 1, commander: 2, general: 3, minister: 99,
-}
-
-async function resolveUser(token: string): Promise<{ userId: string; name: string; tier: string; role: string } | null> {
-  try {
-    if (!token || token.split('.').length !== 3) return null
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
-    const userId = payload.sub
-    if (!userId) return null
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'Warrior'
-    const tier = data?.public_metadata?.tier || 'free'
-    const role = data?.public_metadata?.role || ''
-    return { userId, name, tier, role }
-  } catch { return null }
-}
-
 function hotScore(post: any): number {
   const ageHours = (Date.now() - new Date(post.created_at).getTime()) / 3600000
   const recencyBoost = ageHours < 168 ? Math.max(0, 1 - ageHours / 168) : 0
@@ -43,7 +22,6 @@ function hotScore(post: any): number {
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   const client = sb()
   const url = new URL(req.url)
 
@@ -60,13 +38,11 @@ export default async function handler(req: Request) {
     if (type !== 'all') query = query.eq('post_type', type) as any
     if (tag)            query = query.contains('tags', [tag]) as any
 
-    // Apply DB-level sort where possible
     if (sort === 'new') {
       query = query.order('pinned', { ascending: false }).order('created_at', { ascending: false })
     } else if (sort === 'top') {
       query = query.order('pinned', { ascending: false }).order('upvotes', { ascending: false })
     } else {
-      // hot: fetch more for re-sort
       query = query.order('pinned', { ascending: false }).order('created_at', { ascending: false })
     }
 
@@ -84,16 +60,16 @@ export default async function handler(req: Request) {
       }).slice(offset, offset + limit)
     }
 
-    // Voted status
+    // Voted status (optional auth — skip if unauthenticated)
     let myVotes: string[] = []
-    if (token && posts.length > 0) {
-      const user = await resolveUser(token)
-      if (user) {
+    if (posts.length > 0) {
+      const authRes = await requireAuth(req)
+      if (!(authRes instanceof Response)) {
         const postIds = posts.map((p: any) => p.id)
         const { data: votes } = await client
           .from('forum_votes')
           .select('post_id')
-          .eq('user_id', user.userId)
+          .eq('user_id', authRes.userId)
           .in('post_id', postIds)
         myVotes = (votes || []).map((v: any) => v.post_id)
       }
@@ -110,15 +86,12 @@ export default async function handler(req: Request) {
   }
 
   // Auth required for all mutations
-  if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  const user = await resolveUser(token)
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-
-  const isMinister = user.role === 'minister'
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   // ── POST ─────────────────────────────────────────────────────────────────
   if (req.method === 'POST') {
-    if (TIER_LEVELS[user.tier] < 1 && !isMinister) {
+    if (auth.level < 1 && !auth.isAdmin) {
       return new Response(JSON.stringify({ error: 'Soldier+ required to post' }), { status: 403, headers: HEADERS })
     }
     let body: any
@@ -131,9 +104,9 @@ export default async function handler(req: Request) {
     const ptype = validTypes.includes(post_type) ? post_type : 'discussion'
 
     const row: any = {
-      user_id:     user.userId,
-      author_name: user.name,
-      author_tier: user.tier || (isMinister ? 'minister' : 'free'),
+      user_id:     auth.userId,
+      author_name: auth.displayName,
+      author_tier: auth.tier,
       title:       title.trim().slice(0, 200),
       post_type:   ptype,
       tags:        Array.isArray(tags) ? tags.slice(0, 10).map((t: string) => String(t).trim().slice(0, 40)).filter(Boolean) : [],
@@ -159,14 +132,14 @@ export default async function handler(req: Request) {
     const { data: existing } = await client.from('forum_posts').select('user_id').eq('id', id).single()
     if (!existing) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: HEADERS })
 
-    const isOwner = existing.user_id === user.userId
-    if (!isOwner && !isMinister) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: HEADERS })
+    const isOwner = existing.user_id === auth.userId
+    if (!isOwner && !auth.isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: HEADERS })
 
     const updates: Record<string, any> = { updated_at: new Date().toISOString() }
     for (const k of ['title', 'body', 'tags', 'resource_url', 'resource_title', 'resource_thumbnail', 'resource_description']) {
       if (k in fields) updates[k] = fields[k]
     }
-    if (isMinister) {
+    if (auth.isAdmin) {
       if ('pinned'  in fields) updates.pinned  = fields.pinned
       if ('flagged' in fields) updates.flagged = fields.flagged
     }
@@ -184,8 +157,8 @@ export default async function handler(req: Request) {
     const { data: existing } = await client.from('forum_posts').select('user_id').eq('id', id).single()
     if (!existing) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: HEADERS })
 
-    const isOwner = existing.user_id === user.userId
-    if (!isOwner && !isMinister) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: HEADERS })
+    const isOwner = existing.user_id === auth.userId
+    if (!isOwner && !auth.isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: HEADERS })
 
     const { error } = await client.from('forum_posts').delete().eq('id', id)
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: HEADERS })

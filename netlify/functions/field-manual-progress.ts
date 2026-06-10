@@ -1,35 +1,20 @@
 import type { Context } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const supabase = createClient(
-  supabaseUrl!,
-  supabaseServiceKey!,
-)
-
-function getUserId(authHeader: string | null): string | null {
-  if (!authHeader?.startsWith('Bearer ')) return null
-  const token = authHeader.slice(7)
-  try {
-    const parts = token.split('.')
-    if (parts.length < 2) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub || null
-  } catch {
-    return null
-  }
-}
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
 export default async (req: Request, _ctx: Context) => {
-  const userId = getUserId(req.headers.get('authorization'))
-  if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('field_manual_progress')
       .select('module_id, completed, completed_at')
-      .eq('user_id', userId)
+      .eq('user_id', auth.userId)
     if (error) return Response.json({ error: error.message }, { status: 500 })
     return Response.json({ progress: data || [] })
   }
@@ -43,11 +28,11 @@ export default async (req: Request, _ctx: Context) => {
       .from('field_manual_progress')
       .upsert(
         {
-          user_id: userId,
+          user_id:      auth.userId,
           module_id,
-          completed: completed ?? true,
+          completed:    completed ?? true,
           completed_at: completed !== false ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
+          updated_at:   new Date().toISOString(),
         },
         { onConflict: 'user_id,module_id' },
       )

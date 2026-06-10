@@ -1,23 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json',
-}
-
-function extractUserId(authHeader: string | null): string | null {
-  if (!authHeader) return null
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-  if (!token) return null
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload.sub ?? null
-  } catch {
-    return null
-  }
 }
 
 function getSupabase() {
@@ -28,10 +15,8 @@ function getSupabase() {
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const userId = extractUserId(req.headers.get('Authorization'))
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  }
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   const url = new URL(req.url)
   const action = url.searchParams.get('action')
@@ -41,7 +26,7 @@ export default async function handler(req: Request) {
     const { data, error } = await supabase
       .from('dm_requests')
       .select('id, recipient_id, recipient_name, status, created_at')
-      .eq('requester_id', userId)
+      .eq('requester_id', auth.userId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
 
@@ -67,7 +52,7 @@ export default async function handler(req: Request) {
       .from('dm_requests')
       .update({ status: 'cancelled' })
       .eq('id', id)
-      .eq('requester_id', userId)
+      .eq('requester_id', auth.userId)
 
     if (error) {
       console.error('[dm-request] cancel error:', error.message)
