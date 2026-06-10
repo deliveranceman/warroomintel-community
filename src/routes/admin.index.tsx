@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/admin/')({
   component: AdminDashboard,
@@ -57,6 +58,7 @@ const selectStyle: React.CSSProperties = {
 
 // ─── UPLOAD FORM ─────────────────────────────────────────────────────────────
 function UploadForm({ onSuccess }: { onSuccess: () => void }) {
+  const { getToken }                = useAuth()
   const [file, setFile]             = useState<File | null>(null)
   const [title, setTitle]           = useState('')
   const [description, setDesc]      = useState('')
@@ -85,10 +87,11 @@ function UploadForm({ onSuccess }: { onSuccess: () => void }) {
     fd.append('active',      String(active))
 
     try {
+      const token = await getToken()
       const res = await fetch('/api/admin-upload', {
         method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
         body: fd,
-        credentials: 'same-origin',
       })
       const data = await res.json()
       setResult(data)
@@ -337,6 +340,7 @@ function ResourceRow({ resource, onUpdate, onDelete }: {
 
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 function AdminDashboard() {
+  const { getToken, signOut }      = useAuth()
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
@@ -346,8 +350,9 @@ function AdminDashboard() {
   async function loadResources() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin-upload', { credentials: 'same-origin' })
-      if (res.status === 401) { navigate({ to: '/admin/login' }); return }
+      const token = await getToken()
+      const res = await fetch('/api/admin-upload', { headers: { Authorization: `Bearer ${token}` } })
+      if (res.status === 401 || res.status === 403) { navigate({ to: '/admin/login' }); return }
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setResources(data.resources || [])
@@ -362,11 +367,11 @@ function AdminDashboard() {
 
   async function handleUpdate(id: string, fields: any) {
     try {
+      const token = await getToken()
       const res = await fetch('/api/admin-upload', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id, fields }),
-        credentials: 'same-origin',
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -381,11 +386,11 @@ function AdminDashboard() {
   async function handleDelete(id: string, filePath: string) {
     if (!confirm('Delete this resource? This cannot be undone.')) return
     try {
+      const token = await getToken()
       const res = await fetch('/api/admin-upload', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id, filePath, deleteFile: true }),
-        credentials: 'same-origin',
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -398,7 +403,7 @@ function AdminDashboard() {
   }
 
   async function handleLogout() {
-    await fetch('/api/admin-auth?action=logout', { method: 'POST', credentials: 'same-origin' })
+    await signOut()
     navigate({ to: '/admin/login' })
   }
 

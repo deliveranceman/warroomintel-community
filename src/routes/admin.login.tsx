@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect } from 'react'
+import { useAuth, useUser } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/admin/login')({
   component: AdminLogin,
@@ -14,35 +15,66 @@ const border  = 'var(--border)'
 const muted   = 'var(--muted)'
 
 function AdminLogin() {
-  const [password, setPassword] = useState('')
-  const [error, setError]       = useState('')
-  const [loading, setLoading]   = useState(false)
-  const navigate = useNavigate()
+  const { isSignedIn, isLoaded } = useAuth()
+  const { user }                 = useUser()
+  const navigate                 = useNavigate()
 
-  async function handleLogin() {
-    if (!password) return
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch('/api/admin-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-        credentials: 'same-origin',
-      })
-      if (res.ok) {
-        navigate({ to: '/admin' })
-      } else {
-        const data = await res.json()
-        setError(data.error || 'Invalid password')
-      }
-    } catch {
-      setError('Network error. Try again.')
-    } finally {
-      setLoading(false)
-    }
+  useEffect(() => {
+    if (!isLoaded) return
+    const role    = (user?.publicMetadata?.role as string) || ''
+    const isAdmin = role === 'minister' || role === 'commandant'
+    if (isSignedIn && isAdmin) navigate({ to: '/admin' })
+  }, [isLoaded, isSignedIn, user, navigate])
+
+  if (!isLoaded) {
+    return (
+      <div style={{
+        background: deep, minHeight: '100vh', display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.2em', color: gold,
+      }}>
+        LOADING...
+      </div>
+    )
   }
 
+  if (!isSignedIn) {
+    const redirectUrl = typeof window !== 'undefined' ? window.location.href : 'https://warroomintel.com/admin'
+    return (
+      <div style={{
+        background: deep, minHeight: '100vh', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', fontFamily: crimson,
+      }}>
+        <div style={{
+          background: surface, border: `1px solid ${border}`,
+          borderRadius: '12px', padding: '48px 40px', width: '100%', maxWidth: '380px',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.25em', color: gold, marginBottom: '8px' }}>
+            WAR ROOM INTEL
+          </div>
+          <div style={{ fontFamily: cinzel, fontSize: '18px', color: '#e8e0d0', marginBottom: '4px' }}>
+            Admin Access
+          </div>
+          <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic', marginBottom: '28px' }}>
+            Sign in with your ordained minister account to continue.
+          </div>
+          <a
+            href={`https://accounts.warroomintel.com/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`}
+            style={{
+              display: 'block', background: gold, color: deep,
+              fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
+              padding: '12px', borderRadius: '6px', textDecoration: 'none',
+            }}
+          >
+            SIGN IN
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  // Signed in but not admin — show access denied
   return (
     <div style={{
       background: deep, minHeight: '100vh', display: 'flex',
@@ -51,61 +83,22 @@ function AdminLogin() {
       <div style={{
         background: surface, border: `1px solid ${border}`,
         borderRadius: '12px', padding: '48px 40px', width: '100%', maxWidth: '380px',
+        textAlign: 'center',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.25em', color: gold, marginBottom: '8px' }}>
-            WAR ROOM INTEL
-          </div>
-          <div style={{ fontFamily: cinzel, fontSize: '18px', color: '#e8e0d0', marginBottom: '4px' }}>
-            Admin Access
-          </div>
-          <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>
-            Restricted. Authorized personnel only.
-          </div>
+        <div style={{ fontSize: '36px', marginBottom: '16px' }}>🔒</div>
+        <div style={{ fontFamily: cinzel, fontSize: '18px', color: '#e8e0d0', marginBottom: '4px' }}>
+          Access Denied
         </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ fontFamily: cinzel, fontSize: '9px', letterSpacing: '0.14em', color: muted, display: 'block', marginBottom: '8px' }}>
-            PASSWORD
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            autoFocus
-            style={{
-              width: '100%', background: deep, border: `1px solid ${border}`,
-              borderRadius: '6px', padding: '10px 14px', color: '#e8e0d0',
-              fontFamily: crimson, fontSize: '14px', outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
+        <div style={{ fontSize: '13px', color: muted, fontStyle: 'italic', marginBottom: '28px' }}>
+          This panel requires an ordained minister account.
         </div>
-
-        {error && (
-          <div style={{
-            background: '#2a1010', border: '1px solid #5a2020', borderRadius: '6px',
-            padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#e09090',
-          }}>
-            {error}
-          </div>
-        )}
-
-        <button
-          onClick={handleLogin}
-          disabled={loading || !password}
-          style={{
-            width: '100%', background: gold, color: deep,
-            fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
-            padding: '12px', borderRadius: '6px', border: 'none',
-            cursor: loading || !password ? 'not-allowed' : 'pointer',
-            opacity: loading || !password ? 0.6 : 1,
-            transition: 'opacity 0.2s',
-          }}
-        >
-          {loading ? 'VERIFYING...' : 'ENTER THE WAR ROOM'}
-        </button>
+        <a href="/community" style={{
+          display: 'block', background: gold, color: deep,
+          fontFamily: cinzel, fontSize: '10px', letterSpacing: '0.14em',
+          padding: '12px', borderRadius: '6px', textDecoration: 'none',
+        }}>
+          RETURN TO COMMUNITY
+        </a>
       </div>
     </div>
   )

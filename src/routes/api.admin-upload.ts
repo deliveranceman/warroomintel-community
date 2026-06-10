@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { verifyAdminCookie } from './api.admin-auth'
+import { requireAdmin2 } from '../../netlify/functions/_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -17,9 +17,8 @@ export const Route = createFileRoute('/api/admin-upload')({
 
       // ── GET — list all resources ──────────────────────────────────────────
       GET: async ({ request }) => {
-        if (!await verifyAdminCookie(request)) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const auth = await requireAdmin2(request)
+        if (auth instanceof Response) return auth
 
         const res = await fetch(
           `https://api.airtable.com/v0/${AIRTABLE_RESOURCES_BASE}/${AIRTABLE_RESOURCES_TABLE}?pageSize=100`,
@@ -47,9 +46,8 @@ export const Route = createFileRoute('/api/admin-upload')({
 
       // ── POST — upload file + create Airtable record ───────────────────────
       POST: async ({ request }) => {
-        if (!await verifyAdminCookie(request)) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const auth = await requireAdmin2(request)
+        if (auth instanceof Response) return auth
 
         const formData = await request.formData()
 
@@ -153,9 +151,8 @@ export const Route = createFileRoute('/api/admin-upload')({
 
       // ── PATCH — update Airtable record (toggle active, edit fields) ───────
       PATCH: async ({ request }) => {
-        if (!await verifyAdminCookie(request)) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const auth = await requireAdmin2(request)
+        if (auth instanceof Response) return auth
 
         const { id, fields } = await request.json()
         if (!id || !fields) {
@@ -183,9 +180,8 @@ export const Route = createFileRoute('/api/admin-upload')({
 
       // ── DELETE — remove from Airtable (optionally Supabase too) ──────────
       DELETE: async ({ request }) => {
-        if (!await verifyAdminCookie(request)) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const auth = await requireAdmin2(request)
+        if (auth instanceof Response) return auth
 
         const { id, filePath, deleteFile } = await request.json()
         if (!id) return Response.json({ error: 'id required' }, { status: 400 })
