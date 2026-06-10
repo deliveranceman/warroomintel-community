@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAuth } from './_shared/access'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -16,7 +16,7 @@ function sb() {
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
 
-  const auth = await requireAuth(req)
+  const auth = await requireTier(req, 1)
   if (auth instanceof Response) return auth
 
   const client = sb()

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAuth } from './_shared/access'
+import { requireAuth, requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -85,8 +85,8 @@ export default async function handler(req: Request) {
     }), { status: 200, headers: HEADERS })
   }
 
-  // Auth required for all mutations
-  const auth = await requireAuth(req)
+  // Auth required for all mutations — Soldier+ tier
+  const auth = await requireTier(req, 1)
   if (auth instanceof Response) return auth
 
   // ── POST ─────────────────────────────────────────────────────────────────

@@ -33,8 +33,11 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ comments: comments || [] }), { status: 200, headers })
   }
 
-  // POST new comment
+  // POST new comment — Soldier tier required
   if (req.method === 'POST') {
+    if (auth.level < 1) {
+      return new Response(JSON.stringify({ error: 'Soldier tier required to comment' }), { status: 403, headers })
+    }
     const { episodeId: eid, body, parentId } = await req.json()
     if (!eid || !body?.trim()) {
       return new Response(JSON.stringify({ error: 'episodeId and body required' }), { status: 400, headers })
