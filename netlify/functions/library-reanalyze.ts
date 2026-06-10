@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireTier } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -13,24 +14,6 @@ const CORS = {
 
 function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
-}
-
-async function isMinister(token: string): Promise<boolean> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    const userId  = payload.sub
-    if (!userId) return false
-    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    const role  = data?.public_metadata?.role
-    const tier  = data?.public_metadata?.tier?.toLowerCase()
-    return role === 'minister' || role === 'admin' || ['general', 'commander'].includes(tier)
-  } catch { return false }
 }
 
 async function extractText(arrayBuffer: ArrayBuffer, filename: string): Promise<string | null> {
@@ -105,10 +88,8 @@ export default async function handler(req: Request) {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: CORS })
 
   try {
-    const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-    if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: CORS })
-    const ok = await isMinister(token)
-    if (!ok) return new Response(JSON.stringify({ error: 'Minister role required' }), { status: 403, headers: CORS })
+    const auth = await requireTier(req, 2)
+    if (auth instanceof Response) return auth
 
     const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
     if (!ANTHROPIC_KEY) throw new Error('ANTHROPIC_API_KEY not set in environment')

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -17,21 +18,8 @@ export default async function handler(req: Request) {
     return new Response(null, { status: 204, headers: HEADERS })
   }
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: HEADERS })
-  }
-
-  let userId: string
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) throw new Error('Invalid JWT')
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    userId = payload.sub
-    if (!userId) throw new Error('No sub in JWT')
-  } catch {
-    return new Response(JSON.stringify({ error: 'Unauthorized — invalid token' }), { status: 401, headers: HEADERS })
-  }
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   const supabase = sb()
   const { data, error } = await supabase

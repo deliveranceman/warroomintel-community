@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from './_shared/access'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -33,20 +34,8 @@ export default async function handler(req: Request) {
   }
 
   // AUTH
-  const authHeader = req.headers.get('Authorization') || ''
-  const token = authHeader.replace('Bearer ', '').trim()
-  let userId = ''
-  if (token && token.split('.').length === 3) {
-    try {
-      const payload = JSON.parse(
-        Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
-      )
-      userId = payload.sub || ''
-    } catch {}
-  }
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
+  const auth = await requireAuth(req)
+  if (auth instanceof Response) return auth
 
   const supabase = createClient(
     supabaseUrl!,
