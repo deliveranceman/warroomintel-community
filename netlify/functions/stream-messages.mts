@@ -268,6 +268,16 @@ async function getMessages(userId: string, channelId: string): Promise<Response>
 
   const d = data as any
   console.log('[get-messages] message count:', d.messages?.length ?? 0)
+
+  const OPEN_CHANNELS = new Set(['war-room-general'])
+  if (!OPEN_CHANNELS.has(channelId)) {
+    const members = d.members ?? []
+    const isMember = members.some((m: any) =>
+      m.user_id === userId || m.user?.id === userId
+    )
+    if (!isMember) return json({ error: 'forbidden' }, 403)
+  }
+
   return json({
     messages: d.messages ?? [],
     members:  (d.members ?? []).map((m: any) => ({
