@@ -9975,6 +9975,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [showSentinelPicker, setShowSentinelPicker] = React.useState(false)
   const [sentinelSearch, setSentinelSearch]         = React.useState('')
   const [sentinelSent, setSentinelSent]             = React.useState<string[]>([])
+  const [ftSearch, setFtSearch]                     = React.useState('')
+  const [caSearch, setCaSearch]                     = React.useState('')
   const [showCreateFireTeam, setShowCreateFireTeam] = React.useState(false)
   const [ftName, setFtName]                         = React.useState('')
   const [ftType, setFtType]                         = React.useState('intercession')
@@ -11186,6 +11188,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   const filtered = dmMembers.filter((m: any) =>
                     m.id != null && m.id !== '' &&
                     m.id !== userId &&
+                    (m.level ?? 0) >= 1 &&
                     ((m.name || '').toLowerCase().includes(sentinelSearch.toLowerCase()) || sentinelSearch === '')
                   )
                   if (filtered.length === 0) return <div style={{ padding: '16px', fontSize: 12, color: WMUT, textAlign: 'center' }}>No members found</div>
@@ -11296,7 +11299,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em' }}>INVITE MEMBERS</label>
-                  {ftInviteIds.length >= 7 && <span style={{ fontSize: 9, color: '#c47070' }}>Max 7 members</span>}
+                  <span style={{ fontSize: 9, color: ftInviteIds.length >= 7 ? '#c47070' : WDIM }}>{ftInviteIds.length} of 7 selected</span>
                 </div>
                 {ftInviteIds.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 10 }}>
@@ -11311,41 +11314,49 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     })}
                   </div>
                 )}
+                <input
+                  value={ftSearch}
+                  onChange={e => setFtSearch(e.target.value)}
+                  placeholder="Search members…"
+                  style={{ width: '100%', padding: '7px 10px', background: isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7', border: `1px solid ${BDR}`, borderRadius: 6, color: isDark ? '#fff' : '#0F1523', fontSize: 12, outline: 'none', boxSizing: 'border-box' as const, marginBottom: 6 }}
+                />
                 <div style={{ maxHeight: 180, overflowY: 'auto' as const, border: `1px solid ${BDR}`, borderRadius: 8 }}>
                   {loadingMembers ? (
                     <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>Loading…</div>
-                  ) : dmMembers.length === 0 ? (
-                    <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>No members available</div>
-                  ) : dmMembers.map(member => {
-                    const isSelected = ftInviteIds.includes(member.id)
-                    const atMax = ftInviteIds.length >= 7
-                    const disabled = !isSelected && atMax
-                    return (
-                      <button
-                        key={member.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => setFtInviteIds(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
-                        style={{ width: '100%', background: isSelected ? 'rgba(201,168,76,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
-                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.1)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,40,80,0.04)') }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.08)' : 'none' }}
-                      >
-                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? GLD : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(30,40,80,0.3)')}`, background: isSelected ? GLD : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
-                        </div>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? 'rgba(201,168,76,0.15)' : '#E8ECF1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: isDark ? GLD : '#4A5568', flexShrink: 0, overflow: 'hidden' }}>
-                          {member.imageUrl
-                            ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
-                          }
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: isDark ? '#d4c9b0' : '#0F1523', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
-                          <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
-                        </div>
-                      </button>
-                    )
-                  })}
+                  ) : (() => {
+                    const ftFiltered = dmMembers.filter(m => (m.level ?? 0) >= 1 && (!ftSearch || (m.name || '').toLowerCase().includes(ftSearch.toLowerCase())))
+                    if (ftFiltered.length === 0) return <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>No members found</div>
+                    return ftFiltered.map(member => {
+                      const isSelected = ftInviteIds.includes(member.id)
+                      const atMax = ftInviteIds.length >= 7
+                      const disabled = !isSelected && atMax
+                      return (
+                        <button
+                          key={member.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => setFtInviteIds(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
+                          style={{ width: '100%', background: isSelected ? 'rgba(201,168,76,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
+                          onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.1)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,40,80,0.04)') }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(201,168,76,0.08)' : 'none' }}
+                        >
+                          <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? GLD : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(30,40,80,0.3)')}`, background: isSelected ? GLD : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
+                          </div>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? 'rgba(201,168,76,0.15)' : '#E8ECF1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: isDark ? GLD : '#4A5568', flexShrink: 0, overflow: 'hidden' }}>
+                            {member.imageUrl
+                              ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+                            }
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: isDark ? '#d4c9b0' : '#0F1523', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                            <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
+                          </div>
+                        </button>
+                      )
+                    })
+                  })()}
                 </div>
               </div>
 
@@ -11417,10 +11428,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em' }}>INVITE MEMBERS</label>
-                  {caInvites.length >= 19
-                    ? <span style={{ fontSize: 9, color: '#c47070' }}>Max 19 members</span>
-                    : <span style={{ fontSize: 9, color: WDIM }}>{caInvites.length}/19 selected</span>
-                  }
+                  <span style={{ fontSize: 9, color: caInvites.length >= 19 ? '#c47070' : WDIM }}>{caInvites.length} of 19 selected</span>
                 </div>
                 {caInvites.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 10 }}>
@@ -11435,41 +11443,49 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     })}
                   </div>
                 )}
+                <input
+                  value={caSearch}
+                  onChange={e => setCaSearch(e.target.value)}
+                  placeholder="Search members…"
+                  style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7', border: `1px solid ${BDR}`, borderRadius: 8, padding: '7px 12px', color: isDark ? '#fff' : '#0F1523', fontSize: 12, outline: 'none', boxSizing: 'border-box' as const, marginBottom: 6 }}
+                />
                 <div style={{ maxHeight: 200, overflowY: 'auto' as const, border: `1px solid ${BDR}`, borderRadius: 8 }}>
                   {loadingMembers ? (
                     <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>Loading…</div>
-                  ) : dmMembers.length === 0 ? (
-                    <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>No members available</div>
-                  ) : dmMembers.map(member => {
-                    const isSelected = caInvites.includes(member.id)
-                    const atMax = caInvites.length >= 19
-                    const disabled = !isSelected && atMax
-                    return (
-                      <button
-                        key={member.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => setCaInvites(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
-                        style={{ width: '100%', background: isSelected ? 'rgba(106,172,239,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
-                        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.1)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,40,80,0.04)') }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.08)' : 'none' }}
-                      >
-                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? '#6aacef' : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(30,40,80,0.3)')}`, background: isSelected ? '#6aacef' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
-                        </div>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? 'rgba(106,172,239,0.15)' : '#E8ECF1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: isDark ? '#6aacef' : '#4A5568', flexShrink: 0, overflow: 'hidden' }}>
-                          {member.imageUrl
-                            ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
-                          }
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: isDark ? '#d4c9b0' : '#0F1523', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
-                          <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
-                        </div>
-                      </button>
-                    )
-                  })}
+                  ) : (() => {
+                    const caFiltered = dmMembers.filter(m => (m.level ?? 0) >= 2 && (!caSearch || (m.name || '').toLowerCase().includes(caSearch.toLowerCase())))
+                    if (caFiltered.length === 0) return <div style={{ padding: '12px 16px', fontSize: 12, color: WMUT }}>{caSearch ? 'No members found' : 'No Commander+ members available'}</div>
+                    return caFiltered.map(member => {
+                      const isSelected = caInvites.includes(member.id)
+                      const atMax = caInvites.length >= 19
+                      const disabled = !isSelected && atMax
+                      return (
+                        <button
+                          key={member.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => setCaInvites(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id])}
+                          style={{ width: '100%', background: isSelected ? 'rgba(106,172,239,0.08)' : 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' as const, touchAction: 'manipulation', opacity: disabled ? 0.4 : 1 }}
+                          onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.1)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,40,80,0.04)') }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(106,172,239,0.08)' : 'none' }}
+                        >
+                          <div style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isSelected ? '#6aacef' : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(30,40,80,0.3)')}`, background: isSelected ? '#6aacef' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {isSelected && <span style={{ fontSize: 11, color: '#000', fontWeight: 700 }}>✓</span>}
+                          </div>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: isDark ? 'rgba(106,172,239,0.15)' : '#E8ECF1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: isDark ? '#6aacef' : '#4A5568', flexShrink: 0, overflow: 'hidden' }}>
+                            {member.imageUrl
+                              ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : member.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+                            }
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: isDark ? '#d4c9b0' : '#0F1523', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
+                            <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' as const }}>{member.tier}</div>
+                          </div>
+                        </button>
+                      )
+                    })
+                  })()}
                 </div>
               </div>
 
