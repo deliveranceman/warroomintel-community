@@ -12639,6 +12639,8 @@ function CommunityPage() {
   const tier     = (user?.publicMetadata?.tier as string) || (user?.id ? 'general' : 'watchman')
   const role     = (user?.publicMetadata?.role as string) || ''
   const tierLevel = getAccessLevel({ tier, role })
+  // Per-user canary flag (Clerk publicMetadata) for live websocket presence.
+  const wsPresenceEnabled = user?.publicMetadata?.stream_ws_presence === true
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
 
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ tier: string; direction: 'upgrade' | 'downgrade' } | null>(null)
@@ -13079,9 +13081,117 @@ function CommunityPage() {
       }
     }
     fetchPresence()
+    // When the websocket canary is on, the socket drives live presence — this one
+    // fetch above is just a first-paint fallback; skip the 30s poll to avoid a
+    // double source. Flag off → unchanged 30s polling.
+    if (wsPresenceEnabled) return
     const interval = setInterval(fetchPresence, 30000)
     return () => clearInterval(interval)
-  }, [streamToken, apiKey])
+  }, [streamToken, apiKey, wsPresenceEnabled])
+
+  // ── LIVE presence via Stream websocket (canary: Clerk flag stream_ws_presence) ──
+  // Stage 1 of the socket migration — PRESENCE ONLY. Browser-only; the SDK is
+  // reached exclusively through a runtime import inside this effect.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!wsPresenceEnabled) return
+    if (!streamToken || !apiKey || !user?.id) return
+
+    let cancelled = false
+    let mod: typeof import('@/lib/streamClient') | null = null
+    let client: any = null
+    let channel: any = null
+    let presenceSub: { unsubscribe: () => void } | null = null
+
+    const uid    = user.id
+    const uname  = user.fullName || user.firstName || user.username || 'Warrior'
+    const uimage = user.imageUrl || ''
+
+    // Async token refresh — token expires hourly, so a static token would drop
+    // the socket. Matches how the app already calls /api/stream-token.
+    const tokenProvider = async () => {
+      const r = await fetch('/api/stream-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, userName: uname, userImage: uimage }),
+      })
+      const d = await r.json()
+      return d.token as string
+    }
+
+    const seedPresence = () => {
+      const membersState = channel?.state?.members || {}
+      setMemberPresence(prev => {
+        const next = { ...prev }
+        for (const id of Object.keys(membersState)) {
+          const u = membersState[id]?.user
+          if (u?.id) next[u.id] = { online: u.online === true, lastActive: u.last_active || null }
+        }
+        return next
+      })
+    }
+
+    const onPresenceChanged = (event: any) => {
+      const u = event?.user
+      if (!u?.id) return
+      setMemberPresence(prev => ({
+        ...prev,
+        [u.id]: { online: u.online === true, lastActive: u.last_active || prev[u.id]?.lastActive || null },
+      }))
+    }
+
+    const setup = async () => {
+      mod = await import('@/lib/streamClient')
+      if (cancelled) return
+      client = await mod.getStreamClient(apiKey)
+      if (!client || cancelled) return
+      await mod.connectStreamUser(client, { id: uid, name: uname, image: uimage }, tokenProvider)
+      if (cancelled) return
+      channel = client.channel('messaging', 'war-room-general')
+      await channel.watch({ presence: true })
+      if (cancelled) return
+      seedPresence()
+      presenceSub = client.on('user.presence.changed', onPresenceChanged)
+    }
+
+    setup().catch(e => console.log('[ws-presence] setup failed:', e))
+
+    // Foreground recovery — mobile Safari suspends tabs and silently kills the
+    // socket. On regain, reconnect if needed and re-seed from a fresh watch.
+    const recover = async () => {
+      if (cancelled || !mod) return
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      try {
+        if (!client) client = await mod.getStreamClient(apiKey)
+        if (!client || cancelled) return
+        if (!client.userID) {
+          await mod.connectStreamUser(client, { id: uid, name: uname, image: uimage }, tokenProvider)
+        }
+        if (cancelled) return
+        channel = client.channel('messaging', 'war-room-general')
+        await channel.watch({ presence: true })
+        if (cancelled) return
+        seedPresence()
+      } catch (e) { console.log('[ws-presence] recover failed:', e) }
+    }
+
+    const onFocus   = () => { recover() }
+    const onVisible = () => { if (document.visibilityState === 'visible') recover() }
+    const onOnline  = () => { recover() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', onOnline)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', onOnline)
+      try { presenceSub?.unsubscribe() } catch { /* noop */ }
+      try { channel?.stopWatching?.() } catch { /* noop */ }
+      if (client && mod) mod.disconnectStreamUser(client).catch(() => {})
+    }
+  }, [wsPresenceEnabled, streamToken, apiKey, user?.id])
 
   useEffect(() => {
     if (!streamToken || !apiKey) return
