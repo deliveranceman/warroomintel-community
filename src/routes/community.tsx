@@ -9940,7 +9940,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs, openOnMount, onIntentConsumed }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void; openOnMount?: 'fire-team' | 'cover-all' | 'sentinel' | null; onIntentConsumed?: () => void }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs, openOnMount, onIntentConsumed, openChannelOnMount, onChannelIntentConsumed }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void; openOnMount?: 'fire-team' | 'cover-all' | 'sentinel' | null; onIntentConsumed?: () => void; openChannelOnMount?: string | null; onChannelIntentConsumed?: () => void }) {
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [token, setToken]                     = useState('')
@@ -9996,6 +9996,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     else if (openOnMount === 'cover-all') setShowCreateCoverAll(true)
     else if (openOnMount === 'sentinel') setShowSentinelPicker(true)
     onIntentConsumed?.()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Open a specific group channel on mount when triggered from the Field Teams page.
+  useEffect(() => {
+    if (openChannelOnMount) {
+      selectConversation(openChannelOnMount)
+      onChannelIntentConsumed?.()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
@@ -10564,6 +10571,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
   const activeConvo = [SOL_CONVO, ...conversations].find(c => c.channelId === activeConvoId)
   const activeFireTeam = fireTeams.find(t => t.channelId === activeConvoId) ?? null
+  const activeSentinel = _sentinels.find(s => s.channelId === activeConvoId) ?? null
+  const activeCoverAll = _coverAllGroups.find(g => g.channelId === activeConvoId) ?? null
 
   // ── Helpers ──
   const getInitials = (name: string) => name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
@@ -11579,6 +11588,34 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     <MoreHorizontal size={16} strokeWidth={1.8} />
                   </button>
                 </>
+              ) : activeSentinel ? (
+                <>
+                  {/* Sentinel header */}
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(107,69,150,0.2)', border: '1px solid rgba(107,69,150,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>⚔</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                        {activeSentinel.partnerName}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#fff', background: 'rgba(107,69,150,0.7)', borderRadius: 10, padding: '2px 8px', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0, fontWeight: 700 }}>SENTINEL</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: WMUT }}>Covenant Sentinel · Sprint #{activeSentinel.sprintNumber || 1}</div>
+                  </div>
+                </>
+              ) : activeCoverAll ? (
+                <>
+                  {/* Cover All header */}
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(106,172,239,0.15)', border: '1px solid rgba(106,172,239,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🛡</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                        {activeCoverAll.name}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#000', background: 'rgba(106,172,239,0.85)', borderRadius: 10, padding: '2px 8px', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0, fontWeight: 700 }}>COVER ALL</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: WMUT }}>{activeCoverAll.territory ? `${activeCoverAll.territory} · ` : ''}{plural(activeCoverAll.memberCount ?? 0, 'member')}</div>
+                  </div>
+                </>
               ) : (
                 <>
                   {/* DM / SOL header */}
@@ -12371,11 +12408,12 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
 }
 
 // ── FieldTeamsSection ─────────────────────────────────────────────────────────
-function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate }: {
+function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate, onOpenChannel }: {
   isDark: boolean
   setActiveSection: (s: string) => void
   getToken: () => Promise<string | null>
   onCreate?: (type: 'fire-team' | 'cover-all' | 'sentinel') => void
+  onOpenChannel?: (channelId: string) => void
 }) {
   const BG   = isDark ? '#0D0B14' : '#ede8de'
   const SURF = isDark ? 'rgba(201,168,76,0.04)' : '#e8e2d6'
@@ -12493,7 +12531,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate }: {
               {sentinels.map(s => {
                 const days = daysRemaining(s.endsAt)
                 return (
-                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6 }}>
+                  <div key={s.id} onClick={() => onOpenChannel?.(s.channelId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: s.channelId ? 'pointer' : 'default' }}>
                     <div>
                       <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{s.partnerName}</div>
                       <div style={{ fontFamily: crimson, fontSize: 11, color: MUT }}>Sprint #{s.sprintNumber || 1}</div>
@@ -12534,7 +12572,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate }: {
           ) : (
             <div style={{ marginBottom: 14 }}>
               {fireTeams.map(t => (
-                <div key={t.fireTeamId || t.channelId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6 }}>
+                <div key={t.fireTeamId || t.channelId} onClick={() => onOpenChannel?.(t.channelId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: t.channelId ? 'pointer' : 'default' }}>
                   <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{t.teamName}</div>
                   <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT }}>{t.memberCount} members</div>
                 </div>
@@ -12566,7 +12604,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate }: {
           ) : (
             <div style={{ marginBottom: 14 }}>
               {coverAlls.map(g => (
-                <div key={g.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid rgba(139,92,246,0.7)`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6 }}>
+                <div key={g.id} onClick={() => onOpenChannel?.(g.channelId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid rgba(139,92,246,0.7)`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: g.channelId ? 'pointer' : 'default' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{g.name}</div>
                     {g.territory && <div style={{ fontFamily: crimson, fontSize: 11, color: MUT }}>{g.territory}</div>}
@@ -12610,6 +12648,7 @@ function CommunityPage() {
   })
   const [activeSection, setActiveSection] = useState('daily-brief')
   const [createIntent, setCreateIntent] = useState<null | 'fire-team' | 'cover-all' | 'sentinel'>(null)
+  const [openChannelIntent, setOpenChannelIntent] = useState<string | null>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
 
   // Preserve sidebar scroll across activeSection changes
@@ -14233,7 +14272,7 @@ function CommunityPage() {
       {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
-      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} />}
+      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} />}
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
@@ -14246,7 +14285,7 @@ function CommunityPage() {
       {activeSection === 'spirit-network' && (tierLevel >= 2 ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} /><OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} /></div> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
       {activeSection === 'gateway'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','The AI cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} /></div>}
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
-      {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} />}
+      {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(channelId: string) => { if (!channelId) return; setOpenChannelIntent(channelId); setActiveSection('dms') }} />}
       {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
       {activeSection === 'session-center' && <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />}
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
@@ -14660,7 +14699,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'dms' && (
-          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} />
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} />
         )}
         {activeSection === 'members'     && (
           <MembersView
