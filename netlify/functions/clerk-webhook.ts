@@ -80,7 +80,7 @@ export default async function handler(req: Request) {
 
   try {
     if (type === 'user.created') {
-      const { id, first_name, last_name, email_addresses } = data
+      const { id, first_name, last_name, email_addresses, image_url } = data
       const email = email_addresses?.[0]?.email_address || ''
       const name  = `${first_name || ''} ${last_name || ''}`.trim() || email || 'Warrior'
       const tier  = 'watchman'
@@ -107,11 +107,14 @@ export default async function handler(req: Request) {
         const sbClient = createClient(_sb.url, _sb.serviceRoleKey)
         const { error: upsertErr } = await sbClient.from('members').upsert({
           clerk_id: id,
-          full_name: name,
+          display_name: name,
           username,
           email,
+          image_url: image_url || '',
           tier,
+          role: (data.public_metadata?.role as string) || 'user',
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }, { onConflict: 'clerk_id' })
         if (upsertErr) console.error('[clerk-webhook] members upsert error:', upsertErr.message)
       }
@@ -169,19 +172,37 @@ export default async function handler(req: Request) {
 
     if (type === 'user.updated') {
       // Re-sync channel membership if tier changed
-      const { id, public_metadata } = data
-      const tier = (public_metadata?.tier as string) || 'watchman'
+      const { id, first_name, last_name, email_addresses, image_url, public_metadata } = data
+      const tier  = (public_metadata?.tier as string) || 'watchman'
+      const email = email_addresses?.[0]?.email_address || ''
+      const firstName = first_name || ''
+      const lastName  = last_name  || ''
+      const name = `${firstName} ${lastName}`.trim() || 'Warrior'
 
       if (streamApiKey && streamApiSecret) {
         const client = new StreamChat(streamApiKey, streamApiSecret)
         const streamUserId = id.replace(/[^a-zA-Z0-9_-]/g, '_')
-        const firstName = data.first_name || ''
-        const lastName  = data.last_name  || ''
-        const name = `${firstName} ${lastName}`.trim() || 'Warrior'
 
         await client.upsertUser({ id: streamUserId, name, role: 'user' })
         await addUserToStreamChannels(client, streamUserId, tier)
         console.log(`[clerk-webhook] Updated Stream membership for ${streamUserId} at tier=${tier}`)
+      }
+
+      // Sync updated identity to Supabase members cache
+      const _sb2 = JSON.parse(process.env.SUPABASE || '{}')
+      if (_sb2.url && _sb2.serviceRoleKey) {
+        const { createClient } = await import('@supabase/supabase-js')
+        const sbClient = createClient(_sb2.url, _sb2.serviceRoleKey)
+        const { error: updateErr } = await sbClient.from('members').upsert({
+          clerk_id: id,
+          display_name: name,
+          email,
+          image_url: image_url || '',
+          tier,
+          role: (public_metadata?.role as string) || 'user',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'clerk_id' })
+        if (updateErr) console.error('[clerk-webhook] members update error:', updateErr.message)
       }
     }
   } catch (err: any) {
