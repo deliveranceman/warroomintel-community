@@ -8094,14 +8094,23 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
                 aria-label={fig.label}
               >
                 <image href={fig.image} x={0} y={0} width={100} height={150} preserveAspectRatio="xMidYMid meet" onLoad={() => setImgOpacity(1)} style={{ pointerEvents: 'none' }} />
-                {figureRegions.map(r => {
+                {[...figureRegions]
+                  .sort((a, b) => {
+                    const ra = (selectedKey === a.region_key || dragKey === a.region_key) ? 2 : hoveredKey === a.region_key ? 1 : 0
+                    const rb = (selectedKey === b.region_key || dragKey === b.region_key) ? 2 : hoveredKey === b.region_key ? 1 : 0
+                    return ra - rb
+                  })
+                  .map(r => {
                   const { px, py } = bmPos(r, fig)
                   const cx = px
                   const cy = py * 1.5
                   const isActive = selectedKey === r.region_key
                   const isHov = hoveredKey === r.region_key
                   const isDrag = dragKey === r.region_key
-                  const rad = isMobile ? 3.5 : 2.5
+                  const emphasized = isActive || isHov || isDrag
+                  const full = isMobile ? 3.5 : 2.5
+                  const ringR = emphasized ? full : full * 0.6
+                  const dotR = emphasized ? 1.2 : 0.72
                   return (
                     <g key={r.region_key}
                       onClick={(e) => { e.stopPropagation(); selectRegion(r.region_key) }}
@@ -8112,11 +8121,11 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
                     >
                       <circle cx={cx} cy={cy} r={isMobile ? 5 : 3.5} fill="rgba(0,0,0,0.001)" style={{ touchAction: 'none' }} />
                       {isActive && !calibrate && <line x1={cx} y1={cy - 1.5} x2={cx} y2={cy - 6} stroke={GC} strokeWidth={0.4} style={{ pointerEvents: 'none' }} />}
-                      <circle cx={cx} cy={cy} r={rad}
-                        fill={isDrag ? 'rgba(201,168,76,0.6)' : isActive ? 'rgba(201,168,76,0.45)' : isHov ? 'rgba(201,168,76,0.30)' : 'rgba(201,168,76,0.18)'}
-                        stroke={isActive || isDrag ? GC : isHov ? 'rgba(201,168,76,0.90)' : 'rgba(201,168,76,0.65)'}
-                        strokeWidth={0.7} style={{ pointerEvents: 'none', transition: calibrate ? 'none' : 'fill 0.15s, stroke 0.15s' }} />
-                      <circle cx={cx} cy={cy} r={1.2} fill={isActive || isDrag ? GC : 'rgba(201,168,76,0.90)'} className={isActive || isDrag ? undefined : 'bm-dot'} style={{ pointerEvents: 'none' }} />
+                      <circle cx={cx} cy={cy} r={ringR}
+                        fill={isDrag ? 'rgba(201,168,76,0.6)' : isActive ? 'rgba(201,168,76,0.45)' : isHov ? 'rgba(201,168,76,0.30)' : 'rgba(201,168,76,0.10)'}
+                        stroke={isActive || isDrag ? GC : isHov ? 'rgba(201,168,76,0.90)' : 'rgba(201,168,76,0.40)'}
+                        strokeWidth={0.7} style={{ pointerEvents: 'none', transition: calibrate ? 'none' : 'fill 0.15s, stroke 0.15s, r 0.15s' }} />
+                      <circle cx={cx} cy={cy} r={dotR} fill={isActive || isDrag ? GC : isHov ? 'rgba(201,168,76,0.90)' : 'rgba(201,168,76,0.60)'} className={isActive || isDrag ? undefined : 'bm-dot'} style={{ pointerEvents: 'none' }} />
                     </g>
                   )
                 })}
