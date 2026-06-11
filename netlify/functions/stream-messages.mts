@@ -611,29 +611,41 @@ async function createFireTeam(userId: string, body: any, verifiedLevel: number, 
       member_count: 1 + inviteUserIds.length, active: true,
     }),
   })
+  if (!ftRes.ok) {
+    const errBody = await ftRes.text().catch(() => '')
+    console.error('[create-fire-team] fire_teams INSERT failed:', ftRes.status, errBody)
+    return json({ error: 'Failed to save fire team', detail: errBody }, 500)
+  }
   const ftRows: any[] = await ftRes.json().catch(() => [])
   const fireTeamId = Array.isArray(ftRows) && ftRows[0]?.id ? ftRows[0].id : null
+  if (!fireTeamId) {
+    console.error('[create-fire-team] fire_teams INSERT returned no id:', JSON.stringify(ftRows))
+    return json({ error: 'Failed to save fire team — no id returned' }, 500)
+  }
 
-  if (fireTeamId) {
-    await fetch(SB('/fire_team_members'), {
+  const membRes = await fetch(SB('/fire_team_members'), {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify({ fire_team_id: fireTeamId, team_id: fireTeamId, user_id: userId, user_name: userName, role: 'leader', status: 'active' }),
+  })
+  if (!membRes.ok) {
+    const errBody = await membRes.text().catch(() => '')
+    console.error('[create-fire-team] fire_team_members INSERT failed (team exists, membership did not):', membRes.status, errBody)
+    return json({ error: 'Fire team saved but failed to add leader membership', detail: errBody, channelId, fireTeamId }, 500)
+  }
+
+  const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
+  for (const inviteId of inviteUserIds) {
+    fetch(`${siteUrl}/api/send-push`, {
       method: 'POST',
-      headers: sbH,
-      body: JSON.stringify({ fire_team_id: fireTeamId, team_id: fireTeamId, user_id: userId, user_name: userName, role: 'leader', status: 'active' }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({
+        title: '⚔ Fire Team Invitation',
+        body: `${userName} invited you to join "${name}" Fire Team`,
+        userId: inviteId,
+        url: '/community',
+      }),
     }).catch(() => {})
-
-    const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
-    for (const inviteId of inviteUserIds) {
-      fetch(`${siteUrl}/api/send-push`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
-        body: JSON.stringify({
-          title: '⚔ Fire Team Invitation',
-          body: `${userName} invited you to join "${name}" Fire Team`,
-          userId: inviteId,
-          url: '/community',
-        }),
-      }).catch(() => {})
-    }
   }
 
   return json({ ok: true, channelId, fireTeamId })
@@ -826,11 +838,16 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
     add_members: allMembers.map(id => ({ user_id: id })),
   }).catch(() => {})
 
-  await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
+  const patchRes = await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
     method: 'PATCH',
     headers: sbH,
     body: JSON.stringify({ status: 'active', started_at: now.toISOString(), ends_at: endsAt.toISOString(), stream_channel_id: channelId }),
-  }).catch(() => {})
+  })
+  if (!patchRes.ok) {
+    const errBody = await patchRes.text().catch(() => '')
+    console.error('[accept-sentinel] sentinel_pairs PATCH failed (channel created, DB record still pending):', patchRes.status, errBody)
+    return json({ error: 'Sentinel channel created but failed to activate record', detail: errBody }, 500)
+  }
 
   const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
   let recipientName = userId
@@ -1029,11 +1046,16 @@ async function createCoverAll(userId: string, body: any, verifiedLevel: number):
     { group_id: groupId, user_id: userId, user_name: userName, role: 'leader', status: 'active' },
     ...inviteUserIds.map((id: string) => ({ group_id: groupId, user_id: id, user_name: '', role: 'member', status: 'active' })),
   ]
-  await fetch(SB('/cover_all_members'), {
+  const caMemRes = await fetch(SB('/cover_all_members'), {
     method: 'POST',
     headers: sbH,
     body: JSON.stringify(memberInserts),
-  }).catch(e => console.error('[cover-all] members INSERT failed', e))
+  })
+  if (!caMemRes.ok) {
+    const errBody = await caMemRes.text().catch(() => '')
+    console.error('[create-cover-all] cover_all_members INSERT failed (group exists, membership did not):', caMemRes.status, errBody)
+    return json({ error: 'Cover All saved but failed to add members', detail: errBody, channelId, groupId }, 500)
+  }
 
   const siteUrl = (process.env.URL || 'https://warroomintel.com').replace(/\/$/, '')
   for (const inviteId of inviteUserIds) {
