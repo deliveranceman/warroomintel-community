@@ -1,10 +1,32 @@
+import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
+import { upsertSpiritByName } from './_shared/spiritWrite'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken || process.env.AIRTABLE_API_TOKEN || ''
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
 const NAME_FIELD     = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
+
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
+// Same switch as admin-demon.ts — one flag governs all demon-base writes.
+// true => upsert lands in Supabase `spirits`; false => legacy Airtable path.
+const USE_SUPABASE_DEMON_WRITES = true
+
+// Rename the .mjs-script camelCase keys that diverge from the shared bridge.
+// typeRank/rank have no Supabase column — toColumns ignores them automatically.
+function adaptSpirit(spirit: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {}
+  for (const [k, v] of Object.entries(spirit)) {
+    if (v === null || v === undefined || v === '') continue
+    const val = Array.isArray(v) ? v.join('\n') : v
+    if (k === 'manifestations') out.manifestation = val
+    else if (k === 'source') out.sourceOrigin = val
+    else out[k] = val
+  }
+  return out
+}
 
 // Field map from .mjs script camelCase → exact Airtable column name (typos preserved)
 const FM: Record<string, string> = {
@@ -80,10 +102,30 @@ export default async function handler(req: Request) {
   let updated = 0
   const errors: Array<{ name: string; error: string }> = []
 
+  const sb = USE_SUPABASE_DEMON_WRITES ? createClient(supabaseUrl, supabaseServiceKey) : null
+
   for (const spirit of spirits) {
     const name = spirit.name?.trim()
     if (!name) {
       errors.push({ name: '(unnamed)', error: 'Missing name field' })
+      continue
+    }
+
+    // ── Supabase write path (flag-on) ────────────────────────────────────────
+    if (USE_SUPABASE_DEMON_WRITES) {
+      try {
+        const adapted = adaptSpirit(spirit)
+        if (Object.keys(adapted).length <= 1) { // only name present
+          errors.push({ name, error: 'No mappable fields found' })
+          continue
+        }
+        const { created: wasCreated, error } = await upsertSpiritByName(sb, name, adapted)
+        if (error) errors.push({ name, error })
+        else if (wasCreated) created++
+        else updated++
+      } catch (e: any) {
+        errors.push({ name, error: e.message || 'Unknown error' })
+      }
       continue
     }
 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
+import { generateSlug, toColumns, createSpirit, findSpiritSlugByName } from './_shared/spiritWrite'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -7,6 +8,10 @@ const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken || ''
 const AIRTABLE_BASE  = process.env.AIRTABLE_BASE_ID || 'appVXEj2DLPBTJTtD'
 const AIRTABLE_TABLE = process.env.AIRTABLE_DEMON_TABLE_ID || 'tblcP4lgVykzOhLi4'
+
+// Same switch as admin-demon.ts — one flag governs all demon-base writes.
+// true => enrichment lands in Supabase `spirits`; false => legacy Airtable path.
+const USE_SUPABASE_DEMON_WRITES = true
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -120,7 +125,7 @@ Rewrite this field with accurate, specific deliverance ministry content. Be conc
     return new Response(JSON.stringify({ error: 'action must be approve, reject, patch_fields, or ai_fill_field' }), { status: 400, headers: CORS })
   }
 
-  if (!AIRTABLE_TOKEN) {
+  if (!USE_SUPABASE_DEMON_WRITES && !AIRTABLE_TOKEN) {
     return new Response(JSON.stringify({ error: 'AIRTABLE_TOKEN not configured' }), { status: 500, headers: CORS })
   }
 
@@ -128,7 +133,39 @@ Rewrite this field with accurate, specific deliverance ministry content. Be conc
   const proposedFields: Record<string, string> = body.proposedFields || suggestion.proposed_fields || {}
 
   try {
-    if (suggestion.action === 'enrich' && suggestion.existing_record_id) {
+    // ── Supabase demon-base write path (flag-on) ─────────────────────────────
+    // Only the spirit row read/write moves; the suggestion-status updates and
+    // enrichment_rejected insert stay on Supabase regardless.
+    if (USE_SUPABASE_DEMON_WRITES) {
+      if (suggestion.action === 'enrich') {
+        // Match the spirit by name (case-insensitive); fall back to a derived slug.
+        const slug = (await findSpiritSlugByName(supabase, suggestion.spirit_name)) || generateSlug(suggestion.spirit_name)
+        const { data: rows } = await supabase.from('spirits').select('*').eq('slug', slug).limit(1)
+        if (!rows || rows.length === 0) {
+          return new Response(JSON.stringify({ error: `Spirit not found in Supabase for "${suggestion.spirit_name}"` }), { status: 404, headers: CORS })
+        }
+        const row = rows[0]
+        // Normalize the Airtable-named proposed fields to snake columns, then
+        // apply the SAME merge: empty current → set; non-empty → append '\n\n'.
+        const proposedCols = toColumns(proposedFields)
+        const merged: Record<string, any> = {}
+        for (const [col, val] of Object.entries(proposedCols)) {
+          const current = row[col]
+          if (typeof val === 'string' && typeof current === 'string' && current.trim()) {
+            merged[col] = `${current}\n\n${val}`
+          } else {
+            merged[col] = val
+          }
+        }
+        if (Object.keys(merged).length > 0) {
+          const { error: upErr } = await supabase.from('spirits').update(merged).eq('slug', slug)
+          if (upErr) return new Response(JSON.stringify({ error: `Supabase update failed: ${upErr.message}` }), { status: 500, headers: CORS })
+        }
+      } else if (suggestion.action === 'add') {
+        const { error: createErr } = await createSpirit(supabase, proposedFields, suggestion.spirit_name)
+        if (createErr) return new Response(JSON.stringify({ error: `Supabase create failed: ${createErr}` }), { status: 500, headers: CORS })
+      }
+    } else if (suggestion.action === 'enrich' && suggestion.existing_record_id) {
       // Fetch existing record to check which fields are empty
       const existRes = await fetch(
         `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${suggestion.existing_record_id}`,
