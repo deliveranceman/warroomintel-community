@@ -9940,7 +9940,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const activeChannelRef = React.useRef<string | null>(null)
 
   const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 768
-  const wsMessagesEnabled = user?.publicMetadata?.stream_ws_messages === true
+  const wsMessagesEnabled = user?.publicMetadata?.stream_ws_messages !== false
   const isTabletLayout = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1200
   const tierLevel = getAccessLevel({ tier: tier || 'free', role: (user?.publicMetadata?.role as string) || '' })
 
@@ -12882,7 +12882,7 @@ function CommunityPage() {
   const role     = (user?.publicMetadata?.role as string) || ''
   const tierLevel = getAccessLevel({ tier, role })
   // Per-user canary flag (Clerk publicMetadata) for live websocket presence.
-  const wsPresenceEnabled = user?.publicMetadata?.stream_ws_presence === true
+  const wsPresenceEnabled = user?.publicMetadata?.stream_ws_presence !== false
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'W'
 
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ tier: string; direction: 'upgrade' | 'downgrade' } | null>(null)
@@ -13322,11 +13322,10 @@ function CommunityPage() {
         console.log('Presence fetch failed:', e)
       }
     }
-    fetchPresence()
-    // When the websocket canary is on, the socket drives live presence — this one
-    // fetch above is just a first-paint fallback; skip the 30s poll to avoid a
-    // double source. Flag off → unchanged 30s polling.
+    // ws path: socket seeds presence via channel.state.members after watch() — REST
+    // query returns 400 code:4 without an active connection_id. Flag off → REST polling.
     if (wsPresenceEnabled) return
+    fetchPresence()
     const interval = setInterval(fetchPresence, 30000)
     return () => clearInterval(interval)
   }, [streamToken, apiKey, wsPresenceEnabled])
