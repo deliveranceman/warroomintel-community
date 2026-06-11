@@ -7459,116 +7459,35 @@ class BodyMapBoundary extends React.Component<{children: React.ReactNode}, {hasE
   }
 }
 
-type BMHotspot = { id: string; label: string; x: number; y: number }
-type BMFigure  = { key: string; label: string; image: string; hotspots: BMHotspot[] }
+type AtlasSystem = { system_key: string; display_name: string; color_hex: string }
+type AtlasRegion = {
+  region_key: string; display_name: string; spiritual_tag: string | null
+  category: string; body_side: string; view: string; sex: string
+  x_percent: number | string; y_percent: number | string
+  fx_percent: number | string | null; fy_percent: number | string | null
+  overview: string | null; sort_order: number; systems: string[]; correlation_count: number
+}
+type BMFigure = { key: string; label: string; image: string; sex: string; view: string }
 
 const BM_FIGURES: BMFigure[] = [
-  {
-    key: 'male-front', label: 'Male Front', image: '/images/WRI_BODY_MALE_FRONT.png',
-    hotspots: [
-      { id: 'mf-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
-      { id: 'mf-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.0  },
-      { id: 'mf-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.0  },
-      { id: 'mf-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 11.5 },
-      { id: 'mf-throat',         label: 'Throat',            x: 50.5, y: 15.0 },
-      { id: 'mf-heart',          label: 'Heart / Chest',     x: 50.5, y: 23.5 },
-      { id: 'mf-left-shoulder',  label: 'Left Shoulder',     x: 36.0, y: 21.0 },
-      { id: 'mf-right-shoulder', label: 'Right Shoulder',    x: 65.5, y: 21.0 },
-      { id: 'mf-left-elbow',     label: 'Left Elbow',        x: 29.0, y: 34.0 },
-      { id: 'mf-right-elbow',    label: 'Right Elbow',       x: 72.0, y: 34.0 },
-      { id: 'mf-solar-plexus',   label: 'Solar Plexus',      x: 50.5, y: 30.0 },
-      { id: 'mf-abdomen',        label: 'Abdomen',           x: 50.5, y: 36.5 },
-      { id: 'mf-left-wrist',     label: 'Left Wrist',        x: 24.5, y: 44.5 },
-      { id: 'mf-right-wrist',    label: 'Right Wrist',       x: 76.5, y: 44.5 },
-      { id: 'mf-pelvis',         label: 'Pelvis / Groin',    x: 50.5, y: 44.0 },
-      { id: 'mf-left-hand',      label: 'Left Hand',         x: 21.0, y: 50.0 },
-      { id: 'mf-right-hand',     label: 'Right Hand',        x: 80.5, y: 50.0 },
-      { id: 'mf-left-thigh',     label: 'Left Thigh',        x: 42.5, y: 57.0 },
-      { id: 'mf-right-thigh',    label: 'Right Thigh',       x: 58.5, y: 57.0 },
-      { id: 'mf-left-knee',      label: 'Left Knee',         x: 42.5, y: 68.5 },
-      { id: 'mf-right-knee',     label: 'Right Knee',        x: 58.5, y: 68.5 },
-      { id: 'mf-left-shin',      label: 'Left Shin',         x: 42.0, y: 78.0 },
-      { id: 'mf-right-shin',     label: 'Right Shin',        x: 59.0, y: 78.0 },
-      { id: 'mf-left-foot',      label: 'Left Foot',         x: 41.5, y: 91.0 },
-      { id: 'mf-right-foot',     label: 'Right Foot',        x: 59.5, y: 91.0 },
-    ],
-  },
-  {
-    key: 'male-back', label: 'Male Back', image: '/images/WRI_BODY_MALE_BACK.png',
-    hotspots: [
-      { id: 'mb-crown',           label: 'Crown / Back of Head',  x: 50.5, y: 4.0  },
-      { id: 'mb-neck',            label: 'Neck / Cervical',       x: 50.5, y: 10.0 },
-      { id: 'mb-left-shoulder',   label: 'Left Shoulder Blade',   x: 36.5, y: 18.5 },
-      { id: 'mb-right-shoulder',  label: 'Right Shoulder Blade',  x: 64.0, y: 18.5 },
-      { id: 'mb-upper-back',      label: 'Upper Back / Thoracic', x: 50.5, y: 22.0 },
-      { id: 'mb-left-elbow',      label: 'Left Elbow',            x: 29.5, y: 33.5 },
-      { id: 'mb-right-elbow',     label: 'Right Elbow',           x: 71.0, y: 33.5 },
-      { id: 'mb-mid-back',        label: 'Mid Back / Lumbar',     x: 50.5, y: 33.0 },
-      { id: 'mb-lower-back',      label: 'Lower Back / Sacral',   x: 50.5, y: 41.5 },
-      { id: 'mb-left-hip',        label: 'Left Hip / Glute',      x: 40.0, y: 47.5 },
-      { id: 'mb-right-hip',       label: 'Right Hip / Glute',     x: 61.5, y: 47.5 },
-      { id: 'mb-left-hamstring',  label: 'Left Hamstring',        x: 41.5, y: 57.5 },
-      { id: 'mb-right-hamstring', label: 'Right Hamstring',       x: 59.5, y: 57.5 },
-      { id: 'mb-left-knee-back',  label: 'Left Knee (Back)',      x: 41.5, y: 68.0 },
-      { id: 'mb-right-knee-back', label: 'Right Knee (Back)',     x: 59.5, y: 68.0 },
-      { id: 'mb-left-heel',       label: 'Left Heel / Foot',      x: 41.0, y: 92.5 },
-      { id: 'mb-right-heel',      label: 'Right Heel / Foot',     x: 60.0, y: 92.5 },
-    ],
-  },
-  {
-    key: 'female-front', label: 'Female Front', image: '/images/WRI_BODY_FEMALE_FRONT.png',
-    hotspots: [
-      { id: 'ff-crown',          label: 'Crown',             x: 50.5, y: 3.5  },
-      { id: 'ff-left-eye',       label: 'Left Eye',          x: 44.5, y: 8.5  },
-      { id: 'ff-right-eye',      label: 'Right Eye',         x: 56.5, y: 8.5  },
-      { id: 'ff-mouth',          label: 'Mouth / Jaw',       x: 50.5, y: 12.0 },
-      { id: 'ff-throat',         label: 'Throat',            x: 50.5, y: 15.5 },
-      { id: 'ff-heart',          label: 'Heart / Chest',     x: 50.5, y: 24.5 },
-      { id: 'ff-left-shoulder',  label: 'Left Shoulder',     x: 36.5, y: 22.0 },
-      { id: 'ff-right-shoulder', label: 'Right Shoulder',    x: 64.5, y: 22.0 },
-      { id: 'ff-left-elbow',     label: 'Left Elbow',        x: 28.5, y: 34.5 },
-      { id: 'ff-right-elbow',    label: 'Right Elbow',       x: 72.5, y: 34.5 },
-      { id: 'ff-solar-plexus',   label: 'Solar Plexus',      x: 50.5, y: 31.0 },
-      { id: 'ff-abdomen',        label: 'Abdomen',           x: 50.5, y: 37.5 },
-      { id: 'ff-womb',           label: 'Womb / Uterus',     x: 50.5, y: 43.0 },
-      { id: 'ff-left-wrist',     label: 'Left Wrist',        x: 23.5, y: 45.5 },
-      { id: 'ff-right-wrist',    label: 'Right Wrist',       x: 77.5, y: 45.5 },
-      { id: 'ff-pelvis',         label: 'Pelvis',            x: 50.5, y: 46.5 },
-      { id: 'ff-left-hand',      label: 'Left Hand',         x: 20.0, y: 51.5 },
-      { id: 'ff-right-hand',     label: 'Right Hand',        x: 81.0, y: 51.5 },
-      { id: 'ff-left-thigh',     label: 'Left Thigh',        x: 43.0, y: 58.0 },
-      { id: 'ff-right-thigh',    label: 'Right Thigh',       x: 58.0, y: 58.0 },
-      { id: 'ff-left-knee',      label: 'Left Knee',         x: 43.0, y: 69.5 },
-      { id: 'ff-right-knee',     label: 'Right Knee',        x: 58.0, y: 69.5 },
-      { id: 'ff-left-shin',      label: 'Left Shin',         x: 42.5, y: 79.0 },
-      { id: 'ff-right-shin',     label: 'Right Shin',        x: 58.5, y: 79.0 },
-      { id: 'ff-left-foot',      label: 'Left Foot',         x: 42.0, y: 92.0 },
-      { id: 'ff-right-foot',     label: 'Right Foot',        x: 59.0, y: 92.0 },
-    ],
-  },
-  {
-    key: 'female-back', label: 'Female Back', image: '/images/WRI_BODY_FEMALE_BACK.png',
-    hotspots: [
-      { id: 'fb-crown',           label: 'Crown / Back of Head',  x: 50.5, y: 3.5  },
-      { id: 'fb-neck',            label: 'Neck / Cervical',       x: 50.5, y: 9.5  },
-      { id: 'fb-left-shoulder',   label: 'Left Shoulder Blade',   x: 36.5, y: 18.0 },
-      { id: 'fb-right-shoulder',  label: 'Right Shoulder Blade',  x: 64.5, y: 18.0 },
-      { id: 'fb-upper-back',      label: 'Upper Back / Thoracic', x: 50.5, y: 22.5 },
-      { id: 'fb-left-elbow',      label: 'Left Elbow',            x: 28.0, y: 34.0 },
-      { id: 'fb-right-elbow',     label: 'Right Elbow',           x: 73.0, y: 34.0 },
-      { id: 'fb-mid-back',        label: 'Mid Back / Lumbar',     x: 50.5, y: 33.5 },
-      { id: 'fb-lower-back',      label: 'Lower Back / Sacral',   x: 50.5, y: 41.0 },
-      { id: 'fb-left-hip',        label: 'Left Hip / Glute',      x: 40.5, y: 47.0 },
-      { id: 'fb-right-hip',       label: 'Right Hip / Glute',     x: 60.5, y: 47.0 },
-      { id: 'fb-left-hamstring',  label: 'Left Hamstring',        x: 42.0, y: 57.5 },
-      { id: 'fb-right-hamstring', label: 'Right Hamstring',       x: 59.0, y: 57.5 },
-      { id: 'fb-left-knee-back',  label: 'Left Knee (Back)',      x: 42.0, y: 68.5 },
-      { id: 'fb-right-knee-back', label: 'Right Knee (Back)',     x: 59.0, y: 68.5 },
-      { id: 'fb-left-heel',       label: 'Left Heel / Foot',      x: 41.5, y: 91.5 },
-      { id: 'fb-right-heel',      label: 'Right Heel / Foot',     x: 59.5, y: 91.5 },
-    ],
-  },
+  { key: 'male-front',   label: 'Male Front',   image: '/images/WRI_BODY_MALE_FRONT.png',   sex: 'male',   view: 'front' },
+  { key: 'male-back',    label: 'Male Back',    image: '/images/WRI_BODY_MALE_BACK.png',    sex: 'male',   view: 'back'  },
+  { key: 'female-front', label: 'Female Front', image: '/images/WRI_BODY_FEMALE_FRONT.png', sex: 'female', view: 'front' },
+  { key: 'female-back',  label: 'Female Back',  image: '/images/WRI_BODY_FEMALE_BACK.png',  sex: 'female', view: 'back'  },
 ]
+
+// A region belongs on a figure when sex + view are compatible ('both' matches either).
+function bmRegionOnFigure(r: AtlasRegion, f: BMFigure): boolean {
+  return (r.sex === f.sex || r.sex === 'both') && (r.view === f.view || r.view === 'both')
+}
+// Female figures prefer fx/fy overrides when calibrated, else fall back to the base x/y.
+function bmPos(r: AtlasRegion, f: BMFigure): { px: number; py: number } {
+  const female = f.sex === 'female'
+  const px = female && r.fx_percent != null ? Number(r.fx_percent) : Number(r.x_percent)
+  const py = female && r.fy_percent != null ? Number(r.fy_percent) : Number(r.y_percent)
+  return { px, py }
+}
+
 
 // ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
 
@@ -7859,423 +7778,6 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
 }
 
 
-function BodyMapView({ isMobile, setSidebarOpen, setActiveSection: _setActiveSection, getToken, isAdmin }: any) {
-  const GC = '#C9A84C'
-
-  const [activeFigure,   setActiveFigure]   = useState(0)
-  const [selectedHotspot, setSelectedHotspot] = useState<BMHotspot | null>(null)
-  const [hoveredHotspot,  setHoveredHotspot]  = useState<string | null>(null)
-  const [sheetOpen,       setSheetOpen]       = useState(false)
-  const [manifestations,  setManifestations]  = useState<any[]>([])
-  const [manifLoading,    setManifLoading]    = useState(false)
-  const [imgOpacity,      setImgOpacity]      = useState(0)
-  const [debugMode,       setDebugMode]       = useState(false)
-  const [debugClick,      setDebugClick]      = useState<{x: number; y: number} | null>(null)
-  const [mapScale, setMapScale]           = React.useState(1)
-  const [mapOffset, setMapOffset]         = React.useState({ x: 0, y: 0 })
-  const [bodyMapHintDismissed, setBodyMapHintDismissed] = React.useState(false)
-  const mapContainerRef                   = React.useRef<HTMLDivElement>(null)
-  const lastTouchRef                      = React.useRef<{ x: number; y: number } | null>(null)
-  const lastPinchDistRef                  = React.useRef<number | null>(null)
-  const mapScaleRef                       = React.useRef(1)
-  const didPanRef                         = React.useRef(false)
-
-  // Preload all 4 figure images on mount so tab switches are instant
-  useEffect(() => {
-    BM_FIGURES.forEach(fig => {
-      const img = new Image()
-      img.src = fig.image
-    })
-  }, [])
-
-  const figure = BM_FIGURES[activeFigure]
-
-  // Reset fade-in when figure changes
-  useEffect(() => { setImgOpacity(0) }, [activeFigure])
-
-  // Non-passive wheel + touchmove for pinch-to-zoom and pan
-  // Uses translate(tx,ty) scale(S) with transformOrigin 0 0 so all points pan uniformly
-  useEffect(() => {
-    const el = mapContainerRef.current
-    if (!el) return
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      const prevScale = mapScaleRef.current
-      const delta = e.deltaY > 0 ? 0.9 : 1.1
-      const newScale = Math.min(4, Math.max(1, prevScale * delta))
-      const ratio = newScale / prevScale
-      mapScaleRef.current = newScale
-      if (newScale > 1) setBodyMapHintDismissed(true)
-      // Zoom anchored to mouse position within the container
-      const rect = el.getBoundingClientRect()
-      const mx = e.clientX - rect.left
-      const my = e.clientY - rect.top
-      setMapScale(newScale)
-      setMapOffset(prev => {
-        if (newScale <= 1) return { x: 0, y: 0 }
-        return { x: mx * (1 - ratio) + prev.x * ratio, y: my * (1 - ratio) + prev.y * ratio }
-      })
-    }
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault()
-        const t0 = e.touches[0], t1 = e.touches[1]
-        const dx = t0.clientX - t1.clientX
-        const dy = t0.clientY - t1.clientY
-        const dist = Math.sqrt(dx * dx + dy * dy)
-        const rect = el.getBoundingClientRect()
-        // Midpoint of the two fingers, relative to container
-        const midX = (t0.clientX + t1.clientX) / 2 - rect.left
-        const midY = (t0.clientY + t1.clientY) / 2 - rect.top
-        if (lastPinchDistRef.current !== null) {
-          const prevScale = mapScaleRef.current
-          const pinchRatio = dist / lastPinchDistRef.current
-          const newScale = Math.min(4, Math.max(1, prevScale * pinchRatio))
-          const actualRatio = newScale / prevScale
-          mapScaleRef.current = newScale
-          if (newScale > 1) setBodyMapHintDismissed(true)
-          setMapScale(newScale)
-          // Anchor zoom to pinch midpoint so content under fingers stays fixed
-          setMapOffset(prev => {
-            if (newScale <= 1) return { x: 0, y: 0 }
-            return { x: midX * (1 - actualRatio) + prev.x * actualRatio, y: midY * (1 - actualRatio) + prev.y * actualRatio }
-          })
-        }
-        lastPinchDistRef.current = dist
-      } else if (e.touches.length === 1 && mapScaleRef.current > 1) {
-        e.preventDefault()
-        const touch = e.touches[0]
-        if (lastTouchRef.current) {
-          const dx = touch.clientX - lastTouchRef.current.x
-          const dy = touch.clientY - lastTouchRef.current.y
-          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true
-          // Direct screen-pixel pan — correct with translate(tx,ty) scale(S)
-          setMapOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
-        }
-        lastTouchRef.current = { x: touch.clientX, y: touch.clientY }
-      }
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    return () => {
-      el.removeEventListener('wheel', onWheel)
-      el.removeEventListener('touchmove', onTouchMove)
-    }
-  }, [])
-
-  function closeSheet() {
-    setSheetOpen(false)
-    setSelectedHotspot(null)
-    setManifestations([])
-  }
-
-  function handleHotspotClick(h: BMHotspot) {
-    if (didPanRef.current) { didPanRef.current = false; return }
-    setSelectedHotspot(h)
-    setSheetOpen(true)
-  }
-
-  useEffect(() => {
-    if (!selectedHotspot) return
-    setManifestations([])
-    setManifLoading(true)
-    const load = async () => {
-      try {
-        const token = await getToken()
-        const res = await fetch(`/api/body-map?hotspot_id=${selectedHotspot.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const d = await res.json()
-        setManifestations(d.manifestations || [])
-      } catch { setManifestations([]) }
-      finally { setManifLoading(false) }
-    }
-    load()
-  }, [selectedHotspot])
-
-  const panelContent = (
-    <>
-      {/* Drag handle (mobile) */}
-      {isMobile && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px', flexShrink: 0 }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#3a3020' }} />
-        </div>
-      )}
-      {/* Panel header */}
-      <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: 15, color: GC, letterSpacing: '0.08em', marginBottom: 2 }}>
-            {selectedHotspot?.label}
-          </div>
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', letterSpacing: '0.06em' }}>
-            {manifLoading ? 'LOADING...' : `${manifestations.length} MANIFESTATION${manifestations.length !== 1 ? 'S' : ''}`}
-          </div>
-        </div>
-        <button onClick={closeSheet} style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: '4px 8px' }}>×</button>
-      </div>
-      {/* Panel body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', WebkitOverflowScrolling: 'touch' as any }}>
-        {manifLoading && (
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.12em', padding: '32px 0', textAlign: 'center' }}>LOADING MANIFESTATIONS...</div>
-        )}
-        {!manifLoading && manifestations.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '32px 20px' }}>
-            <div style={{ fontFamily: crimson, fontSize: 15, color: '#4a3f2f', fontStyle: 'italic', marginBottom: 12 }}>No manifestations documented for this region yet.</div>
-            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#3a3020', letterSpacing: '0.1em' }}>Admins can add entries in the Admin panel under Body Map</div>
-          </div>
-        )}
-        {manifestations.map((m: any) => (
-          <div key={m.id} style={{ marginBottom: 16, padding: '14px 16px', background: '#09070F', border: '1px solid #1e1a0e', borderLeft: `3px solid ${GC}`, borderRadius: 6 }}>
-            <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8b99a', lineHeight: 1.6, marginBottom: m.spirit_names?.length ? 10 : 0 }}>
-              {m.manifestation}
-            </div>
-            {m.spirit_names?.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: m.notes ? 8 : 0 }}>
-                {m.spirit_names.map((name: string) => (
-                  <a
-                    key={name}
-                    href={`/community?section=database&search=${encodeURIComponent(name)}`}
-                    style={{ fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.06em',
-                      background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)',
-                      borderRadius: 3, padding: '2px 8px', textDecoration: 'none', cursor: 'pointer' }}
-                  >
-                    {name}
-                  </a>
-                ))}
-              </div>
-            )}
-            {m.notes && (
-              <div style={{ fontFamily: crimson, fontSize: 13, color: '#6b5e45', fontStyle: 'italic', lineHeight: 1.5 }}>
-                {m.notes}
-              </div>
-            )}
-            {m.source && (
-              <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.06em', marginTop: 6 }}>SOURCE: {m.source}</div>
-            )}
-          </div>
-        ))}
-        {!manifLoading && (
-          <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(139,50,50,0.04)', border: '1px solid #2a1a1a', borderRadius: 6 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a2a2a', letterSpacing: '0.1em', marginBottom: 3 }}>DISCLAIMER</div>
-            <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3030', lineHeight: 1.5, fontStyle: 'italic' }}>
-              For pastoral discernment and prayer preparation only. Physical or mental health symptoms should be evaluated by qualified professionals.
-            </div>
-          </div>
-        )}
-      </div>
-    </>
-  )
-
-  return (
-    <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
-      <style>{`@keyframes bmDot{0%,100%{opacity:0.7}50%{opacity:1}}.bm-dot{animation:bmDot 2.2s ease-in-out infinite}`}</style>
-      {/* Header */}
-      <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        {isMobile && (
-          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1, flexShrink: 0 }}>☰</button>
-        )}
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: GC, letterSpacing: '0.15em', marginBottom: 2 }}>SPIRIT BODY MAP</div>
-          <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3f2f', fontStyle: 'italic' }}>Tap a region to see associated manifestations and spirits</div>
-        </div>
-      </div>
-
-      {/* Figure selector tabs — all screen sizes */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0, alignItems: 'stretch' }}>
-        {BM_FIGURES.map((fig, i) => (
-          <button key={fig.key} onClick={() => { setActiveFigure(i); closeSheet() }}
-            style={{ flex: 1, padding: '10px 4px', background: 'transparent', border: 'none',
-              borderBottom: activeFigure === i ? `2px solid ${GC}` : '2px solid transparent',
-              color: activeFigure === i ? GC : '#6a5f4f', fontFamily: cinzel,
-              fontSize: isMobile ? 8 : 10, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1 }}>
-            {fig.label.toUpperCase()}
-          </button>
-        ))}
-        {isAdmin && (
-          <button onClick={() => { setDebugMode(d => !d); setDebugClick(null) }}
-            style={{ padding: '10px 12px', background: debugMode ? 'rgba(201,168,76,0.15)' : 'transparent',
-              border: 'none', borderBottom: debugMode ? `2px solid ${GC}` : '2px solid transparent',
-              color: debugMode ? GC : '#4a3f2f', fontFamily: cinzel, fontSize: 8,
-              letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1, flexShrink: 0, whiteSpace: 'nowrap' }}>
-            ⊕ DEBUG
-          </button>
-        )}
-      </div>
-
-      {/* Main area: image + hotspots, with optional side panel on desktop */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', position: 'relative' }}>
-
-        {/* Scrollable image column */}
-        <div
-          ref={mapContainerRef}
-          style={{ flex: 1, overflowY: mapScale > 1 ? 'hidden' : 'auto', WebkitOverflowScrolling: 'touch' as any,
-            paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20,
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            touchAction: mapScale > 1 ? 'none' : 'pan-y', position: 'relative' }}
-          onTouchStart={e => {
-            lastPinchDistRef.current = null
-            didPanRef.current = false
-            if (e.touches.length === 1) {
-              lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-            }
-          }}
-          onTouchEnd={() => {
-            lastTouchRef.current = null
-            lastPinchDistRef.current = null
-          }}
-        >
-          {/* SVG body map — pinch/pan zoom wrapper */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: isMobile ? '100%' : 480 }}>
-            {/* Reset zoom button */}
-            {mapScale > 1.05 && (
-              <button
-                onClick={() => { setMapScale(1); mapScaleRef.current = 1; setMapOffset({ x: 0, y: 0 }) }}
-                style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, background: 'rgba(13,11,20,0.92)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '4px 12px', fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.1em', cursor: 'pointer' }}>
-                RESET ZOOM
-              </button>
-            )}
-            {/* Zoom level indicator */}
-            {mapScale > 1.05 && (
-              <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 20, background: 'rgba(13,11,20,0.85)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '3px 10px', fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.7)', letterSpacing: '0.1em', pointerEvents: 'none' }}>
-                {Math.round(mapScale * 100)}%
-              </div>
-            )}
-            {/* Pinch-to-zoom hint (mobile only, dismisses once used) */}
-            {isMobile && !bodyMapHintDismissed && mapScale === 1 && (
-              <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(13,11,20,0.85)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 12, padding: '4px 14px', fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.08em', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-                PINCH TO ZOOM
-              </div>
-            )}
-            {/* Transform layer — translate(tx,ty) scale(S) with origin 0 0 gives uniform pan at all zoom levels */}
-            <div style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapScale})`, transformOrigin: '0 0', willChange: 'transform', transition: mapScale === 1 ? 'transform 0.25s ease' : 'none', lineHeight: 0, position: 'relative' }}>
-            <svg
-              key={figure.image}
-              viewBox="0 0 100 150"
-              preserveAspectRatio="xMidYMid meet"
-              style={{
-                width: '100%',
-                height: 'auto',
-                maxHeight: 'calc(100dvh - 220px)',
-                display: 'block',
-                opacity: imgOpacity,
-                transition: 'opacity 0.3s',
-                cursor: debugMode ? 'crosshair' : 'default',
-              }}
-              aria-label={figure.label}
-              onClick={debugMode ? ((e: React.MouseEvent<SVGSVGElement>) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                const x = Math.round(((e.clientX - rect.left) / rect.width) * 100 * 10) / 10
-                const y = Math.round(((e.clientY - rect.top) / rect.height) * 100 * 10) / 10
-                setDebugClick({ x, y })
-              }) : undefined}
-            >
-              {/* anatomy image fills the entire viewBox */}
-              <image
-                href={figure.image}
-                x={0}
-                y={0}
-                width={100}
-                height={150}
-                preserveAspectRatio="xMidYMid meet"
-                onLoad={() => setImgOpacity(1)}
-                style={{ pointerEvents: 'none' }}
-              />
-              {/* hotspots — x/y are 0–100 percentages; cy = h.y * 1.5 maps into the 150-unit viewBox height */}
-              {figure.hotspots.map(h => {
-                const isActive = selectedHotspot?.id === h.id && sheetOpen
-                const isHov = hoveredHotspot === h.id
-                const cx = h.x
-                const cy = h.y * 1.5
-                const r = isMobile ? 3.5 : 2.5
-                return (
-                  <g
-                    key={h.id}
-                    onClick={(e) => { e.stopPropagation(); handleHotspotClick(h) }}
-                    onMouseEnter={() => !isMobile && setHoveredHotspot(h.id)}
-                    onMouseLeave={() => !isMobile && setHoveredHotspot(null)}
-                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleHotspotClick(h) }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {/* invisible tap target — larger hit area; rgba fill instead of transparent so iOS receives touch events */}
-                    <circle cx={cx} cy={cy} r={isMobile ? 5 : 3.5} fill="rgba(0,0,0,0.001)" style={{ touchAction: 'none' }} />
-                    {/* visible ring — filled gold, not hollow */}
-                    <circle
-                      cx={cx} cy={cy} r={r}
-                      fill={isActive ? 'rgba(201,168,76,0.45)' : isHov ? 'rgba(201,168,76,0.30)' : 'rgba(201,168,76,0.18)'}
-                      stroke={isActive ? '#C9A84C' : isHov ? 'rgba(201,168,76,0.90)' : 'rgba(201,168,76,0.65)'}
-                      strokeWidth={0.7}
-                      style={{ pointerEvents: 'none', transition: 'fill 0.15s, stroke 0.15s' }}
-                    />
-                    {/* gold center dot */}
-                    <circle
-                      cx={cx} cy={cy} r={1.2}
-                      fill={isActive ? '#C9A84C' : 'rgba(201,168,76,0.90)'}
-                      className={isActive ? undefined : 'bm-dot'}
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  </g>
-                )
-              })}
-            </svg>
-            {/* Hovered label tooltip (desktop only) — positioned over the SVG wrapper */}
-            {!isMobile && hoveredHotspot && !sheetOpen && (() => {
-              const h = figure.hotspots.find(p => p.id === hoveredHotspot)
-              if (!h) return null
-              return (
-                <div style={{ position: 'absolute', left: `${h.x}%`, top: `calc(${h.y}% + 2.5%)`, transform: 'translateX(-50%)', whiteSpace: 'nowrap',
-                  fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
-                  background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
-                  {h.label}
-                </div>
-              )
-            })()}
-            {/* Debug coordinate label */}
-            {debugMode && debugClick && (
-              <div
-                onClick={e => { e.stopPropagation(); setDebugClick(null) }}
-                style={{
-                  position: 'absolute', left: `${debugClick.x}%`, top: `${debugClick.y}%`,
-                  transform: 'translate(-50%, -120%)', zIndex: 20, pointerEvents: 'auto', cursor: 'pointer',
-                  background: '#0D0B14', border: `1px solid ${GC}`, borderRadius: 4,
-                  padding: '4px 10px', whiteSpace: 'nowrap', fontFamily: cinzel, fontSize: 9,
-                  color: GC, letterSpacing: '0.08em', boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
-                }}>
-                x: {debugClick.x}% · y: {debugClick.y}%
-              </div>
-            )}
-            </div>{/* end transform layer */}
-          </div>
-        </div>
-
-        {/* Desktop side panel — slides in from right within the main area */}
-        {!isMobile && sheetOpen && selectedHotspot && (
-          <div style={{
-            width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column',
-            background: '#0f0c07', borderLeft: '1px solid #2a2218', overflow: 'hidden',
-          }}>
-            {panelContent}
-          </div>
-        )}
-      </div>
-
-      {/* Mobile bottom sheet */}
-      {isMobile && sheetOpen && selectedHotspot && (
-        <>
-          <div onClick={closeSheet} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.4)' }} />
-          <div style={{
-            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50,
-            maxHeight: '60dvh', display: 'flex', flexDirection: 'column',
-            background: '#0f0c07', borderTop: '1px solid #2a2218',
-            borderRadius: '14px 14px 0 0', boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
-            overflow: 'hidden',
-          }}>
-            {panelContent}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
 
 
 // ── TIME AGO HELPER ────────────────────────────────────────
@@ -9790,6 +9292,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const audioChunksRef   = useRef<Blob[]>([])
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const recSecondsRef    = useRef(0)
+  const loadSessionRef   = React.useRef(0)
+  const activeChannelRef = React.useRef<string | null>(null)
 
   const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 768
   const wsMessagesEnabled = user?.publicMetadata?.stream_ws_messages === true
@@ -10036,6 +9540,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
   // ── Select conversation ──
   const selectConversation = useCallback(async (channelId: string, overrideToken?: string) => {
+    const mySession = ++loadSessionRef.current
     const t = overrideToken || token || await getToken() || ''
     setActiveConvoId(channelId)
     setMobileView('chat')
@@ -10051,11 +9556,13 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         }).then(r => r.json())
         realId = dm.channelId || channelId
       }
+      activeChannelRef.current = realId
       setResolvedChannelId(realId)
       const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(realId)}`, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
       }).then(r => r.json())
       const msgList = msgs.messages || msgs.detail?.messages || []
+      if (loadSessionRef.current !== mySession) return
       console.log('[selectConversation] channelId:', realId, 'message count:', msgList.length)
       setMessages(msgList)
       if (channelId !== 'sol') {
@@ -10091,6 +9598,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     if (pollRef.current) clearInterval(pollRef.current)
     if (!activeConvoId || !token) return
     const loadMessages = async () => {
+      const mySession = loadSessionRef.current
       if (document.visibilityState !== 'visible') return
       const activeChannelId = activeConvoId === 'sol'
         ? conversations.find((c: any) => c.otherMember?.id === 'sol-bot')?.channelId || activeConvoId
@@ -10098,7 +9606,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       if (!activeChannelId || activeChannelId === 'sol') return
       const msgs = await api(`get-messages&channelId=${activeChannelId}`, 'GET')
       const msgList = msgs.messages || msgs.detail?.messages
-      if (Array.isArray(msgList)) setMessages(msgList)
+      if (loadSessionRef.current === mySession && Array.isArray(msgList)) setMessages(msgList)
     }
     loadMessages()
     if (!wsMessagesEnabled) {
@@ -10255,6 +9763,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const sendMessage = useCallback(async () => {
     if (!messageText.trim() || !resolvedChannelId) return
     const text = messageText.trim()
+    const sentChannelId = resolvedChannelId
     setMessageText('')
     // Optimistic: show immediately so the UI feels instant
     const tempId = `temp-${Date.now()}`
@@ -10265,14 +9774,17 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       user: { id: userId, name: 'You' },
       created_at: new Date().toISOString(),
     }])
-    // Send to Stream then refetch after short delay to ensure Stream has persisted
-    await api('send-message', 'POST', { channelId: resolvedChannelId, text })
-    setTimeout(async () => {
-      const msgs = await api(`get-messages&channelId=${resolvedChannelId}`, 'GET')
-      const msgList = msgs.messages || msgs.detail?.messages
-      if (Array.isArray(msgList) && msgList.length) setMessages(msgList)
-    }, 500)
-  }, [messageText, resolvedChannelId, api, userId])
+    await api('send-message', 'POST', { channelId: sentChannelId, text })
+    if (!wsMessagesEnabled) {
+      // poll path only: ws message.new handles confirmation on the ws path
+      setTimeout(async () => {
+        if (activeChannelRef.current !== sentChannelId) return
+        const msgs = await api(`get-messages&channelId=${sentChannelId}`, 'GET')
+        const msgList = msgs.messages || msgs.detail?.messages
+        if (activeChannelRef.current === sentChannelId && Array.isArray(msgList) && msgList.length) setMessages(msgList)
+      }, 500)
+    }
+  }, [messageText, resolvedChannelId, api, userId, wsMessagesEnabled])
 
   // ── Voice recording ──
   const startRecording = useCallback(async () => {
