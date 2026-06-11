@@ -9940,7 +9940,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs, openOnMount, onIntentConsumed, openChannelOnMount, onChannelIntentConsumed }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void; openOnMount?: 'fire-team' | 'cover-all' | 'sentinel' | null; onIntentConsumed?: () => void; openChannelOnMount?: string | null; onChannelIntentConsumed?: () => void }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs, openOnMount, onIntentConsumed, openChannelOnMount, onChannelIntentConsumed }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void; openOnMount?: 'fire-team' | 'cover-all' | 'sentinel' | null; onIntentConsumed?: () => void; openChannelOnMount?: null | { channelId: string; kind: 'fire-team' | 'cover-all' | 'sentinel'; title: string; subtitle?: string; raw?: any }; onChannelIntentConsumed?: () => void }) {
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [token, setToken]                     = useState('')
@@ -9971,6 +9971,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [sentinelRequests, setSentinelRequests]       = React.useState<any[]>([])
   const [acceptingSentinels, setAcceptingSentinels]   = React.useState<Set<string>>(new Set())
   const [_coverAllGroups, setCoverAllGroups]          = React.useState<any[]>([])
+  const [seededGroup, setSeededGroup]                 = React.useState<any>(null)
   const [showSentinelPicker, setShowSentinelPicker] = React.useState(false)
   const [sentinelSearch, setSentinelSearch]         = React.useState('')
   const [sentinelSent, setSentinelSent]             = React.useState<string[]>([])
@@ -9998,10 +9999,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     onIntentConsumed?.()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // Open a specific group channel on mount when triggered from the Field Teams page.
+  // Seed the group metadata instantly so the header resolves on first render (no Unknown flash).
   useEffect(() => {
     if (openChannelOnMount) {
       setActiveTab('teams')
-      selectConversation(openChannelOnMount)
+      setSeededGroup(openChannelOnMount)
+      selectConversation(openChannelOnMount.channelId)
       onChannelIntentConsumed?.()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -10571,9 +10574,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   }, [conversations, activeTab, searchQuery])
 
   const activeConvo = [SOL_CONVO, ...conversations].find(c => c.channelId === activeConvoId)
-  const activeFireTeam = fireTeams.find(t => t.channelId === activeConvoId) ?? null
-  const activeSentinel = _sentinels.find(s => s.channelId === activeConvoId) ?? null
-  const activeCoverAll = _coverAllGroups.find(g => g.channelId === activeConvoId) ?? null
+  const activeFireTeam = fireTeams.find(t => t.channelId === activeConvoId)
+    ?? (seededGroup?.kind === 'fire-team' && seededGroup.channelId === activeConvoId ? seededGroup.raw ?? seededGroup : null)
+  const activeSentinel = _sentinels.find(s => s.channelId === activeConvoId)
+    ?? (seededGroup?.kind === 'sentinel' && seededGroup.channelId === activeConvoId ? seededGroup.raw ?? seededGroup : null)
+  const activeCoverAll = _coverAllGroups.find(g => g.channelId === activeConvoId)
+    ?? (seededGroup?.kind === 'cover-all' && seededGroup.channelId === activeConvoId ? seededGroup.raw ?? seededGroup : null)
 
   // ── Teams tab: unified group-room list (sentinels + fire teams + cover all) ──
   const teamRooms = React.useMemo(() => {
@@ -12477,7 +12483,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate, onOpe
   setActiveSection: (s: string) => void
   getToken: () => Promise<string | null>
   onCreate?: (type: 'fire-team' | 'cover-all' | 'sentinel') => void
-  onOpenChannel?: (channelId: string) => void
+  onOpenChannel?: (group: { channelId: string; kind: 'fire-team' | 'cover-all' | 'sentinel'; title: string; subtitle?: string; raw?: any }) => void
 }) {
   const BG   = isDark ? '#0D0B14' : '#ede8de'
   const SURF = isDark ? 'rgba(201,168,76,0.04)' : '#e8e2d6'
@@ -12595,7 +12601,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate, onOpe
               {sentinels.map(s => {
                 const days = daysRemaining(s.endsAt)
                 return (
-                  <div key={s.id} onClick={() => onOpenChannel?.(s.channelId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: s.channelId ? 'pointer' : 'default' }}>
+                  <div key={s.id} onClick={() => onOpenChannel?.({ channelId: s.channelId, kind: 'sentinel', title: s.partnerName, subtitle: 'Sentinel · Sprint #' + (s.sprintNumber || 1), raw: s })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: s.channelId ? 'pointer' : 'default' }}>
                     <div>
                       <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{s.partnerName}</div>
                       <div style={{ fontFamily: crimson, fontSize: 11, color: MUT }}>Sprint #{s.sprintNumber || 1}</div>
@@ -12636,7 +12642,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate, onOpe
           ) : (
             <div style={{ marginBottom: 14 }}>
               {fireTeams.map(t => (
-                <div key={t.fireTeamId || t.channelId} onClick={() => onOpenChannel?.(t.channelId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: t.channelId ? 'pointer' : 'default' }}>
+                <div key={t.fireTeamId || t.channelId} onClick={() => onOpenChannel?.({ channelId: t.channelId, kind: 'fire-team', title: t.teamName, subtitle: (t.memberCount || '') + ' members · Fire Team', raw: t })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid ${GC}`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: t.channelId ? 'pointer' : 'default' }}>
                   <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{t.teamName}</div>
                   <div style={{ fontFamily: cinzel, fontSize: 10, color: MUT }}>{t.memberCount} members</div>
                 </div>
@@ -12668,7 +12674,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate, onOpe
           ) : (
             <div style={{ marginBottom: 14 }}>
               {coverAlls.map(g => (
-                <div key={g.id} onClick={() => onOpenChannel?.(g.channelId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid rgba(139,92,246,0.7)`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: g.channelId ? 'pointer' : 'default' }}>
+                <div key={g.id} onClick={() => onOpenChannel?.({ channelId: g.channelId, kind: 'cover-all', title: g.name, subtitle: (g.territory ? g.territory + ' · ' : '') + (g.memberCount || '') + ' members · Cover All', raw: g })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderLeft: `3px solid rgba(139,92,246,0.7)`, background: SURF, borderRadius: '0 6px 6px 0', marginBottom: 6, cursor: g.channelId ? 'pointer' : 'default' }}>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{g.name}</div>
                     {g.territory && <div style={{ fontFamily: crimson, fontSize: 11, color: MUT }}>{g.territory}</div>}
@@ -12712,7 +12718,7 @@ function CommunityPage() {
   })
   const [activeSection, setActiveSection] = useState('daily-brief')
   const [createIntent, setCreateIntent] = useState<null | 'fire-team' | 'cover-all' | 'sentinel'>(null)
-  const [openChannelIntent, setOpenChannelIntent] = useState<string | null>(null)
+  const [openChannelIntent, setOpenChannelIntent] = useState<null | { channelId: string; kind: 'fire-team' | 'cover-all' | 'sentinel'; title: string; subtitle?: string; raw?: any }>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
 
   // Preserve sidebar scroll across activeSection changes
@@ -14349,7 +14355,7 @@ function CommunityPage() {
       {activeSection === 'spirit-network' && (tierLevel >= 2 ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} /><OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} /></div> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
       {activeSection === 'gateway'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','The AI cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} /></div>}
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
-      {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(channelId: string) => { if (!channelId) return; setOpenChannelIntent(channelId); setActiveSection('dms') }} />}
+      {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />}
       {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
       {activeSection === 'session-center' && <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />}
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
@@ -14995,7 +15001,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'field-teams' && (
-          <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(channelId: string) => { if (!channelId) return; setOpenChannelIntent(channelId); setActiveSection('dms') }} />
+          <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />
         )}
         {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'session-center' && (
