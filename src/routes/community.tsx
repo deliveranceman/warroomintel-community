@@ -9792,6 +9792,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const recSecondsRef    = useRef(0)
 
   const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 768
+  const wsMessagesEnabled = user?.publicMetadata?.stream_ws_messages === true
   const isTabletLayout = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1200
   const tierLevel = getAccessLevel({ tier: tier || 'free', role: (user?.publicMetadata?.role as string) || '' })
 
@@ -10100,13 +10101,16 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       if (Array.isArray(msgList)) setMessages(msgList)
     }
     loadMessages()
-    pollRef.current = setInterval(loadMessages, 8000)
+    if (!wsMessagesEnabled) {
+      pollRef.current = setInterval(loadMessages, 8000)
+    }
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [activeConvoId, token])
+  }, [activeConvoId, token, wsMessagesEnabled])
 
   // ── SSE real-time updates ──
   React.useEffect(() => {
     if (!token) return
+    if (wsMessagesEnabled) return
 
     const connect = () => {
       if (sseRef.current) sseRef.current.close()
@@ -10143,7 +10147,89 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
     connect()
     return () => { sseRef.current?.close(); sseRef.current = null }
-  }, [token])
+  }, [token, wsMessagesEnabled])
+
+  // ── LIVE messages via Stream websocket (canary: Clerk flag stream_ws_messages) ──
+  // Stage 2: DM MESSAGES for the active conversation. Browser-only; SDK via runtime import.
+  // Reuses the singleton client from Stage 1 (connectStreamUser is idempotent).
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!wsMessagesEnabled) return
+    if (!resolvedChannelId || resolvedChannelId === 'sol') return
+
+    let cancelled = false
+    let mod: typeof import('@/lib/streamClient') | null = null
+    let client: any = null
+    let msgChannel: any = null
+    let msgSub: { unsubscribe: () => void } | null = null
+
+    const uid    = userId
+    const uname  = user?.fullName || user?.firstName || user?.username || 'Warrior'
+    const uimage = user?.imageUrl || ''
+
+    const tokenProvider = async () => {
+      const r = await fetch('/api/stream-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, userName: uname, userImage: uimage }),
+      })
+      const d = await r.json()
+      return d.token as string
+    }
+
+    const onMessageNew = (event: any) => {
+      const msg = event.message
+      if (!msg) return
+      setMessages(prev => {
+        if (prev.some((m: any) => m.id === msg.id)) return prev
+        // Replace optimistic temp-* bubble when text+sender match
+        const tempIdx = prev.findIndex(
+          (m: any) => m.id.startsWith('temp-') && m.text === msg.text && m.user?.id === msg.user?.id
+        )
+        if (tempIdx !== -1) {
+          const next = [...prev]
+          next[tempIdx] = msg
+          return next
+        }
+        return [...prev, msg]
+      })
+    }
+
+    const setup = async () => {
+      // Fetch stream-token to obtain apiKey (also seeds the tokenProvider)
+      const r = await fetch('/api/stream-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, userName: uname, userImage: uimage }),
+      })
+      const d = await r.json()
+      const sApiKey = d.apiKey
+      if (!sApiKey || cancelled) return
+
+      mod = await import('@/lib/streamClient')
+      if (cancelled) return
+      client = await mod.getStreamClient(sApiKey)
+      if (!client || cancelled) return
+      // connectStreamUser guards against double-connect (idempotent — safe to call if Stage 1 already connected)
+      await mod.connectStreamUser(client, { id: uid, name: uname, image: uimage }, tokenProvider)
+      if (cancelled) return
+
+      msgChannel = client.channel('messaging', resolvedChannelId)
+      await msgChannel.watch()
+      if (cancelled) return
+
+      msgSub = msgChannel.on('message.new', onMessageNew)
+    }
+
+    setup().catch(e => console.log('[ws-messages] setup failed:', e))
+
+    return () => {
+      cancelled = true
+      try { msgSub?.unsubscribe() } catch {}
+      try { msgChannel?.stopWatching?.() } catch {}
+      // Do NOT disconnect the shared client — Stage-1 presence may still use it
+    }
+  }, [wsMessagesEnabled, resolvedChannelId, userId])
 
   // ── BroadcastChannel: receive push-triggered events from service worker ──
   React.useEffect(() => {
