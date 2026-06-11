@@ -43,6 +43,16 @@ const LEGACY_TO_REGION: Record<string, string> = {
   'mf-left-foot': 'left_foot',    'ff-left-foot': 'left_foot',
   'mf-right-foot': 'right_foot',  'ff-right-foot': 'right_foot',
   'ff-womb': 'uterus_ovaries',
+  // ── folded: elbow → forearm ──────────────────────────────────────────────────
+  'mf-left-elbow':  'left_forearm',    'ff-left-elbow':  'left_forearm',
+  'mf-right-elbow': 'right_forearm',   'ff-right-elbow': 'right_forearm',
+  'mb-left-elbow':  'left_posterior_forearm',   'fb-left-elbow':  'left_posterior_forearm',
+  'mb-right-elbow': 'right_posterior_forearm',  'fb-right-elbow': 'right_posterior_forearm',
+  // ── folded: wrist → hand ─────────────────────────────────────────────────────
+  'mf-left-wrist':  'left_hand',   'ff-left-wrist':  'left_hand',
+  'mf-right-wrist': 'right_hand',  'ff-right-wrist': 'right_hand',
+  // ── folded: abdomen → stomach ────────────────────────────────────────────────
+  'mf-abdomen': 'stomach',  'ff-abdomen': 'stomach',
   // ── back (male mb-*, female fb-*) ──
   'mb-crown': 'occiput',          'fb-crown': 'occiput',
   'mb-neck': 'cervical_spine',    'fb-neck': 'cervical_spine',
