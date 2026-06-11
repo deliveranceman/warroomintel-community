@@ -567,19 +567,40 @@ async function createFireTeam(userId: string, body: any, verifiedLevel: number, 
   const channelId = `ft-${Date.now()}-${userId.slice(-6)}`
   const allMembers = [userId, ...inviteUserIds]
 
-  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
-    method: 'POST',
-    headers: streamHeaders(serverToken()),
-    body: JSON.stringify({
-      get_or_create: true,
-      members: allMembers,
-      data: { created_by_id: userId, name, is_fire_team: true, assignment_type: assignmentType, description: description || '' },
-    }),
-  })
-  if (!chanRes.ok) {
-    const err = await chanRes.text()
-    return json({ error: 'Stream channel creation failed', detail: err }, 500)
+  // (1) Upsert all members so names show in Stream
+  await streamFetch('/users', 'POST', serverToken(), {
+    users: Object.fromEntries(allMembers.map(id => [id, { id, name: id }])),
+  }).catch(() => {})
+
+  // (2) Create-or-get via /query — bare endpoint = UpdateChannel → code 16 if channel missing
+  const { status: ftChanStatus, data: ftChanData } = await streamFetch(
+    `/channels/messaging/${channelId}/query`,
+    'POST',
+    serverToken(),
+    {
+      data: {
+        created_by_id: userId,
+        members: allMembers,
+        name,
+        is_fire_team: true,
+        assignment_type: assignmentType,
+        description: description || '',
+      },
+      state: true,
+      watch: false,
+      presence: false,
+    },
+  )
+  if (ftChanStatus >= 400) {
+    const detail = JSON.stringify(ftChanData)
+    console.error('[create-fire-team] Stream error:', ftChanStatus, detail)
+    return json({ error: 'Stream channel creation failed', detail }, 500)
   }
+
+  // (3) Force-add members to self-heal any orphaned memberless channels from failed dev attempts
+  await streamFetch(`/channels/messaging/${channelId}`, 'POST', serverToken(), {
+    add_members: allMembers.map(id => ({ user_id: id })),
+  }).catch(() => {})
 
   const ftRes = await fetch(SB('/fire_teams'), {
     method: 'POST',
@@ -800,6 +821,11 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
     return json({ error: 'Stream channel creation failed', detail }, 500)
   }
 
+  // Force-add members to self-heal any orphaned memberless channels from failed dev attempts
+  await streamFetch(`/channels/messaging/${channelId}`, 'POST', serverToken(), {
+    add_members: allMembers.map(id => ({ user_id: id })),
+  }).catch(() => {})
+
   await fetch(SB(`/sentinel_pairs?id=eq.${encodeURIComponent(sentinelId)}`), {
     method: 'PATCH',
     headers: sbH,
@@ -944,16 +970,39 @@ async function createCoverAll(userId: string, body: any, verifiedLevel: number):
   const channelId = `ca-${Date.now()}-${userId.slice(-6)}`
   const allMembers = [userId, ...inviteUserIds]
 
-  const chanRes = await fetch(streamUrl(`/channels/messaging/${channelId}`), {
-    method: 'POST',
-    headers: streamHeaders(serverToken()),
-    body: JSON.stringify({
-      get_or_create: true,
-      members: allMembers,
-      data: { created_by_id: userId, name, is_cover_all: true, territory: territory || '' },
-    }),
-  })
-  if (!chanRes.ok) return json({ error: 'Stream channel creation failed' }, 500)
+  // (1) Upsert all members so names show in Stream
+  await streamFetch('/users', 'POST', serverToken(), {
+    users: Object.fromEntries(allMembers.map(id => [id, { id, name: id }])),
+  }).catch(() => {})
+
+  // (2) Create-or-get via /query — bare endpoint = UpdateChannel → code 16 if channel missing
+  const { status: caChanStatus, data: caChanData } = await streamFetch(
+    `/channels/messaging/${channelId}/query`,
+    'POST',
+    serverToken(),
+    {
+      data: {
+        created_by_id: userId,
+        members: allMembers,
+        name,
+        is_cover_all: true,
+        territory: territory || '',
+      },
+      state: true,
+      watch: false,
+      presence: false,
+    },
+  )
+  if (caChanStatus >= 400) {
+    const detail = JSON.stringify(caChanData)
+    console.error('[create-cover-all] Stream error:', caChanStatus, detail)
+    return json({ error: 'Stream channel creation failed', detail }, 500)
+  }
+
+  // (3) Force-add members to self-heal any orphaned memberless channels from failed dev attempts
+  await streamFetch(`/channels/messaging/${channelId}`, 'POST', serverToken(), {
+    add_members: allMembers.map(id => ({ user_id: id })),
+  }).catch(() => {})
 
   const grpRes = await fetch(SB('/cover_all_groups'), {
     method: 'POST',
