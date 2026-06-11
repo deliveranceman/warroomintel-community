@@ -2996,7 +2996,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   return (
     <div>
       {/* Sub-section nav */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${BDR}`, overflowX: 'auto' as const }}>
+      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${BDR}`, overflowX: 'auto' as const, overflowY: 'hidden' as const }}>
         {(['database', 'enrichment', 'taxonomy', 'gap-analysis', 'duplicates', 'body-map'] as const).map(t => {
           const labels: Record<string, string> = { database: 'SPIRIT DATABASE', enrichment: 'ENRICHMENT', taxonomy: 'TAXONOMY', 'gap-analysis': 'GAP ANALYSIS', duplicates: 'DUPLICATE FINDER', 'body-map': 'BODY MAP' }
           return (
@@ -11635,7 +11635,7 @@ function AdminPage() {
         )}
 
         {/* ── Content ──────────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto' as const, minWidth: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto' as const, minWidth: 0, scrollbarGutter: 'stable' as const }}>
           <div style={{ maxWidth, margin: '0 auto', padding: contentPad }}>
             {tab === 'dashboard'         && <DashboardView getToken={getToken} isDark={isDark} setTab={(t: string) => setTab(t as any)} />}
             {tab === 'arsenal'           && <ArsenalManager getToken={getToken} />}
