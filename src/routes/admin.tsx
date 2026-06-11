@@ -1642,6 +1642,9 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
   const [aiLoadingNotes, setAiLoadingNotes] = useState(false)
   const [v2BackfillRunning, setV2BackfillRunning] = useState(false)
   const [v2BackfillResult, setV2BackfillResult] = useState<any>(null)
+  const [condIngestText, setCondIngestText] = useState('')
+  const [condIngestRunning, setCondIngestRunning] = useState(false)
+  const [condIngestResult, setCondIngestResult] = useState<any>(null)
 
   useEffect(() => {
     getToken().then(token => {
@@ -2059,8 +2062,97 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
           </div>
         )}
       </div>
+
+      {/* ── Conditions Ingest ────────────────────────────────────────────────── */}
+      <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid ${isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.15)'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM }}>AUTHOR CONDITIONS INGEST</span>
+          <button
+            onClick={async () => {
+              setCondIngestRunning(true)
+              setCondIngestResult(null)
+              try {
+                const rows = parseCondRows(condIngestText)
+                if (!rows.length) { setCondIngestResult({ error: 'No rows parsed — paste CSV (header row + data) or a JSON array of objects.' }); return }
+                const token = await getToken()
+                const res = await fetch('/api/body-map-conditions?action=ingest', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ rows }),
+                })
+                setCondIngestResult(await res.json())
+              } catch (e: any) {
+                setCondIngestResult({ error: e.message })
+              } finally {
+                setCondIngestRunning(false)
+              }
+            }}
+            disabled={condIngestRunning || !condIngestText.trim()}
+            style={{ padding: '5px 14px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: condIngestRunning ? 'wait' : (!condIngestText.trim() ? 'not-allowed' : 'pointer'), opacity: condIngestRunning || !condIngestText.trim() ? 0.6 : 1 }}>
+            {condIngestRunning ? 'INGESTING...' : 'RUN INGEST'}
+          </button>
+        </div>
+        <textarea
+          value={condIngestText}
+          onChange={e => setCondIngestText(e.target.value)}
+          placeholder={'Paste cleaned rows — CSV (header row first) or JSON array.\nHeaders: condition, body_area, system, symptoms, conclusion, spiritual_tags, source_strength, source_note'}
+          spellCheck={false}
+          style={{ width: '100%', boxSizing: 'border-box', minHeight: 120, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '10px 12px', color: TXT, fontFamily: 'ui-monospace, monospace', fontSize: 12, lineHeight: 1.5, outline: 'none', resize: 'vertical' }}
+        />
+        {condIngestResult && (
+          <div style={{ marginTop: 10, fontFamily: crimson, fontSize: 12, color: condIngestResult.error ? '#f87171' : isDark ? '#b8a98a' : '#5c4a28', lineHeight: 1.6 }}>
+            {condIngestResult.error
+              ? `Error: ${condIngestResult.error}`
+              : <>
+                  Rows received: {condIngestResult.rowsReceived} · Conditions upserted: {condIngestResult.conditionsUpserted} · Links inserted: {condIngestResult.linksInserted}
+                  {condIngestResult.unmappedBodyAreas?.length ? <><br/>Unmapped body areas: {condIngestResult.unmappedBodyAreas.join(', ')}</> : null}
+                  {condIngestResult.missingRegions?.length ? <><br/>Missing regions (run migration?): {condIngestResult.missingRegions.join(', ')}</> : null}
+                  {condIngestResult.skipped?.length ? <><br/>Skipped {condIngestResult.skipped.length} row(s) with no condition name.</> : null}
+                </>
+            }
+          </div>
+        )}
+      </div>
     </div>
   )
+}
+
+// Parse pasted conditions input → array of row objects. Accepts a JSON array of
+// objects, or CSV with a header row (quoted fields with embedded commas ok).
+function parseCondRows(text: string): any[] {
+  const t = text.trim()
+  if (!t) return []
+  if (t[0] === '[' || t[0] === '{') {
+    const parsed = JSON.parse(t)
+    return Array.isArray(parsed) ? parsed : [parsed]
+  }
+  const lines = t.split(/\r?\n/).filter(l => l.trim())
+  if (lines.length < 2) return []
+  const headers = splitCsvLine(lines[0]).map(h => h.trim())
+  return lines.slice(1).map(line => {
+    const cells = splitCsvLine(line)
+    const o: any = {}
+    headers.forEach((h, i) => { o[h] = (cells[i] ?? '').trim() })
+    return o
+  })
+}
+
+function splitCsvLine(line: string): string[] {
+  const out: string[] = []
+  let cur = ''
+  let inQ = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (inQ) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++ } else inQ = false
+      } else cur += c
+    } else if (c === '"') inQ = true
+    else if (c === ',') { out.push(cur); cur = '' }
+    else cur += c
+  }
+  out.push(cur)
+  return out
 }
 
 // ─── INTEL ARCHIVE TAB ───────────────────────────────────────────────────────
