@@ -2632,7 +2632,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     let updated = 0, failed = 0, skipped = 0
 
     for (let i = 0; i < ids.length; i++) {
-      const spirit = demons.find(s => s.airtableId === ids[i])
+      const spirit = demons.find(s => s.slug === ids[i])
       if (!spirit) continue
 
       setEnrichProgress(p => p ? { ...p, current: i + 1, currentName: spirit.name ?? '' } : p)
@@ -2691,7 +2691,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           const saveRes = await fetch('/api/admin-demon', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${saveToken}` },
-            body: JSON.stringify({ id: spirit.airtableId, fields: allFields }),
+            body: JSON.stringify({ id: spirit.airtableId, slug: spirit.slug, fields: allFields }),
           })
           if (saveRes.ok) updated++
           else failed++
@@ -2769,7 +2769,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   }
 
   function startEdit(d: any) {
-    setEditingId(d.airtableId)
+    setEditingId(d.slug)
     setEditFields(demonToSpiritFields(d))
     setEditMsg('')
     setShowNew(false)
@@ -2783,7 +2783,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       const res = await fetch('/api/admin-demon', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ id: editingId, fields: editFields }),
+        body: JSON.stringify({ id: editingId, slug: editingId, fields: editFields }),
       })
       if (res.ok) {
         setEditMsg('✓ Saved')
@@ -2940,7 +2940,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     try {
       const merged = { ...aiTargetDemon, ...toSave }
       setDemons((prev: any[]) => prev.map(d =>
-        d.id === aiTargetDemon.id || d.airtableId === aiTargetDemon.airtableId ? merged : d
+        d.id === aiTargetDemon.id || (d.slug && d.slug === aiTargetDemon.slug) ? merged : d
       ))
       setAiTargetDemon(merged)
 
@@ -2954,7 +2954,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       const res = await fetch('/api/admin-demon', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: aiTargetDemon.airtableId, fields: toSave }),
+        body: JSON.stringify({ id: aiTargetDemon.airtableId, slug: aiTargetDemon.slug, fields: toSave }),
       })
 
       const responseText = await res.text()
@@ -3355,7 +3355,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                     checked={selectAll}
                     onChange={e => {
                       setSelectAll(e.target.checked)
-                      setSelectedSpirits(e.target.checked ? new Set(paginated.map((s: any) => s.airtableId)) : new Set())
+                      setSelectedSpirits(e.target.checked ? new Set(paginated.map((s: any) => s.slug)) : new Set())
                     }}
                     style={{ accentColor: G, width: 16, height: 16, cursor: 'pointer' }}
                   />
@@ -3375,15 +3375,15 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 <tr><td colSpan={7} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>{quickFilter !== 'all' ? 'No spirits found with this filter. Try clearing the filter.' : 'No spirits found.'}</td></tr>
               ) : paginated.map((d: any) => (
                 <Fragment key={d.airtableId || d.id}>
-                  <tr style={{ background: editingId === d.airtableId ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
+                  <tr style={{ background: editingId === d.slug ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
                     <td style={{ ...tdS, width: 36 }}>
                       <input
                         type="checkbox"
-                        checked={selectedSpirits.has(d.airtableId)}
+                        checked={selectedSpirits.has(d.slug)}
                         onChange={e => {
                           setSelectedSpirits(prev => {
                             const next = new Set(prev)
-                            e.target.checked ? next.add(d.airtableId) : next.delete(d.airtableId)
+                            e.target.checked ? next.add(d.slug) : next.delete(d.slug)
                             return next
                           })
                         }}
@@ -3416,9 +3416,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                     <td style={{ ...tdS }}>
                       <div style={{ display: 'flex', gap: 4, flexDirection: 'column' }}>
                         <button
-                          onClick={() => editingId === d.airtableId ? setEditingId(null) : startEdit(d)}
-                          style={{ background: 'transparent', border: `1px solid ${editingId === d.airtableId ? G : BDR}`, borderRadius: 5, color: editingId === d.airtableId ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
-                          {editingId === d.airtableId ? 'Close' : 'Edit'}
+                          onClick={() => editingId === d.slug ? setEditingId(null) : startEdit(d)}
+                          style={{ background: 'transparent', border: `1px solid ${editingId === d.slug ? G : BDR}`, borderRadius: 5, color: editingId === d.slug ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                          {editingId === d.slug ? 'Close' : 'Edit'}
                         </button>
                         <button
                           onClick={() => openAiPanel(d)}
@@ -3428,7 +3428,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                       </div>
                     </td>
                   </tr>
-                  {editingId === d.airtableId && (
+                  {editingId === d.slug && (
                     <tr>
                       <td colSpan={7} style={{ padding: '4px 12px 16px' }}>
                         <SpiritEditForm

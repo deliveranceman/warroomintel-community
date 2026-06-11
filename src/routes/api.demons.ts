@@ -16,7 +16,7 @@ const USE_SUPABASE_DEMONS = true
 // operational-basics→Soldier, warfare-mechanics→Commander, deep/sensitive→General.
 const TIER_FIELDS: Record<number, string[]> = {
   0: [
-    'id', 'airtableId', 'createdTime', 'name', 'aka', 'typeRank', 'description',
+    'id', 'slug', 'airtableId', 'createdTime', 'name', 'aka', 'typeRank', 'description',
     'function', 'strongman', 'kingdom', 'subKingdom', 'biblicalRank', 'caseType',
     'phonetic', 'images', 'isGenerational', 'isTerritorial', 'hierarchyCategory',
     'region', 'parentStrongman', 'relatedSpirits', 'clusterSpirits',
@@ -81,6 +81,7 @@ const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 function mapSpiritRow(row: any, i: number) {
   return {
     id: i + 1,
+    slug: row.slug || '',
     airtableId: row.legacy_airtable_id || '',
     createdTime: row.created_at || '',
     name: row.name || '',
@@ -211,6 +212,7 @@ export const Route = createFileRoute('/api/demons')({
             demons = records
               .map((r: any, i: number) => ({
                 id: i + 1,
+                slug: '',
                 airtableId: r.id,
                 createdTime: r.createdTime || '',
                 name: r.fields[NAME_FIELD] || '',

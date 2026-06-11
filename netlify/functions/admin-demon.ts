@@ -1,9 +1,143 @@
+import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
 const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
+
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
+// Flag-guarded write swap. true => admin edits/creates land in Supabase `spirits`
+// (same place reads now come from). false => legacy Airtable path below (kept
+// intact for instant revert). Reads were already repointed (api.demons.ts).
+const USE_SUPABASE_DEMON_WRITES = true
+
+const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
+
+// Single authoritative bridge: [camelCase key, Airtable field name, snake column].
+// Inbound bodies arrive in BOTH camelCase AND Airtable-field-name shapes, so the
+// lookup map is keyed by both. `region`, `function`, `equivalentSpirits` are
+// intentionally absent — they have no Supabase column and are ignored on write.
+const FIELD_DEFS: Array<[string, string, string]> = [
+  ['name', NAME_FIELD, 'name'],
+  ['aka', 'Also Known As', 'aka'],
+  ['description', 'Description', 'description'],
+  ['manifestation', 'Manifestiation', 'manifestation'],
+  ['scripture', 'Scripture Reference', 'scripture'],
+  ['entryPoints', 'Entry Points', 'entry_points'],
+  ['sourceOrigin', 'Source / Orgin', 'source_origin'],
+  ['kingdom', 'Kingdom', 'kingdom'],
+  ['strongman', 'Strongman', 'strongman'],
+  ['legalRights', 'Legal Rights', 'legal_rights'],
+  ['symptoms', 'Symptoms', 'symptoms'],
+  ['companionSpirits', 'Companion Spirits', 'companion_spirits'],
+  ['wriNotes', 'WRI Exorcist Notes', 'wri_notes'],
+  ['assignment', 'Assignment', 'assignment'],
+  ['hierarchyCategory', 'Hierarchy Category', 'hierarchy_category'],
+  ['parentStrongman', 'Parent Strongman', 'parent_strongman'],
+  ['deliveranceSequence', 'Deliverance Sequence', 'deliverance_sequence'],
+  ['operationalNotes', 'Operational Notes', 'operational_notes'],
+  ['primaryBattlefield', 'Primary Battlefield', 'primary_battlefield'],
+  ['personalityPresentation', 'Typical Personality Presentation', 'personality_presentation'],
+  ['counterScriptures', 'Counter Scriptures', 'counter_scriptures'],
+  ['phonetic', 'Phonetic', 'phonetic'],
+  ['images', 'Images', 'images'],
+  ['relatedSpirits', 'Related Spirits', 'related_spirits'],
+  ['biblicalRank', 'Biblical Rank', 'biblical_rank'],
+  ['caseType', 'Case Type', 'case_type'],
+  ['isGenerational', 'Is Generational', 'is_generational'],
+  ['isTerritorial', 'Is Territorial', 'is_territorial'],
+  ['subKingdom', 'Sub-Kingdom', 'sub_kingdom'],
+  ['clusterSpirits', 'Cluster Spirits', 'cluster_spirits'],
+  ['legalRightsFramework', 'Legal Rights Framework', 'legal_rights_framework'],
+  ['institutionalExpression', 'Institutional Expression', 'institutional_expression'],
+  ['sessionIndicators', 'Session Indicators', 'session_indicators'],
+  ['resistanceSignature', 'Resistance Signature', 'resistance_signature'],
+  ['demonicAgreements', 'Demonic Agreements', 'demonic_agreements'],
+  ['transmissionVectors', 'Transmission Vectors', 'transmission_vectors'],
+  ['etymologyNotes', 'Etymology Notes', 'etymology_notes'],
+  ['archaeologyNotes', 'Archaeology Notes', 'archaeology_notes'],
+  ['scriptureContext', 'Scripture Context', 'scripture_context'],
+  ['prayerPoints', 'Prayer Points', 'prayer_points'],
+  ['aftercareNotes', 'Aftercare Notes', 'aftercare_notes'],
+  ['culturalPresence', 'Cultural Presence', 'cultural_presence'],
+  ['sessionTriggerQuestions', 'Session Trigger Questions', 'session_trigger_questions'],
+]
+
+const TO_COLUMN: Record<string, string> = {}
+for (const [camel, air, col] of FIELD_DEFS) { TO_COLUMN[camel] = col; TO_COLUMN[air] = col }
+
+const ARRAY_COLS = new Set(['images', 'cultural_presence'])
+const BOOL_COLS  = new Set(['is_generational', 'is_territorial'])
+// biblical_rank enum — ONLY these 10 are legal; anything else (or blank) -> NULL.
+const VALID_RANKS = new Set([
+  'Demon', 'Power', 'World Ruler', 'Strongman', 'Principality', 'Wicked Spirit',
+  'Spirit of Infirmity', 'Fallen Angel', 'Familiar Spirit', 'Common Spirit',
+])
+
+function toTextArray(v: any): string[] {
+  if (Array.isArray(v)) return v.map((x: any) => String(x).trim()).filter(Boolean)
+  if (typeof v === 'string') return v.split(/[\n,]/).map(s => s.trim()).filter(Boolean)
+  return []
+}
+
+// Normalize any inbound shape (Airtable-named OR camelCase) to snake columns.
+// Only keys actually present are emitted (partial-update: never force-overwrite
+// unspecified columns). biblical_rank coerces blank/invalid -> NULL (never '').
+function toColumns(fields: Record<string, any>): Record<string, any> {
+  const cols: Record<string, any> = {}
+  for (const [k, v] of Object.entries(fields)) {
+    const col = TO_COLUMN[k]
+    if (!col) continue // unknown/ignored (region, function, equivalentSpirits, slug, id…)
+    if (BOOL_COLS.has(col)) {
+      cols[col] = v === true || v === 'true' || v === 'Yes' || v === 'yes'
+    } else if (ARRAY_COLS.has(col)) {
+      cols[col] = toTextArray(v)
+    } else if (col === 'biblical_rank') {
+      cols[col] = VALID_RANKS.has(String(v)) ? String(v) : null
+    } else {
+      cols[col] = v == null ? '' : String(v)
+    }
+  }
+  return cols
+}
+
+// Map a Supabase row back to the camelCase read shape (callers only read
+// res.ok/error/conflict, but we return a useful body anyway).
+function mapRow(row: any): Record<string, any> {
+  const out: Record<string, any> = {
+    id: row.id,
+    slug: row.slug || '',
+    airtableId: row.legacy_airtable_id || '',
+    createdTime: row.created_at || '',
+  }
+  for (const [camel, , col] of FIELD_DEFS) {
+    if (BOOL_COLS.has(col)) out[camel] = row[col] === true
+    else if (ARRAY_COLS.has(col)) out[camel] = Array.isArray(row[col]) ? row[col] : []
+    else out[camel] = row[col] || ''
+  }
+  return out
+}
+
+function slugify(name: string): string {
+  return name.toLowerCase().normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '') || 'spirit'
+}
+
+async function uniqueSlug(sb: any, name: string): Promise<string> {
+  const base = slugify(name)
+  let candidate = base
+  let n = 2
+  // Loop until no slug collision (bounded by the 438-row table; terminates fast).
+  while (true) {
+    const { data } = await sb.from('spirits').select('id').eq('slug', candidate).limit(1)
+    if (!data || data.length === 0) return candidate
+    candidate = `${base}-${n++}`
+  }
+}
 
 function cleanFields(fields: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {}
@@ -71,8 +205,34 @@ export default async function handler(req: Request) {
 
   if (req.method === 'PATCH') {
     const body = await req.json()
-    const { id, fields } = body
-    if (!id || !fields) return new Response(JSON.stringify({ error: 'id and fields required' }), { status: 400 })
+    const { id, slug, fields } = body
+    if (!fields) return new Response(JSON.stringify({ error: 'fields required' }), { status: 400 })
+
+    // ── Supabase write path (flag-on) ────────────────────────────────────────
+    if (USE_SUPABASE_DEMON_WRITES) {
+      const cols = toColumns(fields)
+      if (Object.keys(cols).length === 0) {
+        return new Response(JSON.stringify({ error: 'no writable fields' }), { status: 400 })
+      }
+      const sb = createClient(supabaseUrl, supabaseServiceKey)
+      const matchSlug = (slug || '').trim()
+      let q = sb.from('spirits').update(cols)
+      if (matchSlug) q = q.eq('slug', matchSlug)
+      else if (cols.name) q = q.eq('name', cols.name) // transitional fallback
+      else return new Response(JSON.stringify({ error: 'slug or name required to identify the row' }), { status: 400 })
+
+      const { data, error } = await q.select('*')
+      if (error) {
+        console.error('[admin-demon] Supabase PATCH error:', error.message)
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+      }
+      if (!data || data.length === 0) {
+        return new Response(JSON.stringify({ error: 'Spirit not found' }), { status: 404 })
+      }
+      return new Response(JSON.stringify({ record: mapRow(data[0]) }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+
+    if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 })
 
     // Coerce array fields to newline-joined strings before mapping.
     // AI enrichment can return these as arrays; Airtable long-text fields expect a string.
@@ -259,6 +419,49 @@ export default async function handler(req: Request) {
 
   if (req.method === 'POST') {
     const body = await req.json()
+
+    // ── Supabase write path (flag-on) ────────────────────────────────────────
+    if (USE_SUPABASE_DEMON_WRITES) {
+      let rawFields: Record<string, any>
+      let nameForCheck = ''
+      if (body.fields) {
+        rawFields = body.fields
+        nameForCheck = body.fields[NAME_FIELD] || body.fields['name'] || ''
+      } else {
+        const { name, kingdom, description, rank, entry_points, manifestations, scriptures, source } = body
+        if (!name) return new Response(JSON.stringify({ error: 'name or fields required' }), { status: 400 })
+        nameForCheck = name
+        rawFields = {
+          name, kingdom, description,
+          biblicalRank: rank,
+          entryPoints: entry_points,
+          manifestation: manifestations,
+          counterScriptures: scriptures,
+          sourceOrigin: source,
+        }
+      }
+      if (!nameForCheck) return new Response(JSON.stringify({ error: 'name or fields required' }), { status: 400 })
+
+      const sb = createClient(supabaseUrl, supabaseServiceKey)
+      // Case-insensitive duplicate check (escape LIKE wildcards in the name).
+      const safeName = nameForCheck.replace(/[%_\\]/g, '\\$&')
+      const { data: existing } = await sb.from('spirits').select('id').ilike('name', safeName).limit(1)
+      if (existing && existing.length > 0) {
+        return new Response(JSON.stringify({ conflict: true, message: `"${nameForCheck}" already exists in the database` }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+
+      const cols = toColumns(rawFields)
+      cols.name = nameForCheck
+      cols.slug = await uniqueSlug(sb, nameForCheck)
+      cols.legacy_airtable_id = null
+
+      const { data, error } = await sb.from('spirits').insert(cols).select('*')
+      if (error) {
+        console.error('[admin-demon] Supabase POST error:', error.message)
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+      }
+      return new Response(JSON.stringify({ record: mapRow(data![0]) }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
 
     // Support named-param format (from gap analysis add flow) OR raw { fields } format
     let fields: Record<string, any>
