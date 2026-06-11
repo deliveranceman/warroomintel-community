@@ -50,7 +50,7 @@ export default async function handler(req: Request) {
     const supabase = getSupabase()
     const { error } = await supabase
       .from('dm_requests')
-      .update({ status: 'cancelled' })
+      .update({ status: 'declined' })
       .eq('id', id)
       .eq('requester_id', auth.userId)
 

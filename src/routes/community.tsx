@@ -14931,7 +14931,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'field-teams' && (
-          <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} />
+          <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(channelId: string) => { if (!channelId) return; setOpenChannelIntent(channelId); setActiveSection('dms') }} />
         )}
         {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'session-center' && (
