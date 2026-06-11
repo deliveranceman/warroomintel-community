@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
+import { NAME_FIELD, toColumns, mapRow, uniqueSlug } from './_shared/spiritWrite'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
@@ -12,132 +13,6 @@ const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(proc
 // (same place reads now come from). false => legacy Airtable path below (kept
 // intact for instant revert). Reads were already repointed (api.demons.ts).
 const USE_SUPABASE_DEMON_WRITES = true
-
-const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
-
-// Single authoritative bridge: [camelCase key, Airtable field name, snake column].
-// Inbound bodies arrive in BOTH camelCase AND Airtable-field-name shapes, so the
-// lookup map is keyed by both. `region`, `function`, `equivalentSpirits` are
-// intentionally absent — they have no Supabase column and are ignored on write.
-const FIELD_DEFS: Array<[string, string, string]> = [
-  ['name', NAME_FIELD, 'name'],
-  ['aka', 'Also Known As', 'aka'],
-  ['description', 'Description', 'description'],
-  ['manifestation', 'Manifestiation', 'manifestation'],
-  ['scripture', 'Scripture Reference', 'scripture'],
-  ['entryPoints', 'Entry Points', 'entry_points'],
-  ['sourceOrigin', 'Source / Orgin', 'source_origin'],
-  ['kingdom', 'Kingdom', 'kingdom'],
-  ['strongman', 'Strongman', 'strongman'],
-  ['legalRights', 'Legal Rights', 'legal_rights'],
-  ['symptoms', 'Symptoms', 'symptoms'],
-  ['companionSpirits', 'Companion Spirits', 'companion_spirits'],
-  ['wriNotes', 'WRI Exorcist Notes', 'wri_notes'],
-  ['assignment', 'Assignment', 'assignment'],
-  ['hierarchyCategory', 'Hierarchy Category', 'hierarchy_category'],
-  ['parentStrongman', 'Parent Strongman', 'parent_strongman'],
-  ['deliveranceSequence', 'Deliverance Sequence', 'deliverance_sequence'],
-  ['operationalNotes', 'Operational Notes', 'operational_notes'],
-  ['primaryBattlefield', 'Primary Battlefield', 'primary_battlefield'],
-  ['personalityPresentation', 'Typical Personality Presentation', 'personality_presentation'],
-  ['counterScriptures', 'Counter Scriptures', 'counter_scriptures'],
-  ['phonetic', 'Phonetic', 'phonetic'],
-  ['images', 'Images', 'images'],
-  ['relatedSpirits', 'Related Spirits', 'related_spirits'],
-  ['biblicalRank', 'Biblical Rank', 'biblical_rank'],
-  ['caseType', 'Case Type', 'case_type'],
-  ['isGenerational', 'Is Generational', 'is_generational'],
-  ['isTerritorial', 'Is Territorial', 'is_territorial'],
-  ['subKingdom', 'Sub-Kingdom', 'sub_kingdom'],
-  ['clusterSpirits', 'Cluster Spirits', 'cluster_spirits'],
-  ['legalRightsFramework', 'Legal Rights Framework', 'legal_rights_framework'],
-  ['institutionalExpression', 'Institutional Expression', 'institutional_expression'],
-  ['sessionIndicators', 'Session Indicators', 'session_indicators'],
-  ['resistanceSignature', 'Resistance Signature', 'resistance_signature'],
-  ['demonicAgreements', 'Demonic Agreements', 'demonic_agreements'],
-  ['transmissionVectors', 'Transmission Vectors', 'transmission_vectors'],
-  ['etymologyNotes', 'Etymology Notes', 'etymology_notes'],
-  ['archaeologyNotes', 'Archaeology Notes', 'archaeology_notes'],
-  ['scriptureContext', 'Scripture Context', 'scripture_context'],
-  ['prayerPoints', 'Prayer Points', 'prayer_points'],
-  ['aftercareNotes', 'Aftercare Notes', 'aftercare_notes'],
-  ['culturalPresence', 'Cultural Presence', 'cultural_presence'],
-  ['sessionTriggerQuestions', 'Session Trigger Questions', 'session_trigger_questions'],
-]
-
-const TO_COLUMN: Record<string, string> = {}
-for (const [camel, air, col] of FIELD_DEFS) { TO_COLUMN[camel] = col; TO_COLUMN[air] = col }
-
-const ARRAY_COLS = new Set(['images', 'cultural_presence'])
-const BOOL_COLS  = new Set(['is_generational', 'is_territorial'])
-// biblical_rank enum — ONLY these 10 are legal; anything else (or blank) -> NULL.
-const VALID_RANKS = new Set([
-  'Demon', 'Power', 'World Ruler', 'Strongman', 'Principality', 'Wicked Spirit',
-  'Spirit of Infirmity', 'Fallen Angel', 'Familiar Spirit', 'Common Spirit',
-])
-
-function toTextArray(v: any): string[] {
-  if (Array.isArray(v)) return v.map((x: any) => String(x).trim()).filter(Boolean)
-  if (typeof v === 'string') return v.split(/[\n,]/).map(s => s.trim()).filter(Boolean)
-  return []
-}
-
-// Normalize any inbound shape (Airtable-named OR camelCase) to snake columns.
-// Only keys actually present are emitted (partial-update: never force-overwrite
-// unspecified columns). biblical_rank coerces blank/invalid -> NULL (never '').
-function toColumns(fields: Record<string, any>): Record<string, any> {
-  const cols: Record<string, any> = {}
-  for (const [k, v] of Object.entries(fields)) {
-    const col = TO_COLUMN[k]
-    if (!col) continue // unknown/ignored (region, function, equivalentSpirits, slug, id…)
-    if (BOOL_COLS.has(col)) {
-      cols[col] = v === true || v === 'true' || v === 'Yes' || v === 'yes'
-    } else if (ARRAY_COLS.has(col)) {
-      cols[col] = toTextArray(v)
-    } else if (col === 'biblical_rank') {
-      cols[col] = VALID_RANKS.has(String(v)) ? String(v) : null
-    } else {
-      cols[col] = v == null ? '' : String(v)
-    }
-  }
-  return cols
-}
-
-// Map a Supabase row back to the camelCase read shape (callers only read
-// res.ok/error/conflict, but we return a useful body anyway).
-function mapRow(row: any): Record<string, any> {
-  const out: Record<string, any> = {
-    id: row.id,
-    slug: row.slug || '',
-    airtableId: row.legacy_airtable_id || '',
-    createdTime: row.created_at || '',
-  }
-  for (const [camel, , col] of FIELD_DEFS) {
-    if (BOOL_COLS.has(col)) out[camel] = row[col] === true
-    else if (ARRAY_COLS.has(col)) out[camel] = Array.isArray(row[col]) ? row[col] : []
-    else out[camel] = row[col] || ''
-  }
-  return out
-}
-
-function slugify(name: string): string {
-  return name.toLowerCase().normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '') || 'spirit'
-}
-
-async function uniqueSlug(sb: any, name: string): Promise<string> {
-  const base = slugify(name)
-  let candidate = base
-  let n = 2
-  // Loop until no slug collision (bounded by the 438-row table; terminates fast).
-  while (true) {
-    const { data } = await sb.from('spirits').select('id').eq('slug', candidate).limit(1)
-    if (!data || data.length === 0) return candidate
-    candidate = `${base}-${n++}`
-  }
-}
 
 function cleanFields(fields: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {}
