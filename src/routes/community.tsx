@@ -9954,7 +9954,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [mobileView, setMobileView]           = useState<'list' | 'chat'>('list')
   const [isRecording, setIsRecording]         = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
-  const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol'>('all')
+  const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol' | 'teams'>('all')
   const [searchQuery, setSearchQuery]         = useState('')
   const [callActive, setCallActive]           = React.useState<{ type: 'audio' | 'video'; otherUser: { id: string; name: string } } | null>(null)
   const [activePrayerCall, setActivePrayerCall] = React.useState<{ callId: string; callType: string; channelId: string; recipientName: string; recipientId: string; isCaller: boolean } | null>(null)
@@ -10000,6 +10000,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   // Open a specific group channel on mount when triggered from the Field Teams page.
   useEffect(() => {
     if (openChannelOnMount) {
+      setActiveTab('teams')
       selectConversation(openChannelOnMount)
       onChannelIntentConsumed?.()
     }
@@ -10574,6 +10575,33 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const activeSentinel = _sentinels.find(s => s.channelId === activeConvoId) ?? null
   const activeCoverAll = _coverAllGroups.find(g => g.channelId === activeConvoId) ?? null
 
+  // ── Teams tab: unified group-room list (sentinels + fire teams + cover all) ──
+  const teamRooms = React.useMemo(() => {
+    const sentinelRooms = (_sentinels || []).filter((s: any) => s.channelId).map((s: any) => ({
+      channelId: s.channelId, title: s.partnerName || 'Sentinel',
+      subtitle: 'Sentinel · Sprint #' + (s.sprintNumber || 1), kind: 'sentinel' as const,
+      updatedAt: s.updatedAt || s.lastMessageAt || '',
+    }))
+    const fireTeamRooms = (fireTeams || []).filter((t: any) => t.channelId).map((t: any) => ({
+      channelId: t.channelId, title: t.teamName || 'Fire Team',
+      subtitle: (t.memberCount || 0) + ' members · Fire Team', kind: 'fire-team' as const,
+      updatedAt: t.updatedAt || t.lastMessageAt || '',
+    }))
+    const coverAllRooms = (_coverAllGroups || []).filter((g: any) => g.channelId).map((g: any) => ({
+      channelId: g.channelId, title: g.name || 'Cover All',
+      subtitle: (g.territory ? g.territory + ' · ' : '') + (g.memberCount || 0) + ' members · Cover All', kind: 'cover-all' as const,
+      updatedAt: g.updatedAt || g.lastMessageAt || '',
+    }))
+    return [...sentinelRooms, ...fireTeamRooms, ...coverAllRooms]
+      .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+  }, [_sentinels, fireTeams, _coverAllGroups])
+
+  const TEAM_ACCENT: Record<string, { bg: string; color: string; icon: string }> = {
+    'sentinel':  { bg: 'rgba(107,69,150,0.2)',  color: '#b48ee0', icon: '⚔' },
+    'fire-team': { bg: 'rgba(201,168,76,0.15)', color: '#C9A84C', icon: '🔥' },
+    'cover-all': { bg: 'rgba(106,172,239,0.15)', color: '#6aacef', icon: '🛡' },
+  }
+
   // ── Helpers ──
   const getInitials = (name: string) => name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
   const getAvatarColor = (id: string) => {
@@ -10789,7 +10817,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: `1px solid ${BDR}`, flexShrink: 0 }}>
-          {(['all', 'unread', 'sol'] as const).map(tab => (
+          {(['all', 'unread', 'sol', 'teams'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
               flex: 1, padding: '8px 0', fontSize: 11, cursor: 'pointer',
               background: 'none', border: 'none',
@@ -10798,7 +10826,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               fontFamily: "'Cinzel',serif", letterSpacing: '0.06em',
               textTransform: 'uppercase' as const,
             }}>
-              {tab === 'sol' ? 'SOL' : tab === 'all' ? 'All' : 'Unread'}
+              {tab === 'sol' ? 'SOL' : tab === 'all' ? 'All' : tab === 'unread' ? 'Unread' : 'Teams'}
             </button>
           ))}
         </div>
@@ -10997,14 +11025,50 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           </div>
         )}
 
-        {/* ── Direct Messages label ── */}
+        {/* ── List section label ── */}
         <div style={{ padding: '6px 16px', borderBottom: `1px solid ${BDR}` }}>
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: isDark ? '#4a3e2a' : '#4A5568', letterSpacing: '0.14em' }}>DIRECT MESSAGES</span>
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: isDark ? '#4a3e2a' : '#4A5568', letterSpacing: '0.14em' }}>{activeTab === 'teams' ? 'TEAMS' : 'DIRECT MESSAGES'}</span>
         </div>
 
         {/* Conversation rows */}
         <div style={{ flex: 1, overflowY: 'auto' as const }}>
-          {loading ? (
+          {activeTab === 'teams' ? (
+            teamRooms.length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12, lineHeight: 1.5 }}>No active teams yet. Create one from the Field Teams page.</div>
+            ) : teamRooms.map(room => {
+              const isActive = room.channelId === activeConvoId
+              const accent = TEAM_ACCENT[room.kind]
+              return (
+                <div
+                  key={room.channelId}
+                  onClick={() => selectConversation(room.channelId)}
+                  style={{
+                    display: 'flex', gap: 10, padding: '10px 12px', cursor: 'pointer',
+                    background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent',
+                    borderBottom: `1px solid ${BDR}`,
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(30,40,80,0.05)' }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    background: accent.bg, color: accent.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, border: `1px solid ${accent.bg}`,
+                  }}>{accent.icon}</div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' as const, gap: 2, justifyContent: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#d4c9b0' : '#0F1523', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {room.title}
+                    </span>
+                    <span style={{ fontSize: 11, color: isDark ? '#6b5e45' : '#4A5568', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {room.subtitle}
+                    </span>
+                  </div>
+                </div>
+              )
+            })
+          ) : loading ? (
             <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>Loading…</div>
           ) : displayConvos.length === 0 ? (
             <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No conversations yet</div>
