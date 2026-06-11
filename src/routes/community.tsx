@@ -7488,6 +7488,650 @@ function bmPos(r: AtlasRegion, f: BMFigure): { px: number; py: number } {
   return { px, py }
 }
 
+function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isAdmin }: any) {
+  const GC = '#C9A84C'
+
+  const [systems,       setSystems]       = useState<AtlasSystem[]>([])
+  const [regions,       setRegions]       = useState<AtlasRegion[]>([])
+  const [atlasLoading,  setAtlasLoading]  = useState(true)
+  const [atlasError,    setAtlasError]    = useState<string | null>(null)
+
+  const [activeFigure,  setActiveFigure]  = useState(0)
+  const [selectedKey,   setSelectedKey]   = useState<string | null>(null)
+  const [hoveredKey,    setHoveredKey]    = useState<string | null>(null)
+  const [sheetOpen,     setSheetOpen]     = useState(false)
+  const [indexOpen,     setIndexOpen]     = useState(false)
+
+  const [dossier,       setDossier]       = useState<{ region: any; correlations: any[]; scriptures: any[] } | null>(null)
+  const [dossierLoading, setDossierLoading] = useState(false)
+
+  const [solAnalysis,   setSolAnalysis]   = useState<string | null>(null)
+  const [solLoading,    setSolLoading]    = useState(false)
+  const [solError,      setSolError]      = useState<string | null>(null)
+
+  const [imgOpacity,    setImgOpacity]    = useState(0)
+
+  const [calibrate,     setCalibrate]     = useState(false)
+  const [dragKey,       setDragKey]       = useState<string | null>(null)
+
+  // zoom / pan
+  const [mapScale,  setMapScale]  = React.useState(1)
+  const [mapOffset, setMapOffset] = React.useState({ x: 0, y: 0 })
+  const [bodyMapHintDismissed, setBodyMapHintDismissed] = React.useState(false)
+
+  const mapContainerRef = React.useRef<HTMLDivElement>(null)
+  const lastTouchRef    = React.useRef<{ x: number; y: number } | null>(null)
+  const lastPinchDistRef = React.useRef<number | null>(null)
+  const mapScaleRef     = React.useRef(1)
+  const didPanRef       = React.useRef(false)
+  const svgRef          = React.useRef<SVGSVGElement>(null)
+  const draggingKeyRef  = React.useRef<string | null>(null)
+  const regionsRef      = React.useRef<AtlasRegion[]>([])
+
+  const fig = BM_FIGURES[activeFigure]
+  const female = fig.sex === 'female'
+
+  // Preload all 4 figure images on mount so tab switches are instant
+  useEffect(() => {
+    BM_FIGURES.forEach(f => { const img = new Image(); img.src = f.image })
+  }, [])
+
+  useEffect(() => { setImgOpacity(0) }, [activeFigure])
+  useEffect(() => { regionsRef.current = regions }, [regions])
+
+  // ── Load atlas on mount ─────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setAtlasLoading(true); setAtlasError(null)
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/body-map?action=atlas', { headers: { Authorization: `Bearer ${token}` } })
+        const d = await res.json()
+        if (cancelled) return
+        if (!res.ok) { setAtlasError(d.error || 'Failed to load the body map.'); return }
+        setSystems(d.systems || [])
+        setRegions(d.regions || [])
+      } catch { if (!cancelled) setAtlasError('Failed to load the body map.') }
+      finally { if (!cancelled) setAtlasLoading(false) }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  // ── Load region dossier whenever the selection changes ──────────────────────
+  useEffect(() => {
+    if (!selectedKey) { setDossier(null); return }
+    setDossier(null); setDossierLoading(true)
+    setSolAnalysis(null); setSolError(null); setSolLoading(false)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/body-map?action=region&key=${encodeURIComponent(selectedKey)}`, { headers: { Authorization: `Bearer ${token}` } })
+        const d = await res.json()
+        if (!cancelled && res.ok) setDossier(d)
+      } catch { /* dossier stays null */ }
+      finally { if (!cancelled) setDossierLoading(false) }
+    })()
+    return () => { cancelled = true }
+  }, [selectedKey])
+
+  // ── Pinch / wheel zoom + pan (disabled while calibrating) ───────────────────
+  useEffect(() => {
+    if (calibrate) return
+    const el = mapContainerRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const prevScale = mapScaleRef.current
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      const newScale = Math.min(4, Math.max(1, prevScale * delta))
+      const ratio = newScale / prevScale
+      mapScaleRef.current = newScale
+      if (newScale > 1) setBodyMapHintDismissed(true)
+      const rect = el.getBoundingClientRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      setMapScale(newScale)
+      setMapOffset(prev => {
+        if (newScale <= 1) return { x: 0, y: 0 }
+        return { x: mx * (1 - ratio) + prev.x * ratio, y: my * (1 - ratio) + prev.y * ratio }
+      })
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        const t0 = e.touches[0], t1 = e.touches[1]
+        const dx = t0.clientX - t1.clientX
+        const dy = t0.clientY - t1.clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const rect = el.getBoundingClientRect()
+        const midX = (t0.clientX + t1.clientX) / 2 - rect.left
+        const midY = (t0.clientY + t1.clientY) / 2 - rect.top
+        if (lastPinchDistRef.current !== null) {
+          const prevScale = mapScaleRef.current
+          const pinchRatio = dist / lastPinchDistRef.current
+          const newScale = Math.min(4, Math.max(1, prevScale * pinchRatio))
+          const actualRatio = newScale / prevScale
+          mapScaleRef.current = newScale
+          if (newScale > 1) setBodyMapHintDismissed(true)
+          setMapScale(newScale)
+          setMapOffset(prev => {
+            if (newScale <= 1) return { x: 0, y: 0 }
+            return { x: midX * (1 - actualRatio) + prev.x * actualRatio, y: midY * (1 - actualRatio) + prev.y * actualRatio }
+          })
+        }
+        lastPinchDistRef.current = dist
+      } else if (e.touches.length === 1 && mapScaleRef.current > 1) {
+        e.preventDefault()
+        const touch = e.touches[0]
+        if (lastTouchRef.current) {
+          const dx = touch.clientX - lastTouchRef.current.x
+          const dy = touch.clientY - lastTouchRef.current.y
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true
+          setMapOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+        }
+        lastTouchRef.current = { x: touch.clientX, y: touch.clientY }
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [calibrate])
+
+  // ── Admin calibrate: drag a marker → PATCH x/y (fx/fy for female) ───────────
+  useEffect(() => {
+    if (!calibrate) return
+    const onMove = (e: PointerEvent) => {
+      const key = draggingKeyRef.current
+      if (!key || !svgRef.current) return
+      e.preventDefault()
+      const rect = svgRef.current.getBoundingClientRect()
+      const px = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100))
+      const py = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100))
+      setRegions(prev => prev.map(r => r.region_key === key
+        ? (female ? { ...r, fx_percent: px, fy_percent: py } : { ...r, x_percent: px, y_percent: py })
+        : r))
+    }
+    const onUp = async () => {
+      const key = draggingKeyRef.current
+      draggingKeyRef.current = null
+      setDragKey(null)
+      if (!key) return
+      const r = regionsRef.current.find(x => x.region_key === key)
+      if (!r) return
+      const px = female && r.fx_percent != null ? Number(r.fx_percent) : Number(r.x_percent)
+      const py = female && r.fy_percent != null ? Number(r.fy_percent) : Number(r.y_percent)
+      try {
+        const token = await getToken()
+        await fetch('/api/body-map?action=marker', {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ region_key: key, x_percent: px, y_percent: py, female }),
+        })
+      } catch { /* reposition is best-effort; artwork keeps the on-screen value */ }
+    }
+    window.addEventListener('pointermove', onMove, { passive: false })
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [calibrate, female])
+
+  const systemMap = React.useMemo(() => {
+    const m: Record<string, AtlasSystem> = {}
+    for (const s of systems) m[s.system_key] = s
+    return m
+  }, [systems])
+
+  const figureRegions = React.useMemo(() => regions.filter(r => bmRegionOnFigure(r, fig)), [regions, fig])
+
+  const rail = React.useMemo(() => {
+    const byKey: Record<string, AtlasRegion[]> = {}
+    const order: string[] = []
+    for (const r of figureRegions) {
+      const k = r.systems[0] || 'other'
+      if (!byKey[k]) { byKey[k] = []; order.push(k) }
+      byKey[k].push(r)
+    }
+    return order.map(k => ({ key: k, system: systemMap[k] || null, regions: byKey[k] }))
+  }, [figureRegions, systemMap])
+
+  const activeRegion = regions.find(r => r.region_key === selectedKey) || null
+
+  function selectRegion(key: string) {
+    if (calibrate) return
+    setSelectedKey(key)
+    if (isMobile) { setSheetOpen(true); setIndexOpen(false) }
+  }
+
+  function closePanel() {
+    setSheetOpen(false)
+    setSelectedKey(null)
+  }
+
+  function switchFigure(i: number) {
+    setActiveFigure(i)
+    setSelectedKey(null)
+    setSheetOpen(false)
+    setMapScale(1); mapScaleRef.current = 1; setMapOffset({ x: 0, y: 0 })
+  }
+
+  function jumpToSpirit(name: string) {
+    try { localStorage.setItem('wri_jump_to_spirit', name); localStorage.setItem('wri_jump_from', 'body-map') } catch {}
+    setActiveSection('database')
+    if (isMobile) setSidebarOpen(false)
+  }
+
+  async function askSol() {
+    if (!selectedKey) return
+    setSolLoading(true); setSolError(null); setSolAnalysis(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/body-map?action=ask-sol', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regionKey: selectedKey }),
+      })
+      const d = await res.json()
+      if (res.status === 429) { setSolError(d.error || "You've reached today's analysis limit."); return }
+      if (!res.ok) { setSolError(d.error || 'Analysis failed.'); return }
+      setSolAnalysis(d.analysis || '')
+    } catch { setSolError('Analysis failed.') }
+    finally { setSolLoading(false) }
+  }
+
+  // ── shared bits ─────────────────────────────────────────────────────────────
+  const pendingSlot = (label: string) => (
+    <div style={{ border: '1px dashed #2e2718', borderRadius: 6, padding: '12px 14px', textAlign: 'center' as const }}>
+      <div style={{ fontFamily: crimson, fontSize: 13, color: '#5a4f3a', fontStyle: 'italic' }}>{label}</div>
+    </div>
+  )
+
+  const sectionLabel = (txt: string) => (
+    <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6a5f4f', letterSpacing: '0.14em', marginBottom: 8 }}>{txt}</div>
+  )
+
+  const railContent = (
+    <>
+      <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.14em' }}>INDEX OF STRUCTURES</div>
+        <div style={{ fontFamily: crimson, fontSize: 11, color: '#4a3f2f', fontStyle: 'italic', marginTop: 2 }}>{figureRegions.length} regions on this view</div>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0 24px', WebkitOverflowScrolling: 'touch' as any }}>
+        {rail.map(g => (
+          <div key={g.key} style={{ marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px 4px' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.system?.color_hex || '#6a5f4f', flexShrink: 0 }} />
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: g.system?.color_hex || '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const }}>
+                {g.system?.display_name || g.key}
+              </span>
+            </div>
+            {g.regions.map(r => {
+              const isSel = selectedKey === r.region_key
+              return (
+                <button key={r.region_key} onClick={() => selectRegion(r.region_key)}
+                  onMouseEnter={() => setHoveredKey(r.region_key)} onMouseLeave={() => setHoveredKey(null)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%',
+                    padding: '6px 16px 6px 31px', background: isSel ? 'rgba(201,168,76,0.10)' : 'transparent',
+                    border: 'none', borderLeft: `2px solid ${isSel ? GC : 'transparent'}`,
+                    color: isSel ? GC : '#9a8c74', fontFamily: crimson, fontSize: 13.5, textAlign: 'left' as const, cursor: 'pointer' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.display_name}</span>
+                  {r.correlation_count > 0 && (
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: GC, background: 'rgba(201,168,76,0.10)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '0 6px', flexShrink: 0 }}>{r.correlation_count}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </>
+  )
+
+  const dossierContent = (() => {
+    if (!selectedKey) return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center' as const }}>
+        <div>
+          <div style={{ fontSize: 30, color: GC, opacity: 0.5, marginBottom: 14 }}>✦</div>
+          <div style={{ fontFamily: crimson, fontSize: 15, color: '#5a4f3a', fontStyle: 'italic', lineHeight: 1.6 }}>
+            Select a region on the figure or the Index of Structures to open its dossier.
+          </div>
+        </div>
+      </div>
+    )
+
+    const region = dossier?.region
+    const correlations = dossier?.correlations || []
+    const scriptures = dossier?.scriptures || []
+    const regionSystems: string[] = region?.systems || activeRegion?.systems || []
+
+    return (
+      <>
+        {isMobile && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px', flexShrink: 0 }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: '#3a3020' }} />
+          </div>
+        )}
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 16, color: GC, letterSpacing: '0.06em', marginBottom: 3 }}>
+              {region?.display_name || activeRegion?.display_name || '…'}
+            </div>
+            {(region?.spiritual_tag || activeRegion?.spiritual_tag) && (
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#8B7355', fontStyle: 'italic' }}>{region?.spiritual_tag || activeRegion?.spiritual_tag}</div>
+            )}
+          </div>
+          <button onClick={closePanel} style={{ background: 'none', border: 'none', color: '#4a3f2f', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: '2px 6px', flexShrink: 0 }}>×</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', WebkitOverflowScrolling: 'touch' as any }}>
+          {dossierLoading && !dossier ? (
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.12em', padding: '28px 0', textAlign: 'center' as const }}>LOADING DOSSIER…</div>
+          ) : (
+            <>
+              {/* System chips */}
+              {regionSystems.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 18 }}>
+                  {regionSystems.map(sk => {
+                    const s = systemMap[sk]
+                    const c = s?.color_hex || '#8B7355'
+                    return (
+                      <span key={sk} style={{ fontFamily: cinzel, fontSize: 8, color: c, background: `${c}1A`, border: `1px solid ${c}55`, borderRadius: 10, padding: '2px 9px', letterSpacing: '0.06em' }}>
+                        {s?.display_name || sk}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Overview */}
+              <div style={{ marginBottom: 20 }}>
+                {sectionLabel('OVERVIEW')}
+                {region?.overview
+                  ? <div style={{ fontFamily: crimson, fontSize: 14.5, color: '#c8b99a', lineHeight: 1.65, whiteSpace: 'pre-wrap' as const }}>{region.overview}</div>
+                  : pendingSlot('Intelligence pending for this region.')}
+              </div>
+
+              {/* Spirits */}
+              <div style={{ marginBottom: 20 }}>
+                {sectionLabel('CORRELATED SPIRITS')}
+                {correlations.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7 }}>
+                    {correlations.map((c: any) => {
+                      const strength = Math.max(0, Math.min(5, Number(c.correlation_strength) || 0))
+                      return (
+                        <button key={c.id} onClick={() => jumpToSpirit(c.spirit_name)}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%',
+                            background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 7,
+                            padding: '8px 12px', cursor: 'pointer', textAlign: 'left' as const }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.04em' }}>{c.spirit_name}</span>
+                          <span style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                            {[1, 2, 3, 4, 5].map(i => (
+                              <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i <= strength ? GC : 'rgba(201,168,76,0.18)' }} />
+                            ))}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : pendingSlot('No spirits correlated to this region yet.')}
+              </div>
+
+              {/* Scriptures */}
+              <div style={{ marginBottom: 20 }}>
+                {sectionLabel('SCRIPTURES')}
+                {scriptures.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                    {scriptures.map((s: any, i: number) => (
+                      <div key={i} style={{ fontFamily: crimson, fontSize: 13.5, color: '#9a8c74', lineHeight: 1.5 }}>
+                        <span style={{ color: GC }}>{s.reference}</span>
+                        {s.spirit_name && <span style={{ color: '#5a4f3a' }}> — {s.spirit_name}</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : pendingSlot('No scriptures on file for this region yet.')}
+              </div>
+
+              {/* Ask SOL */}
+              <div style={{ marginBottom: 16 }}>
+                {!solAnalysis && (
+                  <button onClick={askSol} disabled={solLoading}
+                    style={{ width: '100%', background: solLoading ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)', border: `1px solid ${GC}`, borderRadius: 7,
+                      padding: '11px 16px', fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.1em', cursor: solLoading ? 'default' : 'pointer' }}>
+                    {solLoading ? 'SOL IS ANALYZING…' : '⚡ ASK SOL'}
+                  </button>
+                )}
+                {solError && (
+                  <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(200,74,74,0.06)', border: '1px solid #3a1f1f', borderRadius: 6, fontFamily: crimson, fontSize: 13, color: '#c88', lineHeight: 1.5 }}>{solError}</div>
+                )}
+                {solAnalysis && (
+                  <div style={{ marginTop: 4 }}>
+                    {sectionLabel('SOL ANALYSIS')}
+                    <div style={{ background: '#09070F', border: '1px solid rgba(201,168,76,0.25)', borderLeft: `3px solid ${GC}`, borderRadius: 6, padding: '14px 16px', fontFamily: crimson, fontSize: 14, color: '#c8b99a', lineHeight: 1.65, whiteSpace: 'pre-wrap' as const }}>
+                      {solAnalysis}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Disclaimer */}
+              <div style={{ marginTop: 8, padding: '10px 14px', background: 'rgba(139,50,50,0.04)', border: '1px solid #2a1a1a', borderRadius: 6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: '#4a2a2a', letterSpacing: '0.1em', marginBottom: 3 }}>DISCLAIMER</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3030', lineHeight: 1.5, fontStyle: 'italic' }}>
+                  For pastoral discernment and prayer preparation only. Physical or mental symptoms should be evaluated by qualified professionals.
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </>
+    )
+  })()
+
+  // ── Loading gate ────────────────────────────────────────────────────────────
+  if (atlasLoading) {
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#09070F' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: GC, letterSpacing: '0.18em' }}>LOADING SPIRIT BODY MAP…</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
+      <style>{`@keyframes bmDot{0%,100%{opacity:0.7}50%{opacity:1}}.bm-dot{animation:bmDot 2.2s ease-in-out infinite}`}</style>
+
+      {/* Header */}
+      <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #1e1a0e', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1, flexShrink: 0 }}>☰</button>
+        )}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: GC, letterSpacing: '0.15em', marginBottom: 2 }}>SPIRIT BODY MAP</div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: '#4a3f2f', fontStyle: 'italic' }}>Where the unseen presses on the body — select a region for its dossier</div>
+        </div>
+        {isMobile && (
+          <button onClick={() => setIndexOpen(true)} style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: GC, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '6px 12px', cursor: 'pointer', flexShrink: 0 }}>INDEX</button>
+        )}
+      </div>
+
+      {atlasError && (
+        <div style={{ padding: '8px 20px', background: 'rgba(200,74,74,0.06)', borderBottom: '1px solid #2a1a1a', fontFamily: crimson, fontSize: 13, color: '#c88' }}>{atlasError}</div>
+      )}
+
+      {/* Figure tabs + admin calibrate toggle */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #1e1a0e', background: '#09070F', flexShrink: 0, alignItems: 'stretch' }}>
+        {BM_FIGURES.map((f, i) => (
+          <button key={f.key} onClick={() => switchFigure(i)}
+            style={{ flex: 1, padding: '10px 4px', background: 'transparent', border: 'none',
+              borderBottom: activeFigure === i ? `2px solid ${GC}` : '2px solid transparent',
+              color: activeFigure === i ? GC : '#6a5f4f', fontFamily: cinzel,
+              fontSize: isMobile ? 8 : 10, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1 }}>
+            {f.label.toUpperCase()}
+          </button>
+        ))}
+        {isAdmin && (
+          <button onClick={() => { setCalibrate(c => !c); setMapScale(1); mapScaleRef.current = 1; setMapOffset({ x: 0, y: 0 }) }}
+            style={{ padding: '10px 12px', background: calibrate ? 'rgba(201,168,76,0.15)' : 'transparent',
+              border: 'none', borderBottom: calibrate ? `2px solid ${GC}` : '2px solid transparent',
+              color: calibrate ? GC : '#4a3f2f', fontFamily: cinzel, fontSize: 8,
+              letterSpacing: '0.04em', cursor: 'pointer', marginBottom: -1, flexShrink: 0, whiteSpace: 'nowrap' as const }}>
+            ⊕ CALIBRATE
+          </button>
+        )}
+      </div>
+
+      {calibrate && (
+        <div style={{ padding: '6px 20px', background: 'rgba(201,168,76,0.06)', borderBottom: '1px solid rgba(201,168,76,0.2)', fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.08em' }}>
+          CALIBRATE MODE — drag any marker to reposition it on this artwork{female ? ' (female overrides)' : ''}. Saved instantly, no deploy needed.
+        </div>
+      )}
+
+      {/* Main 3-zone area */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', position: 'relative', minHeight: 0 }}>
+
+        {/* Left rail (desktop) */}
+        {!isMobile && (
+          <div style={{ width: 230, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1a0e', background: '#0b0810', overflow: 'hidden' }}>
+            {railContent}
+          </div>
+        )}
+
+        {/* Center figure */}
+        <div
+          ref={mapContainerRef}
+          style={{ flex: 1, overflowY: mapScale > 1 ? 'hidden' : 'auto', WebkitOverflowScrolling: 'touch' as any,
+            paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            touchAction: mapScale > 1 ? 'none' : 'pan-y', position: 'relative' }}
+          onTouchStart={e => {
+            if (calibrate) return
+            lastPinchDistRef.current = null
+            didPanRef.current = false
+            if (e.touches.length === 1) lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+          }}
+          onTouchEnd={() => { lastTouchRef.current = null; lastPinchDistRef.current = null }}
+        >
+          <div style={{ position: 'relative', width: '100%', maxWidth: isMobile ? '100%' : 480 }}>
+            {!calibrate && mapScale > 1.05 && (
+              <button onClick={() => { setMapScale(1); mapScaleRef.current = 1; setMapOffset({ x: 0, y: 0 }) }}
+                style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, background: 'rgba(13,11,20,0.92)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '4px 12px', fontFamily: cinzel, fontSize: 8, color: GC, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                RESET ZOOM
+              </button>
+            )}
+            {!calibrate && mapScale > 1.05 && (
+              <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 20, background: 'rgba(13,11,20,0.85)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '3px 10px', fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.7)', letterSpacing: '0.1em', pointerEvents: 'none' }}>
+                {Math.round(mapScale * 100)}%
+              </div>
+            )}
+            {isMobile && !calibrate && !bodyMapHintDismissed && mapScale === 1 && (
+              <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(13,11,20,0.85)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 12, padding: '4px 14px', fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.08em', pointerEvents: 'none', whiteSpace: 'nowrap' as const }}>
+                PINCH TO ZOOM
+              </div>
+            )}
+            <div style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapScale})`, transformOrigin: '0 0', willChange: 'transform', transition: mapScale === 1 ? 'transform 0.25s ease' : 'none', lineHeight: 0, position: 'relative' }}>
+              <svg
+                ref={svgRef}
+                key={fig.image}
+                viewBox="0 0 100 150"
+                preserveAspectRatio="xMidYMid meet"
+                style={{ width: '100%', height: 'auto', maxHeight: 'calc(100dvh - 240px)', display: 'block', opacity: imgOpacity, transition: 'opacity 0.3s' }}
+                aria-label={fig.label}
+              >
+                <image href={fig.image} x={0} y={0} width={100} height={150} preserveAspectRatio="xMidYMid meet" onLoad={() => setImgOpacity(1)} style={{ pointerEvents: 'none' }} />
+                {figureRegions.map(r => {
+                  const { px, py } = bmPos(r, fig)
+                  const cx = px
+                  const cy = py * 1.5
+                  const isActive = selectedKey === r.region_key
+                  const isHov = hoveredKey === r.region_key
+                  const isDrag = dragKey === r.region_key
+                  const rad = isMobile ? 3.5 : 2.5
+                  return (
+                    <g key={r.region_key}
+                      onClick={(e) => { e.stopPropagation(); selectRegion(r.region_key) }}
+                      onMouseEnter={() => !isMobile && setHoveredKey(r.region_key)}
+                      onMouseLeave={() => !isMobile && setHoveredKey(null)}
+                      onPointerDown={calibrate ? ((e: React.PointerEvent) => { e.stopPropagation(); e.preventDefault(); draggingKeyRef.current = r.region_key; setDragKey(r.region_key) }) : undefined}
+                      style={{ cursor: calibrate ? 'grab' : 'pointer' }}
+                    >
+                      <circle cx={cx} cy={cy} r={isMobile ? 5 : 3.5} fill="rgba(0,0,0,0.001)" style={{ touchAction: 'none' }} />
+                      {isActive && !calibrate && <line x1={cx} y1={cy - 1.5} x2={cx} y2={cy - 6} stroke={GC} strokeWidth={0.4} style={{ pointerEvents: 'none' }} />}
+                      <circle cx={cx} cy={cy} r={rad}
+                        fill={isDrag ? 'rgba(201,168,76,0.6)' : isActive ? 'rgba(201,168,76,0.45)' : isHov ? 'rgba(201,168,76,0.30)' : 'rgba(201,168,76,0.18)'}
+                        stroke={isActive || isDrag ? GC : isHov ? 'rgba(201,168,76,0.90)' : 'rgba(201,168,76,0.65)'}
+                        strokeWidth={0.7} style={{ pointerEvents: 'none', transition: calibrate ? 'none' : 'fill 0.15s, stroke 0.15s' }} />
+                      <circle cx={cx} cy={cy} r={1.2} fill={isActive || isDrag ? GC : 'rgba(201,168,76,0.90)'} className={isActive || isDrag ? undefined : 'bm-dot'} style={{ pointerEvents: 'none' }} />
+                    </g>
+                  )
+                })}
+              </svg>
+
+              {/* Active region name tag (anchored inside the transform layer so it tracks zoom) */}
+              {!calibrate && activeRegion && bmRegionOnFigure(activeRegion, fig) && (() => {
+                const { px, py } = bmPos(activeRegion, fig)
+                return (
+                  <div style={{ position: 'absolute', left: `${px}%`, top: `${py}%`, transform: 'translate(-50%, -210%)', whiteSpace: 'nowrap' as const,
+                    fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.08em',
+                    background: '#09070F', border: `1px solid ${GC}`, borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
+                    {activeRegion.display_name}
+                  </div>
+                )
+              })()}
+
+              {/* Hover label (desktop, when nothing selected) */}
+              {!isMobile && !calibrate && hoveredKey && hoveredKey !== selectedKey && (() => {
+                const r = figureRegions.find(x => x.region_key === hoveredKey)
+                if (!r) return null
+                const { px, py } = bmPos(r, fig)
+                return (
+                  <div style={{ position: 'absolute', left: `${px}%`, top: `${py}%`, transform: 'translate(-50%, 60%)', whiteSpace: 'nowrap' as const,
+                    fontFamily: cinzel, fontSize: 9, color: GC, letterSpacing: '0.1em',
+                    background: '#09070F', border: '1px solid #3a3020', borderRadius: 4, padding: '3px 10px', pointerEvents: 'none', zIndex: 10 }}>
+                    {r.display_name}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
+
+        {/* Right dossier (desktop) */}
+        {!isMobile && (
+          <div style={{ width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#0f0c07', borderLeft: '1px solid #2a2218', overflow: 'hidden' }}>
+            {dossierContent}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile index overlay */}
+      {isMobile && indexOpen && (
+        <>
+          <div onClick={() => setIndexOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.5)' }} />
+          <div style={{ position: 'fixed', top: 0, bottom: 0, left: 0, width: 'min(82vw, 320px)', zIndex: 50, display: 'flex', flexDirection: 'column', background: '#0b0810', borderRight: '1px solid #2a2218', boxShadow: '8px 0 32px rgba(0,0,0,0.6)' }}>
+            {railContent}
+          </div>
+        </>
+      )}
+
+      {/* Mobile bottom sheet */}
+      {isMobile && sheetOpen && selectedKey && (
+        <>
+          <div onClick={closePanel} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.4)' }} />
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '70dvh', display: 'flex', flexDirection: 'column', background: '#0f0c07', borderTop: '1px solid #2a2218', borderRadius: '14px 14px 0 0', boxShadow: '0 -8px 32px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+            {dossierContent}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 
 // ── MY INTEL HISTORY VIEW ────────────────────────────────────────────────────
 
