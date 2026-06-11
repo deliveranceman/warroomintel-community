@@ -167,16 +167,42 @@ export default async function handler(req: Request) {
       .single()
     if (rErr || !region) return json({ error: 'Region not found' }, 404)
 
-    const { data: corrs } = await client
-      .from('spirit_region_correlations')
-      .select('*')
-      .eq('region_key', key)
-      .order('correlation_strength', { ascending: false })
+    const [{ data: corrs }, { data: condRows }] = await Promise.all([
+      client
+        .from('spirit_region_correlations')
+        .select('*')
+        .eq('region_key', key)
+        .order('correlation_strength', { ascending: false }),
+      client
+        .from('condition_regions')
+        .select('relevance_strength, conditions(condition_key, display_name, system, symptoms, author_conclusion, spiritual_tags, source_strength)')
+        .eq('region_key', key),
+    ])
 
     const correlations = corrs || []
     const scriptures = correlations
       .filter((c: any) => c.scripture_reference)
       .map((c: any) => ({ spirit_name: c.spirit_name, reference: c.scripture_reference }))
+
+    const conditions = (condRows || [])
+      .map((cr: any) => {
+        const c = cr.conditions
+        if (!c) return null
+        return {
+          condition_key: c.condition_key,
+          display_name: c.display_name,
+          system: c.system,
+          symptoms: c.symptoms,
+          author_conclusion: c.author_conclusion,
+          spiritual_tags: c.spiritual_tags || [],
+          source_strength: c.source_strength,
+          relevance_strength: cr.relevance_strength,
+        }
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) =>
+        (b.relevance_strength || 0) - (a.relevance_strength || 0) ||
+        (b.source_strength || 0) - (a.source_strength || 0))
 
     return json({
       region: {
@@ -185,23 +211,29 @@ export default async function handler(req: Request) {
       },
       correlations,
       scriptures,
+      conditions,
     })
   }
 
   // GET ?action=atlas — systems + regions (joined with systems + correlation counts)
-  const [{ data: systems }, { data: regions }, { data: corrCounts }] = await Promise.all([
+  const [{ data: systems }, { data: regions }, { data: corrCounts }, { data: condCounts }] = await Promise.all([
     client.from('body_systems').select('*'),
     client.from('anatomy_regions').select('*, region_systems(system_key)').eq('active', true).order('sort_order', { ascending: true }),
     client.from('spirit_region_correlations').select('region_key'),
+    client.from('condition_regions').select('region_key'),
   ])
 
   const countByRegion: Record<string, number> = {}
   for (const c of corrCounts || []) countByRegion[(c as any).region_key] = (countByRegion[(c as any).region_key] || 0) + 1
 
+  const condByRegion: Record<string, number> = {}
+  for (const c of condCounts || []) condByRegion[(c as any).region_key] = (condByRegion[(c as any).region_key] || 0) + 1
+
   const shapedRegions = (regions || []).map((r: any) => ({
     ...r,
     systems: (r.region_systems || []).map((rs: any) => rs.system_key),
     correlation_count: countByRegion[r.region_key] || 0,
+    condition_count: condByRegion[r.region_key] || 0,
     region_systems: undefined,
   }))
 

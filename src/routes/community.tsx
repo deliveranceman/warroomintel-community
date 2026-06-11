@@ -7465,7 +7465,7 @@ type AtlasRegion = {
   category: string; body_side: string; view: string; sex: string
   x_percent: number | string; y_percent: number | string
   fx_percent: number | string | null; fy_percent: number | string | null
-  overview: string | null; sort_order: number; systems: string[]; correlation_count: number
+  overview: string | null; sort_order: number; systems: string[]; correlation_count: number; condition_count: number
 }
 type BMFigure = { key: string; label: string; image: string; sex: string; view: string }
 
@@ -7502,7 +7502,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
   const [sheetOpen,     setSheetOpen]     = useState(false)
   const [indexOpen,     setIndexOpen]     = useState(false)
 
-  const [dossier,       setDossier]       = useState<{ region: any; correlations: any[]; scriptures: any[] } | null>(null)
+  const [dossier,       setDossier]       = useState<{ region: any; correlations: any[]; scriptures: any[]; conditions: any[] } | null>(null)
   const [dossierLoading, setDossierLoading] = useState(false)
 
   const [solAnalysis,   setSolAnalysis]   = useState<string | null>(null)
@@ -7781,8 +7781,15 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
                     border: 'none', borderLeft: `2px solid ${isSel ? GC : 'transparent'}`,
                     color: isSel ? GC : '#9a8c74', fontFamily: crimson, fontSize: 13.5, textAlign: 'left' as const, cursor: 'pointer' }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.display_name}</span>
-                  {r.correlation_count > 0 && (
-                    <span style={{ fontFamily: cinzel, fontSize: 8, color: GC, background: 'rgba(201,168,76,0.10)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '0 6px', flexShrink: 0 }}>{r.correlation_count}</span>
+                  {(r.condition_count > 0 || r.correlation_count > 0) && (
+                    <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                      {r.condition_count > 0 && (
+                        <span title="Associated conditions" style={{ fontFamily: cinzel, fontSize: 8, color: '#b89a5a', background: 'rgba(139,115,85,0.12)', border: '1px solid rgba(139,115,85,0.35)', borderRadius: 8, padding: '0 6px' }}>{r.condition_count}</span>
+                      )}
+                      {r.correlation_count > 0 && (
+                        <span title="Correlated spirits" style={{ fontFamily: cinzel, fontSize: 8, color: GC, background: 'rgba(201,168,76,0.10)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '0 6px' }}>{r.correlation_count}</span>
+                      )}
+                    </span>
                   )}
                 </button>
               )
@@ -7808,6 +7815,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
     const region = dossier?.region
     const correlations = dossier?.correlations || []
     const scriptures = dossier?.scriptures || []
+    const conditions = dossier?.conditions || []
     const regionSystems: string[] = region?.systems || activeRegion?.systems || []
 
     return (
@@ -7880,6 +7888,48 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
                     })}
                   </div>
                 ) : pendingSlot('No spirits correlated to this region yet.')}
+              </div>
+
+              {/* Associated Conditions */}
+              <div style={{ marginBottom: 20 }}>
+                {sectionLabel('ASSOCIATED CONDITIONS')}
+                {conditions.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 9 }}>
+                    {conditions.map((c: any) => {
+                      const strength = Math.max(0, Math.min(5, Number(c.source_strength) || 0))
+                      const tags: string[] = Array.isArray(c.spiritual_tags) ? c.spiritual_tags : []
+                      return (
+                        <div key={c.condition_key} style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 7, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 }}>
+                            <span style={{ fontFamily: cinzel, fontSize: 11.5, color: GC, letterSpacing: '0.04em' }}>{c.display_name}</span>
+                            {strength > 0 && (
+                              <span style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                                {[1, 2, 3, 4, 5].map(i => (
+                                  <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i <= strength ? GC : 'rgba(201,168,76,0.18)' }} />
+                                ))}
+                              </span>
+                            )}
+                          </div>
+                          {c.system && (
+                            <div style={{ marginBottom: 7 }}>
+                              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#8B7355', background: 'rgba(139,115,85,0.12)', border: '1px solid rgba(139,115,85,0.35)', borderRadius: 10, padding: '2px 9px', letterSpacing: '0.06em' }}>{c.system}</span>
+                            </div>
+                          )}
+                          {tags.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5, marginBottom: c.author_conclusion ? 7 : 0 }}>
+                              {tags.map((t: string, i: number) => (
+                                <span key={i} style={{ fontFamily: crimson, fontSize: 11, color: '#c8b99a', background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 9px' }}>{t}</span>
+                              ))}
+                            </div>
+                          )}
+                          {c.author_conclusion && (
+                            <div style={{ fontFamily: crimson, fontSize: 13.5, color: '#9a8c74', lineHeight: 1.55 }}>{c.author_conclusion}</div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : pendingSlot('No conditions associated with this region yet.')}
               </div>
 
               {/* Scriptures */}
