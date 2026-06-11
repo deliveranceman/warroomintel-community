@@ -1,5 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from '../../netlify/functions/_shared/access'
+
+// Flag-guarded source swap. true => read demons from Supabase `spirits`; false =>
+// legacy Airtable path (kept intact below for instant revert with zero redeploy).
+// The downstream tier-strip is data-source-independent, so the client JSON is
+// shape-identical either way.
+const USE_SUPABASE_DEMONS = true
 
 // Cumulative tier ladder. Each tier's response includes its own fields PLUS
 // every lower tier's — keyed off the VERIFIED Clerk level (authRes.level),
@@ -63,8 +70,74 @@ const SECTION_LABELS: Record<string, { label: string; tier: string }> = {
 }
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
+
+// Map one `spirits` row -> the SAME camelCase shape the Airtable path builds.
+// String fields use `|| ''` so every key is always present (mirrors the Airtable
+// path's present/absent behavior exactly, so the strip's `if (k in d)` is a
+// no-op equivalence). id is reassigned to a 1..N sequence by the caller.
+function mapSpiritRow(row: any, i: number) {
+  return {
+    id: i + 1,
+    airtableId: row.legacy_airtable_id || '',
+    createdTime: row.created_at || '',
+    name: row.name || '',
+    aka: row.aka || '',
+    typeRank: row.type_rank || '',
+    kingdom: row.kingdom || '',
+    description: row.description || '',
+    assignment: row.assignment || '',
+    // Soldier tier
+    function: row.description || '',
+    manifestation: row.manifestation || '',
+    scripture: row.scripture || '',
+    strongman: row.strongman || '',
+    // Commander tier
+    entryPoints: row.entry_points || '',
+    legalRights: row.legal_rights || '',
+    // General tier
+    symptoms: row.symptoms || '',
+    companionSpirits: row.companion_spirits || '',
+    wriNotes: row.wri_notes || '',
+    sourceOrigin: row.source_origin || '',
+    // Operational intel
+    hierarchyCategory: row.hierarchy_category || '',
+    parentStrongman: row.parent_strongman || '',
+    deliveranceSequence: row.deliverance_sequence || '',
+    operationalNotes: row.operational_notes || '',
+    primaryBattlefield: row.primary_battlefield || '',
+    personalityPresentation: row.personality_presentation || '',
+    counterScriptures: row.counter_scriptures || '',
+    // region: no Supabase column (legacy Airtable Region field was empty/never
+    // loaded). Sourced-empty to match the Airtable path (which produced '');
+    // pending a future spirit_regions join.
+    region: '',
+    phonetic: row.phonetic || '',
+    images: Array.isArray(row.images) ? row.images : [],
+    relatedSpirits: row.related_spirits || '',
+    biblicalRank: row.biblical_rank || '',
+    caseType: row.case_type || '',
+    isGenerational: row.is_generational === true,
+    isTerritorial: row.is_territorial === true,
+    subKingdom: row.sub_kingdom || '',
+    clusterSpirits: row.cluster_spirits || '',
+    legalRightsFramework: row.legal_rights_framework || '',
+    institutionalExpression: row.institutional_expression || '',
+    sessionIndicators: row.session_indicators || '',
+    resistanceSignature: row.resistance_signature || '',
+    demonicAgreements: row.demonic_agreements || '',
+    transmissionVectors: row.transmission_vectors || '',
+    etymologyNotes: row.etymology_notes || '',
+    archaeologyNotes: row.archaeology_notes || '',
+    scriptureContext: row.scripture_context || '',
+    prayerPoints: row.prayer_points || '',
+    aftercareNotes: row.aftercare_notes || '',
+    culturalPresence: Array.isArray(row.cultural_presence) ? row.cultural_presence : [],
+    sessionTriggerQuestions: row.session_trigger_questions || '',
+  }
+}
 
 export const Route = createFileRoute('/api/demons')({
   server: {
@@ -72,105 +145,131 @@ export const Route = createFileRoute('/api/demons')({
       GET: async ({ request }) => {
         const authRes = await requireAuth(request)
         if (authRes instanceof Response) return authRes
-        const token = airtableToken
-        const BASE_ID = 'appVXEj2DLPBTJTtD'
-        const TABLE_ID = 'tblcP4lgVykzOhLi4'
-
-        console.log('[api.demons] AIRTABLE_TOKEN present:', !!token)
-
-        if (!token) {
-          console.error('[api.demons] AIRTABLE_TOKEN env var is not set')
-          // Return empty array so the page loads rather than breaking
-          return Response.json({ demons: [], total: 0, error: 'AIRTABLE_TOKEN not configured' })
-        }
-
         try {
-          const records: any[] = []
-          let offset: string | undefined = undefined
+          let demons: any[]
 
-          do {
-            const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
-            url.searchParams.set('pageSize', '100')
-            url.searchParams.set('view', 'viw1ickrF5zgNGifc')
-            if (offset) url.searchParams.set('offset', offset)
+          if (USE_SUPABASE_DEMONS) {
+            // ── Supabase read path ─────────────────────────────────────────────
+            // name-ascending for a deterministic list; id is reassigned to a
+            // stable 1..N sequence after fetch (matches the Airtable path's
+            // index-based id semantics; exact numbering is source-dependent).
+            const supabase = createClient(supabaseUrl, supabaseServiceKey)
+            const { data, error } = await supabase
+              .from('spirits')
+              .select('*')
+              .order('name', { ascending: true })
 
-            const res = await fetch(url.toString(), {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-
-            if (!res.ok) {
-              const detail = await res.text()
-              console.error(`[api.demons] Airtable ${res.status}:`, detail)
-              // Return empty array rather than crashing the page
-              return Response.json({ demons: [], total: 0, airtableError: `Airtable ${res.status}` })
+            if (error) {
+              console.error('[api.demons] Supabase error:', error.message)
+              // Return empty array so the page loads rather than breaking
+              return Response.json({ demons: [], total: 0, supabaseError: error.message })
             }
 
-            const data = await res.json()
-            records.push(...data.records)
-            offset = data.offset
-          } while (offset)
+            demons = (data || [])
+              .map((row: any, i: number) => mapSpiritRow(row, i))
+              // Defensive: skip any stray header-style row
+              .filter((d: any) => d.name && d.name !== 'Primary Name')
+          } else {
+            // ── Legacy Airtable read path (flag-off; kept for instant revert) ──
+            const token = airtableToken
+            const BASE_ID = 'appVXEj2DLPBTJTtD'
+            const TABLE_ID = 'tblcP4lgVykzOhLi4'
 
-          const demons = records
-            .map((r: any, i: number) => ({
-              id: i + 1,
-              airtableId: r.id,
-              createdTime: r.createdTime || '',
-              name: r.fields[NAME_FIELD] || '',
-              aka: r.fields['Also Known As'] || '',
-              typeRank: r.fields['Type / Rank'] || '',
-              kingdom: r.fields['Kingdom'] || '',
-              description: r.fields['Description'] || '',
-              assignment: r.fields['Assignment'] || '',
-              // Soldier tier
-              function: r.fields['Description'] || '',
-              manifestation: r.fields['Manifestiation'] || '',
-              scripture: r.fields['Scripture Reference'] || '',
-              strongman: r.fields['Strongman'] || '',
-              // Commander tier
-              entryPoints: r.fields['Entry Points'] || '',
-              legalRights: r.fields['Legal Rights'] || '',
-              // General tier
-              symptoms: r.fields['Symptoms'] || '',
-              companionSpirits: r.fields['Companion Spirits'] || '',
-              wriNotes: r.fields['WRI Exorcist Notes'] || '',
-              sourceOrigin: r.fields['Source / Orgin'] || '',
-              // Operational intel (new fields)
-              hierarchyCategory: r.fields['Hierarchy Category'] || '',
-              parentStrongman: r.fields['Parent Strongman'] || '',
-              deliveranceSequence: r.fields['Deliverance Sequence'] || '',
-              operationalNotes: r.fields['Operational Notes'] || '',
-              primaryBattlefield: r.fields['Primary Battlefield'] || '',
-              personalityPresentation: r.fields['Typical Personality Presentation'] || '',
-              counterScriptures: r.fields['Counter Scriptures'] || '',
-              region: r.fields['Region'] || '', // TODO: Create 'Region' field in Airtable
-              // AI-enhanced fields — mapped from new Airtable columns
-              phonetic: r.fields['Phonetic'] || '',
-              images: r.fields['Images']
-                ? String(r.fields['Images']).split(',').map((s: string) => s.trim()).filter(Boolean)
-                : [],
-              relatedSpirits: r.fields['Related Spirits'] || '',
-              biblicalRank: r.fields['Biblical Rank'] || '',
-              caseType: r.fields['Case Type'] || '',
-              isGenerational: r.fields['Is Generational'] === true || r.fields['Is Generational'] === 'true',
-              isTerritorial: r.fields['Is Territorial'] === true || r.fields['Is Territorial'] === 'true',
-              subKingdom: r.fields['Sub-Kingdom'] || '',
-              clusterSpirits: r.fields['Cluster Spirits'] || '',
-              legalRightsFramework: r.fields['Legal Rights Framework'] || '',
-              institutionalExpression: r.fields['Institutional Expression'] || '',
-              sessionIndicators: r.fields['Session Indicators'] || '',
-              resistanceSignature: r.fields['Resistance Signature'] || '',
-              demonicAgreements: r.fields['Demonic Agreements'] || '',
-              transmissionVectors: r.fields['Transmission Vectors'] || '',
-              etymologyNotes: r.fields['Etymology Notes'] || '',
-              archaeologyNotes: r.fields['Archaeology Notes'] || '',
-              scriptureContext: r.fields['Scripture Context'] || '',
-              prayerPoints: r.fields['Prayer Points'] || '',
-              aftercareNotes: r.fields['Aftercare Notes'] || '',
-              culturalPresence: Array.isArray(r.fields['Cultural Presence']) ? r.fields['Cultural Presence'] : [],
-              sessionTriggerQuestions: r.fields['Session Trigger Questions'] || '',
-            }))
-            // Skip the header row (first record has "Primary Name" as the name value)
-            .filter((d: any) => d.name && d.name !== 'Primary Name')
+            console.log('[api.demons] AIRTABLE_TOKEN present:', !!token)
+
+            if (!token) {
+              console.error('[api.demons] AIRTABLE_TOKEN env var is not set')
+              // Return empty array so the page loads rather than breaking
+              return Response.json({ demons: [], total: 0, error: 'AIRTABLE_TOKEN not configured' })
+            }
+
+            const records: any[] = []
+            let offset: string | undefined = undefined
+
+            do {
+              const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+              url.searchParams.set('pageSize', '100')
+              url.searchParams.set('view', 'viw1ickrF5zgNGifc')
+              if (offset) url.searchParams.set('offset', offset)
+
+              const res = await fetch(url.toString(), {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+
+              if (!res.ok) {
+                const detail = await res.text()
+                console.error(`[api.demons] Airtable ${res.status}:`, detail)
+                // Return empty array rather than crashing the page
+                return Response.json({ demons: [], total: 0, airtableError: `Airtable ${res.status}` })
+              }
+
+              const data = await res.json()
+              records.push(...data.records)
+              offset = data.offset
+            } while (offset)
+
+            demons = records
+              .map((r: any, i: number) => ({
+                id: i + 1,
+                airtableId: r.id,
+                createdTime: r.createdTime || '',
+                name: r.fields[NAME_FIELD] || '',
+                aka: r.fields['Also Known As'] || '',
+                typeRank: r.fields['Type / Rank'] || '',
+                kingdom: r.fields['Kingdom'] || '',
+                description: r.fields['Description'] || '',
+                assignment: r.fields['Assignment'] || '',
+                // Soldier tier
+                function: r.fields['Description'] || '',
+                manifestation: r.fields['Manifestiation'] || '',
+                scripture: r.fields['Scripture Reference'] || '',
+                strongman: r.fields['Strongman'] || '',
+                // Commander tier
+                entryPoints: r.fields['Entry Points'] || '',
+                legalRights: r.fields['Legal Rights'] || '',
+                // General tier
+                symptoms: r.fields['Symptoms'] || '',
+                companionSpirits: r.fields['Companion Spirits'] || '',
+                wriNotes: r.fields['WRI Exorcist Notes'] || '',
+                sourceOrigin: r.fields['Source / Orgin'] || '',
+                // Operational intel (new fields)
+                hierarchyCategory: r.fields['Hierarchy Category'] || '',
+                parentStrongman: r.fields['Parent Strongman'] || '',
+                deliveranceSequence: r.fields['Deliverance Sequence'] || '',
+                operationalNotes: r.fields['Operational Notes'] || '',
+                primaryBattlefield: r.fields['Primary Battlefield'] || '',
+                personalityPresentation: r.fields['Typical Personality Presentation'] || '',
+                counterScriptures: r.fields['Counter Scriptures'] || '',
+                region: r.fields['Region'] || '', // TODO: Create 'Region' field in Airtable
+                // AI-enhanced fields — mapped from new Airtable columns
+                phonetic: r.fields['Phonetic'] || '',
+                images: r.fields['Images']
+                  ? String(r.fields['Images']).split(',').map((s: string) => s.trim()).filter(Boolean)
+                  : [],
+                relatedSpirits: r.fields['Related Spirits'] || '',
+                biblicalRank: r.fields['Biblical Rank'] || '',
+                caseType: r.fields['Case Type'] || '',
+                isGenerational: r.fields['Is Generational'] === true || r.fields['Is Generational'] === 'true',
+                isTerritorial: r.fields['Is Territorial'] === true || r.fields['Is Territorial'] === 'true',
+                subKingdom: r.fields['Sub-Kingdom'] || '',
+                clusterSpirits: r.fields['Cluster Spirits'] || '',
+                legalRightsFramework: r.fields['Legal Rights Framework'] || '',
+                institutionalExpression: r.fields['Institutional Expression'] || '',
+                sessionIndicators: r.fields['Session Indicators'] || '',
+                resistanceSignature: r.fields['Resistance Signature'] || '',
+                demonicAgreements: r.fields['Demonic Agreements'] || '',
+                transmissionVectors: r.fields['Transmission Vectors'] || '',
+                etymologyNotes: r.fields['Etymology Notes'] || '',
+                archaeologyNotes: r.fields['Archaeology Notes'] || '',
+                scriptureContext: r.fields['Scripture Context'] || '',
+                prayerPoints: r.fields['Prayer Points'] || '',
+                aftercareNotes: r.fields['Aftercare Notes'] || '',
+                culturalPresence: Array.isArray(r.fields['Cultural Presence']) ? r.fields['Cultural Presence'] : [],
+                sessionTriggerQuestions: r.fields['Session Trigger Questions'] || '',
+              }))
+              // Skip the header row (first record has "Primary Name" as the name value)
+              .filter((d: any) => d.name && d.name !== 'Primary Name')
+          }
 
           // Server-side strip keyed off the VERIFIED level. Build the cumulative
           // allow-set for the caller, then copy ONLY those keys into each entry —
