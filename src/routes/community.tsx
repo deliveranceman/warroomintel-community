@@ -9940,7 +9940,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs, openOnMount, onIntentConsumed }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void; openOnMount?: 'fire-team' | 'cover-all' | 'sentinel' | null; onIntentConsumed?: () => void }) {
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [token, setToken]                     = useState('')
@@ -9988,6 +9988,15 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [pendingExpanded, setPendingExpanded] = React.useState(false)
   const [recentCalls, setRecentCalls]         = React.useState<any[]>([])
   React.useEffect(() => { onPendingChange?.(sentPendingRequests) }, [sentPendingRequests])
+  // Open a create modal on mount when triggered from a sibling section (e.g. Field Teams tab).
+  // Mount-only: intent is consumed and cleared immediately so it never re-fires on re-render.
+  useEffect(() => {
+    if (!openOnMount) return
+    if (openOnMount === 'fire-team') setShowCreateFireTeam(true)
+    else if (openOnMount === 'cover-all') setShowCreateCoverAll(true)
+    else if (openOnMount === 'sentinel') setShowSentinelPicker(true)
+    onIntentConsumed?.()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef           = React.useRef<EventSource | null>(null)
@@ -12362,10 +12371,11 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
 }
 
 // ── FieldTeamsSection ─────────────────────────────────────────────────────────
-function FieldTeamsSection({ isDark, setActiveSection, getToken }: {
+function FieldTeamsSection({ isDark, setActiveSection, getToken, onCreate }: {
   isDark: boolean
   setActiveSection: (s: string) => void
   getToken: () => Promise<string | null>
+  onCreate?: (type: 'fire-team' | 'cover-all' | 'sentinel') => void
 }) {
   const BG   = isDark ? '#0D0B14' : '#ede8de'
   const SURF = isDark ? 'rgba(201,168,76,0.04)' : '#e8e2d6'
@@ -12500,7 +12510,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken }: {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {actionBtn('Find a Sentinel', () => setActiveSection('dms'))}
+            {actionBtn('Find a Sentinel', () => onCreate ? onCreate('sentinel') : setActiveSection('dms'))}
             {solBtn('Generate a 30-day prayer sprint plan for my Sentinel pair')}
           </div>
         </div>
@@ -12532,7 +12542,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken }: {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {actionBtn('Create Fire Team', () => setActiveSection('dms'))}
+            {actionBtn('Create Fire Team', () => onCreate ? onCreate('fire-team') : setActiveSection('dms'))}
             {solBtn('Create an intercession assignment for my Fire Team')}
           </div>
         </div>
@@ -12567,7 +12577,7 @@ function FieldTeamsSection({ isDark, setActiveSection, getToken }: {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {actionBtn('Create Cover All', () => setActiveSection('dms'))}
+            {actionBtn('Create Cover All', () => onCreate ? onCreate('cover-all') : setActiveSection('dms'))}
             {solBtn('Generate a territorial prayer strategy for my region')}
           </div>
         </div>
@@ -12599,6 +12609,7 @@ function CommunityPage() {
     try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
   })
   const [activeSection, setActiveSection] = useState('daily-brief')
+  const [createIntent, setCreateIntent] = useState<null | 'fire-team' | 'cover-all' | 'sentinel'>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
 
   // Preserve sidebar scroll across activeSection changes
@@ -14222,7 +14233,7 @@ function CommunityPage() {
       {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
-      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} />}
+      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} />}
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
@@ -14235,7 +14246,7 @@ function CommunityPage() {
       {activeSection === 'spirit-network' && (tierLevel >= 2 ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} /><OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} /></div> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
       {activeSection === 'gateway'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','The AI cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} /></div>}
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
-      {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} />}
+      {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} />}
       {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
       {activeSection === 'session-center' && <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />}
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
@@ -14649,7 +14660,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'dms' && (
-          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} />
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} />
         )}
         {activeSection === 'members'     && (
           <MembersView
