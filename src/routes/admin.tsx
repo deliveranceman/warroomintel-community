@@ -1640,6 +1640,8 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
   const [customChip, setCustomChip] = useState('')
   const [aiLoadingManif, setAiLoadingManif] = useState(false)
   const [aiLoadingNotes, setAiLoadingNotes] = useState(false)
+  const [v2BackfillRunning, setV2BackfillRunning] = useState(false)
+  const [v2BackfillResult, setV2BackfillResult] = useState<any>(null)
 
   useEffect(() => {
     getToken().then(token => {
@@ -1707,7 +1709,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
       const res = await fetch(`/api/body-map${qs}`, { headers: { Authorization: `Bearer ${token}` } })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error)
-      setRows(j.manifestations)
+      setRows(j.manifestations || [])
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -1745,38 +1747,6 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
     finally { setSaving(false) }
   }
 
-  async function del(id: string) {
-    if (!confirm('Delete this manifestation entry?')) return
-    setError(null)
-    try {
-      const token = await getToken()
-      const res = await fetch(`/api/body-map?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error)
-      await load()
-    } catch (e: any) { setError(e.message) }
-  }
-
-  function startEdit(row: BMManifestation) {
-    setEditingId(row.id)
-    setHotspotId(row.hotspot_id)
-    setBodyPart(row.body_part)
-    setRegion(row.region)
-    setManifestation(row.manifestation)
-    setNotes(row.notes || '')
-    setSelectedSpirits(row.spirit_names || [])
-    setSpiritInput('')
-    setSpiritSuggestions([])
-    setShowSuggestions(false)
-    setAutoFilled(false)
-    const presetList = BM_SOURCES.slice(1, -1)
-    const src = row.source || ''
-    if (!src) { setSourceSelect(''); setSourceCustom('') }
-    else if (presetList.includes(src)) { setSourceSelect(src); setSourceCustom('') }
-    else { setSourceSelect('Custom...'); setSourceCustom(src) }
-    setShowAdd(true)
-  }
-
   const inp: CSSProperties = {
     width: '100%', background: isDark ? '#0D0B14' : '#fff',
     border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.3)'}`,
@@ -1806,11 +1776,11 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
               </optgroup>
             ))}
           </select>
-          <button onClick={() => { setShowAdd(true); setEditingId(null); resetForm() }}
-            style={{ padding: '8px 18px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
-            + ADD ENTRY
-          </button>
         </div>
+      </div>
+
+      <div style={{ background: isDark ? 'rgba(201,168,76,0.06)' : '#fffaf0', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.25)'}`, borderRadius: 8, padding: '12px 16px', marginBottom: 20, fontFamily: crimson, fontSize: 13, color: isDark ? '#b8a98a' : '#5c4a28', lineHeight: 1.5 }}>
+        Legacy manifestations editor — replaced by the v2 Spirit Body Map. Marker calibration and correlation editing arrive in the v2 admin rebuild. Existing entries are shown read-only below.
       </div>
 
       {error && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '10px 14px', color: '#f87171', fontFamily: crimson, fontSize: 13, marginBottom: 16 }}>{error}</div>}
@@ -2026,7 +1996,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: crimson, fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.2)'}` }}>
-                {['Hotspot', 'Manifestation', 'Spirits', 'Source', ''].map(h => (
+                {['Hotspot', 'Manifestation', 'Spirits', 'Source'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM, fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -2049,22 +2019,46 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                     </div>
                   </td>
                   <td style={{ padding: '8px 10px', color: DIM, fontSize: 12 }}>{row.source || '--'}</td>
-                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                    <button onClick={() => startEdit(row)}
-                      style={{ background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: '4px 10px', marginRight: 6 }}>
-                      Edit
-                    </button>
-                    <button onClick={() => del(row.id)}
-                      style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', padding: '4px 10px' }}>
-                      Del
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* ── v2 Backfill ──────────────────────────────────────────────────────── */}
+      <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid ${isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.15)'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: v2BackfillResult ? 10 : 0 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM }}>SPIRIT BODY MAP v2 MIGRATION</span>
+          <button
+            onClick={async () => {
+              setV2BackfillRunning(true)
+              setV2BackfillResult(null)
+              try {
+                const token = await getToken()
+                const res = await fetch('/api/body-map-backfill', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+                const data = await res.json()
+                setV2BackfillResult(data)
+              } catch (e: any) {
+                setV2BackfillResult({ error: e.message })
+              } finally {
+                setV2BackfillRunning(false)
+              }
+            }}
+            disabled={v2BackfillRunning}
+            style={{ padding: '5px 14px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: v2BackfillRunning ? 'wait' : 'pointer', opacity: v2BackfillRunning ? 0.6 : 1 }}>
+            {v2BackfillRunning ? 'RUNNING...' : 'RUN BACKFILL'}
+          </button>
+        </div>
+        {v2BackfillResult && (
+          <div style={{ fontFamily: crimson, fontSize: 12, color: v2BackfillResult.error ? '#f87171' : isDark ? '#b8a98a' : '#5c4a28', lineHeight: 1.6 }}>
+            {v2BackfillResult.error
+              ? `Error: ${v2BackfillResult.error}`
+              : `Legacy rows: ${v2BackfillResult.legacyRows} · Regions populated: ${v2BackfillResult.regionsPopulated} · Correlations inserted: ${v2BackfillResult.correlationsInserted}${v2BackfillResult.unmappedHotspots?.length ? ` · Still unmapped: ${v2BackfillResult.unmappedHotspots.join(', ')}` : ''}`
+            }
+          </div>
+        )}
+      </div>
     </div>
   )
 }
