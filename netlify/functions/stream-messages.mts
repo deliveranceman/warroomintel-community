@@ -552,7 +552,7 @@ async function listMembers(currentUserId: string): Promise<Response> {
 
 // ── Fire Team actions ─────────────────────────────────────────────────────────
 
-async function createFireTeam(userId: string, body: any): Promise<Response> {
+async function createFireTeam(userId: string, body: any, verifiedLevel: number, verifiedDisplayName: string): Promise<Response> {
   const { name, assignmentType, description, inviteUserIds } = body ?? {}
 
   if (!name || name.length > 50) return json({ error: 'name required, max 50 chars' }, 400)
@@ -561,21 +561,8 @@ async function createFireTeam(userId: string, body: any): Promise<Response> {
   if (!Array.isArray(inviteUserIds) || inviteUserIds.length === 0) return json({ error: 'inviteUserIds required' }, 400)
   if (inviteUserIds.length > 7) return json({ error: 'max 7 invited members' }, 400)
 
-  // Soldier+ tier check
-  const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
-  let userName = userId
-  if (clerkSecretKey) {
-    const myRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: { Authorization: `Bearer ${clerkSecretKey}` },
-    })
-    if (myRes.ok) {
-      const myUser = await myRes.json()
-      const tier = (myUser.public_metadata?.tier as string) || 'watchman'
-      const tl = ({ watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4 } as Record<string, number>)[tier] ?? 0
-      if (tl < 1) return json({ error: 'Soldier+ tier required to create Fire Teams' }, 403)
-      userName = [myUser.first_name, myUser.last_name].filter(Boolean).join(' ') || myUser.username || userId
-    }
-  }
+  if (verifiedLevel < 1) return json({ error: 'Soldier+ tier required to create Fire Teams' }, 403)
+  const userName = verifiedDisplayName || userId
 
   const channelId = `ft-${Date.now()}-${userId.slice(-6)}`
   const allMembers = [userId, ...inviteUserIds]
@@ -1131,7 +1118,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (action === 'create-fire-team') {
     const body = await req.json().catch(() => ({}))
-    return createFireTeam(userId, body)
+    return createFireTeam(userId, body, auth.level, auth.displayName)
   }
 
   if (action === 'list-fire-teams') {
