@@ -1,8 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
+import { generateSlug } from './_shared/spiritWrite'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken }              = JSON.parse(process.env.AIRTABLE || '{}')
+
+// Same switch as admin-demon.ts — one flag governs all demon-base reads/writes.
+const USE_SUPABASE_DEMON_WRITES = true
 
 const BASE_ID    = 'appVXEj2DLPBTJTtD'
 const TABLE_ID   = 'tblcP4lgVykzOhLi4'
@@ -32,6 +36,25 @@ async function isInAirtable(nameNorm: string): Promise<boolean> {
     const data = await res.json()
     return (data.records?.length || 0) > 0
   } catch { return false }
+}
+
+// Supabase replacement for isInAirtable — is this spirit already in the live
+// `spirits` archive? Matches three ways: exact slug (generateSlug), case-insensitive
+// name, and AKA substring. Separate queries (not .or()) so names with commas/parens
+// can't corrupt the PostgREST filter. Takes the RAW name (not the normalized form).
+async function isInSupabaseArchive(client: any, name: string): Promise<boolean> {
+  const clean = (name || '').trim()
+  if (!clean) return false
+  const safe = clean.replace(/[%_\\]/g, '\\$&')
+
+  const { data: bySlug } = await client.from('spirits').select('slug').eq('slug', generateSlug(clean)).limit(1)
+  if (bySlug && bySlug.length > 0) return true
+
+  const { data: byName } = await client.from('spirits').select('slug').ilike('name', safe).limit(1)
+  if (byName && byName.length > 0) return true
+
+  const { data: byAka } = await client.from('spirits').select('slug').ilike('aka', `%${safe}%`).limit(1)
+  return !!(byAka && byAka.length > 0)
 }
 
 export default async function handler(req: Request) {
@@ -138,7 +161,9 @@ SOURCE_END`
 
       if (existing) { dupCount++; continue }
 
-      const inAirtable = await isInAirtable(nameNorm)
+      const inArchive = USE_SUPABASE_DEMON_WRITES
+        ? await isInSupabaseArchive(client, mention.name)
+        : await isInAirtable(nameNorm)
 
       await client.from('spirit_candidates').insert({
         name:             mention.name,
@@ -148,13 +173,13 @@ SOURCE_END`
         source_type:      'book',
         source_id:        resourceId,
         source_name:      resource.title || resource.author || 'Unknown',
-        status:           inAirtable ? 'duplicate' : 'pending',
-        duplicate_of:     inAirtable ? mention.name : null,
+        status:           inArchive ? 'duplicate' : 'pending',
+        duplicate_of:     inArchive ? mention.name : null,
         ai_model_used:    'claude-sonnet-4-5',
         ai_generated_at:  new Date().toISOString(),
       })
 
-      if (inAirtable) dupCount++; else newCount++
+      if (inArchive) dupCount++; else newCount++
     }
 
     await client.from('resources').update({
