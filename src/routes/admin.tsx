@@ -2156,6 +2156,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const adHeaderBg = isDark ? SURF2 : '#FFFFFF'
   const adStatNum = isDark ? G : '#8A6A1E'
   const adStatLbl = isDark ? DIM : '#6E6557'
+  const adBg    = isDark ? BG    : '#EEEBE4'
+  const adSurf2 = isDark ? SURF2 : '#F7F5F0'
+  const adBdr   = isDark ? BDR   : '#E7E1D5'
+  const adTxt   = isDark ? TXT   : '#2A251C'
+  const adDim   = isDark ? DIM   : '#6E6557'
+  const adGold  = isDark ? G     : '#7A5E16'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: isDark ? SURF2 : '#FFFFFF', border: `1px solid ${isDark ? BDR : '#E7E1D5'}`, borderRadius: 6,
@@ -3122,12 +3128,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   }
 
   const thS: React.CSSProperties = {
-    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM,
+    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: adDim,
     textTransform: 'uppercase', padding: '10px 12px', textAlign: 'left',
-    borderBottom: `1px solid ${BDR}`, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+    borderBottom: `1px solid ${adBdr}`, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
   }
   const tdS: React.CSSProperties = {
-    padding: '9px 12px', fontFamily: crimson, fontSize: 13, color: TXT,
+    padding: '9px 12px', fontFamily: crimson, fontSize: 13, color: adTxt,
     borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'top',
   }
   const sortInd = (col: string) => sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
@@ -3135,12 +3141,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   return (
     <div>
       {/* Sub-section nav */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${BDR}`, overflowX: 'auto' as const, overflowY: 'hidden' as const }}>
+      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${adBdr}`, overflowX: 'auto' as const, overflowY: 'hidden' as const }}>
         {(['database', 'enrichment', 'taxonomy', 'gap-analysis', 'duplicates', 'body-map'] as const).map(t => {
           const labels: Record<string, string> = { database: 'SPIRIT DATABASE', enrichment: 'ENRICHMENT', taxonomy: 'TAXONOMY', 'gap-analysis': 'GAP ANALYSIS', duplicates: 'DUPLICATE FINDER', 'body-map': 'BODY MAP' }
           return (
             <button key={t} onClick={() => setIntelTab(t)}
-              style={{ padding: '10px 18px', background: 'transparent', border: 'none', borderBottom: intelTab === t ? `2px solid ${G}` : '2px solid transparent', color: intelTab === t ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', flexShrink: 0, marginBottom: -1, whiteSpace: 'nowrap' as const }}>
+              style={{ padding: '10px 18px', background: 'transparent', border: 'none', borderBottom: intelTab === t ? `2px solid ${adGold}` : '2px solid transparent', color: intelTab === t ? adGold : adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', flexShrink: 0, marginBottom: -1, whiteSpace: 'nowrap' as const }}>
               {labels[t]}
             </button>
           )
@@ -3158,7 +3164,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         ] as [string, number | null, string, 'all' | 'missing-seq' | 'missing-sc' | 'missing-notes' | 'recent'][]).map(([label, val, color, qf]) => (
           <button key={label}
             onClick={() => { if (!dLoading) { setQuickFilter(qf === quickFilter ? 'all' : qf); setPage(0) } }}
-            style={{ background: quickFilter === qf ? `${color}15` : adStatBg, border: `1px solid ${quickFilter === qf ? color : BDR}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: dLoading ? 'default' : 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
+            style={{ background: quickFilter === qf ? `${color}15` : adStatBg, border: `1px solid ${quickFilter === qf ? color : adBdr}`, borderRadius: 10, padding: '18px 22px', flex: 1, cursor: dLoading ? 'default' : 'pointer', textAlign: 'left' as const, transition: 'all 0.15s' }}>
             <div style={{ fontFamily: cinzel, fontSize: 28, color: quickFilter === qf ? color : adStatNum, marginBottom: 6 }}>{val === null ? '...' : val}</div>
             <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: adStatLbl, textTransform: 'uppercase' as const }}>{label}</div>
           </button>
@@ -3169,28 +3175,28 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: backfillProgress || backfillResults ? 12 : 22, flexWrap: 'wrap' as const, gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
           <button onClick={fetchDemons} disabled={dLoading}
-            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '6px 14px', cursor: dLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: dLoading ? 0.5 : 1 }}>
+            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: adGold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '6px 14px', cursor: dLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: dLoading ? 0.5 : 1 }}>
             ↺ Refresh
           </button>
           <button onClick={handleAIBackfill} disabled={backfillRunning}
-            style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: backfillRunning ? 'wait' : 'pointer', opacity: backfillRunning ? 0.7 : 1 }}>
+            style={{ padding: '6px 14px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: adGold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: backfillRunning ? 'wait' : 'pointer', opacity: backfillRunning ? 0.7 : 1 }}>
             🧠 {backfillRunning ? 'RUNNING...' : 'SMART ENRICH ALL SPIRITS'}
           </button>
           {!backfillRunning && (
-            <span style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>
+            <span style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic' }}>
               Fills empty fields and improves low-quality entries (&lt;75% confidence). Processes 20 at a time.
             </span>
           )}
         </div>
         <div style={{ textAlign: 'right' as const }}>
           <a href="https://airtable.com/appVXEj2DLPBTJTtD/tblcP4lgVykzOhLi4" target="_blank" rel="noopener noreferrer"
-            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: DIM, textDecoration: 'none', opacity: 0.65 }}>
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: adDim, textDecoration: 'none', opacity: 0.65 }}>
             View raw data in Airtable →
           </a>
         </div>
       </div>
       {backfillProgress && (
-        <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>{backfillProgress}</div>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.08em', marginBottom: 12 }}>{backfillProgress}</div>
       )}
       {backfillResults?.complete && (
         <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#E7E1D5'}`, borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
@@ -3201,13 +3207,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
               { label: 'SKIPPED (HIGH QUALITY)', value: backfillResults.totalSkipped, color: '#6b5e45' },
               { label: 'FAILED',               value: backfillResults.totalFailed, color: '#8B3232' },
             ].map(stat => (
-              <div key={stat.label} style={{ textAlign: 'center' as const, padding: 10, background: '#0a0807', borderRadius: 4, border: '1px solid #1e1a0e' }}>
+              <div key={stat.label} style={{ textAlign: 'center' as const, padding: 10, background: isDark ? '#0a0807' : '#F0EBE0', borderRadius: 4, border: `1px solid ${isDark ? '#1e1a0e' : '#DDD8CE'}` }}>
                 <div style={{ fontFamily: cinzel, fontSize: 20, color: stat.color }}>{stat.value}</div>
-                <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.1em', marginTop: 4 }}>{stat.label}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.1em', marginTop: 4 }}>{stat.label}</div>
               </div>
             ))}
           </div>
-          <button onClick={() => setBackfillResults(null)} style={{ marginTop: 12, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: DIM, background: 'transparent', border: 'none', cursor: 'pointer' }}>Dismiss</button>
+          <button onClick={() => setBackfillResults(null)} style={{ marginTop: 12, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: adDim, background: 'transparent', border: 'none', cursor: 'pointer' }}>Dismiss</button>
         </div>
       )}
 
@@ -3220,27 +3226,27 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         return (
           <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: adGold, letterSpacing: '0.12em' }}>
                 {done
                   ? `ENRICHMENT COMPLETE — Applied ${applied} of ${batchJobs.length}${failed > 0 ? ` (${failed} failed)` : ''}`
                   : `ENRICHING — ${applied + failed} / ${batchJobs.length} done · ${inFlight} in flight`}
               </div>
               <button
                 onClick={() => { stopBatchPoll(); setBatchJobs(null); batchJobsRef.current = null }}
-                style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, padding: '3px 10px', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 5, padding: '3px 10px', color: adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
                 {done ? 'Dismiss' : 'Cancel'}
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
               {batchJobs.map(job => (
                 <div key={job.slug} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: `1px solid rgba(201,168,76,0.07)` }}>
-                  <span style={{ width: 14, fontSize: 10, flexShrink: 0, color: job.status === 'complete' ? '#4ade80' : job.status === 'failed' ? '#f87171' : job.status === 'pending' ? DIM : G }}>
+                  <span style={{ width: 14, fontSize: 10, flexShrink: 0, color: job.status === 'complete' ? '#4ade80' : job.status === 'failed' ? '#f87171' : job.status === 'pending' ? adDim : adGold }}>
                     {job.status === 'complete' ? '✓' : job.status === 'failed' ? '✗' : job.status === 'pending' ? '·' : '◉'}
                   </span>
-                  <span style={{ fontFamily: crimson, fontSize: 13, color: TXT, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  <span style={{ fontFamily: crimson, fontSize: 13, color: adTxt, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                     {job.spiritName}
                   </span>
-                  <span style={{ fontFamily: cinzel, fontSize: 9, color: job.status === 'failed' ? '#f87171' : DIM, letterSpacing: '0.05em', flexShrink: 0, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: job.status === 'failed' ? '#f87171' : adDim, letterSpacing: '0.05em', flexShrink: 0, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                     {job.status === 'complete'
                       ? `applied · ${job.appliedFields?.length ?? 0} fields`
                       : job.status === 'failed'
@@ -3270,14 +3276,14 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           <option value="">All Categories</option>
           {HIER_CATS.map(c => <option key={c}>{c}</option>)}
         </select>
-        <button onClick={exportCSV} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, padding: '7px 14px', color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>↓ CSV</button>
+        <button onClick={exportCSV} style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 5, padding: '7px 14px', color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>↓ CSV</button>
         <button
           onClick={() => { setNeedsEnrichFilter(f => !f); setPage(0) }}
-          style={{ background: needsEnrichFilter ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${needsEnrichFilter ? G : BDR}`, borderRadius: 5, padding: '7px 14px', color: needsEnrichFilter ? G : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>
+          style={{ background: needsEnrichFilter ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${needsEnrichFilter ? adGold : adBdr}`, borderRadius: 5, padding: '7px 14px', color: needsEnrichFilter ? adGold : adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', flexShrink: 0 }}>
           🧠 Needs Enrichment{needsEnrichFilter ? ' ✕' : ''}
         </button>
         {quickFilter !== 'all' && (
-          <button onClick={() => setQuickFilter('all')} style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 999, padding: '3px 12px', color: G, fontSize: 11, fontFamily: cinzel, cursor: 'pointer', flexShrink: 0 }}>
+          <button onClick={() => setQuickFilter('all')} style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 999, padding: '3px 12px', color: adGold, fontSize: 11, fontFamily: cinzel, cursor: 'pointer', flexShrink: 0 }}>
             ✕ {quickFilter === 'missing-seq' ? 'Missing Sequence' : quickFilter === 'missing-sc' ? 'Missing Scriptures' : quickFilter === 'missing-notes' ? 'Missing Notes' : 'Recent Additions'}
           </button>
         )}
@@ -3285,7 +3291,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
       {/* ── IMPORT SPIRIT LINE FILE ── */}
       <details style={{ marginBottom: 16 }}>
-        <summary style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G, cursor: 'pointer', padding: '8px 0', listStyle: 'none' as const }}>
+        <summary style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: adGold, cursor: 'pointer', padding: '8px 0', listStyle: 'none' as const }}>
           ⬆ IMPORT SPIRIT LINE FILE
         </summary>
         <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '16px', marginTop: 8 }}>
@@ -3301,7 +3307,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           {/* File picker */}
           {!importParsed && (
             <div>
-              <label style={{ display: 'inline-block', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: G, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '8px 18px' }}>
+              <label style={{ display: 'inline-block', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: adGold, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '8px 18px' }}>
                 📂 Choose .mjs or .json file
                 <input type="file" accept=".mjs,.json" style={{ display: 'none' }}
                   onChange={async e => {
@@ -3320,7 +3326,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   }}
                 />
               </label>
-              <span style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginLeft: 12 }}>
+              <span style={{ fontFamily: crimson, fontSize: 12, color: adDim, marginLeft: 12 }}>
                 Accepts .mjs scripts (const E = [...]) or .json arrays
               </span>
             </div>
@@ -3330,17 +3336,17 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           {importParsed && !importProgress && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.1em' }}>
                   {importParsed.length} SPIRITS FOUND — PREVIEW{importFile ? ` · ${importFile.name}` : ''}
                 </div>
                 <button onClick={() => { setImportFile(null); setImportParsed(null) }}
-                  style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 11, fontFamily: cinzel, letterSpacing: '0.06em' }}>
+                  style={{ background: 'none', border: 'none', color: adDim, cursor: 'pointer', fontSize: 11, fontFamily: cinzel, letterSpacing: '0.06em' }}>
                   ✕ Clear
                 </button>
               </div>
               <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
                 {importParsed.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontFamily: crimson, fontSize: 13, color: TXT }}>
+                  <div key={i} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontFamily: crimson, fontSize: 13, color: adTxt }}>
                     <span style={{ minWidth: 24, color: 'rgba(201,168,76,0.4)', fontFamily: cinzel, fontSize: 9 }}>{i + 1}</span>
                     <span style={{ flex: 1 }}>{s.name}</span>
                     <span style={{ color: 'rgba(201,168,76,0.5)', fontSize: 11 }}>{s.typeRank || s.rank || ''}</span>
@@ -3349,7 +3355,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 ))}
               </div>
               <button onClick={handleImport}
-                style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: G, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '10px 24px', cursor: 'pointer', fontWeight: 700 }}>
+                style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: adGold, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '10px 24px', cursor: 'pointer', fontWeight: 700 }}>
                 ⬆ IMPORT {importParsed.length} SPIRITS TO AIRTABLE
               </button>
             </div>
@@ -3359,13 +3365,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           {importProgress && (
             <div style={{ marginTop: 4 }}>
               {importProgress.running && (
-                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em' }}>⟳ IMPORTING… THIS MAY TAKE A MINUTE</div>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.1em' }}>⟳ IMPORTING… THIS MAY TAKE A MINUTE</div>
               )}
               {importProgress.done && (
                 <div>
                   <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
                     <span style={{ color: '#4CAF7D', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>✓ {importProgress.created} CREATED</span>
-                    <span style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>↷ {importProgress.updated} UPDATED</span>
+                    <span style={{ color: adGold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>↷ {importProgress.updated} UPDATED</span>
                     {importProgress.errors.length > 0 && (
                       <span style={{ color: '#D4524A', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>✗ {importProgress.errors.length} ERRORS</span>
                     )}
@@ -3391,7 +3397,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       {/* New Spirit form */}
       {showNew && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>✦ New Spirit Entry</div>
+          <div style={{ fontFamily: cinzel, fontSize: 11, color: adGold, letterSpacing: '0.1em', marginBottom: 10 }}>✦ New Spirit Entry</div>
           <SpiritEditForm
             fields={newFields}
             setField={(name, val) => setNewFields(prev => ({ ...prev, [name]: val }))}
@@ -3406,7 +3412,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       )}
 
       {/* Spirit table */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, overflow: 'hidden', marginBottom: 32 }}>
+      <div style={{ background: adStatBg, border: `1px solid ${adBdr}`, borderRadius: 10, overflow: 'hidden', marginBottom: 32 }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -3432,9 +3438,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             </thead>
             <tbody>
               {dLoading ? (
-                <tr><td colSpan={7} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>Loading spirits...</td></tr>
+                <tr><td colSpan={7} style={{ ...tdS, textAlign: 'center', color: adDim, padding: 32, fontStyle: 'italic' }}>Loading spirits...</td></tr>
               ) : paginated.length === 0 ? (
-                <tr><td colSpan={7} style={{ ...tdS, textAlign: 'center', color: DIM, padding: 32, fontStyle: 'italic' }}>{quickFilter !== 'all' ? 'No spirits found with this filter. Try clearing the filter.' : 'No spirits found.'}</td></tr>
+                <tr><td colSpan={7} style={{ ...tdS, textAlign: 'center', color: adDim, padding: 32, fontStyle: 'italic' }}>{quickFilter !== 'all' ? 'No spirits found with this filter. Try clearing the filter.' : 'No spirits found.'}</td></tr>
               ) : paginated.map((d: any) => (
                 <Fragment key={d.airtableId || d.id}>
                   <tr style={{ background: editingId === d.slug ? 'rgba(201,168,76,0.05)' : 'transparent', transition: 'background 0.15s' }}>
@@ -3453,24 +3459,24 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                       />
                     </td>
                     <td style={{ ...tdS, fontFamily: cinzel, fontSize: 11, maxWidth: 160, wordBreak: 'break-word' as const }}>{d.name}</td>
-                    <td style={{ ...tdS, color: DIM, maxWidth: 110, fontSize: 12 }}>{d.biblicalRank || ''}</td>
+                    <td style={{ ...tdS, color: adDim, maxWidth: 110, fontSize: 12 }}>{d.biblicalRank || ''}</td>
                     <td style={{ ...tdS }}>
                       {d.hierarchyCategory ? (
                         <span style={{
                           background: (HIER_COLORS[d.hierarchyCategory] || '#555') + '28',
-                          color: HIER_COLORS[d.hierarchyCategory] || DIM,
+                          color: HIER_COLORS[d.hierarchyCategory] || adDim,
                           border: `1px solid ${(HIER_COLORS[d.hierarchyCategory] || '#555')}44`,
                           borderRadius: 999, padding: '2px 8px', fontSize: 9,
                           fontFamily: cinzel, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const,
                         }}>{d.hierarchyCategory}</span>
                       ) : null}
                     </td>
-                    <td style={{ ...tdS, color: DIM, maxWidth: 150, fontSize: 12 }}>
+                    <td style={{ ...tdS, color: adDim, maxWidth: 150, fontSize: 12 }}>
                       {d.deliveranceSequence
                         ? d.deliveranceSequence.slice(0, 60) + (d.deliveranceSequence.length > 60 ? '…' : '')
                         : <span style={{ color: '#f97316', fontSize: 10 }}>⚠ Empty</span>}
                     </td>
-                    <td style={{ ...tdS, color: DIM, maxWidth: 150, fontSize: 12 }}>
+                    <td style={{ ...tdS, color: adDim, maxWidth: 150, fontSize: 12 }}>
                       {d.counterScriptures
                         ? d.counterScriptures.slice(0, 60) + (d.counterScriptures.length > 60 ? '…' : '')
                         : <span style={{ color: '#f97316', fontSize: 10 }}>⚠ Empty</span>}
@@ -3479,12 +3485,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                       <div style={{ display: 'flex', gap: 4, flexDirection: 'column' }}>
                         <button
                           onClick={() => editingId === d.slug ? setEditingId(null) : startEdit(d)}
-                          style={{ background: 'transparent', border: `1px solid ${editingId === d.slug ? G : BDR}`, borderRadius: 5, color: editingId === d.slug ? G : DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                          style={{ background: 'transparent', border: `1px solid ${editingId === d.slug ? adGold : adBdr}`, borderRadius: 5, color: editingId === d.slug ? adGold : adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
                           {editingId === d.slug ? 'Close' : 'Edit'}
                         </button>
                         <button
                           onClick={() => openAiPanel(d)}
-                          style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.04em', padding: '3px 8px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                          style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, color: adGold, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.04em', padding: '3px 8px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
                           ✦ AI
                         </button>
                       </div>
@@ -3512,16 +3518,16 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           </table>
         </div>
         {pageCount > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: `1px solid ${BDR}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: `1px solid ${adBdr}` }}>
             <button disabled={page === 0} onClick={() => setPage(p => p - 1)}
-              style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: page === 0 ? DIM : G, fontFamily: cinzel, fontSize: 9, padding: '5px 14px', cursor: page === 0 ? 'not-allowed' : 'pointer', opacity: page === 0 ? 0.5 : 1 }}>
+              style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 5, color: page === 0 ? adDim : adGold, fontFamily: cinzel, fontSize: 9, padding: '5px 14px', cursor: page === 0 ? 'not-allowed' : 'pointer', opacity: page === 0 ? 0.5 : 1 }}>
               ← Prev
             </button>
-            <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM }}>
+            <span style={{ fontFamily: cinzel, fontSize: 9, color: adDim }}>
               {page + 1} / {pageCount} · {filtered.length} spirits
             </span>
             <button disabled={page >= pageCount - 1} onClick={() => setPage(p => p + 1)}
-              style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: page >= pageCount - 1 ? DIM : G, fontFamily: cinzel, fontSize: 9, padding: '5px 14px', cursor: page >= pageCount - 1 ? 'not-allowed' : 'pointer', opacity: page >= pageCount - 1 ? 0.5 : 1 }}>
+              style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 5, color: page >= pageCount - 1 ? adDim : adGold, fontFamily: cinzel, fontSize: 9, padding: '5px 14px', cursor: page >= pageCount - 1 ? 'not-allowed' : 'pointer', opacity: page >= pageCount - 1 ? 0.5 : 1 }}>
               Next →
             </button>
           </div>
@@ -3533,9 +3539,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         const batchInFlight = batchJobs !== null && !batchJobs.every(j => j.status === 'complete' || j.status === 'failed')
         const overCap       = selectedSpirits.size > BATCH_ENRICH_CAP
         return (
-          <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1508', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16, zIndex: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>
+          <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: isDark ? '#1a1508' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16, zIndex: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em' }}>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: adGold, letterSpacing: '0.1em' }}>
                 {selectedSpirits.size} SELECTED
               </span>
               {overCap && (
@@ -3546,7 +3552,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             </div>
             <button onClick={handleEnrichSelected}
               disabled={batchInFlight}
-              style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: G, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: batchInFlight ? 'not-allowed' : 'pointer', opacity: batchInFlight ? 0.5 : 1 }}>
+              style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: adGold, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: batchInFlight ? 'not-allowed' : 'pointer', opacity: batchInFlight ? 0.5 : 1 }}>
               🧠 ENRICH SELECTED ({Math.min(selectedSpirits.size, BATCH_ENRICH_CAP)})
             </button>
             <button onClick={() => { setSelectedSpirits(new Set()); setSelectAll(false) }}
@@ -3558,21 +3564,21 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       })()}
 
       {/* Post Briefing form */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
+      <div style={{ background: adStatBg, border: `1px solid ${adBdr}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 10, flexWrap: 'wrap' as const }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: adGold }}>
             {editingPostId ? '✏ Edit Briefing' : '📡 Post Briefing'}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {!editingPostId && (
               <button onClick={generateIntelBrief} disabled={intelGenerating}
-                style={{ padding: '5px 14px', background: intelGenerating ? 'transparent' : 'rgba(201,168,76,0.1)', border: `1px solid ${intelGenerating ? BDR : G}`, borderRadius: 5, color: intelGenerating ? DIM : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: intelGenerating ? 'wait' : 'pointer', opacity: intelGenerating ? 0.6 : 1 }}>
+                style={{ padding: '5px 14px', background: intelGenerating ? 'transparent' : 'rgba(201,168,76,0.1)', border: `1px solid ${intelGenerating ? adBdr : adGold}`, borderRadius: 5, color: intelGenerating ? adDim : adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: intelGenerating ? 'wait' : 'pointer', opacity: intelGenerating ? 0.6 : 1 }}>
                 {intelGenerating ? 'GENERATING...' : '⚡ GENERATE INTEL BRIEF'}
               </button>
             )}
             {editingPostId && (
               <button onClick={() => { setEditingPostId(null); setPostTitle(''); setPostBody(''); setPostSc(''); setPostType('briefing'); setPostMsg('') }}
-                style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>
+                style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 5, color: adDim, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>
                 ✕ Cancel Edit
               </button>
             )}
@@ -3593,7 +3599,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         <div style={{ marginBottom: 14 }}>
           <label style={lbl}>Body *</label>
           <textarea value={postBody} onChange={e => setPostBody(e.target.value)} rows={6} placeholder="Write your briefing..." style={{ ...inp, resize: 'vertical' as const }} />
-          <div style={{ textAlign: 'right' as const, fontSize: 10, color: DIM, marginTop: 3 }}>{postBody.length} chars</div>
+          <div style={{ textAlign: 'right' as const, fontSize: 10, color: adDim, marginTop: 3 }}>{postBody.length} chars</div>
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={lbl}>Scripture (optional)</label>
@@ -3601,22 +3607,22 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         </div>
         {postMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: postMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{postMsg}</div>}
         <button onClick={savePost} disabled={postSaving || !postTitle.trim() || !postBody.trim()}
-          style={{ background: (!postTitle.trim() || !postBody.trim() || postSaving) ? 'rgba(201,168,76,0.2)' : G, color: (!postTitle.trim() || !postBody.trim() || postSaving) ? DIM : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          style={{ background: (!postTitle.trim() || !postBody.trim() || postSaving) ? 'rgba(201,168,76,0.2)' : adGold, color: (!postTitle.trim() || !postBody.trim() || postSaving) ? adDim : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
           {postSaving ? (editingPostId ? 'Saving...' : 'Publishing...') : (editingPostId ? 'Save Changes' : 'Publish Briefing')}
         </button>
       </div>
 
       {posts.length > 0 && (
         <div style={{ marginBottom: 32 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: DIM, marginBottom: 10 }}>Published Briefings ({posts.length})</div>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: adDim, marginBottom: 10 }}>Published Briefings ({posts.length})</div>
           {posts.map(p => (
-            <div key={p.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div key={p.id} style={{ background: adStatBg, border: `1px solid ${adBdr}`, borderLeft: `3px solid ${adGold}`, borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT }}>{p.title}</div>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, marginTop: 3 }}>{p.post_type} · {fmtDate(p.created_at)}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: adTxt }}>{p.title}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: adDim, marginTop: 3 }}>{p.post_type} · {fmtDate(p.created_at)}</div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <button onClick={() => startEditPost(p)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>Edit</button>
+                <button onClick={() => startEditPost(p)} style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 5, color: adDim, fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>Edit</button>
                 <button onClick={() => deletePost(p.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer' }}>Delete</button>
               </div>
             </div>
@@ -3625,8 +3631,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       )}
 
       {/* Add External Link form */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G, marginBottom: 20 }}>🔗 Add External Link</div>
+      <div style={{ background: adStatBg, border: `1px solid ${adBdr}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: adGold, marginBottom: 20 }}>🔗 Add External Link</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
           <div><label style={lbl}>Title *</label><input value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link title..." style={inp} /></div>
           <div><label style={lbl}>Source</label><input value={linkSource} onChange={e => setLinkSource(e.target.value)} placeholder="e.g. Daniel Duval" style={inp} /></div>
@@ -3635,19 +3641,19 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         </div>
         {linkMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: linkMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{linkMsg}</div>}
         <button onClick={saveLink} disabled={linkSaving || !linkTitle.trim() || !linkUrl.trim()}
-          style={{ background: (!linkTitle.trim() || !linkUrl.trim() || linkSaving) ? 'rgba(201,168,76,0.2)' : G, color: (!linkTitle.trim() || !linkUrl.trim() || linkSaving) ? DIM : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          style={{ background: (!linkTitle.trim() || !linkUrl.trim() || linkSaving) ? 'rgba(201,168,76,0.2)' : adGold, color: (!linkTitle.trim() || !linkUrl.trim() || linkSaving) ? adDim : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
           {linkSaving ? 'Adding...' : 'Add Link'}
         </button>
       </div>
 
       {links.length > 0 && (
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: DIM, marginBottom: 10 }}>Active Links ({links.length})</div>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: adDim, marginBottom: 10 }}>Active Links ({links.length})</div>
           {links.map(l => (
-            <div key={l.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div key={l.id} style={{ background: adStatBg, border: `1px solid ${adBdr}`, borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 2 }}>{l.title}</div>
-                <div style={{ fontSize: 11, color: DIM, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{l.source && `${l.source} · `}{l.url}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: adTxt, marginBottom: 2 }}>{l.title}</div>
+                <div style={{ fontSize: 11, color: adDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{l.source && `${l.source} · `}{l.url}</div>
               </div>
               <button onClick={() => deleteLink(l.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>Remove</button>
             </div>
@@ -3668,43 +3674,43 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       {/* ── DUPLICATE FINDER ─────────────────────────────────────────────────── */}
       {intelTab === 'duplicates' && (
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 6 }}>DUPLICATE FINDER</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 20, lineHeight: 1.6 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: adGold, letterSpacing: '0.08em', marginBottom: 6 }}>DUPLICATE FINDER</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, fontStyle: 'italic', marginBottom: 20, lineHeight: 1.6 }}>
             Finds exact, near, and fuzzy-matched duplicate spirits. Merge any pair with full field-level control.
           </div>
 
           {dLoading ? (
-            <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em' }}>Loading spirit database...</div>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: adDim, letterSpacing: '0.1em' }}>Loading spirit database...</div>
           ) : mergeTarget ? (
 
             /* ── MERGE PANEL ──────────────────────────────────────────────────── */
             <div>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 16 }}>
                 <div>
-                  <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 12, color: adGold, letterSpacing: '0.1em' }}>
                     MERGE: {mergeTarget.a.name} ↔ {mergeTarget.b.name}
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginTop: 4 }}>
+                  <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, marginTop: 4 }}>
                     A: {mergeTarget.a.airtableId} · {mergeTarget.a.createdTime ? new Date(mergeTarget.a.createdTime).toLocaleDateString() : '—'}
                     &nbsp;&nbsp;|&nbsp;&nbsp;
                     B: {mergeTarget.b.airtableId} · {mergeTarget.b.createdTime ? new Date(mergeTarget.b.createdTime).toLocaleDateString() : '—'}
                   </div>
                 </div>
                 <button onClick={() => setMergeTarget(null)}
-                  style={{ padding: '6px 16px', background: 'none', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ padding: '6px 16px', background: 'none', border: `1px solid ${adBdr}`, borderRadius: 4, color: adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
                   CANCEL MERGE
                 </button>
               </div>
 
               {/* Column headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '8px 12px', background: SURF2, borderBottom: `1px solid ${BDR}`, marginBottom: 2 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.08em' }}>FIELD</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '8px 12px', background: adSurf2, borderBottom: `1px solid ${adBdr}`, marginBottom: 2 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: adDim, letterSpacing: '0.08em' }}>FIELD</div>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: '#4ade80', letterSpacing: '0.08em' }}>RECORD A — KEEP</div>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.08em' }}>RECORD B — DELETE</div>
               </div>
 
               {/* Field rows */}
-              <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, overflow: 'hidden', marginBottom: 20 }}>
+              <div style={{ background: adStatBg, border: `1px solid ${adBdr}`, borderRadius: 4, overflow: 'hidden', marginBottom: 20 }}>
                 {MERGE_FIELDS.map(f => {
                   const va = String(mergeTarget.a[f.key] || '').trim()
                   const vb = String(mergeTarget.b[f.key] || '').trim()
@@ -3716,13 +3722,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   return (
                     <div key={f.key} style={{
                       display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8,
-                      padding: '8px 12px', borderBottom: `1px solid ${BDR}`,
+                      padding: '8px 12px', borderBottom: `1px solid ${adBdr}`,
                       background: isConflict ? 'rgba(201,168,76,0.04)' : 'transparent',
-                      borderLeft: isConflict ? `2px solid ${G}` : '2px solid transparent',
+                      borderLeft: isConflict ? `2px solid ${adGold}` : '2px solid transparent',
                     }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, color: isConflict ? G : DIM, letterSpacing: '0.06em', paddingTop: 3, lineHeight: 1.5 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: isConflict ? adGold : adDim, letterSpacing: '0.06em', paddingTop: 3, lineHeight: 1.5 }}>
                         {f.label}
-                        {isConflict && <span style={{ display: 'block', color: G, marginTop: 1, fontSize: 7 }}>⚠ CHOOSE</span>}
+                        {isConflict && <span style={{ display: 'block', color: adGold, marginTop: 1, fontSize: 7 }}>⚠ CHOOSE</span>}
                         {isIdentical && <span style={{ display: 'block', color: '#4ade80', marginTop: 1, fontSize: 7 }}>✓ SAME</span>}
                       </div>
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: isIdentical ? 'default' : 'pointer', opacity: !va ? 0.4 : 1 }}>
@@ -3730,7 +3736,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           checked={choice === 'a'}
                           onChange={() => { if (!isIdentical) setMergeChoices(p => ({ ...p, [f.key]: 'a' })) }}
                           style={{ marginTop: 3, flexShrink: 0, accentColor: G }} />
-                        <span style={{ fontFamily: crimson, fontSize: 13, color: va ? TXT : DIM, fontStyle: va ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
+                        <span style={{ fontFamily: crimson, fontSize: 13, color: va ? adTxt : adDim, fontStyle: va ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
                           {va ? trunc(va) : '(empty)'}
                         </span>
                       </label>
@@ -3739,7 +3745,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           checked={choice === 'b'}
                           onChange={() => { if (!isIdentical) setMergeChoices(p => ({ ...p, [f.key]: 'b' })) }}
                           style={{ marginTop: 3, flexShrink: 0, accentColor: G }} />
-                        <span style={{ fontFamily: crimson, fontSize: 13, color: vb ? TXT : DIM, fontStyle: vb ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
+                        <span style={{ fontFamily: crimson, fontSize: 13, color: vb ? adTxt : adDim, fontStyle: vb ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
                           {vb ? trunc(vb) : '(empty)'}
                         </span>
                       </label>
@@ -3758,7 +3764,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 if (previewFields.length === 0) return null
                 return (
                   <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 6 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', marginBottom: 10 }}>MERGED RECORD PREVIEW</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.12em', marginBottom: 10 }}>MERGED RECORD PREVIEW</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '6px 20px' }}>
                       {previewFields.slice(0, 6).map(f => {
                         const val = mergeChoices[f.key] === 'b'
@@ -3766,13 +3772,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           : String(mergeTarget.a[f.key] || '').trim()
                         return (
                           <div key={f.key} style={{ minWidth: 160 }}>
-                            <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.06em' }}>{f.label}: </span>
-                            <span style={{ fontFamily: crimson, fontSize: 13, color: TXT }}>{val.length > 60 ? val.slice(0, 60) + '…' : val}</span>
+                            <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.06em' }}>{f.label}: </span>
+                            <span style={{ fontFamily: crimson, fontSize: 13, color: adTxt }}>{val.length > 60 ? val.slice(0, 60) + '…' : val}</span>
                           </div>
                         )
                       })}
                       {previewFields.length > 6 && (
-                        <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>+{previewFields.length - 6} more fields</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: adDim }}>+{previewFields.length - 6} more fields</div>
                       )}
                     </div>
                   </div>
@@ -3786,10 +3792,10 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
               )}
 
               <button onClick={executeMerge} disabled={merging}
-                style={{ padding: '10px 28px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: merging ? 'default' : 'pointer', opacity: merging ? 0.6 : 1, fontWeight: 700 }}>
+                style={{ padding: '10px 28px', background: adGold, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: merging ? 'default' : 'pointer', opacity: merging ? 0.6 : 1, fontWeight: 700 }}>
                 {merging ? 'MERGING...' : '⚔ EXECUTE MERGE — KEEP A, DELETE B'}
               </button>
-              <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic', marginTop: 8 }}>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic', marginTop: 8 }}>
                 Record A will be updated with chosen fields. Record B will be permanently deleted.
               </div>
             </div>
@@ -3813,18 +3819,18 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                     }
                     scanDupes(pairs)
                   }}
-                  style={{ padding: '8px 20px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
+                  style={{ padding: '8px 20px', background: adGold, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
                   🔍 Scan {demons.length} Spirits
                 </button>
                 {dupeScanned && dupeGroups.filter(g => g.type === 'exact').length > 0 && (
                   <button onClick={bulkAutoResolve} disabled={bulkResolving}
-                    style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: bulkResolving ? 'default' : 'pointer', opacity: bulkResolving ? 0.6 : 1 }}>
+                    style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${adGold}`, borderRadius: 6, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: bulkResolving ? 'default' : 'pointer', opacity: bulkResolving ? 0.6 : 1 }}>
                     {bulkResolving ? 'RESOLVING...' : `⚡ AUTO-RESOLVE ${dupeGroups.filter(g => g.type === 'exact').length} EXACT`}
                   </button>
                 )}
                 {dupeScanned && dupeGroups.length > 0 && (
                   <button onClick={exportDuplicateCSV}
-                    style={{ padding: '8px 16px', background: 'none', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    style={{ padding: '8px 16px', background: 'none', border: `1px solid ${adBdr}`, borderRadius: 6, color: adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
                     📥 EXPORT CSV
                   </button>
                 )}
@@ -3838,11 +3844,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
               {/* Similar name search */}
               <div style={{ marginBottom: 24 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', marginBottom: 8 }}>SEARCH SIMILAR NAMES</div>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: adDim, letterSpacing: '0.1em', marginBottom: 8 }}>SEARCH SIMILAR NAMES</div>
                 <input
                   value={dupeSearch} onChange={e => { setDupeSearch(e.target.value); setSearchMergeA(null) }}
                   placeholder="Type a spirit name to find similar entries..."
-                  style={{ width: '100%', maxWidth: 420, boxSizing: 'border-box' as const, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none' }}
+                  style={{ width: '100%', maxWidth: 420, boxSizing: 'border-box' as const, background: adSurf2, border: `1px solid ${adBdr}`, borderRadius: 6, padding: '8px 12px', color: adTxt, fontFamily: crimson, fontSize: 14, outline: 'none' }}
                 />
                 {dupeSearch.trim().length >= 2 && (() => {
                   const q = normalizeSpiritName(dupeSearch.trim())
@@ -3853,35 +3859,35 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                     })
                     .sort((a, b) => nameSimilarity(q, normalizeSpiritName(b.name || '')) - nameSimilarity(q, normalizeSpiritName(a.name || '')))
                     .slice(0, 10)
-                  if (results.length < 2) return <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic', marginTop: 6 }}>No similar spirits found.</div>
+                  if (results.length < 2) return <div style={{ fontFamily: crimson, fontSize: 13, color: adDim, fontStyle: 'italic', marginTop: 6 }}>No similar spirits found.</div>
                   return (
-                    <div style={{ marginTop: 8, background: SURF, border: `1px solid ${BDR}`, borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{ marginTop: 8, background: adStatBg, border: `1px solid ${adBdr}`, borderRadius: 6, overflow: 'hidden' }}>
                       {searchMergeA && (
-                        <div style={{ padding: '8px 12px', background: 'rgba(201,168,76,0.08)', borderBottom: `1px solid ${BDR}`, fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em' }}>
+                        <div style={{ padding: '8px 12px', background: 'rgba(201,168,76,0.08)', borderBottom: `1px solid ${adBdr}`, fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.08em' }}>
                           A SELECTED: {searchMergeA.name} — now click another spirit to open merge panel
                         </div>
                       )}
                       {results.map((d, i) => {
                         const isSelA = searchMergeA?.airtableId === d.airtableId
                         return (
-                          <div key={d.airtableId} style={{ padding: '9px 12px', borderBottom: i < results.length - 1 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: isSelA ? 'rgba(201,168,76,0.06)' : 'transparent' }}>
+                          <div key={d.airtableId} style={{ padding: '9px 12px', borderBottom: i < results.length - 1 ? `1px solid ${adBdr}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: isSelA ? 'rgba(201,168,76,0.06)' : 'transparent' }}>
                             <div>
-                              <span style={{ fontFamily: crimson, fontSize: 14, color: TXT }}>{d.name}</span>
-                              {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, marginLeft: 8, border: `1px solid ${BDR}`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.05em' }}>{d.biblicalRank}</span>}
+                              <span style={{ fontFamily: crimson, fontSize: 14, color: adTxt }}>{d.name}</span>
+                              {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, marginLeft: 8, border: `1px solid ${adBdr}`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.05em' }}>{d.biblicalRank}</span>}
                             </div>
                             {isSelA ? (
                               <button onClick={() => setSearchMergeA(null)}
-                                style={{ padding: '4px 10px', background: 'none', border: `1px solid ${BDR}`, borderRadius: 3, color: DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer' }}>
+                                style={{ padding: '4px 10px', background: 'none', border: `1px solid ${adBdr}`, borderRadius: 3, color: adDim, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer' }}>
                                 DESELECT
                               </button>
                             ) : searchMergeA ? (
                               <button onClick={() => openMerge(`search-${searchMergeA.airtableId}-${d.airtableId}`, searchMergeA, d)}
-                                style={{ padding: '4px 12px', background: G, border: 'none', borderRadius: 3, color: BG, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700 }}>
+                                style={{ padding: '4px 12px', background: adGold, border: 'none', borderRadius: 3, color: '#0D0B14', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700 }}>
                                 ⚔ MERGE WITH A
                               </button>
                             ) : (
                               <button onClick={() => setSearchMergeA(d)}
-                                style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 3, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer' }}>
+                                style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 3, color: adGold, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer' }}>
                                 SELECT AS A
                               </button>
                             )}
@@ -3916,23 +3922,23 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   <div key={type} style={{ marginBottom: 28 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 10, color: COLORS[type], letterSpacing: '0.1em' }}>{LABELS[type]}</div>
-                      <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.06em' }}>{groups.length} GROUP{groups.length !== 1 ? 'S' : ''}</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.06em' }}>{groups.length} GROUP{groups.length !== 1 ? 'S' : ''}</div>
                     </div>
-                    <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic', marginBottom: 12 }}>{DESCS[type]}</div>
+                    <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic', marginBottom: 12 }}>{DESCS[type]}</div>
                     {groups.map(group => (
-                      <div key={group.key} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, marginBottom: 12, overflow: 'hidden', opacity: dupeResolving === group.key ? 0.5 : 1 }}>
-                        <div style={{ padding: '8px 14px', background: 'rgba(201,168,76,0.04)', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div key={group.key} style={{ background: adStatBg, border: `1px solid ${adBdr}`, borderRadius: 8, marginBottom: 12, overflow: 'hidden', opacity: dupeResolving === group.key ? 0.5 : 1 }}>
+                        <div style={{ padding: '8px 14px', background: 'rgba(201,168,76,0.04)', borderBottom: `1px solid ${adBdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span style={{ fontFamily: cinzel, fontSize: 10, color: COLORS[type], letterSpacing: '0.08em' }}>
                               {group.entries.map(e => e.name).join(' / ')}
                             </span>
-                            <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{group.entries.length} ENTRIES</span>
-                            {dupeResolving === group.key && <span style={{ fontFamily: cinzel, fontSize: 8, color: G }}>RESOLVING...</span>}
+                            <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim }}>{group.entries.length} ENTRIES</span>
+                            {dupeResolving === group.key && <span style={{ fontFamily: cinzel, fontSize: 8, color: adGold }}>RESOLVING...</span>}
                           </div>
                           <div style={{ display: 'flex', gap: 6 }}>
                             {group.entries.length === 2 && (
                               <button onClick={() => openMerge(group.key, group.entries[0], group.entries[1])}
-                                style={{ padding: '5px 14px', background: G, border: 'none', borderRadius: 4, color: BG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
+                                style={{ padding: '5px 14px', background: adGold, border: 'none', borderRadius: 4, color: '#0D0B14', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>
                                 ⚔ MERGE
                               </button>
                             )}
@@ -3950,18 +3956,18 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                                 setDupeResolving(null)
                               }}
                               disabled={!!dupeResolving}
-                              style={{ padding: '5px 12px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: dupeResolving ? 'default' : 'pointer' }}>
+                              style={{ padding: '5px 12px', background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 4, color: adDim, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: dupeResolving ? 'default' : 'pointer' }}>
                               Skip
                             </button>
                           </div>
                         </div>
                         {group.entries.map((d, idx) => (
-                          <div key={d.airtableId || idx} style={{ padding: '10px 14px', borderBottom: idx < group.entries.length - 1 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                          <div key={d.airtableId || idx} style={{ padding: '10px 14px', borderBottom: idx < group.entries.length - 1 ? `1px solid ${adBdr}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontFamily: crimson, fontSize: 14, color: TXT, marginBottom: 3 }}>{d.name}</div>
+                              <div style={{ fontFamily: crimson, fontSize: 14, color: adTxt, marginBottom: 3 }}>{d.name}</div>
                               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const, marginBottom: 4 }}>
-                                {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.biblicalRank}</span>}
-                                {d.kingdom && <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, border: `1px solid ${BDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.kingdom}</span>}
+                                {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, border: `1px solid ${adBdr}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.biblicalRank}</span>}
+                                {d.kingdom && <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, border: `1px solid ${adBdr}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{d.kingdom}</span>}
                               </div>
                               <div style={{ fontFamily: cinzel, fontSize: 8, color: 'rgba(201,168,76,0.3)', letterSpacing: '0.06em' }}>
                                 {d.createdTime ? new Date(d.createdTime).toLocaleDateString() : 'No date'} · {d.airtableId}
@@ -3970,7 +3976,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5, flexShrink: 0 }}>
                               {group.entries.length > 2 && group.entries.filter((_, j) => j !== idx).map((other, oj) => (
                                 <button key={oj} onClick={() => openMerge(group.key, d, other)}
-                                  style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 3, color: G, fontFamily: cinzel, fontSize: 7, letterSpacing: '0.05em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                                  style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 3, color: adGold, fontFamily: cinzel, fontSize: 7, letterSpacing: '0.05em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
                                   MERGE ↔ {other.name.slice(0, 18)}{other.name.length > 18 ? '…' : ''}
                                 </button>
                               ))}
@@ -3996,14 +4002,14 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
       {/* AI Enhancement Panel */}
       {showAiPanel && aiTargetDemon && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, background: BG, borderLeft: `1px solid ${BDR}`, zIndex: 9999, display: 'flex', flexDirection: 'column' as const, boxShadow: '-4px 0 32px rgba(0,0,0,0.4)' }}>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, background: adBg, borderLeft: `1px solid ${adBdr}`, zIndex: 9999, display: 'flex', flexDirection: 'column' as const, boxShadow: '-4px 0 32px rgba(0,0,0,0.4)' }}>
           {/* Header */}
-          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${adBdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 3 }}>✦ AI SPIRIT RESEARCH</div>
-              <div style={{ fontFamily: crimson, fontSize: 16, color: TXT, fontWeight: 600 }}>{aiTargetDemon.name}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: adGold, letterSpacing: '0.12em', marginBottom: 3 }}>✦ AI SPIRIT RESEARCH</div>
+              <div style={{ fontFamily: crimson, fontSize: 16, color: adTxt, fontWeight: 600 }}>{aiTargetDemon.name}</div>
             </div>
-            <button onClick={() => { stopEnrichPoll(); setShowAiPanel(false) }} style={{ background: 'none', border: 'none', color: DIM, fontSize: 20, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
+            <button onClick={() => { stopEnrichPoll(); setShowAiPanel(false) }} style={{ background: 'none', border: 'none', color: adDim, fontSize: 20, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: '20px' }}>
@@ -4011,13 +4017,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             {/* IDLE */}
             {aiPhase === 'idle' && (
               <div style={{ textAlign: 'center' as const, padding: '48px 20px' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 28, color: G, marginBottom: 16 }}>✦</div>
-                <div style={{ fontFamily: cinzel, fontSize: 13, color: TXT, letterSpacing: '0.06em', marginBottom: 10 }}>{aiTargetDemon.name}</div>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', marginBottom: 28, lineHeight: 1.6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 28, color: adGold, marginBottom: 16 }}>✦</div>
+                <div style={{ fontFamily: cinzel, fontSize: 13, color: adTxt, letterSpacing: '0.06em', marginBottom: 10 }}>{aiTargetDemon.name}</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, fontStyle: 'italic', marginBottom: 28, lineHeight: 1.6 }}>
                   AI will research this entity across Scripture, archaeology, Dead Sea Scrolls, patristics, and deliverance ministry sources, filling only empty fields.
                 </div>
                 <button onClick={startAiResearch}
-                  style={{ padding: '12px 28px', background: G, border: 'none', borderRadius: 6, color: BG, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
+                  style={{ padding: '12px 28px', background: adGold, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
                   ✦ Run AI Research
                 </button>
               </div>
@@ -4026,20 +4032,20 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             {/* LOADING */}
             {aiPhase === 'loading' && (
               <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: adGold, letterSpacing: '0.12em', marginBottom: 12 }}>
                   {enrichJobStage === 'queued' || enrichJobStage === '' ? '◉ QUEUED...' : `◉ ${enrichJobStage.toUpperCase()}...`}
                 </div>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 14 }}>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 14 }}>
                   {enrichJobStage === 'queued' || enrichJobStage === '' || enrichJobStage === 'preparing'
                     ? 'Assembling ministry library context...'
                     : 'Consulting Scripture, Dead Sea Scrolls, archaeology,\nand deliverance ministry sources'}
                 </div>
                 {enrichJobProgress > 0 && (
                   <div style={{ margin: '12px auto', width: 180, height: 4, background: 'rgba(201,168,76,0.15)', borderRadius: 2 }}>
-                    <div style={{ height: '100%', width: `${enrichJobProgress}%`, background: G, borderRadius: 2, transition: 'width 0.5s' }} />
+                    <div style={{ height: '100%', width: `${enrichJobProgress}%`, background: adGold, borderRadius: 2, transition: 'width 0.5s' }} />
                   </div>
                 )}
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: adDim, letterSpacing: '0.1em' }}>
                   Running in background — takes 30-60 seconds.
                 </div>
               </div>
@@ -4063,10 +4069,10 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
               return (
                 <div>
                   {/* Summary bar */}
-                  <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '12px 14px', marginBottom: 14 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>
+                  <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid ${adBdr}`, borderRadius: 8, padding: '12px 14px', marginBottom: 14 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.08em', marginBottom: 10 }}>
                       {fieldKeys.length} missing field{fieldKeys.length !== 1 ? 's' : ''} found
-                      {pendingCount > 0 && <span style={{ color: DIM }}> · {pendingCount} pending</span>}
+                      {pendingCount > 0 && <span style={{ color: adDim }}> · {pendingCount} pending</span>}
                       {acceptedCount > 0 && <span style={{ color: '#4ade80' }}> · {acceptedCount} accepted</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
@@ -4081,11 +4087,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={saveAiAccepted} disabled={acceptedCount === 0}
-                        style={{ flex: 1, padding: '9px', background: acceptedCount > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: acceptedCount > 0 ? BG : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: acceptedCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                        style={{ flex: 1, padding: '9px', background: acceptedCount > 0 ? adGold : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: acceptedCount > 0 ? '#0D0B14' : adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: acceptedCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
                         ✦ Apply {acceptedCount} Accepted Field{acceptedCount !== 1 ? 's' : ''}
                       </button>
                       <button onClick={startAiResearch} title="Re-run research"
-                        style={{ padding: '9px 13px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 12, cursor: 'pointer' }}>
+                        style={{ padding: '9px 13px', background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 6, color: adDim, fontFamily: cinzel, fontSize: 12, cursor: 'pointer' }}>
                         ↺
                       </button>
                     </div>
@@ -4097,9 +4103,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                     const isBool = AI_BOOL_FIELDS.has(key)
                     const dec = fieldDecisions[key] || { status: 'pending' as const, value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''), editing: false }
                     return (
-                      <div key={key} style={{ marginBottom: 10, background: dec.status === 'accepted' ? 'rgba(74,222,128,0.04)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.03)' : 'rgba(201,168,76,0.03)', border: `1px solid ${dec.status === 'accepted' ? 'rgba(74,222,128,0.25)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.2)' : BDR}`, borderRadius: 8, padding: '12px 14px', opacity: dec.status === 'skipped' ? 0.5 : 1, transition: 'all 0.15s' }}>
+                      <div key={key} style={{ marginBottom: 10, background: dec.status === 'accepted' ? 'rgba(74,222,128,0.04)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.03)' : 'rgba(201,168,76,0.03)', border: `1px solid ${dec.status === 'accepted' ? 'rgba(74,222,128,0.25)' : dec.status === 'skipped' ? 'rgba(248,113,113,0.2)' : adBdr}`, borderRadius: 8, padding: '12px 14px', opacity: dec.status === 'skipped' ? 0.5 : 1, transition: 'all 0.15s' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em' }}>{AI_LABELS[key]}</div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.08em' }}>{AI_LABELS[key]}</div>
                           <div style={{ display: 'flex', gap: 4 }}>
                             {!isBool && dec.status !== 'accepted' && (
                               <button onClick={() => setDecision(key, 'accepted')}
@@ -4109,7 +4115,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                             )}
                             {!isBool && !dec.editing && (
                               <button onClick={() => setEditing(key, true)}
-                                style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR}`, borderRadius: 4, color: G, fontFamily: cinzel, cursor: 'pointer' }}>
+                                style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${adBdr}`, borderRadius: 4, color: adGold, fontFamily: cinzel, cursor: 'pointer' }}>
                                 ✏ Edit
                               </button>
                             )}
@@ -4126,7 +4132,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                               </button>
                             ) : (
                               <button onClick={() => setDecision(key, 'pending')}
-                                style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, cursor: 'pointer' }}>
+                                style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 4, color: adDim, fontFamily: cinzel, cursor: 'pointer' }}>
                                 ↩ Undo
                               </button>
                             )}
@@ -4135,19 +4141,19 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                         {isBool ? (
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={() => { setEditValue(key, 'Yes'); setDecision(key, 'accepted') }}
-                              style={{ padding: '6px 18px', background: dec.value === 'Yes' ? 'rgba(74,222,128,0.25)' : 'transparent', border: `1px solid ${dec.value === 'Yes' ? 'rgba(74,222,128,0.6)' : BDR}`, borderRadius: 5, color: dec.value === 'Yes' ? '#4ade80' : DIM, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                              style={{ padding: '6px 18px', background: dec.value === 'Yes' ? 'rgba(74,222,128,0.25)' : 'transparent', border: `1px solid ${dec.value === 'Yes' ? 'rgba(74,222,128,0.6)' : adBdr}`, borderRadius: 5, color: dec.value === 'Yes' ? '#4ade80' : adDim, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em' }}>
                               Yes
                             </button>
                             <button onClick={() => { setEditValue(key, 'No'); setDecision(key, 'accepted') }}
-                              style={{ padding: '6px 18px', background: dec.value === 'No' ? 'rgba(248,113,113,0.2)' : 'transparent', border: `1px solid ${dec.value === 'No' ? 'rgba(248,113,113,0.5)' : BDR}`, borderRadius: 5, color: dec.value === 'No' ? '#f87171' : DIM, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                              style={{ padding: '6px 18px', background: dec.value === 'No' ? 'rgba(248,113,113,0.2)' : 'transparent', border: `1px solid ${dec.value === 'No' ? 'rgba(248,113,113,0.5)' : adBdr}`, borderRadius: 5, color: dec.value === 'No' ? '#f87171' : adDim, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', letterSpacing: '0.06em' }}>
                               No
                             </button>
                           </div>
                         ) : dec.editing ? (
                           <textarea value={dec.value} onChange={e => setEditValue(key, e.target.value)} rows={4}
-                            style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
+                            style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.05)', border: `1px solid ${adBdr}`, borderRadius: 6, padding: '8px 10px', color: adTxt, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
                         ) : (
-                          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.6 }}>{dec.value}</div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: adTxt, lineHeight: 1.6 }}>{dec.value}</div>
                         )}
                         {dec.status === 'accepted' && !dec.editing && (
                           <div style={{ fontSize: 9, color: '#4ade80', fontFamily: cinzel, letterSpacing: '0.06em', marginTop: 6 }}>✓ Will be saved</div>
@@ -4162,16 +4168,16 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             {/* SAVING */}
             {aiPhase === 'saving' && (
               <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em' }}>⏳ SAVING TO AIRTABLE...</div>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: adGold, letterSpacing: '0.12em' }}>⏳ SAVING TO AIRTABLE...</div>
               </div>
             )}
 
             {/* DONE */}
             {aiPhase === 'done' && (
               <div>
-                <div style={{ textAlign: 'center' as const, padding: '28px 20px 20px', borderBottom: `1px solid ${BDR}`, marginBottom: 16 }}>
+                <div style={{ textAlign: 'center' as const, padding: '28px 20px 20px', borderBottom: `1px solid ${adBdr}`, marginBottom: 16 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 14, color: '#4ade80', letterSpacing: '0.08em', marginBottom: 6 }}>✓ Research Applied</div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>Applied {aiSavedLog.length} of {Object.keys(aiResult).length} proposed</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: adDim }}>Applied {aiSavedLog.length} of {Object.keys(aiResult).length} proposed</div>
                   {aiUsedLibrary && (
                     <div style={{ marginTop: 10, fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.1em' }}>
                       ✦ ENHANCED WITH {aiLibrarySourceCount} PASSAGE{aiLibrarySourceCount !== 1 ? 'S' : ''} FROM YOUR MINISTRY LIBRARY
@@ -4186,7 +4192,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   ))}
                 </div>
                 <button onClick={() => { setAiPhase('idle'); setAiResult({}); setFieldDecisions({}); setAiSavedLog([]) }}
-                  style={{ width: '100%', padding: '10px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  style={{ width: '100%', padding: '10px', background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 6, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
                   ↺ Research Again
                 </button>
               </div>
@@ -4199,7 +4205,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   ⚠ {aiError}
                 </div>
                 <button onClick={startAiResearch}
-                  style={{ width: '100%', padding: '10px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  style={{ width: '100%', padding: '10px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${adBdr}`, borderRadius: 6, color: adGold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
                   ↺ Try Again
                 </button>
               </div>
