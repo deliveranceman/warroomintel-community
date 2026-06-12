@@ -17,7 +17,8 @@ const TXT    = '#e8dcc8'
 const DIM    = '#7a6d58'
 const cinzel  = "'Cinzel', serif"
 const crimson = "'Crimson Pro', serif"
-const STREAM_APP_ID = '1609751'
+const STREAM_APP_ID     = '1609751'
+const BATCH_ENRICH_CAP  = 25
 
 const ATM_COLORS_ADMIN: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
   green:  { bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   text: '#4ade80', dot: '#22c55e', label: 'Covered'  },
@@ -1417,12 +1418,6 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
   )
 }
 
-const FIELD_GROUPS = [
-  ['biblicalRank', 'caseType', 'phonetic', 'isGenerational', 'isTerritorial', 'clusterSpirits', 'relatedSpirits'],
-  ['sessionIndicators', 'resistanceSignature', 'legalRights', 'transmissionVectors', 'entryPoints', 'manifestation'],
-  ['etymologyNotes', 'archaeologyNotes', 'description', 'prayerPoints', 'aftercareNotes', 'scriptureContext'],
-]
-
 // ─── BODY MAP ADMIN ──────────────────────────────────────────────────────────
 
 const BM_REGION_MAP: Record<string, string> = {
@@ -2231,7 +2226,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [enrichJobId, setEnrichJobId]             = useState<string | null>(null)
   const [enrichJobStage, setEnrichJobStage]       = useState('')
   const [enrichJobProgress, setEnrichJobProgress] = useState(0)
-  const enrichPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const enrichPollRef      = useRef<ReturnType<typeof setInterval> | null>(null)
+  const batchPollRef       = useRef<ReturnType<typeof setInterval> | null>(null)
+  const batchPollInFlight  = useRef(false)
 
   // AI Backfill state
   const [backfillRunning, setBackfillRunning]   = useState(false)
@@ -2251,10 +2248,14 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [selectedSpirits, setSelectedSpirits]     = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll]                 = useState(false)
   const [needsEnrichFilter, setNeedsEnrichFilter] = useState(false)
-  const [enrichProgress, setEnrichProgress]       = useState<{
-    current: number; total: number; currentName: string; done: boolean;
-    updated: number; failed: number; skipped: number
-  } | null>(null)
+  type BatchSpiritJob = {
+    spiritId: string; spiritName: string; slug: string
+    jobId: string | null; stage: string; progress: number
+    status: 'pending' | 'queued' | 'running' | 'complete' | 'failed'
+    error?: string; appliedFields?: string[]
+  }
+  const [batchJobs, setBatchJobs]                 = useState<BatchSpiritJob[] | null>(null)
+  const batchJobsRef                              = useRef<BatchSpiritJob[] | null>(null)
 
   // Sub-section navigation
   const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates' | 'body-map'>('database')
@@ -2634,95 +2635,134 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     }
   }
 
+  function stopBatchPoll() {
+    if (batchPollRef.current) {
+      clearInterval(batchPollRef.current)
+      batchPollRef.current = null
+    }
+    batchPollInFlight.current = false
+  }
+
   async function handleEnrichSelected() {
-    const ids = Array.from(selectedSpirits)
-    setEnrichProgress({ current: 0, total: ids.length, currentName: '', done: false, updated: 0, failed: 0, skipped: 0 })
+    const allIds = Array.from(selectedSpirits)
+    const ids    = allIds.slice(0, BATCH_ENRICH_CAP)
 
-    let updated = 0, failed = 0, skipped = 0
+    // Build initial per-spirit rows
+    const initial: BatchSpiritJob[] = ids.map(slug => {
+      const spirit = (demons as any[]).find(s => s.slug === slug)
+      return {
+        spiritId:   spirit?.id   || '',
+        spiritName: spirit?.name || slug,
+        slug,
+        jobId: null, stage: '', progress: 0, status: 'pending',
+      }
+    })
+    batchJobsRef.current = initial
+    setBatchJobs([...initial])
 
-    for (let i = 0; i < ids.length; i++) {
-      const spirit = demons.find(s => s.slug === ids[i])
-      if (!spirit) continue
-
-      setEnrichProgress(p => p ? { ...p, current: i + 1, currentName: spirit.name ?? '' } : p)
-
+    // Queue jobs sequentially — 250ms delay to avoid hammering job-start
+    const working = [...initial]
+    for (let i = 0; i < working.length; i++) {
+      const entry = working[i]
+      if (!entry.spiritId) {
+        working[i] = { ...entry, status: 'failed', error: 'spirit id missing from local state' }
+        batchJobsRef.current = [...working]; setBatchJobs([...working])
+        continue
+      }
       try {
         const token = await getToken()
-        const allFields: Record<string, any> = {}
-
-        // Call the enhance endpoint once per field group — mirrors the individual AI button (FIELD_GROUPS × 3 calls)
-        // Image URLs are fetched automatically inside ai-spirit-enhance.ts via Wikipedia if available
-        for (let gi = 0; gi < FIELD_GROUPS.length; gi++) {
-          const group = FIELD_GROUPS[gi]
-          try {
-            const controller = new AbortController()
-            const timer = setTimeout(() => controller.abort(), 25000)
-
-            const res = await fetch('/api/ai-spirit-enhance-background', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ name: spirit.name, existing: spirit, fields: group }),
-              signal: controller.signal,
-            })
-            clearTimeout(timer)
-
-            if (res.ok) {
-              const text = await res.text()
-              if (!text || text.trim() === '') {
-                console.warn(`[batch-enrich] Group ${gi + 1} empty body for: ${spirit.name}`)
-                continue
-              }
-              let d: any
-              try { d = JSON.parse(text) } catch {
-                console.warn(`[batch-enrich] Group ${gi + 1} non-JSON for: ${spirit.name}`)
-                continue
-              }
-              if (d.fields && Object.keys(d.fields).length > 0) {
-                Object.assign(allFields, d.fields)
-                console.log(`[batch-enrich] Group ${gi + 1} fields:`, Object.keys(d.fields))
-              }
-            } else {
-              console.warn(`[batch-enrich] Group ${gi + 1} HTTP ${res.status} for: ${spirit.name}`)
-            }
-          } catch (groupErr: any) {
-            if (groupErr.name === 'AbortError') {
-              console.warn(`[batch-enrich] Group ${gi + 1} timeout for: ${spirit.name}`)
-            } else {
-              console.warn(`[batch-enrich] Group ${gi + 1} error for: ${spirit.name}`, groupErr.message)
-            }
-            // Continue to next group even if this one fails
-          }
-        }
-
-        if (Object.keys(allFields).length > 0) {
-          // Auto-save all returned fields — no review panel in batch mode
-          const saveToken = await getToken()
-          const saveRes = await fetch('/api/admin-demon', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${saveToken}` },
-            body: JSON.stringify({ id: spirit.airtableId, slug: spirit.slug, fields: allFields }),
-          })
-          if (saveRes.ok) updated++
-          else failed++
+        const res   = await fetch('/api/job-start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body:   JSON.stringify({ jobType: 'spirit_enrich', spiritId: entry.spiritId }),
+        })
+        const d = await res.json()
+        if (res.ok) {
+          working[i] = { ...entry, jobId: d.jobId, status: 'queued', stage: 'queued' }
         } else {
-          skipped++
+          working[i] = { ...entry, status: 'failed', error: d.error || 'queue failed' }
         }
-      } catch (err: any) {
-        console.warn(`[batch-enrich] Error on spirit: ${spirit.name}`, err.message)
-        failed++
+      } catch (e: any) {
+        working[i] = { ...entry, status: 'failed', error: e.message || 'network error' }
       }
-
-      setEnrichProgress(p => p ? { ...p, updated, failed, skipped } : p)
-
-      if (i < ids.length - 1) {
-        await new Promise(r => setTimeout(r, 3000))
-      }
+      batchJobsRef.current = [...working]; setBatchJobs([...working])
+      if (i < working.length - 1) await new Promise(r => setTimeout(r, 250))
     }
 
-    setEnrichProgress(p => p ? { ...p, done: true } : p)
-    await fetchDemons()
-    setSelectedSpirits(new Set())
-    setSelectAll(false)
+    // Poll every 4s — all non-terminal jobs polled concurrently
+    stopBatchPoll()
+    batchPollRef.current = setInterval(() => {
+      if (batchPollInFlight.current) return
+      batchPollInFlight.current = true
+      void (async () => {
+        try {
+          const current = batchJobsRef.current
+          if (!current) { stopBatchPoll(); return }
+
+          const nonTerminal = current.filter(j => j.jobId && j.status !== 'complete' && j.status !== 'failed')
+          if (nonTerminal.length === 0) { stopBatchPoll(); fetchDemons(); return }
+
+          const token   = await getToken()
+          const updated = [...current]
+
+          // Poll all non-terminal concurrently; apply each that completes
+          const pollResults = await Promise.allSettled(
+            nonTerminal.map(j =>
+              fetch(`/api/job-status?jobId=${j.jobId}`, { headers: { Authorization: `Bearer ${token}` } })
+                .then(r => r.ok ? r.json() : null)
+            )
+          )
+
+          for (let i = 0; i < nonTerminal.length; i++) {
+            const job    = nonTerminal[i]
+            const idx    = updated.findIndex(j => j.slug === job.slug)
+            if (idx === -1) continue
+            const result = pollResults[i]
+            if (result.status !== 'fulfilled' || !result.value) continue
+            const pd = result.value
+
+            // Stage/progress update (visible even before terminal)
+            updated[idx] = {
+              ...updated[idx],
+              stage:    pd.stage    || updated[idx].stage,
+              progress: pd.progress ?? updated[idx].progress,
+            }
+
+            if (pd.status === 'complete') {
+              // Auto-apply: no applyFields → all proposed fields
+              try {
+                const applyToken = await getToken()
+                const ar = await fetch('/api/spirit-enrich-apply', {
+                  method:  'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${applyToken}` },
+                  body:    JSON.stringify({ jobId: job.jobId }),
+                })
+                const ad = await ar.json()
+                if (ar.ok) {
+                  updated[idx] = { ...updated[idx], status: 'complete', progress: 100, appliedFields: ad.updatedFields || [] }
+                } else {
+                  updated[idx] = { ...updated[idx], status: 'failed', error: ad.error || 'apply failed' }
+                }
+              } catch (ae: any) {
+                updated[idx] = { ...updated[idx], status: 'failed', error: ae.message || 'apply error' }
+              }
+            } else if (pd.status === 'failed') {
+              updated[idx] = { ...updated[idx], status: 'failed', error: pd.error_message || 'job failed' }
+            } else {
+              updated[idx] = { ...updated[idx], status: pd.status || updated[idx].status }
+            }
+          }
+
+          batchJobsRef.current = updated
+          setBatchJobs([...updated])
+          if (updated.every(j => j.status === 'complete' || j.status === 'failed')) {
+            stopBatchPoll(); fetchDemons()
+          }
+        } finally {
+          batchPollInFlight.current = false
+        }
+      })()
+    }, 4000)
   }
 
   async function fetchPosts() {
@@ -3172,34 +3212,49 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       )}
 
       {/* Batch enrich progress panel */}
-      {enrichProgress && (
-        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>
-            {enrichProgress.done ? 'ENRICHMENT COMPLETE' : `ENRICHING — ${enrichProgress.current} / ${enrichProgress.total}`}
-          </div>
-          {!enrichProgress.done && (
-            <>
-              <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 4, height: 6, marginBottom: 12 }}>
-                <div style={{ width: `${enrichProgress.total ? (enrichProgress.current / enrichProgress.total) * 100 : 0}%`, height: '100%', background: G, borderRadius: 4, transition: 'width 0.4s ease' }} />
+      {batchJobs && (() => {
+        const done     = batchJobs.every(j => j.status === 'complete' || j.status === 'failed')
+        const applied  = batchJobs.filter(j => j.status === 'complete').length
+        const failed   = batchJobs.filter(j => j.status === 'failed').length
+        const inFlight = batchJobs.length - applied - failed
+        return (
+          <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em' }}>
+                {done
+                  ? `ENRICHMENT COMPLETE — Applied ${applied} of ${batchJobs.length}${failed > 0 ? ` (${failed} failed)` : ''}`
+                  : `ENRICHING — ${applied + failed} / ${batchJobs.length} done · ${inFlight} in flight`}
               </div>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: '#b8a98a', marginBottom: 8 }}>
-                Processing: <strong>{enrichProgress.currentName}</strong>
-              </div>
-            </>
-          )}
-          <div style={{ display: 'flex', gap: 20, fontSize: 12, fontFamily: cinzel, letterSpacing: '0.08em' }}>
-            <span style={{ color: '#4CAF7D' }}>✓ {enrichProgress.updated} updated</span>
-            <span style={{ color: '#b8a98a' }}>↷ {enrichProgress.skipped} skipped</span>
-            <span style={{ color: '#D4524A' }}>✗ {enrichProgress.failed} failed</span>
+              <button
+                onClick={() => { stopBatchPoll(); setBatchJobs(null); batchJobsRef.current = null }}
+                style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, padding: '3px 10px', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                {done ? 'Dismiss' : 'Cancel'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+              {batchJobs.map(job => (
+                <div key={job.slug} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: `1px solid rgba(201,168,76,0.07)` }}>
+                  <span style={{ width: 14, fontSize: 10, flexShrink: 0, color: job.status === 'complete' ? '#4ade80' : job.status === 'failed' ? '#f87171' : job.status === 'pending' ? DIM : G }}>
+                    {job.status === 'complete' ? '✓' : job.status === 'failed' ? '✗' : job.status === 'pending' ? '·' : '◉'}
+                  </span>
+                  <span style={{ fontFamily: crimson, fontSize: 13, color: TXT, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {job.spiritName}
+                  </span>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: job.status === 'failed' ? '#f87171' : DIM, letterSpacing: '0.05em', flexShrink: 0, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {job.status === 'complete'
+                      ? `applied · ${job.appliedFields?.length ?? 0} fields`
+                      : job.status === 'failed'
+                        ? (job.error || 'failed').slice(0, 45)
+                        : job.stage && job.stage !== 'queued' && job.stage !== 'pending'
+                          ? `${job.stage}${job.progress ? ` · ${job.progress}%` : ''}`
+                          : job.status}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-          {enrichProgress.done && (
-            <button onClick={() => setEnrichProgress(null)}
-              style={{ marginTop: 12, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: DIM, background: 'transparent', border: 'none', cursor: 'pointer' }}>
-              Dismiss
-            </button>
-          )}
-        </div>
-      )}
+        )
+      })()}
 
       {/* Table toolbar */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' as const }}>
@@ -3474,22 +3529,33 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       </div>
 
       {/* Floating selection action bar */}
-      {selectedSpirits.size > 0 && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1508', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16, zIndex: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>
-          <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em' }}>
-            {selectedSpirits.size} SELECTED
-          </span>
-          <button onClick={handleEnrichSelected}
-            disabled={!!enrichProgress && !enrichProgress.done}
-            style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: G, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', opacity: (enrichProgress && !enrichProgress.done) ? 0.5 : 1 }}>
-            🧠 ENRICH SELECTED ({selectedSpirits.size})
-          </button>
-          <button onClick={() => { setSelectedSpirits(new Set()); setSelectAll(false) }}
-            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: '#b8a98a', letterSpacing: '0.08em' }}>
-            CLEAR
-          </button>
-        </div>
-      )}
+      {selectedSpirits.size > 0 && (() => {
+        const batchInFlight = batchJobs !== null && !batchJobs.every(j => j.status === 'complete' || j.status === 'failed')
+        const overCap       = selectedSpirits.size > BATCH_ENRICH_CAP
+        return (
+          <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1508', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16, zIndex: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em' }}>
+                {selectedSpirits.size} SELECTED
+              </span>
+              {overCap && (
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.06em' }}>
+                  cap {BATCH_ENRICH_CAP} — first {BATCH_ENRICH_CAP} will run
+                </span>
+              )}
+            </div>
+            <button onClick={handleEnrichSelected}
+              disabled={batchInFlight}
+              style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', background: G, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: batchInFlight ? 'not-allowed' : 'pointer', opacity: batchInFlight ? 0.5 : 1 }}>
+              🧠 ENRICH SELECTED ({Math.min(selectedSpirits.size, BATCH_ENRICH_CAP)})
+            </button>
+            <button onClick={() => { setSelectedSpirits(new Set()); setSelectAll(false) }}
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: '#b8a98a', letterSpacing: '0.08em' }}>
+              CLEAR
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Post Briefing form */}
       <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
