@@ -26,7 +26,7 @@ import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
 import CallOverlay from '../components/CallOverlay'
 import AudioPrayerCallOverlay from '../components/AudioPrayerCallOverlay'
-import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon } from 'lucide-react'
+import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon, SlidersHorizontal } from 'lucide-react'
 import { searchHelp, getArticlesByCategory } from '@/utils/helpSearch'
 import { helpCategories, helpArticles, type HelpArticle } from '@/data/helpContent'
 
@@ -3862,7 +3862,7 @@ function parseSpiritNames(text: string): string[] {
     .filter((p, i, arr) => arr.indexOf(p) === i)
 }
 
-function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [], setActiveSection, setDossierTabBarHidden }: {
+function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [], setActiveSection, setDossierTabBarHidden, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
   theme: string
   isMobile: boolean
   isTablet: boolean
@@ -3871,6 +3871,9 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   demons?: any[]
   setActiveSection?: (s: string) => void
   setDossierTabBarHidden?: (v: boolean) => void
+  filterSheetOpen?: boolean
+  setFilterSheetOpen?: (v: boolean) => void
+  setFilterCount?: (n: number) => void
 }) {
   const { getToken } = useAuth()
   const { user } = useUser()
@@ -3919,6 +3922,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [sigilLightboxOpen])
+
+  useEffect(() => {
+    const n = [categoryFilter !== null, rankFilter !== '', generationalFilter, territorialFilter].filter(Boolean).length
+    setFilterCount?.(n)
+  }, [categoryFilter, rankFilter, generationalFilter, territorialFilter])
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -4130,54 +4138,79 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         <p style={{ fontSize: 11, color: dbDim, marginTop: 4, marginBottom: 8 }}>
           Search by name, symptom, manifestation, entry point, or emotional pattern
         </p>
-        {/* Hierarchy category filter pills */}
-        <div className="filter-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 10, paddingBottom: 8 }}>
-          {HIERARCHY_CATEGORIES.map(cat => {
-            const isAll = cat === 'All'
-            const active = isAll ? !categoryFilter : categoryFilter === cat
-            const colors = isAll
-              ? { bg: '#1a1625', text: '#C9A84C', border: '#C9A84C' }
-              : (HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression'])
-            return (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(isAll ? null : cat)}
-                style={{
-                  padding: '4px 12px', borderRadius: 999, fontSize: 11,
-                  cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em',
-                  border: `1px solid ${colors.border}`,
-                  backgroundColor: active ? colors.border : 'transparent',
-                  color: active ? '#0D0B14' : colors.text,
-                  transition: 'all 0.15s ease',
-                  fontWeight: active ? 600 : 400,
-                  flexShrink: 0, whiteSpace: 'nowrap' as const,
-                }}
-              >
-                {cat}
+        {/* Mobile: active-filter removable chips */}
+        {isMobile && (categoryFilter || rankFilter || generationalFilter || territorialFilter) && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, marginTop: 6, paddingBottom: 4 }}>
+            {categoryFilter && (
+              <button onClick={() => setCategoryFilter(null)} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${G}`, background: 'rgba(201,168,76,0.12)', color: G, whiteSpace: 'nowrap' as const }}>
+                {categoryFilter} <span style={{ fontSize: 12, lineHeight: 1 }}>×</span>
               </button>
-            )
-          })}
-        </div>
-        {/* Biblical rank filter */}
-        <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 8 }}>
-          {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
-            <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
-              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
-              {rank}
+            )}
+            {rankFilter && (
+              <button onClick={() => setRankFilter('')} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${G}`, background: 'rgba(201,168,76,0.12)', color: G, whiteSpace: 'nowrap' as const }}>
+                {rankFilter} <span style={{ fontSize: 12, lineHeight: 1 }}>×</span>
+              </button>
+            )}
+            {generationalFilter && (
+              <button onClick={() => setGenerationalFilter(false)} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: '1px solid #7a9e7e', background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', whiteSpace: 'nowrap' as const }}>
+                🧬 Generational <span style={{ fontSize: 12, lineHeight: 1 }}>×</span>
+              </button>
+            )}
+            {territorialFilter && (
+              <button onClick={() => setTerritorialFilter(false)} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: '1px solid #8B9DCA', background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', whiteSpace: 'nowrap' as const }}>
+                🗺 Territorial <span style={{ fontSize: 12, lineHeight: 1 }}>×</span>
+              </button>
+            )}
+          </div>
+        )}
+        {/* Hierarchy category + rank + traits chip rows — desktop/tablet only */}
+        {!isMobile && (<>
+          <div className="filter-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 10, paddingBottom: 8 }}>
+            {HIERARCHY_CATEGORIES.map(cat => {
+              const isAll = cat === 'All'
+              const active = isAll ? !categoryFilter : categoryFilter === cat
+              const colors = isAll
+                ? { bg: '#1a1625', text: '#C9A84C', border: '#C9A84C' }
+                : (HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression'])
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(isAll ? null : cat)}
+                  style={{
+                    padding: '4px 12px', borderRadius: 999, fontSize: 11,
+                    cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em',
+                    border: `1px solid ${colors.border}`,
+                    backgroundColor: active ? colors.border : 'transparent',
+                    color: active ? '#0D0B14' : colors.text,
+                    transition: 'all 0.15s ease',
+                    fontWeight: active ? 600 : 400,
+                    flexShrink: 0, whiteSpace: 'nowrap' as const,
+                  }}
+                >
+                  {cat}
+                </button>
+              )
+            })}
+          </div>
+          <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 8 }}>
+            {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
+              <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
+                style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
+                {rank}
+              </button>
+            ))}
+          </div>
+          <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' as const, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 6 }}>
+            <button onClick={() => setGenerationalFilter(f => !f)}
+              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
+              🧬 Generational
             </button>
-          ))}
-        </div>
-        {/* Generational / Territorial badges */}
-        <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' as const, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 6 }}>
-          <button onClick={() => setGenerationalFilter(f => !f)}
-            style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
-            🧬 Generational
-          </button>
-          <button onClick={() => setTerritorialFilter(f => !f)}
-            style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${territorialFilter ? '#8B9DCA' : dbBorder}`, background: territorialFilter ? 'rgba(139,157,202,0.15)' : 'transparent', color: territorialFilter ? '#8B9DCA' : dbDim }}>
-            🗺 Territorial
-          </button>
-        </div>
+            <button onClick={() => setTerritorialFilter(f => !f)}
+              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${territorialFilter ? '#8B9DCA' : dbBorder}`, background: territorialFilter ? 'rgba(139,157,202,0.15)' : 'transparent', color: territorialFilter ? '#8B9DCA' : dbDim }}>
+              🗺 Territorial
+            </button>
+          </div>
+        </>)}
       </div>
 
       {/* Count bar */}
@@ -5431,6 +5464,75 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
       })()}
 
       {/* Intel Archive Legend */}
+      {/* Mobile filter sheet */}
+      {isMobile && filterSheetOpen && (
+        <>
+          <div onClick={() => setFilterSheetOpen?.(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 5000 }} />
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5001, background: dbSurf, borderRadius: '16px 16px 0 0', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)', display: 'flex', flexDirection: 'column' as const, maxHeight: '80dvh' }}>
+            {/* Sheet header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: `1px solid ${dbBorder}`, flexShrink: 0 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.14em' }}>FILTERS</span>
+              <button onClick={() => setFilterSheetOpen?.(false)} style={{ background: 'none', border: 'none', color: dbDim, fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1 }}>×</button>
+            </div>
+            {/* Scrollable filter content */}
+            <div style={{ overflowY: 'auto' as const, flex: 1, padding: '16px 20px' }}>
+              {/* CATEGORY */}
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>CATEGORY</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 20 }}>
+                {HIERARCHY_CATEGORIES.map(cat => {
+                  const isAll = cat === 'All'
+                  const active = isAll ? !categoryFilter : categoryFilter === cat
+                  const colors = isAll
+                    ? { text: '#C9A84C', border: '#C9A84C' }
+                    : (HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression'])
+                  return (
+                    <button key={cat} onClick={() => setCategoryFilter(isAll ? null : cat)}
+                      style={{ padding: '5px 14px', borderRadius: 999, fontSize: 11, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${colors.border}`, backgroundColor: active ? colors.border : 'transparent', color: active ? '#0D0B14' : colors.text, fontWeight: active ? 600 : 400, whiteSpace: 'nowrap' as const }}>
+                      {cat}
+                    </button>
+                  )
+                })}
+              </div>
+              {/* RANK */}
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>RANK</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 20 }}>
+                {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
+                  <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
+                    style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
+                    {rank}
+                  </button>
+                ))}
+              </div>
+              {/* TRAITS */}
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>TRAITS</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
+                <button onClick={() => setGenerationalFilter(f => !f)}
+                  style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
+                  🧬 Generational
+                </button>
+                <button onClick={() => setTerritorialFilter(f => !f)}
+                  style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${territorialFilter ? '#8B9DCA' : dbBorder}`, background: territorialFilter ? 'rgba(139,157,202,0.15)' : 'transparent', color: territorialFilter ? '#8B9DCA' : dbDim }}>
+                  🗺 Territorial
+                </button>
+              </div>
+            </div>
+            {/* Footer: clear + done */}
+            <div style={{ display: 'flex', gap: 10, padding: '12px 20px 4px', flexShrink: 0, borderTop: `1px solid ${dbBorder}` }}>
+              <button
+                onClick={() => { setCategoryFilter(null); setRankFilter(''); setGenerationalFilter(false); setTerritorialFilter(false) }}
+                style={{ flex: 1, padding: '11px', background: 'transparent', border: `1px solid ${dbBorder}`, borderRadius: 8, color: dbDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                Clear All
+              </button>
+              <button
+                onClick={() => setFilterSheetOpen?.(false)}
+                style={{ flex: 2, padding: '11px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
+                Done
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {showLegend && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={() => setShowLegend(false)}>
@@ -13305,6 +13407,8 @@ function CommunityPage() {
   const [hoveredNotifId, setHoveredNotifId] = useState<string | null>(null)
   const [dmPendingRequests, setDmPendingRequests] = useState<any[]>([])
   const [dossierTabBarHidden, setDossierTabBarHidden] = useState(false)
+  const [dbFilterSheetOpen, setDbFilterSheetOpen] = useState(false)
+  const [dbFilterCount, setDbFilterCount] = useState(0)
   const [showInstallBanner, setShowInstallBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (typeof navigator === 'undefined') return false
@@ -15015,7 +15119,7 @@ function CommunityPage() {
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
       {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />}
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
-      {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
+      {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
       {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
       {activeSection === 'testimony-wall' && <TestimonyWallView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={user?.firstName || 'Warrior'} userTier={tier} userImage={user?.imageUrl || ''} />}
@@ -15273,7 +15377,20 @@ function CommunityPage() {
         {/* Header */}
         <div style={{ height: 48, background: '#0D0B14', flexShrink: 0, borderBottom: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', padding: '0 16px', justifyContent: 'space-between' }}>
           <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em' }}>WAR ROOM INTEL</span>
-          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: G, fontSize: 24, cursor: 'pointer', padding: '8px 0 8px 16px' }}>☰</button>
+          {activeSection === 'database' ? (
+            <button
+              onClick={() => setDbFilterSheetOpen(true)}
+              style={{ position: 'relative', background: 'transparent', border: 'none', color: G, cursor: 'pointer', padding: '8px 0 8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44 }}
+              aria-label="Filter spirits"
+            >
+              <SlidersHorizontal size={20} strokeWidth={1.8} />
+              {dbFilterCount > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 2, minWidth: 16, height: 16, background: G, color: '#0D0B14', borderRadius: 999, fontFamily: "'Cinzel',serif", fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, padding: '0 3px', lineHeight: 1 }}>{dbFilterCount}</span>
+              )}
+            </button>
+          ) : (
+            <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: G, fontSize: 24, cursor: 'pointer', padding: '8px 0 8px 16px' }}>☰</button>
+          )}
         </div>
 
         {/* Sidebar backdrop */}
@@ -15491,7 +15608,7 @@ function CommunityPage() {
         )}
         {activeSection === 'database'    && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} />
+            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} />
             <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
           </div>
         )}
