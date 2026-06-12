@@ -489,6 +489,7 @@ export interface EnrichResult {
   context_sources: string[]
   // TODO: REMOVE after parser is fixed. Diagnostic for empty-proposed bug.
   raw_model_output: string
+  parsed_before_diff: Record<string, any>
 }
 
 export async function enrichSpirit({ spiritSlug, userId, userTier, supabase }: {
@@ -571,6 +572,7 @@ export async function enrichSpirit({ spiritSlug, userId, userTier, supabase }: {
     cost_estimate: result.costUsd,
     context_sources: contextSources,
     // TODO: REMOVE after parser is fixed. Diagnostic for empty-proposed bug.
-    raw_model_output: result.text.slice(0, 8000),
+    raw_model_output: result.text,  // FULL capture for debugging — TODO remove
+    parsed_before_diff: sanitized,
   }
 }
