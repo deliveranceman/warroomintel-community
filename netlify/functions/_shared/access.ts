@@ -26,7 +26,7 @@ const TIER_ORDER: Record<string, number> = {
 }
 
 export function tierLevel(tier?: string | null): number {
-  return TIER_ORDER[(tier ?? '').toLowerCase()] ?? 0
+  return TIER_ORDER[String(tier ?? '').toLowerCase().trim()] ?? 0
 }
 
 export interface AuthResult {
@@ -87,8 +87,8 @@ export async function requireAuth(req: Request): Promise<AuthResult | Response> 
     if (!userRes.ok) return unauth()
 
     const userData = await userRes.json()
-    const tier = ((userData.public_metadata?.tier as string) || 'watchman').toLowerCase()
-    const role = ((userData.public_metadata?.role as string) || '').toLowerCase()
+    const tier = String(userData.public_metadata?.tier || 'watchman').toLowerCase().trim()
+    const role = String(userData.public_metadata?.role || '').toLowerCase().trim()
 
     // Role-aware level: commandant/minister/admin outrank by role regardless of tier field.
     // 'admin' role maps to minister-level (4) to preserve parity with existing requireAdmin.

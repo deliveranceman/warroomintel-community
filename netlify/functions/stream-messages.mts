@@ -538,15 +538,22 @@ async function listMembers(currentUserId: string): Promise<Response> {
     return json({ error: 'Clerk API error', detail: err }, res.status)
   }
   const users = await res.json() as any[]
+  const TIER_LEVEL: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
   const members = users
     .filter((u: any) => u.id !== currentUserId)
-    .map((u: any) => ({
-      id: u.id,
-      name: (u.username && !u.username.startsWith('user_') ? u.username : null) || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.id,
-      tier: (u.public_metadata?.tier as string) || 'watchman',
-      imageUrl: u.image_url || '',
-      expertiseTags: (u.public_metadata?.expertiseTags as string[]) || [],
-    }))
+    .map((u: any) => {
+      const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ')
+      const username = (u.username && !u.username.startsWith('user_')) ? u.username : null
+      const tier = String(u.public_metadata?.tier || 'watchman').toLowerCase().trim()
+      return {
+        id: u.id,
+        name: fullName || username || u.id,
+        tier,
+        level: TIER_LEVEL[tier] ?? 0,
+        imageUrl: u.image_url || '',
+        expertiseTags: (u.public_metadata?.expertiseTags as string[]) || [],
+      }
+    })
   return json(members)
 }
 
@@ -559,7 +566,7 @@ async function createFireTeam(userId: string, body: any, verifiedLevel: number, 
   const validTypes = ['intercession', 'warfare', 'assignment', 'coordination', 'prayer']
   if (!validTypes.includes(assignmentType)) return json({ error: 'invalid assignmentType' }, 400)
   if (!Array.isArray(inviteUserIds) || inviteUserIds.length === 0) return json({ error: 'inviteUserIds required' }, 400)
-  if (inviteUserIds.length > 7) return json({ error: 'max 7 invited members' }, 400)
+  if (inviteUserIds.length > 7) return json({ error: 'Fire Teams allow up to 8 members' }, 400)
 
   if (verifiedLevel < 1) return json({ error: 'Soldier+ tier required to create Fire Teams' }, 403)
   const userName = verifiedDisplayName || userId
@@ -963,7 +970,7 @@ async function createCoverAll(userId: string, body: any, verifiedLevel: number):
   const { name, territory, inviteUserIds } = body ?? {}
   if (!name) return json({ error: 'name required' }, 400)
   if (!Array.isArray(inviteUserIds)) return json({ error: 'inviteUserIds required' }, 400)
-  if (1 + inviteUserIds.length > 20) return json({ error: 'max 20 members total' }, 400)
+  if (inviteUserIds.length > 19) return json({ error: 'Cover All groups allow up to 20 members' }, 400)
 
   // Tier comes from the VERIFIED Clerk record (requireAuth), not a token payload.
   const userTierLevel = verifiedLevel
