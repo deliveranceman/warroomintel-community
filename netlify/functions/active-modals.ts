@@ -69,16 +69,20 @@ export default async function handler(req: Request): Promise<Response> {
       if (userLevel < minLevel) continue
     }
 
-    // Frequency filter
+    // Frequency filter — canonical vocab: 'once_ever' | 'once_per_day' | 'every_login'
+    // Any unrecognized/legacy value (old 'once','daily','always') treated as 'once_per_day'.
     const last = eventByModal[modal.id]
-    const freq: string = modal.frequency || 'once'
+    const freq: string = modal.frequency || 'once_per_day'
+    const lastDismissed = last && (last.action === 'dismissed' || last.action === 'accepted')
 
-    if (freq === 'once') {
-      if (last) continue // already seen/dismissed/accepted
-    } else if (freq === 'daily') {
-      if (last && now - Date.parse(last.created_at) < 24 * 60 * 60 * 1000) continue
+    if (freq === 'once_ever') {
+      if (lastDismissed) continue
+    } else if (freq === 'every_login') {
+      // never suppress
+    } else {
+      // 'once_per_day' or any unrecognized legacy value — safe default: suppress within 24h
+      if (lastDismissed && now - Date.parse(last!.created_at) < 24 * 60 * 60 * 1000) continue
     }
-    // freq === 'always' — always show
 
     // This is the first eligible modal
     return json({ modal })

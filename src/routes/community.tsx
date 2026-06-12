@@ -21,6 +21,7 @@ import React, { useState, useEffect, useRef, useCallback, useContext } from 'rea
 import { SpiritNetwork } from '@/components/SpiritNetwork'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
+import { WRITabBar } from '@/components/WRITabBar'
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
 import CallOverlay from '../components/CallOverlay'
@@ -14435,6 +14436,47 @@ function CommunityPage() {
       {activeSection === 'beta-test'      && <BetaTrackerView isDark={isDark} isMobile={isMobile} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
       {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
       {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
+      {activeSection === 'sol' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: isDark ? '#0f0c07' : '#FAF8F5', overflow: 'hidden' }}>
+          <div style={{ padding: '0 14px', height: 48, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(201,168,76,0.15)', flexShrink: 0 }}>
+            <SolIcon size={20} />
+            <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.12em' }}>ASK SOL</span>
+            <AIUsagePill feature="ask_dake" getToken={getToken} />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            {chatMessages.length === 0 && (
+              <div style={{ textAlign: 'center' as const, padding: '40px 16px', color: isDark ? '#6b5e45' : '#8a7060', fontFamily: crimson, fontSize: 14, lineHeight: 1.7 }}>
+                Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, or any ministry question.
+              </div>
+            )}
+            {chatMessages.map((msg, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: msg.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px', background: msg.role === 'user' ? 'rgba(201,168,76,0.1)' : (isDark ? '#1a1408' : '#f5f0e8'), border: msg.role === 'user' ? '1px solid rgba(201,168,76,0.3)' : `1px solid ${isDark ? '#2a2010' : '#e0d8c8'}`, lineHeight: 1.6 }}>
+                  {msg.role === 'user'
+                    ? <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#e8d9b0' : '#2D2924', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span>
+                    : <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#5C5248', lineHeight: 1.7 }} />
+                  }
+                </div>
+                {msg.role === 'assistant' && (
+                  <button onClick={() => exportToPDF(msg.content)} style={{ marginTop: 4, background: 'none', border: 'none', color: '#6b5e45', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}>↓ EXPORT</button>
+                )}
+              </div>
+            ))}
+            {chatLoading && (
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#f5f0e8', border: `1px solid ${isDark ? '#2a2010' : '#e0d8c8'}`, borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>Analyzing…</div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+          <div style={{ padding: 12, borderTop: '1px solid rgba(201,168,76,0.12)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <textarea rows={2} value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(chatInput) } }} placeholder="Ask a question…" style={{ flex: 1, background: isDark ? '#1a1408' : '#fff', border: `1px solid ${isDark ? '#2a2010' : '#e0d8c8'}`, borderRadius: 6, padding: '8px 10px', color: isDark ? '#c8b896' : '#2D2924', fontFamily: crimson, fontSize: 13, resize: 'none' as const, outline: 'none' }} />
+              <button onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '0 14px', color: G, fontFamily: cinzel, fontSize: 10, cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer', opacity: chatLoading || !chatInput.trim() ? 0.5 : 1, flexShrink: 0, letterSpacing: '0.06em' }}>SEND</button>
+            </div>
+          </div>
+        </div>
+      )}
       {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
       {activeSection === 'forum'          && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} /><OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} /></div>}
       {activeSection === 'deliverance-protocol' && (
@@ -14540,7 +14582,7 @@ function CommunityPage() {
             </div>
           </div>
         )}
-        {!isAdminPage && (
+        {!isAdminPage && isDesktop && (
           <button
             onMouseDown={e => { solMoved.current = false; solDragStart.current = { px: e.clientX, py: e.clientY, bx: solPos.x, by: solPos.y }; setIsDraggingSol(true) }}
             onTouchStart={e => { solMoved.current = false; const t2 = e.touches[0]; solDragStart.current = { px: t2.clientX, py: t2.clientY, bx: solPos.x, by: solPos.y }; setIsDraggingSol(true) }}
@@ -14607,33 +14649,18 @@ function CommunityPage() {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto' as const, minHeight: 0, paddingBottom: 'calc(72px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' as const }}>
+        <div style={{ flex: 1, overflowY: 'auto' as const, minHeight: 0, paddingBottom: 'calc(60px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' as const }}>
           {renderSections()}
         </div>
 
         {/* iPad bottom tab bar */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200, height: 72, background: '#0D0B14', borderTop: '1px solid rgba(201,168,76,0.15)', paddingBottom: 'env(safe-area-inset-bottom)', display: 'flex', alignItems: 'stretch' }}>
-          {([
-            { icon: '⚔', label: 'INTEL',     section: 'database' },
-            { icon: '🔥', label: 'COMMUNITY', section: 'war-room' },
-            { icon: '✉️', label: 'MESSAGES',  section: 'dms' },
-            { icon: '📋', label: 'SESSION',   section: 'session-center' },
-            { icon: '☰', label: 'MORE',       section: '__drawer__' },
-          ] as const).map(tab => {
-            const isActive = tab.section === '__drawer__' ? ipadDrawerOpen : activeSection === tab.section
-            return (
-              <button key={tab.section}
-                onClick={() => {
-                  if (tab.section === '__drawer__') { setIpadDrawerOpen(o => !o) }
-                  else { setActiveSection(tab.section); setIpadDrawerOpen(false) }
-                }}
-                style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: isActive ? G : '#5a4e3a' }}>
-                <span style={{ fontSize: 20 }}>{tab.icon}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em' }}>{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
+        <WRITabBar
+          activeSection={activeSection}
+          setActiveSection={(s) => { setActiveSection(s); setIpadDrawerOpen(false) }}
+          onOpenDrawer={() => setIpadDrawerOpen(o => !o)}
+          dmHasUnread={dmPendingRequests.length > 0}
+          isDark={isDark}
+        />
 
         {renderSharedOverlays()}
       </div>
@@ -14664,19 +14691,12 @@ function CommunityPage() {
         </div>
 
         {/* Bottom nav */}
-        <BottomNav
-          tabs={[
-            { id: 'daily-brief', label: 'Daily',    icon: <span style={{ fontSize: 18 }}>☀️</span> },
-            { id: 'sitrep',      label: 'SITREP',  icon: <span style={{ fontSize: 18 }}>📡</span> },
-            { id: 'database',    label: 'Database', icon: <Library size={20} strokeWidth={1.6} /> },
-            { id: 'forum',       label: 'Ops',      icon: <MessageSquare size={20} strokeWidth={1.6} /> },
-            { id: 'ai',          label: 'AI',       icon: <Zap size={20} strokeWidth={1.6} /> },
-          ]}
-          activeId={activeSection}
-          onTab={(id) => { if (id === 'ai') { setChatOpen(o => !o) } else { setActiveSection(id) } }}
-          onFAB={() => setActiveSection('session-center')}
-          onLongPress={() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true })) }}
-          fabIcon={<Plus size={24} color="#1a1305" strokeWidth={2.2} />}
+        <WRITabBar
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
+          onOpenDrawer={() => setSidebarOpen(o => !o)}
+          dmHasUnread={dmPendingRequests.length > 0}
+          isDark={isDark}
         />
 
         {renderSharedOverlays()}
@@ -16044,11 +16064,7 @@ function CommunityPage() {
                     if (!token) return
                     fetch('/api/modal-event', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ modalId: m.id, action: 'dismissed' }) }).catch(() => {})
                   })
-                  if (activeModal.cta_link!.startsWith('/')) {
-                    window.location.href = activeModal.cta_link!
-                  } else {
-                    window.open(activeModal.cta_link!, '_blank', 'noopener,noreferrer')
-                  }
+                  window.open(activeModal.cta_link!, '_blank', 'noopener,noreferrer')
                 }}
                 style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer' }}
               >

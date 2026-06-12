@@ -10105,7 +10105,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
 
 // ─── MODALS & ANNOUNCEMENTS ──────────────────────────────────────────────────
 
-const MODAL_FREQ_OPTS  = [{ v: 'once', l: 'Once per user' }, { v: 'daily', l: 'Once per day' }, { v: 'always', l: 'Always' }]
+const MODAL_FREQ_OPTS  = [{ v: 'once_ever', l: 'Once per user (ever)' }, { v: 'once_per_day', l: 'Once per day' }, { v: 'every_login', l: 'Every login' }]
 const MODAL_TYPE_OPTS  = [{ v: 'announcement', l: 'Announcement' }, { v: 'terms', l: 'Terms (Clerk patch on accept)' }]
 const MODAL_AUDIENCE_OPTS = [
   { kind: 'all',  label: 'All members' },
@@ -10147,7 +10147,7 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
   const [fCtaLabel,    setFCtaLabel]    = useState('')
   const [fCtaLink,     setFCtaLink]     = useState('')
   const [fAudienceIdx, setFAudienceIdx] = useState(0)
-  const [fFreq,        setFFreq]        = useState('once')
+  const [fFreq,        setFFreq]        = useState('once_per_day')
   const [fReqAccept,   setFReqAccept]   = useState(false)
   const [fPriority,    setFPriority]    = useState(0)
   const [fActive,      setFActive]      = useState(true)
@@ -10165,7 +10165,7 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
 
   function resetForm() {
     setEditId(null); setFType('announcement'); setFTitle(''); setFBody('')
-    setFCtaLabel(''); setFCtaLink(''); setFAudienceIdx(0); setFFreq('once')
+    setFCtaLabel(''); setFCtaLink(''); setFAudienceIdx(0); setFFreq('once_per_day')
     setFReqAccept(false); setFPriority(0); setFActive(true)
   }
 
@@ -10174,7 +10174,7 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
     setFCtaLabel(m.cta_label || ''); setFCtaLink(m.cta_link || '')
     const audIdx = MODAL_AUDIENCE_OPTS.findIndex(a => a.kind === m.audience?.kind && (a.kind === 'all' || (a as any).minLevel === m.audience?.minLevel))
     setFAudienceIdx(audIdx >= 0 ? audIdx : 0)
-    setFFreq(m.frequency || 'once'); setFReqAccept(!!m.requires_acceptance)
+    setFFreq(m.frequency || 'once_per_day'); setFReqAccept(!!m.requires_acceptance)
     setFPriority(Number(m.priority ?? 0)); setFActive(m.active !== false)
   }
 
