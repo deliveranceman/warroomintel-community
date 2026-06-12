@@ -3904,6 +3904,21 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
   const [spiritStack, setSpiritStack] = useState<any[]>([])
+  const speechVoicesRef = useRef<SpeechSynthesisVoice[]>([])
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    const load = () => { speechVoicesRef.current = window.speechSynthesis.getVoices() }
+    load()
+    ;(window.speechSynthesis as any).onvoiceschanged = load
+    return () => { if ('speechSynthesis' in window) (window.speechSynthesis as any).onvoiceschanged = null }
+  }, [])
+  const [sigilLightboxOpen, setSigilLightboxOpen] = useState(false)
+  useEffect(() => {
+    if (!sigilLightboxOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSigilLightboxOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sigilLightboxOpen])
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -3967,6 +3982,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     setDossierTabBarHidden?.(false)
     setDossierHeaderFull(true)
     setSpiritStack([])
+    setSigilLightboxOpen(false)
     setSelectedEntry(null)
     const returnTo = localStorage.getItem('wri_jump_from')
     if (returnTo && setActiveSection) {
@@ -4328,6 +4344,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
         // Push current spirit onto the back-stack and navigate to target
         const navigateToSpirit = (target: any) => {
+          setSigilLightboxOpen(false)
           setSpiritStack(prev => [...prev, entry])
           setSelectedEntry(target)
         }
@@ -4360,7 +4377,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           const isOpen = openSections.has(id)
           const capTier = requiredTier ? requiredTier.charAt(0).toUpperCase() + requiredTier.slice(1) : 'Soldier'
           return (
-            <div key={id} style={{ borderBottom: `1px solid ${bdr}` }}>
+            <div key={id} style={{ borderBottom: `1px solid ${bdr}`, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, overflowX: 'hidden' as const }}>
               <button
                 onClick={() => locked ? beginUpgrade(requiredTier!) : toggleSection(id)}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '14px 16px', minHeight: 44, background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxSizing: 'border-box' as const }}
@@ -4383,17 +4400,17 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 </div>
               )}
               {!locked && isOpen && (
-                <div style={{ padding: '4px 16px 16px', overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const, boxSizing: 'border-box' as const, maxWidth: '100%' as const }}>{content}</div>
+                <div style={{ padding: '4px 16px 16px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const, overflow: 'hidden' as const }}>{content}</div>
               )}
             </div>
           )
         }
 
         return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const, overflowX: 'hidden' as const }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const, overflowX: 'hidden' as const, maxWidth: '100%', boxSizing: 'border-box' as const }}>
             {/* Top bar — auto-height, clears notch, condenses on scroll */}
-            <div style={{ flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingLeft: 12, paddingRight: 12, paddingBottom: 0, boxSizing: 'border-box' as const }}>
-              {/* Row 1: back + sigil? + name + speaker + rank — always visible */}
+            <div style={{ flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'max(env(safe-area-inset-top), 20px)', paddingLeft: 12, paddingRight: 'max(env(safe-area-inset-right), 12px)', paddingBottom: 0, boxSizing: 'border-box' as const }}>
+              {/* Row 1: [back + sigil + name] LEFT  |  [speaker + rank] RIGHT — always visible */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: spiritStack.length > 0 ? 6 : 10 }}>
                 {/* Back — pops stack or returns to list */}
                 <button
@@ -4407,38 +4424,46 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     }
                   }}
                   style={{ background: 'transparent', border: 'none', color: G, fontSize: 28, cursor: 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>‹</button>
-                {/* Sigil — only when image exists */}
+                {/* Sigil — tappable; only when image exists */}
                 {dossierImgUrl && (
-                  <img src={dossierImgUrl} alt={name}
-                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                    style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' as const, border: '1px solid rgba(201,168,76,0.4)', flexShrink: 0 }} />
+                  <button
+                    onClick={() => setSigilLightboxOpen(true)}
+                    style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img src={dossierImgUrl} alt={name}
+                      onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
+                      style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' as const, border: '1px solid rgba(201,168,76,0.4)' }} />
+                  </button>
                 )}
                 {/* Name + phonetic */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 15, color: dbIsDark ? color : '#2D2924', fontWeight: 700, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
-                  {entry.phonetic && <div style={{ fontFamily: crimson, fontSize: 11, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</div>}
+                  {entry.phonetic && <div style={{ fontFamily: crimson, fontSize: 11, color: mut, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>/{entry.phonetic}/</div>}
                 </div>
-                {/* Tap-to-speak */}
-                {typeof window !== 'undefined' && 'speechSynthesis' in window && (
-                  <button
-                    onClick={() => {
-                      window.speechSynthesis.cancel()
-                      const text = entry.phonetic ? entry.phonetic.replace(/[/[\](){}]/g, '').trim() : name
-                      const u = new SpeechSynthesisUtterance(text)
-                      u.rate = 0.75; u.pitch = 0.9
-                      window.speechSynthesis.speak(u)
-                    }}
-                    aria-label="Pronounce name"
-                    style={{ background: 'transparent', border: 'none', color: G, cursor: 'pointer', padding: 0, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: 16 }}>🔊</span>
-                  </button>
-                )}
-                {/* Rank badge */}
-                {entry.biblicalRank && (
-                  <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, flexShrink: 0, letterSpacing: '0.05em', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {entry.biblicalRank.length > 18 ? entry.biblicalRank.slice(0, 18) + '…' : entry.biblicalRank}
-                  </span>
-                )}
+                {/* Right group: speaker + rank — both within safe area */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  {typeof window !== 'undefined' && 'speechSynthesis' in window && (
+                    <button
+                      onClick={() => {
+                        window.speechSynthesis.cancel()
+                        const text = entry.phonetic ? entry.phonetic.replace(/[/[\](){}]/g, '').trim() : name
+                        const u = new SpeechSynthesisUtterance(text)
+                        u.rate = 0.9
+                        const voices = speechVoicesRef.current.length > 0 ? speechVoicesRef.current : window.speechSynthesis.getVoices()
+                        const enVoice = voices.find(v => v.lang.startsWith('en'))
+                        if (enVoice) u.voice = enVoice
+                        window.speechSynthesis.speak(u)
+                      }}
+                      aria-label="Pronounce name"
+                      style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, color: G, cursor: 'pointer', padding: '6px 8px', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                      <span style={{ fontSize: 16, lineHeight: 1 }}>🔊</span>
+                    </button>
+                  )}
+                  {entry.biblicalRank && (
+                    <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.05em', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'block' }}>
+                      {entry.biblicalRank.length > 16 ? entry.biblicalRank.slice(0, 16) + '…' : entry.biblicalRank}
+                    </span>
+                  )}
+                </div>
               </div>
               {/* Breadcrumb — shown only when navigated from another spirit */}
               {spiritStack.length > 0 && (
@@ -4469,13 +4494,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
                   {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
                   {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', padding: '3px 10px', borderRadius: 4 }}>🗺 Territorial</span>}
-                  {entry.aka && <span style={{ fontFamily: crimson, fontSize: 12, color: mut, fontStyle: 'italic' }}>aka {entry.aka}</span>}
+                  {entry.aka && <span style={{ fontFamily: crimson, fontSize: 12, color: mut, fontStyle: 'italic', overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const }}>aka {entry.aka}</span>}
                 </div>
               )}
             </div>
 
             {/* Scrollable content */}
-            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, width: '100%', boxSizing: 'border-box' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
 
               {/* 1. Overview — always accessible */}
               {sectionBlock('overview', 'Overview', undefined, (
@@ -4502,7 +4527,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     return (
                       <div style={{ marginBottom: 14 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Category</div>
-                        <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, display: 'inline-block' }}>{cat}</span>
+                        <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, display: 'inline-block', maxWidth: '100%', overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const }}>{cat}</span>
                       </div>
                     )
                   })()}
@@ -4624,7 +4649,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Prayer Points</div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
                         {String(entry.prayerPoints).split(/\n|\d+\./).filter((s: string) => s.trim()).map((p: string, pi: number) => (
-                          <div key={pi} style={{ background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 6, padding: '8px 12px', fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6 }}>{p.trim()}</div>
+                          <div key={pi} style={{ background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 6, padding: '8px 12px', fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6, overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const }}>{p.trim()}</div>
                         ))}
                       </div>
                     </div>
@@ -4634,7 +4659,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Session Trigger Questions</div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
                         {String(entry.sessionTriggerQuestions).split('\n').filter((l: string) => l.trim()).map((line: string, li: number) => (
-                          <div key={li} style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.65, fontStyle: 'italic', paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>
+                          <div key={li} style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.65, fontStyle: 'italic', paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)`, overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const }}>
                             {line.replace(/^\d+\.\s*/, '')}
                           </div>
                         ))}
@@ -4646,6 +4671,25 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 </>
               ))}
             </div>
+
+            {/* Sigil lightbox — absolute inside dossier root, above all dossier content */}
+            {sigilLightboxOpen && dossierImgUrl && (
+              <div
+                onClick={() => setSigilLightboxOpen(false)}
+                style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 'max(env(safe-area-inset-bottom), 16px)', paddingLeft: 'max(env(safe-area-inset-left), 16px)', paddingRight: 'max(env(safe-area-inset-right), 16px)', boxSizing: 'border-box' as const }}>
+                <button
+                  onClick={e => { e.stopPropagation(); setSigilLightboxOpen(false) }}
+                  style={{ position: 'absolute', top: 'max(env(safe-area-inset-top), 12px)', right: 'max(env(safe-area-inset-right), 12px)', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', color: '#fff', fontSize: 18, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  ×
+                </button>
+                <img
+                  src={dossierImgUrl}
+                  alt={name}
+                  onClick={e => e.stopPropagation()}
+                  style={{ maxWidth: '90%', maxHeight: '90dvh', objectFit: 'contain' as const, borderRadius: 8, border: '1px solid rgba(201,168,76,0.3)', display: 'block' }}
+                />
+              </div>
+            )}
           </div>
         )
       })()}
