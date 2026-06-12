@@ -169,6 +169,20 @@ export default async function handler(req: Request): Promise<Response> {
       },
     ).catch(() => {})
 
+    // Bell row — shown as missed call if the recipient never answers
+    fetch(`${sbBase()}/user_notifications`, {
+      method: 'POST',
+      headers: sbHeaders(),
+      body: JSON.stringify({
+        user_id: targetUserId,
+        title: `📞 Missed prayer call from ${callerName}`,
+        body: 'Tap to call back',
+        url: '/community',
+        type: 'prayer_call',
+        target: { call_id: callId, caller_name: callerName, caller_id: userId, channel_id: channelId },
+      }),
+    }).catch(() => {})
+
     return json({ ok: true, callId, callType })
   }
 

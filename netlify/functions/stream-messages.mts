@@ -65,6 +65,8 @@ async function notifyRecipientOfDmRequest(recipientId: string, requesterName: st
       body: `${requesterName} wants to connect with you`,
       userId: recipientId,
       url: '/community',
+      type: 'dm_request',
+      target: { section: 'dms' },
     }),
   }).catch(e => console.error('[create-dm] push error:', e))
 
@@ -651,6 +653,8 @@ async function createFireTeam(userId: string, body: any, verifiedLevel: number, 
         body: `${userName} invited you to join "${name}" Fire Team`,
         userId: inviteId,
         url: '/community',
+        type: 'fire_team_invite',
+        target: { section: 'dms', channelId, kind: 'fire-team', title: name },
       }),
     }).catch(() => {})
   }
@@ -787,6 +791,8 @@ async function requestSentinel(userId: string, body: any): Promise<Response> {
       body: `${userName} wants to covenant with you as a Sentinel partner`,
       userId: recipientId,
       url: '/community',
+      type: 'sentinel_request',
+      target: { section: 'dms' },
     }),
   }).catch(() => {})
 
@@ -879,6 +885,8 @@ async function acceptSentinel(userId: string, body: any): Promise<Response> {
       body: `${recipientName} accepted your Sentinel covenant. 30-day sprint begins now.`,
       userId: row.requester_id,
       url: '/community',
+      type: 'sentinel_accepted',
+      target: { section: 'dms', channelId, kind: 'sentinel', title: recipientName },
     }),
   }).catch(() => {})
 
@@ -1074,6 +1082,8 @@ async function createCoverAll(userId: string, body: any, verifiedLevel: number):
         body: `${userName} invited you to join "${name}" Cover All group`,
         userId: inviteId,
         url: '/community',
+        type: 'cover_all_invite',
+        target: { section: 'dms', channelId, kind: 'cover-all', title: name },
       }),
     }).catch(() => {})
   }

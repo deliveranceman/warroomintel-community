@@ -160,9 +160,22 @@ async function sendDMPush(channelId: string, senderId: string, senderName: strin
     recipientId,
     `💬 ${senderName}`,
     messageText.slice(0, 100),
-    { type: 'dm_message', channelId, section: 'dms' },
+    { type: 'dm_message', channelId, section: 'dms', kind: 'dm' },
   )
   console.log('[webhook] DM push result:', JSON.stringify(result))
+
+  fetch(`${supabaseUrl}/rest/v1/user_notifications`, {
+    method: 'POST',
+    headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: recipientId,
+      title: `💬 ${senderName}`,
+      body: messageText.slice(0, 100),
+      url: '/community',
+      type: 'dm_message',
+      target: { section: 'dms', channelId, kind: 'dm' },
+    }),
+  }).catch(() => {})
 }
 
 // ── Fire Team push notification ───────────────────────────────────────────────
@@ -171,12 +184,14 @@ async function sendFireTeamPush(channelId: string, senderUserId: string, senderN
   const sbH = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` }
 
   const ftTeamRes = await fetch(
-    `${supabaseUrl}/rest/v1/fire_teams?stream_channel_id=eq.${encodeURIComponent(channelId)}&select=id`,
+    `${supabaseUrl}/rest/v1/fire_teams?stream_channel_id=eq.${encodeURIComponent(channelId)}&select=id,name`,
     { headers: sbH },
   )
   const teams: any[] = await ftTeamRes.json().catch(() => [])
-  const teamId = Array.isArray(teams) ? teams[0]?.id : null
-  if (!teamId) { console.log('[webhook] no fire_team for channel:', channelId); return }
+  const team = Array.isArray(teams) ? teams[0] : null
+  if (!team?.id) { console.log('[webhook] no fire_team for channel:', channelId); return }
+  const teamId   = team.id
+  const teamName = team.name || channelId
 
   const membersRes = await fetch(
     `${supabaseUrl}/rest/v1/fire_team_members?fire_team_id=eq.${encodeURIComponent(teamId)}&status=eq.active&user_id=neq.${encodeURIComponent(senderUserId)}&select=user_id`,
@@ -186,16 +201,75 @@ async function sendFireTeamPush(channelId: string, senderUserId: string, senderN
   console.log('[webhook] fire team push teamId:', teamId, 'recipients:', Array.isArray(members) ? members.length : 0)
 
   await Promise.allSettled(
-    (Array.isArray(members) ? members : []).map((member: any) =>
-      sendWebPushToUser(
+    (Array.isArray(members) ? members : []).map(async (member: any) => {
+      await sendWebPushToUser(
         member.user_id,
         `⚔ ${senderName}`,
         messageText.slice(0, 100),
-        { type: 'fire_team_message', channelId, section: 'dms' },
-      ).catch(() => {}),
-    ),
+        { type: 'fire_team_message', channelId, section: 'dms', kind: 'fire-team', title: teamName },
+      ).catch(() => {})
+      fetch(`${supabaseUrl}/rest/v1/user_notifications`, {
+        method: 'POST',
+        headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: member.user_id,
+          title: `⚔ ${senderName}`,
+          body: messageText.slice(0, 100),
+          url: '/community',
+          type: 'fire_team_message',
+          target: { section: 'dms', channelId, kind: 'fire-team', title: teamName },
+        }),
+      }).catch(() => {})
+    }),
   )
   console.log('[webhook] fire team push done channelId:', channelId)
+}
+
+// ── Cover All push notification ───────────────────────────────────────────────
+
+async function sendCoverAllPush(channelId: string, senderUserId: string, senderName: string, messageText: string): Promise<void> {
+  const sbH = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` }
+
+  const grpRes = await fetch(
+    `${supabaseUrl}/rest/v1/cover_all_groups?stream_channel_id=eq.${encodeURIComponent(channelId)}&select=id,name`,
+    { headers: sbH },
+  )
+  const groups: any[] = await grpRes.json().catch(() => [])
+  const group = Array.isArray(groups) ? groups[0] : null
+  if (!group?.id) { console.log('[webhook] no cover_all_group for channel:', channelId); return }
+  const groupId   = group.id
+  const groupName = group.name || channelId
+
+  const memRes = await fetch(
+    `${supabaseUrl}/rest/v1/cover_all_members?group_id=eq.${encodeURIComponent(groupId)}&status=eq.active&user_id=neq.${encodeURIComponent(senderUserId)}&select=user_id`,
+    { headers: sbH },
+  )
+  const members: any[] = await memRes.json().catch(() => [])
+  console.log('[webhook] cover all push groupId:', groupId, 'recipients:', Array.isArray(members) ? members.length : 0)
+
+  await Promise.allSettled(
+    (Array.isArray(members) ? members : []).map(async (member: any) => {
+      await sendWebPushToUser(
+        member.user_id,
+        `🛡 ${senderName}`,
+        messageText.slice(0, 100),
+        { type: 'cover_all_message', channelId, section: 'dms', kind: 'cover-all', title: groupName },
+      ).catch(() => {})
+      fetch(`${supabaseUrl}/rest/v1/user_notifications`, {
+        method: 'POST',
+        headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: member.user_id,
+          title: `🛡 ${senderName}`,
+          body: messageText.slice(0, 100),
+          url: '/community',
+          type: 'cover_all_message',
+          target: { section: 'dms', channelId, kind: 'cover-all', title: groupName },
+        }),
+      }).catch(() => {})
+    }),
+  )
+  console.log('[webhook] cover all push done channelId:', channelId)
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -262,6 +336,14 @@ export default async function handler(req: Request): Promise<Response> {
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
       }
 
+      // Cover All channel — push all active members
+      if (channelId.startsWith('ca-')) {
+        await sendCoverAllPush(channelId, senderUserId, senderName, messageText).catch(err =>
+          console.error('[stream-webhook] sendCoverAllPush error:', err)
+        )
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS })
+      }
+
       // Person-to-person DM — push recipient (awaited so Lambda stays alive)
       await sendDMPush(channelId, senderUserId, senderName, messageText).catch(err =>
         console.error('[stream-webhook] sendDMPush error:', err)
@@ -297,6 +379,8 @@ export default async function handler(req: Request): Promise<Response> {
           const payload = JSON.stringify({
             title: 'War Room Intel',
             body: messageText.length > 100 ? messageText.slice(0, 100) + '…' : messageText,
+            type: 'community_message',
+            section: 'war-room-chat',
           })
 
           let sent = 0, failed = 0

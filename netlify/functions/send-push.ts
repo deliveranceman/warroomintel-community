@@ -42,7 +42,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: HEADERS })
   }
 
-  const { title, body: msgBody, url, userId } = body || {}
+  const { title, body: msgBody, url, userId, type: notifType, target: notifTarget } = body || {}
 
   if (!title) {
     return new Response(JSON.stringify({ error: 'title is required' }), { status: 400, headers: HEADERS })
@@ -69,7 +69,7 @@ export default async function handler(req: Request) {
     try {
       const client = sb()
       await client.from('user_notifications').insert(
-        [{ user_id: userId, title, body: msgBody || null, url: url || '/community' }]
+        [{ user_id: userId, title, body: msgBody || null, url: url || '/community', type: notifType || 'system', ...(notifTarget ? { target: notifTarget } : {}) }]
       )
     } catch (e: any) {
       console.warn('[send-push] user_notifications insert failed:', e.message)
