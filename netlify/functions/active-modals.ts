@@ -67,6 +67,8 @@ export default async function handler(req: Request): Promise<Response> {
     if (audience.kind === 'tier') {
       const minLevel = Number(audience.minLevel ?? 0)
       if (userLevel < minLevel) continue
+    } else if (audience.kind === 'free_only') {
+      if (userLevel !== 0) continue  // exclude anyone level >= 1 (soldier+)
     }
 
     // Frequency filter — canonical vocab: 'once_ever' | 'once_per_day' | 'every_login'

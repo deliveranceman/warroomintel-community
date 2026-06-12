@@ -10108,17 +10108,18 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
 const MODAL_FREQ_OPTS  = [{ v: 'once_ever', l: 'Once per user (ever)' }, { v: 'once_per_day', l: 'Once per day' }, { v: 'every_login', l: 'Every login' }]
 const MODAL_TYPE_OPTS  = [{ v: 'announcement', l: 'Announcement' }, { v: 'terms', l: 'Terms (Clerk patch on accept)' }]
 const MODAL_AUDIENCE_OPTS = [
-  { kind: 'all',  label: 'All members' },
-  { kind: 'tier', minLevel: 1, label: 'Soldier+' },
-  { kind: 'tier', minLevel: 2, label: 'Commander+' },
-  { kind: 'tier', minLevel: 3, label: 'General+' },
-  { kind: 'tier', minLevel: 4, label: 'Minister+' },
+  { kind: 'all',       label: 'All members'         },
+  { kind: 'free_only', label: 'Free members only'   },
+  { kind: 'tier', minLevel: 1, label: 'Soldier+'    },
+  { kind: 'tier', minLevel: 2, label: 'Commander+'  },
+  { kind: 'tier', minLevel: 3, label: 'General+'    },
+  { kind: 'tier', minLevel: 4, label: 'Minister+'   },
 ]
 
 type ModalRow = {
   id: string; type: string; title: string; body: string
   cta_label?: string; cta_link?: string
-  audience: { kind: string; minLevel?: number }
+  audience: { kind: 'all' | 'free_only' | 'tier'; minLevel?: number }
   frequency: string; requires_acceptance: boolean; priority: number; active: boolean; created_at: string
 }
 
@@ -10172,7 +10173,7 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
   function loadEdit(m: ModalRow) {
     setEditId(m.id); setFType(m.type); setFTitle(m.title); setFBody(m.body)
     setFCtaLabel(m.cta_label || ''); setFCtaLink(m.cta_link || '')
-    const audIdx = MODAL_AUDIENCE_OPTS.findIndex(a => a.kind === m.audience?.kind && (a.kind === 'all' || (a as any).minLevel === m.audience?.minLevel))
+    const audIdx = MODAL_AUDIENCE_OPTS.findIndex(a => a.kind === m.audience?.kind && (a.kind !== 'tier' || (a as any).minLevel === m.audience?.minLevel))
     setFAudienceIdx(audIdx >= 0 ? audIdx : 0)
     setFFreq(m.frequency || 'once_per_day'); setFReqAccept(!!m.requires_acceptance)
     setFPriority(Number(m.priority ?? 0)); setFActive(m.active !== false)
@@ -10184,7 +10185,7 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
     const token = await getToken()
     if (!token) { setSaving(false); return }
     const audOpt = MODAL_AUDIENCE_OPTS[fAudienceIdx]
-    const audience = audOpt.kind === 'all' ? { kind: 'all' } : { kind: 'tier', minLevel: (audOpt as any).minLevel }
+    const audience = audOpt.kind === 'tier' ? { kind: 'tier', minLevel: (audOpt as any).minLevel } : { kind: audOpt.kind }
     const payload: Record<string, unknown> = {
       action: editId ? 'update' : 'create',
       ...(editId ? { id: editId } : {}),
@@ -10277,7 +10278,7 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
           </button>
           {editId && <button onClick={resetForm} style={btn(false)}>Cancel Edit</button>}
           {(fTitle.trim() || fBody.trim()) && (
-            <button onClick={() => setPreview({ id: 'preview', type: fType, title: fTitle, body: fBody, cta_label: fCtaLabel || undefined, cta_link: fCtaLink || undefined, audience: MODAL_AUDIENCE_OPTS[fAudienceIdx].kind === 'all' ? { kind: 'all' } : { kind: 'tier', minLevel: (MODAL_AUDIENCE_OPTS[fAudienceIdx] as any).minLevel }, frequency: fFreq, requires_acceptance: fReqAccept, priority: fPriority, active: fActive, created_at: new Date().toISOString() })}
+            <button onClick={() => setPreview({ id: 'preview', type: fType, title: fTitle, body: fBody, cta_label: fCtaLabel || undefined, cta_link: fCtaLink || undefined, audience: MODAL_AUDIENCE_OPTS[fAudienceIdx].kind === 'tier' ? { kind: 'tier' as const, minLevel: (MODAL_AUDIENCE_OPTS[fAudienceIdx] as any).minLevel } : { kind: MODAL_AUDIENCE_OPTS[fAudienceIdx].kind as 'all' | 'free_only' }, frequency: fFreq, requires_acceptance: fReqAccept, priority: fPriority, active: fActive, created_at: new Date().toISOString() })}
               style={btn(false)}>Preview</button>
           )}
           {result && <span style={{ fontFamily: crimson, fontSize: 13, color: result.startsWith('Error') ? '#f87171' : G2 }}>{result}</span>}
@@ -10297,7 +10298,7 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                 {[
                   m.type, m.frequency, m.requires_acceptance ? 'requires acceptance' : null,
-                  m.audience?.kind === 'all' ? 'all members' : `tier ${m.audience?.minLevel}+`,
+                  m.audience?.kind === 'all' ? 'all members' : m.audience?.kind === 'free_only' ? 'free only' : `tier ${m.audience?.minLevel}+`,
                   `priority ${m.priority}`, m.active ? 'active' : 'inactive',
                 ].filter(Boolean).map((tag, i) => (
                   <span key={i} style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', color: dim, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', padding: '2px 7px', borderRadius: 3 }}>{tag}</span>
