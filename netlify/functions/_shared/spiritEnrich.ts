@@ -66,6 +66,8 @@ CRITICAL SESSION RULES:
 
 RETURN ONLY VALID JSON. No markdown, no preamble, no explanation outside the JSON object. Research and return ALL requested fields — the minister will review and decide what to keep.
 
+SOURCE-GRADE EVIDENCE RULE: Source-grade evidence means: (a) explicit Scripture (Old or New Testament), (b) content from the provided ministry library context, or (c) widely-attested historical/etymological record (e.g. Strong's Concordance, recognized lexicons). For spirits named in Scripture, you MUST propose values for biblicalRank, scriptureContext, and description using canonical biblical material even if the ministry library has no matching entry — Scripture is itself source-grade. The 'no fabrication' rule applies to inventing claims with no canonical or library source, not to drawing on Scripture or established historical record.
+
 CONCISENESS RULE: Keep each field value tight. String fields: 1-3 sentences max. Array fields: 3-7 items max, each item one sentence. Boolean fields: true or false only. The JSON must be complete and valid — do not truncate.
 
 CRITICAL: Respond with RAW JSON only. Do not use markdown. Do not use code blocks. Do not use backticks. Your entire response must start with { and end with }. Any other format will cause system failure.`
@@ -288,10 +290,15 @@ async function getPreamble(
       ['sessionIndicators', 'resistanceSignature', 'prayerPoints', 'aftercareNotes', 'legalRights'].includes(f)
     )
 
+    const nameEscaped = spiritName.replace(/%/g, '\\%').replace(/_/g, '\\_')
     const [contextResult, booksResult, resourceBooksResult] = await Promise.all([
       sb.from('ministry_context').select('label, context_text, scope').eq('is_active', true).order('scope'),
       sb.from('ministry_library').select('title, author, extracted_text').eq('is_enabled', true).eq('ai_enabled', true),
-      sb.from('resources').select('title, author, notes, extracted_text').eq('topic', 'ministry-library').eq('active', true),
+      sb.from('resources')
+        .select('title, author, notes, extracted_text, spirit_tags')
+        .eq('active', true)
+        .or(`spirit_tags.cs.{"${spiritName}"},title.ilike.%${nameEscaped}%,extracted_text.ilike.%${nameEscaped}%`)
+        .limit(50),
     ])
 
     const MAX_CHARS = 8000
@@ -402,32 +409,38 @@ async function getPreamble(
       }
 
       if (!injectedResourceChunks) {
-        const terms = spiritName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
-        if (spiritDescription) {
-          spiritDescription.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
-            .filter(w => w.length > 5).slice(0, 10).forEach(w => terms.push(w))
-        }
+        const nameLower  = spiritName.toLowerCase()
+        const nameRegexp = new RegExp(nameLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
         interface RChunk { title: string; author: string; text: string; score: number }
         const rScored: RChunk[] = []
+
         for (const book of resourceBooks) {
-          if (!book.extracted_text) continue
-          for (let i = 0; i < book.extracted_text.length; i += 1800) {
-            const chunk = book.extracted_text.slice(i, i + 2000).trim()
-            if (chunk.length < 150) continue
-            const lc = chunk.toLowerCase()
-            let score = 0
-            for (const term of terms) {
-              const matches = (lc.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
-              if (matches) score += matches * (term.length > 6 ? 3 : 1)
+          // tag-match (100) > title-match (50) > text keyword count
+          const hasTag   = Array.isArray(book.spirit_tags) &&
+            book.spirit_tags.some((t: any) => String(t).toLowerCase() === nameLower)
+          const hasTitle = (book.title || '').toLowerCase().includes(nameLower)
+          const baseScore = (hasTag ? 100 : 0) + (hasTitle ? 50 : 0)
+
+          if (book.extracted_text) {
+            for (let i = 0; i < book.extracted_text.length; i += 1800) {
+              const chunk = book.extracted_text.slice(i, i + 2000).trim()
+              if (chunk.length < 150) continue
+              const textMatches = (chunk.toLowerCase().match(nameRegexp) || []).length
+              const chunkScore  = baseScore + textMatches
+              if (chunkScore > 0) {
+                rScored.push({ title: book.title, author: book.author || '', text: chunk.slice(0, 1400), score: chunkScore })
+              }
             }
-            if (score > 0) rScored.push({ title: book.title, author: book.author || '', text: chunk.slice(0, 1400), score })
+          } else if (baseScore > 0) {
+            rScored.push({ title: book.title, author: book.author || '', text: book.notes || '', score: baseScore })
           }
         }
+
         if (rScored.length > 0) {
           rScored.sort((a, b) => b.score - a.score)
           let rsSection = `MINISTRY LIBRARY (uploaded):\n`
           let usedR = 0
-          for (const c of rScored.slice(0, 4)) {
+          for (const c of rScored.slice(0, 8)) {
             const entry = `[${c.title}${c.author ? ` by ${c.author}` : ''}]:\nSOURCE_START\n${c.text}\nSOURCE_END\n\n`
             if ((preamble + rsSection + entry).length > MAX_CHARS) break
             rsSection += entry
@@ -436,7 +449,7 @@ async function getPreamble(
           if (usedR > 0) {
             preamble += rsSection
             contextSources.push('resources_keyword')
-            console.log(`[spiritEnrich] Resource keyword: ${usedR} chunks for "${spiritName}"`)
+            console.log(`[spiritEnrich] Resource keyword: ${usedR} chunks injected for "${spiritName}"`)
           }
         }
 
