@@ -3862,7 +3862,7 @@ function parseSpiritNames(text: string): string[] {
     .filter((p, i, arr) => arr.indexOf(p) === i)
 }
 
-function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [], setActiveSection }: {
+function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [], setActiveSection, setDossierTabBarHidden }: {
   theme: string
   isMobile: boolean
   isTablet: boolean
@@ -3870,6 +3870,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   userTier: string
   demons?: any[]
   setActiveSection?: (s: string) => void
+  setDossierTabBarHidden?: (v: boolean) => void
 }) {
   const { getToken } = useAuth()
   const { user } = useUser()
@@ -3895,6 +3896,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   const [protocolMode, setProtocolMode] = useState<'spirit' | 'manifestation'>('spirit')
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(['overview']))
+  const [dossierHeaderFull, setDossierHeaderFull] = useState(true)
+  const dossierScrollRef = useRef<HTMLDivElement>(null)
+  const lastScrollTopRef = useRef(0)
+  const rafRef = useRef<number | null>(null)
+  const dossierReducedMotion = useRef(
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -3947,15 +3955,46 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     }
   }, [demonsProp])
 
-  useEffect(() => { setOpenSections(new Set(['overview'])) }, [selectedEntry?.id])
+  useEffect(() => {
+    setOpenSections(new Set(['overview']))
+    setDossierHeaderFull(true)
+    lastScrollTopRef.current = 0
+  }, [selectedEntry?.id])
 
   function closeModal() {
+    setDossierTabBarHidden?.(false)
+    setDossierHeaderFull(true)
     setSelectedEntry(null)
     const returnTo = localStorage.getItem('wri_jump_from')
     if (returnTo && setActiveSection) {
       localStorage.removeItem('wri_jump_from')
       setActiveSection(returnTo)
     }
+  }
+
+  function handleDossierScroll() {
+    if (rafRef.current !== null) return
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null
+      const el = dossierScrollRef.current
+      if (!el) return
+      const st = el.scrollTop
+      const maxSt = el.scrollHeight - el.clientHeight
+      const atTop    = st <= 10
+      const atBottom = maxSt > 0 && st >= maxSt - 10
+      const delta = st - lastScrollTopRef.current
+      lastScrollTopRef.current = st
+      if (atTop || atBottom) {
+        setDossierHeaderFull(true)
+        setDossierTabBarHidden?.(false)
+      } else if (delta > 10) {
+        setDossierHeaderFull(false)
+        setDossierTabBarHidden?.(true)
+      } else if (delta < -10) {
+        setDossierHeaderFull(true)
+        setDossierTabBarHidden?.(false)
+      }
+    })
   }
 
   const CLASS_COLOR: Record<string, string> = {
@@ -4339,29 +4378,41 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
         return (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const }}>
-            {/* Top bar */}
-            <div style={{ height: 52, flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', paddingTop: 'env(safe-area-inset-top)', boxSizing: 'border-box' as const }}>
-              <button onClick={closeModal} style={{ background: 'transparent', border: 'none', color: G, fontSize: 24, cursor: 'pointer', padding: 4, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>‹</button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 15, color: dbIsDark ? color : '#2D2924', fontWeight: 700, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
-                {entry.phonetic && <div style={{ fontFamily: crimson, fontSize: 11, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</div>}
+            {/* Top bar — auto-height, clears notch, condenses on scroll */}
+            <div style={{ flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingLeft: 12, paddingRight: 12, paddingBottom: 0, boxSizing: 'border-box' as const }}>
+              {/* Row 1: back + name + rank — always visible */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10 }}>
+                <button onClick={closeModal} style={{ background: 'transparent', border: 'none', color: G, fontSize: 28, cursor: 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>‹</button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 15, color: dbIsDark ? color : '#2D2924', fontWeight: 700, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
+                  {entry.phonetic && <div style={{ fontFamily: crimson, fontSize: 11, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</div>}
+                </div>
+                {entry.biblicalRank && (
+                  <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, flexShrink: 0, letterSpacing: '0.05em', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {entry.biblicalRank.length > 20 ? entry.biblicalRank.slice(0, 20) + '…' : entry.biblicalRank}
+                  </span>
+                )}
               </div>
-              {entry.biblicalRank && (
-                <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, flexShrink: 0, letterSpacing: '0.05em', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                  {entry.biblicalRank.length > 20 ? entry.biblicalRank.slice(0, 20) + '…' : entry.biblicalRank}
-                </span>
+              {/* Row 2: classification badges — collapses when scrolled */}
+              {(entry.caseType || entry.isGenerational || entry.isTerritorial || entry.aka) && (
+                <div style={{
+                  overflow: 'hidden',
+                  maxHeight: dossierHeaderFull ? '44px' : '0',
+                  opacity: dossierHeaderFull ? 1 : 0,
+                  transition: dossierReducedMotion.current ? 'none' : 'max-height 0.2s ease, opacity 0.15s ease',
+                  display: 'flex', flexWrap: 'wrap' as const, gap: 6,
+                  paddingBottom: dossierHeaderFull ? 10 : 0,
+                }}>
+                  {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
+                  {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
+                  {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', padding: '3px 10px', borderRadius: 4 }}>🗺 Territorial</span>}
+                  {entry.aka && <span style={{ fontFamily: crimson, fontSize: 12, color: mut, fontStyle: 'italic' }}>aka {entry.aka}</span>}
+                </div>
               )}
             </div>
 
             {/* Scrollable content */}
-            <div style={{ flex: 1, overflowY: 'auto' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-              {/* Classification badges */}
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, padding: '10px 16px', borderBottom: `1px solid ${bdr}` }}>
-                {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
-                {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
-                {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', padding: '3px 10px', borderRadius: 4 }}>🗺 Territorial</span>}
-                {entry.aka && <span style={{ fontFamily: crimson, fontSize: 12, color: mut, fontStyle: 'italic' }}>aka {entry.aka}</span>}
-              </div>
+            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
 
               {/* 1. Overview — always accessible */}
               {sectionBlock('overview', 'Overview', undefined, (
@@ -13122,6 +13173,7 @@ function CommunityPage() {
   const [deletingNotifs, setDeletingNotifs] = useState(false)
   const [hoveredNotifId, setHoveredNotifId] = useState<string | null>(null)
   const [dmPendingRequests, setDmPendingRequests] = useState<any[]>([])
+  const [dossierTabBarHidden, setDossierTabBarHidden] = useState(false)
   const [showInstallBanner, setShowInstallBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (typeof navigator === 'undefined') return false
@@ -14832,7 +14884,7 @@ function CommunityPage() {
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
       {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />}
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
-      {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
+      {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
       {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
       {activeSection === 'testimony-wall' && <TestimonyWallView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={user?.firstName || 'Warrior'} userTier={tier} userImage={user?.imageUrl || ''} />}
@@ -15075,6 +15127,7 @@ function CommunityPage() {
           onOpenDrawer={() => setIpadDrawerOpen(o => !o)}
           dmHasUnread={dmPendingRequests.length > 0}
           isDark={isDark}
+          hidden={dossierTabBarHidden}
         />
 
         {renderSharedOverlays()}
@@ -15112,6 +15165,7 @@ function CommunityPage() {
           onOpenDrawer={() => setSidebarOpen(o => !o)}
           dmHasUnread={dmPendingRequests.length > 0}
           isDark={isDark}
+          hidden={dossierTabBarHidden}
         />
 
         {renderSharedOverlays()}
@@ -15306,7 +15360,7 @@ function CommunityPage() {
         )}
         {activeSection === 'database'    && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} />
+            <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} />
             <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
           </div>
         )}

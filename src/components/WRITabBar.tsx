@@ -77,6 +77,7 @@ export interface WRITabBarProps {
   onOpenDrawer: () => void
   dmHasUnread?: boolean
   isDark?: boolean
+  hidden?: boolean
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ function SheetItem({ item, onPage, onSection, dark, grid }: SheetItemProps) {
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function WRITabBar({
-  activeSection, setActiveSection, onOpenDrawer, dmHasUnread, isDark,
+  activeSection, setActiveSection, onOpenDrawer, dmHasUnread, isDark, hidden,
 }: WRITabBarProps) {
   const navigate     = useNavigate()
   const [sheet, setSheet]           = useState<string | null>(null)
@@ -330,6 +331,9 @@ export function WRITabBar({
         background: dark ? '#0D0B14' : '#FAF8F5',
         borderTop: '1px solid rgba(201,168,76,0.15)',
         display: 'flex', alignItems: 'stretch',
+        transform: hidden ? 'translateY(110%)' : 'translateY(0)',
+        transition: reducedMotion ? undefined : 'transform 0.28s ease',
+        pointerEvents: hidden ? 'none' : undefined,
       }}>
         {TABS.map((tab) => {
           if (tab.isCenter) {
