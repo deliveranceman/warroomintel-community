@@ -16,9 +16,9 @@ interface Props {
   children: React.ReactNode
 }
 
-const G      = '#C9A84C'
+const G      = 'var(--gold)'
 const cinzel = "'Cinzel', serif"
-const NAV_DEFAULT = '#b8a98a'
+const NAV_DEFAULT = 'var(--muted)'
 const navGold     = G
 
 function getTierLevel(tier: string): number {
@@ -76,7 +76,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           width: '100%', padding: '8px 16px', boxSizing: 'border-box',
           background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
           textDecoration: 'none',
-          borderLeft: `2px solid ${active ? navGold : 'transparent'}`,
+          borderLeft: `2px solid ${active ? 'var(--border-bright)' : 'transparent'}`,
           fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
           color: active ? navGold : NAV_DEFAULT,
           fontWeight: active ? 600 : 400,
@@ -102,13 +102,13 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           width: '100%', padding: '5px 16px', boxSizing: 'border-box',
           background: active ? 'rgba(201,168,76,0.06)' : 'transparent',
           textDecoration: 'none',
-          borderLeft: active ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)',
+          borderLeft: active ? '2px solid var(--border-bright)' : '2px solid rgba(201,168,76,0.1)',
           fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em',
-          color: active ? navGold : '#6b5e45',
+          color: active ? navGold : 'var(--muted)',
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = navGold; el.style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
-        onMouseLeave={e => { if (!active) { const el = e.currentTarget as HTMLElement; el.style.color = '#6b5e45'; el.style.borderLeftColor = 'rgba(201,168,76,0.1)' } }}
+        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = navGold; el.style.borderLeftColor = 'var(--border-bright)' }}
+        onMouseLeave={e => { if (!active) { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--muted)'; el.style.borderLeftColor = 'rgba(201,168,76,0.1)' } }}
       >
         {icon && <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>{icon}</span>}
         {label}
@@ -117,7 +117,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   }
 
   const sectionLabel = (label: string) => (
-    <div style={{ padding: '12px 16px 4px 16px', fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em', color: '#7a6d58' }}>
+    <div style={{ padding: '12px 16px 4px 16px', fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--muted)' }}>
       {label}
     </div>
   )
@@ -132,8 +132,8 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         textAlign: 'left', boxSizing: 'border-box',
       }}
     >
-      <span style={{ flex: 1, fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em', color: '#7a6d58', textTransform: 'uppercase' as const }}>{label}</span>
-      <span style={{ fontSize: 12, color: '#7a6d58', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+      <span style={{ flex: 1, fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--muted)', textTransform: 'uppercase' as const }}>{label}</span>
+      <span style={{ fontSize: 12, color: 'var(--muted)', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
     </button>
   )
 
@@ -142,8 +142,8 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   return (
     <div style={{
       display: 'flex',
-      background: '#0D0B14',
-      color: '#e8dcc8',
+      background: 'var(--deep)',
+      color: 'var(--text)',
       ...(fillViewport ? { height: '100dvh', overflow: 'hidden' } : { minHeight: '100dvh' }),
     }}>
       <style>{`
@@ -160,8 +160,8 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
       {/* ── LEFT SIDEBAR ── */}
       <div className="wri-shell-sidebar" style={{
         width: 220, flexShrink: 0,
-        background: '#0f0c07',
-        borderRight: '1px solid rgba(201,168,76,0.2)',
+        background: 'var(--surface2)',
+        borderRight: '1px solid var(--border)',
         display: 'flex', flexDirection: 'column',
         position: 'fixed', top: 0, bottom: 0, left: 0,
         overflowY: 'auto', zIndex: 10,
@@ -171,14 +171,14 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         {/* Profile block */}
         <div style={{
           padding: '10px 14px',
-          borderBottom: '1px solid rgba(201,168,76,0.15)',
+          borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center', gap: 10,
           flexShrink: 0, overflow: 'hidden',
         }}>
           <div style={{
             width: 34, height: 34, borderRadius: '50%',
-            background: 'rgba(201,168,76,0.15)',
-            border: '1px solid rgba(201,168,76,0.2)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
             flexShrink: 0, overflow: 'hidden',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: cinzel, fontSize: 11, color: G,
@@ -189,7 +189,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             }
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 11, color: '#e8dcc8', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--text)', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.firstName || 'Warrior'}
             </div>
             <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
@@ -200,9 +200,9 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             onClick={() => signOut()}
             style={{
               background: 'none',
-              border: '1px solid rgba(201,168,76,0.2)',
+              border: '1px solid var(--border)',
               borderRadius: 5,
-              color: '#7a6d58',
+              color: 'var(--muted)',
               fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em',
               padding: '3px 8px', cursor: 'pointer',
               flexShrink: 0, textTransform: 'uppercase' as const,
@@ -214,7 +214,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         <div style={{
           display: 'flex', gap: 6, alignItems: 'flex-start', flexWrap: 'wrap' as const,
           padding: '10px 6px',
-          borderBottom: '1px solid rgba(201,168,76,0.12)',
+          borderBottom: '1px solid var(--border)',
           marginBottom: 4,
         }}>
           {([
@@ -232,11 +232,11 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
                 background: 'transparent', border: '1px solid transparent',
                 borderRadius: 8, width: 36, height: 36,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#8B7355', textDecoration: 'none',
+                color: 'var(--muted)', textDecoration: 'none',
                 transition: 'all 0.15s',
               }}
               onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(201,168,76,0.1)'; el.style.color = G; el.style.borderColor = 'rgba(201,168,76,0.25)' }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.color = '#8B7355'; el.style.borderColor = 'transparent' }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.color = 'var(--muted)'; el.style.borderColor = 'transparent' }}
             >
               {icon}
             </a>
@@ -304,7 +304,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             >
               <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Eye size={14} strokeWidth={1.6} /></span>
               <span style={{ flex: 1 }}>Fringe Intelligence</span>
-              <span style={{ fontSize: 10, color: '#6b5e45', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
             </button>
             {fringeExpanded && (
               <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
@@ -316,8 +316,8 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
                 ] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
                     <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: '#6b5e45', flex: 1 }}>{label}</span>
-                    <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: 'var(--muted)', flex: 1 }}>{label}</span>
+                    <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: 'var(--muted)', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
                   </div>
                 ))}
               </div>
@@ -337,7 +337,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
               padding: '10px 16px 6px', boxSizing: 'border-box',
               background: 'transparent', border: 'none', cursor: 'pointer',
               fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em',
-              color: '#7a6d58', textTransform: 'uppercase' as const,
+              color: 'var(--muted)', textTransform: 'uppercase' as const,
               textAlign: 'left' as const,
             }}
           >
@@ -353,8 +353,8 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
               ] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
                   <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: '#6b5e45', flex: 1 }}>{label}</span>
-                  <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: 'var(--muted)', flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: 'var(--muted)', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
                 </div>
               ))}
             </>
@@ -366,7 +366,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           {/* ── COMMAND (testing, visibility-controlled) ── */}
           {testingVisible && (
             <>
-              <div style={{ height: 1, background: 'rgba(201,168,76,0.12)', margin: '12px 16px 4px' }} />
+              <div style={{ height: 1, background: 'var(--border)', margin: '12px 16px 4px' }} />
               {sectionLabel('Command')}
               {navLink('War Room Testing', '/community/testing', <span style={{ fontSize: 14 }}>🧪</span>)}
             </>
@@ -375,7 +375,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           {/* ── ADMIN (minister only) ── */}
           {isMinister && (
             <>
-              <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '12px 16px 8px' }} />
+              <div style={{ height: 1, background: 'var(--border)', margin: '12px 16px 8px' }} />
               <a
                 href="/admin"
                 style={{
@@ -398,7 +398,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         </div>
 
         {/* Sidebar footer */}
-        <div style={{ flexShrink: 0, borderTop: '1px solid rgba(201,168,76,0.1)', padding: '4px 0' }}>
+        <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', padding: '4px 0' }}>
           <a
             href="/community"
             style={{
@@ -416,8 +416,8 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             Settings
           </a>
           <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12 }}>
-            <a href="/terms"    style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: '#3a3428', textDecoration: 'none' }}>TERMS</a>
-            <a href="/privacy"  style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: '#3a3428', textDecoration: 'none' }}>PRIVACY</a>
+            <a href="/terms"    style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: 'var(--muted)', textDecoration: 'none' }}>TERMS</a>
+            <a href="/privacy"  style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: 'var(--muted)', textDecoration: 'none' }}>PRIVACY</a>
           </div>
         </div>
       </div>
@@ -432,11 +432,11 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         <div className="wri-shell-mobile-bc" style={{
           display: 'none', alignItems: 'center',
           padding: '10px 16px',
-          borderBottom: '1px solid rgba(201,168,76,0.15)',
-          background: '#0f0c07', flexShrink: 0,
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--surface2)', flexShrink: 0,
         }}>
-          <a href="/community" style={{ fontFamily: cinzel, fontSize: 9, color: '#6b5e45', textDecoration: 'none', letterSpacing: '0.1em' }}>← COMMUNITY</a>
-          <span style={{ color: '#6b5e45', margin: '0 8px', opacity: 0.4 }}>›</span>
+          <a href="/community" style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--muted)', textDecoration: 'none', letterSpacing: '0.1em' }}>← COMMUNITY</a>
+          <span style={{ color: 'var(--muted)', margin: '0 8px', opacity: 0.4 }}>›</span>
           <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em' }}>{activeItem.toUpperCase()}</span>
         </div>
 
@@ -450,8 +450,8 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
       {/* ── RIGHT RAIL — 48px fixed icon strip ── */}
       <div className="wri-shell-rail" style={{
         width: 48, flexShrink: 0,
-        borderLeft: '1px solid rgba(201,168,76,0.12)',
-        background: '#0a0812',
+        borderLeft: '1px solid var(--border)',
+        background: 'var(--surface2)',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', paddingTop: 8, gap: 2,
         position: 'fixed', top: 0, right: 0, bottom: 0,
@@ -472,11 +472,11 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             style={{
               width: 36, height: 36, borderRadius: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#4a3f2a', textDecoration: 'none',
+              color: 'var(--muted)', textDecoration: 'none',
               transition: 'all 0.15s',
             }}
             onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = G; el.style.background = 'rgba(201,168,76,0.1)' }}
-            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#4a3f2a'; el.style.background = 'transparent' }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--muted)'; el.style.background = 'transparent' }}
           >
             {icon}
           </a>
@@ -508,7 +508,7 @@ function SubPageBottomNav({ activeItem: _activeItem }: { activeItem: string }) {
     flex: 1, display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', gap: 3,
     textDecoration: 'none', padding: '8px 0',
-    color: isActive ? G : 'rgba(201,168,76,0.4)',
+    color: isActive ? G : 'var(--muted)',
     fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.06em',
   })
 
@@ -518,8 +518,8 @@ function SubPageBottomNav({ activeItem: _activeItem }: { activeItem: string }) {
         position: 'fixed',
         bottom: 0, left: 0, right: 0,
         height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))',
-        background: '#0f0c07',
-        borderTop: '1px solid rgba(201,168,76,0.2)',
+        background: 'var(--surface2)',
+        borderTop: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
         zIndex: 100,
