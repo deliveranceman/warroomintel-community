@@ -93,19 +93,33 @@ export default async function handler(req: Request): Promise<Response> {
 
   const jobId = job.id as string
 
-  // Fire-and-forget: trigger background worker
+  // Trigger background worker — await up to 5s so Netlify registers the dispatch
+  // before job-start returns (fire-and-forget silently dropped on this platform).
   const reqUrl  = new URL(req.url)
   const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
-  fetch(`${baseUrl}/.netlify/functions/job-worker-background`, {
-    method:  'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-internal-key': process.env.INTERNAL_API_KEY ?? '',
-    },
-    body: JSON.stringify({ jobId }),
-  }).catch((err) => {
-    console.warn('[job-start] worker dispatch fetch failed:', String(err?.message || err))
-  })
+  try {
+    const dispatch = await fetch(
+      `${baseUrl}/.netlify/functions/job-worker-background`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-key': process.env.INTERNAL_API_KEY ?? '',
+        },
+        body: JSON.stringify({ jobId }),
+        signal: AbortSignal.timeout(5000),
+      }
+    )
+    console.log('[job-start] dispatch status:', dispatch.status, 'jobId:', jobId)
+    if (dispatch.status !== 202 && dispatch.status !== 200) {
+      const body = await dispatch.text().catch(() => '')
+      console.warn('[job-start] unexpected dispatch status:',
+                   dispatch.status, body.slice(0, 200))
+    }
+  } catch (err: any) {
+    console.warn('[job-start] worker dispatch failed:',
+                 String(err?.message || err), 'jobId:', jobId)
+  }
 
   return json({ jobId, status: 'queued' })
 }
