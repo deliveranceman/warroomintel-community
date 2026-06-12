@@ -3903,6 +3903,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   const dossierReducedMotion = useRef(
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
+  const [spiritStack, setSpiritStack] = useState<any[]>([])
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -3941,6 +3942,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     if (jump && demonsProp.length > 0) {
       const match = demonsProp.find((d: any) => d.name?.toLowerCase() === jump.toLowerCase())
       if (match) {
+        setSpiritStack([])
         setSelectedEntry(match)
         localStorage.removeItem('wri_jump_to_spirit')
         const invData = localStorage.getItem('wri_protocol_inv_data')
@@ -3964,6 +3966,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   function closeModal() {
     setDossierTabBarHidden?.(false)
     setDossierHeaderFull(true)
+    setSpiritStack([])
     setSelectedEntry(null)
     const returnTo = localStorage.getItem('wri_jump_from')
     if (returnTo && setActiveSection) {
@@ -4183,7 +4186,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             return (
               <div
                 key={id}
-                onClick={() => setSelectedEntry(entry)}
+                onClick={() => { setSpiritStack([]); setSelectedEntry(entry) }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '12px 16px', minHeight: 60,
@@ -4319,6 +4322,16 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         const txt   = dbText
         const mut   = dbDim
 
+        // Image: parse same way as desktop modal
+        const _imgArr = Array.isArray(entry.images) ? entry.images : String(entry.images || '').split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean)
+        const dossierImgUrl: string | null = _imgArr[0] && _imgArr[0].startsWith('http') ? _imgArr[0] : null
+
+        // Push current spirit onto the back-stack and navigate to target
+        const navigateToSpirit = (target: any) => {
+          setSpiritStack(prev => [...prev, entry])
+          setSelectedEntry(target)
+        }
+
         const toggleSection = (id: string) => {
           setOpenSections(prev => {
             const next = new Set(prev)
@@ -4330,9 +4343,9 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         const DField = ({ label, value }: { label: string; value?: string | null }) => {
           if (!value) return null
           return (
-            <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 14, maxWidth: '100%', boxSizing: 'border-box' as const }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>{label}</div>
-              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65 }}>{value}</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65, overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const }}>{value}</div>
             </div>
           )
         }
@@ -4370,29 +4383,79 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 </div>
               )}
               {!locked && isOpen && (
-                <div style={{ padding: '4px 16px 16px' }}>{content}</div>
+                <div style={{ padding: '4px 16px 16px', overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const, boxSizing: 'border-box' as const, maxWidth: '100%' as const }}>{content}</div>
               )}
             </div>
           )
         }
 
         return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const, overflowX: 'hidden' as const }}>
             {/* Top bar — auto-height, clears notch, condenses on scroll */}
             <div style={{ flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingLeft: 12, paddingRight: 12, paddingBottom: 0, boxSizing: 'border-box' as const }}>
-              {/* Row 1: back + name + rank — always visible */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10 }}>
-                <button onClick={closeModal} style={{ background: 'transparent', border: 'none', color: G, fontSize: 28, cursor: 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>‹</button>
+              {/* Row 1: back + sigil? + name + speaker + rank — always visible */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: spiritStack.length > 0 ? 6 : 10 }}>
+                {/* Back — pops stack or returns to list */}
+                <button
+                  onClick={() => {
+                    if (spiritStack.length > 0) {
+                      const prev = spiritStack[spiritStack.length - 1]
+                      setSpiritStack(s => s.slice(0, -1))
+                      setSelectedEntry(prev)
+                    } else {
+                      closeModal()
+                    }
+                  }}
+                  style={{ background: 'transparent', border: 'none', color: G, fontSize: 28, cursor: 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>‹</button>
+                {/* Sigil — only when image exists */}
+                {dossierImgUrl && (
+                  <img src={dossierImgUrl} alt={name}
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' as const, border: '1px solid rgba(201,168,76,0.4)', flexShrink: 0 }} />
+                )}
+                {/* Name + phonetic */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 15, color: dbIsDark ? color : '#2D2924', fontWeight: 700, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
                   {entry.phonetic && <div style={{ fontFamily: crimson, fontSize: 11, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</div>}
                 </div>
+                {/* Tap-to-speak */}
+                {typeof window !== 'undefined' && 'speechSynthesis' in window && (
+                  <button
+                    onClick={() => {
+                      window.speechSynthesis.cancel()
+                      const text = entry.phonetic ? entry.phonetic.replace(/[/[\](){}]/g, '').trim() : name
+                      const u = new SpeechSynthesisUtterance(text)
+                      u.rate = 0.75; u.pitch = 0.9
+                      window.speechSynthesis.speak(u)
+                    }}
+                    aria-label="Pronounce name"
+                    style={{ background: 'transparent', border: 'none', color: G, cursor: 'pointer', padding: 0, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 16 }}>🔊</span>
+                  </button>
+                )}
+                {/* Rank badge */}
                 {entry.biblicalRank && (
-                  <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, flexShrink: 0, letterSpacing: '0.05em', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {entry.biblicalRank.length > 20 ? entry.biblicalRank.slice(0, 20) + '…' : entry.biblicalRank}
+                  <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, flexShrink: 0, letterSpacing: '0.05em', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {entry.biblicalRank.length > 18 ? entry.biblicalRank.slice(0, 18) + '…' : entry.biblicalRank}
                   </span>
                 )}
               </div>
+              {/* Breadcrumb — shown only when navigated from another spirit */}
+              {spiritStack.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any, paddingLeft: 44, paddingBottom: 8, gap: 0 }}>
+                  {spiritStack.map((s, i) => (
+                    <React.Fragment key={i}>
+                      <button
+                        onClick={() => { const target = spiritStack[i]; setSpiritStack(spiritStack.slice(0, i)); setSelectedEntry(target) }}
+                        style={{ background: 'none', border: 'none', padding: '0 2px', color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+                        {s.name}
+                      </button>
+                      <span style={{ color: mut, fontSize: 9, flexShrink: 0, padding: '0 1px' }}>›</span>
+                    </React.Fragment>
+                  ))}
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, flexShrink: 0, padding: '0 2px' }}>{name}</span>
+                </div>
+              )}
               {/* Row 2: classification badges — collapses when scrolled */}
               {(entry.caseType || entry.isGenerational || entry.isTerritorial || entry.aka) && (
                 <div style={{
@@ -4412,7 +4475,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             </div>
 
             {/* Scrollable content */}
-            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, width: '100%', boxSizing: 'border-box' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
 
               {/* 1. Overview — always accessible */}
               {sectionBlock('overview', 'Overview', undefined, (
@@ -4427,7 +4490,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       {(() => {
                         const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase())
                         return linked
-                          ? <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', fontFamily: crimson, fontSize: 14, fontWeight: 600, textDecoration: 'underline dotted' }}>{entry.strongman}</span>
+                          ? <span onClick={() => navigateToSpirit(linked)} style={{ color: G, cursor: 'pointer', fontFamily: crimson, fontSize: 14, fontWeight: 600, textDecoration: 'underline dotted' }}>{entry.strongman}</span>
                           : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span>
                       })()}
                     </div>
@@ -4463,9 +4526,18 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 </>
               ))}
 
-              {/* 4. Companions — Soldier+ */}
+              {/* 4. Companions — Soldier+ (Parent → Companions → Cluster→Commander+ → Related→General+) */}
               {sectionBlock('companions', 'Companions', 'soldier', (
                 <>
+                  {entry.parentStrongman && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Parent Strongman</div>
+                      <button onClick={() => { const p = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) navigateToSpirit(p) }}
+                        style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 14, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                        {entry.parentStrongman}
+                      </button>
+                    </div>
+                  )}
                   {entry.companionSpirits && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Companion Spirits</div>
@@ -4473,22 +4545,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                         {String(entry.companionSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
                           const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
                           return (
-                            <button key={n} onClick={() => linked && setSelectedEntry(linked)}
+                            <button key={n} onClick={() => linked && navigateToSpirit(linked)}
                               style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
                               {n}
                             </button>
                           )
                         })}
                       </div>
-                    </div>
-                  )}
-                  {entry.parentStrongman && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Parent Strongman</div>
-                      <button onClick={() => { const p = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
-                        style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 14, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
-                        {entry.parentStrongman}
-                      </button>
                     </div>
                   )}
                   {atLeast('commander') && entry.clusterSpirits && (
@@ -4498,7 +4561,23 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                         {parseSpiritNames(String(entry.clusterSpirits)).map((n, ci) => {
                           const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
                           return (
-                            <button key={ci} onClick={() => linked && setSelectedEntry(linked)}
+                            <button key={ci} onClick={() => linked && navigateToSpirit(linked)}
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {atLeast('general') && entry.relatedSpirits && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Related Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {String(entry.relatedSpirits).split(/[,;]/).map((s: string) => s.trim()).filter(Boolean).map((n: string, ri: number) => {
+                          const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={ri} onClick={() => linked && navigateToSpirit(linked)}
                               style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
                               {n}
                             </button>
