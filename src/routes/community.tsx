@@ -3893,6 +3893,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   const [checkedGrounds, setCheckedGrounds] = useState<Record<string, boolean>>({})
   const [invFromInvestigator, setInvFromInvestigator] = useState<any>(null)
   const [protocolMode, setProtocolMode] = useState<'spirit' | 'manifestation'>('spirit')
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(['overview']))
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -3944,6 +3946,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
       }
     }
   }, [demonsProp])
+
+  useEffect(() => { setOpenSections(new Set(['overview'])) }, [selectedEntry?.id])
 
   function closeModal() {
     setSelectedEntry(null)
@@ -4119,105 +4123,405 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         {dbLoading ? 'Loading archive...' : query ? `${filtered.length} entries matching "${query}"` : `${filtered.length} entries in archive`}
       </div>
 
-      {/* Cards grid */}
-      <div style={{
-        flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '8px 16px 16px',
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: 12, alignContent: 'start',
-        maxWidth: '100%', boxSizing: 'border-box' as const,
-      }}>
-        {dbLoading && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
-            ACCESSING DATABASE...
-          </div>
-        )}
-        {!dbLoading && filtered.length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: crimson, fontSize: 16, fontStyle: 'italic' }}>
-            No entries found. Try different search terms.
-          </div>
-        )}
-        {filtered.map((entry, i) => {
-          const id             = entry.id || String(i)
-          const name           = entry.name || 'Unknown'
-          const cls            = entry.biblicalRank || ''
-          const aliases        = entry.aka || ''
-          const description    = entry.description || ''
-          const companions     = entry.companionSpirits || ''
-          const color          = getColor(cls)
-          const hierCat        = entry.hierarchyCategory || ''
-          const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
-
-          return (
-            <TacticalCard key={id} brackets onClick={() => setSelectedEntry(entry)} style={{ marginBottom: 12, cursor: 'pointer' }}>
-              {/* Name row */}
-              <div style={{ marginBottom: 6 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 18, color: 'var(--t-0)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
-              </div>
-
-              {/* Threat level */}
-              <div style={{ marginBottom: 8 }}>
-                <ThreatBar level={entry.threatLevel ?? 3} />
-              </div>
-
-              {/* Hierarchy category + rank as HUDChips */}
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 8 }}>
-                {hierCat && (
-                  <HUDChip active style={{ fontSize: 9 }}>{hierCat}</HUDChip>
-                )}
-                {entry.biblicalRank && (
-                  <HUDChip style={{ fontSize: 9, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {entry.biblicalRank.length > 40 ? entry.biblicalRank.slice(0, 40) + '…' : entry.biblicalRank}
-                  </HUDChip>
-                )}
-                {entry.isGenerational && <HUDChip style={{ fontSize: 9 }}>GEN.</HUDChip>}
-                {entry.isTerritorial && <HUDChip style={{ fontSize: 9 }}>TERR.</HUDChip>}
-              </div>
-
-              {/* Aliases */}
-              {aliases && (
-                <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginBottom: 6 }}>
-                  aka {aliases}
+      {/* Mobile compact intel list */}
+      {isMobile && (
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' as const }}>
+          {dbLoading && (
+            <div style={{ textAlign: 'center' as const, padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
+              ACCESSING DATABASE...
+            </div>
+          )}
+          {!dbLoading && filtered.length === 0 && (
+            <div style={{ textAlign: 'center' as const, padding: '60px 0', color: dbDim, fontFamily: crimson, fontSize: 16, fontStyle: 'italic' }}>
+              No entries found. Try different search terms.
+            </div>
+          )}
+          {filtered.map((entry, i) => {
+            const id      = entry.id || String(i)
+            const name    = entry.name || 'Unknown'
+            const color   = getColor(entry.biblicalRank || '')
+            const hierCat = entry.hierarchyCategory || ''
+            return (
+              <div
+                key={id}
+                onClick={() => setSelectedEntry(entry)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '12px 16px', minHeight: 60,
+                  background: 'transparent', borderBottom: `1px solid ${dbBorder}`,
+                  cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                  boxSizing: 'border-box' as const,
+                }}
+              >
+                <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, background: color, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 14, color: dbText, fontWeight: 600, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginBottom: 3 }}>{name}</div>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                    {hierCat && <span style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.04em' }}>{hierCat}</span>}
+                    {entry.biblicalRank && entry.biblicalRank.length <= 24 && <span style={{ fontFamily: cinzel, fontSize: 8, color: dbDim, border: `1px solid ${dbBorder}`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.04em' }}>{entry.biblicalRank}</span>}
+                    {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 7, color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 3, padding: '1px 5px' }}>GEN</span>}
+                    {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 7, color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', borderRadius: 3, padding: '1px 5px' }}>TERR</span>}
+                  </div>
+                  {entry.aka && <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>aka {entry.aka}</div>}
                 </div>
-              )}
-
-              {/* Description — clamped preview */}
-              <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
-                {description}
+                <div style={{ color: dbDim, fontSize: 20, flexShrink: 0, lineHeight: 1 }}>›</div>
               </div>
+            )
+          })}
+        </div>
+      )}
 
-              {/* Companion chips preview — Commander+ */}
-              {companionList.length > 0 && (
+      {/* Desktop/tablet cards grid — unchanged */}
+      {!isMobile && (
+        <div style={{
+          flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '8px 16px 16px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 12, alignContent: 'start',
+          maxWidth: '100%', boxSizing: 'border-box' as const,
+        }}>
+          {dbLoading && (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
+              ACCESSING DATABASE...
+            </div>
+          )}
+          {!dbLoading && filtered.length === 0 && (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: dbDim, fontFamily: crimson, fontSize: 16, fontStyle: 'italic' }}>
+              No entries found. Try different search terms.
+            </div>
+          )}
+          {filtered.map((entry, i) => {
+            const id             = entry.id || String(i)
+            const name           = entry.name || 'Unknown'
+            const cls            = entry.biblicalRank || ''
+            const aliases        = entry.aka || ''
+            const description    = entry.description || ''
+            const companions     = entry.companionSpirits || ''
+            const color          = getColor(cls)
+            const hierCat        = entry.hierarchyCategory || ''
+            const companionList  = companions ? companions.split(',').map((c: string) => c.trim()).filter(Boolean) : []
+
+            return (
+              <TacticalCard key={id} brackets onClick={() => setSelectedEntry(entry)} style={{ marginBottom: 12, cursor: 'pointer' }}>
+                {/* Name row */}
+                <div style={{ marginBottom: 6 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 18, color: 'var(--t-0)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
+                </div>
+
+                {/* Threat level */}
                 <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>COMPANIONS</div>
-                  {atLeast('Commander') ? (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {companionList.slice(0, 3).map((c: string, ci: number) => (
-                        <span key={ci}
-                          onClick={e => { e.stopPropagation(); setQuery(c) }}
-                          style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
-                          title={`Search for ${c}`}>
-                          {c}
-                        </span>
-                      ))}
-                      {companionList.length > 3 && <span style={{ fontFamily: cinzel, fontSize: 8, color: dbDim }}>+{companionList.length - 3} more</span>}
-                    </div>
-                  ) : (
-                    <div style={{ fontFamily: cinzel, fontSize: 8, color: dbDim, fontStyle: 'italic' }}>Commander+ to view</div>
+                  <ThreatBar level={entry.threatLevel ?? 3} />
+                </div>
+
+                {/* Hierarchy category + rank as HUDChips */}
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 8 }}>
+                  {hierCat && (
+                    <HUDChip active style={{ fontSize: 9 }}>{hierCat}</HUDChip>
                   )}
+                  {entry.biblicalRank && (
+                    <HUDChip style={{ fontSize: 9, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {entry.biblicalRank.length > 40 ? entry.biblicalRank.slice(0, 40) + '…' : entry.biblicalRank}
+                    </HUDChip>
+                  )}
+                  {entry.isGenerational && <HUDChip style={{ fontSize: 9 }}>GEN.</HUDChip>}
+                  {entry.isTerritorial && <HUDChip style={{ fontSize: 9 }}>TERR.</HUDChip>}
+                </div>
+
+                {/* Aliases */}
+                {aliases && (
+                  <div style={{ fontFamily: crimson, fontSize: 11, color: dbDim, fontStyle: 'italic', marginBottom: 6 }}>
+                    aka {aliases}
+                  </div>
+                )}
+
+                {/* Description — clamped preview */}
+                <div style={{ fontFamily: crimson, fontSize: 13, color: dbText, lineHeight: 1.55, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                  {description}
+                </div>
+
+                {/* Companion chips preview — Commander+ */}
+                {companionList.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>COMPANIONS</div>
+                    {atLeast('Commander') ? (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {companionList.slice(0, 3).map((c: string, ci: number) => (
+                          <span key={ci}
+                            onClick={e => { e.stopPropagation(); setQuery(c) }}
+                            style={{ fontFamily: cinzel, fontSize: 8, color, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 3, cursor: 'pointer' }}
+                            title={`Search for ${c}`}>
+                            {c}
+                          </span>
+                        ))}
+                        {companionList.length > 3 && <span style={{ fontFamily: cinzel, fontSize: 8, color: dbDim }}>+{companionList.length - 3} more</span>}
+                      </div>
+                    ) : (
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: dbDim, fontStyle: 'italic' }}>Commander+ to view</div>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
+                  ▼ VIEW FULL INTEL
+                </div>
+              </TacticalCard>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Mobile full-screen dossier */}
+      {isMobile && selectedEntry && (() => {
+        const entry = selectedEntry
+        const name  = entry.name || 'Unknown'
+        const cls   = entry.biblicalRank || ''
+        const color = getColor(cls)
+        const bdr   = dbBorder
+        const txt   = dbText
+        const mut   = dbDim
+
+        const toggleSection = (id: string) => {
+          setOpenSections(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id); else next.add(id)
+            return next
+          })
+        }
+
+        const DField = ({ label, value }: { label: string; value?: string | null }) => {
+          if (!value) return null
+          return (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>{label}</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65 }}>{value}</div>
+            </div>
+          )
+        }
+
+        const sectionBlock = (
+          id: string,
+          title: string,
+          requiredTier: string | undefined,
+          content: React.ReactNode,
+        ) => {
+          const locked = requiredTier ? !atLeast(requiredTier) : false
+          const isOpen = openSections.has(id)
+          const capTier = requiredTier ? requiredTier.charAt(0).toUpperCase() + requiredTier.slice(1) : 'Soldier'
+          return (
+            <div key={id} style={{ borderBottom: `1px solid ${bdr}` }}>
+              <button
+                onClick={() => locked ? beginUpgrade(requiredTier!) : toggleSection(id)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '14px 16px', minHeight: 44, background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxSizing: 'border-box' as const }}
+              >
+                <span style={{ fontFamily: cinzel, fontSize: 12, color: locked ? mut : isOpen ? G : txt, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 7 }}>
+                  {locked && <span style={{ fontSize: 11, opacity: 0.8 }}>🔒</span>}{title}
+                </span>
+                <span style={{ color: isOpen && !locked ? G : mut, fontSize: 18, lineHeight: 1, transform: isOpen && !locked ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>›</span>
+              </button>
+              {locked && isOpen && (
+                <div style={{ padding: '8px 16px 16px', background: 'rgba(160,120,48,0.04)' }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: '#A07830', letterSpacing: '0.14em', marginBottom: 5 }}>LOCKED</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>
+                    Upgrade to {capTier} to view this section.
+                  </div>
+                  <button
+                    onClick={() => beginUpgrade(requiredTier!)}
+                    style={{ padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                  >Upgrade to {capTier}</button>
                 </div>
               )}
-
-              <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
-                ▼ VIEW FULL INTEL
-              </div>
-            </TacticalCard>
+              {!locked && isOpen && (
+                <div style={{ padding: '4px 16px 16px' }}>{content}</div>
+              )}
+            </div>
           )
-        })}
-      </div>
+        }
 
-      {/* Intel Dossier Modal */}
-      {selectedEntry && (() => {
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const }}>
+            {/* Top bar */}
+            <div style={{ height: 52, flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', paddingTop: 'env(safe-area-inset-top)', boxSizing: 'border-box' as const }}>
+              <button onClick={closeModal} style={{ background: 'transparent', border: 'none', color: G, fontSize: 24, cursor: 'pointer', padding: 4, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>‹</button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 15, color: dbIsDark ? color : '#2D2924', fontWeight: 700, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{name}</div>
+                {entry.phonetic && <div style={{ fontFamily: crimson, fontSize: 11, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</div>}
+              </div>
+              {entry.biblicalRank && (
+                <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, flexShrink: 0, letterSpacing: '0.05em', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {entry.biblicalRank.length > 20 ? entry.biblicalRank.slice(0, 20) + '…' : entry.biblicalRank}
+                </span>
+              )}
+            </div>
+
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+              {/* Classification badges */}
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, padding: '10px 16px', borderBottom: `1px solid ${bdr}` }}>
+                {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
+                {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
+                {entry.isTerritorial && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(139,157,202,0.12)', color: '#8B9DCA', border: '1px solid rgba(139,157,202,0.3)', padding: '3px 10px', borderRadius: 4 }}>🗺 Territorial</span>}
+                {entry.aka && <span style={{ fontFamily: crimson, fontSize: 12, color: mut, fontStyle: 'italic' }}>aka {entry.aka}</span>}
+              </div>
+
+              {/* 1. Overview — always accessible */}
+              {sectionBlock('overview', 'Overview', undefined, (
+                <>
+                  <DField label="Description" value={entry.description} />
+                  <DField label="Type / Rank" value={entry.typeRank} />
+                  <DField label="Kingdom" value={entry.kingdom} />
+                  {entry.subKingdom && entry.subKingdom !== 'None' && <DField label="Sub-Kingdom" value={entry.subKingdom} />}
+                  {entry.strongman && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Strongman</div>
+                      {(() => {
+                        const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase())
+                        return linked
+                          ? <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', fontFamily: crimson, fontSize: 14, fontWeight: 600, textDecoration: 'underline dotted' }}>{entry.strongman}</span>
+                          : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span>
+                      })()}
+                    </div>
+                  )}
+                  {entry.isTerritorial && entry.region && <DField label="Territorial Region" value={entry.region} />}
+                  {entry.hierarchyCategory && (() => {
+                    const cat = entry.hierarchyCategory
+                    const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
+                    return (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Category</div>
+                        <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, display: 'inline-block' }}>{cat}</span>
+                      </div>
+                    )
+                  })()}
+                </>
+              ))}
+
+              {/* 2. Manifestations — Soldier+ */}
+              {sectionBlock('manifestations', 'Manifestations', 'soldier', (
+                <>
+                  <DField label="Manifestations" value={entry.manifestation} />
+                  {atLeast('general') && <DField label="Symptoms" value={entry.symptoms} />}
+                </>
+              ))}
+
+              {/* 3. Entry Points — Commander+ */}
+              {sectionBlock('entrypoints', 'Entry Points', 'commander', (
+                <>
+                  <DField label="Entry Points" value={entry.entryPoints} />
+                  <DField label="Legal Rights" value={entry.legalRights} />
+                  <DField label="Assignment" value={entry.assignment} />
+                </>
+              ))}
+
+              {/* 4. Companions — Soldier+ */}
+              {sectionBlock('companions', 'Companions', 'soldier', (
+                <>
+                  {entry.companionSpirits && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Companion Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {String(entry.companionSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
+                          const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={n} onClick={() => linked && setSelectedEntry(linked)}
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {entry.parentStrongman && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Parent Strongman</div>
+                      <button onClick={() => { const p = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
+                        style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 14, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                        {entry.parentStrongman}
+                      </button>
+                    </div>
+                  )}
+                  {atLeast('commander') && entry.clusterSpirits && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Cluster Spirits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {parseSpiritNames(String(entry.clusterSpirits)).map((n, ci) => {
+                          const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
+                          return (
+                            <button key={ci} onClick={() => linked && setSelectedEntry(linked)}
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ))}
+
+              {/* 5. Scriptures — Soldier+ */}
+              {sectionBlock('scriptures', 'Scriptures', 'soldier', (
+                <>
+                  <DField label="Scripture Reference" value={entry.scripture} />
+                  {atLeast('commander') && <DField label="Counter Scriptures" value={entry.counterScriptures} />}
+                  {atLeast('commander') && <DField label="Scripture Context" value={entry.scriptureContext} />}
+                </>
+              ))}
+
+              {/* 6. Research — General+ */}
+              {sectionBlock('research', 'Research', 'general', (
+                <>
+                  <DField label="Etymology & Name Analysis" value={entry.etymologyNotes} />
+                  <DField label="Archaeological & ANE Context" value={entry.archaeologyNotes} />
+                  <DField label="Institutional Expression" value={entry.institutionalExpression} />
+                  <DField label="Primary Battlefield" value={entry.primaryBattlefield} />
+                  <DField label="Personality Presentation" value={entry.personalityPresentation} />
+                  <DField label="Source / Origin" value={entry.sourceOrigin} />
+                  <DField label="WRI Exorcist Notes" value={entry.wriNotes} />
+                </>
+              ))}
+
+              {/* 7. Warfare — Commander+ */}
+              {sectionBlock('warfare', 'Warfare', 'commander', (
+                <>
+                  <DField label="Session Indicators" value={entry.sessionIndicators} />
+                  <DField label="Resistance Signature" value={entry.resistanceSignature} />
+                  <DField label="Transmission Vectors" value={entry.transmissionVectors} />
+                  <DField label="Legal Rights Framework" value={entry.legalRightsFramework} />
+                  <DField label="Demonic Agreements" value={entry.demonicAgreements} />
+                  {entry.prayerPoints && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Prayer Points</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                        {String(entry.prayerPoints).split(/\n|\d+\./).filter((s: string) => s.trim()).map((p: string, pi: number) => (
+                          <div key={pi} style={{ background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 6, padding: '8px 12px', fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.6 }}>{p.trim()}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {entry.sessionTriggerQuestions && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Session Trigger Questions</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+                        {String(entry.sessionTriggerQuestions).split('\n').filter((l: string) => l.trim()).map((line: string, li: number) => (
+                          <div key={li} style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.65, fontStyle: 'italic', paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>
+                            {line.replace(/^\d+\.\s*/, '')}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <DField label="Operational Notes" value={entry.operationalNotes} />
+                  <DField label="Aftercare Notes" value={entry.aftercareNotes} />
+                </>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Desktop/tablet Intel Dossier Modal — unchanged */}
+      {!isMobile && selectedEntry && (() => {
         const entry = selectedEntry
         const name  = entry.name || 'Unknown'
         const cls   = entry.biblicalRank || ''
