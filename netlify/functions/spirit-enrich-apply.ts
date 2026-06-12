@@ -22,8 +22,15 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'Invalid JSON' }, 400)
   }
 
-  const { jobId } = body || {}
+  const { jobId, applyFields } = body || {}
   if (!jobId) return json({ error: 'jobId required' }, 400)
+
+  // applyFields: when present and non-empty, only those keys are written.
+  // When omitted or empty, all keys in proposed are written (batch path).
+  const fieldFilter: Set<string> | null =
+    Array.isArray(applyFields) && applyFields.length > 0
+      ? new Set<string>(applyFields as string[])
+      : null
 
   const client = sb()
 
@@ -49,15 +56,26 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ ok: true, noop: true, spiritId: resultJson.spiritId, appliedAt: resultJson.applied_at })
   }
 
-  const proposed   = (resultJson.proposed   as Record<string, any>) || {}
-  const spiritSlug = (resultJson.spiritSlug as string) || ''
-  const spiritId   = (resultJson.spiritId   as string) || ''
+  const fullProposed = (resultJson.proposed   as Record<string, any>) || {}
+  const spiritSlug   = (resultJson.spiritSlug as string) || ''
+  const spiritId     = (resultJson.spiritId   as string) || ''
 
   if (!spiritSlug) {
     return json({ error: 'result_json.spiritSlug missing — job data is corrupt' }, 422)
   }
-  if (Object.keys(proposed).length === 0) {
+  if (Object.keys(fullProposed).length === 0) {
     return json({ error: 'No proposed fields to apply' }, 422)
+  }
+
+  // Apply only the filtered subset, or everything if no filter.
+  const proposed: Record<string, any> = fieldFilter
+    ? Object.fromEntries(
+        Object.entries(fullProposed).filter(([k]) => fieldFilter.has(k))
+      )
+    : fullProposed
+
+  if (Object.keys(proposed).length === 0) {
+    return json({ error: 'applyFields had no overlap with proposed fields' }, 422)
   }
 
   const { record, error: writeErr } = await updateSpiritBySlug(client, spiritSlug, proposed)
@@ -72,19 +90,21 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: writeErr || 'Write failed' }, 500)
   }
 
-  // Stamp the job row so re-applies are idempotent
+  const appliedFields = Object.keys(proposed)
+
+  // Stamp the job row so re-applies are idempotent; record exactly which keys landed.
   await client.from('ai_jobs').update({
     result_json: {
       ...resultJson,
-      applied_at: new Date().toISOString(),
-      applied_by: auth.userId,
+      applied_at:     new Date().toISOString(),
+      applied_by:     auth.userId,
+      applied_fields: appliedFields,
     },
   }).eq('id', jobId)
 
-  const updatedFields = Object.keys(proposed)
-  console.log(`[spirit-enrich-apply] applied ${updatedFields.length} fields to "${spiritSlug}" by ${auth.userId}`)
+  console.log(`[spirit-enrich-apply] applied ${appliedFields.length} fields to "${spiritSlug}" by ${auth.userId}`)
 
-  return json({ ok: true, spiritId, spiritSlug, updatedFields })
+  return json({ ok: true, spiritId, spiritSlug, updatedFields: appliedFields })
 }
 
 export const config = { path: '/api/spirit-enrich-apply' }
