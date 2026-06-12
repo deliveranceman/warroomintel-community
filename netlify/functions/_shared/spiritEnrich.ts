@@ -528,7 +528,7 @@ export async function enrichSpirit({ spiritSlug, userId, userTier, supabase }: {
     system:    systemPrompt,
     messages:  [{ role: 'user', content: userPrompt }],
     maxTokens: 4096,
-    timeoutMs: 60000,
+    timeoutMs: 120000,
     meta,
   })
 
