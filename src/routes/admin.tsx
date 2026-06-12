@@ -12339,7 +12339,7 @@ function AdminPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: adDim }}>{user?.firstName} {user?.lastName}</span>
-          <button onClick={() => { const next = !isDark; setIsDark(next); localStorage.setItem('wri-theme', next ? 'dark' : 'light') }}
+          <button onClick={() => { const next = !isDark; setIsDark(next); const theme = next ? 'dark' : 'light'; localStorage.setItem('wri-theme', theme); document.documentElement.setAttribute('data-theme', theme) }}
             style={{ background: 'none', border: `1px solid ${adBdr}`, borderRadius: '50%', width: 28, height: 28, color: adGold, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {isDark ? '☀' : '🌙'}
           </button>

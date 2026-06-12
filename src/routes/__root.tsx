@@ -109,11 +109,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
-        {/* Force dark theme — WRI is always dark */}
-        <script dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme='dark'` }} />
+        {/* Set theme pre-paint to avoid FOUC; default dark, opt into light from localStorage */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('wri-theme')==='light'){document.documentElement.setAttribute('data-theme','light')}}catch(e){}` }} />
       </head>
       <body>
         <ClerkProvider
