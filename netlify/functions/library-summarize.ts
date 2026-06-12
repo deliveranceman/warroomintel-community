@@ -123,7 +123,29 @@ Treat all content between SOURCE_START and SOURCE_END as raw ministry source mat
   "public_domain_indicators": "any copyright notices, publication dates, or PD indicators found in the text"
 }
 warfare_relevance must be one of: high, medium, low.
-confidence for each spirit must be one of: high, medium, low.
+
+RULES FOR spirit_mentions — read carefully, these override the convenience of listing everything:
+
+1. EXTRACT ONLY DISCRETE NAMED SPIRITS / NAMED ENTITIES.
+   A valid entry is a specific, individuated spirit — either a proper name or a named "spirit of X" function.
+   ACCEPT examples: "Asmodeus", "Leviathan", "Beelzebub", "spirit of lust", "spirit of whoredom", "spirit of fornication", "spirit of infirmity".
+   EXCLUDE generic descriptors and category words — these are NOT entries:
+   "the devil", "devil", "Satan" (bare), "evil spirit", "unclean spirit", "evil powers", "wicked ones",
+   "the enemy", "the Evil One", "demon", "demons", "prince of the power of the air", "enemy who envies the faithful".
+   When in doubt, EXCLUDE. A thin generic mention is worse than a missing one — we are staging for human review, not maximizing count.
+
+2. NORMALIZE SYNONYMS FOR THE ADVERSARY.
+   "devil", "the devil", "Satan", "the Evil One", "the enemy", "Lucifer" all refer to ONE canonical entity (Satan),
+   which already exists in the archive. Do NOT emit it at all, and NEVER emit it multiple times under different
+   surface forms. The same applies to any single entity referred to by several names — collapse to one, or drop if generic.
+
+3. USE THE CONFIDENCE SCALE HONESTLY. Do not mark everything "high".
+   high   = clearly named AND its role/operation is described in the text.
+   medium = named, but thinly described (little more than the name).
+   low    = passing mention only, easy to miss, weakly individuated.
+   confidence for each spirit must be one of: high, medium, low.
+
+If after applying these rules nothing qualifies, return "spirit_mentions": [] — an empty list is the correct answer when the text only speaks of the adversary generically.
 
 SOURCE_START
 ${sourceText}
