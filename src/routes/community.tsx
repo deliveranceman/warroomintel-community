@@ -4360,7 +4360,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         const DField = ({ label, value }: { label: string; value?: string | null }) => {
           if (!value) return null
           return (
-            <div style={{ marginBottom: 14, maxWidth: '100%', boxSizing: 'border-box' as const }}>
+            <div style={{ marginBottom: 14, maxWidth: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,0,0,0.25)' }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>{label}</div>
               <div style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.65, overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const }}>{value}</div>
             </div>
@@ -4377,7 +4377,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           const isOpen = openSections.has(id)
           const capTier = requiredTier ? requiredTier.charAt(0).toUpperCase() + requiredTier.slice(1) : 'Soldier'
           return (
-            <div key={id} style={{ borderBottom: `1px solid ${bdr}`, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, overflowX: 'hidden' as const }}>
+            <div key={id} style={{ borderBottom: `1px solid ${bdr}`, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, overflowX: 'hidden' as const, background: 'rgba(0,0,255,0.25)' }}>
               <button
                 onClick={() => locked ? beginUpgrade(requiredTier!) : toggleSection(id)}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '14px 16px', minHeight: 44, background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxSizing: 'border-box' as const }}
@@ -4400,7 +4400,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 </div>
               )}
               {!locked && isOpen && (
-                <div style={{ padding: '4px 16px 16px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const, overflow: 'hidden' as const }}>{content}</div>
+                <div style={{ padding: '4px 16px 16px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, overflowWrap: 'anywhere' as const, wordBreak: 'break-word' as const, overflow: 'hidden' as const, background: 'rgba(0,128,0,0.25)' }}>{content}</div>
               )}
             </div>
           )
@@ -4409,7 +4409,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         return (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const, overflowX: 'hidden' as const, maxWidth: '100%', boxSizing: 'border-box' as const }}>
             {/* Top bar — auto-height, clears notch, condenses on scroll */}
-            <div style={{ flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'max(env(safe-area-inset-top), 20px)', paddingLeft: 12, paddingRight: 'max(env(safe-area-inset-right), 12px)', paddingBottom: 0, boxSizing: 'border-box' as const }}>
+            <div style={{ flexShrink: 0, background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'max(env(safe-area-inset-top), 20px)', paddingLeft: 12, paddingRight: 'max(env(safe-area-inset-right), 12px)', paddingBottom: 0, boxSizing: 'border-box' as const, outline: '3px solid rgba(255,0,255,0.8)' }}>
               {/* Row 1: [back + sigil + name] LEFT  |  [speaker + rank] RIGHT — always visible */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: spiritStack.length > 0 ? 6 : 10 }}>
                 {/* Back — pops stack or returns to list */}
@@ -4458,6 +4458,19 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       <span style={{ fontSize: 16, lineHeight: 1 }}>🔊</span>
                     </button>
                   )}
+                  {/* DIAG: bare-bones "T" speaker — no cancel/voice/state, just raw speak() */}
+                  {typeof window !== 'undefined' && 'speechSynthesis' in window && (
+                    <button
+                      onClick={() => {
+                        const u = new SpeechSynthesisUtterance('BAY AL')
+                        u.rate = 0.9
+                        window.speechSynthesis.speak(u)
+                      }}
+                      aria-label="Test speech"
+                      style={{ background: 'transparent', border: `1px solid ${G}`, borderRadius: 6, color: G, cursor: 'pointer', padding: '4px 6px', minWidth: 32, minHeight: 32, fontSize: 10, fontFamily: cinzel, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                      T
+                    </button>
+                  )}
                   {entry.biblicalRank && (
                     <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.05em', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'block' }}>
                       {entry.biblicalRank.length > 16 ? entry.biblicalRank.slice(0, 16) + '…' : entry.biblicalRank}
@@ -4490,6 +4503,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   transition: dossierReducedMotion.current ? 'none' : 'max-height 0.2s ease, opacity 0.15s ease',
                   display: 'flex', flexWrap: 'wrap' as const, gap: 6,
                   paddingBottom: dossierHeaderFull ? 10 : 0,
+                  background: 'rgba(0,255,255,0.25)',
                 }}>
                   {entry.caseType && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 4 }}>{entry.caseType}</span>}
                   {entry.isGenerational && <span style={{ fontFamily: cinzel, fontSize: 8, background: 'rgba(122,158,126,0.12)', color: '#7a9e7e', border: '1px solid rgba(122,158,126,0.3)', padding: '3px 10px', borderRadius: 4 }}>🧬 Generational</span>}
@@ -4500,7 +4514,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             </div>
 
             {/* Scrollable content */}
-            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)', background: 'rgba(255,255,0,0.18)' }}>
 
               {/* 1. Overview — always accessible */}
               {sectionBlock('overview', 'Overview', undefined, (
