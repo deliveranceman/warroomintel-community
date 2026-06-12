@@ -24,7 +24,7 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'Invalid JSON' }, 400)
   }
 
-  const { jobType, resourceId, scanMode: rawScanMode, spiritId: rawSpiritId } = body || {}
+  const { jobType, resourceId, scanMode: rawScanMode, spiritSlug: rawSpiritSlug } = body || {}
 
   if (!ALLOWED_JOB_TYPES.has(jobType)) {
     return json({ error: 'unknown job_type' }, 400)
@@ -52,12 +52,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   // ── spirit_enrich validation ──────────────────────────────────────────────
   if (jobType === 'spirit_enrich') {
-    if (!rawSpiritId) return json({ error: 'spiritId required' }, 400)
+    if (!rawSpiritSlug) return json({ error: 'spiritSlug required' }, 400)
 
     const { data: spirit, error: spiritErr } = await client
       .from('spirits')
       .select('id')
-      .eq('id', rawSpiritId)
+      .eq('slug', rawSpiritSlug)
       .single()
 
     if (spiritErr || !spirit) return json({ error: 'Spirit not found' }, 422)
@@ -76,7 +76,7 @@ export default async function handler(req: Request): Promise<Response> {
     jobRow.resource_id   = resourceId
     jobRow.input_params  = { scanMode, resourceId }
   } else if (jobType === 'spirit_enrich') {
-    jobRow.input_params  = { spiritId: rawSpiritId }
+    jobRow.input_params  = { spiritSlug: rawSpiritSlug }
   }
 
   // Insert ai_jobs row

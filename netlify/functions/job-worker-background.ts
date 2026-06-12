@@ -193,9 +193,9 @@ async function runPatristicScan(client: ReturnType<typeof sb>, job: any): Promis
 }
 
 async function runSpiritEnrich(client: ReturnType<typeof sb>, job: any): Promise<void> {
-  const jobId    = job.id as string
-  const params   = (job.input_params as any) || {}
-  const spiritId = (params.spiritId as string) || ''
+  const jobId      = job.id as string
+  const params     = (job.input_params as any) || {}
+  const spiritSlug = (params.spiritSlug as string) || ''
 
   try {
     // ── Stage: preparing ────────────────────────────────────────────────────
@@ -205,13 +205,13 @@ async function runSpiritEnrich(client: ReturnType<typeof sb>, job: any): Promise
       stage:      'preparing',
     }).eq('id', jobId)
 
-    if (!spiritId) throw new Error('input_params.spiritId missing')
+    if (!spiritSlug) throw new Error('input_params.spiritSlug missing')
 
     // ── Stage: enriching ────────────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'enriching', progress: 10 }).eq('id', jobId)
 
     const result = await enrichSpirit({
-      spiritId,
+      spiritSlug,
       userId:   (job.user_id as string) || '',
       userTier: (job.tier    as string) || '',
       supabase: client,

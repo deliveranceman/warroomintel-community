@@ -473,8 +473,8 @@ export interface EnrichResult {
   context_sources: string[]
 }
 
-export async function enrichSpirit({ spiritId, userId, userTier, supabase }: {
-  spiritId: string
+export async function enrichSpirit({ spiritSlug, userId, userTier, supabase }: {
+  spiritSlug: string
   userId: string
   userTier: string
   supabase: any
@@ -482,16 +482,16 @@ export async function enrichSpirit({ spiritId, userId, userTier, supabase }: {
   const { data: spiritRow, error: fetchErr } = await supabase
     .from('spirits')
     .select('*')
-    .eq('id', spiritId)
+    .eq('slug', spiritSlug)
     .single()
 
   if (fetchErr || !spiritRow) {
-    throw new Error(`Spirit ${spiritId} not found`)
+    throw new Error(`Spirit ${spiritSlug} not found`)
   }
 
   const spiritData  = mapRow(spiritRow)
   const name        = (spiritData.name as string) || ''
-  const slug        = (spiritData.slug as string) || ''
+  const slug        = (spiritData.slug as string) || spiritSlug
   const description = (spiritData.description as string) || ''
   const isTerritorial = spiritData.isTerritorial === true
 
@@ -543,7 +543,7 @@ export async function enrichSpirit({ spiritId, userId, userTier, supabase }: {
   }
 
   return {
-    spiritId,
+    spiritId: (spiritRow.id as string) || '',
     spiritSlug: slug,
     spiritName: name,
     current,

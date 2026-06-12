@@ -2664,8 +2664,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     const working = [...initial]
     for (let i = 0; i < working.length; i++) {
       const entry = working[i]
-      if (!entry.spiritId) {
-        working[i] = { ...entry, status: 'failed', error: 'spirit id missing from local state' }
+      if (!entry.slug) {
+        working[i] = { ...entry, status: 'failed', error: 'spirit slug missing from local state' }
         batchJobsRef.current = [...working]; setBatchJobs([...working])
         continue
       }
@@ -2674,7 +2674,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         const res   = await fetch('/api/job-start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body:   JSON.stringify({ jobType: 'spirit_enrich', spiritId: entry.spiritId }),
+          body:   JSON.stringify({ jobType: 'spirit_enrich', spiritSlug: entry.slug }),
         })
         const d = await res.json()
         if (res.ok) {
@@ -2919,7 +2919,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       const res = await fetch('/api/job-start', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ jobType: 'spirit_enrich', spiritId: aiTargetDemon.id }),
+        body:    JSON.stringify({ jobType: 'spirit_enrich', spiritSlug: aiTargetDemon.slug }),
       })
       const d = await res.json()
       if (!res.ok) {
