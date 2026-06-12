@@ -2154,16 +2154,16 @@ function splitCsvLine(line: string): string[] {
 function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
   const adStatBg  = isDark ? SURF : '#fff'
   const adHeaderBg = isDark ? SURF2 : '#FFFFFF'
-  const adStatNum = isDark ? G : '#8B6914'
-  const adStatLbl = isDark ? DIM : '#5C5248'
+  const adStatNum = isDark ? G : '#8A6A1E'
+  const adStatLbl = isDark ? DIM : '#6E6557'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
-    background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6,
-    padding: '10px 12px', color: TXT, fontFamily: crimson, fontSize: 14, outline: 'none',
+    background: isDark ? SURF2 : '#FFFFFF', border: `1px solid ${isDark ? BDR : '#E7E1D5'}`, borderRadius: 6,
+    padding: '10px 12px', color: isDark ? TXT : '#2A251C', fontFamily: crimson, fontSize: 14, outline: 'none',
   }
   const lbl: React.CSSProperties = {
     display: 'block', fontFamily: cinzel, fontSize: 9,
-    letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase' as const, marginBottom: 6,
+    letterSpacing: '0.12em', color: isDark ? DIM : '#6E6557', textTransform: 'uppercase' as const, marginBottom: 6,
   }
 
   // Posts
@@ -3193,8 +3193,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>{backfillProgress}</div>
       )}
       {backfillResults?.complete && (
-        <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, marginBottom: 12, letterSpacing: '0.06em' }}>ENRICHMENT COMPLETE</div>
+        <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#E7E1D5'}`, borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#2A251C', marginBottom: 12, letterSpacing: '0.06em' }}>ENRICHMENT COMPLETE</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             {[
               { label: 'UPDATED',              value: backfillResults.totalUpdated, color: '#4a7a4a' },
@@ -7387,9 +7387,12 @@ function DashboardView({ getToken, isDark, setTab }: {
   getToken: any; isDark: boolean; setTab: (t: string) => void
 }) {
   const BG2  = isDark ? '#13111a' : '#fff'
-  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
-  const MUT  = isDark ? '#9a8c74' : '#5C5248'
-  const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : '#E7E1D5'
+  const MUT  = isDark ? '#9a8c74' : '#6E6557'
+  const TXT2 = isDark ? '#e8e0d0' : '#2A251C'
+  const adInk = isDark ? G : '#2A251C'   // section/dashboard titles — gold in dark, ink on white
+  const adNum = isDark ? G : '#8A6A1E'   // stat numbers — gold in dark, deep gold on white
+  const cardShadow = isDark ? 'none' : '0 1px 2px rgba(60,45,15,.05), 0 4px 14px rgba(60,45,15,.04)'
 
   const [demons, setDemons]         = useState<any[]>([])
   const [aiStats, setAiStats]       = useState<any>(null)
@@ -7464,14 +7467,16 @@ function DashboardView({ getToken, isDark, setTab }: {
   const needsEnhance = demons.filter(d => fieldScore(d, allTracked) < Math.round(allTracked.length * 0.5)).length
 
   const card = (label: string, value: string | number, subtitle: string) => (
-    <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: '20px 24px', flex: 1, minWidth: 160 }}>
+    <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: '20px 24px', flex: 1, minWidth: 160, boxShadow: cardShadow }}>
       <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.1em', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: cinzel, fontSize: 32, color: G, fontWeight: 700 }}>{loading ? '…' : value}</div>
+      <div style={{ fontFamily: cinzel, fontSize: 32, color: adNum, fontWeight: 700 }}>{loading ? '…' : value}</div>
       <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 4 }}>{subtitle}</div>
     </div>
   )
 
-  const TIER_COLORS: Record<string,string> = { general: G, commander: '#8B9DCA', soldier: '#7a9e7e', watchman: '#9a8c74', free: '#555', minister: '#ef4444' }
+  const TIER_COLORS: Record<string,string> = isDark
+    ? { general: G, commander: '#8B9DCA', soldier: '#7a9e7e', watchman: '#9a8c74', free: '#555', minister: '#ef4444' }
+    : { general: '#B5912F', commander: '#5E76B0', soldier: '#5F8A66', watchman: '#8C7E63', free: '#8C7E63', minister: '#C2453F' }
 
   const recentEnhancements = aiStats?.recentCalls?.filter((c: any) => c.call_type === 'enhance').slice(0, 8) || []
 
@@ -7479,7 +7484,7 @@ function DashboardView({ getToken, isDark, setTab }: {
     <div style={{ color: TXT2, fontFamily: crimson }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 22, color: G, marginBottom: 4, letterSpacing: '0.06em' }}>⚔ War Room Intel: Command Center</div>
+        <div style={{ fontFamily: cinzel, fontSize: 22, color: adInk, marginBottom: 4, letterSpacing: '0.06em' }}>⚔ War Room Intel: Command Center</div>
         <div style={{ fontFamily: crimson, fontSize: 14, color: MUT }}>
           {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
@@ -7504,20 +7509,20 @@ function DashboardView({ getToken, isDark, setTab }: {
       {/* Row 2 — DB completion + Member tiers */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
         {/* DB completion */}
-        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 14 }}>Intelligence Database</div>
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24, boxShadow: cardShadow }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.08em', marginBottom: 14 }}>Intelligence Database</div>
           {loading || !stats ? (
             <div style={{ color: MUT, fontFamily: crimson, fontSize: 13 }}>Loading...</div>
           ) : (
             <>
-              <div style={{ fontFamily: cinzel, fontSize: 42, color: G, fontWeight: 700, lineHeight: 1 }}>{stats.overall}%</div>
+              <div style={{ fontFamily: cinzel, fontSize: 42, color: adNum, fontWeight: 700, lineHeight: 1 }}>{stats.overall}%</div>
               <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 18, marginTop: 4 }}>Overall · {demons.length} spirits</div>
               {([
-                { label: 'Core Data', pct: stats.core,     color: '#C9A84C' },
-                { label: 'Intel',     pct: stats.intel,    color: '#8B9DCA' },
-                { label: 'Warfare',   pct: stats.warfare,  color: '#7a9e7e' },
-                { label: 'Research',  pct: stats.research, color: '#9B7BB8' },
-                { label: 'Media',     pct: stats.media,    color: '#CA8B8B' },
+                { label: 'Core Data', pct: stats.core,     color: isDark ? '#C9A84C' : '#B5912F' },
+                { label: 'Intel',     pct: stats.intel,    color: isDark ? '#8B9DCA' : '#5E76B0' },
+                { label: 'Warfare',   pct: stats.warfare,  color: isDark ? '#7a9e7e' : '#5F8A66' },
+                { label: 'Research',  pct: stats.research, color: isDark ? '#9B7BB8' : '#8463A6' },
+                { label: 'Media',     pct: stats.media,    color: isDark ? '#CA8B8B' : '#B0676C' },
               ] as const).map(cat => (
                 <div key={cat.label} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: MUT, marginBottom: 4 }}>
@@ -7534,8 +7539,8 @@ function DashboardView({ getToken, isDark, setTab }: {
         </div>
 
         {/* Member tiers */}
-        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Warriors</div>
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24, boxShadow: cardShadow }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.08em', marginBottom: 16 }}>Warriors</div>
           {loading || !memberStats ? (
             <div style={{ color: MUT, fontFamily: crimson, fontSize: 13 }}>Loading...</div>
           ) : (['minister','general','commander','soldier','watchman','free']).map(tier => {
@@ -7563,14 +7568,14 @@ function DashboardView({ getToken, isDark, setTab }: {
       {/* Row 3 — AI usage + Action items */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
         {/* AI usage */}
-        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>AI Research Activity</div>
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24, boxShadow: cardShadow }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.08em', marginBottom: 16 }}>AI Research Activity</div>
           {aiStats && (
             <>
               <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
                 <div>
                   <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 3 }}>THIS MONTH</div>
-                  <div style={{ fontFamily: cinzel, fontSize: 18, color: G }}>{aiStats.thisMonth?.calls} calls</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 18, color: adNum }}>{aiStats.thisMonth?.calls} calls</div>
                   <div style={{ fontFamily: crimson, fontSize: 12, color: MUT }}>${aiStats.thisMonth?.estimatedCost?.toFixed(2)}</div>
                 </div>
                 <div>
@@ -7587,7 +7592,7 @@ function DashboardView({ getToken, isDark, setTab }: {
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 40, marginBottom: 8 }}>
                     {last14.map((d: any) => (
                       <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3 }}>
-                        <div style={{ width: '100%', background: G, borderRadius: 2, height: `${Math.max((d.calls / maxCalls) * 36, 2)}px` }} />
+                        <div style={{ width: '100%', background: adNum, borderRadius: 2, height: `${Math.max((d.calls / maxCalls) * 36, 2)}px` }} />
                       </div>
                     ))}
                   </div>
@@ -7606,23 +7611,23 @@ function DashboardView({ getToken, isDark, setTab }: {
         </div>
 
         {/* Action items */}
-        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Action Required</div>
+        <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24, boxShadow: cardShadow }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.08em', marginBottom: 16 }}>Action Required</div>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
             {needsEnhance > 0 && (
               <div onClick={() => setTab('intel')} style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em' }}>⚡ {needsEnhance} spirits need enhancement</div>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: adInk, letterSpacing: '0.06em' }}>⚡ {needsEnhance} spirits need enhancement</div>
                 <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 2 }}>Fewer than 15 fields researched</div>
               </div>
             )}
             {noImage > 0 && (
               <div onClick={() => setTab('intel')} style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em' }}>🖼 {noImage} spirits missing images</div>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: adInk, letterSpacing: '0.06em' }}>🖼 {noImage} spirits missing images</div>
                 <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 2 }}>Run AI enhancement to auto-fetch Wikipedia images</div>
               </div>
             )}
             <div onClick={() => setTab('moderation')} style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer' }}>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.06em' }}>✝ Testimonies & Field Reports</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: adInk, letterSpacing: '0.06em' }}>✝ Testimonies & Field Reports</div>
               <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginTop: 2 }}>Review pending community submissions</div>
             </div>
           </div>
@@ -7631,7 +7636,7 @@ function DashboardView({ getToken, isDark, setTab }: {
 
       {/* Row 4 — Quick actions */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 16 }}>Quick Actions</div>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.08em', marginBottom: 16 }}>Quick Actions</div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' as const }}>
           {[
             { icon: '⚡', title: 'Enhance Next Spirit', sub: 'Research the least-complete spirit', action: () => setTab('intel') },
@@ -7644,7 +7649,7 @@ function DashboardView({ getToken, isDark, setTab }: {
               onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.12)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.06)' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{a.icon}</div>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em', marginBottom: 4 }}>{a.title}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.06em', marginBottom: 4 }}>{a.title}</div>
               <div style={{ fontFamily: crimson, fontSize: 13, color: MUT }}>{a.sub}</div>
             </div>
           ))}
@@ -7654,11 +7659,11 @@ function DashboardView({ getToken, isDark, setTab }: {
       {/* Row 5 — Recently researched */}
       {recentEnhancements.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 12 }}>Recently Researched</div>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.08em', marginBottom: 12 }}>Recently Researched</div>
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto' as const, paddingBottom: 4 }}>
             {recentEnhancements.map((c: any, i: number) => c.spirit_name && (
               <div key={i} onClick={() => setTab('intel')}
-                style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 20, padding: '6px 14px', fontFamily: cinzel, fontSize: 10, color: G, cursor: 'pointer', whiteSpace: 'nowrap' as const, letterSpacing: '0.06em', flexShrink: 0 }}>
+                style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 20, padding: '6px 14px', fontFamily: cinzel, fontSize: 10, color: adInk, cursor: 'pointer', whiteSpace: 'nowrap' as const, letterSpacing: '0.06em', flexShrink: 0 }}>
                 {c.spirit_name}
               </div>
             ))}
@@ -7667,8 +7672,8 @@ function DashboardView({ getToken, isDark, setTab }: {
       )}
 
       {/* Row 6 — Spirit of the Week editor */}
-      <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>🎯 Spirit of the Week</div>
+      <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24, boxShadow: cardShadow }}>
+        <div style={{ fontFamily: cinzel, fontSize: 13, color: adInk, letterSpacing: '0.08em', marginBottom: 4 }}>🎯 Spirit of the Week</div>
         {sotw && (
           <div style={{ fontFamily: crimson, fontSize: 12, color: MUT, marginBottom: 14 }}>
             Current: <strong style={{ color: TXT2 }}>{sotw.spirit_name}</strong>
@@ -7727,7 +7732,7 @@ function DashboardView({ getToken, isDark, setTab }: {
                 } catch { setSotwMsg('Network error') }
                 setSotwSaving(false)
               }}
-              style={{ padding: '8px 20px', background: sotwSaving ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.15)', border: `1px solid ${sotwSaving ? BDR2 : 'rgba(201,168,76,0.5)'}`, borderRadius: 6, color: sotwSaving ? MUT : G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: sotwSaving ? 'default' : 'pointer', textTransform: 'uppercase' as const }}
+              style={{ padding: '8px 20px', background: sotwSaving ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.15)', border: `1px solid ${sotwSaving ? BDR2 : 'rgba(201,168,76,0.5)'}`, borderRadius: 6, color: sotwSaving ? MUT : adInk, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: sotwSaving ? 'default' : 'pointer', textTransform: 'uppercase' as const }}
             >{sotwSaving ? 'Publishing...' : '🎯 Publish This Week'}</button>
             {sotwMsg && <span style={{ fontFamily: crimson, fontSize: 12, color: sotwMsg === 'Published' ? '#4ade80' : '#e05c5c' }}>{sotwMsg}</span>}
           </div>
@@ -12242,10 +12247,10 @@ function AdminPage() {
   }, [])
 
   const headerBg  = isDark ? '#13111e' : '#FFFFFF'
-  const contentBg = isDark ? '#0D0B14' : '#FAF8F5'
-  const adBdr     = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
-  const adGold    = isDark ? '#C9A84C' : '#8B6914'
-  const adDim     = isDark ? '#9a8c74' : '#5C5248'
+  const contentBg = isDark ? '#0D0B14' : '#EEEBE4'
+  const adBdr     = isDark ? 'rgba(201,168,76,0.18)' : '#E7E1D5'
+  const adGold    = isDark ? '#C9A84C' : '#7A5E16'
+  const adDim     = isDark ? '#9a8c74' : '#6E6557'
 
   if (!isLoaded) {
     return (
