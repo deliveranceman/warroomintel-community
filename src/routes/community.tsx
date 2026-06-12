@@ -5778,6 +5778,18 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
   }
   const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
 
+  const tierPillStyle = (tier: string, active: boolean) => {
+    const C: Record<string, { b: string; bg: string; fg: string }> = {
+      All:       { b: 'rgba(201,168,76,0.55)',  bg: 'rgba(201,168,76,0.13)',   fg: '#C9A84C' },
+      Watchman:  { b: 'rgba(148,163,184,0.45)', bg: 'rgba(148,163,184,0.10)',  fg: 'rgba(148,163,184,0.90)' },
+      Soldier:   { b: 'rgba(201,168,76,0.55)',  bg: 'rgba(201,168,76,0.13)',   fg: '#C9A84C' },
+      Commander: { b: 'rgba(251,146,60,0.50)',  bg: 'rgba(251,146,60,0.12)',   fg: 'rgba(251,146,60,0.90)' },
+      General:   { b: 'rgba(167,139,250,0.50)', bg: 'rgba(167,139,250,0.12)',  fg: 'rgba(167,139,250,0.90)' },
+    }
+    const c = C[tier] || C.All
+    return { border: `1px solid ${active ? c.b : 'rgba(201,168,76,0.18)'}`, background: active ? c.bg : 'transparent', color: active ? c.fg : 'rgba(201,168,76,0.42)' }
+  }
+
   const categoryCounts = arsenalItems.reduce((acc, item) => {
     const t = item.topic || item.category
     if (t) acc[t] = (acc[t] || 0) + 1
@@ -5809,7 +5821,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
-  const ResourceRow = ({ resource, isSelected, onToggle }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void }) => {
+  const ResourceRow = ({ resource, isSelected, onToggle, showDescription }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void; showDescription?: boolean }) => {
     const accessRequired = resource.access_tier ? (ACCESS_TIERS_ORDER[resource.access_tier] ?? 0) : tierLvl(resource.tier)
     const hasAccess  = userAccessLevel >= accessRequired
     const tc         = TIER_COLORS[resource.tier] || G
@@ -5848,8 +5860,10 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
 
     return (
       <div
-        style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '10px 14px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+        style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: showDescription ? '12px 14px' : '10px 14px', cursor: 'pointer', transition: 'background 0.15s' }}
         onClick={() => setExpandedId(isExp ? null : resource.id)}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.05)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {onToggle && (
@@ -5892,6 +5906,11 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {!isExp && showDescription && resource.description && (
+          <div style={{ paddingTop: 4, paddingLeft: 42 }}>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.45)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{resource.description}</div>
           </div>
         )}
       </div>
@@ -5978,12 +5997,12 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 24 }}>
               {dynamicTopics.map(topic => (
                 <div key={topic} onClick={() => setActiveCategory(topic)}
-                  style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 8, padding: '14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, transition: 'border-color 0.15s, background 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.35)'; e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.12)'; e.currentTarget.style.background = 'rgba(201,168,76,0.04)' }}>
-                  <span style={{ fontSize: 20 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
+                  style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 10, padding: '16px 14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6, transition: 'border-color 0.18s, background 0.18s, box-shadow 0.18s', boxShadow: 'none' }}
+                  onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(201,168,76,0.42)'; el.style.background = 'rgba(201,168,76,0.09)'; el.style.boxShadow = '0 4px 18px rgba(0,0,0,0.28), 0 0 0 1px rgba(201,168,76,0.08)' }}
+                  onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(201,168,76,0.12)'; el.style.background = 'rgba(201,168,76,0.04)'; el.style.boxShadow = 'none' }}>
+                  <span style={{ fontSize: 22, lineHeight: 1 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
                   <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', lineHeight: 1.3 }}>{topic}</span>
-                  <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.4)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.38)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
                 </div>
               ))}
             </div>
@@ -5993,8 +6012,8 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
           {recent.length > 0 && (
             <div>
               <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 10 }}>Recently Added</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {recent.map(r => <ResourceRow key={r.id} resource={r} />)}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {recent.map(r => <ResourceRow key={r.id} resource={r} showDescription />)}
               </div>
             </div>
           )}
@@ -6101,7 +6120,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             <div style={{ display: 'flex', gap: 5, marginBottom: 12, flexWrap: 'wrap' as const }}>
               {['All', 'Watchman', 'Soldier', 'Commander', 'General'].map(tier => (
                 <button key={tier} onClick={() => setTierFilter(tier)}
-                  style={{ padding: '3px 10px', borderRadius: 20, border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.55' : '0.18'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.13)' : 'transparent', color: tierFilter === tier ? G : 'rgba(201,168,76,0.42)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                  style={{ padding: '3px 10px', borderRadius: 20, fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.06em', transition: 'all 0.15s', ...tierPillStyle(tier, tierFilter === tier) }}>
                   {tier}
                 </button>
               ))}
