@@ -14062,6 +14062,117 @@ function CommunityPage() {
     )
   }
 
+  // ── MORE DRAWER CONTENT (grouped nav for mobile + iPad "More" drawers) ──
+  const MoreDrawerContent = ({ closeDrawer }: { closeDrawer: () => void }) => {
+    const go = (section: string) => { setActiveSection(section); closeDrawer() }
+    const isOpsAllowed = ['commander', 'general'].includes(tier.toLowerCase()) || role === 'minister'
+    const grpHdr = (label: string) => (
+      <div style={{ padding: '14px 16px 4px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: '#A07830', textTransform: 'uppercase' as const, userSelect: 'none' as const }}>{label}</div>
+    )
+    const row = (label: string, icon: React.ReactNode, active: boolean, onClick: () => void) => (
+      <button
+        onClick={onClick}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+          padding: '9px 16px', background: active ? 'rgba(201,168,76,0.10)' : 'transparent',
+          border: 'none', borderLeft: `2px solid ${active ? navGold : 'transparent'}`,
+          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em',
+          color: active ? navGold : NAV_DEFAULT, cursor: 'pointer',
+          textAlign: 'left' as const, boxSizing: 'border-box' as const,
+          transition: 'background 0.15s, color 0.15s',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', color: G, flexShrink: 0, width: 18 }}>{icon}</span>
+        {label}
+      </button>
+    )
+    const pageLink = (label: string, icon: React.ReactNode, href: string) => (
+      <a
+        href={href}
+        onClick={closeDrawer}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+          padding: '9px 16px', background: 'transparent',
+          border: 'none', borderLeft: '2px solid transparent',
+          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em',
+          color: NAV_DEFAULT, textDecoration: 'none',
+          boxSizing: 'border-box' as const,
+          transition: 'background 0.15s, color 0.15s',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', color: G, flexShrink: 0, width: 18 }}>{icon}</span>
+        {label}
+      </a>
+    )
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%' }}>
+        {/* User header */}
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {(() => {
+            let ringColor = 'rgba(201,168,76,0.3)'
+            try {
+              const cat = localStorage.getItem(`wri-atm-cat-${new Date().toISOString().slice(0, 10)}`)
+              if (cat === 'green') ringColor = '#22c55e'
+              else if (cat === 'amber') ringColor = '#f59e0b'
+              else if (cat === 'purple') ringColor = '#a855f7'
+            } catch {}
+            return (
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, boxShadow: `0 0 0 2px ${ringColor}` }}>
+                {user?.imageUrl
+                  ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (user?.firstName?.[0] || 'W')
+                }
+              </div>
+            )
+          })()}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {user?.firstName || 'Warrior'}
+            </div>
+            <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{tier}</div>
+          </div>
+          <button
+            onClick={() => signOut()}
+            style={{ background: 'none', border: `1px solid ${V.bdr}`, borderRadius: 5, color: V.mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '3px 8px', cursor: 'pointer', flexShrink: 0, textTransform: 'uppercase' as const }}
+          >Out</button>
+        </div>
+
+        {/* Scrollable groups */}
+        <div style={{ flex: 1, overflowY: 'auto' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+          {grpHdr('Community')}
+          {row('Sitrep',         <Radio size={15} strokeWidth={1.6} />,          activeSection === 'sitrep',         () => go('sitrep'))}
+          {row('War Room',       <Sword size={15} strokeWidth={1.6} />,          activeSection === 'war-room',       () => go('war-room'))}
+          {row('Prayer',         <Heart size={15} strokeWidth={1.6} />,          activeSection === 'prayer-wall',    () => go('prayer-wall'))}
+          {row('Testimony',      <Cross size={15} strokeWidth={1.6} />,          activeSection === 'testimony-wall', () => go('testimony-wall'))}
+          {row('Ops Board',      <MessageSquare size={15} strokeWidth={1.6} />,  activeSection === 'forum',          () => go('forum'))}
+          {row('Field Ministry', <BookOpen size={15} strokeWidth={1.6} />,       activeSection === 'field-ministry', () => go('field-ministry'))}
+          {row('Field Teams',    <Users size={15} strokeWidth={1.6} />,          activeSection === 'field-teams',    () => go('field-teams'))}
+
+          {grpHdr('Intelligence')}
+          {row('Intel Archive',  <FolderArchive size={15} strokeWidth={1.6} />,  activeSection === 'database',       () => go('database'))}
+          {row('Arsenal',        <Sword size={15} strokeWidth={1.6} />,          activeSection === 'arsenal',        () => go('arsenal'))}
+          {row('Symptom',        <Search size={15} strokeWidth={1.6} />,         activeSection === 'investigate',    () => go('investigate'))}
+          {row('Body Map',       <Map size={15} strokeWidth={1.6} />,            activeSection === 'body-map',       () => go('body-map'))}
+          {row('Gateway',        <DoorOpen size={15} strokeWidth={1.6} />,       activeSection === 'gateway',        () => go('gateway'))}
+          {pageLink('Dream Interpreter', <Moon size={15} strokeWidth={1.6} />,   '/community/dream-interpreter')}
+          {row('Weekly Intel',   <Antenna size={15} strokeWidth={1.6} />,        activeSection === 'intel',          () => go('intel'))}
+          {row('My Intel',       <FolderOpen size={15} strokeWidth={1.6} />,     activeSection === 'my-intel',       () => go('my-intel'))}
+          {pageLink('Scripture Study',   <BookOpen size={15} strokeWidth={1.6} />, '/community/scripture')}
+
+          {grpHdr('Growth')}
+          {row('Daily Devotion', <span style={{ fontSize: 14, lineHeight: 1 }}>☀</span>, activeSection === 'daily-brief', () => go('daily-brief'))}
+          {row('Training',       <GraduationCap size={15} strokeWidth={1.6} />,  activeSection === 'training',       () => go('training'))}
+
+          {grpHdr('Account')}
+          {row('Profile',        <Eye size={15} strokeWidth={1.6} />,            false,                               () => { setEditingProfile(true); closeDrawer() })}
+          {row('Session Center', <Shield size={15} strokeWidth={1.6} />,         activeSection === 'session-center', () => go('session-center'))}
+          {isOpsAllowed && row('Ops Dashboard', <Zap size={15} strokeWidth={1.6} />, activeSection === 'ops-dashboard', () => go('ops-dashboard'))}
+          {row('Settings',       <Settings size={15} strokeWidth={1.6} />,       false,                               () => { setEditingProfile(true); closeDrawer() })}
+        </div>
+      </div>
+    )
+  }
+
   // ── SIDEBAR CONTENT (shared between desktop and mobile overlay) ──
   const SidebarContent = () => (
     <>
@@ -14644,8 +14755,8 @@ function CommunityPage() {
         {ipadDrawerOpen && <div onClick={() => setIpadDrawerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.5)' }} />}
 
         {/* Slide-in drawer */}
-        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 300, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'auto' as const, transform: ipadDrawerOpen ? 'translateX(0)' : 'translateX(-300px)', transition: 'transform 0.25s ease' }}>
-          <SidebarContent />
+        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 300, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'hidden' as const, display: 'flex', flexDirection: 'column' as const, transform: ipadDrawerOpen ? 'translateX(0)' : 'translateX(-300px)', transition: 'transform 0.25s ease' }}>
+          <MoreDrawerContent closeDrawer={() => setIpadDrawerOpen(false)} />
         </div>
 
         {/* Content */}
@@ -14681,8 +14792,8 @@ function CommunityPage() {
         {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.5)' }} />}
 
         {/* Slide-in sidebar */}
-        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 280, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'auto' as const, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-280px)', transition: 'transform 0.25s ease' }}>
-          <SidebarContent />
+        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 280, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'hidden' as const, display: 'flex', flexDirection: 'column' as const, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-280px)', transition: 'transform 0.25s ease' }}>
+          <MoreDrawerContent closeDrawer={() => setSidebarOpen(false)} />
         </div>
 
         {/* Content */}
