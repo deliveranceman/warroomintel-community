@@ -2227,6 +2227,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, { status: 'pending' | 'accepted' | 'skipped', value: string, editing: boolean }>>({})
   const [aiUsedLibrary, setAiUsedLibrary]         = useState(false)
   const [aiLibrarySourceCount, setAiLibrarySourceCount] = useState(0)
+  // job-driven enrich state (Commit C — replaces sync flow for individual panel)
+  const [enrichJobId, setEnrichJobId]             = useState<string | null>(null)
+  const [enrichJobStage, setEnrichJobStage]       = useState('')
+  const [enrichJobProgress, setEnrichJobProgress] = useState(0)
+  const enrichPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // AI Backfill state
   const [backfillRunning, setBackfillRunning]   = useState(false)
@@ -2818,13 +2823,24 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     } finally { setNewSaving(false) }
   }
 
+  function stopEnrichPoll() {
+    if (enrichPollRef.current) {
+      clearInterval(enrichPollRef.current)
+      enrichPollRef.current = null
+    }
+  }
+
   function openAiPanel(demon: any) {
+    stopEnrichPoll()
     setAiTargetDemon(demon)
     setAiResult({})
     setFieldDecisions({})
     setAiSavedLog([])
     setAiError('')
     setAiPhase('idle')
+    setEnrichJobId(null)
+    setEnrichJobStage('')
+    setEnrichJobProgress(0)
     setShowAiPanel(true)
   }
 
@@ -2843,6 +2859,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setAiPhase('review')
   }
 
+  // Deprecated sync flow — kept as reference; individual panel now uses job-driven flow below.
+  // async function startAiResearch_sync() { ... calls /api/ai-spirit-enhance-background ... }
+
   async function startAiResearch() {
     if (!aiTargetDemon) return
     setAiPhase('loading')
@@ -2851,56 +2870,66 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     setAiError('')
     setAiUsedLibrary(false)
     setAiLibrarySourceCount(0)
-
-    const allFields: Record<string, any> = {}
-    const baseJobId = `enhance-${aiTargetDemon.airtableId || aiTargetDemon.id}-${Date.now()}`
+    setEnrichJobId(null)
+    setEnrichJobStage('queued')
+    setEnrichJobProgress(0)
 
     try {
       const token = await getToken()
-
-      for (let i = 0; i < FIELD_GROUPS.length; i++) {
-        const group = FIELD_GROUPS[i]
-        const jobId = `${baseJobId}-part-${i + 1}`
-
-        try {
-          const res = await fetch('/api/ai-spirit-enhance-background', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ name: aiTargetDemon.name, existing: aiTargetDemon, fields: group, jobId }),
-          })
-
-          const text = await res.text()
-          if (!text || text.trim() === '') {
-            console.warn(`[enhance] Group ${i + 1} returned empty body`)
-            continue
-          }
-
-          let d: any
-          try { d = JSON.parse(text) } catch {
-            console.warn(`[enhance] Group ${i + 1} returned non-JSON:`, text.slice(0, 100))
-            continue
-          }
-
-          if (d.fields && Object.keys(d.fields).length > 0) {
-            Object.assign(allFields, d.fields)
-            console.log(`[enhance] Group ${i + 1} returned fields:`, Object.keys(d.fields))
-            if (d.usedLibrary) { setAiUsedLibrary(true); setAiLibrarySourceCount(c => Math.max(c, d.librarySourceCount || 0)) }
-          } else {
-            console.warn(`[enhance] Group ${i + 1} returned no fields:`, d.error || 'unknown')
-          }
-        } catch (groupErr: any) {
-          console.warn(`[enhance] Group ${i + 1} failed:`, groupErr.message)
-          // Continue to next group even if this one fails
-        }
-      }
-
-      if (Object.keys(allFields).length > 0) {
-        applyAiFields(allFields)
-      } else {
-        setAiError('AI returned no fields. Try again.')
+      const res = await fetch('/api/job-start', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ jobType: 'spirit_enrich', spiritId: aiTargetDemon.id }),
+      })
+      const d = await res.json()
+      if (!res.ok) {
+        setAiError(d.error || 'Failed to start enrichment job')
         setAiPhase('error')
+        return
       }
-    } catch(e: any) {
+
+      const newJobId = d.jobId as string
+      setEnrichJobId(newJobId)
+
+      // Poll every 3s until terminal state
+      stopEnrichPoll()
+      enrichPollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes   = await fetch(`/api/job-status?jobId=${newJobId}`, {
+            headers: { Authorization: `Bearer ${pollToken}` },
+          })
+          if (!pollRes.ok) return
+          const pollData = await pollRes.json()
+
+          setEnrichJobStage(pollData.stage || '')
+          setEnrichJobProgress(pollData.progress || 0)
+
+          if (pollData.status === 'complete') {
+            stopEnrichPoll()
+            const proposed = (pollData.result_json?.proposed as Record<string, any>) || {}
+            const sources  = (pollData.result_json?.context_sources as string[]) || []
+            if (sources.length > 0) {
+              setAiUsedLibrary(true)
+              setAiLibrarySourceCount(sources.length)
+            }
+            if (Object.keys(proposed).length > 0) {
+              applyAiFields(proposed)
+            } else {
+              setAiError('AI returned no new fields — all values already match current data.')
+              setAiPhase('error')
+            }
+          } else if (pollData.status === 'failed') {
+            stopEnrichPoll()
+            setAiError(pollData.error_message || 'Enrichment job failed')
+            setAiPhase('error')
+          }
+        } catch (pollErr: any) {
+          console.warn('[enrich-poll] error:', pollErr.message)
+        }
+      }, 3000)
+
+    } catch (e: any) {
       setAiError(e.message || 'Network error')
       setAiPhase('error')
     }
@@ -2925,58 +2954,28 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const AI_BOOL_FIELDS = new Set(['isGenerational', 'isTerritorial'])
 
   async function saveAiAccepted() {
-    const toSave: Record<string, any> = {}
-    const savedLabels: string[] = []
-
-    Object.entries(fieldDecisions).forEach(([k, dec]) => {
-      if (dec.status !== 'accepted') return
-      if (AI_BOOL_FIELDS.has(k)) {
-        toSave[k] = dec.value === 'Yes' || dec.value === 'true' || dec.value === 'yes'
-      } else {
-        toSave[k] = dec.value
-      }
-      savedLabels.push(AI_LABELS[k] || k)
-    })
-
-    if (Object.keys(toSave).length === 0) return
+    if (!enrichJobId) return
     setAiPhase('saving')
 
     try {
-      const merged = { ...aiTargetDemon, ...toSave }
-      setDemons((prev: any[]) => prev.map(d =>
-        d.id === aiTargetDemon.id || (d.slug && d.slug === aiTargetDemon.slug) ? merged : d
-      ))
-      setAiTargetDemon(merged)
-
       const token = await getToken()
-      console.log('[save] Sending to admin-demon:', {
-        id: aiTargetDemon.airtableId,
-        fieldCount: Object.keys(toSave).length,
-        keys: Object.keys(toSave),
-      })
-
-      const res = await fetch('/api/admin-demon', {
-        method: 'PATCH',
+      const res   = await fetch('/api/spirit-enrich-apply', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: aiTargetDemon.airtableId, slug: aiTargetDemon.slug, fields: toSave }),
+        body:    JSON.stringify({ jobId: enrichJobId }),
       })
-
-      const responseText = await res.text()
-      console.log('[save] Response status:', res.status, 'body:', responseText.slice(0, 200))
-
+      const d = await res.json()
       if (res.ok) {
-        setAiSavedLog(savedLabels)
+        const labels = ((d.updatedFields as string[]) || []).map((f: string) => AI_LABELS[f] || f)
+        setAiSavedLog(labels)
         setAiPhase('done')
         fetchDemons()
       } else {
-        let errMsg = `Save failed: ${res.status}`
-        try { errMsg = JSON.parse(responseText).error || errMsg } catch {}
-        setAiError(errMsg)
+        setAiError(d.error || `Apply failed: ${res.status}`)
         setAiPhase('error')
       }
-    } catch(e: any) {
-      console.error('[save] Exception:', e)
-      setAiError(e.message || 'Save failed')
+    } catch (e: any) {
+      setAiError(e.message || 'Apply failed')
       setAiPhase('error')
     }
   }
@@ -3934,7 +3933,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
               <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 3 }}>✦ AI SPIRIT RESEARCH</div>
               <div style={{ fontFamily: crimson, fontSize: 16, color: TXT, fontWeight: 600 }}>{aiTargetDemon.name}</div>
             </div>
-            <button onClick={() => setShowAiPanel(false)} style={{ background: 'none', border: 'none', color: DIM, fontSize: 20, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
+            <button onClick={() => { stopEnrichPoll(); setShowAiPanel(false) }} style={{ background: 'none', border: 'none', color: DIM, fontSize: 20, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: '20px' }}>
@@ -3957,12 +3956,21 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             {/* LOADING */}
             {aiPhase === 'loading' && (
               <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>◉ RESEARCHING...</div>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 14 }}>
-                  Consulting Scripture, Dead Sea Scrolls, archaeology,<br />and deliverance ministry sources
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', marginBottom: 12 }}>
+                  {enrichJobStage === 'queued' || enrichJobStage === '' ? '◉ QUEUED...' : `◉ ${enrichJobStage.toUpperCase()}...`}
                 </div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', lineHeight: 1.7, marginBottom: 14 }}>
+                  {enrichJobStage === 'queued' || enrichJobStage === '' || enrichJobStage === 'preparing'
+                    ? 'Assembling ministry library context...'
+                    : 'Consulting Scripture, Dead Sea Scrolls, archaeology,\nand deliverance ministry sources'}
+                </div>
+                {enrichJobProgress > 0 && (
+                  <div style={{ margin: '12px auto', width: 180, height: 4, background: 'rgba(201,168,76,0.15)', borderRadius: 2 }}>
+                    <div style={{ height: '100%', width: `${enrichJobProgress}%`, background: G, borderRadius: 2, transition: 'width 0.5s' }} />
+                  </div>
+                )}
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>
-                  Researching in 3 passes. This takes 30-45 seconds.
+                  Running in background — takes 30-60 seconds.
                 </div>
               </div>
             )}
@@ -4002,9 +4010,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                       </button>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={saveAiAccepted} disabled={acceptedCount === 0}
-                        style={{ flex: 1, padding: '9px', background: acceptedCount > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: acceptedCount > 0 ? BG : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: acceptedCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
-                        💾 Save {acceptedCount} Accepted Field{acceptedCount !== 1 ? 's' : ''}
+                      <button onClick={saveAiAccepted} disabled={fieldKeys.length === 0}
+                        style={{ flex: 1, padding: '9px', background: fieldKeys.length > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: fieldKeys.length > 0 ? BG : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: fieldKeys.length > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                        ✦ Apply {fieldKeys.length} Proposed Field{fieldKeys.length !== 1 ? 's' : ''}
                       </button>
                       <button onClick={startAiResearch} title="Re-run research"
                         style={{ padding: '9px 13px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 12, cursor: 'pointer' }}>
@@ -4092,8 +4100,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             {aiPhase === 'done' && (
               <div>
                 <div style={{ textAlign: 'center' as const, padding: '28px 20px 20px', borderBottom: `1px solid ${BDR}`, marginBottom: 16 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 14, color: '#4ade80', letterSpacing: '0.08em', marginBottom: 6 }}>✓ Research Saved</div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{aiSavedLog.length} field{aiSavedLog.length !== 1 ? 's' : ''} saved to Airtable</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 14, color: '#4ade80', letterSpacing: '0.08em', marginBottom: 6 }}>✓ Research Applied</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{aiSavedLog.length} field{aiSavedLog.length !== 1 ? 's' : ''} applied</div>
                   {aiUsedLibrary && (
                     <div style={{ marginTop: 10, fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.1em' }}>
                       ✦ ENHANCED WITH {aiLibrarySourceCount} PASSAGE{aiLibrarySourceCount !== 1 ? 'S' : ''} FROM YOUR MINISTRY LIBRARY
