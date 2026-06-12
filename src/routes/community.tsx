@@ -1035,7 +1035,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isMobile && (
+          {!isMobile && (
             <button onClick={() => setSidebarOpen(o => !o)}
               style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>
               ☰
@@ -1275,7 +1275,7 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+        {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
         <div>
           <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>✝ Testimony Wall</h2>
           <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>What God has done — shared for His glory</p>
@@ -1625,7 +1625,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId: 
       {/* Header */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row' as const, gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+          {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>☀️ Daily Brief</div>
@@ -2131,7 +2131,7 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, ge
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
         <div>
           <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>⚡ Ops Dashboard</div>
           {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Adjutant command center</div>}
@@ -2337,7 +2337,7 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
   if (view === 'list') return (
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px', paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : undefined }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
+        {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
         <div>
           <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>🎬 Training</h2>
           <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Courses, protocols, and quick-hit teachings</p>
@@ -2849,7 +2849,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: V.bg }}>
       {/* Header */}
       <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
-        {isMobile && (
+        {!isMobile && (
           <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: '#C9A84C', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
         )}
         <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9A84C', letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Chat</span>
@@ -3177,7 +3177,7 @@ function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpe
     }}>
       {/* Header */}
       <div style={{ padding: '16px 16px 10px', borderBottom: `1px solid ${navBdr}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-        {isMobile && (
+        {!isMobile && (
           <button onClick={() => setSidebarOpen(true)}
             style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}>☰</button>
         )}
@@ -3471,7 +3471,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
       {/* Header */}
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
+          {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
           <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>⚡ Weekly Intel</h2>
         </div>
         {!isMobile && <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson, textAlign: 'right' as const }}>Operational briefings, field intelligence, and ministry resources</p>}
@@ -4032,7 +4032,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
       {/* Header + search */}
       <div style={{ padding: isMobile ? '12px 12px 10px' : '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0, overflow: 'visible' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          {isMobile && (
+          {!isMobile && (
             <button
               onClick={() => setSidebarOpen(true)}
               style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G, fontSize: '20px', flexShrink: 0 }}
@@ -4083,6 +4083,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   color: active ? '#0D0B14' : colors.text,
                   transition: 'all 0.15s ease',
                   fontWeight: active ? 600 : 400,
+                  flexShrink: 0, whiteSpace: 'nowrap' as const,
                 }}
               >
                 {cat}
@@ -4102,11 +4103,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         {/* Generational / Territorial badges */}
         <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' as const, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 6 }}>
           <button onClick={() => setGenerationalFilter(f => !f)}
-            style={{ padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
+            style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
             🧬 Generational
           </button>
           <button onClick={() => setTerritorialFilter(f => !f)}
-            style={{ padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${territorialFilter ? '#8B9DCA' : dbBorder}`, background: territorialFilter ? 'rgba(139,157,202,0.15)' : 'transparent', color: territorialFilter ? '#8B9DCA' : dbDim }}>
+            style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${territorialFilter ? '#8B9DCA' : dbBorder}`, background: territorialFilter ? 'rgba(139,157,202,0.15)' : 'transparent', color: territorialFilter ? '#8B9DCA' : dbDim }}>
             🗺 Territorial
           </button>
         </div>
@@ -5271,7 +5272,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {isMobile && (
+          {!isMobile && (
             <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
           )}
           <div>
@@ -8625,10 +8626,10 @@ function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => 
   return (
     <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 12, padding: '24px 28px', marginBottom: 16, width: '100%', boxSizing: 'border-box' as const }}>
       <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ New Post</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', flexWrap: 'nowrap' as const, overflowX: 'auto' as const, gap: 6, marginBottom: 14 }}>
         {Object.entries(FORUM_POST_TYPES).map(([k, v]) => (
           <button key={k} type="button" onClick={() => setPostType(k)}
-            style={{ background: postType === k ? v.bg : 'transparent', border: `1px solid ${postType === k ? v.color : F_BDR}`, borderRadius: 20, padding: '4px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: postType === k ? v.color : F_DIM, letterSpacing: '0.08em' }}>
+            style={{ flexShrink: 0, whiteSpace: 'nowrap' as const, background: postType === k ? v.bg : 'transparent', border: `1px solid ${postType === k ? v.color : F_BDR}`, borderRadius: 20, padding: '4px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: postType === k ? v.color : F_DIM, letterSpacing: '0.08em' }}>
             {v.label}
           </button>
         ))}
@@ -12733,7 +12734,7 @@ function CommunityPage() {
     return (stored === 'dark' || stored === 'light') ? stored : 'dark'
   })
   const [isMobile, setIsMobile]       = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
-  const [isTablet, setIsTablet]       = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1100)
+  const [isTablet, setIsTablet]       = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1280)
   const isDesktop = !isMobile && !isTablet
   const [ipadDrawerOpen, setIpadDrawerOpen] = useState(false)
   const [activeRailSection, setActiveRailSection] = useState<string | null>(null)
@@ -13129,7 +13130,7 @@ function CommunityPage() {
     const check = () => {
       const w = window.innerWidth
       setIsMobile(w < 768)
-      setIsTablet(w >= 768 && w < 1100)
+      setIsTablet(w >= 768 && w < 1280)
       if (w < 768) setSidebarOpen(false)
     }
     check()
