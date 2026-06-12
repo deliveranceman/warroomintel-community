@@ -9581,6 +9581,27 @@ const PUSH_TIER_COLORS: Record<string, string> = {
   watchman: '#9a8c74', free: '#6a6080',
 }
 
+const DISPATCH_SECTIONS = [
+  { key: 'daily-brief',    label: 'Daily Brief' },
+  { key: 'arsenal',        label: 'Arsenal' },
+  { key: 'intel',          label: 'Intel Archive' },
+  { key: 'war-room',       label: 'War Room Chat' },
+  { key: 'spirit-network', label: 'Spirit Network' },
+  { key: 'ops-dashboard',  label: 'Ops Board' },
+  { key: 'field-teams',    label: 'Field Teams' },
+  { key: 'training',       label: 'Training' },
+  { key: 'prayer-wall',    label: 'Prayer Wall' },
+  { key: 'body-map',       label: 'Body Map' },
+  { key: 'session-center', label: 'Session Center' },
+  { key: 'gateway',        label: 'Gateway Investigator' },
+]
+const DISPATCH_TIER_OPTIONS = [
+  { level: 1, label: 'Soldier+' },
+  { level: 2, label: 'Commander+' },
+  { level: 3, label: 'General+' },
+  { level: 4, label: 'Minister+' },
+]
+
 function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
   const [title, setTitle]         = useState('Test Notification')
   const [body, setBody]           = useState('This is a test push from War Room Intel admin.')
@@ -9602,6 +9623,17 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   const [testEmailType,    setTestEmailType]    = useState('welcome')
   const [testEmailSending, setTestEmailSending] = useState(false)
   const [testEmailResult,  setTestEmailResult]  = useState<string | null>(null)
+
+  const [dispTitle,        setDispTitle]        = useState('')
+  const [dispBody,         setDispBody]         = useState('')
+  const [dispAudienceKind, setDispAudienceKind] = useState<'all' | 'tier'>('all')
+  const [dispMinLevel,     setDispMinLevel]     = useState(2)
+  const [dispTargetKind,   setDispTargetKind]   = useState<'none' | 'section' | 'url'>('none')
+  const [dispSection,      setDispSection]      = useState('daily-brief')
+  const [dispUrl,          setDispUrl]          = useState('')
+  const [dispStep,         setDispStep]         = useState<'compose' | 'confirm'>('compose')
+  const [dispSending,      setDispSending]      = useState(false)
+  const [dispResult,       setDispResult]       = useState<string | null>(null)
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -9643,6 +9675,37 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
     setUserId('')
     setUserQuery('')
     setUserResults([])
+  }
+
+  async function sendDispatch() {
+    setDispSending(true)
+    setDispResult(null)
+    try {
+      const token    = await getToken()
+      const audience = dispAudienceKind === 'tier'
+        ? { kind: 'tier', minLevel: dispMinLevel }
+        : { kind: 'all' }
+      const target   = dispTargetKind === 'section' ? { section: dispSection } : null
+      const notifUrl = dispTargetKind === 'url' ? dispUrl : undefined
+      const res = await fetch('/api/send-dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: dispTitle, body: dispBody, target, url: notifUrl, audience }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setDispResult(`Dispatched. ${data.rowsWritten} notifications written, ${data.pushesAttempted} pushes attempted.`)
+        setDispStep('compose')
+        setDispTitle('')
+        setDispBody('')
+      } else {
+        setDispResult(`Error: ${data.error}`)
+      }
+    } catch (err: any) {
+      setDispResult(`Error: ${err.message}`)
+    } finally {
+      setDispSending(false)
+    }
   }
 
   useEffect(() => {
@@ -9736,6 +9799,122 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
         Send a push notification to all subscribed users, or target a specific user by Clerk ID.
         iOS users must have the app added to their home screen to receive pushes.
       </p>
+
+      {/* ── Dispatch composer ── */}
+      <div style={{ marginBottom: 32, padding: '20px 20px', background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 8 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.12em', marginBottom: 6 }}>DISPATCH</div>
+        <p style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.6, margin: '0 0 16px' }}>
+          Broadcast a notification to a defined audience. Each recipient gets a bell row and a push.
+        </p>
+
+        {dispStep === 'compose' ? (
+          <div style={{ maxWidth: 480, display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
+            <div>
+              <label style={lbl}>TITLE *</label>
+              <input value={dispTitle} onChange={e => setDispTitle(e.target.value)} placeholder="e.g. New Arsenal Drop" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>BODY *</label>
+              <textarea value={dispBody} onChange={e => setDispBody(e.target.value)} rows={3}
+                placeholder="e.g. Three new deliverance resources just landed in the Arsenal."
+                style={{ ...inp, resize: 'vertical' as const }} />
+            </div>
+            <div>
+              <label style={lbl}>AUDIENCE</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                {(['all', 'tier'] as const).map(k => (
+                  <button key={k} onClick={() => setDispAudienceKind(k)}
+                    style={{ padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', border: `1px solid ${dispAudienceKind === k ? G : (isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0')}`, background: dispAudienceKind === k ? 'rgba(201,168,76,0.12)' : 'transparent', color: dispAudienceKind === k ? G : (isDark ? '#9a8c74' : '#5C5248'), borderRadius: 4, cursor: 'pointer' }}>
+                    {k === 'all' ? 'EVERYONE' : 'TIER AND ABOVE'}
+                  </button>
+                ))}
+              </div>
+              {dispAudienceKind === 'tier' && (
+                <select value={dispMinLevel} onChange={e => setDispMinLevel(Number(e.target.value))}
+                  style={{ ...inp, marginTop: 8, width: 'auto', fontFamily: cinzel, fontSize: 10 }}>
+                  {DISPATCH_TIER_OPTIONS.map(opt => (
+                    <option key={opt.level} value={opt.level}>{opt.label}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div>
+              <label style={lbl}>DEEP-LINK TARGET</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                {(['none', 'section', 'url'] as const).map(k => (
+                  <button key={k} onClick={() => setDispTargetKind(k)}
+                    style={{ padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', border: `1px solid ${dispTargetKind === k ? G : (isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0')}`, background: dispTargetKind === k ? 'rgba(201,168,76,0.12)' : 'transparent', color: dispTargetKind === k ? G : (isDark ? '#9a8c74' : '#5C5248'), borderRadius: 4, cursor: 'pointer' }}>
+                    {k === 'none' ? 'OPENS APP' : k === 'section' ? 'A SECTION' : 'A URL'}
+                  </button>
+                ))}
+              </div>
+              {dispTargetKind === 'section' && (
+                <select value={dispSection} onChange={e => setDispSection(e.target.value)}
+                  style={{ ...inp, marginTop: 8, width: 'auto', fontFamily: cinzel, fontSize: 10 }}>
+                  {DISPATCH_SECTIONS.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              )}
+              {dispTargetKind === 'url' && (
+                <div style={{ marginTop: 8 }}>
+                  <input value={dispUrl} onChange={e => setDispUrl(e.target.value)} placeholder="/community#arsenal" style={inp} />
+                  <div style={{ fontFamily: crimson, fontSize: 11, color: isDark ? '#6a6256' : '#8a7860', marginTop: 4, fontStyle: 'italic' }}>
+                    Stored in the bell row. In-app tap opens the app home (use A Section for in-app navigation).
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => { if (dispTitle.trim() && dispBody.trim()) setDispStep('confirm') }}
+              disabled={!dispTitle.trim() || !dispBody.trim()}
+              style={{ padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', background: (!dispTitle.trim() || !dispBody.trim()) ? 'rgba(201,168,76,0.2)' : G, color: '#1a1305', border: 'none', borderRadius: 4, cursor: (!dispTitle.trim() || !dispBody.trim()) ? 'not-allowed' : 'pointer', alignSelf: 'flex-start' as const }}>
+              PREVIEW DISPATCH
+            </button>
+          </div>
+        ) : (
+          <div style={{ maxWidth: 480 }}>
+            <div style={{ padding: '14px 16px', background: isDark ? '#13111e' : '#fff', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0'}`, borderRadius: 6, marginBottom: 16 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>CONFIRM DISPATCH</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontFamily: crimson, fontSize: 13 }}>
+                <tbody>
+                  {([
+                    ['Title',    dispTitle],
+                    ['Body',     dispBody],
+                    ['Audience', dispAudienceKind === 'all' ? 'Everyone' : `${DISPATCH_TIER_OPTIONS.find(t => t.level === dispMinLevel)?.label ?? `Level ${dispMinLevel}+`} members`],
+                    ['Target',   dispTargetKind === 'section' ? `Opens ${DISPATCH_SECTIONS.find(s => s.key === dispSection)?.label ?? dispSection}` : dispTargetKind === 'url' ? `URL: ${dispUrl || '(none)'}` : 'Opens app home'],
+                  ] as [string, string][]).map(([k, v]) => (
+                    <tr key={k}>
+                      <td style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#9a8c74' : '#5C5248', letterSpacing: '0.1em', paddingBottom: 6, paddingRight: 16, verticalAlign: 'top' as const, whiteSpace: 'nowrap' as const }}>{k}</td>
+                      <td style={{ color: isDark ? '#e8dcc8' : '#1C1410', paddingBottom: 6, lineHeight: 1.5 }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={sendDispatch}
+                disabled={dispSending}
+                style={{ padding: '10px 24px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', background: dispSending ? 'rgba(201,168,76,0.4)' : G, color: '#1a1305', border: 'none', borderRadius: 4, cursor: dispSending ? 'not-allowed' : 'pointer' }}>
+                {dispSending ? 'SENDING...' : 'SEND DISPATCH'}
+              </button>
+              <button
+                onClick={() => setDispStep('compose')}
+                disabled={dispSending}
+                style={{ padding: '10px 20px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', background: 'transparent', color: isDark ? '#9a8c74' : '#5C5248', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0'}`, borderRadius: 4, cursor: 'pointer' }}>
+                BACK
+              </button>
+            </div>
+          </div>
+        )}
+
+        {dispResult && (
+          <div style={{ marginTop: 14, padding: '8px 12px', background: dispResult.startsWith('Error') ? 'rgba(200,74,74,0.1)' : 'rgba(95,174,111,0.1)', border: `1px solid ${dispResult.startsWith('Error') ? 'rgba(200,74,74,0.3)' : 'rgba(95,174,111,0.3)'}`, borderRadius: 4, fontFamily: crimson, fontSize: 13, color: dispResult.startsWith('Error') ? '#c84a4a' : '#5fae6f' }}>
+            {dispResult}
+          </div>
+        )}
+      </div>
 
       {/* Quick test — sends to all immediately */}
       <div style={{ marginBottom: 28, padding: '14px 16px', background: isDark ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.08)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 6 }}>
