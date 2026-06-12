@@ -30,6 +30,9 @@ const DRY_RUN      = process.env.DRY_RUN === 'true'
 // the source URL (CCEL etc.) into extracted_text. Without it, behavior is the
 // original all-entries blurb import, byte-for-byte unchanged.
 const ONLY_ID      = (process.argv.find(a => a.startsWith('--only=')) || '').split('=')[1] || ''
+// --url=<url> (only with --only) overrides the manifest source URL for this one
+// import, so a known-good full-text source can be used without editing the manifest.
+const ONLY_URL     = (process.argv.find(a => a.startsWith('--url=')) || '').split('=')[1] || ''
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('SUPABASE_URL and SUPABASE_SERVICE_KEY are required')
@@ -130,12 +133,12 @@ for (const entry of entries) {
   let bodyText = entry.description
   let fetchedChars = 0
   if (ONLY_ID) {
-    const src = entry.ccel_url || entry.archive_url || entry.gutenberg_url || ''
+    const src = ONLY_URL || entry.ccel_url || entry.archive_url || entry.gutenberg_url || ''
     if (!src) {
-      console.error(`  FAIL  ${entry.title}: no source URL in manifest — cannot fetch full text`)
+      console.error(`  FAIL  ${entry.title}: no source URL (manifest empty and no --url given)`)
       process.exit(1)
     }
-    console.log(`  FETCH ${src}`)
+    console.log(`  FETCH ${src}${ONLY_URL ? ' (--url override)' : ''}`)
     let fetched
     try {
       fetched = await fetchFullText(src)
@@ -144,12 +147,15 @@ for (const entry of entries) {
       process.exit(1)
     }
     fetchedChars = fetched.rawChars
-    if (fetched.text.length < 1000) {
-      console.error(`  FAIL  ${entry.title}: stripped body only ${fetched.text.length} chars from ${src} — looks like an error/landing page, NOT storing.`)
+    console.log(`  TEXT  ${fetched.rawChars} chars HTML -> ${fetched.text.length} chars clean`)
+    console.log(`  HEAD  ${JSON.stringify(fetched.text.slice(0, 400))}`)
+    // Real patristic texts are long; a thin body means a landing/nav page, not the
+    // work itself. Stop rather than store garbage (human still eyeballs HEAD above).
+    if (fetched.text.length < 10000) {
+      console.error(`  FAIL  ${entry.title}: stripped body only ${fetched.text.length} chars (< 10000) from ${src} — looks like a landing/nav page, NOT storing.`)
       process.exit(1)
     }
     bodyText = fetched.text
-    console.log(`  TEXT  ${fetched.rawChars} chars HTML -> ${fetched.text.length} chars clean`)
   }
 
   // Check for existing entry by title + author
@@ -174,7 +180,7 @@ for (const entry of entries) {
     }
     const { error: upErr } = await sb
       .from('resources')
-      .update({ extracted_text: bodyText, file_size: bodyText.length, summary_status: 'pending' })
+      .update({ extracted_text: bodyText, file_size: Buffer.byteLength(bodyText, 'utf-8'), summary_status: 'pending' })
       .eq('id', existing.id)
     if (upErr) {
       console.error(`  FAIL  update ${entry.title}: ${upErr.message}`)
@@ -187,23 +193,23 @@ for (const entry of entries) {
   }
 
   const record = {
-    title:                          entry.title,
-    author:                         entry.author,
-    topic:                          'ministry-library',
-    status:                         'pending',
-    active:                         false,
-    source_type:                    'christian',
-    description:                    entry.description,
-    extracted_text:                 bodyText,
-    notes:                          notesParts.join('\n'),
-    spirit_tags:                    [],
-    ai_generated:                   false,
-    source_public_domain_confirmed: entry.public_domain === true,
-    summary_status:                 'pending',
-    filename:                       `${entry.id}.txt`,
-    file_path:                      `church-fathers/${entry.id}.txt`,
-    file_size:                      bodyText.length,
-    file_type:                      'text/plain',
+    title:           entry.title,
+    author:          entry.author,
+    topic:           'ministry-library',
+    tier:            'Free',        // NOT-NULL (matches existing ministry-library rows)
+    category:        'Reference',   // NOT-NULL (matches existing ministry-library rows)
+    active:          false,
+    source_type:     'christian',
+    description:     entry.description,
+    extracted_text:  bodyText,
+    notes:           notesParts.join('\n'),
+    spirit_tags:     [],
+    ai_generated:    false,
+    summary_status:  'pending',
+    filename:        `${entry.id}.txt`,
+    file_path:       `church-fathers/${entry.id}.txt`,
+    file_size:       Buffer.byteLength(bodyText, 'utf-8'),
+    file_type:       'txt',
   }
 
   if (DRY_RUN) {
