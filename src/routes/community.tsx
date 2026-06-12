@@ -16015,7 +16015,7 @@ function CommunityPage() {
     </div>
 
     {activeModal && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 460, padding: '28px 24px', position: 'relative' }}>
           {!activeModal.requires_acceptance && (
             <button
@@ -16037,16 +16037,31 @@ function CommunityPage() {
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             {activeModal.cta_link && activeModal.cta_label && (
-              <a href={activeModal.cta_link} target="_blank" rel="noopener noreferrer" style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', textDecoration: 'none' }}>
+              <button
+                onClick={() => {
+                  const m = activeModal; setActiveModal(null)
+                  getToken().then(token => {
+                    if (!token) return
+                    fetch('/api/modal-event', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ modalId: m.id, action: 'dismissed' }) }).catch(() => {})
+                  })
+                  if (activeModal.cta_link!.startsWith('/')) {
+                    window.location.href = activeModal.cta_link!
+                  } else {
+                    window.open(activeModal.cta_link!, '_blank', 'noopener,noreferrer')
+                  }
+                }}
+                style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer' }}
+              >
                 {activeModal.cta_label}
-              </a>
+              </button>
             )}
             <button
               onClick={() => {
                 const m = activeModal; setActiveModal(null)
+                const action = activeModal.requires_acceptance ? 'accepted' : 'dismissed'
                 getToken().then(token => {
                   if (!token) return
-                  fetch('/api/modal-event', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ modalId: m.id, action: 'accepted' }) }).catch(() => {})
+                  fetch('/api/modal-event', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ modalId: m.id, action }) }).catch(() => {})
                 })
               }}
               style={{ padding: '9px 20px', background: G, color: '#0D0B14', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, border: 'none', cursor: 'pointer' }}
