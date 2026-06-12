@@ -1050,12 +1050,13 @@ function demonToSpiritFields(d: any): Record<string, string> {
   }
 }
 
-function SpiritTypeahead({ value, onChange, demons, mode, placeholder }: {
+function SpiritTypeahead({ value, onChange, demons, mode, placeholder, isDark = true }: {
   value: string
   onChange: (val: string) => void
   demons: any[]
   mode: 'single' | 'multi'
   placeholder?: string
+  isDark?: boolean
 }) {
   const [localInput, setLocalInput] = useState('')
   const [open, setOpen] = useState(false)
@@ -1078,10 +1079,14 @@ function SpiritTypeahead({ value, onChange, demons, mode, placeholder }: {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  const adBdr  = isDark ? BDR : '#E7E1D5'
+  const adTxt  = isDark ? TXT : '#2A251C'
+  const adDim  = isDark ? DIM : '#6E6557'
+  const adGold = isDark ? G   : '#7A5E16'
   const inp: React.CSSProperties = {
-    width: '100%', boxSizing: 'border-box' as const, background: '#0a0813',
-    border: `1px solid ${BDR}`, borderRadius: 6, padding: '9px 11px',
-    color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none',
+    width: '100%', boxSizing: 'border-box' as const, background: isDark ? '#0a0813' : '#fff',
+    border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 11px',
+    color: adTxt, fontFamily: crimson, fontSize: 13, outline: 'none',
   }
 
   const handleSelect = (name: string) => {
@@ -1099,10 +1104,10 @@ function SpiritTypeahead({ value, onChange, demons, mode, placeholder }: {
       {mode === 'multi' && selected.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 8 }}>
           {selected.map(name => (
-            <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em' }}>
+            <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.06em' }}>
               {name}
               <button onMouseDown={e => { e.preventDefault(); onChange(selected.filter(s => s !== name).join(', ')) }}
-                style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', padding: 0, fontSize: 11, lineHeight: 1 }}>✕</button>
+                style={{ background: 'none', border: 'none', color: adGold, cursor: 'pointer', padding: 0, fontSize: 11, lineHeight: 1 }}>✕</button>
             </span>
           ))}
         </div>
@@ -1118,13 +1123,13 @@ function SpiritTypeahead({ value, onChange, demons, mode, placeholder }: {
         style={inp}
       />
       {open && suggestions.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#1a1625', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, marginTop: 2, maxHeight: 200, overflowY: 'auto' as const, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: isDark ? '#1a1625' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, marginTop: 2, maxHeight: 200, overflowY: 'auto' as const, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
           {suggestions.map(d => (
             <div key={d.airtableId || d.name}
               onMouseDown={e => { e.preventDefault(); handleSelect(d.name) }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.1)'; (e.currentTarget as HTMLDivElement).style.color = G }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = DIM }}
-              style={{ padding: '8px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.1)'; (e.currentTarget as HTMLDivElement).style.color = adGold }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = adDim }}
+              style={{ padding: '8px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: adDim, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 8 }}>
               {d.name}
               {d.type && <span style={{ fontSize: 8, opacity: 0.5 }}>{d.type}</span>}
             </div>
@@ -1135,7 +1140,7 @@ function SpiritTypeahead({ value, onChange, demons, mode, placeholder }: {
   )
 }
 
-function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demons = [], getToken }: {
+function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demons = [], getToken, isDark = true }: {
   fields: Record<string, string>
   setField: (name: string, val: string) => void
   onSave: () => void
@@ -1144,19 +1149,24 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
   msg: string
   demons?: any[]
   getToken?: () => Promise<string | null>
+  isDark?: boolean
 }) {
   const [loadingEquivalents, setLoadingEquivalents] = useState(false)
   const [equivalentSuggestions, setEquivalentSuggestions] = useState<any[]>([])
   const [equivalentSummary, setEquivalentSummary] = useState('')
   const [showEquivalentSuggestions, setShowEquivalentSuggestions] = useState(false)
+  const adBdr  = isDark ? BDR : '#E7E1D5'
+  const adTxt  = isDark ? TXT : '#2A251C'
+  const adDim  = isDark ? DIM : '#6E6557'
+  const adGold = isDark ? G   : '#7A5E16'
   const i: React.CSSProperties = {
-    width: '100%', boxSizing: 'border-box', background: '#0a0813',
-    border: `1px solid ${BDR}`, borderRadius: 6, padding: '9px 11px',
-    color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none',
+    width: '100%', boxSizing: 'border-box', background: isDark ? '#0a0813' : '#fff',
+    border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 11px',
+    color: adTxt, fontFamily: crimson, fontSize: 13, outline: 'none',
   }
   const l: React.CSSProperties = {
     display: 'block', fontFamily: cinzel, fontSize: 9,
-    letterSpacing: '0.12em', color: DIM, textTransform: 'uppercase', marginBottom: 5,
+    letterSpacing: '0.12em', color: adDim, textTransform: 'uppercase', marginBottom: 5,
   }
   const f = (name: string) => fields[name] || ''
   const ti = (name: string) => <input value={f(name)} onChange={e => setField(name, e.target.value)} style={i} />
@@ -1198,7 +1208,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
     }
   }
   return (
-    <div style={{ background: '#09080f', border: `1px solid ${BDR}`, borderRadius: 8, padding: 20 }}>
+    <div style={{ background: isDark ? '#09080f' : '#F7F5F0', border: `1px solid ${adBdr}`, borderRadius: 8, padding: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Name *</label>{ti(INTEL_NAME_F)}</div>
         <div><label style={l}>Also Known As</label>{ti('Also Known As')}</div>
@@ -1209,7 +1219,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Symptoms</label>{ta('Symptoms')}</div>
         <div>
           <label style={l}>Companion Spirits</label>
-          <SpiritTypeahead mode="multi" value={f('Companion Spirits')} onChange={v => setField('Companion Spirits', v)} demons={demons} placeholder="Type spirit name to add..." />
+          <SpiritTypeahead mode="multi" value={f('Companion Spirits')} onChange={v => setField('Companion Spirits', v)} demons={demons} placeholder="Type spirit name to add..." isDark={isDark} />
         </div>
         <div>
           <label style={l}>Kingdom</label>
@@ -1228,7 +1238,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         </div>
         <div>
           <label style={l}>Parent Strongman</label>
-          <SpiritTypeahead mode="single" value={f('Parent Strongman')} onChange={v => setField('Parent Strongman', v)} demons={demons} placeholder="Type to search spirits..." />
+          <SpiritTypeahead mode="single" value={f('Parent Strongman')} onChange={v => setField('Parent Strongman', v)} demons={demons} placeholder="Type to search spirits..." isDark={isDark} />
         </div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Deliverance Sequence</label>{ta('Deliverance Sequence', 4)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Operational Notes</label>{ta('Operational Notes')}</div>
@@ -1261,11 +1271,11 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
                   window.speechSynthesis.speak(u)
                 }
               }}
-              style={{ padding: '6px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+              style={{ padding: '6px 12px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, color: adGold, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
               🔊 Test
             </button>
           </div>
-          <div style={{ fontSize: 10, color: DIM, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
+          <div style={{ fontSize: 10, color: adDim, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
             Use ALL-CAPS syllables, hyphens between. Click Test to hear browser TTS preview.
           </div>
         </div>
@@ -1274,7 +1284,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
           <textarea value={f('Images')} onChange={e => setField('Images', e.target.value)}
             placeholder={'One URL per line\nhttps://upload.wikimedia.org/...'}
             rows={3} style={{ ...i, resize: 'vertical' as const }} />
-          <div style={{ fontSize: 10, color: DIM, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
+          <div style={{ fontSize: 10, color: adDim, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
             One image URL per line. Wikimedia Commons, historical manuscripts, etc.
           </div>
         </div>
@@ -1286,7 +1296,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         </div>
 
         {/* Biblical Classification Section */}
-        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>⚔ Biblical Classification</div>
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${adBdr}`, borderBottom: `1px solid ${adBdr}` }}>⚔ Biblical Classification</div>
         <div>
           <label style={l}>Biblical Rank (Eph. 6:12)</label>
           <select value={f('Biblical Rank')} onChange={e => setField('Biblical Rank', e.target.value)} style={{ ...i }}>
@@ -1305,16 +1315,16 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 24 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={f('Is Generational') === 'true'} onChange={e => setField('Is Generational', e.target.checked ? 'true' : 'false')} style={{ accentColor: G, width: 14, height: 14 }} />
-            <span style={{ fontFamily: crimson, fontSize: 13, color: TXT }}>Primarily Generational/Bloodline</span>
+            <span style={{ fontFamily: crimson, fontSize: 13, color: adTxt }}>Primarily Generational/Bloodline</span>
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={f('Is Territorial') === 'true'} onChange={e => setField('Is Territorial', e.target.checked ? 'true' : 'false')} style={{ accentColor: G, width: 14, height: 14 }} />
-            <span style={{ fontFamily: crimson, fontSize: 13, color: TXT }}>Primarily Territorial/Regional</span>
+            <span style={{ fontFamily: crimson, fontSize: 13, color: adTxt }}>Primarily Territorial/Regional</span>
           </label>
         </div>
 
         {/* Operational Intelligence Section */}
-        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>🔍 Operational Intelligence</div>
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${adBdr}`, borderBottom: `1px solid ${adBdr}` }}>🔍 Operational Intelligence</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Session Indicators</label>{ta('Session Indicators', 3)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Resistance Signature</label>{ta('Resistance Signature', 2)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Demonic Agreements / Lies Planted</label>{ta('Demonic Agreements', 3)}</div>
@@ -1322,19 +1332,19 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Legal Rights Framework</label>{ta('Legal Rights Framework', 3)}</div>
 
         {/* Scholarly Section */}
-        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>📚 Scholarly Research</div>
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${adBdr}`, borderBottom: `1px solid ${adBdr}` }}>📚 Scholarly Research</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Etymology Notes</label>{ta('Etymology Notes', 3)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Archaeology Notes</label>{ta('Archaeology Notes', 3)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Scripture Context</label>{ta('Scripture Context', 4)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Institutional Expression</label>{ta('Institutional Expression', 2)}</div>
 
         {/* Ministry Section */}
-        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>🙏 Ministry Application</div>
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${adBdr}`, borderBottom: `1px solid ${adBdr}` }}>🙏 Ministry Application</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Prayer Points</label>{ta('Prayer Points', 3)}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Aftercare Notes</label>{ta('Aftercare Notes', 3)}</div>
 
         {/* Cross-Cultural Equivalents Section */}
-        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${BDR}`, borderBottom: `1px solid ${BDR}` }}>🌐 Cross-Cultural Equivalents</div>
+        <div style={{ gridColumn: '1 / -1', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${adBdr}`, borderBottom: `1px solid ${adBdr}` }}>🌐 Cross-Cultural Equivalents</div>
         <div style={{ gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <label style={{ ...l, marginBottom: 0 }}>EQUIVALENT SPIRITS</label>
@@ -1342,7 +1352,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
               <button
                 onClick={lookupEquivalents}
                 disabled={loadingEquivalents}
-                style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '3px 10px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.08em', opacity: loadingEquivalents ? 0.5 : 1 }}>
+                style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '3px 10px', fontSize: 9, color: adGold, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.08em', opacity: loadingEquivalents ? 0.5 : 1 }}>
                 {loadingEquivalents ? 'Looking up...' : '✦ AI Lookup'}
               </button>
             )}
@@ -1360,7 +1370,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
                   {equivalentSuggestions.map((eq, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 4, padding: '6px 10px' }}>
                       <div>
-                        <span style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{eq.name}</span>
+                        <span style={{ fontFamily: cinzel, fontSize: 11, color: adGold }}>{eq.name}</span>
                         <span style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.5)', marginLeft: 8 }}>({eq.tradition})</span>
                         {eq.notes && (
                           <div style={{ fontFamily: crimson, fontSize: 11, color: 'rgba(240,232,216,0.5)', fontStyle: 'italic', marginTop: 2 }}>
@@ -1375,7 +1385,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
                             const line = eq.tradition ? `${eq.name} (${eq.tradition})` : eq.name
                             setField('Equivalent Spirits', f('Equivalent Spirits').trim() ? `${f('Equivalent Spirits').trim()}\n${line}` : line)
                           }}
-                          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, padding: '3px 8px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
+                          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, padding: '3px 8px', fontSize: 9, color: adGold, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>
                           + ADD
                         </button>
                       </div>
@@ -1389,7 +1399,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
                   setField('Equivalent Spirits', f('Equivalent Spirits').trim() ? `${f('Equivalent Spirits').trim()}\n${allLines}` : allLines)
                   setShowEquivalentSuggestions(false)
                 }}
-                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, padding: '5px 12px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.08em', width: '100%' }}>
+                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, padding: '5px 12px', fontSize: 9, color: adGold, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.08em', width: '100%' }}>
                 + ADD ALL TO FIELD
               </button>
             </div>
@@ -1398,7 +1408,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
           <textarea value={f('Equivalent Spirits')} onChange={e => setField('Equivalent Spirits', e.target.value)}
             rows={4} placeholder={'One equivalent per line, e.g.:\nAshtoreth (Canaanite)\nVenus (Roman)\nIshtar (Babylonian)'}
             style={{ ...i, resize: 'vertical' as const }} />
-          <div style={{ fontSize: 10, color: DIM, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
+          <div style={{ fontSize: 10, color: adDim, fontFamily: crimson, marginTop: 3, fontStyle: 'italic' }}>
             One equivalent per line. Include tradition in parentheses.
           </div>
         </div>
@@ -1406,11 +1416,11 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
       {msg && <div style={{ fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 12 }}>{msg}</div>}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
         <button onClick={onSave} disabled={saving}
-          style={{ background: saving ? 'rgba(201,168,76,0.2)' : G, color: saving ? DIM : '#0D0B14', border: 'none', borderRadius: 6, padding: '9px 22px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
+          style={{ background: saving ? 'rgba(201,168,76,0.2)' : adGold, color: saving ? adDim : '#0D0B14', border: 'none', borderRadius: 6, padding: '9px 22px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
           {saving ? 'Saving...' : '✓ Save'}
         </button>
         <button onClick={onCancel}
-          style={{ background: 'transparent', color: DIM, border: `1px solid ${BDR}`, borderRadius: 6, padding: '9px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          style={{ background: 'transparent', color: adDim, border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
           Cancel
         </button>
       </div>
@@ -1751,16 +1761,21 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
     borderRadius: 4, padding: '7px 10px', color: isDark ? '#e8ddc8' : '#1a1208',
     fontFamily: crimson, fontSize: 14, boxSizing: 'border-box',
   }
-  const lbl: CSSProperties = { fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }
-  const autoBadge = <span style={{ marginLeft: 6, padding: '1px 5px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 3, fontSize: 8, color: G, letterSpacing: '0.05em' }}>auto</span>
+  const adBdr   = isDark ? BDR   : '#E7E1D5'
+  const adTxt   = isDark ? TXT   : '#2A251C'
+  const adDim   = isDark ? DIM   : '#6E6557'
+  const adGold  = isDark ? G     : '#7A5E16'
+  const adSurf2 = isDark ? SURF2 : '#F7F5F0'
+  const lbl: CSSProperties = { fontFamily: cinzel, fontSize: 9, color: adDim, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }
+  const autoBadge = <span style={{ marginLeft: 6, padding: '1px 5px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 3, fontSize: 8, color: adGold, letterSpacing: '0.05em' }}>auto</span>
   const canSave = manifestation.trim() && bodyPart.trim() && region.trim()
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>BODY MAP MANIFESTATIONS</div>
-          <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: adGold, letterSpacing: '0.08em', marginBottom: 4 }}>BODY MAP MANIFESTATIONS</div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, fontStyle: 'italic' }}>
             {rows.length} entr{rows.length !== 1 ? 'ies' : 'y'} - link spirits to body regions
           </div>
         </div>
@@ -1785,7 +1800,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
 
       {showAdd && (
         <div style={{ background: isDark ? 'rgba(201,168,76,0.04)' : '#fffdf5', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.2)'}`, borderRadius: 8, padding: '20px 24px', marginBottom: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>{editingId ? 'EDIT ENTRY' : 'NEW ENTRY'}</div>
+          <div style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.1em', marginBottom: 16 }}>{editingId ? 'EDIT ENTRY' : 'NEW ENTRY'}</div>
 
           {/* Hotspot / Body Part / Region */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 12 }}>
@@ -1817,10 +1832,10 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
             {selectedSpirits.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                 {selectedSpirits.map(name => (
-                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 20, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em' }}>
+                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 20, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.06em' }}>
                     {name}
                     <button onMouseDown={e => { e.preventDefault(); removeSpirit(name) }}
-                      style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', padding: 0, fontSize: 11, lineHeight: 1 }}>x</button>
+                      style={{ background: 'none', border: 'none', color: adGold, cursor: 'pointer', padding: 0, fontSize: 11, lineHeight: 1 }}>x</button>
                   </span>
                 ))}
               </div>
@@ -1834,13 +1849,13 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                 style={inp}
               />
               {showSuggestions && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#1a1714', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, marginTop: 2, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: isDark ? '#1a1714' : '#fff', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, marginTop: 2, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
                   {spiritSuggestions.map(name => (
                     <div key={name}
                       onMouseDown={e => { e.preventDefault(); selectSpirit(name) }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.1)'; (e.currentTarget as HTMLDivElement).style.color = G }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = DIM }}
-                      style={{ padding: '8px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.06em' }}>
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(201,168,76,0.1)'; (e.currentTarget as HTMLDivElement).style.color = adGold }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = adDim }}
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: adDim, letterSpacing: '0.06em' }}>
                       {name}
                     </div>
                   ))}
@@ -1859,7 +1874,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                   onMouseDown={e => { e.preventDefault(); setManifestation(prev => prev.trim() ? `${prev.trim()}, ${p}` : p) }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(201,168,76,0.7)' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(201,168,76,0.3)' }}
-                  style={{ padding: '3px 8px', background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: 'pointer' }}>
+                  style={{ padding: '3px 8px', background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: 'pointer' }}>
                   {p}
                 </button>
               ))}
@@ -1888,7 +1903,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                       if (chip) setManifestation(prev => prev.trim() ? `${prev.trim()}, ${chip}` : chip)
                       setCustomChip('')
                     }}
-                    style={{ padding: '3px 8px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                    style={{ padding: '3px 8px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 4, color: adGold, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
                     + Add
                   </button>
                 )}
@@ -1919,7 +1934,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                   } catch {}
                   setAiLoadingManif(false)
                 }}
-                style={{ position: 'absolute', top: 6, right: 6, padding: '3px 8px', background: aiLoadingManif ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: aiLoadingManif ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                style={{ position: 'absolute', top: 6, right: 6, padding: '3px 8px', background: aiLoadingManif ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: aiLoadingManif ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
                 {aiLoadingManif ? '...' : '✦ AI Complete'}
               </button>
             </div>
@@ -1966,7 +1981,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                   } catch {}
                   setAiLoadingNotes(false)
                 }}
-                style={{ position: 'absolute', top: 6, right: 6, padding: '3px 8px', background: aiLoadingNotes ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: aiLoadingNotes ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                style={{ position: 'absolute', top: 6, right: 6, padding: '3px 8px', background: aiLoadingNotes ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em', cursor: aiLoadingNotes ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
                 {aiLoadingNotes ? '...' : '✦ AI Complete'}
               </button>
             </div>
@@ -1974,11 +1989,11 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
 
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={save} disabled={saving || !canSave}
-              style={{ padding: '8px 22px', background: saving || !canSave ? DIM : G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: saving ? 'wait' : 'pointer', fontWeight: 700 }}>
+              style={{ padding: '8px 22px', background: saving || !canSave ? adDim : adGold, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: saving ? 'wait' : 'pointer', fontWeight: 700 }}>
               {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
             </button>
             <button onClick={() => { setShowAdd(false); setEditingId(null); resetForm() }}
-              style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+              style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 6, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
               Cancel
             </button>
           </div>
@@ -1986,23 +2001,23 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
       )}
 
       {loading ? (
-        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '40px 0', textAlign: 'center' }}>Loading...</div>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: adDim, letterSpacing: '0.1em', padding: '40px 0', textAlign: 'center' }}>Loading...</div>
       ) : rows.length === 0 ? (
-        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '40px 0', textAlign: 'center' }}>No entries yet - add the first one above.</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, fontStyle: 'italic', padding: '40px 0', textAlign: 'center' }}>No entries yet - add the first one above.</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: crimson, fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.2)'}` }}>
                 {['Hotspot', 'Manifestation', 'Spirits', 'Source'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM, fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: adDim, fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'}` }}>
-                  <td style={{ padding: '8px 10px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '8px 10px', color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {BM_HOTSPOT_OPTIONS.find(o => o.id === row.hotspot_id)?.label ?? row.hotspot_id}
                   </td>
                   <td style={{ padding: '8px 10px', color: isDark ? '#e8ddc8' : '#1a1208', maxWidth: 320, lineHeight: 1.4 }}>{row.manifestation}</td>
@@ -2010,13 +2025,13 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {(row.spirit_names || []).map(s => (
                         <a key={s} href={`/community?section=database&search=${encodeURIComponent(s)}`}
-                          style={{ padding: '2px 8px', background: isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 4, color: G, fontSize: 11, fontFamily: cinzel, letterSpacing: '0.05em', textDecoration: 'none' }}>
+                          style={{ padding: '2px 8px', background: isDark ? 'rgba(201,168,76,0.1)' : 'rgba(201,168,76,0.12)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.3)'}`, borderRadius: 4, color: adGold, fontSize: 11, fontFamily: cinzel, letterSpacing: '0.05em', textDecoration: 'none' }}>
                           {s}
                         </a>
                       ))}
                     </div>
                   </td>
-                  <td style={{ padding: '8px 10px', color: DIM, fontSize: 12 }}>{row.source || '--'}</td>
+                  <td style={{ padding: '8px 10px', color: adDim, fontSize: 12 }}>{row.source || '--'}</td>
                 </tr>
               ))}
             </tbody>
@@ -2027,7 +2042,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
       {/* ── v2 Backfill ──────────────────────────────────────────────────────── */}
       <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid ${isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.15)'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: v2BackfillResult ? 10 : 0 }}>
-          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM }}>SPIRIT BODY MAP v2 MIGRATION</span>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: adDim }}>SPIRIT BODY MAP v2 MIGRATION</span>
           <button
             onClick={async () => {
               setV2BackfillRunning(true)
@@ -2044,7 +2059,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
               }
             }}
             disabled={v2BackfillRunning}
-            style={{ padding: '5px 14px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: v2BackfillRunning ? 'wait' : 'pointer', opacity: v2BackfillRunning ? 0.6 : 1 }}>
+            style={{ padding: '5px 14px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 5, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: v2BackfillRunning ? 'wait' : 'pointer', opacity: v2BackfillRunning ? 0.6 : 1 }}>
             {v2BackfillRunning ? 'RUNNING...' : 'RUN BACKFILL'}
           </button>
         </div>
@@ -2061,7 +2076,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
       {/* ── Conditions Ingest ────────────────────────────────────────────────── */}
       <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid ${isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.15)'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: DIM }}>AUTHOR CONDITIONS INGEST</span>
+          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: adDim }}>AUTHOR CONDITIONS INGEST</span>
           <button
             onClick={async () => {
               setCondIngestRunning(true)
@@ -2083,7 +2098,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
               }
             }}
             disabled={condIngestRunning || !condIngestText.trim()}
-            style={{ padding: '5px 14px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: condIngestRunning ? 'wait' : (!condIngestText.trim() ? 'not-allowed' : 'pointer'), opacity: condIngestRunning || !condIngestText.trim() ? 0.6 : 1 }}>
+            style={{ padding: '5px 14px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 5, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: condIngestRunning ? 'wait' : (!condIngestText.trim() ? 'not-allowed' : 'pointer'), opacity: condIngestRunning || !condIngestText.trim() ? 0.6 : 1 }}>
             {condIngestRunning ? 'INGESTING...' : 'RUN INGEST'}
           </button>
         </div>
@@ -2092,7 +2107,7 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
           onChange={e => setCondIngestText(e.target.value)}
           placeholder={'Paste cleaned rows — CSV (header row first) or JSON array.\nHeaders: condition, body_area, system, symptoms, conclusion, spiritual_tags, source_strength, source_note'}
           spellCheck={false}
-          style={{ width: '100%', boxSizing: 'border-box', minHeight: 120, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 6, padding: '10px 12px', color: TXT, fontFamily: 'ui-monospace, monospace', fontSize: 12, lineHeight: 1.5, outline: 'none', resize: 'vertical' }}
+          style={{ width: '100%', boxSizing: 'border-box', minHeight: 120, background: adSurf2, border: `1px solid ${adBdr}`, borderRadius: 6, padding: '10px 12px', color: adTxt, fontFamily: 'ui-monospace, monospace', fontSize: 12, lineHeight: 1.5, outline: 'none', resize: 'vertical' }}
         />
         {condIngestResult && (
           <div style={{ marginTop: 10, fontFamily: crimson, fontSize: 12, color: condIngestResult.error ? '#f87171' : isDark ? '#b8a98a' : '#5c4a28', lineHeight: 1.6 }}>
@@ -3407,6 +3422,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
             msg={newMsg}
             demons={demons}
             getToken={getToken}
+            isDark={isDark}
           />
         </div>
       )}
@@ -3508,6 +3524,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           msg={editMsg}
                           demons={demons}
                           getToken={getToken}
+                          isDark={isDark}
                         />
                       </td>
                     </tr>
