@@ -10000,16 +10000,16 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     else if (openOnMount === 'sentinel') setShowSentinelPicker(true)
     onIntentConsumed?.()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  // Open a specific group channel on mount when triggered from the Field Teams page.
+  // Open a specific group channel — triggered from the Field Teams page or a bell notification.
+  // Watches channelId so it fires even when MessengerSection is already mounted.
   // Seed the group metadata instantly so the header resolves on first render (no Unknown flash).
   useEffect(() => {
-    if (openChannelOnMount) {
-      setActiveTab('teams')
-      setSeededGroup(openChannelOnMount)
-      selectConversation(openChannelOnMount.channelId)
-      onChannelIntentConsumed?.()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!openChannelOnMount?.channelId) return
+    setActiveTab('teams')
+    setSeededGroup(openChannelOnMount)
+    selectConversation(openChannelOnMount.channelId)
+    onChannelIntentConsumed?.()
+  }, [openChannelOnMount?.channelId]) // eslint-disable-line react-hooks/exhaustive-deps
   // Open an existing DM channel by id — triggered by notification deep-link resolver.
   // Watches channelId so it fires even when MessengerSection is already mounted.
   useEffect(() => {
