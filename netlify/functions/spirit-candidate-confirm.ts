@@ -1,8 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
+import { createSpirit, generateSlug, findSpiritSlugByName } from './_shared/spiritWrite'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken }              = JSON.parse(process.env.AIRTABLE || '{}')
+
+// Same switch as admin-demon.ts — one flag governs all demon-base writes.
+const USE_SUPABASE_DEMON_WRITES = true
 
 const BASE_ID    = 'appVXEj2DLPBTJTtD'
 const TABLE_ID   = 'tblcP4lgVykzOhLi4'
@@ -45,6 +49,60 @@ export default async function handler(req: Request) {
 
   if (fetchErr || !candidate) {
     return new Response(JSON.stringify({ error: 'Candidate not found or not pending' }), { status: 404, headers: CORS })
+  }
+
+  // ── Supabase write path (flag-on) ──────────────────────────────────────────
+  // Push the confirmed candidate into the Supabase `spirits` table via the shared
+  // write helper (enum-coerces biblical_rank, generates a unique slug) instead of
+  // POSTing to the legacy Airtable demon base.
+  if (USE_SUPABASE_DEMON_WRITES) {
+    // DEDUP: never create a second record for a spirit that already exists.
+    // Match on case-insensitive name first, then on the would-be slug.
+    let existingSlug = await findSpiritSlugByName(client, candidate.name)
+    if (!existingSlug) {
+      const slug = generateSlug(candidate.name)
+      const { data: bySlug } = await client.from('spirits').select('slug').eq('slug', slug).limit(1)
+      if (bySlug && bySlug.length > 0) existingSlug = bySlug[0].slug
+    }
+    if (existingSlug) {
+      await client.from('spirit_candidates').update({
+        status:       'duplicate',
+        duplicate_of: existingSlug,
+        reviewed_at:  new Date().toISOString(),
+        reviewed_by:  userId,
+      }).eq('id', candidateId)
+      return new Response(
+        JSON.stringify({ success: true, duplicate: true, duplicateOf: existingSlug, airtableId: existingSlug, slug: existingSlug }),
+        { status: 200, headers: CORS },
+      )
+    }
+
+    // candidate.function holds the dossier "Description"; source_name -> Source / Origin.
+    const { record, error: createErr } = await createSpirit(client, {
+      name:             candidate.name,
+      aka:              candidate.also_known_as,
+      description:      candidate.function,
+      manifestation:    candidate.manifestations,
+      scriptureContext: candidate.scripture_context,
+      kingdom:          candidate.kingdom,
+      biblicalRank:     candidate.biblical_rank,
+      subKingdom:       candidate.sub_kingdom,
+      sourceOrigin:     candidate.source_name,
+    })
+    if (createErr || !record) {
+      return new Response(JSON.stringify({ error: `Supabase create failed: ${createErr || 'unknown'}` }), { status: 500, headers: CORS })
+    }
+
+    // airtable_record_id now transitionally holds the Supabase spirit SLUG (not an
+    // Airtable id) — column reused to avoid a schema change.
+    await client.from('spirit_candidates').update({
+      status:             'approved',
+      airtable_record_id: record.slug,
+      reviewed_at:        new Date().toISOString(),
+      reviewed_by:        userId,
+    }).eq('id', candidateId)
+
+    return new Response(JSON.stringify({ success: true, airtableId: record.slug, slug: record.slug }), { status: 200, headers: CORS })
   }
 
   // Push to Airtable
