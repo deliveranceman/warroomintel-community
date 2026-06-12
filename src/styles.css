@@ -128,6 +128,38 @@ img, video, canvas, svg {
   display: none;
 }
 
+/* ── Global scrollbar polish — desktop only ──────────────────── */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.14);
+    border-radius: 999px;
+    transition: background 0.2s;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 168, 76, 0.38);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.14) transparent;
+  }
+  :root[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(139, 105, 20, 0.15);
+  }
+  :root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 105, 20, 0.38);
+  }
+}
+
 /* ── WRI command palette backdrop ───────────────────────────────── */
 .wri-cmd-backdrop {
   position: fixed;
