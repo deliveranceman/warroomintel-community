@@ -102,7 +102,7 @@ const ARSENAL_TIERS = [
 ]
 
 // ─── ARSENAL MANAGER ─────────────────────────────────────────────────────────
-function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string }) => Promise<string | null> }) {
+function ArsenalManager({ getToken, isDark = true }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark?: boolean }) {
   const [resources, setResources]       = useState<any[]>([])
   const [resLoading, setResLoading]     = useState(true)
   const [deleting, setDeleting]         = useState<string | null>(null)
@@ -133,6 +133,14 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTier, setFilterTier]         = useState('')
   const [recentSearch, setRecentSearch]     = useState('')
+
+  const adBg    = isDark ? BG    : '#EEEBE4'
+  const adSurf  = isDark ? SURF  : '#FFFFFF'
+  const adBdr   = isDark ? BDR   : '#E7E1D5'
+  const adTxt   = isDark ? TXT   : '#2A251C'
+  const adDim   = isDark ? DIM   : '#6E6557'
+  const adGold  = isDark ? G     : '#7A5E16'
+  const tierColors = isDark ? TIER_COLORS : { Free: '#8C7E63', Soldier: '#5F8A66', Commander: '#5E76B0', General: '#B5912F' }
 
   const TOPICS = [
     'Spiritual Warfare',
@@ -400,11 +408,11 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
   return (
     <div>
       {/* ── BULK UPLOAD ── */}
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
+      <div style={{ background: adSurf, border: `1px solid ${adBdr}`, borderRadius: 10, padding: 24, marginBottom: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>📦 Bulk Upload</span>
+          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: adGold }}>📦 Bulk Upload</span>
           {stagedFiles.length > 0 && (
-            <span style={{ fontFamily: crimson, fontSize: 12, color: DIM }}>
+            <span style={{ fontFamily: crimson, fontSize: 12, color: adDim }}>
               {stagedFiles.length} staged · {stagedFiles.filter(sf => sf.status === 'pending').length} pending
               {stagedFiles.filter(sf => sf.status === 'duplicate').length > 0 && ` · ${stagedFiles.filter(sf => sf.status === 'duplicate').length} duplicate`}
             </span>
@@ -415,26 +423,26 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         {resources.length > 0 && (
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: DIM, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>RECENTLY UPLOADED</span>
+              <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: adDim, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>RECENTLY UPLOADED</span>
               <input
                 value={recentSearch}
                 onChange={e => setRecentSearch(e.target.value)}
                 placeholder="Filter..."
-                style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '4px 8px', color: TXT, fontFamily: crimson, fontSize: 12, outline: 'none' }}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '4px 8px', color: adTxt, fontFamily: crimson, fontSize: 12, outline: 'none' }}
               />
               {recentSearch && (
-                <button onClick={() => setRecentSearch('')} style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                <button onClick={() => setRecentSearch('')} style={{ background: 'none', border: 'none', color: adDim, cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
               {recentUploads.length === 0 ? (
-                <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic' }}>No matches</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic' }}>No matches</div>
               ) : recentUploads.map((r: any) => (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid rgba(255,255,255,0.05)`, borderLeft: `2px solid ${TIER_COLORS[r.tier] || DIM}`, borderRadius: 5, padding: '6px 10px' }}>
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid rgba(255,255,255,0.05)`, borderLeft: `2px solid ${tierColors[r.tier] || adDim}`, borderRadius: 5, padding: '6px 10px' }}>
                   <span style={{ fontSize: 13, flexShrink: 0 }}>{FILE_ICONS[r.file_type?.split('/').pop() || ''] || '📎'}</span>
-                  <span style={{ fontFamily: crimson, fontSize: 12, color: TXT, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title?.replace(/_arsenal$/i, '') ?? r.filename}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 7, color: TIER_COLORS[r.tier] || DIM, border: `1px solid ${TIER_COLORS[r.tier] || DIM}44`, padding: '1px 6px', borderRadius: 10, flexShrink: 0 }}>{r.tier}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM, flexShrink: 0 }}>{r.created_at ? fmtDate(r.created_at) : ''}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: adTxt, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title?.replace(/_arsenal$/i, '') ?? r.filename}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 7, color: tierColors[r.tier] || adDim, border: `1px solid ${tierColors[r.tier] || adDim}44`, padding: '1px 6px', borderRadius: 10, flexShrink: 0 }}>{r.tier}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, flexShrink: 0 }}>{r.created_at ? fmtDate(r.created_at) : ''}</span>
                 </div>
               ))}
             </div>
@@ -448,7 +456,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
           onDrop={e => { e.preventDefault(); setDragOver(false); addStagedFiles(Array.from(e.dataTransfer.files)) }}
           onClick={() => document.getElementById('bulk-file-input')?.click()}
           style={{
-            border: `2px dashed ${dragOver ? G : 'rgba(201,168,76,0.3)'}`,
+            border: `2px dashed ${dragOver ? adGold : 'rgba(201,168,76,0.3)'}`,
             borderRadius: 10, padding: '28px 20px', textAlign: 'center' as const,
             marginBottom: 16, background: dragOver ? 'rgba(201,168,76,0.04)' : 'transparent',
             cursor: 'pointer', transition: 'all 0.2s',
@@ -460,10 +468,10 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
             onChange={e => { addStagedFiles(Array.from(e.target.files || [])); e.target.value = '' }}
           />
           <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: adGold, letterSpacing: '0.08em', marginBottom: 4 }}>
             Drop PDFs here or click to browse
           </div>
-          <div style={{ fontSize: 11, color: DIM }}>Up to 20 files · PDF or DOCX · Tier auto-detected from filename</div>
+          <div style={{ fontSize: 11, color: adDim }}>Up to 20 files · PDF or DOCX · Tier auto-detected from filename</div>
         </div>
 
         {/* Staged file list */}
@@ -472,20 +480,20 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <button
                 onClick={() => setListExpanded(e => !e)}
-                style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const, padding: 0 }}
+                style={{ background: 'none', border: 'none', color: adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const, padding: 0 }}
               >
                 {listExpanded ? '▲' : '▼'} {stagedFiles.length} File{stagedFiles.length !== 1 ? 's' : ''} Staged
               </button>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 {bulkUploading && (
-                  <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em' }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.08em' }}>
                     {uploadProgress.done} / {uploadProgress.total} uploaded
                   </span>
                 )}
                 {!bulkUploading && stagedFiles.some(sf => sf.status === 'done') && (
                   <button
                     onClick={() => setStagedFiles(prev => prev.filter(sf => sf.status !== 'done'))}
-                    style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, padding: 0 }}
+                    style={{ background: 'none', border: 'none', color: adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, padding: 0 }}
                   >Clear Done</button>
                 )}
               </div>
@@ -495,7 +503,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 12 }}>
                 {stagedFiles.map(sf => {
                   const statusColors: Record<string, string> = {
-                    pending: DIM, uploading: G, done: '#4ade80', error: '#f87171', duplicate: '#f59e0b',
+                    pending: DIM, uploading: adGold, done: '#4ade80', error: '#f87171', duplicate: '#f59e0b',
                   }
                   const statusLabels: Record<string, string> = {
                     pending: 'Pending', uploading: '⏳ Uploading', done: '✓ Done', error: '✗ Error', duplicate: '⚠ Duplicate',
@@ -509,10 +517,10 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                       borderRadius: 6, padding: '8px 12px',
                     }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sf.filename}</div>
-                        <div style={{ fontFamily: crimson, fontSize: 11, color: DIM }}>{sf.sizeLabel}</div>
-                        {sf.topic && <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em' }}>{sf.topic}</div>}
-                        {sf.description && <div style={{ fontFamily: crimson, fontSize: 11, color: DIM, fontStyle: 'italic' as const, marginTop: 2, maxWidth: 340, whiteSpace: 'normal' as const }}>{sf.description}</div>}
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: adTxt, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sf.filename}</div>
+                        <div style={{ fontFamily: crimson, fontSize: 11, color: adDim }}>{sf.sizeLabel}</div>
+                        {sf.topic && <div style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.06em' }}>{sf.topic}</div>}
+                        {sf.description && <div style={{ fontFamily: crimson, fontSize: 11, color: adDim, fontStyle: 'italic' as const, marginTop: 2, maxWidth: 340, whiteSpace: 'normal' as const }}>{sf.description}</div>}
                         {sf.spirit_tags && sf.spirit_tags.length > 0 && (
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 3 }}>
                             {sf.spirit_tags.map(tag => (
@@ -525,7 +533,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                             <select
                               value={sf.content_tier ?? ''}
                               onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, content_tier: e.target.value ? Number(e.target.value) : undefined, topic: undefined } : x))}
-                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: adTxt, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
                             >
                               <option value=''>Tier…</option>
                               {ARSENAL_TIERS.map(t => <option key={t.tier} value={t.tier}>{t.icon} {t.tier}. {t.label}</option>)}
@@ -533,7 +541,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                             <select
                               value={sf.topic ?? ''}
                               onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, topic: e.target.value } : x))}
-                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: adTxt, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
                             >
                               <option value=''>Category…</option>
                               {(sf.content_tier
@@ -544,7 +552,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                             <select
                               value={sf.access_tier ?? 'watchman'}
                               onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, access_tier: e.target.value } : x))}
-                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: adTxt, fontFamily: cinzel, fontSize: 8, outline: 'none' }}
                             >
                               <option value='watchman'>Watchman (Free)</option>
                               <option value='soldier'>Soldier+</option>
@@ -556,10 +564,10 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                               placeholder="tags, comma-separated"
                               value={(sf.tags || []).join(', ')}
                               onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : x))}
-                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: TXT, fontFamily: crimson, fontSize: 10, outline: 'none', width: 130 }}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '2px 5px', color: adTxt, fontFamily: crimson, fontSize: 10, outline: 'none', width: 130 }}
                             />
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: DIM }}>
-                              <input type="checkbox" checked={!!sf.draft} onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, draft: e.target.checked } : x))} style={{ accentColor: G }} />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: adDim }}>
+                              <input type="checkbox" checked={!!sf.draft} onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, draft: e.target.checked } : x))} style={{ accentColor: adGold }} />
                               Draft
                             </label>
                           </div>
@@ -572,7 +580,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
                               <button
                                 onClick={() => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, status: 'pending' as const } : x))}
-                                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4, padding: '3px 8px', fontSize: 9, color: G, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4, padding: '3px 8px', fontSize: 9, color: adGold, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
                                 ↑ Upload Anyway
                               </button>
                               {sf.duplicateMatch?.id && (
@@ -600,7 +608,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                               background: sf.aiStatus === 'done' ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
                               border: `1px solid ${sf.aiStatus === 'done' ? 'rgba(201,168,76,0.5)' : sf.aiStatus === 'error' ? 'rgba(248,113,113,0.4)' : 'rgba(201,168,76,0.2)'}`,
                               borderRadius: 4, padding: '3px 7px',
-                              color: sf.aiStatus === 'loading' ? DIM : sf.aiStatus === 'error' ? '#f87171' : G,
+                              color: sf.aiStatus === 'loading' ? DIM : sf.aiStatus === 'error' ? '#f87171' : adGold,
                               fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em',
                               cursor: sf.aiStatus === 'loading' ? 'wait' : 'pointer',
                               whiteSpace: 'nowrap' as const, flexShrink: 0,
@@ -611,7 +619,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                           <select
                             value={sf.tier}
                             onChange={e => setStagedFiles(prev => prev.map(x => x.id === sf.id ? { ...x, tier: e.target.value } : x))}
-                            style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '3px 6px', color: TXT, fontFamily: cinzel, fontSize: 9, outline: 'none' }}
+                            style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '3px 6px', color: adTxt, fontFamily: cinzel, fontSize: 9, outline: 'none' }}
                           >
                             <option value="watchman">Watchman</option>
                             <option value="soldier">Soldier</option>
@@ -624,7 +632,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                         {statusLabels[sf.status] || sf.status}
                       </span>
                       {sf.status === 'pending' && (
-                        <button onClick={() => removeStagedFile(sf.id)} style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px', flexShrink: 0 }} title="Remove">×</button>
+                        <button onClick={() => removeStagedFile(sf.id)} style={{ background: 'none', border: 'none', color: adDim, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px', flexShrink: 0 }} title="Remove">×</button>
                       )}
                     </div>
                   )
@@ -637,9 +645,9 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
               disabled={bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')}
               style={{
                 width: '100%', padding: '12px',
-                background: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? 'rgba(201,168,76,0.2)' : G,
+                background: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? 'rgba(201,168,76,0.2)' : adGold,
                 border: 'none', borderRadius: 8,
-                color: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? DIM : '#0D0B14',
+                color: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? adDim : '#0D0B14',
                 fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
                 cursor: (bulkUploading || !stagedFiles.some(sf => sf.status === 'pending')) ? 'not-allowed' : 'pointer',
                 textTransform: 'uppercase' as const, fontWeight: 700,
@@ -655,10 +663,10 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
 
       {/* Resource List */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: adGold }}>
           📂 Resources
           {!resLoading && (
-            <span style={{ color: DIM, fontSize: 10 }}>
+            <span style={{ color: adDim, fontSize: 10 }}>
               {filterSearch || filterCategory || filterTier
                 ? ` — ${displayedItems.length} of ${resources.length}`
                 : ` (${resources.length})`}
@@ -668,7 +676,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         {resources.length > 0 && (
           <button
             onClick={() => setSelectedIds(selectedIds.size === displayedItems.length ? new Set() : new Set(displayedItems.map((r: any) => r.id)))}
-            style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+            style={{ background: 'none', border: 'none', color: adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
           >
             {selectedIds.size === displayedItems.length && displayedItems.length > 0 ? 'Deselect All' : 'Select All'}
           </button>
@@ -682,13 +690,13 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
           value={filterSearch}
           onChange={e => setFilterSearch(e.target.value)}
           placeholder="Search titles and descriptions..."
-          style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 12px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 8 }}
+          style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${adBdr}`, borderRadius: 6, padding: '8px 12px', color: adTxt, fontFamily: crimson, fontSize: 13, outline: 'none', marginBottom: 8 }}
         />
         {/* Category pills */}
         <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' as any, WebkitOverflowScrolling: 'touch' as any, paddingBottom: 4, marginBottom: 6 }}>
           {['', ...TOPICS].map(t => (
             <button key={t || '__all__'} onClick={() => setFilterCategory(t)}
-              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 999, border: `1px solid ${filterCategory === t ? G : 'rgba(201,168,76,0.2)'}`, background: filterCategory === t ? 'rgba(201,168,76,0.15)' : 'transparent', color: filterCategory === t ? G : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+              style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 999, border: `1px solid ${filterCategory === t ? G : 'rgba(201,168,76,0.2)'}`, background: filterCategory === t ? 'rgba(201,168,76,0.15)' : 'transparent', color: filterCategory === t ? G : adDim, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
               {t || 'All Topics'}
             </button>
           ))}
@@ -697,7 +705,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         <div style={{ display: 'flex', gap: 5 }}>
           {[['', 'All'], ['watchman', 'Watchman'], ['soldier', 'Soldier'], ['commander', 'Commander'], ['general', 'General']].map(([val, label]) => (
             <button key={val} onClick={() => setFilterTier(val)}
-              style={{ padding: '3px 10px', borderRadius: 999, border: `1px solid ${filterTier === val ? G : 'rgba(201,168,76,0.2)'}`, background: filterTier === val ? 'rgba(201,168,76,0.15)' : 'transparent', color: filterTier === val ? G : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
+              style={{ padding: '3px 10px', borderRadius: 999, border: `1px solid ${filterTier === val ? G : 'rgba(201,168,76,0.2)'}`, background: filterTier === val ? 'rgba(201,168,76,0.15)' : 'transparent', color: filterTier === val ? G : adDim, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
               {label}
             </button>
           ))}
@@ -711,16 +719,16 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       </div>
 
       {resLoading ? (
-        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '20px 0' }}>Loading...</div>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: adDim, letterSpacing: '0.1em', padding: '20px 0' }}>Loading...</div>
       ) : resources.length === 0 ? (
-        <div style={{ fontFamily: crimson, fontSize: 15, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>No resources uploaded yet.</div>
+        <div style={{ fontFamily: crimson, fontSize: 15, color: adDim, fontStyle: 'italic', padding: '20px 0' }}>No resources uploaded yet.</div>
       ) : displayedItems.length === 0 ? (
-        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>No resources match the current filters.</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, fontStyle: 'italic', padding: '20px 0' }}>No resources match the current filters.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: selectedIds.size > 0 ? 72 : 0 }}>
           {displayedItems.map((r: any) => (
             <Fragment key={r.id}>
-            <div style={{ background: SURF, border: `1px solid ${selectedIds.has(r.id) ? 'rgba(201,168,76,0.6)' : highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? '#C9A84C' : (TIER_COLORS[r.tier] || DIM)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
+            <div style={{ background: adSurf, border: `1px solid ${selectedIds.has(r.id) ? 'rgba(201,168,76,0.6)' : highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? '#C9A84C' : (tierColors[r.tier] || adDim)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
               <input
                 type="checkbox"
                 checked={selectedIds.has(r.id)}
@@ -729,14 +737,14 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
               />
               <span style={{ fontSize: 20, flexShrink: 0 }}>{FILE_ICONS[r.file_type?.split('/').pop() || ''] || '📎'}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 3 }}>{r.title?.replace(/_arsenal$/i, '') ?? r.title}</div>
+                <div style={{ fontFamily: cinzel, fontSize: 12, color: adTxt, marginBottom: 3 }}>{r.title?.replace(/_arsenal$/i, '') ?? r.title}</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: TIER_COLORS[r.tier], border: `1px solid ${TIER_COLORS[r.tier]}44`, padding: '1px 7px', borderRadius: 10 }}>{r.tier}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{r.topic || r.category}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{fmtBytes(r.file_size || 0)}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: DIM }}>{r.created_at ? fmtDate(r.created_at) : ''}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: tierColors[r.tier], border: `1px solid ${tierColors[r.tier]}44`, padding: '1px 7px', borderRadius: 10 }}>{r.tier}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim }}>{r.topic || r.category}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim }}>{fmtBytes(r.file_size || 0)}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim }}>{r.created_at ? fmtDate(r.created_at) : ''}</span>
                   {r.tags?.length > 0 && r.tags.map((t: string) => (
-                    <span key={t} style={{ fontFamily: cinzel, fontSize: 7, color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '1px 6px', borderRadius: 999 }}>{t}</span>
+                    <span key={t} style={{ fontFamily: cinzel, fontSize: 7, color: adGold, border: `1px solid rgba(201,168,76,0.3)`, padding: '1px 6px', borderRadius: 999 }}>{t}</span>
                   ))}
                 </div>
               </div>
@@ -752,7 +760,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     spirit_tags: Array.isArray(r.spirit_tags) ? r.spirit_tags : [],
                   })
                 }}
-                style={{ background: arsenalEditId === r.id ? 'rgba(201,168,76,0.2)' : 'transparent', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
+                style={{ background: arsenalEditId === r.id ? 'rgba(201,168,76,0.2)' : 'transparent', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 5, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
               >
                 {arsenalEditId === r.id ? '✕ Close' : '✎ Edit'}
               </button>
@@ -768,26 +776,26 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
             {arsenalEditId === r.id && (
               <div style={{ marginTop: 10, background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
                 <div>
-                  <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TITLE</label>
-                  <input value={arsenalEditForm.title} onChange={e => setArsenalEditForm((f: any) => ({ ...f, title: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none' }} />
+                  <label style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TITLE</label>
+                  <input value={arsenalEditForm.title} onChange={e => setArsenalEditForm((f: any) => ({ ...f, title: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '6px 10px', color: adTxt, fontFamily: crimson, fontSize: 13, outline: 'none' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TIER</label>
-                    <select value={arsenalEditForm.tier} onChange={e => setArsenalEditForm((f: any) => ({ ...f, tier: e.target.value }))} style={{ width: '100%', background: BG, border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TIER</label>
+                    <select value={arsenalEditForm.tier} onChange={e => setArsenalEditForm((f: any) => ({ ...f, tier: e.target.value }))} style={{ width: '100%', background: adBg, border: `1px solid ${adBdr}`, borderRadius: 4, padding: '6px 10px', color: adTxt, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
                       {['free','soldier','commander','general'].map(t => <option key={t} value={t}>{t === 'free' ? 'Watchman' : t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                     </select>
                   </div>
                   <div style={{ flex: 2 }}>
-                    <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TOPIC</label>
-                    <select value={arsenalEditForm.topic} onChange={e => setArsenalEditForm((f: any) => ({ ...f, topic: e.target.value }))} style={{ width: '100%', background: BG, border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
+                    <label style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>TOPIC</label>
+                    <select value={arsenalEditForm.topic} onChange={e => setArsenalEditForm((f: any) => ({ ...f, topic: e.target.value }))} style={{ width: '100%', background: adBg, border: `1px solid ${adBdr}`, borderRadius: 4, padding: '6px 10px', color: adTxt, fontFamily: cinzel, fontSize: 10, outline: 'none' }}>
                       {TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>DESCRIPTION</label>
-                  <textarea value={arsenalEditForm.notes} onChange={e => setArsenalEditForm((f: any) => ({ ...f, notes: e.target.value }))} rows={2} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', color: TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
+                  <label style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>DESCRIPTION</label>
+                  <textarea value={arsenalEditForm.notes} onChange={e => setArsenalEditForm((f: any) => ({ ...f, notes: e.target.value }))} rows={2} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '6px 10px', color: adTxt, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <button onClick={async () => {
@@ -801,8 +809,8 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                       setResources((prev: any[]) => prev.map((x: any) => x.id === r.id ? { ...x, ...arsenalEditForm, tier: arsenalEditForm.tier } : x))
                       setArsenalEditId(null)
                     } else { const d = await res.json().catch(() => ({})); alert(d.error || 'Save failed') }
-                  }} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 18px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>Save</button>
-                  <button onClick={() => setArsenalEditId(null)} style={{ background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10 }}>Cancel</button>
+                  }} style={{ background: adGold, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 18px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>Save</button>
+                  <button onClick={() => setArsenalEditId(null)} style={{ background: 'transparent', border: `1px solid ${adBdr}`, color: adDim, borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10 }}>Cancel</button>
                   <button onClick={async () => {
                     const token = await getToken()
                     setArsenalEditForm((f: any) => ({ ...f, _aiLoading: true }))
@@ -823,7 +831,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                         }))
                       } else { setArsenalEditForm((f: any) => ({ ...f, _aiLoading: false })) }
                     } catch { setArsenalEditForm((f: any) => ({ ...f, _aiLoading: false })) }
-                  }} style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4, padding: '6px 14px', cursor: arsenalEditForm._aiLoading ? 'wait' : 'pointer', fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em', opacity: arsenalEditForm._aiLoading ? 0.6 : 1 }}>
+                  }} style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4, padding: '6px 14px', cursor: arsenalEditForm._aiLoading ? 'wait' : 'pointer', fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.08em', opacity: arsenalEditForm._aiLoading ? 0.6 : 1 }}>
                     {arsenalEditForm._aiLoading ? '…' : '✦ AI Autofill'}
                   </button>
                 </div>
@@ -837,26 +845,26 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       {/* Floating mass-edit/delete bar */}
       {selectedIds.size > 0 && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1A1626', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', flexWrap: 'wrap' as const, maxWidth: '90vw' }}>
-          <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>{selectedIds.size} selected</span>
-          <select value={massEditTier} onChange={e => setMassEditTier(e.target.value)} style={{ background: '#0D0B14', border: `1px solid ${BDR}`, borderRadius: 4, padding: '5px 8px', color: massEditTier ? TXT : DIM, fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>{selectedIds.size} selected</span>
+          <select value={massEditTier} onChange={e => setMassEditTier(e.target.value)} style={{ background: isDark ? '#0D0B14' : '#fff', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '5px 8px', color: massEditTier ? adTxt : adDim, fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
             <option value=''>Tier...</option>
             {['watchman','soldier','commander','general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
-          <select value={massEditTopic} onChange={e => setMassEditTopic(e.target.value)} style={{ background: '#0D0B14', border: `1px solid ${BDR}`, borderRadius: 4, padding: '5px 8px', color: massEditTopic ? TXT : DIM, fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+          <select value={massEditTopic} onChange={e => setMassEditTopic(e.target.value)} style={{ background: isDark ? '#0D0B14' : '#fff', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '5px 8px', color: massEditTopic ? adTxt : adDim, fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
             <option value=''>Topic...</option>
             {TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <button
             onClick={handleMassEdit}
             disabled={massApplying || (!massEditTier && !massEditTopic)}
-            style={{ background: (massApplying || (!massEditTier && !massEditTopic)) ? 'rgba(201,168,76,0.2)' : G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: (massApplying || (!massEditTier && !massEditTopic)) ? 'not-allowed' : 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
+            style={{ background: (massApplying || (!massEditTier && !massEditTopic)) ? 'rgba(201,168,76,0.2)' : adGold, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: (massApplying || (!massEditTier && !massEditTopic)) ? 'not-allowed' : 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
           >{massApplying ? '…' : '⊕ Apply'}</button>
           <button
             onClick={() => setMassDelConfirm(true)}
             disabled={massApplying}
             style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 4, padding: '6px 14px', cursor: massApplying ? 'not-allowed' : 'pointer', fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
           >🗑 Delete</button>
-          <button onClick={() => { setSelectedIds(new Set()); setMassEditTier(''); setMassEditTopic('') }} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, padding: '6px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: DIM }}>✕</button>
+          <button onClick={() => { setSelectedIds(new Set()); setMassEditTier(''); setMassEditTopic('') }} style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '6px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: adDim }}>✕</button>
         </div>
       )}
 
@@ -865,12 +873,12 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#1A1626', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 10, padding: 28, maxWidth: 380, width: '90%', textAlign: 'center' as const }}>
             <div style={{ fontFamily: cinzel, fontSize: 13, color: '#f87171', marginBottom: 10, letterSpacing: '0.1em' }}>DELETE {selectedIds.size} RESOURCE{selectedIds.size !== 1 ? 'S' : ''}?</div>
-            <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, marginBottom: 20 }}>This will permanently delete the files and records. This cannot be undone.</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, marginBottom: 20 }}>This will permanently delete the files and records. This cannot be undone.</div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button onClick={handleMassDelete} disabled={massApplying} style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 6, padding: '8px 20px', color: '#f87171', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: massApplying ? 'wait' : 'pointer', fontWeight: 700 }}>
                 {massApplying ? 'Deleting...' : 'Yes, Delete'}
               </button>
-              <button onClick={() => setMassDelConfirm(false)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, padding: '8px 20px', color: DIM, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => setMassDelConfirm(false)} style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 6, padding: '8px 20px', color: adDim, fontFamily: cinzel, fontSize: 10, cursor: 'pointer' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -879,15 +887,15 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       {/* Draft Approval Queue */}
       {resources.filter((r: any) => r.draft).length > 0 && (
         <div style={{ marginTop: 28, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '16px 20px' }}>
-          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.14em', color: G, marginBottom: 12 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.14em', color: adGold, marginBottom: 12 }}>
             📋 DRAFT QUEUE — {resources.filter((r: any) => r.draft).length} Pending Approval
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
             {resources.filter((r: any) => r.draft).map((r: any) => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: SURF, border: `1px solid ${BDR}`, borderLeft: '3px solid rgba(201,168,76,0.5)', borderRadius: 6, padding: '10px 14px' }}>
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: adSurf, border: `1px solid ${adBdr}`, borderLeft: '3px solid rgba(201,168,76,0.5)', borderRadius: 6, padding: '10px 14px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title?.replace(/_arsenal$/i, '') || r.filename}</div>
-                  <div style={{ fontFamily: crimson, fontSize: 11, color: DIM }}>{r.topic} · {r.tier}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: adTxt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.title?.replace(/_arsenal$/i, '') || r.filename}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 11, color: adDim }}>{r.topic} · {r.tier}</div>
                 </div>
                 <button
                   onClick={async () => {
@@ -899,7 +907,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                     })
                     if (res.ok) setResources((prev: any[]) => prev.map((x: any) => x.id === r.id ? { ...x, draft: false } : x))
                   }}
-                  style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
+                  style={{ background: adGold, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}
                 >✓ Approve</button>
                 <button
                   onClick={() => handleDelete(r.id)}
@@ -915,7 +923,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
       <div style={{ marginTop: 24, borderTop: `1px solid rgba(201,168,76,0.15)`, paddingTop: 16 }}>
         <button
           onClick={() => setShowCatManager(c => !c)}
-          style={{ background: 'none', border: 'none', color: DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+          style={{ background: 'none', border: 'none', color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
         >
           {showCatManager ? '▲' : '▼'} Manage Custom Topics
         </button>
@@ -929,7 +937,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                   borderRadius: 20,
                   padding: '3px 10px',
                   fontSize: 10,
-                  color: G,
+                  color: adGold,
                   fontFamily: cinzel,
                   display: 'flex',
                   alignItems: 'center',
@@ -938,12 +946,12 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                   {cat}
                   <button
                     onClick={() => removeCategory(cat)}
-                    style={{ background: 'none', border: 'none', color: DIM, cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                    style={{ background: 'none', border: 'none', color: adDim, cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
                   >×</button>
                 </span>
               ))}
               {customCategories.length === 0 && (
-                <span style={{ fontSize: 11, color: DIM, fontFamily: crimson, fontStyle: 'italic' }}>No custom categories yet</span>
+                <span style={{ fontSize: 11, color: adDim, fontFamily: crimson, fontStyle: 'italic' }}>No custom categories yet</span>
               )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -958,7 +966,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
                   border: '1px solid rgba(201,168,76,0.2)',
                   borderRadius: 5,
                   padding: '6px 10px',
-                  color: TXT,
+                  color: adTxt,
                   fontFamily: cinzel,
                   fontSize: 11,
                   outline: 'none',
@@ -966,7 +974,7 @@ function ArsenalManager({ getToken }: { getToken: (opts?: { template?: string })
               />
               <button
                 onClick={addCategory}
-                style={{ padding: '6px 16px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                style={{ padding: '6px 16px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${adGold}`, borderRadius: 5, color: adGold, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const }}
               >+ Add</button>
             </div>
           </div>
@@ -1314,11 +1322,11 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Transmission Vectors</label>{ta('Transmission Vectors', 2)}</div>
         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 24 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input type="checkbox" checked={f('Is Generational') === 'true'} onChange={e => setField('Is Generational', e.target.checked ? 'true' : 'false')} style={{ accentColor: G, width: 14, height: 14 }} />
+            <input type="checkbox" checked={f('Is Generational') === 'true'} onChange={e => setField('Is Generational', e.target.checked ? 'true' : 'false')} style={{ accentColor: adGold, width: 14, height: 14 }} />
             <span style={{ fontFamily: crimson, fontSize: 13, color: adTxt }}>Primarily Generational/Bloodline</span>
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input type="checkbox" checked={f('Is Territorial') === 'true'} onChange={e => setField('Is Territorial', e.target.checked ? 'true' : 'false')} style={{ accentColor: G, width: 14, height: 14 }} />
+            <input type="checkbox" checked={f('Is Territorial') === 'true'} onChange={e => setField('Is Territorial', e.target.checked ? 'true' : 'false')} style={{ accentColor: adGold, width: 14, height: 14 }} />
             <span style={{ fontFamily: crimson, fontSize: 13, color: adTxt }}>Primarily Territorial/Regional</span>
           </label>
         </div>
@@ -3175,7 +3183,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         {([
           ['Total Entries',              dLoading ? null : demons.length, G,                                            'all'        ],
           ['Missing Notes',    emptyNotes,    emptyNotes === null || emptyNotes === 0 ? '#4ade80' : '#f97316', 'missing-notes'],
-          ['Added This Month', recentlyAdded, recentlyAdded === null ? '#4ade80' : G,                         'recent'       ],
+          ['Added This Month', recentlyAdded, recentlyAdded === null ? '#4ade80' : adGold,                         'recent'       ],
         ] as [string, number | null, string, 'all' | 'missing-seq' | 'missing-sc' | 'missing-notes' | 'recent'][]).map(([label, val, color, qf]) => (
           <button key={label}
             onClick={() => { if (!dLoading) { setQuickFilter(qf === quickFilter ? 'all' : qf); setPage(0) } }}
@@ -3281,7 +3289,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' as const }}>
         <button
           onClick={() => { setShowNew(s => { if (!s) { setNewFields(blankSpiritFields()); setNewMsg('') }; return !s }); setEditingId(null) }}
-          style={{ background: showNew ? 'rgba(201,168,76,0.12)' : G, color: showNew ? G : '#0D0B14', border: showNew ? `1px solid ${G}` : 'none', borderRadius: 6, padding: '8px 16px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}>
+          style={{ background: showNew ? 'rgba(201,168,76,0.12)' : adGold, color: showNew ? G : '#0D0B14', border: showNew ? `1px solid ${adGold}` : 'none', borderRadius: 6, padding: '8px 16px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}>
           {showNew ? '✕ Cancel New' : '+ Add Spirit'}
         </button>
         <input value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} placeholder="Search spirits by name..."
@@ -3441,7 +3449,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                       setSelectAll(e.target.checked)
                       setSelectedSpirits(e.target.checked ? new Set(paginated.map((s: any) => s.slug)) : new Set())
                     }}
-                    style={{ accentColor: G, width: 16, height: 16, cursor: 'pointer' }}
+                    style={{ accentColor: adGold, width: 16, height: 16, cursor: 'pointer' }}
                   />
                 </th>
                 <th style={{ ...thS, color: isDark ? DIM : '#5C5248' }} onClick={() => handleSort('name')}>Name{sortInd('name')}</th>
@@ -3471,7 +3479,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                             return next
                           })
                         }}
-                        style={{ accentColor: G, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
+                        style={{ accentColor: adGold, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
                       />
                     </td>
                     <td style={{ ...tdS, fontFamily: cinzel, fontSize: 11, maxWidth: 160, wordBreak: 'break-word' as const }}>{d.name}</td>
@@ -3752,7 +3760,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                         <input type="radio" name={`m-${f.key}`}
                           checked={choice === 'a'}
                           onChange={() => { if (!isIdentical) setMergeChoices(p => ({ ...p, [f.key]: 'a' })) }}
-                          style={{ marginTop: 3, flexShrink: 0, accentColor: G }} />
+                          style={{ marginTop: 3, flexShrink: 0, accentColor: adGold }} />
                         <span style={{ fontFamily: crimson, fontSize: 13, color: va ? adTxt : adDim, fontStyle: va ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
                           {va ? trunc(va) : '(empty)'}
                         </span>
@@ -3761,7 +3769,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                         <input type="radio" name={`m-${f.key}`}
                           checked={choice === 'b'}
                           onChange={() => { if (!isIdentical) setMergeChoices(p => ({ ...p, [f.key]: 'b' })) }}
-                          style={{ marginTop: 3, flexShrink: 0, accentColor: G }} />
+                          style={{ marginTop: 3, flexShrink: 0, accentColor: adGold }} />
                         <span style={{ fontFamily: crimson, fontSize: 13, color: vb ? adTxt : adDim, fontStyle: vb ? 'normal' : 'italic' as const, lineHeight: 1.4 }}>
                           {vb ? trunc(vb) : '(empty)'}
                         </span>
@@ -3852,7 +3860,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   </button>
                 )}
                 {dupeScanned && (
-                  <span style={{ fontFamily: cinzel, fontSize: 10, color: dupeGroups.length === 0 ? '#4ade80' : G, letterSpacing: '0.08em' }}>
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: dupeGroups.length === 0 ? '#4ade80' : adGold, letterSpacing: '0.08em' }}>
                     {dupeGroups.length === 0 ? '✓ No duplicates found'
                       : `${dupeGroups.filter(g => g.type === 'exact').length} exact · ${dupeGroups.filter(g => g.type === 'near').length} near · ${dupeGroups.filter(g => g.type === 'fuzzy').length} fuzzy`}
                   </span>
@@ -3934,7 +3942,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                 if (!groups.length) return null
                 const LABELS = { exact: 'CONFIRMED DUPLICATES', near: 'LIKELY DUPLICATES', fuzzy: 'POSSIBLE DUPLICATES — REVIEW' }
                 const DESCS  = { exact: 'Same name (case-insensitive)', near: 'Same after removing "Spirit of / Spirit / The" prefix/suffix', fuzzy: 'Names are 75%+ similar by character similarity' }
-                const COLORS = { exact: '#f87171', near: G, fuzzy: '#94a3b8' }
+                const COLORS = { exact: '#f87171', near: adGold, fuzzy: '#94a3b8' }
                 return (
                   <div key={type} style={{ marginBottom: 28 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
@@ -5123,7 +5131,7 @@ const FB_STATUS_COLORS: Record<string, string> = {
   'open': G, 'in-progress': '#38bdf8', 'resolved': '#4ade80', 'closed': '#6b7280',
 }
 
-function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?: { template?: string }) => Promise<string | null>; section?: 'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags' }) {
+function ModerationPanel({ getToken, section = 'feedback', isDark = true }: { getToken: (opts?: { template?: string }) => Promise<string | null>; section?: 'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'; isDark?: boolean }) {
   const [feedback, setFeedback]   = useState<any[]>([])
   const [fbLoading, setFbLoading] = useState(true)
   const [editingFb, setEditingFb] = useState<string | null>(null)
@@ -5170,6 +5178,15 @@ function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?:
     setFeedback(prev => prev.filter(f => f.id !== id))
   }
 
+  const adBg   = isDark ? BG   : '#EEEBE4'
+  const adSurf  = isDark ? SURF  : '#FFFFFF'
+  const adSurf2 = isDark ? SURF2 : '#F7F5F0'
+  const adBdr  = isDark ? BDR : '#E7E1D5'
+  const adTxt  = isDark ? TXT : '#2A251C'
+  const adDim  = isDark ? DIM : '#6E6557'
+  const adGold = isDark ? G   : '#7A5E16'
+  const fbStatusColors: Record<string, string> = { ...FB_STATUS_COLORS, 'open': adGold }
+
   return (
     <div>
       {/* ── COMMUNITY FEEDBACK ── */}
@@ -5177,50 +5194,50 @@ function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?:
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Community Feedback</div>
-              <div style={{ fontFamily: crimson, fontSize: 14, color: DIM }}>{feedback.length} report{feedback.length !== 1 ? 's' : ''} submitted by members</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: adGold, letterSpacing: '0.1em', marginBottom: 4 }}>🛡 Community Feedback</div>
+              <div style={{ fontFamily: crimson, fontSize: 14, color: adDim }}>{feedback.length} report{feedback.length !== 1 ? 's' : ''} submitted by members</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Community →</a>
-              <a href={`https://dashboard.getstream.io/app/${STREAM_APP_ID}/moderation`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Stream →</a>
+              <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${adBdr}`, color: adDim, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Community →</a>
+              <a href={`https://dashboard.getstream.io/app/${STREAM_APP_ID}/moderation`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${adBdr}`, color: adDim, borderRadius: 5, padding: '6px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', textDecoration: 'none' }}>Stream →</a>
             </div>
           </div>
           {fbLoading ? (
-            <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>Loading feedback...</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: adDim, fontStyle: 'italic', padding: '20px 0' }}>Loading feedback...</div>
           ) : feedback.length === 0 ? (
-            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const }}>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: DIM }}>No feedback submitted yet</div>
+            <div style={{ background: adSurf, border: `1px solid ${adBdr}`, borderRadius: 10, padding: '32px 24px', textAlign: 'center' as const }}>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: adDim }}>No feedback submitted yet</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {feedback.map(fb => (
-                <div key={fb.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid ${fb.type === 'bug' ? '#f87171' : G}`, borderRadius: 10, padding: '14px 18px' }}>
+                <div key={fb.id} style={{ background: adSurf, border: `1px solid ${adBdr}`, borderLeft: `3px solid ${fb.type === 'bug' ? '#f87171' : adGold}`, borderRadius: 10, padding: '14px 18px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' as const, marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 13 }}>{fb.type === 'bug' ? '🐛' : '✦'}</span>
-                      <span style={{ fontFamily: cinzel, fontSize: 12, color: fb.type === 'bug' ? '#f87171' : G }}>{fb.title}</span>
-                      <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${FB_STATUS_COLORS[fb.status] || DIM}20`, color: FB_STATUS_COLORS[fb.status] || DIM, border: `1px solid ${FB_STATUS_COLORS[fb.status] || DIM}40` }}>{fb.status}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 12, color: fb.type === 'bug' ? '#f87171' : adGold }}>{fb.title}</span>
+                      <span style={{ fontSize: 9, fontFamily: cinzel, padding: '2px 8px', borderRadius: 999, background: `${fbStatusColors[fb.status] || adDim}20`, color: fbStatusColors[fb.status] || adDim, border: `1px solid ${fbStatusColors[fb.status] || adDim}40` }}>{fb.status}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 10, color: DIM }}>{fb.submitted_by_name} · {fb.submitted_by_tier} · {fb.priority}</span>
-                      <button onClick={() => { setEditingFb(fb.id); setEditStatus(fb.status); setEditNotes(fb.admin_notes || '') }} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Edit</button>
+                      <span style={{ fontSize: 10, color: adDim }}>{fb.submitted_by_name} · {fb.submitted_by_tier} · {fb.priority}</span>
+                      <button onClick={() => { setEditingFb(fb.id); setEditStatus(fb.status); setEditNotes(fb.admin_notes || '') }} style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 4, color: adDim, fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Edit</button>
                       <button onClick={() => deleteFeedback(fb.id)} style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '2px 8px', cursor: 'pointer' }}>Delete</button>
                     </div>
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, lineHeight: 1.5, marginBottom: fb.admin_notes ? 8 : 0 }}>{fb.description}</div>
-                  {fb.admin_notes && <div style={{ fontSize: 12, color: DIM, fontStyle: 'italic', fontFamily: crimson }}>Admin: {fb.admin_notes}</div>}
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: adTxt, lineHeight: 1.5, marginBottom: fb.admin_notes ? 8 : 0 }}>{fb.description}</div>
+                  {fb.admin_notes && <div style={{ fontSize: 12, color: adDim, fontStyle: 'italic', fontFamily: crimson }}>Admin: {fb.admin_notes}</div>}
                   {editingFb === fb.id && (
-                    <div style={{ marginTop: 12, padding: '12px 14px', background: SURF2, borderRadius: 8, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                    <div style={{ marginTop: 12, padding: '12px 14px', background: adSurf2, borderRadius: 8, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <label style={{ fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.1em' }}>STATUS</label>
-                        <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 12, padding: '3px 8px' }}>
+                        <label style={{ fontFamily: cinzel, fontSize: 9, color: adDim, letterSpacing: '0.1em' }}>STATUS</label>
+                        <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ background: adBg, border: `1px solid ${adBdr}`, borderRadius: 4, color: adTxt, fontFamily: crimson, fontSize: 12, padding: '3px 8px' }}>
                           {['open', 'in-progress', 'resolved', 'closed'].map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
-                      <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} placeholder="Admin notes..." style={{ background: BG, border: `1px solid ${BDR}`, borderRadius: 4, color: TXT, fontFamily: crimson, fontSize: 13, padding: '6px 8px', resize: 'vertical' as const, outline: 'none' }} />
+                      <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} placeholder="Admin notes..." style={{ background: adBg, border: `1px solid ${adBdr}`, borderRadius: 4, color: adTxt, fontFamily: crimson, fontSize: 13, padding: '6px 8px', resize: 'vertical' as const, outline: 'none' }} />
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => updateFeedback(fb.id)} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>Save</button>
-                        <button onClick={() => setEditingFb(null)} style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Cancel</button>
+                        <button onClick={() => updateFeedback(fb.id)} style={{ background: adGold, color: '#0D0B14', border: 'none', borderRadius: 4, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setEditingFb(null)} style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 4, color: adDim, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Cancel</button>
                       </div>
                     </div>
                   )}
@@ -5234,25 +5251,25 @@ function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?:
       {/* ── TESTIMONY QUEUE ── */}
       {section === 'testimony' && (
         <>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: adGold, letterSpacing: '0.1em', marginBottom: 16 }}>
             Testimony Queue — {testimonies.filter(t => t.status === 'pending').length} pending
           </div>
           {testLoading ? (
-            <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading...</div>
+            <div style={{ color: adDim, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading...</div>
           ) : (
             <div>
               {testimonies.map(t => (
-                <div key={t.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
+                <div key={t.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${adBdr}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontFamily: cinzel, fontSize: 12, color: TXT, marginBottom: 2 }}>{t.title}</div>
-                      <div style={{ fontSize: 10, color: DIM }}>{t.user_name} · {t.category} · {new Date(t.created_at).toLocaleDateString()}</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 12, color: adTxt, marginBottom: 2 }}>{t.title}</div>
+                      <div style={{ fontSize: 10, color: adDim }}>{t.user_name} · {t.category} · {new Date(t.created_at).toLocaleDateString()}</div>
                     </div>
-                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: t.status === 'approved' ? 'rgba(74,222,128,0.1)' : t.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.1)', color: t.status === 'approved' ? '#4ade80' : t.status === 'rejected' ? '#ef4444' : G, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: t.status === 'approved' ? 'rgba(74,222,128,0.1)' : t.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.1)', color: t.status === 'approved' ? '#4ade80' : t.status === 'rejected' ? '#ef4444' : adGold, fontFamily: cinzel, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
                       {t.status}
                     </span>
                   </div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, lineHeight: 1.5, marginBottom: 10 }}>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: adDim, lineHeight: 1.5, marginBottom: 10 }}>
                     {t.body.slice(0, 150)}{t.body.length > 150 ? '...' : ''}
                   </div>
                   {t.status === 'pending' && (
@@ -5286,7 +5303,7 @@ function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?:
                 </div>
               ))}
               {testimonies.length === 0 && (
-                <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No testimonies yet</div>
+                <div style={{ color: adDim, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No testimonies yet</div>
               )}
             </div>
           )}
@@ -5294,18 +5311,18 @@ function ModerationPanel({ getToken, section = 'feedback' }: { getToken: (opts?:
       )}
 
       {/* ── FORUM BOARD ── */}
-      {section === 'forum' && <ForumModerationPanel getToken={getToken} />}
+      {section === 'forum' && <ForumModerationPanel getToken={getToken} isDark={isDark} />}
 
       {/* ── FIELD REPORTS ── */}
-      {section === 'fieldreports' && <FieldReportsPanel getToken={getToken} />}
+      {section === 'fieldreports' && <FieldReportsPanel getToken={getToken} isDark={isDark} />}
 
       {/* ── FLAGS ── */}
-      {section === 'flags' && <FlagsPanel getToken={getToken} />}
+      {section === 'flags' && <FlagsPanel getToken={getToken} isDark={isDark} />}
     </div>
   )
 }
 
-function FieldReportsPanel({ getToken }: { getToken: any }) {
+function FieldReportsPanel({ getToken, isDark = true }: { getToken: any; isDark?: boolean }) {
   const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -5329,32 +5346,37 @@ function FieldReportsPanel({ getToken }: { getToken: any }) {
     setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
   }
 
-  const STATUS_COLOR: Record<string, string> = { pending: G, approved: '#4ade80', rejected: '#f87171' }
+  const adSurf = isDark ? SURF : '#FFFFFF'
+  const adBdr  = isDark ? BDR : '#E7E1D5'
+  const adTxt  = isDark ? TXT : '#2A251C'
+  const adDim  = isDark ? DIM : '#6E6557'
+  const adGold = isDark ? G   : '#7A5E16'
+  const STATUS_COLOR: Record<string, string> = { pending: adGold, approved: '#4ade80', rejected: '#f87171' }
 
-  if (loading) return <div style={{ fontFamily: crimson, color: DIM, fontStyle: 'italic', padding: '20px 0' }}>Loading field reports...</div>
+  if (loading) return <div style={{ fontFamily: crimson, color: adDim, fontStyle: 'italic', padding: '20px 0' }}>Loading field reports...</div>
 
   return (
     <div>
-      <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>
+      <div style={{ fontFamily: cinzel, fontSize: 13, color: adGold, letterSpacing: '0.1em', marginBottom: 16 }}>
         Field Reports — {reports.filter(r => r.status === 'pending').length} pending
       </div>
       {reports.length === 0 && (
-        <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No field reports submitted yet.</div>
+        <div style={{ color: adDim, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No field reports submitted yet.</div>
       )}
       {reports.map(r => (
-        <div key={r.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
+        <div key={r.id} style={{ background: adSurf, border: `1px solid ${adBdr}`, borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 2 }}>{r.submitted_by_name} — {r.submitted_by_tier?.toUpperCase()}</div>
-              <div style={{ fontSize: 10, color: DIM }}>{r.location_city}{r.location_state ? `, ${r.location_state}` : ''} · {new Date(r.created_at).toLocaleDateString()}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: adTxt, marginBottom: 2 }}>{r.submitted_by_name} — {r.submitted_by_tier?.toUpperCase()}</div>
+              <div style={{ fontSize: 10, color: adDim }}>{r.location_city}{r.location_state ? `, ${r.location_state}` : ''} · {new Date(r.created_at).toLocaleDateString()}</div>
             </div>
-            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: `${STATUS_COLOR[r.status] || DIM}18`, color: STATUS_COLOR[r.status] || DIM, fontFamily: cinzel, letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: `${STATUS_COLOR[r.status] || adDim}18`, color: STATUS_COLOR[r.status] || adDim, fontFamily: cinzel, letterSpacing: '0.06em' }}>
               {r.status?.toUpperCase()}
             </span>
           </div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: TXT, marginBottom: 4 }}><strong>Spirits:</strong> {Array.isArray(r.spirit_names) ? r.spirit_names.join(', ') : r.spirit_names}</div>
-          <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, marginBottom: 4 }}><strong>Manifestations:</strong> {r.manifestations}</div>
-          {r.outcome && <div style={{ fontFamily: crimson, fontSize: 13, color: DIM, marginBottom: 4 }}><strong>Outcome:</strong> {r.outcome}</div>}
+          <div style={{ fontFamily: crimson, fontSize: 13, color: adTxt, marginBottom: 4 }}><strong>Spirits:</strong> {Array.isArray(r.spirit_names) ? r.spirit_names.join(', ') : r.spirit_names}</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: adDim, marginBottom: 4 }}><strong>Manifestations:</strong> {r.manifestations}</div>
+          {r.outcome && <div style={{ fontFamily: crimson, fontSize: 13, color: adDim, marginBottom: 4 }}><strong>Outcome:</strong> {r.outcome}</div>}
           {r.status === 'pending' && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button onClick={() => updateStatus(r.id, 'approved')} style={{ padding: '4px 14px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 5, color: '#4ade80', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>✓ Approve</button>
@@ -5367,7 +5389,7 @@ function FieldReportsPanel({ getToken }: { getToken: any }) {
   )
 }
 
-function FlagsPanel({ getToken }: { getToken: any }) {
+function FlagsPanel({ getToken, isDark = true }: { getToken: any; isDark?: boolean }) {
   const [flagged, setFlagged] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -5397,22 +5419,28 @@ function FlagsPanel({ getToken }: { getToken: any }) {
     setFlagged(prev => prev.filter(p => p.id !== id))
   }
 
-  if (loading) return <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading flagged content...</div>
+  const adSurf = isDark ? SURF : '#FFFFFF'
+  const adBdr  = isDark ? BDR : '#E7E1D5'
+  const adTxt  = isDark ? TXT : '#2A251C'
+  const adDim  = isDark ? DIM : '#6E6557'
+  const adGold = isDark ? G   : '#7A5E16'
+
+  if (loading) return <div style={{ color: adDim, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading flagged content...</div>
 
   return (
     <div>
-      <div style={{ fontFamily: cinzel, fontSize: 13, color: flagged.length > 0 ? '#f87171' : G, letterSpacing: '0.1em', marginBottom: 16 }}>
+      <div style={{ fontFamily: cinzel, fontSize: 13, color: flagged.length > 0 ? '#f87171' : adGold, letterSpacing: '0.1em', marginBottom: 16 }}>
         🚩 Flagged Content — {flagged.length} item{flagged.length !== 1 ? 's' : ''}
       </div>
       {flagged.length === 0 && (
-        <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No flagged posts. Community looks clean.</div>
+        <div style={{ color: adDim, fontFamily: crimson, fontStyle: 'italic', fontSize: 13 }}>No flagged posts. Community looks clean.</div>
       )}
       {flagged.map(p => (
-        <div key={p.id} style={{ background: SURF, border: '1px solid rgba(248,113,113,0.3)', borderLeft: '3px solid #f87171', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
+        <div key={p.id} style={{ background: adSurf, border: '1px solid rgba(248,113,113,0.3)', borderLeft: '3px solid #f87171', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 2 }}>{p.title}</div>
-              <div style={{ fontSize: 10, color: DIM }}>{p.author_name} · {p.post_type} · {new Date(p.created_at).toLocaleDateString()}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: adTxt, marginBottom: 2 }}>{p.title}</div>
+              <div style={{ fontSize: 10, color: adDim }}>{p.author_name} · {p.post_type} · {new Date(p.created_at).toLocaleDateString()}</div>
             </div>
             {(p.flag_count ?? 0) > 0 && (
               <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 10, background: 'rgba(248,113,113,0.1)', color: '#f87171', fontFamily: cinzel }}>
@@ -5420,9 +5448,9 @@ function FlagsPanel({ getToken }: { getToken: any }) {
               </span>
             )}
           </div>
-          {p.body && <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginBottom: 10 }}>{p.body.slice(0, 140)}</div>}
+          {p.body && <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginBottom: 10 }}>{p.body.slice(0, 140)}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => dismiss(p.id)} style={{ padding: '4px 14px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 5, color: DIM, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Dismiss Flag</button>
+            <button onClick={() => dismiss(p.id)} style={{ padding: '4px 14px', background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 5, color: adDim, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Dismiss Flag</button>
             <button onClick={() => remove(p.id)} style={{ padding: '4px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#ef4444', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Delete Post</button>
           </div>
         </div>
@@ -5432,7 +5460,7 @@ function FlagsPanel({ getToken }: { getToken: any }) {
 }
 
 // ─── FORUM MODERATION ────────────────────────────────────────────────────────
-function ForumModerationPanel({ getToken }: { getToken: any }) {
+function ForumModerationPanel({ getToken, isDark = true }: { getToken: any; isDark?: boolean }) {
   const [flagged,  setFlagged]  = useState<any[]>([])
   const [recent,   setRecent]   = useState<any[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -5474,14 +5502,19 @@ function ForumModerationPanel({ getToken }: { getToken: any }) {
     setFlagged(prev => prev.filter(p => p.id !== id))
   }
 
-  const rowSt: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 14px', background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, marginBottom: 6 }
-  const btnSt = (danger?: boolean): React.CSSProperties => ({ background: 'transparent', border: `1px solid ${danger ? 'rgba(248,113,113,0.3)' : BDR}`, borderRadius: 4, color: danger ? '#f87171' : DIM, fontFamily: cinzel, fontSize: 8, padding: '3px 10px', cursor: 'pointer' })
+  const adBdr  = isDark ? BDR : '#E7E1D5'
+  const adTxt  = isDark ? TXT : '#2A251C'
+  const adDim  = isDark ? DIM : '#6E6557'
+  const adGold = isDark ? G   : '#7A5E16'
+  const adSurf = isDark ? SURF : '#FFFFFF'
+  const rowSt: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 14px', background: adSurf, border: `1px solid ${adBdr}`, borderRadius: 8, marginBottom: 6 }
+  const btnSt = (danger?: boolean): React.CSSProperties => ({ background: 'transparent', border: `1px solid ${danger ? 'rgba(248,113,113,0.3)' : adBdr}`, borderRadius: 4, color: danger ? '#f87171' : adDim, fontFamily: cinzel, fontSize: 8, padding: '3px 10px', cursor: 'pointer' })
 
-  if (loading) return <div style={{ color: DIM, fontFamily: crimson, fontStyle: 'italic', padding: '16px 0', fontSize: 13 }}>Loading forum data…</div>
+  if (loading) return <div style={{ color: adDim, fontFamily: crimson, fontStyle: 'italic', padding: '16px 0', fontSize: 13 }}>Loading forum data…</div>
 
   return (
     <div style={{ marginTop: 32 }}>
-      <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ Forum: The War Room Board</div>
+      <div style={{ fontFamily: cinzel, fontSize: 12, color: adGold, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ Forum: The War Room Board</div>
 
       {/* Stats */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
@@ -5490,12 +5523,12 @@ function ForumModerationPanel({ getToken }: { getToken: any }) {
           { label: 'Flagged', value: flagged.length, warn: flagged.length > 0 },
           { label: 'This Week', value: recent.filter(p => Date.now() - new Date(p.created_at).getTime() < 7 * 86400000).length },
         ].map(s => (
-          <div key={s.label} style={{ background: SURF, border: `1px solid ${s.warn ? 'rgba(248,113,113,0.4)' : BDR}`, borderRadius: 8, padding: '10px 18px', textAlign: 'center' as const }}>
-            <div style={{ fontFamily: cinzel, fontSize: 16, color: s.warn ? '#f87171' : TXT }}>{s.value}</div>
-            <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.08em', marginTop: 2 }}>{s.label}</div>
+          <div key={s.label} style={{ background: adSurf, border: `1px solid ${s.warn ? 'rgba(248,113,113,0.4)' : adBdr}`, borderRadius: 8, padding: '10px 18px', textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 16, color: s.warn ? '#f87171' : adTxt }}>{s.value}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.08em', marginTop: 2 }}>{s.label}</div>
           </div>
         ))}
-        <a href="/community/forum" target="_blank" rel="noopener noreferrer" style={{ background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 8, padding: '10px 18px', color: DIM, fontFamily: cinzel, fontSize: 9, textDecoration: 'none', display: 'flex', alignItems: 'center', letterSpacing: '0.08em' }}>View Board →</a>
+        <a href="/community/forum" target="_blank" rel="noopener noreferrer" style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 8, padding: '10px 18px', color: adDim, fontFamily: cinzel, fontSize: 9, textDecoration: 'none', display: 'flex', alignItems: 'center', letterSpacing: '0.08em' }}>View Board →</a>
       </div>
 
       {/* Flagged */}
@@ -5505,9 +5538,9 @@ function ForumModerationPanel({ getToken }: { getToken: any }) {
           {flagged.map(p => (
             <div key={p.id} style={{ ...rowSt, borderLeft: '3px solid #f87171' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 3 }}>{p.title}</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: DIM }}>{p.author_name} · {p.post_type} · {new Date(p.created_at).toLocaleDateString()}</div>
-                {p.body && <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.body.slice(0, 120)}</div>}
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: adTxt, marginBottom: 3 }}>{p.title}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: adDim }}>{p.author_name} · {p.post_type} · {new Date(p.created_at).toLocaleDateString()}</div>
+                {p.body && <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.body.slice(0, 120)}</div>}
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button onClick={() => unflag(p.id)} style={btnSt()}>Unflag</button>
@@ -5520,15 +5553,15 @@ function ForumModerationPanel({ getToken }: { getToken: any }) {
 
       {/* Recent posts */}
       <div>
-        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', marginBottom: 10 }}>Recent Posts</div>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: adDim, letterSpacing: '0.1em', marginBottom: 10 }}>Recent Posts</div>
         {recent.slice(0, 20).map(p => (
           <div key={p.id} style={rowSt}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: TXT, marginBottom: 2 }}>{p.title}</div>
-              <div style={{ fontFamily: crimson, fontSize: 11, color: DIM }}>{p.author_name} · {p.post_type} · ▲{p.upvotes} · 💬{p.comment_count} · {new Date(p.created_at).toLocaleDateString()}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: adTxt, marginBottom: 2 }}>{p.title}</div>
+              <div style={{ fontFamily: crimson, fontSize: 11, color: adDim }}>{p.author_name} · {p.post_type} · ▲{p.upvotes} · 💬{p.comment_count} · {new Date(p.created_at).toLocaleDateString()}</div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <button onClick={() => pinPost(p.id, !p.pinned)} style={{ ...btnSt(), color: p.pinned ? G : DIM, borderColor: p.pinned ? 'rgba(201,168,76,0.4)' : BDR }}>{p.pinned ? '📌 Unpin' : '📌 Pin'}</button>
+              <button onClick={() => pinPost(p.id, !p.pinned)} style={{ ...btnSt(), color: p.pinned ? G : adDim, borderColor: p.pinned ? 'rgba(201,168,76,0.4)' : BDR }}>{p.pinned ? '📌 Unpin' : '📌 Pin'}</button>
               <button onClick={() => del(p.id, true)} style={btnSt(true)}>Delete</button>
             </div>
           </div>
@@ -12473,7 +12506,7 @@ function AdminPage() {
         <div style={{ flex: 1, overflowY: 'auto' as const, minWidth: 0, scrollbarGutter: 'stable' as const }}>
           <div style={{ maxWidth, margin: '0 auto', padding: contentPad }}>
             {tab === 'dashboard'         && <DashboardView getToken={getToken} isDark={isDark} setTab={(t: string) => setTab(t as any)} />}
-            {tab === 'arsenal'           && <ArsenalManager getToken={getToken} />}
+            {tab === 'arsenal'           && <ArsenalManager getToken={getToken} isDark={isDark} />}
             {tab === 'intel'             && <IntelArchive getToken={getToken} isDark={isDark} />}
             {tab === 'moderation'        && (
               <div>
@@ -12491,7 +12524,7 @@ function AdminPage() {
                     </button>
                   ))}
                 </div>
-                <ModerationPanel getToken={getToken} section={modTab} />
+                <ModerationPanel getToken={getToken} section={modTab} isDark={isDark} />
               </div>
             )}
             {tab === 'training'          && <TrainingManager getToken={getToken} isDark={isDark} />}
