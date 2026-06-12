@@ -10103,6 +10103,208 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   )
 }
 
+// ─── HELP & DOCS ─────────────────────────────────────────────────────────────
+
+type DocRow = {
+  id: string; surface: 'help' | 'architecture'; category: string
+  title: string; body: string; sort_order: number; updated_at: string
+}
+
+function AdminDocs({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
+  const G2   = isDark ? G    : '#A07C2C'
+  const surf = isDark ? SURF2 : '#FFFFFF'
+  const bdr  = isDark ? BDR   : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT   : '#2D2924'
+  const dim  = isDark ? DIM   : '#6B5520'
+  const inp: React.CSSProperties = { width: '100%', padding: '9px 12px', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', border: `1px solid ${bdr}`, borderRadius: 4, color: txt, fontFamily: crimson, fontSize: 14, boxSizing: 'border-box' as const }
+  const btnStyle = (primary: boolean): React.CSSProperties => ({ padding: '8px 18px', background: primary ? G : 'transparent', color: primary ? '#1a1305' : G2, border: `1px solid ${primary ? 'transparent' : bdr}`, borderRadius: 4, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' })
+
+  const [activeSurface, setActiveSurface] = useState<'help' | 'architecture'>('help')
+  const [docs, setDocs]         = useState<DocRow[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [editMode, setEditMode] = useState(false)
+  const [saving, setSaving]     = useState(false)
+  const [result, setResult]     = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [editDoc, setEditDoc]   = useState<DocRow | null>(null)
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
+
+  // form state
+  const [fCategory,  setFCategory]  = useState('')
+  const [fTitle,     setFTitle]     = useState('')
+  const [fBody,      setFBody]      = useState('')
+  const [fOrder,     setFOrder]     = useState(0)
+
+  async function load(surface: 'help' | 'architecture') {
+    setLoading(true)
+    const token = await getToken()
+    if (!token) { setLoading(false); return }
+    const res = await fetch(`/api/admin-docs?surface=${surface}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+    const data = res?.ok ? await res.json().catch(() => ({})) : {}
+    setDocs(Array.isArray(data.docs) ? data.docs : [])
+    setLoading(false)
+  }
+
+  useEffect(() => { void load(activeSurface) }, [activeSurface])
+
+  function resetForm() {
+    setEditDoc(null); setFCategory(''); setFTitle(''); setFBody(''); setFOrder(0)
+  }
+
+  function startEdit(d: DocRow) {
+    setEditDoc(d); setFCategory(d.category); setFTitle(d.title); setFBody(d.body); setFOrder(d.sort_order)
+  }
+
+  async function save() {
+    if (!fTitle.trim() || !fBody.trim()) return
+    setSaving(true); setResult(null)
+    const token = await getToken()
+    if (!token) { setSaving(false); return }
+    const payload: Record<string, unknown> = editDoc
+      ? { action: 'update', id: editDoc.id, category: fCategory, title: fTitle, body: fBody, sort_order: fOrder }
+      : { action: 'create', surface: activeSurface, category: fCategory || 'General', title: fTitle, body: fBody, sort_order: fOrder }
+    const res = await fetch('/api/admin-docs', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
+    const data = res?.ok ? await res.json().catch(() => ({})) : {}
+    setSaving(false)
+    if (data.ok) { setResult(editDoc ? 'Updated.' : 'Created.'); resetForm(); void load(activeSurface) }
+    else setResult(`Error: ${data.error || 'unknown'}`)
+  }
+
+  async function doDelete(id: string) {
+    const token = await getToken()
+    if (!token) return
+    setDeleteConfirm(null)
+    const res = await fetch('/api/admin-docs', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id }) }).catch(() => null)
+    const data = res?.ok ? await res.json().catch(() => ({})) : {}
+    if (data.ok) { void load(activeSurface) }
+    else setResult(`Delete error: ${data.error || 'unknown'}`)
+  }
+
+  // Group docs by category
+  const grouped: Record<string, DocRow[]> = {}
+  for (const d of docs) {
+    const cat = d.category || 'General'
+    if (!grouped[cat]) grouped[cat] = []
+    grouped[cat].push(d)
+  }
+  const categories = Object.keys(grouped).sort()
+  const existingCategories = [...new Set(docs.map(d => d.category || 'General'))].sort()
+
+  return (
+    <div style={{ padding: '24px 0' }}>
+      {/* Header + surface toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12, marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G2 }}>HELP & DOCS</div>
+        <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: `1px solid ${bdr}` }}>
+          {(['help', 'architecture'] as const).map(s => (
+            <button key={s} onClick={() => { setActiveSurface(s); resetForm() }}
+              style={{ padding: '7px 18px', background: activeSurface === s ? G : 'transparent', color: activeSurface === s ? '#1a1305' : G2, border: 'none', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+              {s === 'help' ? 'Operator Help' : 'System Architecture'}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => { setEditMode(e => !e); resetForm(); setResult(null) }}
+          style={btnStyle(!editMode)}>
+          {editMode ? '← Read Mode' : '✎ Edit Mode'}
+        </button>
+      </div>
+
+      {/* Edit mode: new/edit form */}
+      {editMode && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '20px', marginBottom: 28 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim, marginBottom: 14 }}>
+            {editDoc ? `EDITING: ${editDoc.title}` : `NEW DOC — ${activeSurface.toUpperCase()}`}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>CATEGORY</div>
+              <input value={fCategory} onChange={e => setFCategory(e.target.value)} list="doc-cats" placeholder="e.g. Notifications" style={inp} />
+              <datalist id="doc-cats">{existingCategories.map(c => <option key={c} value={c} />)}</datalist>
+            </div>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>SORT ORDER</div>
+              <input type="number" value={fOrder} onChange={e => setFOrder(Number(e.target.value))} style={{ ...inp, width: '100%' }} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>TITLE</div>
+            <input value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="Doc title" style={inp} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>BODY (markdown)</div>
+            <textarea value={fBody} onChange={e => setFBody(e.target.value)} placeholder="Markdown content…" rows={10} style={{ ...inp, resize: 'vertical' as const, fontFamily: 'var(--font-mono, monospace)', fontSize: 12 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
+            <button onClick={() => void save()} disabled={saving || !fTitle.trim() || !fBody.trim()} style={btnStyle(true)}>
+              {saving ? 'Saving…' : editDoc ? 'Update Doc' : 'Create Doc'}
+            </button>
+            {editDoc && <button onClick={resetForm} style={btnStyle(false)}>Cancel</button>}
+            {result && <span style={{ fontFamily: crimson, fontSize: 13, color: result.startsWith('Error') ? '#f87171' : G2 }}>{result}</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Doc list */}
+      {loading ? (
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: dim, letterSpacing: '0.1em' }}>Loading…</div>
+      ) : categories.length === 0 ? (
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: dim, letterSpacing: '0.1em' }}>No docs yet. Switch to Edit Mode to add the first one.</div>
+      ) : (
+        categories.map(cat => {
+          const isOpen = openCats[cat] !== false // default open
+          return (
+            <div key={cat} style={{ marginBottom: 20 }}>
+              {/* Category header */}
+              <button onClick={() => setOpenCats(p => ({ ...p, [cat]: !isOpen }))}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'transparent', border: 'none', borderBottom: `1px solid ${bdr}`, padding: '6px 0', cursor: 'pointer', marginBottom: 12 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: G2 }}>{cat.toUpperCase()}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 12, color: dim, marginLeft: 'auto' }}>{isOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {isOpen && grouped[cat].map(doc => (
+                <div key={doc.id} style={{ marginBottom: 24, paddingLeft: 8, borderLeft: `2px solid ${bdr}` }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 11, color: G2, letterSpacing: '0.08em' }}>{doc.title}</div>
+                    {editMode && (
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => startEdit(doc)} style={btnStyle(false)}>Edit</button>
+                        <button onClick={() => setDeleteConfirm(doc.id)} style={{ ...btnStyle(false), color: '#f87171', borderColor: 'rgba(239,68,68,0.3)' }}>Delete</button>
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.75, background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderRadius: 6, padding: '12px 16px' }}
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(doc.body) }}
+                  />
+                  {editMode && (
+                    <div style={{ fontFamily: cinzel, fontSize: 7, color: dim, letterSpacing: '0.08em', marginTop: 4 }}>
+                      updated {new Date(doc.updated_at).toLocaleDateString()} · order {doc.sort_order}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })
+      )}
+
+      {/* Delete confirm */}
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 10, padding: '24px 22px', maxWidth: 360, width: '100%' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: '#f87171', letterSpacing: '0.1em', marginBottom: 12 }}>DELETE DOC</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: '#c8bfa8', marginBottom: 20 }}>This is permanent and cannot be undone.</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteConfirm(null)} style={btnStyle(false)}>Cancel</button>
+              <button onClick={() => void doDelete(deleteConfirm)} style={{ ...btnStyle(true), background: '#ef4444', color: '#fff' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── MODALS & ANNOUNCEMENTS ──────────────────────────────────────────────────
 
 const MODAL_FREQ_OPTS  = [{ v: 'once_ever', l: 'Once per user (ever)' }, { v: 'once_per_day', l: 'Once per day' }, { v: 'every_login', l: 'Every login' }]
@@ -11927,7 +12129,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources' | 'modals'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources' | 'modals' | 'help-docs'>('dashboard')
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -12029,6 +12231,7 @@ function AdminPage() {
       { key: 'members',       label: 'Members'          },
       { key: 'notifications', label: '🔔 Notifications' },
       { key: 'modals',        label: '📢 Modals'        },
+      { key: 'help-docs',     label: '📖 Help & Docs'   },
       { key: 'admin-chat',    label: 'Admin Chat'       },
       { key: 'tracker',       label: 'Tracker'          },
       { key: 'atmosphere',    label: '📡 Atmosphere'    },
@@ -12207,6 +12410,7 @@ function AdminPage() {
             {tab === 'content-suggestions' && <ContentStudio getToken={getToken} isDark={isDark} />}
             {tab === 'notifications'     && <NotificationsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'modals'            && <ModalsAdmin getToken={getToken} isDark={isDark} />}
+            {tab === 'help-docs'         && <AdminDocs getToken={getToken} isDark={isDark} />}
             {tab === 'ai-usage-admin'    && <AIUsageAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
             {tab === 'internal-books'    && <InternalBooks getToken={getToken} isDark={isDark} />}
