@@ -11489,7 +11489,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
       {/* Stats bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
         {[
-          { label: 'AIRTABLE DB', value: demonsTotal !== null ? demonsTotal : '--' },
+          { label: 'INTEL ARCHIVE', value: demonsTotal !== null ? demonsTotal : '--' },
           { label: 'PENDING',     value: stats.pending       },
           { label: 'THIS WEEK',   value: stats.approvedWeek  },
           { label: 'DUPLICATES',  value: stats.duplicates    },
