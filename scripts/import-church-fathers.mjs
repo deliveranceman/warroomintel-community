@@ -26,6 +26,10 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
 const SITE_URL    = (process.env.SITE_URL || '').replace(/\/$/, '')
 const ADMIN_TOKEN  = process.env.ADMIN_TOKEN || ''
 const DRY_RUN      = process.env.DRY_RUN === 'true'
+// --only=<manifest id> processes a single entry and fetches its FULL text from
+// the source URL (CCEL etc.) into extracted_text. Without it, behavior is the
+// original all-entries blurb import, byte-for-byte unchanged.
+const ONLY_ID      = (process.argv.find(a => a.startsWith('--only=')) || '').split('=')[1] || ''
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('SUPABASE_URL and SUPABASE_SERVICE_KEY are required')
@@ -34,18 +38,63 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
+// Lightweight HTML -> clean text. No heavy deps: drop script/style/comments,
+// strip tags, decode the handful of entities CCEL emits, collapse whitespace.
+function stripHtml(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<\/(p|div|h[1-6]|li|br|tr)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&mdash;/gi, '—')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&hellip;/gi, '…')
+    .replace(/&rsquo;/gi, '’')
+    .replace(/&lsquo;/gi, '‘')
+    .replace(/&ldquo;/gi, '“')
+    .replace(/&rdquo;/gi, '”')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .trim()
+}
+
+async function fetchFullText(url) {
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (warroomintel church-fathers importer)' },
+    signal: AbortSignal.timeout(30000),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`)
+  const html = await res.text()
+  return { rawChars: html.length, text: stripHtml(html) }
+}
+
 const manifest = JSON.parse(
   readFileSync(path.join(__dirname, 'church-fathers-manifest.json'), 'utf-8')
 )
 
-console.log(`\nChurch Fathers Import — ${manifest.length} entries\n`)
+const entries = ONLY_ID ? manifest.filter(e => e.id === ONLY_ID) : manifest
+if (ONLY_ID && entries.length === 0) {
+  console.error(`No manifest entry with id="${ONLY_ID}"`)
+  process.exit(1)
+}
+
+console.log(`\nChurch Fathers Import — ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}${ONLY_ID ? ` (--only=${ONLY_ID}, FULL TEXT)` : ''}\n`)
 if (DRY_RUN) console.log('[DRY RUN — no writes]\n')
 
 let inserted = 0
 let skipped  = 0
 let failed   = 0
 
-for (const entry of manifest) {
+for (const entry of entries) {
   const sourceUrl = entry.ccel_url || entry.archive_url || entry.gutenberg_url || ''
   const notesParts = [
     `Year: c. ${entry.year_approx}`,
@@ -76,6 +125,33 @@ for (const entry of manifest) {
     }
   }
 
+  // --only mode: fetch the FULL text from the source URL. Without it, the body
+  // stays the manifest blurb (original behavior).
+  let bodyText = entry.description
+  let fetchedChars = 0
+  if (ONLY_ID) {
+    const src = entry.ccel_url || entry.archive_url || entry.gutenberg_url || ''
+    if (!src) {
+      console.error(`  FAIL  ${entry.title}: no source URL in manifest — cannot fetch full text`)
+      process.exit(1)
+    }
+    console.log(`  FETCH ${src}`)
+    let fetched
+    try {
+      fetched = await fetchFullText(src)
+    } catch (e) {
+      console.error(`  FAIL  ${entry.title}: ${e.message} — not storing`)
+      process.exit(1)
+    }
+    fetchedChars = fetched.rawChars
+    if (fetched.text.length < 1000) {
+      console.error(`  FAIL  ${entry.title}: stripped body only ${fetched.text.length} chars from ${src} — looks like an error/landing page, NOT storing.`)
+      process.exit(1)
+    }
+    bodyText = fetched.text
+    console.log(`  TEXT  ${fetched.rawChars} chars HTML -> ${fetched.text.length} chars clean`)
+  }
+
   // Check for existing entry by title + author
   const { data: existing } = await sb
     .from('resources')
@@ -85,8 +161,28 @@ for (const entry of manifest) {
     .maybeSingle()
 
   if (existing) {
-    console.log(`  SKIP  ${entry.title} (already exists as "${existing.title}")`)
-    skipped++
+    if (!ONLY_ID) {
+      console.log(`  SKIP  ${entry.title} (already exists as "${existing.title}")`)
+      skipped++
+      continue
+    }
+    // --only is idempotent: overwrite the existing row's body with full text.
+    if (DRY_RUN) {
+      console.log(`  DRY   would UPDATE ${entry.title} [${existing.id}] -> extracted_text ${bodyText.length} chars`)
+      inserted++
+      continue
+    }
+    const { error: upErr } = await sb
+      .from('resources')
+      .update({ extracted_text: bodyText, file_size: bodyText.length, summary_status: 'pending' })
+      .eq('id', existing.id)
+    if (upErr) {
+      console.error(`  FAIL  update ${entry.title}: ${upErr.message}`)
+      failed++
+      continue
+    }
+    console.log(`  OK    (updated) ${entry.title} [${existing.id}] — extracted_text now ${bodyText.length} chars (fetched ${fetchedChars} HTML)`)
+    inserted++
     continue
   }
 
@@ -98,7 +194,7 @@ for (const entry of manifest) {
     active:                         false,
     source_type:                    'christian',
     description:                    entry.description,
-    extracted_text:                 entry.description,
+    extracted_text:                 bodyText,
     notes:                          notesParts.join('\n'),
     spirit_tags:                    [],
     ai_generated:                   false,
@@ -106,7 +202,7 @@ for (const entry of manifest) {
     summary_status:                 'pending',
     filename:                       `${entry.id}.txt`,
     file_path:                      `church-fathers/${entry.id}.txt`,
-    file_size:                      entry.description.length,
+    file_size:                      bodyText.length,
     file_type:                      'text/plain',
   }
 

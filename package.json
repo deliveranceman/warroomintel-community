@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3000",
-    "build": "vite build"
+    "build": "vite build",
+    "import:fathers": "node scripts/import-church-fathers.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
