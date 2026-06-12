@@ -3901,6 +3901,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(['overview']))
   const [dossierHeaderFull, setDossierHeaderFull] = useState(true)
   const dossierScrollRef = useRef<HTMLDivElement>(null)
+  const listScrollRef    = useRef<HTMLDivElement>(null)
   const lastScrollTopRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const dossierReducedMotion = useRef(
@@ -3927,6 +3928,10 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     const n = [categoryFilter !== null, rankFilter !== '', generationalFilter, territorialFilter].filter(Boolean).length
     setFilterCount?.(n)
   }, [categoryFilter, rankFilter, generationalFilter, territorialFilter])
+
+  useEffect(() => {
+    if (listScrollRef.current) listScrollRef.current.scrollLeft = 0
+  }, [])
 
   useEffect(() => {
     if (!selectedEntry) { setSpiritResources([]); return }
@@ -4220,7 +4225,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
       {/* Mobile compact intel list */}
       {isMobile && (
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' as const }}>
+        <div ref={listScrollRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto' as const, overflowX: 'hidden' as const, touchAction: 'pan-y' }}>
           {dbLoading && (
             <div style={{ textAlign: 'center' as const, padding: '60px 0', color: dbDim, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em' }}>
               ACCESSING DATABASE...
@@ -5621,8 +5626,9 @@ const ARSENAL_TIERS = [
 const ACCESS_TIERS_ORDER: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
 
 // ── ARSENAL VIEW ──────────────────────────────────────────
-function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
+function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
+  filterSheetOpen?: boolean; setFilterSheetOpen?: (v: boolean) => void; setFilterCount?: (n: number) => void
 }) {
   const { getToken } = useAuth()
   const { user } = useUser()
@@ -5706,6 +5712,11 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    const n = [activeTierNum !== null, tierFilter !== 'All'].filter(Boolean).length
+    setFilterCount?.(n)
+  }, [activeTierNum, tierFilter])
 
   async function handleMassDelete() {
     setMassDeleting(true)
@@ -5804,6 +5815,37 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
     const tc         = TIER_COLORS[resource.tier] || G
     const isExp      = expandedId === resource.id
     const tierLabel  = (resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier
+
+    if (isMobile) {
+      return (
+        <div
+          style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid rgba(201,168,76,0.1)`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '12px 14px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxSizing: 'border-box' as const }}
+          onClick={() => {
+            if (hasAccess && resource.file_url) window.open(resource.file_url, '_blank', 'noopener,noreferrer')
+            else if (!hasAccess) beginUpgrade(resource.tier)
+          }}
+        >
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 18, flexShrink: 0, paddingTop: 2 }}>{FILE_ICONS[resource.file_type] || '📄'}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: resource.description ? 4 : 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: hasAccess ? '#f0e8d8' : muted, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+                  {cleanArsenalTitle(resource.title || '')}
+                </div>
+                <span style={{ fontFamily: cinzel, fontSize: 7, padding: '2px 7px', borderRadius: 20, background: `${tc}18`, color: tc, border: `1px solid ${tc}35`, letterSpacing: '0.06em', textTransform: 'uppercase' as const, flexShrink: 0, whiteSpace: 'nowrap' as const }}>{tierLabel}</span>
+              </div>
+              {resource.description && (
+                <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.45)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, textOverflow: 'ellipsis' }}>{resource.description}</div>
+              )}
+              {!hasAccess && (
+                <div style={{ marginTop: 6, fontFamily: cinzel, fontSize: 8, color: G, opacity: 0.6 }}>🔒 Upgrade to {tierLabel}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div
         style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '10px 14px', cursor: 'pointer', transition: 'border-color 0.15s' }}
@@ -5872,20 +5914,22 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         {!isMobile && <div style={{ fontSize: 12, color: muted, textAlign: 'right' as const }}>Ministry resources, protocols, and teaching documents</div>}
       </div>
 
-      {/* Ephesians 6 Tier Filter */}
-      <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' as any, paddingBottom: 4, marginBottom: 14 }}>
-        <button
-          onClick={() => { setActiveTierNum(null); setActiveCategory(null) }}
-          style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
-        >All</button>
-        {ARSENAL_TIERS.map(t => (
-          <button key={t.tier}
-            onClick={() => { setActiveTierNum(activeTierNum === t.tier ? null : t.tier); setActiveCategory(null) }}
-            title={t.description}
-            style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
-          >{t.icon} {t.label}</button>
-        ))}
-      </div>
+      {/* Ephesians 6 Tier Filter — desktop/tablet only; mobile uses filter sheet */}
+      {!isMobile && (
+        <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' as any, paddingBottom: 4, marginBottom: 14 }}>
+          <button
+            onClick={() => { setActiveTierNum(null); setActiveCategory(null) }}
+            style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+          >All</button>
+          {ARSENAL_TIERS.map(t => (
+            <button key={t.tier}
+              onClick={() => { setActiveTierNum(activeTierNum === t.tier ? null : t.tier); setActiveCategory(null) }}
+              title={t.description}
+              style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+            >{t.icon} {t.label}</button>
+          ))}
+        </div>
+      )}
 
       {/* Sub-category pills when tier selected */}
       {activeTierNum !== null && (
@@ -6127,6 +6171,49 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen }: {
         </div>
       )}
 
+      {/* Mobile filter sheet — category (ARSENAL_TIERS) + tier */}
+      {isMobile && filterSheetOpen && (
+        <>
+          <div onClick={() => setFilterSheetOpen?.(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 5000 }} />
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5001, background: isDark ? '#13111e' : '#FAF8F5', borderRadius: '16px 16px 0 0', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)', display: 'flex', flexDirection: 'column' as const, maxHeight: '80dvh' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.14em' }}>FILTERS</span>
+              <button onClick={() => setFilterSheetOpen?.(false)} style={{ background: 'none', border: 'none', color: muted, fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ overflowY: 'auto' as const, flex: 1, padding: '16px 20px' }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>CATEGORY</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 20 }}>
+                <button onClick={() => { setActiveTierNum(null); setActiveCategory(null) }}
+                  style={{ padding: '5px 14px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? G : muted, whiteSpace: 'nowrap' as const }}>All</button>
+                {ARSENAL_TIERS.map(t => (
+                  <button key={t.tier} onClick={() => { setActiveTierNum(activeTierNum === t.tier ? null : t.tier); setActiveCategory(null) }}
+                    style={{ padding: '5px 14px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? G : muted, whiteSpace: 'nowrap' as const }}>
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>TIER</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                {['All', 'Watchman', 'Soldier', 'Commander', 'General'].map(tier => (
+                  <button key={tier} onClick={() => setTierFilter(tier)}
+                    style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.55' : '0.18'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.13)' : 'transparent', color: tierFilter === tier ? G : 'rgba(201,168,76,0.42)', whiteSpace: 'nowrap' as const }}>{tier}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, padding: '12px 20px 4px', flexShrink: 0, borderTop: `1px solid ${border}` }}>
+              <button onClick={() => { setActiveTierNum(null); setActiveCategory(null); setTierFilter('All') }}
+                style={{ flex: 1, padding: '11px', background: 'transparent', border: `1px solid ${border}`, borderRadius: 8, color: muted, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                Clear All
+              </button>
+              <button onClick={() => setFilterSheetOpen?.(false)}
+                style={{ flex: 2, padding: '11px', background: G, border: 'none', borderRadius: 8, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 700 }}>
+                Done
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Mobile bottom sheet — category picker */}
       {showCategorySheet && (
         <>
@@ -6243,24 +6330,36 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#12101e', minHeight: 0 }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        {isMobile && (
+        {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
             <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
             <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>Symptom Investigator</span>
           </div>
         )}
 
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontSize: 11, color: G, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚔ War Room Intel</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
-            <h1 style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: isMobile ? 22 : 28, fontWeight: 700, margin: 0 }}>Symptom Investigator</h1>
-            <AIUsagePill feature="symptom_investigator" getToken={getToken} />
+        {isMobile ? (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 16, color: '#E8D5B0', fontWeight: 700, letterSpacing: '0.04em' }}>Symptom Investigator</span>
+              <AIUsagePill feature="symptom_investigator" getToken={getToken} />
+            </div>
+            <p style={{ color: '#8B7355', fontSize: 13, lineHeight: 1.5, fontFamily: crimson, margin: 0 }}>
+              Describe what you are observing — the system will identify probable spirits and suggest a deliverance sequence.
+            </p>
           </div>
-          <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.6, fontFamily: crimson }}>
-            Describe what you are observing — symptoms, manifestations, dreams, emotional patterns, physical reactions.
-            The system will identify probable spirits and suggest a deliverance sequence.
-          </p>
-        </div>
+        ) : (
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <div style={{ fontSize: 11, color: G, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚔ War Room Intel</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
+              <h1 style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: 28, fontWeight: 700, margin: 0 }}>Symptom Investigator</h1>
+              <AIUsagePill feature="symptom_investigator" getToken={getToken} />
+            </div>
+            <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.6, fontFamily: crimson }}>
+              Describe what you are observing — symptoms, manifestations, dreams, emotional patterns, physical reactions.
+              The system will identify probable spirits and suggest a deliverance sequence.
+            </p>
+          </div>
+        )}
 
         {recentSymptomSearches.length > 0 && !invResult && (
           <div style={{ marginBottom: 16 }}>
@@ -6287,12 +6386,12 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
             rows={6}
             style={{ width: '100%', background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: '#E8D5B0', fontSize: 15, padding: 14, fontFamily: crimson, lineHeight: 1.6, resize: 'vertical' as const, outline: 'none', boxSizing: 'border-box' as const }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' as const, gap: 10 }}>
+          <div style={{ marginTop: 14 }}>
             <span style={{ fontSize: 12, color: '#5a4f3a', fontFamily: crimson }}>Be specific — the more detail, the more accurate the intelligence.</span>
             <button
               onClick={handleInvestigate}
               disabled={invLoading || !invInput.trim()}
-              style={{ background: invLoading ? 'rgba(201,168,76,0.3)' : G, color: invLoading ? '#8B7355' : '#0D0B14', border: 'none', borderRadius: 6, padding: '10px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
+              style={{ display: 'block', width: '100%', marginTop: 10, background: invLoading ? 'rgba(201,168,76,0.3)' : G, color: invLoading ? '#8B7355' : '#0D0B14', border: 'none', borderRadius: 6, padding: '12px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
             >
               {invLoading ? '⚔ Analyzing...' : '⚔ Investigate'}
             </button>
@@ -13409,6 +13508,8 @@ function CommunityPage() {
   const [dossierTabBarHidden, setDossierTabBarHidden] = useState(false)
   const [dbFilterSheetOpen, setDbFilterSheetOpen] = useState(false)
   const [dbFilterCount, setDbFilterCount] = useState(0)
+  const [arsenalFilterSheetOpen, setArsenalFilterSheetOpen] = useState(false)
+  const [arsenalFilterCount, setArsenalFilterCount] = useState(0)
   const [showInstallBanner, setShowInstallBanner] = useState(() => {
     if (typeof window === 'undefined') return false
     if (typeof navigator === 'undefined') return false
@@ -15121,7 +15222,7 @@ function CommunityPage() {
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
-      {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
+      {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
       {activeSection === 'testimony-wall' && <TestimonyWallView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={user?.firstName || 'Warrior'} userTier={tier} userImage={user?.imageUrl || ''} />}
       {activeSection === 'assessment'     && <AssessmentUploadView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} tier={tier} tierLevel={tierLevel} user={user} getToken={getToken} />}
       {activeSection === 'help'           && <HelpSection />}
@@ -15388,6 +15489,17 @@ function CommunityPage() {
                 <span style={{ position: 'absolute', top: 6, right: 2, minWidth: 16, height: 16, background: G, color: '#0D0B14', borderRadius: 999, fontFamily: "'Cinzel',serif", fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, padding: '0 3px', lineHeight: 1 }}>{dbFilterCount}</span>
               )}
             </button>
+          ) : activeSection === 'arsenal' ? (
+            <button
+              onClick={() => setArsenalFilterSheetOpen(true)}
+              style={{ position: 'relative', background: 'transparent', border: 'none', color: G, cursor: 'pointer', padding: '8px 0 8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44 }}
+              aria-label="Filter arsenal"
+            >
+              <SlidersHorizontal size={20} strokeWidth={1.8} />
+              {arsenalFilterCount > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 2, minWidth: 16, height: 16, background: G, color: '#0D0B14', borderRadius: 999, fontFamily: "'Cinzel',serif", fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, padding: '0 3px', lineHeight: 1 }}>{arsenalFilterCount}</span>
+              )}
+            </button>
           ) : (
             <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: G, fontSize: 24, cursor: 'pointer', padding: '8px 0 8px 16px' }}>☰</button>
           )}
@@ -15615,7 +15727,7 @@ function CommunityPage() {
         {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
         {activeSection === 'arsenal'     && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
+            <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} />
             <OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} />
           </div>
         )}
