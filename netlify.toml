@@ -236,3 +236,6 @@
 
 [functions."source-discovery-agent"]
   schedule = "0 9 * * 0"
+
+[functions."job-worker-background"]
+  # Netlify background function — no timeout key (background ignores it)
