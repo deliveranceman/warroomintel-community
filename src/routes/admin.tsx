@@ -10103,6 +10103,255 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   )
 }
 
+// ─── MODALS & ANNOUNCEMENTS ──────────────────────────────────────────────────
+
+const MODAL_FREQ_OPTS  = [{ v: 'once', l: 'Once per user' }, { v: 'daily', l: 'Once per day' }, { v: 'always', l: 'Always' }]
+const MODAL_TYPE_OPTS  = [{ v: 'announcement', l: 'Announcement' }, { v: 'terms', l: 'Terms (Clerk patch on accept)' }]
+const MODAL_AUDIENCE_OPTS = [
+  { kind: 'all',  label: 'All members' },
+  { kind: 'tier', minLevel: 1, label: 'Soldier+' },
+  { kind: 'tier', minLevel: 2, label: 'Commander+' },
+  { kind: 'tier', minLevel: 3, label: 'General+' },
+  { kind: 'tier', minLevel: 4, label: 'Minister+' },
+]
+
+type ModalRow = {
+  id: string; type: string; title: string; body: string
+  cta_label?: string; cta_link?: string
+  audience: { kind: string; minLevel?: number }
+  frequency: string; requires_acceptance: boolean; priority: number; active: boolean; created_at: string
+}
+
+function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
+  const G2   = isDark ? G    : '#A07C2C'
+  const surf = isDark ? SURF2 : '#FFFFFF'
+  const bdr  = isDark ? BDR   : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT   : '#2D2924'
+  const dim  = isDark ? DIM   : '#6B5520'
+
+  const inp: React.CSSProperties = { width: '100%', padding: '9px 12px', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', border: `1px solid ${bdr}`, borderRadius: 4, color: txt, fontFamily: crimson, fontSize: 14, boxSizing: 'border-box' }
+  const btn = (primary: boolean): React.CSSProperties => ({ padding: '8px 18px', background: primary ? G : 'transparent', color: primary ? '#1a1305' : G2, border: `1px solid ${primary ? 'transparent' : bdr}`, borderRadius: 4, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' })
+
+  const [modals, setModals]     = useState<ModalRow[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [saving, setSaving]     = useState(false)
+  const [result, setResult]     = useState<string | null>(null)
+  const [preview, setPreview]   = useState<ModalRow | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [editId, setEditId]     = useState<string | null>(null)
+
+  // form state
+  const [fType,        setFType]        = useState('announcement')
+  const [fTitle,       setFTitle]       = useState('')
+  const [fBody,        setFBody]        = useState('')
+  const [fCtaLabel,    setFCtaLabel]    = useState('')
+  const [fCtaLink,     setFCtaLink]     = useState('')
+  const [fAudienceIdx, setFAudienceIdx] = useState(0)
+  const [fFreq,        setFFreq]        = useState('once')
+  const [fReqAccept,   setFReqAccept]   = useState(false)
+  const [fPriority,    setFPriority]    = useState(0)
+  const [fActive,      setFActive]      = useState(true)
+
+  async function load() {
+    setLoading(true)
+    const token = await getToken()
+    if (!token) { setLoading(false); return }
+    const res = await fetch('/api/admin-modals', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+    const data = res?.ok ? await res.json().catch(() => ({})) : {}
+    setModals(Array.isArray(data.modals) ? data.modals : [])
+    setLoading(false)
+  }
+  useEffect(() => { void load() }, [])
+
+  function resetForm() {
+    setEditId(null); setFType('announcement'); setFTitle(''); setFBody('')
+    setFCtaLabel(''); setFCtaLink(''); setFAudienceIdx(0); setFFreq('once')
+    setFReqAccept(false); setFPriority(0); setFActive(true)
+  }
+
+  function loadEdit(m: ModalRow) {
+    setEditId(m.id); setFType(m.type); setFTitle(m.title); setFBody(m.body)
+    setFCtaLabel(m.cta_label || ''); setFCtaLink(m.cta_link || '')
+    const audIdx = MODAL_AUDIENCE_OPTS.findIndex(a => a.kind === m.audience?.kind && (a.kind === 'all' || (a as any).minLevel === m.audience?.minLevel))
+    setFAudienceIdx(audIdx >= 0 ? audIdx : 0)
+    setFFreq(m.frequency || 'once'); setFReqAccept(!!m.requires_acceptance)
+    setFPriority(Number(m.priority ?? 0)); setFActive(m.active !== false)
+  }
+
+  async function save() {
+    if (!fTitle.trim() || !fBody.trim()) return
+    setSaving(true); setResult(null)
+    const token = await getToken()
+    if (!token) { setSaving(false); return }
+    const audOpt = MODAL_AUDIENCE_OPTS[fAudienceIdx]
+    const audience = audOpt.kind === 'all' ? { kind: 'all' } : { kind: 'tier', minLevel: (audOpt as any).minLevel }
+    const payload: Record<string, unknown> = {
+      action: editId ? 'update' : 'create',
+      ...(editId ? { id: editId } : {}),
+      type: fType, title: fTitle.trim(), body: fBody.trim(),
+      cta_label: fCtaLabel.trim() || null, cta_link: fCtaLink.trim() || null,
+      audience, frequency: fFreq, requires_acceptance: fReqAccept,
+      priority: fPriority, active: fActive,
+    }
+    const res = await fetch('/api/admin-modals', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
+    const data = res?.ok ? await res.json().catch(() => ({})) : {}
+    setSaving(false)
+    if (data.ok) { setResult(editId ? 'Updated.' : 'Created.'); resetForm(); void load() }
+    else setResult(`Error: ${data.error || 'unknown'}`)
+  }
+
+  async function doDelete(id: string) {
+    const token = await getToken()
+    if (!token) return
+    setDeleteConfirm(null)
+    const res = await fetch('/api/admin-modals', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id }) }).catch(() => null)
+    const data = res?.ok ? await res.json().catch(() => ({})) : {}
+    if (data.ok) void load()
+    else setResult(`Delete error: ${data.error || 'unknown'}`)
+  }
+
+  return (
+    <div style={{ padding: '24px 0' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: G2, marginBottom: 24 }}>MODALS & ANNOUNCEMENTS</div>
+
+      {/* Form */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '20px 20px', marginBottom: 28 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim, marginBottom: 14 }}>
+          {editId ? 'EDIT MODAL' : 'CREATE MODAL'}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>TYPE</div>
+            <select value={fType} onChange={e => setFType(e.target.value)} style={{ ...inp }}>
+              {MODAL_TYPE_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>FREQUENCY</div>
+            <select value={fFreq} onChange={e => setFFreq(e.target.value)} style={{ ...inp }}>
+              {MODAL_FREQ_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>TITLE</div>
+          <input value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="Modal title" style={inp} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>BODY</div>
+          <textarea value={fBody} onChange={e => setFBody(e.target.value)} placeholder="Modal body text (line breaks supported)" rows={4} style={{ ...inp, resize: 'vertical' as const }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>CTA LABEL (optional)</div>
+            <input value={fCtaLabel} onChange={e => setFCtaLabel(e.target.value)} placeholder="e.g. Learn More" style={inp} />
+          </div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>CTA LINK (optional)</div>
+            <input value={fCtaLink} onChange={e => setFCtaLink(e.target.value)} placeholder="https://..." style={inp} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>AUDIENCE</div>
+            <select value={fAudienceIdx} onChange={e => setFAudienceIdx(Number(e.target.value))} style={{ ...inp }}>
+              {MODAL_AUDIENCE_OPTS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>PRIORITY</div>
+            <input type="number" value={fPriority} onChange={e => setFPriority(Number(e.target.value))} style={{ ...inp }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, paddingTop: 18 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.08em' }}>
+              <input type="checkbox" checked={fReqAccept} onChange={e => setFReqAccept(e.target.checked)} /> Requires acceptance
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.08em' }}>
+              <input type="checkbox" checked={fActive} onChange={e => setFActive(e.target.checked)} /> Active
+            </label>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
+          <button onClick={() => void save()} disabled={saving || !fTitle.trim() || !fBody.trim()} style={btn(true)}>
+            {saving ? 'Saving…' : editId ? 'Update Modal' : 'Create Modal'}
+          </button>
+          {editId && <button onClick={resetForm} style={btn(false)}>Cancel Edit</button>}
+          {(fTitle.trim() || fBody.trim()) && (
+            <button onClick={() => setPreview({ id: 'preview', type: fType, title: fTitle, body: fBody, cta_label: fCtaLabel || undefined, cta_link: fCtaLink || undefined, audience: MODAL_AUDIENCE_OPTS[fAudienceIdx].kind === 'all' ? { kind: 'all' } : { kind: 'tier', minLevel: (MODAL_AUDIENCE_OPTS[fAudienceIdx] as any).minLevel }, frequency: fFreq, requires_acceptance: fReqAccept, priority: fPriority, active: fActive, created_at: new Date().toISOString() })}
+              style={btn(false)}>Preview</button>
+          )}
+          {result && <span style={{ fontFamily: crimson, fontSize: 13, color: result.startsWith('Error') ? '#f87171' : G2 }}>{result}</span>}
+        </div>
+      </div>
+
+      {/* List */}
+      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: dim, marginBottom: 10 }}>
+        {loading ? 'Loading…' : `${modals.length} modal${modals.length !== 1 ? 's' : ''}`}
+      </div>
+      {modals.map(m => (
+        <div key={m.id} style={{ background: surf, border: `1px solid ${m.active ? bdr : 'rgba(100,100,100,0.2)'}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10, opacity: m.active ? 1 : 0.55 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' as const }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: G2, letterSpacing: '0.08em', marginBottom: 4 }}>{m.title}</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.5, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{m.body}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                {[
+                  m.type, m.frequency, m.requires_acceptance ? 'requires acceptance' : null,
+                  m.audience?.kind === 'all' ? 'all members' : `tier ${m.audience?.minLevel}+`,
+                  `priority ${m.priority}`, m.active ? 'active' : 'inactive',
+                ].filter(Boolean).map((tag, i) => (
+                  <span key={i} style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', color: dim, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', padding: '2px 7px', borderRadius: 3 }}>{tag}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button onClick={() => setPreview(m)} style={btn(false)}>Preview</button>
+              <button onClick={() => loadEdit(m)} style={btn(false)}>Edit</button>
+              <button onClick={() => setDeleteConfirm(m.id)} style={{ ...btn(false), color: '#f87171', borderColor: 'rgba(239,68,68,0.3)' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Delete confirm */}
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 10, padding: '24px 22px', maxWidth: 360, width: '100%' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: '#f87171', letterSpacing: '0.1em', marginBottom: 12 }}>DELETE MODAL</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: '#c8bfa8', marginBottom: 20 }}>This is permanent. All modal_events for this modal will also be deleted (cascade).</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteConfirm(null)} style={btn(false)}>Cancel</button>
+              <button onClick={() => void doDelete(deleteConfirm)} style={{ ...btn(true), background: '#ef4444', color: '#fff' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview overlay — mirrors community.tsx modal renderer */}
+      {preview && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 460, padding: '28px 24px', position: 'relative' }}>
+            {!preview.requires_acceptance && (
+              <button onClick={() => setPreview(null)} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', color: '#6b5e4e', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
+            )}
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>{preview.title}</div>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8bfa8', lineHeight: 1.65, marginBottom: 24, whiteSpace: 'pre-wrap' }}>{preview.body}</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' as const }}>
+              {preview.cta_link && preview.cta_label && (
+                <span style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>{preview.cta_label}</span>
+              )}
+              <button onClick={() => setPreview(null)} style={{ padding: '9px 20px', background: G, color: '#0D0B14', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+                {preview.requires_acceptance ? 'I Agree' : 'Got It'}
+              </button>
+            </div>
+            <div style={{ marginTop: 12, fontFamily: cinzel, fontSize: 7, color: dim, letterSpacing: '0.1em', textAlign: 'center' as const }}>PREVIEW — not a live modal</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── CONTENT STUDIO ──────────────────────────────────────────────────────────
 type CSType = 'daily_brief' | 'field_manual' | 'weekly_intel' | 'fringe_article'
 
@@ -11677,7 +11926,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'testing' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources' | 'modals'>('dashboard')
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -11778,6 +12027,7 @@ function AdminPage() {
     { label: 'OPERATIONS', items: [
       { key: 'members',       label: 'Members'          },
       { key: 'notifications', label: '🔔 Notifications' },
+      { key: 'modals',        label: '📢 Modals'        },
       { key: 'admin-chat',    label: 'Admin Chat'       },
       { key: 'tracker',       label: 'Tracker'          },
       { key: 'atmosphere',    label: '📡 Atmosphere'    },
@@ -11955,6 +12205,7 @@ function AdminPage() {
             {tab === 'taxonomy'          && <TaxonomyReview getToken={getToken} isDark={isDark} />}
             {tab === 'content-suggestions' && <ContentStudio getToken={getToken} isDark={isDark} />}
             {tab === 'notifications'     && <NotificationsAdmin getToken={getToken} isDark={isDark} />}
+            {tab === 'modals'            && <ModalsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'ai-usage-admin'    && <AIUsageAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'tracker'           && <TrackerView getToken={getToken} isDark={isDark} />}
             {tab === 'internal-books'    && <InternalBooks getToken={getToken} isDark={isDark} />}

@@ -13094,6 +13094,7 @@ function CommunityPage() {
 
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ tier: string; direction: 'upgrade' | 'downgrade' } | null>(null)
   const [upgradeNotice,  setUpgradeNotice]  = useState<{ msg: string; isError: boolean } | null>(null)
+  const [activeModal, setActiveModal] = useState<{ id: string; type: string; title: string; body: string; cta_label?: string; cta_link?: string; requires_acceptance: boolean } | null>(null)
 
   async function doUpgrade(targetTier: string) {
     setUpgradeNotice(null)
@@ -13220,6 +13221,18 @@ function CommunityPage() {
     const accepted = !!(user.publicMetadata?.terms_accepted)
     setTermsAccepted(accepted)
   }, [user?.id, user?.publicMetadata?.terms_accepted])
+
+  // Fetch active admin modal for this user (once per session per modal, throttled in backend)
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined') return
+    getToken().then(token => {
+      if (!token) return
+      fetch('/api/active-modals', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(data => { if (data?.modal?.id) setActiveModal(data.modal) })
+        .catch(() => {})
+    })
+  }, [user?.id])
 
   // Fetch Stream token — upserts user in Stream then returns a valid token
   useEffect(() => {
@@ -16000,6 +16013,50 @@ function CommunityPage() {
         fabIcon={<Plus size={24} color="#1a1305" strokeWidth={2.2} />}
       />
     </div>
+
+    {activeModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 460, padding: '28px 24px', position: 'relative' }}>
+          {!activeModal.requires_acceptance && (
+            <button
+              onClick={() => {
+                const m = activeModal; setActiveModal(null)
+                getToken().then(token => {
+                  if (!token) return
+                  fetch('/api/modal-event', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ modalId: m.id, action: 'dismissed' }) }).catch(() => {})
+                })
+              }}
+              style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', color: '#6b5e4e', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 0 }}
+            >×</button>
+          )}
+          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>
+            {activeModal.title}
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8bfa8', lineHeight: 1.65, marginBottom: 24, whiteSpace: 'pre-wrap' }}>
+            {activeModal.body}
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            {activeModal.cta_link && activeModal.cta_label && (
+              <a href={activeModal.cta_link} target="_blank" rel="noopener noreferrer" style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', textDecoration: 'none' }}>
+                {activeModal.cta_label}
+              </a>
+            )}
+            <button
+              onClick={() => {
+                const m = activeModal; setActiveModal(null)
+                getToken().then(token => {
+                  if (!token) return
+                  fetch('/api/modal-event', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ modalId: m.id, action: 'accepted' }) }).catch(() => {})
+                })
+              }}
+              style={{ padding: '9px 20px', background: G, color: '#0D0B14', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            >
+              {activeModal.requires_acceptance ? 'I Agree' : 'Got It'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {upgradeConfirm && (
       <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
