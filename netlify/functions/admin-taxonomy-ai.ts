@@ -1,4 +1,6 @@
+import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
+import { generateSlug } from './_shared/spiritWrite'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN  = airtableToken!
@@ -6,6 +8,13 @@ const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY!
 const BASE_ID         = 'appVXEj2DLPBTJTtD'
 const TABLE_ID        = 'tblcP4lgVykzOhLi4'
 const NAME_FIELD      = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
+
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
+// Same switch as admin-demon.ts. When on, the identifier echoed back into the
+// taxonomy UI is the spirit SLUG (so applyRow's PATCH matches the Supabase row),
+// not the Airtable record id. The AI/classification logic is unchanged.
+const USE_SUPABASE_DEMON_WRITES = true
 
 const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
 
@@ -225,6 +234,17 @@ export default async function handler(req: Request) {
     // Only return spirits where something changed or fields are blank
     const relevant = suggestions.filter(s => s.changed)
     const highCount = relevant.filter(s => s.confidence === 'high').length
+
+    // Swap the echoed identifier from Airtable record id to the spirit slug, so
+    // the UI's applyRow -> admin-taxonomy-patch PATCH matches the Supabase row.
+    if (USE_SUPABASE_DEMON_WRITES && relevant.length > 0) {
+      const sb = createClient(supabaseUrl, supabaseServiceKey)
+      const names = relevant.map(s => s.name)
+      const slugByName = new Map<string, string>()
+      const { data: slugRows } = await sb.from('spirits').select('name, slug').in('name', names)
+      for (const row of slugRows || []) slugByName.set(row.name, row.slug)
+      for (const s of relevant) s.recordId = slugByName.get(s.name) || generateSlug(s.name)
+    }
 
     return new Response(JSON.stringify({
       suggestions:    relevant,

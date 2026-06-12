@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js'
 import { requireTier } from './_shared/access'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -9,6 +10,12 @@ const BASE_ID        = 'appVXEj2DLPBTJTtD'
 const TABLE_ID       = 'tblcP4lgVykzOhLi4'
 const NAME_FIELD     = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
+
+// Same switch as admin-demon.ts — one flag governs all demon-base reads/writes
+// in the taxonomy editor. true => read from Supabase `spirits`; false => Airtable.
+const USE_SUPABASE_DEMON_WRITES = true
+
 const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
 
 export default async function handler(req: Request) {
@@ -17,6 +24,33 @@ export default async function handler(req: Request) {
 
   const auth = await requireTier(req, 1)
   if (auth instanceof Response) return auth
+
+  // ── Supabase read path (flag-on) ─────────────────────────────────────────
+  if (USE_SUPABASE_DEMON_WRITES) {
+    try {
+      const sb = createClient(supabaseUrl, supabaseServiceKey)
+      const { data, error } = await sb
+        .from('spirits')
+        .select('name, slug, kingdom, sub_kingdom, biblical_rank')
+        .order('name', { ascending: true })
+      if (error) throw new Error(error.message)
+      const spirits = (data || [])
+        .filter(r => r.name && r.name !== 'Primary Name')
+        .map(r => ({
+          // NOTE: slug is placed in the `recordId` field so the UI (which remaps
+          // recordId -> airtableId and keys rows on it) needs zero churn. The
+          // patch + AI-suggest endpoints match on this same slug.
+          recordId:     r.slug,
+          name:         r.name,
+          kingdom:      r.kingdom || '',
+          subKingdom:   r.sub_kingdom || '',
+          biblicalRank: r.biblical_rank || '',
+        }))
+      return new Response(JSON.stringify({ spirits, total: spirits.length }), { status: 200, headers })
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })
+    }
+  }
 
   try {
     const records: any[] = []

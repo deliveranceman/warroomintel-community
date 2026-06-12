@@ -12434,6 +12434,7 @@ const SUB_KINGDOM_OPTIONS = [
 const BIBLICAL_RANK_OPTIONS = [
   '', 'Principality', 'World Ruler', 'Power', 'Wicked Spirit',
   'Demon', 'Familiar Spirit', 'Spirit of Infirmity', 'Fallen Angel',
+  'Strongman', 'Common Spirit',
 ]
 
 function TaxonomyReview({ getToken, isDark }: { getToken: any; isDark: boolean }) {
