@@ -9813,7 +9813,7 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V2.bdr}`, background: V2.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        {isMobile && (
+        {!isMobile && (
           <button
             onClick={() => setSidebarOpen(true)}
             style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G2, fontSize: '20px', flexShrink: 0 }}
@@ -12303,7 +12303,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
       {/* Header */}
       <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid rgba(201,168,76,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isMobile && (
+          {!isMobile && (
             <button type="button" onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>☰</button>
           )}
           <div>
