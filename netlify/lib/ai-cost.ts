@@ -48,5 +48,5 @@ export function logAiUsage(args: {
     input_tokens:  args.inputTokens || 0,
     output_tokens: args.outputTokens || 0,
     cost_usd:      cost,
-  }).then(undefined, () => {})
+  }).then(undefined, (e) => { console.warn('[logAiUsage] insert failed:', e?.message || e) })
 }

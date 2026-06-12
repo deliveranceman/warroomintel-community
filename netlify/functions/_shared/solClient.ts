@@ -83,7 +83,9 @@ export async function solCall(opts: SolCallOpts): Promise<SolResult> {
           inputTokens,
           outputTokens,
         })
-      } catch {}
+      } catch (e: any) {
+        console.warn('[solClient] logAiUsage threw synchronously:', e?.message || e)
+      }
 
       return { text, inputTokens, outputTokens, costUsd: cost, model }
     }

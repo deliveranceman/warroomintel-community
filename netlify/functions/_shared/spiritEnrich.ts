@@ -484,6 +484,8 @@ export interface EnrichResult {
   tokens_used: number
   cost_estimate: number
   context_sources: string[]
+  // TODO: REMOVE after parser is fixed. Diagnostic for empty-proposed bug.
+  raw_model_output: string
 }
 
 export async function enrichSpirit({ spiritSlug, userId, userTier, supabase }: {
@@ -565,5 +567,7 @@ export async function enrichSpirit({ spiritSlug, userId, userTier, supabase }: {
     tokens_used:   result.inputTokens + result.outputTokens,
     cost_estimate: result.costUsd,
     context_sources: contextSources,
+    // TODO: REMOVE after parser is fixed. Diagnostic for empty-proposed bug.
+    raw_model_output: result.text.slice(0, 8000),
   }
 }
