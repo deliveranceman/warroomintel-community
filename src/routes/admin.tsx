@@ -2955,6 +2955,10 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
   async function saveAiAccepted() {
     if (!enrichJobId) return
+    const acceptedKeys = Object.entries(fieldDecisions)
+      .filter(([, dec]) => dec.status === 'accepted')
+      .map(([k]) => k)
+    if (acceptedKeys.length === 0) return
     setAiPhase('saving')
 
     try {
@@ -2962,7 +2966,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       const res   = await fetch('/api/spirit-enrich-apply', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ jobId: enrichJobId }),
+        body:    JSON.stringify({ jobId: enrichJobId, applyFields: acceptedKeys }),
       })
       const d = await res.json()
       if (res.ok) {
@@ -4010,9 +4014,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                       </button>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={saveAiAccepted} disabled={fieldKeys.length === 0}
-                        style={{ flex: 1, padding: '9px', background: fieldKeys.length > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: fieldKeys.length > 0 ? BG : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: fieldKeys.length > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
-                        ✦ Apply {fieldKeys.length} Proposed Field{fieldKeys.length !== 1 ? 's' : ''}
+                      <button onClick={saveAiAccepted} disabled={acceptedCount === 0}
+                        style={{ flex: 1, padding: '9px', background: acceptedCount > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: acceptedCount > 0 ? BG : DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: acceptedCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                        ✦ Apply {acceptedCount} Accepted Field{acceptedCount !== 1 ? 's' : ''}
                       </button>
                       <button onClick={startAiResearch} title="Re-run research"
                         style={{ padding: '9px 13px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 6, color: DIM, fontFamily: cinzel, fontSize: 12, cursor: 'pointer' }}>
@@ -4101,7 +4105,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
               <div>
                 <div style={{ textAlign: 'center' as const, padding: '28px 20px 20px', borderBottom: `1px solid ${BDR}`, marginBottom: 16 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 14, color: '#4ade80', letterSpacing: '0.08em', marginBottom: 6 }}>✓ Research Applied</div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>{aiSavedLog.length} field{aiSavedLog.length !== 1 ? 's' : ''} applied</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: DIM }}>Applied {aiSavedLog.length} of {Object.keys(aiResult).length} proposed</div>
                   {aiUsedLibrary && (
                     <div style={{ marginTop: 10, fontFamily: cinzel, fontSize: 9, color: '#4a3f2f', letterSpacing: '0.1em' }}>
                       ✦ ENHANCED WITH {aiLibrarySourceCount} PASSAGE{aiLibrarySourceCount !== 1 ? 'S' : ''} FROM YOUR MINISTRY LIBRARY
