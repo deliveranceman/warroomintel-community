@@ -88,7 +88,7 @@ export default async function handler(req: Request) {
 
   const { data: resource, error: fetchErr } = await client
     .from('resources')
-    .select('id,title,author,extracted_text,topic,source_name')
+    .select('id,title,author,extracted_text,topic')
     .eq('id', resourceId)
     .single()
 
