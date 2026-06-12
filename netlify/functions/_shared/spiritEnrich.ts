@@ -121,8 +121,11 @@ const VALID_CULTURAL_PRESENCE = [
 
 function parseJsonFields(raw: string): Record<string, any> {
   if (!raw || raw.trim() === '') return {}
-  let text = raw.trim()
-  text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '')
+    .trim()
+  let text = cleaned
   text = text.replace(/^~~~[\w]*\s*/i, '').replace(/\s*~~~\s*$/i, '').trim()
   try {
     const parsed = JSON.parse(text)
@@ -136,14 +139,14 @@ function parseJsonFields(raw: string): Record<string, any> {
       if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
     } catch {}
   }
-  const match = raw.match(/\{[\s\S]*\}/)
+  const match = cleaned.match(/\{[\s\S]*\}/)
   if (match) {
     try {
       const parsed = JSON.parse(match[0])
       if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
     } catch {}
   }
-  console.error('[spiritEnrich] parseJsonFields failed. Preview:', raw.slice(0, 200))
+  console.warn('[spiritEnrich] parseJsonFields failed:', raw.slice(0, 200))
   return {}
 }
 
@@ -524,7 +527,7 @@ export async function enrichSpirit({ spiritSlug, userId, userTier, supabase }: {
     tier:      'standard',
     system:    systemPrompt,
     messages:  [{ role: 'user', content: userPrompt }],
-    maxTokens: 800,
+    maxTokens: 4096,
     timeoutMs: 60000,
     meta,
   })
