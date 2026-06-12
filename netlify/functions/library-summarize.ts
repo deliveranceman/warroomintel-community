@@ -28,6 +28,21 @@ function normalizeName(n: string): string {
     .trim()
 }
 
+// Deterministic floor under the extraction prompt: generic adversary terms that
+// must NEVER reach spirit_candidates, no matter what the model returns. Built by
+// running each seed through normalizeName so membership checks compare like-for-
+// like against a candidate's name_normalized. This is IN ADDITION to the prompt
+// rules and the dedup checks — not a replacement.
+const GENERIC_BLOCKLIST = new Set<string>([
+  'devil', 'the devil', 'satan', 'lucifer', 'the enemy', 'the evil one', 'evil one',
+  'evil spirit', 'evil spirits', 'unclean spirit', 'unclean spirits', 'demon', 'demons',
+  'the demons', 'evil powers', 'wicked ones', 'wicked one', 'the adversary', 'adversary',
+  'prince of the demons', 'prince of the power of the air',
+  'enemy who envies the faithful', 'the wicked one', 'spirit', 'evil', 'fallen angel',
+  'fallen angels', 'the serpent', 'serpent', 'the dragon', 'dragon', 'the tempter', 'tempter',
+  'the accuser', 'accuser', 'beast', 'the beast',
+].map(normalizeName))
+
 async function isInAirtable(nameNorm: string): Promise<boolean> {
   if (!airtableToken || !nameNorm) return false
   try {
@@ -224,11 +239,15 @@ SOURCE_END`
     }
     let newCount  = 0
     let dupCount  = 0
+    let genericSkipped = 0
 
     for (const mention of mentions) {
       if (!mention.name) continue
       const nameNorm = normalizeName(mention.name)
       if (!nameNorm) continue
+
+      // Deterministic floor: drop generic adversary terms before staging.
+      if (GENERIC_BLOCKLIST.has(nameNorm)) { genericSkipped++; continue }
 
       const { data: existing } = await client
         .from('spirit_candidates')
@@ -282,6 +301,7 @@ SOURCE_END`
       payload.scanMode       = 'full'
       payload.windowsScanned = windows.length
       payload.truncated      = truncated
+      payload.genericSkipped = genericSkipped
     }
     return new Response(JSON.stringify(payload), { status: 200, headers: CORS })
 
