@@ -3976,6 +3976,10 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
     setOpenSections(new Set(['overview']))
     setDossierHeaderFull(true)
     lastScrollTopRef.current = 0
+    if (dossierScrollRef.current) {
+      dossierScrollRef.current.scrollLeft = 0
+      dossierScrollRef.current.scrollTop = 0
+    }
   }, [selectedEntry?.id])
 
   function closeModal() {
@@ -4346,6 +4350,10 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         const navigateToSpirit = (target: any) => {
           setSigilLightboxOpen(false)
           setSpiritStack(prev => [...prev, entry])
+          if (dossierScrollRef.current) {
+            dossierScrollRef.current.scrollLeft = 0
+            dossierScrollRef.current.scrollTop = 0
+          }
           setSelectedEntry(target)
         }
 
@@ -4409,7 +4417,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         return (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: dbBg, display: 'flex', flexDirection: 'column' as const, overflowY: 'hidden' as const, overflowX: 'hidden' as const, maxWidth: '100%', boxSizing: 'border-box' as const }}>
             {/* Top bar — auto-height, clears notch, condenses on scroll */}
-            <div style={{ flexShrink: 0, width: '100%', background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'max(env(safe-area-inset-top), 20px)', paddingLeft: 12, paddingRight: 'max(env(safe-area-inset-right), 12px)', paddingBottom: 0, boxSizing: 'border-box' as const }}>
+            <div style={{ flexShrink: 0, width: '100%', background: dbIsDark ? '#0D0B14' : '#FAF8F5', borderBottom: `1px solid ${bdr}`, paddingTop: 'calc(max(env(safe-area-inset-top), 28px) + 8px)', paddingLeft: 12, paddingRight: 'max(env(safe-area-inset-right), 12px)', paddingBottom: 0, boxSizing: 'border-box' as const }}>
               {/* Row 1: [back + sigil + name] LEFT  |  [speaker + rank] RIGHT — always visible */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: spiritStack.length > 0 ? 6 : 10 }}>
                 {/* Back — pops stack or returns to list */}
@@ -4500,7 +4508,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             </div>
 
             {/* Scrollable content */}
-            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            <div ref={dossierScrollRef} onScroll={handleDossierScroll} style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, touchAction: 'pan-y', width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
 
               {/* 1. Overview — always accessible */}
               {sectionBlock('overview', 'Overview', undefined, (
