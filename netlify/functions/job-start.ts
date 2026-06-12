@@ -10,7 +10,7 @@ function json(data: unknown, status = 200) {
 function sb() { return createClient(sbUrl!, sbKey!) }
 
 // Allowlist of accepted job types — grows per feature, never accepts arbitrary strings.
-const ALLOWED_JOB_TYPES = new Set(['patristic_scan'])
+const ALLOWED_JOB_TYPES = new Set(['patristic_scan', 'spirit_enrich'])
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: CORS })
@@ -24,46 +24,65 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'Invalid JSON' }, 400)
   }
 
-  const { jobType, resourceId, scanMode: rawScanMode } = body || {}
+  const { jobType, resourceId, scanMode: rawScanMode, spiritId: rawSpiritId } = body || {}
 
   if (!ALLOWED_JOB_TYPES.has(jobType)) {
     return json({ error: 'unknown job_type' }, 400)
   }
-  if (!resourceId) {
-    return json({ error: 'resourceId required' }, 400)
-  }
-
-  const scanMode: 'full' | 'window8k' = rawScanMode === 'window8k' ? 'window8k' : 'full'
 
   const client = sb()
 
-  // Validate: resource exists and has extracted_text
-  const { data: resource, error: fetchErr } = await client
-    .from('resources')
-    .select('id, extracted_text')
-    .eq('id', resourceId)
-    .single()
+  // ── patristic_scan validation ─────────────────────────────────────────────
+  let scanMode: 'full' | 'window8k' = 'full'
+  if (jobType === 'patristic_scan') {
+    if (!resourceId) return json({ error: 'resourceId required' }, 400)
+    scanMode = rawScanMode === 'window8k' ? 'window8k' : 'full'
 
-  if (fetchErr || !resource) {
-    return json({ error: 'Resource not found' }, 404)
+    const { data: resource, error: fetchErr } = await client
+      .from('resources')
+      .select('id, extracted_text')
+      .eq('id', resourceId)
+      .single()
+
+    if (fetchErr || !resource) return json({ error: 'Resource not found' }, 404)
+    if (!resource.extracted_text?.trim()) {
+      return json({ error: 'Resource has no extracted text — run indexing first' }, 422)
+    }
   }
-  if (!resource.extracted_text?.trim()) {
-    return json({ error: 'Resource has no extracted text — run indexing first' }, 422)
+
+  // ── spirit_enrich validation ──────────────────────────────────────────────
+  if (jobType === 'spirit_enrich') {
+    if (!rawSpiritId) return json({ error: 'spiritId required' }, 400)
+
+    const { data: spirit, error: spiritErr } = await client
+      .from('spirits')
+      .select('id')
+      .eq('id', rawSpiritId)
+      .single()
+
+    if (spiritErr || !spirit) return json({ error: 'Spirit not found' }, 422)
+  }
+
+  // ── Build insert row ──────────────────────────────────────────────────────
+  const jobRow: Record<string, any> = {
+    job_type:  jobType,
+    status:    'queued',
+    progress:  0,
+    stage:     'queued',
+    user_id:   auth.userId,
+    tier:      auth.tier,
+  }
+  if (jobType === 'patristic_scan') {
+    jobRow.resource_id   = resourceId
+    jobRow.input_params  = { scanMode, resourceId }
+  } else if (jobType === 'spirit_enrich') {
+    jobRow.input_params  = { spiritId: rawSpiritId }
   }
 
   // Insert ai_jobs row
   const { data: job, error: insertErr } = await client
     .from('ai_jobs')
-    .insert({
-      job_type:    jobType,
-      status:      'queued',
-      progress:    0,
-      stage:       'queued',
-      user_id:     auth.userId,
-      tier:        auth.tier,
-      resource_id: resourceId,
-      input_params: { scanMode, resourceId },
-    })
+    .insert(jobRow)
     .select('id')
     .single()
 

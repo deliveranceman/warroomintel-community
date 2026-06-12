@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { buildWindows, scanOnce, stageCandidates, WINDOW_SIZE } from './_shared/patristicScan'
+import { enrichSpirit } from './_shared/spiritEnrich'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -48,6 +49,8 @@ export default async function handler(req: Request): Promise<Response> {
   // Dispatch on job_type
   if (job.job_type === 'patristic_scan') {
     await runPatristicScan(client, job)
+  } else if (job.job_type === 'spirit_enrich') {
+    await runSpiritEnrich(client, job)
   } else {
     await client.from('ai_jobs').update({
       status:        'failed',
@@ -186,6 +189,58 @@ async function runPatristicScan(client: ReturnType<typeof sb>, job: any): Promis
       summary_status: 'failed',
       summary_error:  errMsg,
     }).eq('id', resourceId).then(undefined, () => {})
+  }
+}
+
+async function runSpiritEnrich(client: ReturnType<typeof sb>, job: any): Promise<void> {
+  const jobId    = job.id as string
+  const params   = (job.input_params as any) || {}
+  const spiritId = (params.spiritId as string) || ''
+
+  try {
+    // ── Stage: preparing ────────────────────────────────────────────────────
+    await client.from('ai_jobs').update({
+      status:     'running',
+      started_at: new Date().toISOString(),
+      stage:      'preparing',
+    }).eq('id', jobId)
+
+    if (!spiritId) throw new Error('input_params.spiritId missing')
+
+    // ── Stage: enriching ────────────────────────────────────────────────────
+    await client.from('ai_jobs').update({ stage: 'enriching', progress: 10 }).eq('id', jobId)
+
+    const result = await enrichSpirit({
+      spiritId,
+      userId:   (job.user_id as string) || '',
+      userTier: (job.tier    as string) || '',
+      supabase: client,
+    })
+
+    // ── Stage: finalizing ───────────────────────────────────────────────────
+    await client.from('ai_jobs').update({ stage: 'finalizing', progress: 90 }).eq('id', jobId)
+
+    await client.from('ai_jobs').update({
+      status:        'complete',
+      progress:      100,
+      completed_at:  new Date().toISOString(),
+      model_used:    result.model_used,
+      tokens_used:   result.tokens_used,
+      cost_estimate: result.cost_estimate,
+      result_json:   result,
+    }).eq('id', jobId)
+
+    console.log(`[job-worker] ${jobId} spirit_enrich complete: ${Object.keys(result.proposed).length} fields proposed for "${result.spiritName}"`)
+
+  } catch (e: any) {
+    const errMsg = (e.message || String(e)).slice(0, 2000)
+    console.error(`[job-worker] ${jobId} spirit_enrich failed:`, errMsg)
+
+    await client.from('ai_jobs').update({
+      status:        'failed',
+      error_message: errMsg,
+      completed_at:  new Date().toISOString(),
+    }).eq('id', jobId).then(undefined, () => {})
   }
 }
 
