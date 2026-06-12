@@ -9940,7 +9940,7 @@ function fmtDuration(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs, openOnMount, onIntentConsumed, openChannelOnMount, onChannelIntentConsumed }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void; openOnMount?: 'fire-team' | 'cover-all' | 'sentinel' | null; onIntentConsumed?: () => void; openChannelOnMount?: null | { channelId: string; kind: 'fire-team' | 'cover-all' | 'sentinel'; title: string; subtitle?: string; raw?: any }; onChannelIntentConsumed?: () => void }) {
+function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUserName, isDark = true, onPendingChange, onOpenNotifs: _onOpenNotifs, openOnMount, onIntentConsumed, openChannelOnMount, onChannelIntentConsumed, openDmChannelOnMount, onDmChannelIntentConsumed, incomingCallTarget, onIncomingCallTargetConsumed, onNotifTap }: { userId: string; getToken: () => Promise<string | null>; tier: string; pendingDmUserId?: string; pendingDmUserName?: string; isDark?: boolean; onPendingChange?: (reqs: any[]) => void; onOpenNotifs?: () => void; openOnMount?: 'fire-team' | 'cover-all' | 'sentinel' | null; onIntentConsumed?: () => void; openChannelOnMount?: null | { channelId: string; kind: 'fire-team' | 'cover-all' | 'sentinel'; title: string; subtitle?: string; raw?: any }; onChannelIntentConsumed?: () => void; openDmChannelOnMount?: { channelId: string; title?: string; raw?: any } | null; onDmChannelIntentConsumed?: () => void; incomingCallTarget?: any; onIncomingCallTargetConsumed?: () => void; onNotifTap?: (target: any, fallbackUrl?: string) => void }) {
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [token, setToken]                     = useState('')
@@ -10010,6 +10010,20 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       onChannelIntentConsumed?.()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Open an existing DM channel by id — triggered by notification deep-link resolver.
+  // Watches channelId so it fires even when MessengerSection is already mounted.
+  useEffect(() => {
+    if (!openDmChannelOnMount?.channelId) return
+    setActiveTab('all')
+    selectConversation(openDmChannelOnMount.channelId)
+    onDmChannelIntentConsumed?.()
+  }, [openDmChannelOnMount?.channelId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Consume an incoming-call intent forwarded from the notification resolver.
+  useEffect(() => {
+    if (!incomingCallTarget?.call_id) return
+    setIncomingCall(incomingCallTarget)
+    onIncomingCallTargetConsumed?.()
+  }, [incomingCallTarget?.call_id]) // eslint-disable-line react-hooks/exhaustive-deps
   const messagesEndRef   = useRef<HTMLDivElement>(null)
   const pollRef          = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef           = React.useRef<EventSource | null>(null)
@@ -10220,22 +10234,17 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     return () => clearTimeout(t)
   }, [dmError])
 
-  // Push notification tap — app already open
+  // Push notification tap — app already open. Delegates to parent resolver via onNotifTap.
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!('serviceWorker' in navigator)) return
     function onMessage(e: MessageEvent) {
       if (e.data?.type !== 'WRI_NOTIFICATION_TAP') return
       const d = e.data.data || {}
-      if (d.call_id) {
-        setIncomingCall({
-          caller_name: d.caller_name || 'Unknown',
-          caller_id: d.caller_id || '',
-          call_id: d.call_id,
-          call_type: 'audio_room',
-          channel_id: d.channel_id || '',
-        })
-      }
+      const target = d.call_id
+        ? { call_id: d.call_id, caller_name: d.caller_name, caller_id: d.caller_id, channel_id: d.channel_id }
+        : { section: d.section || undefined, channelId: d.channelId || undefined, kind: d.kind || (d.section === 'dms' && d.channelId ? 'dm' : undefined) }
+      onNotifTap?.(target, d.url)
     }
     navigator.serviceWorker.addEventListener('message', onMessage)
     return () => navigator.serviceWorker.removeEventListener('message', onMessage)
@@ -13059,6 +13068,8 @@ function CommunityPage() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [pendingDmWith, setPendingDMWith]   = useState<string | null>(null)
   const [pendingDmName, setPendingDmName]   = useState<string>('')
+  const [pendingDmChannel, setPendingDmChannel] = useState<{ channelId: string; title?: string; raw?: any } | null>(null)
+  const [pendingIncomingCall, setPendingIncomingCall] = useState<any | null>(null)
   const [hoveredWarrior, setHoveredWarrior] = useState<string | null>(null)
   const warriorHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const railFlyoutRef   = useRef<HTMLDivElement>(null)
@@ -13721,6 +13732,37 @@ function CommunityPage() {
     } finally { setSending(false) }
   }
 
+  // Single resolver for all notification deep-links — used by bell tap AND push tap handler.
+  // target shape: { section?, channelId?, kind?, call_id?, caller_name?, caller_id?, channel_id?, title?, subtitle?, raw? }
+  function resolveNotificationTarget(target: any, _fallbackUrl?: string): void {
+    setActiveRailSection(null)
+    if (!target) { setActiveSection('daily-brief'); return }
+    if (target.call_id) {
+      setPendingIncomingCall({
+        caller_name: target.caller_name || 'Unknown',
+        caller_id:   target.caller_id  || '',
+        call_id:     target.call_id,
+        call_type:   'audio_room',
+        channel_id:  target.channel_id || '',
+      })
+      setActiveSection('dms')
+      return
+    }
+    const validGroupKinds = new Set(['fire-team', 'cover-all', 'sentinel'])
+    if (target.section === 'dms' && target.channelId && target.kind && target.kind !== 'dm' && validGroupKinds.has(target.kind)) {
+      setOpenChannelIntent({ channelId: target.channelId, kind: target.kind as 'fire-team' | 'cover-all' | 'sentinel', title: target.title || '', subtitle: target.subtitle, raw: target.raw })
+      setActiveSection('dms')
+      return
+    }
+    if (target.section === 'dms' && target.channelId) {
+      setPendingDmChannel({ channelId: target.channelId, title: target.title, raw: target.raw })
+      setActiveSection('dms')
+      return
+    }
+    if (target.section) { setActiveSection(target.section); return }
+    setActiveSection('daily-brief')
+  }
+
   if (!isLoaded || loading) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0e0c09' }}>
       <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: G }}>Connecting to War Room...</span>
@@ -14358,7 +14400,7 @@ function CommunityPage() {
       {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
-      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} />}
+      {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />}
       {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
@@ -14785,7 +14827,7 @@ function CommunityPage() {
           />
         )}
         {activeSection === 'dms' && (
-          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} />
+          <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />
         )}
         {activeSection === 'members'     && (
           <MembersView
@@ -15607,9 +15649,9 @@ function CommunityPage() {
                                         setUnreadNotifs(prev => Math.max(0, prev - 1))
                                       }
                                     }
-                                    if (n.url) { setActiveRailSection(null); window.location.href = n.url }
+                                    resolveNotificationTarget(n.target || null, n.url)
                                   }}
-                                  style={{ opacity: n.read ? 0.6 : 1, cursor: n.url ? 'pointer' : 'default', paddingRight: 28 }}
+                                  style={{ opacity: n.read ? 0.6 : 1, cursor: 'pointer', paddingRight: 28 }}
                                 >
                                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
