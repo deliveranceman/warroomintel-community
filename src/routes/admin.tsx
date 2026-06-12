@@ -2606,7 +2606,11 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ startFrom }),
         })
-        if (!res.ok) { setBackfillProgress(`Error: ${res.status}`); break }
+        if (!res.ok) {
+          const d = await res.json().catch(() => null)
+          setBackfillProgress(d?.disabled ? d.message : `Error: ${res.status}`)
+          break
+        }
         const data = await res.json()
         totalUpdated += data.updated || 0
         totalSkipped += data.skipped || 0

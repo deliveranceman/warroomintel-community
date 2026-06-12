@@ -52,6 +52,15 @@ export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS })
 
+  // DISABLED: the demon source of truth is now Supabase. This endpoint scans and
+  // PATCHes the Airtable demon base, so it would write stale data. Short-circuit
+  // before any Airtable read/write, pending the Supabase deep-research replacement.
+  // The rest of the handler is left intact below for future reference.
+  return new Response(
+    JSON.stringify({ disabled: true, message: 'ai-backfill disabled pending Supabase deep-research replacement' }),
+    { status: 503, headers: CORS },
+  )
+
   const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
@@ -67,7 +76,7 @@ export default async function handler(req: Request) {
   do {
     const url = new URL(`https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}`)
     url.searchParams.set('pageSize', '100')
-    if (offset) url.searchParams.set('offset', offset)
+    if (offset) url.searchParams.set('offset', offset!)
 
     const res  = await fetch(url.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
     const data = await res.json()
