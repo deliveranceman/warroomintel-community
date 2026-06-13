@@ -19,18 +19,19 @@ export const Route = createFileRoute('/api/clerk-webhook')({
 
         const body = await request.text()
 
-        if (CLERK_WEBHOOK_SECRET) {
-          try {
-            const { Webhook } = await import('svix')
-            const wh = new Webhook(CLERK_WEBHOOK_SECRET)
-            wh.verify(body, {
-              'svix-id':        svixId,
-              'svix-timestamp': svixTimestamp,
-              'svix-signature': svixSignature,
-            })
-          } catch {
-            return Response.json({ error: 'Invalid signature' }, { status: 401 })
-          }
+        if (!CLERK_WEBHOOK_SECRET) {
+          return Response.json({ error: 'Webhook secret not configured' }, { status: 500 })
+        }
+        try {
+          const { Webhook } = await import('svix')
+          const wh = new Webhook(CLERK_WEBHOOK_SECRET)
+          wh.verify(body, {
+            'svix-id':        svixId,
+            'svix-timestamp': svixTimestamp,
+            'svix-signature': svixSignature,
+          })
+        } catch {
+          return Response.json({ error: 'Invalid signature' }, { status: 401 })
         }
 
         // ── Handle event ──────────────────────────────────────────────────
