@@ -543,7 +543,8 @@ async function uploadVoice(userId: string, req: Request): Promise<Response> {
   return json({ url: publicUrl, duration: 0 })
 }
 
-async function listMembers(currentUserId: string): Promise<Response> {
+async function listMembers(currentUserId: string, callerLevel: number): Promise<Response> {
+  if (callerLevel < 1) return json({ error: 'Soldier tier required to view members.' }, 403)
   const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
   if (!clerkSecretKey) return json({ error: 'Clerk secret key not configured' }, 500)
 
@@ -1202,7 +1203,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'list-members') {
-    return listMembers(userId)
+    return listMembers(userId, auth.level)
   }
 
   if (action === 'accept-dm') {

@@ -11605,10 +11605,10 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: '0 16px 16px' }}>
             {loadingMembers ? (
               <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>Loading…</div>
-            ) : dmMembers.filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase())).length === 0 ? (
+            ) : dmMembers.filter(m => (tierLevel >= 4 || (m.level ?? 0) >= 1) && (!dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase()))).length === 0 ? (
               <div style={{ padding: 20, textAlign: 'center' as const, color: WMUT, fontSize: 12 }}>No members found</div>
             ) : dmMembers
-                .filter(m => !dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase()))
+                .filter(m => (tierLevel >= 4 || (m.level ?? 0) >= 1) && (!dmSearch || m.name?.toLowerCase().includes(dmSearch.toLowerCase())))
                 .map(member => {
                   const handleMemberTap = async () => {
                     setShowNewDM(false); setDmSearch('')
