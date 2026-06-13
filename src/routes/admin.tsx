@@ -5960,7 +5960,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
   const LMUT  = isDark ? '#9a8c74' : '#5C5248'
-  const LG    = '#C9A84C'
+  const LG    = isDark ? '#C9A84C' : '#7A5E16'
 
   // Books state
   const [books, setBooks]           = useState<any[]>([])
@@ -6813,9 +6813,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
               const isApproveOpen = approveExpanded === book.id
               const isRejectOpen  = rejectExpanded  === book.id
               const wrel  = sum?.warfare_relevance
-              const relColor = wrel === 'high' ? G : wrel === 'medium' ? '#7ab4e0' : DIM
+              const relColor = wrel === 'high' ? LG : wrel === 'medium' ? '#7ab4e0' : (isDark ? DIM : LMUT)
               return (
-                <div key={book.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 8, padding: '16px 18px' }}>
+                <div key={book.id} style={{ background: isDark ? SURF : '#fff', border: `1px solid ${isDark ? BDR : LBDR}`, borderRadius: 8, padding: '16px 18px' }}>
                   {/* Header */}
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 12, color: LG, letterSpacing: '0.06em' }}>{book.title}</div>
@@ -6834,7 +6834,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                     <button
                       onClick={() => handleGenerateSummary(book.id)}
                       disabled={summaryingId === book.id}
-                      style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: LG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${BDR}`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer', marginBottom: 12 }}
+                      style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: LG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${isDark ? BDR : LBDR}`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer', marginBottom: 12 }}
                     >✦ Generate Summary</button>
                   )}
                   {(sstat === 'processing' || summaryingId === book.id) && (
@@ -6843,7 +6843,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                   {sstat === 'failed' && (
                     <div style={{ marginBottom: 12 }}>
                       <span style={{ fontFamily: crimson, fontSize: 12, color: '#f87171' }}>Summary failed: {book.summary_error || 'Unknown error'}</span>
-                      <button onClick={() => handleGenerateSummary(book.id)} style={{ marginLeft: 10, fontFamily: cinzel, fontSize: 8, color: LG, background: 'none', border: `1px solid ${BDR}`, borderRadius: 3, padding: '3px 8px', cursor: 'pointer' }}>Retry</button>
+                      <button onClick={() => handleGenerateSummary(book.id)} style={{ marginLeft: 10, fontFamily: cinzel, fontSize: 8, color: LG, background: 'none', border: `1px solid ${isDark ? BDR : LBDR}`, borderRadius: 3, padding: '3px 8px', cursor: 'pointer' }}>Retry</button>
                     </div>
                   )}
                   {summaryErrors[book.id] && (
@@ -7939,6 +7939,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
   const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const MUT  = isDark ? '#9a8c74' : '#5C5248'
   const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
+  const G2   = isDark ? '#C9A84C' : '#7A5E16'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
     border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2,
@@ -8074,19 +8075,19 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
 
   const thS: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT, borderBottom: `1px solid ${BDR2}`, whiteSpace: 'nowrap' }
   const tdS: React.CSSProperties = { padding: '9px 12px', borderBottom: `1px solid ${BDR2}20`, fontSize: 12, verticalAlign: 'middle' }
-  const TIER_COLORS: Record<string, string> = { free: '#7a9e7e', soldier: '#60a5fa', commander: '#a78bfa', general: '#f59e0b', minister: G }
+  const TIER_COLORS: Record<string, string> = { free: '#7a9e7e', soldier: '#60a5fa', commander: '#a78bfa', general: '#f59e0b', minister: G2 }
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.06em' }}>📖 Field Ministry Manager</div>
+          <div style={{ fontFamily: cinzel, fontSize: 18, color: G2, letterSpacing: '0.06em' }}>📖 Field Ministry Manager</div>
           <div style={{ fontFamily: crimson, color: MUT, fontSize: 13, marginTop: 4 }}>Manage knowledge base articles visible to community members</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {articles.length === 0 && !loading && (
             <button onClick={handleSeed}
-              style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${BDR2}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
+              style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${BDR2}`, borderRadius: 6, color: G2, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>
               Seed Starter Content
             </button>
           )}
@@ -8098,7 +8099,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
         </div>
       </div>
 
-      {msg && <div style={{ marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR2}`, borderRadius: 6, fontFamily: crimson, color: G, fontSize: 13 }}>{msg}</div>}
+      {msg && <div style={{ marginBottom: 16, padding: '8px 14px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR2}`, borderRadius: 6, fontFamily: crimson, color: G2, fontSize: 13 }}>{msg}</div>}
 
       {/* Article table */}
       {loading ? (
@@ -8135,7 +8136,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
                   <td style={{ ...tdS }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => startEdit(a)}
-                        style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR2}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Edit</button>
+                        style={{ padding: '3px 10px', background: 'rgba(201,168,76,0.1)', border: `1px solid ${BDR2}`, borderRadius: 4, color: G2, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Edit</button>
                       <button onClick={() => remove(a.id, a.title)}
                         style={{ padding: '3px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, color: '#f87171', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>Del</button>
                     </div>
@@ -8150,7 +8151,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
       {/* Create / Edit form */}
       {showForm && (
         <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 28, marginTop: 24 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 14, color: G2, letterSpacing: '0.08em', marginBottom: 20 }}>
             {editId ? '✏ Edit Article' : '+ New Article'}
           </div>
 
@@ -8196,7 +8197,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <label style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUT }}>Content (Markdown)</label>
               <button onClick={() => setPreview(p => !p)}
-                style={{ padding: '3px 10px', background: preview ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${BDR2}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                style={{ padding: '3px 10px', background: preview ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${BDR2}`, borderRadius: 4, color: G2, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
                 {preview ? 'Edit' : 'Preview'}
               </button>
             </div>
@@ -8230,7 +8231,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
               style={{ padding: '10px 20px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: MUT, cursor: 'pointer' }}>
               Cancel
             </button>
-            {msg && <span style={{ fontFamily: crimson, fontSize: 13, color: msg.includes('ailed') ? '#f87171' : G }}>{msg}</span>}
+            {msg && <span style={{ fontFamily: crimson, fontSize: 13, color: msg.includes('ailed') ? '#f87171' : G2 }}>{msg}</span>}
           </div>
         </div>
       )}
@@ -8246,6 +8247,7 @@ function DocumentsView({ getToken, isDark, demons }: {
   const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const MUT  = isDark ? '#9a8c74' : '#5C5248'
   const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
+  const G2   = isDark ? '#C9A84C' : '#7A5E16'
   const inp2: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
@@ -8338,7 +8340,7 @@ function DocumentsView({ getToken, isDark, demons }: {
       `}</style>
 
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.06em' }}>📄 Document Creator</div>
+        <div style={{ fontFamily: cinzel, fontSize: 18, color: G2, letterSpacing: '0.06em' }}>📄 Document Creator</div>
         <div style={{ display: 'flex', gap: 0, border: `1px solid ${BDR2}`, borderRadius: 6, overflow: 'hidden' }}>
           {(['templates', 'generate'] as const).map(t => (
             <button key={t} onClick={() => setDocSubTab(t)}
@@ -8353,9 +8355,9 @@ function DocumentsView({ getToken, isDark, demons }: {
       {docSubTab === 'templates' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
           {Object.values(DOC_TEMPLATES).map(t => (
-            <div key={t.id} style={{ background: BG2, border: `1px solid ${selectedTemplate === t.id ? G + '88' : BDR2}`, borderRadius: 10, padding: 20 }}>
+            <div key={t.id} style={{ background: BG2, border: `1px solid ${selectedTemplate === t.id ? G2 + '88' : BDR2}`, borderRadius: 10, padding: 20 }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{t.icon}</div>
-              <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.06em', marginBottom: 6 }}>{t.name}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 14, color: G2, letterSpacing: '0.06em', marginBottom: 6 }}>{t.name}</div>
               <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginBottom: 14, lineHeight: 1.5 }}>{t.description}</div>
               <div style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.08em', marginBottom: 14 }}>{t.sections.length} SECTIONS</div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -8375,7 +8377,7 @@ function DocumentsView({ getToken, isDark, demons }: {
           {/* Form */}
           <div>
             <div style={{ background: BG2, border: `1px solid ${BDR2}`, borderRadius: 10, padding: 24, marginBottom: 16 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>Generate Document</div>
+              <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.08em', marginBottom: 20 }}>Generate Document</div>
 
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontFamily: cinzel, fontSize: 9, color: MUT, letterSpacing: '0.1em', display: 'block', marginBottom: 5 }}>DOCUMENT TYPE</label>
@@ -8401,7 +8403,7 @@ function DocumentsView({ getToken, isDark, demons }: {
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input type="checkbox" checked={pullFromDB} onChange={e => setPullFromDB(e.target.checked)}
-                    style={{ accentColor: G, width: 14, height: 14 }} />
+                    style={{ accentColor: G2, width: 14, height: 14 }} />
                   <span style={{ fontFamily: cinzel, fontSize: 10, color: TXT2, letterSpacing: '0.06em' }}>Pull data from Intel Database (if spirit name matches)</span>
                 </label>
               </div>
@@ -8426,7 +8428,7 @@ function DocumentsView({ getToken, isDark, demons }: {
               <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.1em', marginBottom: 12 }}>SECTIONS IN {template.name.toUpperCase()}</div>
               {template.sections.map((s, i) => (
                 <div key={s.id} style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: G, width: 16, flexShrink: 0, paddingTop: 1 }}>{i + 1}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: G2, width: 16, flexShrink: 0, paddingTop: 1 }}>{i + 1}</div>
                   <div>
                     <div style={{ fontFamily: cinzel, fontSize: 10, color: TXT2, letterSpacing: '0.06em', marginBottom: 2 }}>{s.label}</div>
                     <div style={{ fontFamily: crimson, fontSize: 12, color: MUT }}>{s.instruction}</div>
@@ -8441,7 +8443,7 @@ function DocumentsView({ getToken, isDark, demons }: {
             <div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' as const }}>
                 <button onClick={exportPDF} style={{ flex: 1, padding: '10px', background: G, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }}>📄 Export PDF</button>
-                <button onClick={saveToArsenal} disabled={savingToArsenal} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer' }}>💾 Save to Arsenal</button>
+                <button onClick={saveToArsenal} disabled={savingToArsenal} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: G2, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer' }}>💾 Save to Arsenal</button>
                 <button onClick={generate} disabled={generating} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${BDR2}`, borderRadius: 6, color: MUT, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer' }}>↺ Regenerate</button>
               </div>
               {arsenalMsg && <div style={{ fontFamily: crimson, fontSize: 13, color: arsenalMsg.startsWith('✓') ? '#4ade80' : '#f87171', marginBottom: 10 }}>{arsenalMsg}</div>}
@@ -8451,14 +8453,14 @@ function DocumentsView({ getToken, isDark, demons }: {
                 {/* Document header */}
                 <div style={{ textAlign: 'center' as const, marginBottom: 28, paddingBottom: 20, borderBottom: `2px solid rgba(201,168,76,0.3)` }}>
                   <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.15em', marginBottom: 8 }}>⚔ WAR ROOM INTEL · STAFFORDTOWN CHURCH</div>
-                  <div style={{ fontFamily: cinzel, fontSize: 22, color: G, letterSpacing: '0.05em', marginBottom: 6 }}>{document.title}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 22, color: G2, letterSpacing: '0.05em', marginBottom: 6 }}>{document.title}</div>
                   {document.subtitle && <div style={{ fontFamily: crimson, fontSize: 14, color: MUT, fontStyle: 'italic' }}>{document.subtitle}</div>}
                 </div>
 
                 {/* Sections */}
                 {document.sections?.map((s: any) => (
                   <div key={s.id} style={{ marginBottom: 24 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid rgba(201,168,76,0.2)` }}>{s.label}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G2, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid rgba(201,168,76,0.2)` }}>{s.label}</div>
                     <div
                       contentEditable suppressContentEditableWarning
                       style={{ fontFamily: crimson, fontSize: 14, color: TXT2, lineHeight: 1.75, outline: 'none', whiteSpace: 'pre-wrap' as const }}
@@ -9879,6 +9881,9 @@ const DISPATCH_TIER_OPTIONS = [
 ]
 
 function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
+  const gTxt = isDark ? '#C9A84C' : '#7A5E16'
+  const naSurf = isDark ? SURF : '#FFFFFF'
+  const naBdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
   const [title, setTitle]         = useState('Test Notification')
   const [body, setBody]           = useState('This is a test push from War Room Intel admin.')
   const [url, setUrl]             = useState('/community')
@@ -10066,7 +10071,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 8 }}>
-        <h2 style={{ fontFamily: cinzel, fontSize: 16, color: G, letterSpacing: '0.12em', margin: 0 }}>Push Notifications</h2>
+        <h2 style={{ fontFamily: cinzel, fontSize: 16, color: gTxt, letterSpacing: '0.12em', margin: 0 }}>Push Notifications</h2>
         <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? '#9a8c74' : '#5C5248', letterSpacing: '0.08em' }}>
           {countLoading ? 'Loading...' : `${subCount ?? 0} subscriber${subCount === 1 ? '' : 's'}`}
         </div>
@@ -10078,7 +10083,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
 
       {/* ── Dispatch composer ── */}
       <div style={{ marginBottom: 32, padding: '20px 20px', background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 8 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.12em', marginBottom: 6 }}>DISPATCH</div>
+        <div style={{ fontFamily: cinzel, fontSize: 12, color: gTxt, letterSpacing: '0.12em', marginBottom: 6 }}>DISPATCH</div>
         <p style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.6, margin: '0 0 16px' }}>
           Broadcast a notification to a defined audience. Each recipient gets a bell row and a push.
         </p>
@@ -10100,7 +10105,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                 {(['all', 'tier'] as const).map(k => (
                   <button key={k} onClick={() => setDispAudienceKind(k)}
-                    style={{ padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', border: `1px solid ${dispAudienceKind === k ? G : (isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0')}`, background: dispAudienceKind === k ? 'rgba(201,168,76,0.12)' : 'transparent', color: dispAudienceKind === k ? G : (isDark ? '#9a8c74' : '#5C5248'), borderRadius: 4, cursor: 'pointer' }}>
+                    style={{ padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', border: `1px solid ${dispAudienceKind === k ? gTxt : (isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0')}`, background: dispAudienceKind === k ? 'rgba(201,168,76,0.12)' : 'transparent', color: dispAudienceKind === k ? gTxt : (isDark ? '#9a8c74' : '#5C5248'), borderRadius: 4, cursor: 'pointer' }}>
                     {k === 'all' ? 'EVERYONE' : 'TIER AND ABOVE'}
                   </button>
                 ))}
@@ -10119,7 +10124,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                 {(['none', 'section', 'url'] as const).map(k => (
                   <button key={k} onClick={() => setDispTargetKind(k)}
-                    style={{ padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', border: `1px solid ${dispTargetKind === k ? G : (isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0')}`, background: dispTargetKind === k ? 'rgba(201,168,76,0.12)' : 'transparent', color: dispTargetKind === k ? G : (isDark ? '#9a8c74' : '#5C5248'), borderRadius: 4, cursor: 'pointer' }}>
+                    style={{ padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', border: `1px solid ${dispTargetKind === k ? gTxt : (isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0')}`, background: dispTargetKind === k ? 'rgba(201,168,76,0.12)' : 'transparent', color: dispTargetKind === k ? gTxt : (isDark ? '#9a8c74' : '#5C5248'), borderRadius: 4, cursor: 'pointer' }}>
                     {k === 'none' ? 'OPENS APP' : k === 'section' ? 'A SECTION' : 'A URL'}
                   </button>
                 ))}
@@ -10151,7 +10156,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
         ) : (
           <div style={{ maxWidth: 480 }}>
             <div style={{ padding: '14px 16px', background: isDark ? '#13111e' : '#fff', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : '#d4c4b0'}`, borderRadius: 6, marginBottom: 16 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>CONFIRM DISPATCH</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: gTxt, letterSpacing: '0.1em', marginBottom: 10 }}>CONFIRM DISPATCH</div>
               <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontFamily: crimson, fontSize: 13 }}>
                 <tbody>
                   {([
@@ -10194,7 +10199,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
 
       {/* Quick test — sends to all immediately */}
       <div style={{ marginBottom: 28, padding: '14px 16px', background: isDark ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.08)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 6 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>QUICK TEST — SEND TO ALL SUBSCRIBERS</div>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: gTxt, letterSpacing: '0.1em', marginBottom: 8 }}>QUICK TEST — SEND TO ALL SUBSCRIBERS</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const }}>
           <button
             onClick={sendTestAll}
@@ -10288,7 +10293,7 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
         {selectedUser && (
           <div style={{ padding: '8px 12px', background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.08)', border: 'none', borderLeft: `3px solid ${PUSH_TIER_COLORS[selectedUser.role === 'minister' ? 'minister' : selectedUser.tier] || '#9a8c74'}`, borderRadius: '0 4px 4px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#e8dcc8' : '#1C1410', minWidth: 0 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.08em', marginRight: 6 }}>SENDING TO</span>
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: gTxt, letterSpacing: '0.08em', marginRight: 6 }}>SENDING TO</span>
               {[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ')}
               <span style={{ color: isDark ? '#9a8c74' : '#5C5248', marginLeft: 6 }}>({selectedUser.email})</span>
             </div>
@@ -10317,14 +10322,14 @@ function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template
       </div>
 
       <div style={{ marginTop: 32, padding: '12px 16px', background: isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.08)', border: `1px solid ${isDark ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.25)'}`, borderRadius: 6 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>iOS NOTE</div>
+        <div style={{ fontFamily: cinzel, fontSize: 9, color: gTxt, letterSpacing: '0.1em', marginBottom: 6 }}>iOS NOTE</div>
         <p style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.6, margin: 0 }}>
           Safari on iOS only supports Web Push when the app is installed as a PWA (Add to Home Screen). Users on iOS who have not installed the app will not receive push notifications. This is an Apple platform restriction.
         </p>
       </div>
 
-      <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, padding: '20px 24px', marginTop: 24 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 16 }}>
+      <div style={{ background: naSurf, border: `1px solid ${naBdr}`, borderRadius: 10, padding: '20px 24px', marginTop: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: gTxt, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 16 }}>
           ✉ Email Test Panel
         </div>
         <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' as const }}>
@@ -10813,11 +10818,11 @@ function ModalsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: stri
             {!preview.requires_acceptance && (
               <button onClick={() => setPreview(null)} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', color: '#6b5e4e', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
             )}
-            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>{preview.title}</div>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: G2, letterSpacing: '0.1em', marginBottom: 12 }}>{preview.title}</div>
             <div style={{ fontFamily: crimson, fontSize: 15, color: '#c8bfa8', lineHeight: 1.65, marginBottom: 24, whiteSpace: 'pre-wrap' }}>{preview.body}</div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' as const }}>
               {preview.cta_link && preview.cta_label && (
-                <span style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>{preview.cta_label}</span>
+                <span style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G2, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>{preview.cta_label}</span>
               )}
               <button onClick={() => setPreview(null)} style={{ padding: '9px 20px', background: G, color: '#0D0B14', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
                 {preview.requires_acceptance ? 'I Agree' : 'Got It'}
