@@ -1200,6 +1200,40 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
       })
       const d = await res.json()
       if (res.ok) {
+        const CAMEL_TO_FORM: Record<string, string> = {
+          name: INTEL_NAME_F, aka: 'Also Known As', description: 'Description',
+          manifestation: 'Manifestiation', scripture: 'Scripture Reference',
+          entryPoints: 'Entry Points', sourceOrigin: 'Source / Orgin',
+          kingdom: 'Kingdom', strongman: 'Strongman', legalRights: 'Legal Rights',
+          symptoms: 'Symptoms', companionSpirits: 'Companion Spirits',
+          wriNotes: 'WRI Exorcist Notes', assignment: 'Assignment',
+          hierarchyCategory: 'Hierarchy Category', parentStrongman: 'Parent Strongman',
+          deliveranceSequence: 'Deliverance Sequence', operationalNotes: 'Operational Notes',
+          primaryBattlefield: 'Primary Battlefield',
+          personalityPresentation: 'Typical Personality Presentation',
+          counterScriptures: 'Counter Scriptures', phonetic: 'Phonetic',
+          images: 'Images', relatedSpirits: 'Related Spirits',
+          biblicalRank: 'Biblical Rank', caseType: 'Case Type',
+          isGenerational: 'Is Generational', isTerritorial: 'Is Territorial',
+          clusterSpirits: 'Cluster Spirits', legalRightsFramework: 'Legal Rights Framework',
+          institutionalExpression: 'Institutional Expression',
+          sessionIndicators: 'Session Indicators', resistanceSignature: 'Resistance Signature',
+          demonicAgreements: 'Demonic Agreements', transmissionVectors: 'Transmission Vectors',
+          etymologyNotes: 'Etymology Notes', archaeologyNotes: 'Archaeology Notes',
+          scriptureContext: 'Scripture Context', prayerPoints: 'Prayer Points',
+          aftercareNotes: 'Aftercare Notes', equivalentSpirits: 'Equivalent Spirits',
+        }
+        const formKey = CAMEL_TO_FORM[d.restoredField]
+        if (formKey) {
+          let formVal: string
+          if (typeof d.restoredValue === 'boolean') formVal = String(d.restoredValue)
+          else if (Array.isArray(d.restoredValue)) formVal = (d.restoredValue as any[]).join('\n')
+          else if (d.restoredValue == null) formVal = ''
+          else formVal = String(d.restoredValue)
+          setField(formKey, formVal)
+        } else {
+          console.warn('[handleRestore] no form field for snapshot field:', d.restoredField)
+        }
         setRcSnaps(prev => prev.map(s => s.id === snapshotId ? { ...s, restored_at: new Date().toISOString() } : s))
         setRcMsg(`Restored "${EH_FIELD_LABELS[d.restoredField] || d.restoredField}" successfully.`)
         setRcConfirm(null)
