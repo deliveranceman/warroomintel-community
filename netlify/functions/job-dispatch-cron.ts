@@ -28,7 +28,7 @@ export default async (_req: Request) => {
     return new Response(JSON.stringify({ dispatched: 0 }))
   }
 
-  const url = `${process.env.URL}/.netlify/functions/job-worker-background`
+  const url = `${process.env.URL}/api/job-worker-background`
   const key = process.env.INTERNAL_API_KEY ?? ''
   const dispatched: string[] = []
 

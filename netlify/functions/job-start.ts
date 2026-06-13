@@ -99,7 +99,7 @@ export default async function handler(req: Request): Promise<Response> {
   const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
   try {
     const dispatch = await fetch(
-      `${baseUrl}/.netlify/functions/job-worker-background`,
+      `${baseUrl}/api/job-worker-background`,
       {
         method: 'POST',
         headers: {
