@@ -1009,7 +1009,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
       const d = await streamFetch('/channels/messaging/prayer-wall-requests/query', 'POST', streamToken, apiKey, { state: true, messages: { limit: 20 } })
       if (d.messages) {
         const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
-        setPrayers(d.messages.filter((m: StreamMsg) => new Date(m.created_at).getTime() > cutoff))
+        setPrayers(d.messages.filter((m: StreamMsg) => new Date(m.created_at).getTime() > cutoff && m.type !== 'deleted' && !m.deleted_at))
       }
     } catch {}
   }, [streamToken, apiKey])
