@@ -1172,17 +1172,20 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
   const [rcMsg, setRcMsg] = useState('')
 
   useEffect(() => {
+    console.log('[RECENT CHANGES] spiritId:', spiritId, 'getToken:', !!getToken)
     if (!spiritId || !getToken) return
     setRcLoading(true)
     ;(async () => {
       try {
         const token = await getToken()
+        console.log('[RECENT CHANGES] fetching from /api/spirit-apply-snapshots?spiritId=' + spiritId)
         const res = await fetch(`/api/spirit-apply-snapshots?spiritId=${encodeURIComponent(spiritId)}&limit=10`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await res.json()
+        console.log('[RECENT CHANGES] response:', data)
         setRcSnaps(data.snapshots || [])
-      } catch { /* silent */ }
+      } catch (e) { console.error('[RECENT CHANGES] fetch error:', e) }
       setRcLoading(false)
     })()
   }, [spiritId])
@@ -1471,6 +1474,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
       </div>
 
       {/* Recent Changes (per-field apply history with restore) */}
+      {console.log('[RECENT CHANGES] guard check: spiritId=' + spiritId + ' getToken=' + !!getToken + ' snaps=' + rcSnaps.length + ' loading=' + rcLoading) as any}
       {spiritId && getToken && (
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${adBdr}` }}>
           <div style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
