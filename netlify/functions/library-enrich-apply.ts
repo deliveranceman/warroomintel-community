@@ -158,7 +158,7 @@ Rewrite this field with accurate, specific deliverance ministry content. Be conc
           }
         }
         if (Object.keys(merged).length > 0) {
-          const snapErr = await insertFieldSnapshots(supabase, row, merged, { jobId: null, appliedBy: auth.userId })
+          const snapErr = await insertFieldSnapshots(supabase, row, merged, { jobId: null, appliedBy: auth.userId, source: 'library_enrich' })
           if (snapErr) {
             console.error('[library-enrich-apply] snapshot failed:', snapErr)
             return new Response(JSON.stringify({ error: `Snapshot failed — aborting: ${snapErr}` }), { status: 500, headers: CORS })

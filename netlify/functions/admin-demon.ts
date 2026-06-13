@@ -96,7 +96,7 @@ export default async function handler(req: Request) {
         // Snapshot prior values before overwriting (manual admin edit).
         const { record, error } = await updateSpiritBySlug(
           sb, matchSlug, fields,
-          { jobId: null, appliedBy: auth.userId }
+          { jobId: null, appliedBy: auth.userId, source: 'manual' }
         )
         if (error === 'Spirit not found') {
           return new Response(JSON.stringify({ error: 'Spirit not found' }), { status: 404 })

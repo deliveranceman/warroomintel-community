@@ -1479,7 +1479,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
           {rcLoading ? (
             <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic' }}>Loading...</div>
           ) : rcSnaps.length === 0 ? (
-            <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic' }}>No AI-applied changes recorded yet.</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic' }}>No changes recorded yet. Recent edits will appear here.</div>
           ) : (
             <>
               {rcSnaps.map(s => {
@@ -1492,7 +1492,14 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
                       <span style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.06em', minWidth: 120 }}>{label}</span>
                       <span style={{ fontFamily: crimson, fontSize: 11, color: adDim }}>{whenStr}</span>
-                      {s.job_id && <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.04em', background: 'rgba(201,168,76,0.08)', padding: '1px 5px', borderRadius: 2 }}>AI JOB</span>}
+                      {(() => {
+                        const src = s.source || (s.job_id ? 'enrich' : null)
+                        if (src === 'enrich')         return <span style={{ fontFamily: cinzel, fontSize: 8, color: '#a78bfa', letterSpacing: '0.04em', background: 'rgba(167,139,250,0.12)', padding: '1px 5px', borderRadius: 2, border: '1px solid rgba(167,139,250,0.25)' }}>AI ENRICHMENT</span>
+                        if (src === 'library_enrich') return <span style={{ fontFamily: cinzel, fontSize: 8, color: '#60a5fa', letterSpacing: '0.04em', background: 'rgba(96,165,250,0.12)', padding: '1px 5px', borderRadius: 2, border: '1px solid rgba(96,165,250,0.25)' }}>LIBRARY</span>
+                        if (src === 'manual')         return <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.04em', background: 'rgba(201,168,76,0.06)', padding: '1px 5px', borderRadius: 2, border: `1px solid ${adBdr}` }}>MANUAL EDIT</span>
+                        if (src === 'taxonomy')       return <span style={{ fontFamily: cinzel, fontSize: 8, color: adGold, letterSpacing: '0.04em', background: 'rgba(201,168,76,0.1)', padding: '1px 5px', borderRadius: 2, border: '1px solid rgba(201,168,76,0.25)' }}>TAXONOMY</span>
+                        return <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.04em', background: 'rgba(120,120,120,0.1)', padding: '1px 5px', borderRadius: 2, border: `1px solid ${adBdr}` }}>EDIT</span>
+                      })()}
                       {s.restored_at ? (
                         <span style={{ fontFamily: cinzel, fontSize: 8, color: '#4ade80', letterSpacing: '0.06em', background: 'rgba(74,222,128,0.1)', padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(74,222,128,0.2)' }}>RESTORED</span>
                       ) : (
@@ -3664,7 +3671,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           demons={demons}
                           getToken={getToken}
                           isDark={isDark}
-                          spiritId={d.id}
+                          spiritId={d.uuid}
                         />
                       </td>
                     </tr>

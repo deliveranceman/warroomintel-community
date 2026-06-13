@@ -146,6 +146,7 @@ function extractName(fields: Record<string, any>): string {
 export type SnapshotMeta = {
   jobId:      string | null  // ai_jobs.id when AI-driven, null for manual edits
   appliedBy:  string         // verified Clerk userId from requireAdmin2
+  source:     'enrich' | 'library_enrich' | 'manual' | 'taxonomy'
 }
 
 // Insert one snapshot row per changed column. Takes the already-fetched current
@@ -165,6 +166,7 @@ async function insertFieldSnapshots(
     applied_value: appliedValue,
     job_id:        meta.jobId || null,
     applied_by:    meta.appliedBy,
+    source:        meta.source,
   }))
   if (rows.length === 0) return null
   const { error } = await sb.from('spirit_apply_snapshots').insert(rows)

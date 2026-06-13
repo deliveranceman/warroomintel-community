@@ -80,7 +80,7 @@ export default async function handler(req: Request): Promise<Response> {
   // updateSpiritBySlug with meta: snapshots prior values, aborts if snapshot fails.
   const { record, error: writeErr } = await updateSpiritBySlug(
     client, spiritSlug, proposed,
-    { jobId, appliedBy: auth.userId }
+    { jobId, appliedBy: auth.userId, source: 'enrich' }
   )
 
   if (writeErr === 'Spirit not found') {

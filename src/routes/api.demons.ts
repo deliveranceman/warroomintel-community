@@ -81,6 +81,7 @@ const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 function mapSpiritRow(row: any, i: number) {
   return {
     id: i + 1,
+    uuid: row.id || '',
     slug: row.slug || '',
     airtableId: row.legacy_airtable_id || '',
     createdTime: row.created_at || '',

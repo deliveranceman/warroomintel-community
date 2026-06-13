@@ -63,7 +63,7 @@ export default async function handler(req: Request) {
       .from('spirits').select('id, name, ' + col).eq('slug', recordId).single()
     if (fetchErr || !current) return new Response(JSON.stringify({ error: 'Spirit not found' }), { status: 404, headers })
 
-    const snapErr = await insertFieldSnapshots(sb, current, { [col]: writeVal }, { jobId: null, appliedBy: auth.userId })
+    const snapErr = await insertFieldSnapshots(sb, current, { [col]: writeVal }, { jobId: null, appliedBy: auth.userId, source: 'taxonomy' })
     if (snapErr) {
       console.error('[admin-taxonomy-patch] snapshot failed:', snapErr)
       return new Response(JSON.stringify({ error: `Snapshot failed — aborting: ${snapErr}` }), { status: 500, headers })
