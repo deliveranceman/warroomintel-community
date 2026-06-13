@@ -16,7 +16,7 @@ const USE_SUPABASE_DEMONS = true
 // operational-basics→Soldier, warfare-mechanics→Commander, deep/sensitive→General.
 const TIER_FIELDS: Record<number, string[]> = {
   0: [
-    'id', 'slug', 'airtableId', 'createdTime', 'name', 'aka', 'typeRank', 'description',
+    'id', 'uuid', 'slug', 'airtableId', 'createdTime', 'name', 'aka', 'typeRank', 'description',
     'function', 'strongman', 'kingdom', 'subKingdom', 'biblicalRank', 'caseType',
     'phonetic', 'images', 'isGenerational', 'isTerritorial', 'hierarchyCategory',
     'region', 'parentStrongman', 'relatedSpirits', 'clusterSpirits',
