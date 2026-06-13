@@ -43,8 +43,7 @@ export default async function handler(req: Request) {
     const url = new URL(req.url)
     const id = url.searchParams.get('id')
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
-    const role = auth.role
-    if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+    if (!auth.isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     const { status, admin_notes } = await req.json()
     const { data, error } = await supabase.from('feedback').update({ status, admin_notes }).eq('id', id).select().single()
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
@@ -55,8 +54,7 @@ export default async function handler(req: Request) {
     const url = new URL(req.url)
     const id = url.searchParams.get('id')
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400, headers })
-    const role = auth.role
-    if (role !== 'minister') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
+    if (!auth.isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers })
     await supabase.from('feedback').delete().eq('id', id)
     return new Response(JSON.stringify({ success: true }), { status: 200, headers })
   }
