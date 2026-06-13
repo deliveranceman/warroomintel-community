@@ -7313,670 +7313,8 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
   )
 }
 
-// ── QA CHECKLIST DATA ──────────────────────────────────────
-const QA_SECTIONS = [
-  {
-    section: '🏠 NAVIGATION & LAYOUT',
-    items: [
-      { id: 'nav-sidebar', label: 'Sidebar opens and closes on mobile' },
-      { id: 'nav-all-links', label: 'All sidebar links navigate correctly' },
-      { id: 'nav-mobile-bottom', label: 'Mobile bottom nav works on all tabs' },
-      { id: 'nav-dark-mode', label: 'Dark mode renders correctly' },
-      { id: 'nav-pwa', label: 'PWA installs to home screen (iOS/Android)' },
-      { id: 'nav-header', label: 'Header does not bleed into status bar on PWA' },
-    ]
-  },
-  {
-    section: '📡 SITREP FEED',
-    items: [
-      { id: 'sitrep-loads', label: 'SITREP page loads with feed' },
-      { id: 'sitrep-post', label: 'Can post a Thought' },
-      { id: 'sitrep-scripture', label: 'Can post a Scripture' },
-      { id: 'sitrep-testimony', label: 'Can post a Testimony' },
-      { id: 'sitrep-photo', label: 'Can post a Photo with image' },
-      { id: 'sitrep-prayer', label: 'Can post a Prayer Request' },
-      { id: 'sitrep-resource', label: 'Can post a Resource with URL' },
-      { id: 'sitrep-field', label: 'Can post a Field Report' },
-      { id: 'sitrep-react', label: 'Cover / Pray / Relay reactions work' },
-      { id: 'sitrep-sol', label: 'SOL Picks tab loads' },
-    ]
-  },
-  {
-    section: '💬 MESSAGING',
-    items: [
-      { id: 'chat-warroom', label: 'War Room Chat loads and shows messages' },
-      { id: 'chat-send', label: 'Can send a message in War Room Chat' },
-      { id: 'chat-realtime', label: 'Messages appear in real time' },
-      { id: 'dm-open', label: 'Direct Messages section opens' },
-      { id: 'dm-sol', label: 'SOL Intelligence conversation loads' },
-      { id: 'dm-new', label: 'New Message picker opens and shows members' },
-      { id: 'dm-create', label: 'Can create a new DM with another user' },
-      { id: 'dm-send', label: 'Can send a message in a DM' },
-      { id: 'dm-voice', label: 'Voice message record and playback works' },
-      { id: 'dm-call', label: 'Audio call button appears in DM' },
-    ]
-  },
-  {
-    section: '🙏 PRAYER & TESTIMONY',
-    items: [
-      { id: 'prayer-loads', label: 'Prayer Wall loads with requests' },
-      { id: 'prayer-post', label: 'Can post a prayer request' },
-      { id: 'prayer-stand', label: '"Stand With Them" button works' },
-      { id: 'testimony-loads', label: 'Testimony Wall loads' },
-      { id: 'testimony-post', label: 'Can submit a testimony' },
-    ]
-  },
-  {
-    section: '📅 COMMUNITY',
-    items: [
-      { id: 'daily-brief', label: 'Daily Brief loads with content' },
-      { id: 'weekly-intel', label: 'Weekly Intel loads briefings' },
-      { id: 'weekly-poll', label: 'Field Poll shows and accepts votes' },
-      { id: 'ops-board', label: 'Ops Board loads' },
-      { id: 'field-ministry', label: 'Field Ministry page loads' },
-      { id: 'training-loads', label: 'Training courses load' },
-      { id: 'training-video', label: 'Training episode video plays' },
-      { id: 'events-loads', label: 'Events page loads' },
-    ]
-  },
-  {
-    section: '👥 MEMBERS',
-    items: [
-      { id: 'members-loads', label: 'Members page loads with list' },
-      { id: 'members-bio', label: 'Member bio shows on cards' },
-      { id: 'members-tags', label: 'Expertise tags show on cards' },
-      { id: 'members-dm', label: 'Message button on member card works' },
-      { id: 'warriors-online', label: 'Warriors Online panel shows members' },
-      { id: 'warriors-presence', label: 'Online/Recent/offline dots show correctly' },
-    ]
-  },
-  {
-    section: '⚔ FIELD OPS',
-    items: [
-      { id: 'ops-dashboard', label: 'Ops Dashboard loads' },
-      { id: 'case-files', label: 'Case Files page loads' },
-      { id: 'session-center', label: 'Session Center loads' },
-      { id: 'doc-creator', label: 'Document Creator loads' },
-      { id: 'my-intel', label: 'My Intel page loads' },
-      { id: 'field-reports-load', label: 'Field Reports load on Weekly Intel' },
-    ]
-  },
-  {
-    section: '🧠 INTELLIGENCE',
-    items: [
-      { id: 'intel-archive', label: 'Intel Archive loads spirit list' },
-      { id: 'intel-search', label: 'Spirit search works' },
-      { id: 'intel-dossier', label: 'Spirit dossier opens with all tabs' },
-      { id: 'intel-ai', label: 'AI Enhance button works on a spirit' },
-      { id: 'symptom-inv', label: 'Symptom Investigator loads and returns results' },
-      { id: 'body-map', label: 'Body Map loads with figure' },
-      { id: 'body-map-tap', label: 'Body Map hotspots are tappable' },
-      { id: 'body-map-zoom', label: 'Body Map pinch-to-zoom works' },
-      { id: 'spirit-network', label: 'Spirit Network loads hierarchy' },
-      { id: 'gateway-inv', label: 'Gateway Investigator returns results' },
-      { id: 'dream-interp', label: 'Dream Interpreter returns results' },
-      { id: 'fringe-intel', label: 'Fringe Intelligence tabs load' },
-    ]
-  },
-  {
-    section: '📚 FOUNDATION',
-    items: [
-      { id: 'arsenal-loads', label: 'Arsenal page loads with resources' },
-      { id: 'arsenal-download', label: 'Arsenal PDF opens/downloads' },
-      { id: 'scripture-loads', label: 'Scripture page loads' },
-      { id: 'field-manual', label: 'Field Manual loads with modules' },
-    ]
-  },
-  {
-    section: '🔔 NOTIFICATIONS & SETTINGS',
-    items: [
-      { id: 'notif-prompt', label: 'Notification permission prompt appears' },
-      { id: 'notif-push', label: 'Push notification received when DM arrives' },
-      { id: 'settings-loads', label: 'Settings page loads' },
-      { id: 'settings-bio', label: 'Can update bio in settings' },
-      { id: 'settings-expertise', label: 'Can add expertise tags in settings' },
-      { id: 'settings-dark', label: 'Dark/light mode toggle works' },
-    ]
-  },
-  {
-    section: '🔍 ASSESSMENT & AI',
-    items: [
-      { id: 'assessment-loads', label: 'Assessment wizard loads' },
-      { id: 'assessment-complete', label: 'Can complete all 9 steps' },
-      { id: 'assessment-result', label: 'AI diagnostic result appears' },
-      { id: 'sol-chat', label: 'SOL responds in DM' },
-      { id: 'deliverance-protocol', label: 'Deliverance Protocol Engine generates results' },
-      { id: 'spiritual-mapping', label: 'Spiritual Mapping page loads' },
-    ]
-  },
-  {
-    section: '📱 MOBILE / PWA SPECIFIC',
-    items: [
-      { id: 'mobile-scroll', label: 'All pages scroll smoothly on mobile' },
-      { id: 'mobile-tap', label: 'All buttons respond to tap (no dead zones)' },
-      { id: 'mobile-keyboard', label: 'Keyboard does not cover input fields' },
-      { id: 'mobile-safe-area', label: 'Content not hidden behind home indicator' },
-      { id: 'mobile-back', label: 'Back navigation works correctly' },
-      { id: 'ipad-layout', label: 'iPad landscape layout looks correct' },
-    ]
-  },
-  {
-    section: '⚑ BETA TRACKER',
-    items: [
-      { id: 'beta-loads', label: 'Beta Reports page loads' },
-      { id: 'beta-submit', label: 'Can submit a bug report' },
-      { id: 'beta-photo', label: 'Can attach a screenshot to a report' },
-      { id: 'beta-upvote', label: 'Upvote button works on a report' },
-      { id: 'beta-checklist', label: 'This QA checklist saves progress' },
-    ]
-  },
-]
-const QA_TOTAL = QA_SECTIONS.reduce((sum, s) => sum + s.items.length, 0)
-
-// ── BETA TRACKER VIEW ──────────────────────────────────────
-function BetaTrackerView({ isDark, isMobile: _isMobile, getToken, userId, userTier }: {
-  isDark: boolean; isMobile: boolean; getToken: () => Promise<string | null>; userId: string; userTier: string
-}) {
-  const G      = '#C9A84C'
-  const bg     = isDark ? '#0D0B14' : '#FAF8F5'
-  const bdr    = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
-  const text   = isDark ? '#E8D5B0' : '#2D2924'
-  const muted  = isDark ? '#8B7355' : '#5C5248'
-  const surf   = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
-  const isMinister = userTier === 'minister'
-
-  // ── State ───────────────────────────────────────────────────────────────────
-  const [reports, setReports]               = useState<any[]>([])
-  const [stats, setStats]                   = useState<any>(null)
-  const [loading, setLoading]               = useState(true)
-  const [activeTab, setActiveTab]           = useState<'all'|'bugs'|'features'|'questions'|'praise'|'checklist'>('all')
-  const [statusFilter, setStatusFilter]     = useState<'open'|'fixed'|'all'>('open')
-  const [sortBy, setSortBy]                 = useState<'new'|'top'>('new')
-  const [showComposer, setShowComposer]     = useState(false)
-  const [composerType, setComposerType]     = useState<'bug'|'feature'|'question'|'praise'>('bug')
-  const [composerTitle, setComposerTitle]   = useState('')
-  const [composerDesc, setComposerDesc]     = useState('')
-  const [composerSection, setComposerSection] = useState('')
-  const [screenshots, setScreenshots]       = useState<File[]>([])
-  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([])
-  const [submitting, setSubmitting]         = useState(false)
-  const [uploadingCount, setUploadingCount] = useState(0)
-  const [expandedIds, setExpandedIds]       = useState<Set<string>>(new Set())
-  const [triageOpenIds, setTriageOpenIds]   = useState<Set<string>>(new Set())
-  const [triageData, setTriageData]         = useState<Record<string, any>>({})
-  const [successMsg, setSuccessMsg]         = useState('')
-  const [checkedItems, setCheckedItems]     = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('wri-qa-checklist')
-      return new Set(saved ? JSON.parse(saved) : [])
-    } catch { return new Set() }
-  })
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const toggleCheck = (id: string) => {
-    setCheckedItems(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      try { localStorage.setItem('wri-qa-checklist', JSON.stringify([...next])) } catch {}
-      return next
-    })
-  }
-
-  // ── Data fetching ──────────────────────────────────────────────────────────
-  async function fetchReports() {
-    setLoading(true)
-    try {
-      const token = await getToken()
-      const params = new URLSearchParams({ sort: sortBy })
-      if (activeTab !== 'all') params.set('type', activeTab.replace(/s$/, ''))
-      if (statusFilter === 'open')       params.set('status', 'open')
-      else if (statusFilter === 'fixed') params.set('status', 'fixed')
-      const res = await fetch(`/api/beta-reports?${params}`, { headers: { Authorization: `Bearer ${token}` } })
-      const d = await res.json()
-      setReports(d.reports || [])
-    } catch {} finally { setLoading(false) }
-  }
-
-  async function fetchStats() {
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/beta-reports?action=stats', { headers: { Authorization: `Bearer ${token}` } })
-      const d = await res.json()
-      setStats(d)
-    } catch {}
-  }
-
-  useEffect(() => { fetchReports() }, [activeTab, statusFilter, sortBy])
-  useEffect(() => { fetchStats() }, [])
-  useEffect(() => {
-    const id = setInterval(fetchReports, 30000)
-    return () => clearInterval(id)
-  }, [activeTab, statusFilter, sortBy])
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const newFiles = Array.from(e.target.files || []).slice(0, 3 - screenshots.length)
-    setScreenshots(prev => [...prev, ...newFiles].slice(0, 3))
-    setScreenshotPreviews(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))].slice(0, 3))
-    e.target.value = ''
-  }
-
-  function removeScreenshot(idx: number) {
-    URL.revokeObjectURL(screenshotPreviews[idx])
-    setScreenshots(prev => prev.filter((_, i) => i !== idx))
-    setScreenshotPreviews(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  async function handleSubmit() {
-    if (!composerTitle.trim() || !composerDesc.trim() || submitting) return
-    setSubmitting(true)
-    try {
-      const token = await getToken()
-      const urls: string[] = []
-      for (let i = 0; i < screenshots.length; i++) {
-        setUploadingCount(i + 1)
-        const fd = new FormData(); fd.append('file', screenshots[i])
-        const r = await fetch('/api/beta-reports?action=upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
-        const d = await r.json(); if (d.url) urls.push(d.url)
-      }
-      const res = await fetch('/api/beta-reports', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: composerType, title: composerTitle, description: composerDesc, pageSection: composerSection || undefined, screenshotUrl: urls[0] || null, screenshotUrl2: urls[1] || null, screenshotUrl3: urls[2] || null }),
-      })
-      const d = await res.json()
-      if (d.report) {
-        setReports(prev => [d.report, ...prev])
-        setStats((s: any) => s ? { ...s, total: (s.total||0)+1, byType: { ...s.byType, [composerType]: (s.byType?.[composerType]||0)+1 }, byStatus: { ...s.byStatus, new: (s.byStatus?.new||0)+1 } } : s)
-      }
-      setComposerTitle(''); setComposerDesc(''); setComposerSection('')
-      screenshotPreviews.forEach(u => URL.revokeObjectURL(u))
-      setScreenshots([]); setScreenshotPreviews([]); setUploadingCount(0); setShowComposer(false)
-      setSuccessMsg('Report transmitted'); setTimeout(() => setSuccessMsg(''), 2000)
-    } catch {} finally { setSubmitting(false) }
-  }
-
-  async function handleUpvote(report: any) {
-    try {
-      const token  = await getToken()
-      const voted  = (report.upvoted_by || []).includes(userId)
-      setReports(prev => prev.map(r => r.id !== report.id ? r : {
-        ...r,
-        upvoted_by: voted ? (r.upvoted_by||[]).filter((id: string) => id !== userId) : [...(r.upvoted_by||[]), userId],
-        upvotes: voted ? Math.max(0, (r.upvotes||0)-1) : (r.upvotes||0)+1,
-      }))
-      await fetch('/api/beta-reports?action=upvote', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ reportId: report.id }) })
-    } catch {}
-  }
-
-  async function handleTriage(reportId: string) {
-    try {
-      const token = await getToken()
-      const td    = triageData[reportId] || {}
-      const res   = await fetch('/api/beta-reports', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reportId, status: td.status, priority: td.priority, adminNotes: td.adminNotes, fixSummary: td.fixSummary }) })
-      const d     = await res.json()
-      if (d.report) setReports(prev => prev.map(r => r.id === reportId ? d.report : r))
-    } catch {}
-  }
-
-  // ── Config ─────────────────────────────────────────────────────────────────
-  function timeAgo(iso: string): string {
-    const s = (Date.now() - new Date(iso).getTime()) / 1000
-    if (s < 60) return `${Math.floor(s)}s`; if (s < 3600) return `${Math.floor(s/60)}m`
-    if (s < 86400) return `${Math.floor(s/3600)}h`; return `${Math.floor(s/86400)}d`
-  }
-
-  const iStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 12px', color: text, fontFamily: cinzel, fontSize: 10, outline: 'none' }
-
-  const STATUS_CFG: Record<string, { bg: string; color: string; label: string }> = {
-    new:         { bg: 'rgba(120,120,120,0.12)', color: '#888',    label: 'NEW' },
-    confirmed:   { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa', label: 'CONFIRMED' },
-    in_progress: { bg: 'rgba(212,144,58,0.12)',  color: '#d4903a', label: 'IN PROGRESS' },
-    fixed:       { bg: 'rgba(34,197,94,0.12)',   color: '#4ade80', label: '✓ FIXED' },
-    deployed:    { bg: 'rgba(34,211,102,0.15)',  color: '#22d366', label: '✓ DEPLOYED' },
-    wont_fix:    { bg: 'rgba(239,68,68,0.08)',   color: '#f87171', label: "WON'T FIX" },
-    by_design:   { bg: 'transparent',            color: '#888',    label: 'By Design' },
-    duplicate:   { bg: 'transparent',            color: '#888',    label: 'Duplicate' },
-  }
-  const TYPE_CFG: Record<string, { bg: string; color: string }> = {
-    bug:      { bg: 'rgba(239,68,68,0.15)',  color: '#f87171' },
-    feature:  { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa' },
-    question: { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
-    praise:   { bg: 'rgba(34,197,94,0.15)',  color: '#4ade80' },
-  }
-
-  const STAT_PILLS = [
-    { emoji: '🔴', label: 'New',         count: stats?.byStatus?.new||0,                                             fv: 'open'  as const },
-    { emoji: '🟡', label: 'In Progress', count: stats?.byStatus?.in_progress||0,                                    fv: 'open'  as const },
-    { emoji: '🟢', label: 'Fixed',       count: (stats?.byStatus?.fixed||0)+(stats?.byStatus?.deployed||0),         fv: 'fixed' as const },
-    { emoji: '📊', label: 'Total',       count: stats?.total||0,                                                     fv: 'all'   as const },
-  ]
-  const TABS = [
-    { key: 'all',       label: 'All' },
-    { key: 'bugs',      label: '🐛 Bugs',        typeKey: 'bug' },
-    { key: 'features',  label: '✦ Features',     typeKey: 'feature' },
-    { key: 'questions', label: '❓ Questions',    typeKey: 'question' },
-    { key: 'praise',    label: '🙌 Praise',       typeKey: 'praise' },
-    { key: 'checklist', label: '📋 QA Checklist' },
-  ]
-  const criticalOpen = reports.filter(r => r.priority === 'critical' && ['new','confirmed','in_progress'].includes(r.status))
-
-  // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: bg }}>
-      <style>{`@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.5)}}`}</style>
-
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${bdr}`, flexShrink: 0 }}>
-        <span style={{ fontFamily: cinzel, fontSize: 17, color: G, letterSpacing: '0.08em', flex: 1 }}>⚑ BETA COMMAND</span>
-        <button onClick={() => setShowComposer(v => !v)}
-          style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${G}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-          ＋ REPORT
-        </button>
-      </div>
-      {successMsg && (
-        <div style={{ padding: '4px 20px 6px', fontFamily: cinzel, fontSize: 10, color: '#4ade80', background: 'rgba(34,197,94,0.07)', flexShrink: 0 }}>✓ {successMsg}</div>
-      )}
-
-      {/* Stats Row */}
-      <div style={{ display: 'flex', gap: 8, padding: '10px 16px', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none', flexWrap: 'nowrap' }}>
-        {STAT_PILLS.map(p => (
-          <button key={p.label} onClick={() => setStatusFilter(p.fv)}
-            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20, background: p.fv === statusFilter ? G : 'rgba(201,168,76,0.07)', border: `1px solid ${G}`, fontFamily: cinzel, fontSize: 10, color: p.fv === statusFilter ? '#1a1625' : G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-            {p.emoji} {p.count} {p.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Bar */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, overflowX: 'auto', scrollbarWidth: 'none', flexShrink: 0, padding: '0 16px' }}>
-        {TABS.map(tab => {
-          const cnt = (tab as any).typeKey ? stats?.byType?.[(tab as any).typeKey] : null
-          const active = activeTab === tab.key
-          return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
-              style={{ flexShrink: 0, padding: '10px 14px', background: 'transparent', border: 'none', borderBottom: `2px solid ${active ? G : 'transparent'}`, fontFamily: cinzel, fontSize: 10, color: active ? G : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', whiteSpace: 'nowrap' }}>
-              {tab.label}{cnt != null ? ` (${cnt})` : ''}
-            </button>
-          )
-        })}
-      </div>
-
-      {activeTab === 'checklist' && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', paddingBottom: `calc(16px + env(safe-area-inset-bottom))` }}>
-          {/* Checklist header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.1em' }}>📋 QA CHECKLIST</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 11, color: muted }}>{checkedItems.size} / {QA_TOTAL} complete</span>
-              <button onClick={() => { setCheckedItems(new Set()); try { localStorage.removeItem('wri-qa-checklist') } catch {} }}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: muted, padding: '2px 6px', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                Reset
-              </button>
-            </div>
-          </div>
-          {/* Progress bar */}
-          <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${(checkedItems.size / QA_TOTAL) * 100}%`, background: 'rgba(201,168,76,0.7)', borderRadius: 2, transition: 'width 0.3s ease' }} />
-          </div>
-          {/* Sections */}
-          {QA_SECTIONS.map(sec => (
-            <div key={sec.section}>
-              <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.14em', marginTop: 20, marginBottom: 8 }}>{sec.section}</div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {sec.items.map(item => {
-                  const checked = checkedItems.has(item.id)
-                  return (
-                    <div key={item.id}
-                      onClick={() => toggleCheck(item.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', background: checked ? 'rgba(201,168,76,0.06)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: checked ? G : 'transparent', border: checked ? 'none' : '1.5px solid rgba(201,168,76,0.3)' }}>
-                        {checked && <span style={{ color: '#1a1625', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>}
-                      </div>
-                      <span style={{ fontFamily: crimson, fontSize: 13, lineHeight: 1.4, color: checked ? muted : text, textDecoration: checked ? 'line-through' : 'none', opacity: checked ? 0.5 : 1 }}>{item.label}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-          {/* Completion banner */}
-          {checkedItems.size === QA_TOTAL && (
-            <div style={{ marginTop: 24, border: `1px solid ${G}`, borderRadius: 10, padding: '16px 20px', background: 'rgba(201,168,76,0.06)', textAlign: 'center' }}>
-              <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.08em' }}>✦ QA COMPLETE — All {QA_TOTAL} items checked. Well done, soldier.</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Sort Row */}
-      {activeTab !== 'checklist' && <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 16px', flexShrink: 0, gap: 8 }}>
-        <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>Sort:</span>
-        {(['new','top'] as const).map(s => (
-          <button key={s} onClick={() => setSortBy(s)}
-            style={{ background: 'transparent', border: 'none', padding: '2px 6px', fontFamily: cinzel, fontSize: 9, color: sortBy === s ? G : muted, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-            {s === 'new' ? 'Latest' : 'Top Voted'}
-          </button>
-        ))}
-      </div>}
-
-      {/* Minister Command Panel */}
-      {activeTab !== 'checklist' && isMinister && (stats?.topUpvoted?.length > 0 || criticalOpen.length > 0) && (
-        <div style={{ background: isDark ? 'rgba(0,0,0,0.3)' : surf, border: `1px solid ${G}`, borderRadius: 8, padding: '14px 16px', margin: '0 0 12px 0', flexShrink: 0 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 10 }}>⚡ BETA COMMAND</div>
-          {criticalOpen.length > 0 && (
-            <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontFamily: cinzel, fontSize: 11, color: '#f87171' }}>
-              🔴 {criticalOpen.length} critical bug{criticalOpen.length > 1 ? 's' : ''} need attention
-            </div>
-          )}
-          {stats?.topUpvoted?.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
-              {stats.topUpvoted.map((r: any) => {
-                const sc = STATUS_CFG[r.status] || STATUS_CFG.new
-                return (
-                  <div key={r.id} style={{ flexShrink: 0, background: 'rgba(201,168,76,0.06)', borderRadius: 6, padding: '6px 10px', minWidth: 120, maxWidth: 160 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{(r.title||'').slice(0,35)}{(r.title||'').length > 35 ? '…' : ''}</div>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <span style={{ fontFamily: cinzel, fontSize: 9, color: G }}>⚔ {r.upvotes}</span>
-                      <span style={{ fontFamily: cinzel, fontSize: 8, color: sc.color, background: sc.bg, padding: '1px 5px', borderRadius: 4 }}>{sc.label}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Composer */}
-      {activeTab !== 'checklist' && showComposer && (
-        <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: 20, margin: '12px 16px', flexShrink: 0 }}>
-          {/* Type pills */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-            {(['bug','feature','question','praise'] as const).map(t => {
-              const tc = TYPE_CFG[t]; const sel = composerType === t
-              return (
-                <button key={t} onClick={() => setComposerType(t)}
-                  style={{ padding: '4px 12px', borderRadius: 10, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', border: `1px solid ${sel ? tc.color : 'rgba(201,168,76,0.25)'}`, background: sel ? 'rgba(201,168,76,0.9)' : 'rgba(0,0,0,0.3)', fontFamily: cinzel, fontSize: 9, color: sel ? '#1a1625' : tc.color }}>
-                  {t === 'bug' ? '🐛' : t === 'feature' ? '✦' : t === 'question' ? '❓' : '🙌'}{' '}{t[0].toUpperCase() + t.slice(1)}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Page section */}
-          <select value={composerSection} onChange={e => setComposerSection(e.target.value)}
-            style={{ ...iStyle, marginBottom: 12, appearance: 'none' as any }}>
-            <option value="">Select a section (optional)</option>
-            <optgroup label="COMMUNITY">{['Daily Brief','Weekly Intel','Ops Board','Field Ministry','Training','Events','SITREP Feed'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
-            <optgroup label="FIELD OPS">{['Ops Dashboard','Case Files','Session Center','Document Creator','My Intel'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
-            <optgroup label="INTELLIGENCE">{['Intel Archive','Symptom Investigator','Body Map','Spirit Network','Gateway Investigator','Dream Interpreter','Fringe Intelligence'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
-            <optgroup label="FOUNDATION">{['Arsenal','Scripture'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
-            <optgroup label="MESSAGING">{['War Room Chat','Direct Messages','Prayer Wall','Testimony Wall'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
-            <optgroup label="OTHER">{['Login/Signup','Profile/Settings','Membership/Billing','Navigation/Layout','Mobile/PWA','Beta Tracker','Other'].map(o => <option key={o} value={o}>{o}</option>)}</optgroup>
-          </select>
-
-          {/* Title */}
-          <input value={composerTitle} onChange={e => setComposerTitle(e.target.value.slice(0,120))} maxLength={120}
-            placeholder={composerType === 'bug' ? 'What broke? Be specific (e.g. Body Map not tapping on iPhone)' : composerType === 'feature' ? 'What feature would help your ministry?' : composerType === 'question' ? "What's your question?" : "What's working great?"}
-            style={{ ...iStyle, marginBottom: 4 }} />
-          <div style={{ textAlign: 'right', fontFamily: cinzel, fontSize: 8, color: muted, marginBottom: 8 }}>{composerTitle.length}/120</div>
-
-          {/* Description */}
-          <textarea value={composerDesc} onChange={e => setComposerDesc(e.target.value.slice(0,3000))} maxLength={3000} rows={4}
-            placeholder={composerType === 'bug' ? 'Steps to reproduce: 1) Go to... 2) Tap... 3) Expected... Actual...' : composerType === 'feature' ? 'Describe the feature and why it matters for ministry...' : ''}
-            style={{ ...iStyle, resize: 'vertical', marginBottom: 4 }} />
-          <div style={{ textAlign: 'right', fontFamily: cinzel, fontSize: 8, color: muted, marginBottom: 12 }}>{composerDesc.length}/3000</div>
-
-          {/* Screenshots */}
-          <input type="file" ref={fileInputRef} accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileSelect} />
-          <div onClick={() => fileInputRef.current?.click()}
-            style={{ border: '1px dashed rgba(201,168,76,0.3)', borderRadius: 8, padding: 14, textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', marginBottom: screenshotPreviews.length ? 8 : 16 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 10, color: G, marginBottom: 4 }}>📎 Tap to attach screenshots</div>
-            <div style={{ fontFamily: cinzel, fontSize: 8, color: muted }}>Up to 3 images</div>
-          </div>
-          {screenshotPreviews.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              {screenshotPreviews.map((src, i) => (
-                <div key={i} style={{ position: 'relative' }}>
-                  <img src={src} alt="" style={{ height: 60, borderRadius: 4, objectFit: 'cover' }} />
-                  <button onClick={() => removeScreenshot(i)}
-                    style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: '#ef4444', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Submit row */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowComposer(false); setComposerTitle(''); setComposerDesc(''); setComposerSection(''); screenshotPreviews.forEach(u => URL.revokeObjectURL(u)); setScreenshots([]); setScreenshotPreviews([]) }}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 10, color: muted, padding: '10px 12px', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-              Cancel
-            </button>
-            <button onClick={handleSubmit} disabled={!composerTitle.trim() || !composerDesc.trim() || submitting}
-              style={{ padding: '10px 20px', borderRadius: 8, background: G, color: '#1a1625', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.06em', border: 'none', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', opacity: (!composerTitle.trim() || !composerDesc.trim() || submitting) ? 0.5 : 1 }}>
-              {submitting ? (uploadingCount > 0 ? `Uploading ${uploadingCount}/${screenshots.length}...` : 'Posting...') : '⚑ TRANSMIT REPORT'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Scrollable List */}
-      {activeTab !== 'checklist' && <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: `calc(16px + env(safe-area-inset-bottom))` }}>
-        {loading && <div style={{ textAlign: 'center', padding: 40, fontFamily: cinzel, fontSize: 10, color: muted }}>Loading reports...</div>}
-        {!loading && reports.length === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 60 }}>
-            <span style={{ fontSize: 32 }}>⚑</span>
-            <span style={{ fontFamily: cinzel, fontSize: 10, color: muted }}>No reports yet. Be first to file a report.</span>
-          </div>
-        )}
-        {!loading && (() => {
-          const _sorted = [...reports].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-          const numMap: Record<string, number> = Object.fromEntries(_sorted.map((r, i) => [r.id, i + 1]))
-          return reports.map(report => {
-          const tc     = TYPE_CFG[report.type] || { bg: 'rgba(120,120,120,0.12)', color: '#888' }
-          const sc     = STATUS_CFG[report.status] || STATUS_CFG.new
-          const exp    = expandedIds.has(report.id)
-          const tOpen  = triageOpenIds.has(report.id)
-          const td     = triageData[report.id] || {}
-          const voted  = (report.upvoted_by || []).includes(userId)
-          return (
-            <div key={report.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.1)', borderRadius: 10, padding: '14px 16px' }}>
-              {/* Row 1: badges + time */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 9, padding: '2px 8px', borderRadius: 10, background: tc.bg, color: tc.color }}>{report.type}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 9, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, ...(report.status === 'by_design' || report.status === 'duplicate' ? { fontStyle: 'italic' as const } : {}) }}>{sc.label}</span>
-                </div>
-                <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>{timeAgo(report.created_at)}</span>
-              </div>
-              {/* Row 2: Title */}
-              <div style={{ fontFamily: cinzel, fontSize: 14, color: text, fontWeight: 700, marginBottom: 6 }}>
-                <span style={{ fontSize: 9, color: G, fontFamily: cinzel, marginRight: 6 }}>#{numMap[report.id] ?? '?'}</span>{report.title}
-              </div>
-              {/* Row 3: Page section */}
-              {report.page_section && (
-                <div style={{ marginBottom: 8 }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 9, color: muted, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '2px 10px', display: 'inline-block' }}>📍 {report.page_section}</span>
-                </div>
-              )}
-              {/* Row 4: Description */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: muted, lineHeight: 1.5, ...(exp ? {} : { overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const }) }}>{report.description}</div>
-                {(report.description||'').length > 150 && (
-                  <button onClick={() => setExpandedIds(prev => { const n = new Set(prev); exp ? n.delete(report.id) : n.add(report.id); return n })}
-                    style={{ background: 'transparent', border: 'none', padding: '4px 0 0', fontFamily: cinzel, fontSize: 9, color: G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                    {exp ? 'show less' : 'show more'}
-                  </button>
-                )}
-              </div>
-              {/* Row 5: Screenshots */}
-              {[report.screenshot_url, report.screenshot_url_2, report.screenshot_url_3].filter(Boolean).length > 0 && (
-                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                  {[report.screenshot_url, report.screenshot_url_2, report.screenshot_url_3].filter(Boolean).map((url: string, i: number) => (
-                    <img key={i} src={url} alt="" style={{ height: 56, borderRadius: 4, cursor: 'pointer', objectFit: 'cover' }} onClick={() => window.open(url, '_blank')} />
-                  ))}
-                </div>
-              )}
-              {/* Row 6: Fix summary */}
-              {report.fix_summary && ['fixed','deployed'].includes(report.status) && (
-                <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
-                  <span style={{ fontFamily: crimson, fontSize: 13, color: '#4ade80', fontStyle: 'italic' }}>🔧 {report.fix_summary}</span>
-                </div>
-              )}
-              {/* Row 7: Avatar + upvote */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: G, color: '#1a1625', fontFamily: cinzel, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(/^user_/.test(report.user_name||'') ? 'W' : (report.user_name||'W')[0]).toUpperCase()}</div>
-                  <span style={{ fontFamily: crimson, fontSize: 12, color: muted }}>{/^user_/.test(report.user_name||'') ? 'Warrior' : (report.user_name||'Warrior')}</span>
-                  <span style={{ color: muted, fontSize: 8 }}>·</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 11, color: muted }}>{timeAgo(report.created_at)}</span>
-                </div>
-                <button onClick={() => handleUpvote(report)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: voted ? 'rgba(201,168,76,0.15)' : 'rgba(0,0,0,0.2)', border: `1px solid ${voted ? G : 'rgba(201,168,76,0.2)'}`, borderRadius: 20, padding: '4px 10px', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', fontFamily: cinzel, fontSize: 9, color: voted ? G : muted }}>
-                  <span>⚔</span><span>{report.upvotes||0}</span>
-                </button>
-              </div>
-              {/* Triage (minister only) */}
-              {isMinister && (
-                <div style={{ marginTop: 8 }}>
-                  <button
-                    onClick={() => setTriageOpenIds(prev => { const n = new Set(prev); if (n.has(report.id)) { n.delete(report.id) } else { n.add(report.id); setTriageData(d => ({ ...d, [report.id]: { status: report.status, priority: report.priority, adminNotes: report.admin_notes||'', fixSummary: report.fix_summary||'' } })) } return n })}
-                    style={{ background: 'transparent', border: 'none', padding: '2px 0', fontFamily: cinzel, fontSize: 10, color: G, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-                    ▾ Triage
-                  </button>
-                  {tOpen && (
-                    <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <select value={td.status||report.status} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,status:e.target.value}}))} style={{ ...iStyle, flex: 1 }}>
-                          {['new','confirmed','in_progress','fixed','deployed','wont_fix','by_design','duplicate'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
-                        </select>
-                        <select value={td.priority||report.priority} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,priority:e.target.value}}))} style={{ ...iStyle, flex: 1 }}>
-                          {['critical','high','medium','low'].map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                      </div>
-                      <input value={td.fixSummary??''} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,fixSummary:e.target.value}}))} placeholder="What was fixed? (shown to all users)" style={iStyle} />
-                      <textarea value={td.adminNotes??''} onChange={e => setTriageData(d => ({...d,[report.id]:{...td,adminNotes:e.target.value}}))} placeholder="Internal notes (not shown to users)" rows={2} style={{ ...iStyle, resize: 'vertical' }} />
-                      <button onClick={() => handleTriage(report.id)}
-                        style={{ padding: '6px 16px', background: G, color: '#1a1625', border: 'none', borderRadius: 6, fontFamily: cinzel, fontSize: 10, cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', alignSelf: 'flex-start' }}>
-                        Save
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })
-        })()}
-      </div>}
-    </div>
-  )
-}
-
 // ── FEEDBACK VIEW ──────────────────────────────────────────
-function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _userId, userName }: {
+function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _userId, userName: _userName }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
 }) {
   const { getToken } = useAuth()
@@ -7988,7 +7326,7 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _user
   const muted   = isDark ? '#8B7355' : '#5C5248'
   const isMinister = userTier === 'minister'
 
-  const STATUS_COLORS: Record<string, string> = { open: '#C9A84C', 'in progress': '#4a90d9', done: '#4ade80' }
+  const STATUS_COLORS: Record<string, string> = { open: '#C9A84C', 'in-progress': '#4a90d9', resolved: '#4ade80', closed: '#6b7280' }
 
   const [tabType, setTabType]     = useState<'feature' | 'bug'>('feature')
   const [type, setType]           = useState<'bug' | 'feature'>('feature')
@@ -8005,7 +7343,7 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _user
     setLoading(true)
     try {
       const token = await getToken()
-      const res = await fetch(`/api/platform-feedback`, { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(`/api/feedback`, { headers: { Authorization: `Bearer ${token}` } })
       if (res.ok) { const d = await res.json(); setFeedback(d.feedback || []) }
     } catch {} finally { setLoading(false) }
   }
@@ -8017,10 +7355,10 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _user
     setSaving(true); setError('')
     try {
       const token = await getToken()
-      const res = await fetch('/api/platform-feedback', {
+      const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type, title: title.trim(), description: desc.trim(), userName }),
+        body: JSON.stringify({ type, title: title.trim(), description: desc.trim(), priority: 'medium' }),
       })
       if (!res.ok) throw new Error('Submit failed')
       setSuccess(true); setTitle(''); setDesc(''); setShowForm(false)
@@ -8028,21 +7366,9 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _user
     } catch (e: any) { setError(e.message) } finally { setSaving(false) }
   }
 
-  async function toggleUpvote(item: any) {
-    const token = await getToken()
-    const res = await fetch(`/api/platform-feedback?id=${item.id}&action=upvote`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok) {
-      const d = await res.json()
-      setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, upvotes: d.upvotes, userUpvoted: d.userUpvoted } : f))
-    }
-  }
-
   async function changeStatus(item: any, status: string) {
     const token = await getToken()
-    const res = await fetch(`/api/platform-feedback?id=${item.id}`, {
+    const res = await fetch(`/api/feedback?id=${item.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status }),
@@ -8063,7 +7389,7 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _user
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
             <div>
-              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>? Feedback & Requests</div>
+              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>💬 Feedback & Requests</div>
               <div style={{ fontSize: 12, color: muted, marginTop: 2, fontFamily: crimson }}>Vote on features, report bugs — all tiers can submit</div>
             </div>
           </div>
@@ -8115,29 +7441,20 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _user
           : filtered.length === 0
             ? <div style={{ color: muted, fontFamily: crimson, fontStyle: 'italic', textAlign: 'center' as const, paddingTop: 40 }}>No {tabType === 'feature' ? 'feature requests' : 'bug reports'} yet. Be the first!</div>
             : filtered.map(item => (
-              <div key={item.id} style={{ display: 'flex', gap: 14, background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10, alignItems: 'flex-start' }}>
-                {/* Upvote */}
-                <button onClick={() => toggleUpvote(item)}
-                  style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3, padding: '6px 10px', borderRadius: 8, border: `1px solid ${item.userUpvoted ? G : border}`, background: item.userUpvoted ? 'rgba(201,168,76,0.12)' : 'transparent', cursor: 'pointer', flexShrink: 0, minWidth: 44 }}>
-                  <span style={{ fontSize: 14, color: item.userUpvoted ? G : muted }}>▲</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 13, color: item.userUpvoted ? G : text, fontWeight: 700 }}>{item.upvotes || 0}</span>
-                </button>
-                {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 13, color: text, letterSpacing: '0.03em', flex: 1 }}>{item.title}</div>
-                    {isMinister ? (
-                      <select value={item.status || 'open'} onChange={e => changeStatus(item, e.target.value)}
-                        style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 6px', cursor: 'pointer', textTransform: 'uppercase' as const }}>
-                        {['open', 'in progress', 'done'].map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    ) : (
-                      <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 8px', flexShrink: 0, textTransform: 'uppercase' as const }}>{item.status || 'open'}</span>
-                    )}
-                  </div>
-                  {item.description && <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>}
-                  <div style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{item.user_name || 'Anonymous'} · {new Date(item.created_at).toLocaleDateString()}</div>
+              <div key={item.id} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
+                  <div style={{ fontFamily: cinzel, fontSize: 13, color: text, letterSpacing: '0.03em', flex: 1 }}>{item.title}</div>
+                  {isMinister ? (
+                    <select value={item.status || 'open'} onChange={e => changeStatus(item, e.target.value)}
+                      style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 6px', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+                      {['open', 'in-progress', 'resolved', 'closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  ) : (
+                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: STATUS_COLORS[item.status] || G, background: `${STATUS_COLORS[item.status] || G}18`, border: `1px solid ${STATUS_COLORS[item.status] || G}40`, borderRadius: 10, padding: '2px 8px', flexShrink: 0, textTransform: 'uppercase' as const }}>{item.status || 'open'}</span>
+                  )}
                 </div>
+                {item.description && <div style={{ fontFamily: crimson, fontSize: 13, color: muted, lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>}
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{item.submitted_by_name || 'Warrior'} · {new Date(item.created_at).toLocaleDateString()}</div>
               </div>
             ))
         }
@@ -14958,7 +14275,6 @@ function CommunityPage() {
             { icon: <Cross size={16} strokeWidth={1.6} />,         label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
             { icon: <Users size={16} strokeWidth={1.6} />,         label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
             { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Help Center',       mobileLabel: 'Help',      section: 'help'           },
-            { icon: <span style={{ fontSize: 14, lineHeight: 1 }}>⚑</span>, label: 'Beta Reports', mobileLabel: 'Beta', section: 'beta-test' },
             { icon: <SolIcon size={16} />, label: 'Ask SOL', mobileLabel: 'SOL', section: 'ask-sol' },
           ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
@@ -15185,21 +14501,6 @@ function CommunityPage() {
           <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Settings size={14} strokeWidth={1.6} /></span>
           Settings
         </button>
-        <div style={{ height: 1, background: 'rgba(201,168,76,0.1)', margin: '0 16px 4px' }} />
-        <button
-          onClick={() => { setActiveSection('beta-test'); if (isMobile) setSidebarOpen(false) }}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start', gap: sidebarCollapsed && !isMobile ? 0 : 8, width: '100%', padding: sidebarCollapsed && !isMobile ? '8px 0' : '7px 16px', background: activeSection === 'beta-test' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'beta-test' ? (isDark ? '#C9A84C' : '#8B6914') : 'transparent'}`, textAlign: 'left', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'beta-test' ? (isDark ? '#C9A84C' : '#8B6914') : (isDark ? '#b8a98a' : '#3d2e1e'), transition: 'all 0.15s' }}
-          onMouseEnter={e => { if (activeSection !== 'beta-test') { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = isDark ? '#C9A84C' : '#8B6914' } }}
-          onMouseLeave={e => { if (activeSection !== 'beta-test') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isDark ? '#b8a98a' : '#3d2e1e' } }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0, fontSize: 14, lineHeight: 1 }}>⚑</span>
-          {!(sidebarCollapsed && !isMobile) && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              Beta Reports
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9A84C', flexShrink: 0, animation: 'pulse 2s ease-in-out infinite', boxShadow: '0 0 4px #C9A84C' }} />
-            </span>
-          )}
-        </button>
         <div style={{ padding: '6px 16px 8px', display: 'flex', gap: 12, alignItems: 'center' }}>
           <a href="/terms" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>TERMS</a>
           <a href="/privacy" style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: isDark ? 'rgba(201,168,76,0.35)' : '#9a8c74', textDecoration: 'none' }}>PRIVACY</a>
@@ -15254,7 +14555,6 @@ function CommunityPage() {
       {activeSection === 'session-center' && <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />}
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
       {activeSection === 'feedback'       && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
-      {activeSection === 'beta-test'      && <BetaTrackerView isDark={isDark} isMobile={isMobile} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
       {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
       {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
       {activeSection === 'sol' && (
@@ -15961,7 +15261,6 @@ function CommunityPage() {
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
-        {activeSection === 'beta-test'  && <BetaTrackerView isDark={isDark} isMobile={isMobile} getToken={getToken} userId={user?.id || ''} userTier={tier} />}
         {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
         {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}

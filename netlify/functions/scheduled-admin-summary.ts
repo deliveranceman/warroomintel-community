@@ -18,14 +18,14 @@ export default async function handler() {
   const [
     { count: newSignups },
     { count: activeToday },
-    { count: betaReports },
+    { count: openBugs },
     { count: aiCallsToday },
     { count: pendingDMs },
     { data: briefData },
   ] = await Promise.all([
     client.from('members').select('*', { count: 'exact', head: true }).gte('created_at', twentyFourHoursAgo),
     client.from('members').select('*', { count: 'exact', head: true }).gte('last_seen', todayStart),
-    client.from('beta_reports').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
+    client.from('feedback').select('*', { count: 'exact', head: true }).eq('type', 'bug').eq('status', 'open'),
     client.from('ai_search_history').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
     client.from('dm_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     client.from('daily_devotions').select('published').eq('date', todayDate).limit(1),
@@ -44,8 +44,8 @@ export default async function handler() {
         <td style="padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#f0e8d8;text-align:right;font-weight:bold;">${activeToday ?? 0}</td>
       </tr>
       <tr>
-        <td style="padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#9a8c74;">Beta reports submitted</td>
-        <td style="padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#f0e8d8;text-align:right;font-weight:bold;">${betaReports ?? 0}</td>
+        <td style="padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#9a8c74;">Open bug reports</td>
+        <td style="padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#f0e8d8;text-align:right;font-weight:bold;">${openBugs ?? 0}</td>
       </tr>
       <tr>
         <td style="padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1);color:#9a8c74;">AI calls today</td>
