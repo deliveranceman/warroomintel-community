@@ -2287,7 +2287,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   const batchJobsRef                              = useRef<BatchSpiritJob[] | null>(null)
 
   // Sub-section navigation
-  const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates' | 'body-map'>('database')
+  const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates' | 'body-map' | 'history'>('database')
 
   // Duplicate Finder
   const [dupeGroups, setDupeGroups] = useState<Array<{ key: string; type: 'exact' | 'near' | 'fuzzy'; entries: any[] }>>([])
@@ -3165,8 +3165,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     <div>
       {/* Sub-section nav */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: `1px solid ${adBdr}`, overflowX: 'auto' as const, overflowY: 'hidden' as const }}>
-        {(['database', 'enrichment', 'taxonomy', 'gap-analysis', 'duplicates', 'body-map'] as const).map(t => {
-          const labels: Record<string, string> = { database: 'SPIRIT DATABASE', enrichment: 'ENRICHMENT', taxonomy: 'TAXONOMY', 'gap-analysis': 'GAP ANALYSIS', duplicates: 'DUPLICATE FINDER', 'body-map': 'BODY MAP' }
+        {(['database', 'enrichment', 'taxonomy', 'gap-analysis', 'duplicates', 'body-map', 'history'] as const).map(t => {
+          const labels: Record<string, string> = { database: 'SPIRIT DATABASE', enrichment: 'ENRICHMENT', taxonomy: 'TAXONOMY', 'gap-analysis': 'GAP ANALYSIS', duplicates: 'DUPLICATE FINDER', 'body-map': 'BODY MAP', history: 'ENRICHMENT HISTORY' }
           return (
             <button key={t} onClick={() => setIntelTab(t)}
               style={{ padding: '10px 18px', background: 'transparent', border: 'none', borderBottom: intelTab === t ? `2px solid ${adGold}` : '2px solid transparent', color: intelTab === t ? adGold : adDim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', flexShrink: 0, marginBottom: -1, whiteSpace: 'nowrap' as const }}>
@@ -4024,6 +4024,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
 
       {/* ── BODY MAP ─────────────────────────────────────────────────────────── */}
       {intelTab === 'body-map' && <BodyMapAdmin getToken={getToken} isDark={isDark} />}
+
+      {/* ── ENRICHMENT HISTORY ───────────────────────────────────────────────── */}
+      {intelTab === 'history' && <EnrichmentHistory getToken={getToken} isDark={isDark} />}
 
       {/* AI Enhancement Panel */}
       {showAiPanel && aiTargetDemon && (
@@ -9344,12 +9347,13 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
 
 // ─── MINISTRY CONTEXT MANAGER ──────────────────────────────────────────────────
 function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<string | null>; isDark: boolean }) {
-  const G    = '#C9A84C'
+  const G    = isDark ? '#C9A84C' : '#7A5E16'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
   const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
   const txt  = isDark ? '#E8D5B0' : '#2D2924'
   const mut  = isDark ? '#8B7355' : '#5C5248'
+  const adInk  = isDark ? '#C9A84C' : '#2A251C'
 
   const [versions, setVersions]       = useState<any[]>([])
   const [loading, setLoading]         = useState(true)
@@ -9448,7 +9452,7 @@ function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap' as const, gap: 12 }}>
         <div>
-          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: G, letterSpacing: '0.08em', fontWeight: 700 }}>🧠 Ministry AI Context</div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: adInk, letterSpacing: '0.08em', fontWeight: 700 }}>🧠 Ministry AI Context</div>
           <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: mut, marginTop: 4 }}>Control the ministry framing injected into all AI tools</div>
         </div>
         <button onClick={() => openEditor(active)}
@@ -9554,7 +9558,7 @@ function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => { if (e.target === e.currentTarget) setShowEditor(false) }}>
           <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${bdr}`, borderRadius: 12, padding: '24px', width: '100%', maxWidth: 720, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>NEW VERSION</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: adInk, letterSpacing: '0.08em', marginBottom: 20 }}>NEW VERSION</div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: mut, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>LABEL</label>
               <input value={editorLabel} onChange={e => setEditorLabel(e.target.value)} placeholder="e.g. v2 — Updated tone June 2026"
@@ -9595,7 +9599,7 @@ function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => { if (e.target === e.currentTarget) setPreviewVersion(null) }}>
           <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${bdr}`, borderRadius: 12, padding: '24px', width: '100%', maxWidth: 680, maxHeight: '80vh', overflowY: 'auto' }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: G, marginBottom: 16 }}>{previewVersion.label}</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: adInk, marginBottom: 16 }}>{previewVersion.label}</div>
             <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: txt, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{previewVersion.context_text}</div>
             <button onClick={() => setPreviewVersion(null)} style={{ marginTop: 20, padding: '7px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: mut, fontFamily: "'Cinzel', serif", fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>CLOSE</button>
           </div>
@@ -9606,7 +9610,7 @@ function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<
       {confirmActivate && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${bdr}`, borderRadius: 10, padding: '24px', maxWidth: 400 }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: G, marginBottom: 12 }}>Activate v{confirmActivate.version}?</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: adInk, marginBottom: 12 }}>Activate v{confirmActivate.version}?</div>
             <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 13, color: mut, marginBottom: 20 }}>This will replace the current active context and update all AI tools immediately.</div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => activateVersion(confirmActivate)} style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 5, color: G, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>ACTIVATE NOW</button>
@@ -9639,6 +9643,7 @@ function AIUsageAdmin({ getToken, isDark }: { getToken: (opts?: { template?: str
   const dim  = isDark ? DIM  : '#5C5248'
   const surf = isDark ? SURF : '#FFFFFF'
   const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
+  const G    = isDark ? '#C9A84C' : '#7A5E16'
 
   if (loading) return <div style={{ color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', padding: 32 }}>LOADING...</div>
   if (error)   return <div style={{ color: '#c84a4a', fontFamily: crimson, fontSize: 14, padding: 20 }}>Error: {error}</div>
@@ -11049,6 +11054,7 @@ function TestSOLPanel({ getToken, isDark }: { getToken: any; isDark: boolean }) 
   const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
   const txt  = isDark ? TXT  : '#2D2924'
   const dim  = isDark ? DIM  : '#5C5248'
+  const G    = isDark ? '#C9A84C' : '#7A5E16'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
     background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
@@ -13647,6 +13653,374 @@ function TrackerView({ getToken, isDark }: { getToken: any; isDark: boolean }) {
 }
 
 // ─── EnrichmentSuggestions ───────────────────────────────────────────────────
+
+// ── ENRICHMENT HISTORY ────────────────────────────────────────────────────────
+
+const EH_FIELD_LABELS: Record<string, string> = {
+  description: 'Description', biblicalRank: 'Biblical Rank', etymologyNotes: 'Etymology',
+  archaeologyNotes: 'Archaeology', scriptureContext: 'Scripture Context',
+  manifestation: 'Manifestations', entryPoints: 'Entry Points',
+  transmissionVectors: 'Transmission Vectors', caseType: 'Case Type',
+  clusterSpirits: 'Cluster Spirits', legalRights: 'Legal Rights',
+  sessionIndicators: 'Session Indicators', resistanceSignature: 'Resistance Signature',
+  demonicAgreements: 'Demonic Agreements', institutionalExpression: 'Institutional Expression',
+  counterScriptures: 'Counter Scriptures', deliveranceSequence: 'Deliverance Sequence',
+  aftercareNotes: 'Aftercare Notes', prayerPoints: 'Prayer Points',
+  phonetic: 'Phonetic', isGenerational: 'Generational?', isTerritorial: 'Territorial?',
+  relatedSpirits: 'Related Spirits', primaryBattlefield: 'Primary Battlefield',
+}
+
+function ehTimeAgo(iso: string): string {
+  if (!iso) return ''
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1)  return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24)  return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
+function ehStatusColor(s: string): string {
+  if (s === 'complete')  return '#4ade80'
+  if (s === 'failed')    return '#f87171'
+  if (s === 'cancelled') return '#94a3b8'
+  if (s === 'running')   return '#C9A84C'
+  return '#7a6d58'
+}
+
+function ehFmtVal(v: any): string {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (Array.isArray(v)) return v.join(', ')
+  return String(v)
+}
+
+function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const cinzel  = "'Cinzel', serif"
+  const crimson = "'Crimson Pro', serif"
+  const G       = '#C9A84C'
+  const BDR     = isDark ? 'rgba(201,168,76,0.18)' : '#DDD8CE'
+  const TXT     = isDark ? '#e8dcc8' : '#2A251C'
+  const DIM     = isDark ? '#7a6d58' : '#9a8d78'
+  const SURF    = isDark ? '#13111e' : '#F0EBE0'
+  const BG2     = isDark ? '#1a1726' : '#F8F5EF'
+
+  const [jobs,        setJobs]        = useState<any[]>([])
+  const [total,       setTotal]       = useState(0)
+  const [page,        setPage]        = useState(0)
+  const [loading,     setLoading]     = useState(true)
+  const [dateRange,   setDateRange]   = useState<'today' | '7d' | '30d' | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<'complete' | 'failed' | 'cancelled' | 'all'>('all')
+  const [spiritFilter, setSpiritFilter] = useState('')
+  const [spiritInput,  setSpiritInput]  = useState('')
+  const [detailJob,   setDetailJob]   = useState<any | null>(null)
+  const [expandedBatches, setExpandedBatches] = useState<Set<number>>(new Set())
+  const [rawOpen,    setRawOpen]    = useState(false)
+  const [parsedOpen, setParsedOpen] = useState(false)
+
+  useEffect(() => { load() }, [dateRange, statusFilter, spiritFilter, page])
+
+  async function load() {
+    setLoading(true)
+    try {
+      const token  = await getToken()
+      const params = new URLSearchParams({ dateRange, status: statusFilter, spirit: spiritFilter, page: String(page) })
+      const res    = await fetch(`/api/enrichment-history?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const data = await res.json()
+        setJobs(data.items || [])
+        setTotal(data.total || 0)
+      }
+    } finally { setLoading(false) }
+  }
+
+  // Group into batches: consecutive rows with created_at within 60s of each other
+  type EhGroup = { items: any[]; batchStart: string }
+  function groupBatches(items: any[]): EhGroup[] {
+    if (!items.length) return []
+    const groups: EhGroup[] = []
+    let cur: any[] = [items[0]]
+    for (let i = 1; i < items.length; i++) {
+      const prev = new Date(items[i - 1].created_at).getTime()
+      const curr = new Date(items[i].created_at).getTime()
+      if (Math.abs(prev - curr) <= 60000) { cur.push(items[i]) }
+      else { groups.push({ items: cur, batchStart: cur[0].created_at }); cur = [items[i]] }
+    }
+    groups.push({ items: cur, batchStart: cur[0].created_at })
+    return groups
+  }
+
+  const groups = groupBatches(jobs)
+  const pageSize = 50
+
+  const thStyle: React.CSSProperties = {
+    fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM,
+    padding: '8px 10px', textAlign: 'left', borderBottom: `1px solid ${BDR}`,
+    whiteSpace: 'nowrap',
+  }
+  const tdStyle: React.CSSProperties = {
+    fontFamily: crimson, fontSize: 13, color: TXT,
+    padding: '9px 10px', borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'middle',
+  }
+
+  return (
+    <div>
+      {/* Filter row */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+        {/* Date range */}
+        <div style={{ display: 'flex', gap: 0, border: `1px solid ${BDR}`, borderRadius: 6, overflow: 'hidden' }}>
+          {(['today', '7d', '30d', 'all'] as const).map(r => (
+            <button key={r} onClick={() => { setPage(0); setDateRange(r) }}
+              style={{ padding: '6px 12px', background: dateRange === r ? 'rgba(201,168,76,0.15)' : 'transparent', border: 'none', borderRight: `1px solid ${BDR}`, color: dateRange === r ? G : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer' }}>
+              {r === 'all' ? 'ALL TIME' : r === 'today' ? 'TODAY' : r.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        {/* Status */}
+        <div style={{ display: 'flex', gap: 0, border: `1px solid ${BDR}`, borderRadius: 6, overflow: 'hidden' }}>
+          {(['all', 'complete', 'failed'] as const).map(s => (
+            <button key={s} onClick={() => { setPage(0); setStatusFilter(s) }}
+              style={{ padding: '6px 12px', background: statusFilter === s ? 'rgba(201,168,76,0.15)' : 'transparent', border: 'none', borderRight: `1px solid ${BDR}`, color: statusFilter === s ? G : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer' }}>
+              {s.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        {/* Spirit filter */}
+        <form onSubmit={e => { e.preventDefault(); setPage(0); setSpiritFilter(spiritInput.trim()) }}
+          style={{ display: 'flex', gap: 0 }}>
+          <input value={spiritInput} onChange={e => setSpiritInput(e.target.value)}
+            placeholder="Filter by spirit..."
+            style={{ padding: '6px 10px', background: SURF, border: `1px solid ${BDR}`, borderRight: 'none', borderRadius: '6px 0 0 6px', color: TXT, fontFamily: crimson, fontSize: 13, width: 160, outline: 'none' }} />
+          <button type="submit"
+            style={{ padding: '6px 10px', background: 'rgba(201,168,76,0.15)', border: `1px solid ${BDR}`, borderRadius: '0 6px 6px 0', color: G, fontFamily: cinzel, fontSize: 8, cursor: 'pointer' }}>
+            GO
+          </button>
+          {spiritFilter && (
+            <button type="button" onClick={() => { setSpiritInput(''); setPage(0); setSpiritFilter('') }}
+              style={{ marginLeft: 6, background: 'none', border: 'none', color: DIM, fontSize: 14, cursor: 'pointer', lineHeight: 1 }}>
+              x
+            </button>
+          )}
+        </form>
+        <div style={{ marginLeft: 'auto', fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.06em' }}>
+          {loading ? 'Loading...' : `${total} jobs`}
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: DIM, letterSpacing: '0.1em', padding: '40px 0', textAlign: 'center' as const }}>Loading...</div>
+      ) : jobs.length === 0 ? (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '40px 0', textAlign: 'center' as const }}>No enrichment jobs found for the current filters.</div>
+      ) : (
+        <div style={{ overflowX: 'auto' as const }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
+            <thead>
+              <tr>
+                {['When', 'Spirit', 'Status', 'Run', 'Proposed', 'Applied', 'Tokens', 'Cost', ''].map(h => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((group, gi) => {
+                const isBatch = group.items.length > 1
+                const isExpanded = expandedBatches.has(gi)
+                const batchCost  = group.items.reduce((s, j) => s + (j.cost_estimate || 0), 0)
+                const allComplete = group.items.every(j => j.status === 'complete')
+                const anyFailed  = group.items.some(j => j.status === 'failed')
+                return (
+                  <Fragment key={gi}>
+                    {isBatch && (
+                      <tr>
+                        <td colSpan={9}
+                          onClick={() => setExpandedBatches(prev => {
+                            const next = new Set(prev)
+                            if (next.has(gi)) next.delete(gi); else next.add(gi)
+                            return next
+                          })}
+                          style={{ ...tdStyle, cursor: 'pointer', background: isDark ? 'rgba(201,168,76,0.05)' : 'rgba(201,168,76,0.06)', padding: '8px 10px', borderLeft: `2px solid ${G}` }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: G }}>
+                            {isExpanded ? '▼' : '▶'} Batch of {group.items.length} spirits — {new Date(group.batchStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span style={{ marginLeft: 16, fontFamily: crimson, fontSize: 12, color: DIM }}>
+                            ${batchCost.toFixed(4)} total {'·'} {allComplete ? 'all complete' : anyFailed ? 'some failed' : 'mixed'}
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                    {(!isBatch || isExpanded) && group.items.map(job => (
+                      <tr key={job.id} style={{ background: isBatch && isExpanded ? (isDark ? 'rgba(201,168,76,0.02)' : 'rgba(201,168,76,0.03)') : 'transparent' }}>
+                        <td style={{ ...tdStyle, paddingLeft: isBatch ? 24 : 10, color: DIM, fontSize: 12 }}>
+                          {ehTimeAgo(job.started_at || job.created_at)}
+                        </td>
+                        <td style={tdStyle}>
+                          <a href={`/admin?spirit=${job.spirit_slug}`}
+                            style={{ color: TXT, textDecoration: 'none', fontWeight: 600 }}
+                            onClick={e => e.stopPropagation()}>
+                            {job.spirit_name || job.spirit_slug}
+                          </a>
+                        </td>
+                        <td style={tdStyle}>
+                          <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: ehStatusColor(job.status), padding: '2px 6px', border: `1px solid ${ehStatusColor(job.status)}40`, borderRadius: 3 }}>
+                            {job.status}
+                          </span>
+                        </td>
+                        <td style={{ ...tdStyle, color: DIM, fontSize: 12 }}>
+                          {job.run_sec != null ? `${job.run_sec}s` : '—'}
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: 'center' as const }}>
+                          <span style={{ color: job.proposed_count > 0 ? '#4ade80' : DIM }}>{job.proposed_count}</span>
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: 'center' as const }}>
+                          <span style={{ color: job.applied_count > 0 ? G : DIM }}>{job.applied_count}</span>
+                        </td>
+                        <td style={{ ...tdStyle, color: DIM, fontSize: 12 }}>
+                          {job.tokens_used?.toLocaleString() || '—'}
+                        </td>
+                        <td style={{ ...tdStyle, color: DIM, fontSize: 12 }}>
+                          {job.cost_estimate != null ? `$${Number(job.cost_estimate).toFixed(4)}` : '—'}
+                        </td>
+                        <td style={tdStyle}>
+                          <button onClick={() => { setDetailJob(job); setRawOpen(false); setParsedOpen(false) }}
+                            style={{ padding: '4px 10px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
+                            VIEW
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+
+          {/* Pagination */}
+          {total > pageSize && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 20, justifyContent: 'center' }}>
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: page === 0 ? DIM : G, fontFamily: cinzel, fontSize: 8, cursor: page === 0 ? 'default' : 'pointer', opacity: page === 0 ? 0.4 : 1 }}>
+                Prev
+              </button>
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: DIM }}>
+                {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total}
+              </span>
+              <button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * pageSize >= total}
+                style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: (page + 1) * pageSize >= total ? DIM : G, fontFamily: cinzel, fontSize: 8, cursor: (page + 1) * pageSize >= total ? 'default' : 'pointer', opacity: (page + 1) * pageSize >= total ? 0.4 : 1 }}>
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Detail side panel */}
+      {detailJob && (
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 560, background: isDark ? '#0D0B14' : '#F8F5EF', borderLeft: `1px solid ${BDR}`, zIndex: 9999, display: 'flex', flexDirection: 'column' as const, boxShadow: '-4px 0 32px rgba(0,0,0,0.4)' }}>
+          {/* Panel header */}
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', marginBottom: 3 }}>ENRICHMENT DETAIL</div>
+              <div style={{ fontFamily: crimson, fontSize: 17, color: TXT, fontWeight: 600 }}>{detailJob.spirit_name || detailJob.spirit_slug}</div>
+              <div style={{ fontFamily: cinzel, fontSize: 8, color: DIM, letterSpacing: '0.06em', marginTop: 2 }}>
+                {new Date(detailJob.started_at || detailJob.created_at).toLocaleString()} {'·'} {detailJob.run_sec != null ? `${detailJob.run_sec}s` : ''} {'·'} {detailJob.tokens_used?.toLocaleString()} tokens {'·'} ${Number(detailJob.cost_estimate || 0).toFixed(4)}
+              </div>
+            </div>
+            <button onClick={() => setDetailJob(null)} style={{ background: 'none', border: 'none', color: DIM, fontSize: 20, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>x</button>
+          </div>
+
+          {/* Status banner */}
+          <div style={{ padding: '8px 20px', background: `${ehStatusColor(detailJob.status)}18`, borderBottom: `1px solid ${ehStatusColor(detailJob.status)}30`, flexShrink: 0 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: ehStatusColor(detailJob.status) }}>
+              {detailJob.status.toUpperCase()}
+            </span>
+            {detailJob.error_message && (
+              <span style={{ marginLeft: 12, fontFamily: crimson, fontSize: 12, color: '#f87171' }}>{detailJob.error_message.slice(0, 200)}</span>
+            )}
+            <span style={{ marginLeft: 12, fontFamily: cinzel, fontSize: 8, color: DIM }}>
+              {detailJob.proposed_count} proposed {'·'} {detailJob.applied_count} applied
+            </span>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto' as const, padding: '0 0 20px' }}>
+
+            {/* Field diff table */}
+            {Object.keys(detailJob.proposed).length > 0 ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
+                <thead>
+                  <tr>
+                    {['Field', 'Current', 'Proposed'].map(h => (
+                      <th key={h} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, padding: '10px 12px', textAlign: 'left' as const, borderBottom: `1px solid ${BDR}`, background: isDark ? '#13111e' : '#F0EBE0', position: 'sticky' as const, top: 0 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(detailJob.proposed).map(([key, proposedVal]: [string, any]) => {
+                    const currentVal = detailJob.current?.[key]
+                    const isApplied  = Array.isArray(detailJob.applied_fields) && detailJob.applied_fields.includes(key)
+                    const label      = EH_FIELD_LABELS[key] || key
+                    return (
+                      <tr key={key} style={{ background: isApplied ? (isDark ? 'rgba(74,222,128,0.06)' : 'rgba(74,222,128,0.08)') : 'transparent' }}>
+                        <td style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: isApplied ? '#4ade80' : G, padding: '10px 12px', borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'top', whiteSpace: 'nowrap' as const }}>
+                          {label}
+                          {isApplied && <span style={{ marginLeft: 6, fontSize: 7, letterSpacing: '0.06em', color: '#4ade80', opacity: 0.8 }}>applied</span>}
+                        </td>
+                        <td style={{ fontFamily: crimson, fontSize: 12, color: DIM, padding: '10px 12px', borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'top', maxWidth: 160, lineHeight: 1.5 }}>
+                          {ehFmtVal(currentVal) || <em style={{ opacity: 0.5 }}>empty</em>}
+                        </td>
+                        <td style={{ fontFamily: crimson, fontSize: 12, color: TXT, padding: '10px 12px', borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'top', maxWidth: 200, lineHeight: 1.5 }}>
+                          {ehFmtVal(proposedVal)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ padding: '24px 20px', fontFamily: crimson, fontSize: 13, color: DIM, fontStyle: 'italic' }}>
+                No proposed fields — parser returned empty.
+                {detailJob.parsed_before_diff && Object.keys(detailJob.parsed_before_diff).length > 0 && (
+                  <span style={{ color: '#f87171', marginLeft: 6 }}>Diff filter removed all ({Object.keys(detailJob.parsed_before_diff).length} parsed).</span>
+                )}
+              </div>
+            )}
+
+            {/* Parsed before diff (collapsible) */}
+            {detailJob.parsed_before_diff && Object.keys(detailJob.parsed_before_diff).length > 0 && (
+              <div style={{ margin: '16px 20px 0', borderTop: `1px solid ${BDR}` }}>
+                <button onClick={() => setParsedOpen(v => !v)}
+                  style={{ width: '100%', padding: '10px 0', background: 'none', border: 'none', textAlign: 'left' as const, fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  {parsedOpen ? '▼' : '▶'} Parsed before diff filter ({Object.keys(detailJob.parsed_before_diff).length} fields)
+                </button>
+                {parsedOpen && (
+                  <pre style={{ margin: 0, padding: '12px', background: BG2, borderRadius: 4, fontFamily: 'monospace', fontSize: 11, color: TXT, overflowX: 'auto' as const, lineHeight: 1.6, maxHeight: 300, overflowY: 'auto' as const }}>
+                    {JSON.stringify(detailJob.parsed_before_diff, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )}
+
+            {/* Raw model output (collapsible) */}
+            {detailJob.raw_model_output && (
+              <div style={{ margin: '12px 20px 0', borderTop: `1px solid ${BDR}` }}>
+                <button onClick={() => setRawOpen(v => !v)}
+                  style={{ width: '100%', padding: '10px 0', background: 'none', border: 'none', textAlign: 'left' as const, fontFamily: cinzel, fontSize: 9, color: DIM, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  {rawOpen ? '▼' : '▶'} Raw model output ({detailJob.raw_model_output.length.toLocaleString()} chars)
+                </button>
+                {rawOpen && (
+                  <pre style={{ margin: 0, padding: '12px', background: BG2, borderRadius: 4, fontFamily: 'monospace', fontSize: 11, color: TXT, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, lineHeight: 1.6, maxHeight: 400, overflowY: 'auto' as const }}>
+                    {detailJob.raw_model_output}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const [suggestions, setSuggestions] = useState<any[]>([])

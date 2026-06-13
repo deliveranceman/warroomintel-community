@@ -237,6 +237,9 @@
 [functions."source-discovery-agent"]
   schedule = "0 9 * * 0"
 
+[functions."enrichment-history"]
+  timeout = 15
+
 [functions."job-start"]
   timeout = 15
 
