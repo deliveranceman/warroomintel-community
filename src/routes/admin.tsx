@@ -728,12 +728,12 @@ function ArsenalManager({ getToken, isDark = true }: { getToken: (opts?: { templ
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: selectedIds.size > 0 ? 72 : 0 }}>
           {displayedItems.map((r: any) => (
             <Fragment key={r.id}>
-            <div style={{ background: adSurf, border: `1px solid ${selectedIds.has(r.id) ? 'rgba(201,168,76,0.6)' : highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? '#C9A84C' : (tierColors[r.tier] || adDim)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
+            <div style={{ background: adSurf, border: `1px solid ${selectedIds.has(r.id) ? 'rgba(201,168,76,0.6)' : highlightedResourceId === r.id ? 'rgba(201,168,76,0.8)' : BDR}`, borderLeft: `3px solid ${highlightedResourceId === r.id ? adGold : (tierColors[r.tier] || adDim)}`, borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.4s', boxShadow: highlightedResourceId === r.id ? '0 0 0 2px rgba(201,168,76,0.15)' : 'none' }}>
               <input
                 type="checkbox"
                 checked={selectedIds.has(r.id)}
                 onChange={e => setSelectedIds(prev => { const s = new Set(prev); e.target.checked ? s.add(r.id) : s.delete(r.id); return s })}
-                style={{ flexShrink: 0, accentColor: '#C9A84C', width: 14, height: 14, cursor: 'pointer' }}
+                style={{ flexShrink: 0, accentColor: adGold, width: 14, height: 14, cursor: 'pointer' }}
               />
               <span style={{ fontSize: 20, flexShrink: 0 }}>{FILE_ICONS[r.file_type?.split('/').pop() || ''] || '📎'}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -3353,7 +3353,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         <div style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.08em', marginBottom: 12 }}>{backfillProgress}</div>
       )}
       {backfillResults?.complete && (
-        <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#E7E1D5'}`, borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
+        <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#E7E1D5'}`, borderLeft: `3px solid ${adGold}`, borderRadius: 6 }}>
           <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#2A251C', marginBottom: 12, letterSpacing: '0.06em' }}>ENRICHMENT COMPLETE</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             {[
@@ -5713,7 +5713,8 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
   const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
   const LMUT  = isDark ? '#9a8c74' : '#5C5248'
-  const LG    = '#C9A84C'
+  const LG    = isDark ? '#C9A84C' : '#7A5E16'
+  const LGfill = '#C9A84C'
 
   const [contexts, setContexts]           = useState<any[]>([])
   const [ctxLoading, setCtxLoading]       = useState(true)
@@ -5738,7 +5739,7 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
   }
 
   const SCOPE_LABELS: Record<string, { label: string; color: string; desc: string }> = {
-    global:     { label: 'GLOBAL',     color: '#C9A84C', desc: 'Prepended to every AI call' },
+    global:     { label: 'GLOBAL',     color: isDark ? '#C9A84C' : '#7A5E16', desc: 'Prepended to every AI call' },
     regional:   { label: 'REGIONAL',   color: '#8B9DCA', desc: 'Used for territorial/regional spirits' },
     session:    { label: 'SESSION',    color: '#7a9e7e', desc: 'Used for session indicators, prayer & aftercare' },
     assessment: { label: 'ASSESSMENT', color: '#b87a3d', desc: 'Used for assessment AI summaries' },
@@ -5827,7 +5828,7 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
             </div>
           </div>
           <button onClick={() => { setShowNewCtx(s => !s); setNewCtxLabel(''); setNewCtxText(''); setNewCtxScope('global'); setNewCtxMsg('') }}
-            style={{ background: showNewCtx ? 'rgba(201,168,76,0.1)' : LG, color: showNewCtx ? LG : '#0D0B14', border: showNewCtx ? `1px solid ${LG}` : 'none', borderRadius: 6, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+            style={{ background: showNewCtx ? 'rgba(201,168,76,0.1)' : LGfill, color: showNewCtx ? LG : '#0D0B14', border: showNewCtx ? `1px solid ${LG}` : 'none', borderRadius: 6, padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
             {showNewCtx ? '✕ Cancel' : '+ Add Context'}
           </button>
         </div>
@@ -5860,7 +5861,7 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {newCtxMsg && <span style={{ fontFamily: crimson, fontSize: 13, color: newCtxMsg.startsWith('⚠') ? '#f87171' : '#4ade80' }}>{newCtxMsg}</span>}
                 <button onClick={createContext} disabled={newCtxSaving || !newCtxText.trim()}
-                  style={{ padding: '8px 20px', background: newCtxText.trim() ? LG : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 6, color: newCtxText.trim() ? '#0D0B14' : LMUT, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: newCtxText.trim() ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                  style={{ padding: '8px 20px', background: newCtxText.trim() ? LGfill : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 6, color: newCtxText.trim() ? '#0D0B14' : LMUT, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: newCtxText.trim() ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
                   {newCtxSaving ? 'Saving...' : '✓ Create Context'}
                 </button>
               </div>
@@ -5932,7 +5933,7 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           {editCtxMsg && <span style={{ fontFamily: crimson, fontSize: 13, color: editCtxMsg.startsWith('⚠') ? '#f87171' : '#4ade80' }}>{editCtxMsg}</span>}
                           <button onClick={updateContext} disabled={editCtxSaving}
-                            style={{ padding: '8px 20px', background: LG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, opacity: editCtxSaving ? 0.7 : 1 }}>
+                            style={{ padding: '8px 20px', background: LGfill, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, opacity: editCtxSaving ? 0.7 : 1 }}>
                             {editCtxSaving ? 'Saving...' : '✓ Save Changes'}
                           </button>
                         </div>
@@ -5947,7 +5948,7 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
       </div>
 
       {/* ── COMING SOON ── */}
-      <div style={{ marginTop: 48, opacity: 0.4, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: '#C9A84C' }}>
+      <div style={{ marginTop: 48, opacity: 0.4, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: isDark ? '#C9A84C' : '#7A5E16' }}>
         ADDITIONAL AI CONFIGURATION — COMING SOON
       </div>
     </div>
@@ -5961,6 +5962,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
   const LMUT  = isDark ? '#9a8c74' : '#5C5248'
   const LG    = isDark ? '#C9A84C' : '#7A5E16'
+  const LGfill = '#C9A84C'
 
   // Books state
   const [books, setBooks]           = useState<any[]>([])
@@ -7018,7 +7020,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
               <button
                 onClick={handleAutoFill}
                 disabled={anyAnalyzing || anyUploading || uploadingAll || stagedFiles.every(f => f.status !== 'pending')}
-                style={{ padding: '9px 18px', background: LG, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, opacity: anyAnalyzing ? 0.6 : 1 }}
+                style={{ padding: '9px 18px', background: LGfill, border: 'none', borderRadius: 6, color: '#0D0B14', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700, opacity: anyAnalyzing ? 0.6 : 1 }}
               >
                 {anyAnalyzing ? '✦ Analyzing...' : '✦ Auto-fill with AI'}
               </button>
@@ -7139,7 +7141,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                   {batchProgress.action} — {batchProgress.current} / {batchProgress.total}
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 4, height: 5, marginBottom: 10 }}>
-                  <div style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%`, height: '100%', background: LG, borderRadius: 4, transition: 'width 0.4s ease' }} />
+                  <div style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%`, height: '100%', background: LGfill, borderRadius: 4, transition: 'width 0.4s ease' }} />
                 </div>
                 {batchProgress.done && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -7236,7 +7238,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                         )}
                         {!isEditing && book.is_indexed && (
                           <button onClick={() => handleGenerateSuggestions(book.id)} disabled={enrichingId === book.id}
-                            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 5, color: enrichingId === book.id ? '#6b5e30' : '#C9A84C', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: enrichingId === book.id ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}
+                            style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 5, color: enrichingId === book.id ? '#6b5e30' : LG, fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: enrichingId === book.id ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}
                             title="Generate enrichment suggestions from this book">
                             {enrichingId === book.id ? '⏳ Scanning…' : '🔗 GENERATE SUGGESTIONS'}
                           </button>
@@ -7305,7 +7307,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                           </label>
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={saveEdit} style={{ background: LG, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 18px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}>✦ Save</button>
+                          <button onClick={saveEdit} style={{ background: LGfill, color: '#0D0B14', border: 'none', borderRadius: 5, fontFamily: cinzel, fontSize: 9, padding: '6px 18px', cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 700 }}>✦ Save</button>
                           <button onClick={cancelEdit} style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, color: LMUT, fontFamily: cinzel, fontSize: 9, padding: '6px 14px', cursor: 'pointer', letterSpacing: '0.06em' }}>Cancel</button>
                         </div>
                       </div>
@@ -7456,7 +7458,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
 
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {filteredBooks.map(book => (
-                <div key={book.id} style={{ background: selectedBooks.has(book.id) ? 'rgba(201,168,76,0.04)' : LSURF, border: `1px solid ${highlightedBookId === book.id ? 'rgba(201,168,76,0.8)' : selectedBooks.has(book.id) ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.22)'}`, borderLeft: `3px solid ${highlightedBookId === book.id ? '#C9A84C' : 'rgba(201,168,76,0.4)'}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, transition: 'border-color 0.4s, background 0.4s', boxShadow: highlightedBookId === book.id ? '0 0 0 2px rgba(201,168,76,0.2)' : 'none' }}>
+                <div key={book.id} style={{ background: selectedBooks.has(book.id) ? 'rgba(201,168,76,0.04)' : LSURF, border: `1px solid ${highlightedBookId === book.id ? 'rgba(201,168,76,0.8)' : selectedBooks.has(book.id) ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.22)'}`, borderLeft: `3px solid ${highlightedBookId === book.id ? LG : 'rgba(201,168,76,0.4)'}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, transition: 'border-color 0.4s, background 0.4s', boxShadow: highlightedBookId === book.id ? '0 0 0 2px rgba(201,168,76,0.2)' : 'none' }}>
                   <input type="checkbox" checked={selectedBooks.has(book.id)} onChange={e => { setSelectedBooks(prev => { const next = new Set(prev); e.target.checked ? next.add(book.id) : next.delete(book.id); return next }) }} style={{ accentColor: LG, width: 15, height: 15, cursor: 'pointer', flexShrink: 0, marginTop: 2 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' as const }}>
@@ -7518,7 +7520,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
       {selectedBooks.size > 0 && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1508', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, zIndex: 200, boxShadow: '0 4px 24px rgba(0,0,0,0.6)', whiteSpace: 'nowrap' as const }}>
           <span style={{ fontFamily: cinzel, fontSize: 10, color: LG, letterSpacing: '0.1em' }}>{selectedBooks.size} SELECTED</span>
-          <button onClick={handleBatchAutofill} disabled={!!batchProgress && !batchProgress.done} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: LG, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontWeight: 700 }}>🧠 AI AUTOFILL</button>
+          <button onClick={handleBatchAutofill} disabled={!!batchProgress && !batchProgress.done} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: LGfill, color: '#0d0b14', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontWeight: 700 }}>🧠 AI AUTOFILL</button>
           <button onClick={handleBatchReindex} disabled={!!batchProgress && !batchProgress.done} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: LG, borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>↺ RE-INDEX</button>
           <button onClick={() => handleBatchToggleActive(true)} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: 'rgba(76,175,77,0.15)', border: '1px solid rgba(76,175,77,0.3)', color: '#4CAF7D', borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>✓ ACTIVATE</button>
           <button onClick={() => handleBatchToggleActive(false)} style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: '#888', borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>○ DEACTIVATE</button>
@@ -8920,7 +8922,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
               )}
             </div>
             {bulkAdding && (
-              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderRadius: 6, fontFamily: cinzel, fontSize: 10, color: '#C9A84C', letterSpacing: '0.1em' }}>
+              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#E7E1D5'}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, color: isDark ? '#C9A84C' : '#7A5E16', letterSpacing: '0.1em' }}>
                 ⚡ {bulkProgress}
               </div>
             )}
@@ -11058,7 +11060,7 @@ function ContentStudio({ getToken, isDark }: { getToken: any; isDark: boolean })
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
                     <label style={{ fontFamily: cinzel, fontSize: 8, color: GG, letterSpacing: '0.1em' }}>MORNING PRAYER</label>
-                    {tierBadge('WATCHMAN FREE', '#C9A84C', 'rgba(201,168,76,0.08)', 'rgba(201,168,76,0.25)')}
+                    {tierBadge('WATCHMAN FREE', isDark ? '#C9A84C' : '#7A5E16', 'rgba(201,168,76,0.08)', 'rgba(201,168,76,0.25)')}
                   </div>
                   <textarea value={morningPrayer} onChange={e => setMorningPrayer(e.target.value)} rows={5} style={{ ...inp, resize: 'vertical' as const }} />
                 </div>
@@ -11518,7 +11520,8 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
   const SB  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
   const ST  = isDark ? '#e8e0d0' : '#2D2924'
   const SM  = isDark ? '#9a8c74' : '#5C5248'
-  const SG  = '#C9A84C'
+  const SG  = isDark ? '#C9A84C' : '#7A5E16'
+  const SGfill = '#C9A84C'
 
   const [sources,     setSources]     = useState<any[]>([])
   const [loading,     setLoading]     = useState(true)
@@ -11625,7 +11628,7 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
         </div>
         <button
           onClick={() => setShowAdd(v => !v)}
-          style={{ padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', background: showAdd ? 'rgba(201,168,76,0.15)' : SG, color: showAdd ? SG : '#1a1305', border: showAdd ? `1px solid ${SG}` : 'none', borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+          style={{ padding: '8px 18px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', background: showAdd ? 'rgba(201,168,76,0.15)' : SGfill, color: showAdd ? SG : '#1a1305', border: showAdd ? `1px solid ${SG}` : 'none', borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' as const }}
         >
           {showAdd ? '✕ CANCEL' : '+ ADD SOURCE'}
         </button>
@@ -11662,7 +11665,7 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
             <button
               onClick={handleAdd}
               disabled={adding || !addName.trim()}
-              style={{ padding: '8px 20px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', background: adding ? 'rgba(201,168,76,0.4)' : SG, color: '#1a1305', border: 'none', borderRadius: 4, cursor: (adding || !addName.trim()) ? 'not-allowed' : 'pointer' }}
+              style={{ padding: '8px 20px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', background: adding ? 'rgba(201,168,76,0.4)' : SGfill, color: '#1a1305', border: 'none', borderRadius: 4, cursor: (adding || !addName.trim()) ? 'not-allowed' : 'pointer' }}
             >
               {adding ? 'ADDING...' : 'ADD + GENERATE BRIEF'}
             </button>
@@ -11674,7 +11677,7 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' as const }}>
         {(['all','safe','monitor','dangerous','pending','rejected'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            style={{ padding: '4px 12px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', background: filter === f ? SG : 'transparent', color: filter === f ? '#1a1305' : SM, border: `1px solid ${filter === f ? SG : SB}`, borderRadius: 20, cursor: 'pointer' }}>
+            style={{ padding: '4px 12px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', background: filter === f ? SGfill : 'transparent', color: filter === f ? '#1a1305' : SM, border: `1px solid ${filter === f ? SGfill : SB}`, borderRadius: 20, cursor: 'pointer' }}>
             {f.toUpperCase()}{f !== 'all' && counts[f] ? ` (${counts[f]})` : ''}
           </button>
         ))}
@@ -11813,7 +11816,7 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
                             <button
                               onClick={() => saveNotes(s.id)}
                               disabled={isUpdating}
-                              style={{ marginTop: 6, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', background: SG, color: '#1a1305', border: 'none', borderRadius: 3, cursor: 'pointer' }}
+                              style={{ marginTop: 6, padding: '5px 14px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', background: SGfill, color: '#1a1305', border: 'none', borderRadius: 3, cursor: 'pointer' }}
                             >
                               SAVE NOTES
                             </button>
@@ -11843,7 +11846,8 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
   const SBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const STXT  = isDark ? '#e8e0d0' : '#2D2924'
   const SMUT  = isDark ? '#9a8c74' : '#5C5248'
-  const SG    = '#C9A84C'
+  const SG    = isDark ? '#C9A84C' : '#7A5E16'
+  const SGfill = '#C9A84C'
 
   const [candidates, setCandidates]       = useState<any[]>([])
   const [stats, setStats]                 = useState<any>({ pending: 0, approvedWeek: 0, duplicates: 0, total: 0 })
@@ -12136,7 +12140,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
               <button
                 onClick={() => handleConfirmPush(previewData.candidateId)}
                 disabled={confirmingId === previewData.candidateId}
-                style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#0D0B14', background: SG, border: 'none', borderRadius: 5, padding: '10px 22px', cursor: 'pointer' }}
+                style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', color: '#0D0B14', background: SGfill, border: 'none', borderRadius: 5, padding: '10px 22px', cursor: 'pointer' }}
               >{confirmingId === previewData.candidateId ? 'Pushing...' : '✓ CONFIRM — PUSH TO DATABASE'}</button>
               <button
                 onClick={() => setPreviewData(null)}
@@ -12339,7 +12343,7 @@ function AdminPage() {
                           {group.label === 'SOL' ? (
                             <span style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1 }}>
                               <img src="/images/sol/sol-icon.png" width={12} height={12} style={{ objectFit: 'contain' as const, filter: 'drop-shadow(0 0 4px rgba(201,168,76,0.8))' }} alt="" />
-                              <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.2em', color: '#C9A84C', textTransform: 'uppercase' as const }}>SOL</span>
+                              <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.2em', color: adGold, textTransform: 'uppercase' as const }}>SOL</span>
                             </span>
                           ) : (
                             <span style={{ flex: 1, fontFamily: cinzel, fontSize: 8, color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', letterSpacing: '0.18em', textTransform: 'uppercase' as const }}>{group.label}</span>
@@ -13818,11 +13822,11 @@ function ehTimeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-function ehStatusColor(s: string): string {
+function ehStatusColor(s: string, isDark: boolean): string {
   if (s === 'complete')  return '#4ade80'
   if (s === 'failed')    return '#f87171'
   if (s === 'cancelled') return '#94a3b8'
-  if (s === 'running')   return '#C9A84C'
+  if (s === 'running')   return isDark ? '#C9A84C' : '#7A5E16'
   return '#7a6d58'
 }
 
@@ -13836,7 +13840,8 @@ function ehFmtVal(v: any): string {
 function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
-  const G       = '#C9A84C'
+  const G       = isDark ? '#C9A84C' : '#7A5E16'
+  const Gfill   = '#C9A84C'
   const BDR     = isDark ? 'rgba(201,168,76,0.18)' : '#DDD8CE'
   const TXT     = isDark ? '#e8dcc8' : '#2A251C'
   const DIM     = isDark ? '#7a6d58' : '#9a8d78'
@@ -14034,7 +14039,7 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
                           </a>
                         </td>
                         <td style={tdStyle}>
-                          <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: ehStatusColor(job.status), padding: '2px 6px', border: `1px solid ${ehStatusColor(job.status)}40`, borderRadius: 3 }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: ehStatusColor(job.status, isDark), padding: '2px 6px', border: `1px solid ${ehStatusColor(job.status, isDark)}40`, borderRadius: 3 }}>
                             {job.status}
                           </span>
                         </td>
@@ -14102,10 +14107,10 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
           </div>
 
           {/* Status banner */}
-          <div style={{ padding: '8px 20px', background: `${ehStatusColor(detailJob.status)}18`, borderBottom: `1px solid ${ehStatusColor(detailJob.status)}30`, flexShrink: 0 }}>
+          <div style={{ padding: '8px 20px', background: `${ehStatusColor(detailJob.status, isDark)}18`, borderBottom: `1px solid ${ehStatusColor(detailJob.status, isDark)}30`, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
               <div>
-                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: ehStatusColor(detailJob.status) }}>
+                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: ehStatusColor(detailJob.status, isDark) }}>
                   {detailJob.status.toUpperCase()}
                 </span>
                 {detailJob.error_message && (
@@ -14129,7 +14134,7 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
               {ehApplyMode && (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <button onClick={handleEhApply} disabled={ehApplying || ehChecked.size === 0}
-                    style={{ padding: '5px 12px', background: ehChecked.size > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 4, color: ehChecked.size > 0 ? '#0D0B14' : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: ehChecked.size > 0 && !ehApplying ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                    style={{ padding: '5px 12px', background: ehChecked.size > 0 ? Gfill : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 4, color: ehChecked.size > 0 ? '#0D0B14' : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: ehChecked.size > 0 && !ehApplying ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
                     {ehApplying ? 'APPLYING...' : `APPLY ${ehChecked.size} SELECTED`}
                   </button>
                   <button onClick={() => { setEhApplyMode(false); setEhApplyMsg('') }}
