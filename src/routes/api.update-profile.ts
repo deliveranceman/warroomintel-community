@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { requireAuth } from '../../netlify/functions/_shared/access'
 
 export const Route = createFileRoute('/api/update-profile')({
   server: {
@@ -15,33 +16,18 @@ export const Route = createFileRoute('/api/update-profile')({
         }
 
         try {
-          // Derive userId from Clerk session token — never trust the request body
-          const authHeader = request.headers.get('Authorization')
-          const sessionToken = authHeader?.replace('Bearer ', '').trim()
-          if (!sessionToken) {
-            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
-          }
-
-          // JWT decode — frontend tokens are JWTs not session tokens
-          const parts = sessionToken.split('.')
-          if (parts.length !== 3) {
-            return new Response(JSON.stringify({ error: 'Invalid token format' }), { status: 401, headers })
-          }
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-          const userId = payload.sub
-          if (!userId) {
-            return new Response(JSON.stringify({ error: 'No user ID in token' }), { status: 401, headers })
-          }
+          const auth = await requireAuth(request)
+          if (auth instanceof Response) return auth
 
           const { bio, city, state } = await request.json()
 
-          const getRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+          const getRes = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, {
             headers: { Authorization: `Bearer ${clerkSecret}` },
           })
           const existing = await getRes.json()
           const existingMeta = existing.public_metadata || {}
 
-          const patchRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+          const patchRes = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, {
             method: 'PATCH',
             headers: {
               Authorization: `Bearer ${clerkSecret}`,
