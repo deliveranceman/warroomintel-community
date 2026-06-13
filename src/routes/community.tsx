@@ -859,11 +859,12 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
 }
 
 // ── POST CARD ──────────────────────────────────────────────
-function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, streamToken, apiKey, onReaction, isFounder }: {
+function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, streamToken, apiKey, onReaction, isFounder, canReact = true }: {
   msg: StreamMsg; pinned?: boolean; actions?: React.ReactNode; isDark?: boolean;
   hoveredId?: string | null; onHover?: (id: string | null) => void;
-  streamToken?: string; apiKey?: string; onReaction?: () => void; isFounder?: boolean;
+  streamToken?: string; apiKey?: string; onReaction?: () => void; isFounder?: boolean; canReact?: boolean;
 }) {
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const V = {
     bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
     card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
@@ -908,6 +909,7 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
                   <button
                     key={type}
                     onClick={() => {
+                      if (!canReact) { beginUpgrade('soldier'); return }
                       if (streamToken && apiKey) {
                         streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
                           .then(() => onReaction?.())
@@ -924,6 +926,7 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
               <button
                 key={type}
                 onClick={() => {
+                  if (!canReact) { beginUpgrade('soldier'); return }
                   if (streamToken && apiKey) {
                     streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } })
                       .then(() => onReaction?.())
@@ -958,8 +961,10 @@ interface PrayerViewProps {
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   founderIds?: Set<string>
   isMinister?: boolean
+  userLevel?: number
 }
-function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen, founderIds, isMinister = false }: PrayerViewProps) {
+function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen, founderIds, isMinister = false, userLevel = 0 }: PrayerViewProps) {
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const V = {
     bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
     card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
@@ -1086,6 +1091,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             streamToken={streamToken}
             apiKey={apiKey}
             onReaction={fetchPrayers}
+            canReact={userLevel >= 1}
             isFounder={founderIds?.has(m.user?.id || '')}
             actions={
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' as const }}>
@@ -1121,7 +1127,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
                       />
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
-                          onClick={() => streamFetch(`/messages/${m.id}`, 'PUT', streamToken, apiKey, { message: { text: editDraft } }).then(() => { fetchPrayers(); setEditingPostId(null) })}
+                          onClick={() => userLevel >= 1 ? streamFetch(`/messages/${m.id}`, 'PUT', streamToken, apiKey, { message: { text: editDraft } }).then(() => { fetchPrayers(); setEditingPostId(null) }) : beginUpgrade('soldier')}
                           style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
                         >Save</button>
                         <button
@@ -1133,13 +1139,13 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
                   ) : (
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button
-                        onClick={() => { setEditingPostId(m.id); setEditDraft(m.text || '') }}
+                        onClick={() => userLevel >= 1 ? (setEditingPostId(m.id), setEditDraft(m.text || '')) : beginUpgrade('soldier')}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = G}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
                       >✏ Edit</button>
                       <button
-                        onClick={() => handleDeletePrayer(m.id)}
+                        onClick={() => userLevel >= 1 ? handleDeletePrayer(m.id) : beginUpgrade('soldier')}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: V.mut, fontFamily: cinzel, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: '4px' }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e05c5c'}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = V.mut}
@@ -1196,6 +1202,8 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
 function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, userName: _userName, userTier: _userTier, userImage: _userImage }: any) {
   const isDark = theme !== 'light'
   const { getToken } = useAuth()
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
+  const canSubmitTestimony = getAccessLevel({ tier: _userTier || '', role: '' }) >= 1
   const bg     = isDark ? '#0D0B14' : '#FAF8F5'
   const surf   = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
   const bdr    = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
@@ -1282,7 +1290,7 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
           <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>What God has done — shared for His glory</p>
         </div>
         <button
-          onClick={() => { setShowForm(f => !f); setSubmitted(false) }}
+          onClick={() => showForm ? (setShowForm(false), setSubmitted(false)) : canSubmitTestimony ? (setShowForm(true), setSubmitted(false)) : beginUpgrade('soldier')}
           style={{ marginLeft: 'auto', padding: '8px 18px', background: showForm ? 'transparent' : 'rgba(201,168,76,0.15)', border: `1px solid ${GG}`, borderRadius: 8, color: GG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0 }}
         >
           {showForm ? 'Cancel' : '+ Share Testimony'}
@@ -8723,7 +8731,8 @@ function ForumPostEditForm({ post, onSave, onCancel }: any) {
   )
 }
 
-function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isMinister, getToken }: any) {
+function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isMinister, getToken, canComment = true }: any) {
+  const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [comments,   setComments]   = useState<any[]>([])
   const [loaded,     setLoaded]     = useState(false)
   const [loading,    setLoading]    = useState(false)
@@ -8786,8 +8795,8 @@ function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isM
         <textarea placeholder="Write a comment… (Cmd+Enter to submit)" value={draft} onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
           rows={2} style={{ flex: 1, background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '8px 10px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'none' as const }} />
-        <button onClick={submit} disabled={submitting || !draft.trim()}
-          style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, padding: '9px 14px', cursor: 'pointer', opacity: (!draft.trim() || submitting) ? 0.4 : 1, whiteSpace: 'nowrap' as const, letterSpacing: '0.08em' }}>
+        <button onClick={canComment ? submit : () => beginUpgrade('soldier')} disabled={canComment && (submitting || !draft.trim())}
+          style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, padding: '9px 14px', cursor: 'pointer', opacity: (canComment && (!draft.trim() || submitting)) ? 0.4 : 1, whiteSpace: 'nowrap' as const, letterSpacing: '0.08em' }}>
           {submitting ? '…' : 'Reply'}
         </button>
       </div>
@@ -8795,7 +8804,7 @@ function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isM
   )
 }
 
-function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete }: any) {
+function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete, canComment = true }: any) {
   const [expanded, setExpanded] = useState(false)
   const [editing,  setEditing]  = useState(false)
   const [voting,   setVoting]   = useState(false)
@@ -8894,7 +8903,7 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete 
         </div>
       </div>
       {expanded && !editing && (
-        <ForumCommentsSection postId={post.id} commentCount={post.comment_count} userId={userId} isMinister={isMinister} getToken={getToken} />
+        <ForumCommentsSection postId={post.id} commentCount={post.comment_count} userId={userId} isMinister={isMinister} getToken={getToken} canComment={canComment} />
       )}
     </div>
   )
@@ -9033,7 +9042,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                 {displayed.map(post => (
-                  <ForumPostCard key={post.id} post={post} userId={userId} isMinister={isMinister} getToken={getToken} onUpdate={onUpdate} onDelete={onDelete} />
+                  <ForumPostCard key={post.id} post={post} userId={userId} isMinister={isMinister} getToken={getToken} onUpdate={onUpdate} onDelete={onDelete} canComment={canPost} />
                 ))}
               </div>
             )}
@@ -9804,6 +9813,7 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
     txt:  isDark ? '#f0e8d8' : '#2D2924',
     mut:  isDark ? '#9a8c74' : '#5C5248',
   }
+  const canReact = getAccessLevel({ tier: (user?.publicMetadata?.tier as string) || '', role: (user?.publicMetadata?.role as string) || '' }) >= 1
 
   const [editingId,    setEditingId]    = useState<string | null>(null)
   const [editText,     setEditText]     = useState('')
@@ -9880,10 +9890,10 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
       )}
 
       <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '16px 20px' }}>
-        <PostCard msg={PINNED} pinned isDark={isDark} streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} hoveredId={hoveredPostId} onHover={setHoveredPostId} />
+        <PostCard msg={PINNED} pinned isDark={isDark} streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} hoveredId={hoveredPostId} onHover={setHoveredPostId} canReact={canReact} />
         {posts.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map(msg => (
           <PostCard key={msg.id} msg={msg} isDark={isDark}
-            streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts}
+            streamToken={streamToken} apiKey={apiKey} onReaction={fetchPosts} canReact={canReact}
             hoveredId={hoveredPostId} onHover={setHoveredPostId}
             actions={msg.user?.id === user?.id || user?.publicMetadata?.role === 'minister' ? (
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -14536,7 +14546,7 @@ function CommunityPage() {
       {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
-      {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
+      {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} userLevel={tierLevel} />}
       {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />}
       {activeSection === 'members'        && (tierLevel < 1 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
@@ -15013,6 +15023,7 @@ function CommunityPage() {
             setSidebarOpen={setSidebarOpen}
             founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))}
             isMinister={(user?.publicMetadata?.role as string) === 'minister'}
+            userLevel={tierLevel}
           />
         )}
         {activeSection === 'dms' && (
