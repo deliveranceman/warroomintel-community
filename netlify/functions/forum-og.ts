@@ -38,6 +38,24 @@ function extractTitle(html: string): string {
   return m?.[1]?.replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim() || ''
 }
 
+function isPrivateHost(hostname: string): boolean {
+  const h = hostname.toLowerCase()
+  if (h === 'localhost' || h === '::1' || h === '0.0.0.0') return true
+  if (h.endsWith('.local') || h.endsWith('.internal') || h.endsWith('.localhost')) return true
+  const ipv4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])]
+    if (a === 0) return true
+    if (a === 10) return true
+    if (a === 127) return true
+    if (a === 169 && b === 254) return true
+    if (a === 172 && b >= 16 && b <= 31) return true
+    if (a === 192 && b === 168) return true
+    if (a === 100 && b >= 64 && b <= 127) return true
+  }
+  return false
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers: HEADERS })
@@ -52,6 +70,14 @@ export default async function handler(req: Request) {
   try {
     parsedUrl = new URL(rawUrl.trim())
   } catch {
+    return new Response(JSON.stringify({ error: 'Invalid URL' }), { status: 400, headers: HEADERS })
+  }
+
+  // SSRF guard: only allow public http/https destinations
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return new Response(JSON.stringify({ error: 'Invalid URL' }), { status: 400, headers: HEADERS })
+  }
+  if (isPrivateHost(parsedUrl.hostname)) {
     return new Response(JSON.stringify({ error: 'Invalid URL' }), { status: 400, headers: HEADERS })
   }
 
@@ -74,6 +100,7 @@ export default async function handler(req: Request) {
     const res = await fetch(rawUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WarRoomBot/1.0)' },
       signal: AbortSignal.timeout(8000),
+      redirect: 'error',
     })
     if (!res.ok) return new Response(JSON.stringify({ title: '', thumbnail: '', description: '', url: rawUrl, domain }), { status: 200, headers: HEADERS })
 
