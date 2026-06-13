@@ -4074,7 +4074,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                   </div>
                 )}
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: adDim, letterSpacing: '0.1em' }}>
-                  Running in background — takes 30-60 seconds.
+                  Typically takes 2-4 minutes per spirit — runs in the background, safe to navigate away.
                 </div>
               </div>
             )}
