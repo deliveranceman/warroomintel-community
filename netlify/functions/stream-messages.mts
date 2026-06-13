@@ -320,22 +320,28 @@ async function getStreamToken(userId: string): Promise<Response> {
   return json({ token })
 }
 
-async function createDM(userId: string, body: any): Promise<Response> {
+async function createDM(userId: string, callerLevel: number, body: any): Promise<Response> {
   const { otherUserId, otherUserName } = body ?? {}
   if (!otherUserId) return json({ error: 'otherUserId required' }, 400)
 
-  // sol-bot always gets a direct channel — no request flow
+  // sol-bot always gets a direct channel — no request flow, no tier gate
   if (otherUserId === 'sol-bot') {
     const result = await createStreamChannel(userId, otherUserId)
     if ('error' in result) return json(result, 500)
     return json({ ok: true, channelId: result.channelId })
   }
 
+  // Initiation gate — level 0 (Watchman) cannot initiate DMs with other members.
+  // This is the INITIATE path; send-message (reply) is never gated.
+  if (callerLevel < 1) return json({ error: 'Upgrade to Soldier to start direct messages.', watchman: true }, 403)
+
   const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? ''
 
-  // Check recipient Clerk tier + extract their name
+  // Fetch recipient Clerk record for name, image, and tier.
+  // recipientLevel is used for the paid→paid gate below; null = couldn't determine (fail-open).
   let recipientName = otherUserName || 'Member'
   let recipientImage = ''
+  let recipientLevel: number | null = null
   if (clerkSecretKey) {
     const clerkRes = await fetch(`https://api.clerk.com/v1/users/${otherUserId}`, {
       headers: { Authorization: `Bearer ${clerkSecretKey}` },
@@ -344,6 +350,8 @@ async function createDM(userId: string, body: any): Promise<Response> {
       const clerkUser = await clerkRes.json()
       recipientName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(' ') || clerkUser.username || recipientName
       recipientImage = clerkUser.image_url || ''
+      const RCPT_TIER_MAP: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
+      recipientLevel = RCPT_TIER_MAP[String(clerkUser.public_metadata?.tier || 'watchman').toLowerCase()] ?? 0
     }
   }
 
@@ -370,6 +378,13 @@ async function createDM(userId: string, body: any): Promise<Response> {
   const reverse = Array.isArray(revRows) ? revRows[0] : null
 
   if (reverse && reverse.status === 'accepted' && reverse.channel_id) return json({ ok: true, channelId: reverse.channel_id })
+
+  // Paid→paid gate: ministers (>=4) may initiate to anyone (pastoral). Paid (1-3) may only
+  // initiate to other paid members (recipientLevel >= 1). Only fires for NEW initiations —
+  // existing accepted relationships were already returned above.
+  if (callerLevel < 4 && recipientLevel !== null && recipientLevel < 1) {
+    return json({ error: "This member isn't able to receive messages yet.", watchman: true }, 403)
+  }
 
   // Get requester info from Clerk
   let myTier = 'soldier'
@@ -1174,7 +1189,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (action === 'create-dm') {
     const body = await req.json().catch(() => ({}))
-    return createDM(userId, body)
+    return createDM(userId, auth.level, body)
   }
 
   if (action === 'mark-read') {
