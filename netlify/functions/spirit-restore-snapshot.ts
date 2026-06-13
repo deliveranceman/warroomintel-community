@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
-import { FIELD_DEFS } from './_shared/spiritWrite'
+import { COL_TO_CAMEL } from './_shared/spiritWrite'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const CAMEL_TO_COL: Record<string, string> = {}
-for (const [camel, , col] of FIELD_DEFS) { CAMEL_TO_COL[camel] = col }
+// Reverse map: camelCase field_name → snake column.
+const CAMEL_TO_COL: Record<string, string> = Object.fromEntries(
+  Object.entries(COL_TO_CAMEL).map(([col, camel]) => [camel, col])
+)
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })

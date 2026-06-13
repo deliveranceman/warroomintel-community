@@ -56,7 +56,12 @@ const FIELD_DEFS: Array<[string, string, string]> = [
 ]
 
 const TO_COLUMN: Record<string, string> = {}
-for (const [camel, air, col] of FIELD_DEFS) { TO_COLUMN[camel] = col; TO_COLUMN[air] = col }
+const COL_TO_CAMEL: Record<string, string> = {}
+for (const [camel, air, col] of FIELD_DEFS) {
+  TO_COLUMN[camel] = col
+  TO_COLUMN[air]   = col
+  COL_TO_CAMEL[col] = camel
+}
 
 const ARRAY_COLS = new Set(['images', 'cultural_presence'])
 const BOOL_COLS  = new Set(['is_generational', 'is_territorial'])
@@ -136,11 +141,60 @@ function extractName(fields: Record<string, any>): string {
   return (fields?.[NAME_FIELD] || fields?.name || '').toString().trim()
 }
 
+// ── Snapshot helpers ─────────────────────────────────────────────────────────
+
+export type SnapshotMeta = {
+  jobId:      string | null  // ai_jobs.id when AI-driven, null for manual edits
+  appliedBy:  string         // verified Clerk userId from requireAdmin2
+}
+
+// Insert one snapshot row per changed column. Takes the already-fetched current
+// spirit row so callers that already have it avoid a redundant SELECT.
+// Returns an error string on failure, null on success.
+async function insertFieldSnapshots(
+  sb: any,
+  currentRow: Record<string, any>,
+  proposedSnakeCols: Record<string, any>,
+  meta: SnapshotMeta
+): Promise<string | null> {
+  const rows = Object.entries(proposedSnakeCols).map(([col, appliedValue]) => ({
+    spirit_id:     currentRow.id,
+    spirit_name:   currentRow.name || '',
+    field_name:    COL_TO_CAMEL[col] || col,
+    prior_value:   currentRow[col] !== undefined ? currentRow[col] : null,
+    applied_value: appliedValue,
+    job_id:        meta.jobId || null,
+    applied_by:    meta.appliedBy,
+  }))
+  if (rows.length === 0) return null
+  const { error } = await sb.from('spirit_apply_snapshots').insert(rows)
+  return error ? error.message : null
+}
+
 // ── High-level write helpers (used by the repointed endpoints) ───────────────
 
 // Update an existing spirit matched by slug. Partial — only present keys change.
-async function updateSpiritBySlug(sb: any, slug: string, inbound: Record<string, any>) {
+// When meta is provided, captures a per-field snapshot before overwriting.
+// Aborts and returns an error if the snapshot insert fails.
+async function updateSpiritBySlug(
+  sb: any,
+  slug: string,
+  inbound: Record<string, any>,
+  meta?: SnapshotMeta
+) {
   const cols = toColumns(inbound)
+
+  if (meta) {
+    const { data: current, error: fetchErr } = await sb
+      .from('spirits').select('*').eq('slug', slug).single()
+    if (fetchErr || !current) return { record: null, error: 'Spirit not found' }
+    const snapErr = await insertFieldSnapshots(sb, current, cols, meta)
+    if (snapErr) {
+      console.error('[spiritWrite] snapshot insert failed:', snapErr)
+      return { record: null, error: `Snapshot failed — aborting to protect data: ${snapErr}` }
+    }
+  }
+
   const { data, error } = await sb.from('spirits').update(cols).eq('slug', slug).select('*')
   if (error) return { record: null, error: error.message }
   if (!data || data.length === 0) return { record: null, error: 'Spirit not found' }
@@ -189,11 +243,13 @@ export {
   NAME_FIELD,
   FIELD_DEFS,
   BIBLICAL_RANK,
+  COL_TO_CAMEL,
   toColumns,
   mapRow,
   generateSlug,
   uniqueSlug,
   extractName,
+  insertFieldSnapshots,
   updateSpiritBySlug,
   createSpirit,
   upsertSpiritByName,

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
-import { NAME_FIELD, toColumns, mapRow, uniqueSlug } from './_shared/spiritWrite'
+import { NAME_FIELD, toColumns, mapRow, uniqueSlug, updateSpiritBySlug } from './_shared/spiritWrite'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
@@ -89,14 +89,28 @@ export default async function handler(req: Request) {
       if (Object.keys(cols).length === 0) {
         return new Response(JSON.stringify({ error: 'no writable fields' }), { status: 400 })
       }
-      const sb = createClient(supabaseUrl, supabaseServiceKey)
+      const sb    = createClient(supabaseUrl, supabaseServiceKey)
       const matchSlug = (slug || '').trim()
-      let q = sb.from('spirits').update(cols)
-      if (matchSlug) q = q.eq('slug', matchSlug)
-      else if (cols.name) q = q.eq('name', cols.name) // transitional fallback
-      else return new Response(JSON.stringify({ error: 'slug or name required to identify the row' }), { status: 400 })
 
-      const { data, error } = await q.select('*')
+      if (matchSlug) {
+        // Snapshot prior values before overwriting (manual admin edit).
+        const { record, error } = await updateSpiritBySlug(
+          sb, matchSlug, fields,
+          { jobId: null, appliedBy: auth.userId }
+        )
+        if (error === 'Spirit not found') {
+          return new Response(JSON.stringify({ error: 'Spirit not found' }), { status: 404 })
+        }
+        if (error || !record) {
+          console.error('[admin-demon] Supabase PATCH error:', error)
+          return new Response(JSON.stringify({ error: error || 'Write failed' }), { status: 500 })
+        }
+        return new Response(JSON.stringify({ record }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+
+      // Transitional name-fallback (legacy path, no snapshot).
+      if (!cols.name) return new Response(JSON.stringify({ error: 'slug or name required to identify the row' }), { status: 400 })
+      const { data, error } = await sb.from('spirits').update(cols).eq('name', cols.name).select('*')
       if (error) {
         console.error('[admin-demon] Supabase PATCH error:', error.message)
         return new Response(JSON.stringify({ error: error.message }), { status: 500 })

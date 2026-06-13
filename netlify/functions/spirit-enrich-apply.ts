@@ -1,12 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
-import { FIELD_DEFS, updateSpiritBySlug } from './_shared/spiritWrite'
+import { updateSpiritBySlug } from './_shared/spiritWrite'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
-
-// camelCase field key → snake_case Supabase column name
-const CAMEL_TO_COL: Record<string, string> = {}
-for (const [camel, , col] of FIELD_DEFS) { CAMEL_TO_COL[camel] = col }
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
@@ -81,41 +77,17 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'applyFields had no overlap with proposed fields' }, 422)
   }
 
-  // Fetch current spirit to capture prior values for snapshot + confirm existence.
-  const { data: currentSpirit, error: fetchErr } = await client
-    .from('spirits')
-    .select('*')
-    .eq('slug', spiritSlug)
-    .single()
+  // updateSpiritBySlug with meta: snapshots prior values, aborts if snapshot fails.
+  const { record, error: writeErr } = await updateSpiritBySlug(
+    client, spiritSlug, proposed,
+    { jobId, appliedBy: auth.userId }
+  )
 
-  if (fetchErr || !currentSpirit) {
+  if (writeErr === 'Spirit not found') {
     return json({
       error: `Spirit "${spiritSlug}" no longer exists — it may have been deleted after enrichment was queued.`,
     }, 422)
   }
-
-  // Snapshot every field before overwriting it. If snapshot insert fails, abort.
-  const snapshots = Object.entries(proposed).map(([key, appliedValue]) => {
-    const col = CAMEL_TO_COL[key]
-    return {
-      spirit_id:     currentSpirit.id,
-      spirit_name:   currentSpirit.name || spiritSlug,
-      field_name:    key,
-      prior_value:   col !== undefined ? currentSpirit[col] ?? null : null,
-      applied_value: appliedValue,
-      job_id:        jobId,
-      applied_by:    auth.userId,
-    }
-  })
-
-  const { error: snapErr } = await client.from('spirit_apply_snapshots').insert(snapshots)
-  if (snapErr) {
-    console.error('[spirit-enrich-apply] snapshot insert failed:', snapErr.message)
-    return json({ error: 'Failed to create apply snapshot — aborting to protect data' }, 500)
-  }
-
-  const { record, error: writeErr } = await updateSpiritBySlug(client, spiritSlug, proposed)
-
   if (writeErr || !record) {
     console.error('[spirit-enrich-apply] write error:', writeErr)
     return json({ error: writeErr || 'Write failed' }, 500)
@@ -135,7 +107,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   console.log(`[spirit-enrich-apply] applied ${appliedFields.length} fields to "${spiritSlug}" by ${auth.userId}`)
 
-  return json({ ok: true, spiritId: currentSpirit.id, spiritSlug, updatedFields: appliedFields })
+  return json({ ok: true, spiritId: record.id, spiritSlug, updatedFields: appliedFields })
 }
 
 export const config = { path: '/api/spirit-enrich-apply' }

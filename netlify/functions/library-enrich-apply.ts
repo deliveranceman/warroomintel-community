@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
-import { generateSlug, toColumns, createSpirit, findSpiritSlugByName } from './_shared/spiritWrite'
+import { generateSlug, toColumns, createSpirit, findSpiritSlugByName, insertFieldSnapshots } from './_shared/spiritWrite'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -158,6 +158,11 @@ Rewrite this field with accurate, specific deliverance ministry content. Be conc
           }
         }
         if (Object.keys(merged).length > 0) {
+          const snapErr = await insertFieldSnapshots(supabase, row, merged, { jobId: null, appliedBy: auth.userId })
+          if (snapErr) {
+            console.error('[library-enrich-apply] snapshot failed:', snapErr)
+            return new Response(JSON.stringify({ error: `Snapshot failed — aborting: ${snapErr}` }), { status: 500, headers: CORS })
+          }
           const { error: upErr } = await supabase.from('spirits').update(merged).eq('slug', slug)
           if (upErr) return new Response(JSON.stringify({ error: `Supabase update failed: ${upErr.message}` }), { status: 500, headers: CORS })
         }
