@@ -55,7 +55,7 @@ export default async function handler(req: Request) {
 
     const { data, error } = await sb
       .from('resources')
-      .select('id, title, topic, function_tags, tier, spirit_tags, description, file_url')
+      .select('id, title, topic, function_tags, tier, spirit_tags, description, file_url:file_path')
       .neq('topic', 'ministry-library')
       .in('tier', tierNames)
       .or(extOrClauses.join(','))
