@@ -1,4 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
+import { timingSafeEqual } from 'crypto'
+
+function tsEqual(a: string, b: string): boolean {
+  const bA = Buffer.from(a)
+  const bB = Buffer.from(b)
+  if (bA.length !== bB.length) { timingSafeEqual(bA, bA); return false }
+  return timingSafeEqual(bA, bB)
+}
 import { buildWindows, scanOnce, stageCandidates, WINDOW_SIZE } from './_shared/patristicScan'
 import { enrichSpirit } from './_shared/spiritEnrich'
 
@@ -10,7 +18,7 @@ export default async function handler(req: Request): Promise<Response> {
   // Internal verification — fail closed. No Clerk check; identity comes from the job row.
   const internalKey = process.env.INTERNAL_API_KEY
   const receivedKey = req.headers.get('x-internal-key') || ''
-  if (!(internalKey && receivedKey === internalKey)) {
+  if (!(internalKey && tsEqual(receivedKey, internalKey))) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 })
   }
 

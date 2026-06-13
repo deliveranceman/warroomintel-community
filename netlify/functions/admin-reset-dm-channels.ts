@@ -1,5 +1,12 @@
 import type { Context } from '@netlify/functions'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
+
+function tsEqual(a: string, b: string): boolean {
+  const bA = Buffer.from(a)
+  const bB = Buffer.from(b)
+  if (bA.length !== bB.length) { timingSafeEqual(bA, bA); return false }
+  return timingSafeEqual(bA, bB)
+}
 
 const KEEP = new Set(['war-room-general', 'prayer-wall-requests'])
 
@@ -19,7 +26,9 @@ function streamFetch(path: string, method: string, token: string, apiKey: string
 }
 
 export default async (req: Request, _context: Context) => {
-  if (req.headers.get('x-admin-secret') !== process.env.ADMIN_SECRET) {
+  const received = req.headers.get('x-admin-secret') || ''
+  const expected = process.env.ADMIN_SECRET || ''
+  if (!(expected && tsEqual(received, expected))) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },

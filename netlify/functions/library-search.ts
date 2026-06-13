@@ -1,5 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
+import { timingSafeEqual } from 'crypto'
 import { requireAuth } from './_shared/access'
+
+function tsEqual(a: string, b: string): boolean {
+  const bA = Buffer.from(a)
+  const bB = Buffer.from(b)
+  if (bA.length !== bB.length) { timingSafeEqual(bA, bA); return false }
+  return timingSafeEqual(bA, bB)
+}
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -22,7 +30,7 @@ export default async function handler(req: Request) {
   // (SpiritNetwork, admin). No tier gate — keeps library context for free chat.
   const internalKey = process.env.INTERNAL_API_KEY
   const receivedKey = req.headers.get('x-internal-key') || ''
-  if (!(internalKey && receivedKey === internalKey)) {
+  if (!(internalKey && tsEqual(receivedKey, internalKey))) {
     const auth = await requireAuth(req)
     if (auth instanceof Response) return auth
   }

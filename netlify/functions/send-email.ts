@@ -1,6 +1,14 @@
 import { Resend } from 'resend'
+import { timingSafeEqual } from 'crypto'
 import { wriEmailTemplate } from './_shared/sendEmail'
 import { requireAdmin2 } from './_shared/access'
+
+function tsEqual(a: string, b: string): boolean {
+  const bA = Buffer.from(a)
+  const bB = Buffer.from(b)
+  if (bA.length !== bB.length) { timingSafeEqual(bA, bA); return false }
+  return timingSafeEqual(bA, bB)
+}
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +29,7 @@ export default async function handler(req: Request) {
   // Closes the open relay — unauthenticated callers (incl. the ?action=test path) get 401/403.
   const internalKey = process.env.INTERNAL_API_KEY
   const receivedKey = req.headers.get('x-internal-key') || req.headers.get('x-internal-api-key') || req.headers.get('X-Internal-Key') || ''
-  if (!internalKey || receivedKey !== internalKey) {
+  if (!(internalKey && tsEqual(receivedKey, internalKey))) {
     const auth = await requireAdmin2(req)
     if (auth instanceof Response) return auth
   }
