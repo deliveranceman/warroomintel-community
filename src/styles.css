@@ -217,23 +217,23 @@ img, video, canvas, svg {
 
 /* ── Manual light override ───────────────────────────────────────────────── */
 :root[data-theme="light"] {
-  --gold:         #B5912F;
-  --gold-light:   #C2A24A;
-  --gold-dim:     rgba(181,145,47,0.15);
-  --deep:         #EEEBE4;
+  --gold:         #A57D1F;
+  --gold-light:   #B89636;
+  --gold-dim:     rgba(165,125,31,0.22);
+  --deep:         #E8E4D8;
   --surface:      #FFFFFF;
-  --surface2:     #F7F5F0;
-  --surface3:     #EFEADF;
-  --muted:        #6E6557;
-  --text:         #2A251C;
-  --text-dim:     #46413A;
-  --border:       #E7E1D5;
-  --border-bright:#B5912F;
+  --surface2:     #F2EEE3;
+  --surface3:     #EAE3D2;
+  --muted:        #5A4E36;
+  --text:         #1F1B12;
+  --text-dim:     #3A3428;
+  --border:       #D4CDBA;
+  --border-bright:#A57D1F;
   --purple-glow:  rgba(100,80,180,0.03);
-  --nav-bg:       rgba(247,245,240,0.97);
+  --nav-bg:       rgba(242,238,227,0.97);
   --dropdown-bg:  #FFFFFF;
   --card-shadow:  0 1px 2px rgba(60,45,15,.05), 0 4px 14px rgba(60,45,15,.04);
-  --num:          #8A6A1E;
+  --num:          #6B4F0F;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
