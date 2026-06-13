@@ -158,16 +158,24 @@ async function insertFieldSnapshots(
   proposedSnakeCols: Record<string, any>,
   meta: SnapshotMeta
 ): Promise<string | null> {
-  const rows = Object.entries(proposedSnakeCols).map(([col, appliedValue]) => ({
-    spirit_id:     currentRow.id,
-    spirit_name:   currentRow.name || '',
-    field_name:    COL_TO_CAMEL[col] || col,
-    prior_value:   currentRow[col] !== undefined ? currentRow[col] : null,
-    applied_value: appliedValue,
-    job_id:        meta.jobId || null,
-    applied_by:    meta.appliedBy,
-    source:        meta.source,
-  }))
+  const rows = Object.entries(proposedSnakeCols)
+    .filter(([col, appliedValue]) => {
+      const priorValue = currentRow[col] !== undefined ? currentRow[col] : null
+      // Skip no-op: value unchanged between prior and proposed.
+      const priorStr   = typeof priorValue   === 'object' ? JSON.stringify(priorValue)   : priorValue
+      const appliedStr = typeof appliedValue === 'object' ? JSON.stringify(appliedValue) : appliedValue
+      return priorStr !== appliedStr
+    })
+    .map(([col, appliedValue]) => ({
+      spirit_id:     currentRow.id,
+      spirit_name:   currentRow.name || '',
+      field_name:    COL_TO_CAMEL[col] || col,
+      prior_value:   currentRow[col] !== undefined ? currentRow[col] : null,
+      applied_value: appliedValue,
+      job_id:        meta.jobId || null,
+      applied_by:    meta.appliedBy,
+      source:        meta.source,
+    }))
   if (rows.length === 0) return null
   const { error } = await sb.from('spirit_apply_snapshots').insert(rows)
   return error ? error.message : null

@@ -44,16 +44,23 @@ export default async function handler(req: Request): Promise<Response> {
   const col = CAMEL_TO_COL[snapshot.field_name]
   if (!col) return json({ error: `Unknown field: ${snapshot.field_name}` }, 422)
 
-  const { error: writeErr } = await client
+  // CRITICAL: write prior_value back, not applied_value.
+  const { data: updated, error: writeErr } = await client
     .from('spirits')
     .update({ [col]: snapshot.prior_value })
     .eq('id', snapshot.spirit_id)
+    .select('id')
 
   if (writeErr) {
     console.error('[spirit-restore-snapshot] write failed:', writeErr.message)
     return json({ error: writeErr.message }, 500)
   }
+  if (!updated || updated.length === 0) {
+    console.error('[spirit-restore-snapshot] spirit not found for spirit_id:', snapshot.spirit_id)
+    return json({ error: `Spirit not found (spirit_id: ${snapshot.spirit_id})` }, 404)
+  }
 
+  // Only stamp after confirming the write landed.
   await client
     .from('spirit_apply_snapshots')
     .update({ restored_at: new Date().toISOString() })
