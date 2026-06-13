@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { timingSafeEqual } from 'crypto'
 import { sendWebPushToUser } from './_shared/sendWebPush.js'
 import { requireAuth } from './_shared/access'
 
@@ -17,6 +18,16 @@ function sb() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
+function tsEqual(a: string, b: string): boolean {
+  const bA = Buffer.from(a)
+  const bB = Buffer.from(b)
+  if (bA.length !== bB.length) {
+    timingSafeEqual(bA, bA) // consume similar time even on length mismatch
+    return false
+  }
+  return timingSafeEqual(bA, bB)
+}
+
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: HEADERS })
@@ -29,9 +40,9 @@ export default async function handler(req: Request) {
   const validKey     = process.env.INTERNAL_API_KEY || ''
   const authHeader   = req.headers.get('Authorization') || ''
   const token        = authHeader.replace('Bearer ', '').trim()
-  const isServiceKey = !!(supabaseServiceKey && token === supabaseServiceKey)
+  const isServiceKey = !!(supabaseServiceKey && tsEqual(token, supabaseServiceKey))
 
-  if (!(validKey && receivedKey === validKey) && !isServiceKey) {
+  if (!(validKey && tsEqual(receivedKey, validKey)) && !isServiceKey) {
     const auth = await requireAuth(req)
     if (auth instanceof Response) return auth
   }
