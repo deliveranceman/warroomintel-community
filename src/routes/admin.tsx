@@ -1148,7 +1148,7 @@ function SpiritTypeahead({ value, onChange, demons, mode, placeholder, isDark = 
   )
 }
 
-function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demons = [], getToken, isDark = true }: {
+function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demons = [], getToken, isDark = true, spiritId }: {
   fields: Record<string, string>
   setField: (name: string, val: string) => void
   onSave: () => void
@@ -1158,11 +1158,59 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
   demons?: any[]
   getToken?: () => Promise<string | null>
   isDark?: boolean
+  spiritId?: string
 }) {
   const [loadingEquivalents, setLoadingEquivalents] = useState(false)
   const [equivalentSuggestions, setEquivalentSuggestions] = useState<any[]>([])
   const [equivalentSummary, setEquivalentSummary] = useState('')
   const [showEquivalentSuggestions, setShowEquivalentSuggestions] = useState(false)
+  const [rcSnaps, setRcSnaps] = useState<any[]>([])
+  const [rcLoading, setRcLoading] = useState(false)
+  const [rcExpanded, setRcExpanded] = useState<Set<string>>(new Set())
+  const [rcRestoring, setRcRestoring] = useState<Set<string>>(new Set())
+  const [rcConfirm, setRcConfirm] = useState<string | null>(null)
+  const [rcMsg, setRcMsg] = useState('')
+
+  useEffect(() => {
+    if (!spiritId || !getToken) return
+    setRcLoading(true)
+    ;(async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/spirit-apply-snapshots?spiritId=${encodeURIComponent(spiritId)}&limit=10`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        setRcSnaps(data.snapshots || [])
+      } catch { /* silent */ }
+      setRcLoading(false)
+    })()
+  }, [spiritId])
+
+  async function handleRestore(snapshotId: string) {
+    if (!getToken) return
+    setRcRestoring(prev => new Set(prev).add(snapshotId))
+    setRcMsg('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/spirit-restore-snapshot', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshotId }),
+      })
+      const d = await res.json()
+      if (res.ok) {
+        setRcSnaps(prev => prev.map(s => s.id === snapshotId ? { ...s, restored_at: new Date().toISOString() } : s))
+        setRcMsg(`Restored "${EH_FIELD_LABELS[d.restoredField] || d.restoredField}" successfully.`)
+        setRcConfirm(null)
+      } else {
+        setRcMsg(`Error: ${d.error || 'Unknown'}`)
+      }
+    } catch (e: any) {
+      setRcMsg(`Error: ${e?.message || String(e)}`)
+    }
+    setRcRestoring(prev => { const next = new Set(prev); next.delete(snapshotId); return next })
+  }
   const adBdr  = isDark ? BDR : '#E7E1D5'
   const adTxt  = isDark ? TXT : '#2A251C'
   const adDim  = isDark ? DIM : '#6E6557'
@@ -1421,6 +1469,89 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
           </div>
         </div>
       </div>
+
+      {/* Recent Changes (per-field apply history with restore) */}
+      {spiritId && getToken && (
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${adBdr}` }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 12 }}>
+            🕐 Recent Changes
+          </div>
+          {rcLoading ? (
+            <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic' }}>Loading...</div>
+          ) : rcSnaps.length === 0 ? (
+            <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, fontStyle: 'italic' }}>No AI-applied changes recorded yet.</div>
+          ) : (
+            <>
+              {rcSnaps.map(s => {
+                const isExpanded  = rcExpanded.has(s.id)
+                const isRestoring = rcRestoring.has(s.id)
+                const whenStr     = new Date(s.applied_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                const label       = EH_FIELD_LABELS[s.field_name] || s.field_name
+                return (
+                  <div key={s.id} style={{ borderBottom: `1px solid ${adBdr}`, paddingBottom: 10, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 9, color: adGold, letterSpacing: '0.06em', minWidth: 120 }}>{label}</span>
+                      <span style={{ fontFamily: crimson, fontSize: 11, color: adDim }}>{whenStr}</span>
+                      {s.job_id && <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.04em', background: 'rgba(201,168,76,0.08)', padding: '1px 5px', borderRadius: 2 }}>AI JOB</span>}
+                      {s.restored_at ? (
+                        <span style={{ fontFamily: cinzel, fontSize: 8, color: '#4ade80', letterSpacing: '0.06em', background: 'rgba(74,222,128,0.1)', padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(74,222,128,0.2)' }}>RESTORED</span>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setRcExpanded(prev => { const next = new Set(prev); isExpanded ? next.delete(s.id) : next.add(s.id); return next })}
+                            style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 3, padding: '2px 8px', fontFamily: cinzel, fontSize: 8, color: adDim, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                            {isExpanded ? 'HIDE' : 'VIEW'}
+                          </button>
+                          {rcConfirm === s.id ? (
+                            <>
+                              <span style={{ fontFamily: crimson, fontSize: 11, color: '#f87171' }}>Confirm restore?</span>
+                              <button onClick={() => handleRestore(s.id)} disabled={isRestoring}
+                                style={{ background: '#f87171', border: 'none', borderRadius: 3, padding: '2px 8px', fontFamily: cinzel, fontSize: 8, color: '#fff', cursor: isRestoring ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}>
+                                {isRestoring ? '...' : 'YES'}
+                              </button>
+                              <button onClick={() => setRcConfirm(null)}
+                                style={{ background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 3, padding: '2px 8px', fontFamily: cinzel, fontSize: 8, color: adDim, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                                NO
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => setRcConfirm(s.id)}
+                              style={{ background: 'transparent', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 3, padding: '2px 8px', fontFamily: cinzel, fontSize: 8, color: '#f87171', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                              RESTORE
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {isExpanded && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, padding: '8px 10px', background: isDark ? '#0a0813' : '#f5f3ef', borderRadius: 4, border: `1px solid ${adBdr}` }}>
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.08em', marginBottom: 4 }}>PRIOR VALUE</div>
+                          <div style={{ fontFamily: crimson, fontSize: 12, color: adDim, lineHeight: 1.5 }}>
+                            {s.prior_value !== null && s.prior_value !== undefined
+                              ? (typeof s.prior_value === 'string' ? s.prior_value : JSON.stringify(s.prior_value))
+                              : <em>empty</em>}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 8, color: adGold, letterSpacing: '0.08em', marginBottom: 4 }}>APPLIED VALUE</div>
+                          <div style={{ fontFamily: crimson, fontSize: 12, color: adTxt, lineHeight: 1.5 }}>
+                            {s.applied_value !== null && s.applied_value !== undefined
+                              ? (typeof s.applied_value === 'string' ? s.applied_value : JSON.stringify(s.applied_value))
+                              : <em>empty</em>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {rcMsg && <div style={{ fontFamily: crimson, fontSize: 12, color: rcMsg.startsWith('Error') ? '#f87171' : '#4ade80', marginTop: 4 }}>{rcMsg}</div>}
+            </>
+          )}
+        </div>
+      )}
+
       {msg && <div style={{ fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 12 }}>{msg}</div>}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
         <button onClick={onSave} disabled={saving}
@@ -3533,6 +3664,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                           demons={demons}
                           getToken={getToken}
                           isDark={isDark}
+                          spiritId={d.id}
                         />
                       </td>
                     </tr>

@@ -249,5 +249,11 @@
 [functions."spirit-enrich-apply"]
   timeout = 15
 
+[functions."spirit-apply-snapshots"]
+  timeout = 10
+
+[functions."spirit-restore-snapshot"]
+  timeout = 15
+
 [functions."job-worker-background"]
   # Netlify background function — no timeout key (background ignores it)
