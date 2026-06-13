@@ -134,12 +134,12 @@ function ArsenalManager({ getToken, isDark = true }: { getToken: (opts?: { templ
   const [filterTier, setFilterTier]         = useState('')
   const [recentSearch, setRecentSearch]     = useState('')
 
-  const adBg    = isDark ? BG    : '#EEEBE4'
+  const adBg    = isDark ? BG    : '#E8E4D8'
   const adSurf  = isDark ? SURF  : '#FFFFFF'
-  const adBdr   = isDark ? BDR   : '#E7E1D5'
-  const adTxt   = isDark ? TXT   : '#2A251C'
-  const adDim   = isDark ? DIM   : '#6E6557'
-  const adGold  = isDark ? G     : '#7A5E16'
+  const adBdr   = isDark ? BDR   : '#D4CDBA'
+  const adTxt   = isDark ? TXT   : '#1F1B12'
+  const adDim   = isDark ? DIM   : '#5A4E36'
+  const adGold  = isDark ? G     : '#604408'
   const tierColors = isDark ? TIER_COLORS : { Free: '#8C7E63', Soldier: '#5F8A66', Commander: '#5E76B0', General: '#B5912F' }
 
   const TOPICS = [
@@ -1087,10 +1087,10 @@ function SpiritTypeahead({ value, onChange, demons, mode, placeholder, isDark = 
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const adBdr  = isDark ? BDR : '#E7E1D5'
-  const adTxt  = isDark ? TXT : '#2A251C'
-  const adDim  = isDark ? DIM : '#6E6557'
-  const adGold = isDark ? G   : '#7A5E16'
+  const adBdr  = isDark ? BDR : '#D4CDBA'
+  const adTxt  = isDark ? TXT : '#1F1B12'
+  const adDim  = isDark ? DIM : '#5A4E36'
+  const adGold = isDark ? G   : '#604408'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const, background: isDark ? '#0a0813' : '#fff',
     border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 11px',
@@ -1211,10 +1211,10 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
     }
     setRcRestoring(prev => { const next = new Set(prev); next.delete(snapshotId); return next })
   }
-  const adBdr  = isDark ? BDR : '#E7E1D5'
-  const adTxt  = isDark ? TXT : '#2A251C'
-  const adDim  = isDark ? DIM : '#6E6557'
-  const adGold = isDark ? G   : '#7A5E16'
+  const adBdr  = isDark ? BDR : '#D4CDBA'
+  const adTxt  = isDark ? TXT : '#1F1B12'
+  const adDim  = isDark ? DIM : '#5A4E36'
+  const adGold = isDark ? G   : '#604408'
   const i: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', background: isDark ? '#0a0813' : '#fff',
     border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 11px',
@@ -1907,10 +1907,10 @@ function BodyMapAdmin({ getToken, isDark = true }: { getToken: () => Promise<str
     borderRadius: 4, padding: '7px 10px', color: isDark ? '#e8ddc8' : '#1a1208',
     fontFamily: crimson, fontSize: 14, boxSizing: 'border-box',
   }
-  const adBdr   = isDark ? BDR   : '#E7E1D5'
-  const adTxt   = isDark ? TXT   : '#2A251C'
-  const adDim   = isDark ? DIM   : '#6E6557'
-  const adGold  = isDark ? G     : '#7A5E16'
+  const adBdr   = isDark ? BDR   : '#D4CDBA'
+  const adTxt   = isDark ? TXT   : '#1F1B12'
+  const adDim   = isDark ? DIM   : '#5A4E36'
+  const adGold  = isDark ? G     : '#604408'
   const adSurf2 = isDark ? SURF2 : '#F7F5F0'
   const lbl: CSSProperties = { fontFamily: cinzel, fontSize: 9, color: adDim, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }
   const autoBadge = <span style={{ marginLeft: 6, padding: '1px 5px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 3, fontSize: 8, color: adGold, letterSpacing: '0.05em' }}>auto</span>
@@ -2315,22 +2315,22 @@ function splitCsvLine(line: string): string[] {
 function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<string | null>, isDark?: boolean }) {
   const adStatBg  = isDark ? SURF : '#fff'
   const adHeaderBg = isDark ? SURF2 : '#FFFFFF'
-  const adStatNum = isDark ? G : '#8A6A1E'
-  const adStatLbl = isDark ? DIM : '#6E6557'
-  const adBg    = isDark ? BG    : '#EEEBE4'
+  const adStatNum = isDark ? G : '#6B4F0F'
+  const adStatLbl = isDark ? DIM : '#5A4E36'
+  const adBg    = isDark ? BG    : '#E8E4D8'
   const adSurf2 = isDark ? SURF2 : '#F7F5F0'
-  const adBdr   = isDark ? BDR   : '#E7E1D5'
-  const adTxt   = isDark ? TXT   : '#2A251C'
-  const adDim   = isDark ? DIM   : '#6E6557'
-  const adGold  = isDark ? G     : '#7A5E16'
+  const adBdr   = isDark ? BDR   : '#D4CDBA'
+  const adTxt   = isDark ? TXT   : '#1F1B12'
+  const adDim   = isDark ? DIM   : '#5A4E36'
+  const adGold  = isDark ? G     : '#604408'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
-    background: isDark ? SURF2 : '#FFFFFF', border: `1px solid ${isDark ? BDR : '#E7E1D5'}`, borderRadius: 6,
-    padding: '10px 12px', color: isDark ? TXT : '#2A251C', fontFamily: crimson, fontSize: 14, outline: 'none',
+    background: isDark ? SURF2 : '#FFFFFF', border: `1px solid ${isDark ? BDR : '#D4CDBA'}`, borderRadius: 6,
+    padding: '10px 12px', color: isDark ? TXT : '#1F1B12', fontFamily: crimson, fontSize: 14, outline: 'none',
   }
   const lbl: React.CSSProperties = {
     display: 'block', fontFamily: cinzel, fontSize: 9,
-    letterSpacing: '0.12em', color: isDark ? DIM : '#6E6557', textTransform: 'uppercase' as const, marginBottom: 6,
+    letterSpacing: '0.12em', color: isDark ? DIM : '#5A4E36', textTransform: 'uppercase' as const, marginBottom: 6,
   }
 
   // Posts
@@ -3360,8 +3360,8 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         <div style={{ fontFamily: cinzel, fontSize: 10, color: adGold, letterSpacing: '0.08em', marginBottom: 12 }}>{backfillProgress}</div>
       )}
       {backfillResults?.complete && (
-        <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#E7E1D5'}`, borderLeft: `3px solid ${adGold}`, borderRadius: 6 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#2A251C', marginBottom: 12, letterSpacing: '0.06em' }}>ENRICHMENT COMPLETE</div>
+        <div style={{ padding: '16px 20px', marginBottom: 20, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#D4CDBA'}`, borderLeft: `3px solid ${adGold}`, borderRadius: 6 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#1F1B12', marginBottom: 12, letterSpacing: '0.06em' }}>ENRICHMENT COMPLETE</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             {[
               { label: 'UPDATED',              value: backfillResults.totalUpdated, color: '#4a7a4a' },
@@ -5320,13 +5320,13 @@ function ModerationPanel({ getToken, section = 'feedback', isDark = true }: { ge
     setFeedback(prev => prev.filter(f => f.id !== id))
   }
 
-  const adBg   = isDark ? BG   : '#EEEBE4'
+  const adBg   = isDark ? BG   : '#E8E4D8'
   const adSurf  = isDark ? SURF  : '#FFFFFF'
   const adSurf2 = isDark ? SURF2 : '#F7F5F0'
-  const adBdr  = isDark ? BDR : '#E7E1D5'
-  const adTxt  = isDark ? TXT : '#2A251C'
-  const adDim  = isDark ? DIM : '#6E6557'
-  const adGold = isDark ? G   : '#7A5E16'
+  const adBdr  = isDark ? BDR : '#D4CDBA'
+  const adTxt  = isDark ? TXT : '#1F1B12'
+  const adDim  = isDark ? DIM : '#5A4E36'
+  const adGold = isDark ? G   : '#604408'
   const fbStatusColors: Record<string, string> = { ...FB_STATUS_COLORS, 'open': adGold }
 
   return (
@@ -5489,10 +5489,10 @@ function FieldReportsPanel({ getToken, isDark = true }: { getToken: any; isDark?
   }
 
   const adSurf = isDark ? SURF : '#FFFFFF'
-  const adBdr  = isDark ? BDR : '#E7E1D5'
-  const adTxt  = isDark ? TXT : '#2A251C'
-  const adDim  = isDark ? DIM : '#6E6557'
-  const adGold = isDark ? G   : '#7A5E16'
+  const adBdr  = isDark ? BDR : '#D4CDBA'
+  const adTxt  = isDark ? TXT : '#1F1B12'
+  const adDim  = isDark ? DIM : '#5A4E36'
+  const adGold = isDark ? G   : '#604408'
   const STATUS_COLOR: Record<string, string> = { pending: adGold, approved: '#4ade80', rejected: '#f87171' }
 
   if (loading) return <div style={{ fontFamily: crimson, color: adDim, fontStyle: 'italic', padding: '20px 0' }}>Loading field reports...</div>
@@ -5562,10 +5562,10 @@ function FlagsPanel({ getToken, isDark = true }: { getToken: any; isDark?: boole
   }
 
   const adSurf = isDark ? SURF : '#FFFFFF'
-  const adBdr  = isDark ? BDR : '#E7E1D5'
-  const adTxt  = isDark ? TXT : '#2A251C'
-  const adDim  = isDark ? DIM : '#6E6557'
-  const adGold = isDark ? G   : '#7A5E16'
+  const adBdr  = isDark ? BDR : '#D4CDBA'
+  const adTxt  = isDark ? TXT : '#1F1B12'
+  const adDim  = isDark ? DIM : '#5A4E36'
+  const adGold = isDark ? G   : '#604408'
 
   if (loading) return <div style={{ color: adDim, fontFamily: crimson, fontStyle: 'italic', padding: '20px 0' }}>Loading flagged content...</div>
 
@@ -5644,10 +5644,10 @@ function ForumModerationPanel({ getToken, isDark = true }: { getToken: any; isDa
     setFlagged(prev => prev.filter(p => p.id !== id))
   }
 
-  const adBdr  = isDark ? BDR : '#E7E1D5'
-  const adTxt  = isDark ? TXT : '#2A251C'
-  const adDim  = isDark ? DIM : '#6E6557'
-  const adGold = isDark ? G   : '#7A5E16'
+  const adBdr  = isDark ? BDR : '#D4CDBA'
+  const adTxt  = isDark ? TXT : '#1F1B12'
+  const adDim  = isDark ? DIM : '#5A4E36'
+  const adGold = isDark ? G   : '#604408'
   const adSurf = isDark ? SURF : '#FFFFFF'
   const rowSt: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 14px', background: adSurf, border: `1px solid ${adBdr}`, borderRadius: 8, marginBottom: 6 }
   const btnSt = (danger?: boolean): React.CSSProperties => ({ background: 'transparent', border: `1px solid ${danger ? 'rgba(248,113,113,0.3)' : adBdr}`, borderRadius: 4, color: danger ? '#f87171' : adDim, fontFamily: cinzel, fontSize: 8, padding: '3px 10px', cursor: 'pointer' })
@@ -5720,7 +5720,7 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
   const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
   const LMUT  = isDark ? '#9a8c74' : '#5C5248'
-  const LG    = isDark ? '#C9A84C' : '#7A5E16'
+  const LG    = isDark ? '#C9A84C' : '#604408'
   const LGfill = '#C9A84C'
 
   const [contexts, setContexts]           = useState<any[]>([])
@@ -5955,7 +5955,7 @@ function AICommandManager({ getToken, isDark }: { getToken: any; isDark: boolean
       </div>
 
       {/* ── COMING SOON ── */}
-      <div style={{ marginTop: 48, opacity: 0.4, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: isDark ? '#C9A84C' : '#7A5E16' }}>
+      <div style={{ marginTop: 48, opacity: 0.4, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: isDark ? '#C9A84C' : '#604408' }}>
         ADDITIONAL AI CONFIGURATION — COMING SOON
       </div>
     </div>
@@ -5968,7 +5968,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const LBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const LTXT  = isDark ? '#e8e0d0' : '#2D2924'
   const LMUT  = isDark ? '#9a8c74' : '#5C5248'
-  const LG    = isDark ? '#C9A84C' : '#7A5E16'
+  const LG    = isDark ? '#C9A84C' : '#604408'
   const LGfill = '#C9A84C'
 
   // Books state
@@ -7587,11 +7587,11 @@ function DashboardView({ getToken, isDark, setTab }: {
   getToken: any; isDark: boolean; setTab: (t: string) => void
 }) {
   const BG2  = isDark ? '#13111a' : '#fff'
-  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : '#E7E1D5'
-  const MUT  = isDark ? '#9a8c74' : '#6E6557'
-  const TXT2 = isDark ? '#e8e0d0' : '#2A251C'
-  const adInk = isDark ? G : '#2A251C'   // section/dashboard titles — gold in dark, ink on white
-  const adNum = isDark ? G : '#8A6A1E'   // stat numbers — gold in dark, deep gold on white
+  const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : '#D4CDBA'
+  const MUT  = isDark ? '#9a8c74' : '#5A4E36'
+  const TXT2 = isDark ? '#e8e0d0' : '#1F1B12'
+  const adInk = isDark ? G : '#1F1B12'   // section/dashboard titles — gold in dark, ink on white
+  const adNum = isDark ? G : '#6B4F0F'   // stat numbers — gold in dark, deep gold on white
   const cardShadow = isDark ? 'none' : '0 1px 2px rgba(60,45,15,.05), 0 4px 14px rgba(60,45,15,.04)'
 
   const [demons, setDemons]         = useState<any[]>([])
@@ -7948,7 +7948,7 @@ function FieldMinistryManager({ getToken, isDark }: { getToken: any; isDark: boo
   const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const MUT  = isDark ? '#9a8c74' : '#5C5248'
   const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
-  const G2   = isDark ? '#C9A84C' : '#7A5E16'
+  const G2   = isDark ? '#C9A84C' : '#604408'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
     border: `1px solid ${BDR2}`, borderRadius: 6, padding: '8px 12px', color: TXT2,
@@ -8256,7 +8256,7 @@ function DocumentsView({ getToken, isDark, demons }: {
   const BDR2 = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const MUT  = isDark ? '#9a8c74' : '#5C5248'
   const TXT2 = isDark ? '#e8e0d0' : '#2D2924'
-  const G2   = isDark ? '#C9A84C' : '#7A5E16'
+  const G2   = isDark ? '#C9A84C' : '#604408'
   const inp2: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
     background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
@@ -8929,7 +8929,7 @@ function LibraryIntelligence({ getToken, isDark }: { getToken: any; isDark: bool
               )}
             </div>
             {bulkAdding && (
-              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#E7E1D5'}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, color: isDark ? '#C9A84C' : '#7A5E16', letterSpacing: '0.1em' }}>
+              <div style={{ padding: '12px 16px', marginBottom: 12, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : '#D4CDBA'}`, borderRadius: 6, fontFamily: cinzel, fontSize: 10, color: isDark ? '#C9A84C' : '#604408', letterSpacing: '0.1em' }}>
                 ⚡ {bulkProgress}
               </div>
             )}
@@ -9490,13 +9490,13 @@ function DailyBriefManager({ getToken, isDark }: { getToken: any; isDark: boolea
 
 // ─── MINISTRY CONTEXT MANAGER ──────────────────────────────────────────────────
 function MinistryContextManager({ getToken, isDark }: { getToken: () => Promise<string | null>; isDark: boolean }) {
-  const G    = isDark ? '#C9A84C' : '#7A5E16'
+  const G    = isDark ? '#C9A84C' : '#604408'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
   const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
   const txt  = isDark ? '#E8D5B0' : '#2D2924'
   const mut  = isDark ? '#8B7355' : '#5C5248'
-  const adInk  = isDark ? '#C9A84C' : '#2A251C'
+  const adInk  = isDark ? '#C9A84C' : '#1F1B12'
 
   const [versions, setVersions]       = useState<any[]>([])
   const [loading, setLoading]         = useState(true)
@@ -9786,7 +9786,7 @@ function AIUsageAdmin({ getToken, isDark }: { getToken: (opts?: { template?: str
   const dim  = isDark ? DIM  : '#5C5248'
   const surf = isDark ? SURF : '#FFFFFF'
   const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
-  const G    = isDark ? '#C9A84C' : '#7A5E16'
+  const G    = isDark ? '#C9A84C' : '#604408'
 
   if (loading) return <div style={{ color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', padding: 32 }}>LOADING...</div>
   if (error)   return <div style={{ color: '#c84a4a', fontFamily: crimson, fontSize: 14, padding: 20 }}>Error: {error}</div>
@@ -9890,7 +9890,7 @@ const DISPATCH_TIER_OPTIONS = [
 ]
 
 function NotificationsAdmin({ getToken, isDark }: { getToken: (opts?: { template?: string }) => Promise<string | null>; isDark: boolean }) {
-  const gTxt = isDark ? '#C9A84C' : '#7A5E16'
+  const gTxt = isDark ? '#C9A84C' : '#604408'
   const naSurf = isDark ? SURF : '#FFFFFF'
   const naBdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
   const [title, setTitle]         = useState('Test Notification')
@@ -11200,7 +11200,7 @@ function TestSOLPanel({ getToken, isDark }: { getToken: any; isDark: boolean }) 
   const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
   const txt  = isDark ? TXT  : '#2D2924'
   const dim  = isDark ? DIM  : '#5C5248'
-  const G    = isDark ? '#C9A84C' : '#7A5E16'
+  const G    = isDark ? '#C9A84C' : '#604408'
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
     background: isDark ? 'rgba(13,11,20,0.8)' : '#FAF8F5',
@@ -11527,7 +11527,7 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
   const SB  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(139,105,20,0.25)'
   const ST  = isDark ? '#e8e0d0' : '#2D2924'
   const SM  = isDark ? '#9a8c74' : '#5C5248'
-  const SG  = isDark ? '#C9A84C' : '#7A5E16'
+  const SG  = isDark ? '#C9A84C' : '#604408'
   const SGfill = '#C9A84C'
 
   const [sources,     setSources]     = useState<any[]>([])
@@ -11853,7 +11853,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
   const SBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const STXT  = isDark ? '#e8e0d0' : '#2D2924'
   const SMUT  = isDark ? '#9a8c74' : '#5C5248'
-  const SG    = isDark ? '#C9A84C' : '#7A5E16'
+  const SG    = isDark ? '#C9A84C' : '#604408'
   const SGfill = '#C9A84C'
 
   const [candidates, setCandidates]       = useState<any[]>([])
@@ -12199,10 +12199,10 @@ function AdminPage() {
   }, [])
 
   const headerBg  = isDark ? '#13111e' : '#FFFFFF'
-  const contentBg = isDark ? '#0D0B14' : '#EEEBE4'
-  const adBdr     = isDark ? 'rgba(201,168,76,0.18)' : '#E7E1D5'
-  const adGold    = isDark ? '#C9A84C' : '#7A5E16'
-  const adDim     = isDark ? '#9a8c74' : '#6E6557'
+  const contentBg = isDark ? '#0D0B14' : '#E8E4D8'
+  const adBdr     = isDark ? 'rgba(201,168,76,0.18)' : '#D4CDBA'
+  const adGold    = isDark ? '#C9A84C' : '#604408'
+  const adDim     = isDark ? '#9a8c74' : '#5A4E36'
 
   if (!isLoaded) {
     return (
@@ -13847,10 +13847,10 @@ function ehFmtVal(v: any): string {
 function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
-  const G       = isDark ? '#C9A84C' : '#7A5E16'
+  const G       = isDark ? '#C9A84C' : '#604408'
   const Gfill   = '#C9A84C'
   const BDR     = isDark ? 'rgba(201,168,76,0.18)' : '#DDD8CE'
-  const TXT     = isDark ? '#e8dcc8' : '#2A251C'
+  const TXT     = isDark ? '#e8dcc8' : '#1F1B12'
   const DIM     = isDark ? '#7a6d58' : '#9a8d78'
   const SURF    = isDark ? '#13111e' : '#F0EBE0'
   const BG2     = isDark ? '#1a1726' : '#F8F5EF'
