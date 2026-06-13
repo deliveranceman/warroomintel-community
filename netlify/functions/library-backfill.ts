@@ -42,14 +42,12 @@ async function extractText(buf: ArrayBuffer, filePath: string): Promise<string |
   }
 
   if (ext === 'pdf') {
-    try {
-      const pdfParse = (await import('pdf-parse')).default
-      const data = await pdfParse(Buffer.from(buf))
-      return data.text?.slice(0, MAX_CHARS) || null
-    } catch (e: any) {
-      console.error('[BACKFILL] PDF extraction failed:', e.message)
-      return null
-    }
+    throw new Error(
+      'PDF ingestion is temporarily disabled. ' +
+      'Re-implementation planned via OpenAI vision OCR on the SOL Jobs ' +
+      'System spine. See roadmap entry: "PDF Library Ingestion via ' +
+      'OpenAI Vision OCR (post-Jobs System)."'
+    )
   }
 
   if (ext === 'docx') {
