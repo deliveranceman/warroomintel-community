@@ -14538,7 +14538,15 @@ function CommunityPage() {
       {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} />}
       {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />}
-      {activeSection === 'members'        && <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />}
+      {activeSection === 'members'        && (tierLevel < 1 ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+          <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ INTEL ROSTER</div>
+            <div style={{ fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', marginBottom: 20, lineHeight: 1.6 }}>The member roster is available to Soldier members and above.</div>
+            <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
+          </div>
+        </div>
+      ) : <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />)}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
       {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
       {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
@@ -15010,7 +15018,15 @@ function CommunityPage() {
         {activeSection === 'dms' && (
           <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />
         )}
-        {activeSection === 'members'     && (
+        {activeSection === 'members'     && (tierLevel < 1 ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+            <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ INTEL ROSTER</div>
+              <div style={{ fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', marginBottom: 20, lineHeight: 1.6 }}>The member roster is available to Soldier members and above.</div>
+              <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
+            </div>
+          </div>
+        ) : (
           <MembersView
             members={members}
             currentUserId={user?.id || ''}
@@ -15035,7 +15051,7 @@ function CommunityPage() {
             isDark={theme !== 'light'}
             isMobile={isMobile}
           />
-        )}
+        ))}
         {activeSection === 'database'    && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} />
@@ -15442,24 +15458,31 @@ function CommunityPage() {
                       <div style={{ marginBottom: 10 }}>
                         <SectionLabel>Recent Messages</SectionLabel>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
-                        {recentMessages.length === 0 ? (
-                          <div style={{ fontSize: 13, color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>No messages yet</div>
-                        ) : (
-                          recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 8).map((msg: any) => (
-                            <TacticalCard key={msg.id} onClick={() => setActiveSection('dms')} padding={10}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <StatusDot kind="info" size={5} />
-                                  <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 130 }}>{msg.senderName}</span>
+                      {tierLevel < 1 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, textAlign: 'center' as const, padding: '4px 0' }}>
+                          <div style={{ fontSize: 13, color: V.mut, lineHeight: 1.5, fontFamily: crimson }}>Direct messaging is available to Soldier members and above.</div>
+                          <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 16px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                          {recentMessages.length === 0 ? (
+                            <div style={{ fontSize: 13, color: V.mut, fontStyle: 'italic', fontFamily: crimson }}>No messages yet</div>
+                          ) : (
+                            recentMessages.filter((msg: any) => msg.type !== 'deleted' && !msg.deleted_at).slice(0, 8).map((msg: any) => (
+                              <TacticalCard key={msg.id} onClick={() => setActiveSection('dms')} padding={10}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <StatusDot kind="info" size={5} />
+                                    <span style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 130 }}>{msg.senderName}</span>
+                                  </div>
+                                  <MonoTime size={9} color="var(--t-4)">{msg.timeAgo}</MonoTime>
                                 </div>
-                                <MonoTime size={9} color="var(--t-4)">{msg.timeAgo}</MonoTime>
-                              </div>
-                              <div style={{ fontSize: 13, color: 'var(--t-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{msg.text}</div>
-                            </TacticalCard>
-                          ))
-                        )}
-                      </div>
+                                <div style={{ fontSize: 13, color: 'var(--t-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{msg.text}</div>
+                              </TacticalCard>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
