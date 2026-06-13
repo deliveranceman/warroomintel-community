@@ -13718,8 +13718,42 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
   const [expandedBatches, setExpandedBatches] = useState<Set<number>>(new Set())
   const [rawOpen,    setRawOpen]    = useState(false)
   const [parsedOpen, setParsedOpen] = useState(false)
+  const [ehApplyMode, setEhApplyMode] = useState(false)
+  const [ehChecked,   setEhChecked]   = useState<Set<string>>(new Set())
+  const [ehApplying,  setEhApplying]  = useState(false)
+  const [ehApplyMsg,  setEhApplyMsg]  = useState('')
 
   useEffect(() => { load() }, [dateRange, statusFilter, spiritFilter, page])
+
+  async function handleEhApply() {
+    if (!detailJob || ehChecked.size === 0) return
+    setEhApplying(true)
+    setEhApplyMsg('')
+    try {
+      const token = await getToken()
+      const res   = await fetch('/api/spirit-enrich-apply', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ jobId: detailJob.id, applyFields: Array.from(ehChecked) }),
+      })
+      const d = await res.json()
+      if (res.ok && !d.noop) {
+        const applied = (d.updatedFields as string[]) || []
+        const updated = { ...detailJob, applied_count: applied.length, applied_fields: applied }
+        setDetailJob(updated)
+        setJobs(prev => prev.map(j => j.id === detailJob.id ? { ...j, applied_count: applied.length, applied_fields: applied } : j))
+        setEhApplyMsg(`Applied ${applied.length} field${applied.length !== 1 ? 's' : ''} to ${detailJob.spirit_name || detailJob.spirit_slug}`)
+        setEhApplyMode(false)
+      } else if (d.noop) {
+        setEhApplyMsg('Already applied — job was stamped applied_at. Re-run enrichment to apply again.')
+      } else {
+        setEhApplyMsg(`Error: ${d.error || 'Unknown'}`)
+      }
+    } catch (e: any) {
+      setEhApplyMsg(`Error: ${e?.message || String(e)}`)
+    }
+    setEhApplying(false)
+  }
 
   async function load() {
     setLoading(true)
@@ -13883,7 +13917,7 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
                           {job.cost_estimate != null ? `$${Number(job.cost_estimate).toFixed(4)}` : '—'}
                         </td>
                         <td style={tdStyle}>
-                          <button onClick={() => { setDetailJob(job); setRawOpen(false); setParsedOpen(false) }}
+                          <button onClick={() => { setDetailJob(job); setRawOpen(false); setParsedOpen(false); setEhApplyMode(false); setEhChecked(new Set()); setEhApplyMsg('') }}
                             style={{ padding: '4px 10px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer' }}>
                             VIEW
                           </button>
@@ -13932,15 +13966,52 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
 
           {/* Status banner */}
           <div style={{ padding: '8px 20px', background: `${ehStatusColor(detailJob.status)}18`, borderBottom: `1px solid ${ehStatusColor(detailJob.status)}30`, flexShrink: 0 }}>
-            <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: ehStatusColor(detailJob.status) }}>
-              {detailJob.status.toUpperCase()}
-            </span>
-            {detailJob.error_message && (
-              <span style={{ marginLeft: 12, fontFamily: crimson, fontSize: 12, color: '#f87171' }}>{detailJob.error_message.slice(0, 200)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+              <div>
+                <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: ehStatusColor(detailJob.status) }}>
+                  {detailJob.status.toUpperCase()}
+                </span>
+                {detailJob.error_message && (
+                  <span style={{ marginLeft: 12, fontFamily: crimson, fontSize: 12, color: '#f87171' }}>{detailJob.error_message.slice(0, 200)}</span>
+                )}
+                <span style={{ marginLeft: 12, fontFamily: cinzel, fontSize: 8, color: DIM }}>
+                  {detailJob.proposed_count} proposed {'·'} {detailJob.applied_count} applied
+                </span>
+              </div>
+              {detailJob.status === 'complete' && detailJob.proposed_count > 0 && !ehApplyMode && (
+                <button onClick={() => {
+                  const allKeys = Object.keys(detailJob.proposed)
+                  setEhChecked(new Set(allKeys))
+                  setEhApplyMode(true)
+                  setEhApplyMsg('')
+                }}
+                  style={{ padding: '5px 12px', background: 'rgba(201,168,76,0.15)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                  APPLY PROPOSED FIELDS
+                </button>
+              )}
+              {ehApplyMode && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={handleEhApply} disabled={ehApplying || ehChecked.size === 0}
+                    style={{ padding: '5px 12px', background: ehChecked.size > 0 ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 4, color: ehChecked.size > 0 ? '#0D0B14' : DIM, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: ehChecked.size > 0 && !ehApplying ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
+                    {ehApplying ? 'APPLYING...' : `APPLY ${ehChecked.size} SELECTED`}
+                  </button>
+                  <button onClick={() => { setEhApplyMode(false); setEhApplyMsg('') }}
+                    style={{ padding: '5px 10px', background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 4, color: DIM, fontFamily: cinzel, fontSize: 8, cursor: 'pointer' }}>
+                    CANCEL
+                  </button>
+                </div>
+              )}
+            </div>
+            {ehApplyMode && (
+              <div style={{ marginTop: 6, fontFamily: crimson, fontSize: 11, color: DIM, fontStyle: 'italic' }}>
+                Re-applying overwrites current values on the spirit record.
+              </div>
             )}
-            <span style={{ marginLeft: 12, fontFamily: cinzel, fontSize: 8, color: DIM }}>
-              {detailJob.proposed_count} proposed {'·'} {detailJob.applied_count} applied
-            </span>
+            {ehApplyMsg && (
+              <div style={{ marginTop: 6, fontFamily: crimson, fontSize: 12, color: ehApplyMsg.startsWith('Error') ? '#f87171' : '#4ade80' }}>
+                {ehApplyMsg}
+              </div>
+            )}
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: '0 0 20px' }}>
@@ -13950,6 +14021,7 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
               <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
                 <thead>
                   <tr>
+                    {ehApplyMode && <th style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, padding: '10px 8px', textAlign: 'center' as const, borderBottom: `1px solid ${BDR}`, background: isDark ? '#13111e' : '#F0EBE0', position: 'sticky' as const, top: 0, width: 32 }}></th>}
                     {['Field', 'Current', 'Proposed'].map(h => (
                       <th key={h} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, padding: '10px 12px', textAlign: 'left' as const, borderBottom: `1px solid ${BDR}`, background: isDark ? '#13111e' : '#F0EBE0', position: 'sticky' as const, top: 0 }}>{h}</th>
                     ))}
@@ -13962,6 +14034,18 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
                     const label      = EH_FIELD_LABELS[key] || key
                     return (
                       <tr key={key} style={{ background: isApplied ? (isDark ? 'rgba(74,222,128,0.06)' : 'rgba(74,222,128,0.08)') : 'transparent' }}>
+                        {ehApplyMode && (
+                          <td style={{ padding: '10px 8px', borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'top', textAlign: 'center' as const }}>
+                            <input type="checkbox"
+                              checked={ehChecked.has(key)}
+                              onChange={e => setEhChecked(prev => {
+                                const next = new Set(prev)
+                                if (e.target.checked) next.add(key); else next.delete(key)
+                                return next
+                              })}
+                            />
+                          </td>
+                        )}
                         <td style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: isApplied ? '#4ade80' : G, padding: '10px 12px', borderBottom: `1px solid rgba(201,168,76,0.07)`, verticalAlign: 'top', whiteSpace: 'nowrap' as const }}>
                           {label}
                           {isApplied && <span style={{ marginLeft: 6, fontSize: 7, letterSpacing: '0.06em', color: '#4ade80', opacity: 0.8 }}>applied</span>}
