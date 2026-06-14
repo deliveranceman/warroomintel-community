@@ -138,22 +138,22 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
   return (
     <>
       {confirmDialog}
-      <div style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 12, padding: '32px 28px', textAlign: 'center' as const, marginTop: 24 }}>
-        <div style={{ fontSize: 36, marginBottom: 14 }}>🔒</div>
-        <div style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>
-          {requiredTier.toUpperCase()}+ ACCESS REQUIRED
+      <div style={{ textAlign: 'center' as const, maxWidth: 480, padding: '0 20px' }}>
+        <div style={{ fontSize: 40, color: G, marginBottom: 20 }}>⚔</div>
+        <div style={{ fontFamily: cinzel, fontSize: 20, color: G, letterSpacing: '0.06em', marginBottom: description ? 12 : 24 }}>
+          {requiredTier.toUpperCase()} TIER REQUIRED
         </div>
         {description && (
-          <div style={{ fontFamily: crimson, fontSize: 14, color: '#a09080', lineHeight: 1.6, maxWidth: 360, margin: '0 auto 24px' }}>
+          <p style={{ fontFamily: crimson, fontSize: 15, color: '#9a8c74', lineHeight: 1.7, margin: '0 0 24px' }}>
             {description}
-          </div>
+          </p>
         )}
         {noticeEl && <div style={{ marginBottom: 12 }}>{noticeEl}</div>}
         <button
           onClick={handleUpgradeClick}
-          style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: '#0D0B14', background: G, padding: '12px 28px', borderRadius: 4, border: 'none', cursor: 'pointer', fontWeight: 700 }}
+          style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}
         >
-          Upgrade to {tierLabel} to unlock
+          Upgrade to {tierLabel}
         </button>
       </div>
     </>

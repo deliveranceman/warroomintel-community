@@ -14619,23 +14619,17 @@ function CommunityPage() {
       {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
       {activeSection === 'forum'          && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} /><OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} /></div>}
       {activeSection === 'deliverance-protocol' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
-          <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-            {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px' }}>
-            {tierLevel < 2 ? (
-              <div style={{ textAlign: 'center', maxWidth: 420, margin: '60px auto' }}>
-                <div style={{ fontSize: 40, marginBottom: 16 }}>⚔</div>
-                <div style={{ fontFamily: cinzel, fontSize: 16, color: G, marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
-                <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#9a8c74' : '#5C5248', lineHeight: 1.7, marginBottom: 24 }}>Upgrade to Commander to access the Protocol Engine.</p>
-                <button onClick={() => beginUpgrade('commander')} style={{ display: 'inline-block', background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Upgrade</button>
+        tierLevel >= 2
+          ? <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
+              <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+                {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>
+                </div>
               </div>
-            ) : !stpResult ? (
+              <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 32px' }}>
+            {!stpResult ? (
               <div style={{ maxWidth: 600, margin: '0 auto' }}>
                 <div style={{ marginBottom: 24 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', marginBottom: 8 }}>SELECT MODE</div>
@@ -14680,8 +14674,11 @@ function CommunityPage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
+              </div>
+            </div>
+          : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Deliverance Protocol Engine" description="Upgrade to Commander to access the Protocol Engine." />
+            </div>
       )}
     </>
   )
