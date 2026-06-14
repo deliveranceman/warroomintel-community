@@ -9,6 +9,7 @@ function tsEqual(a: string, b: string): boolean {
 }
 import { buildWindows, scanOnce, stageCandidates, WINDOW_SIZE } from './_shared/patristicScan'
 import { enrichSpirit } from './_shared/spiritEnrich'
+import { runResearchDropSpirits } from './_shared/researchDropExtract'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -59,6 +60,8 @@ export default async function handler(req: Request): Promise<Response> {
     await runPatristicScan(client, job)
   } else if (job.job_type === 'spirit_enrich') {
     await runSpiritEnrich(client, job)
+  } else if (job.job_type === 'research_drop_spirits') {
+    await runResearchDropSpirits(client, job)
   } else {
     await client.from('ai_jobs').update({
       status:        'failed',
