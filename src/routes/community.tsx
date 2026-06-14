@@ -15346,7 +15346,7 @@ function CommunityPage() {
         return (
           <div
             ref={railStripRef}
-            style={{ width: 48, flexShrink: 0, borderLeft: '1px solid var(--gold-line)', background: 'var(--bg-1)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 2, position: 'relative', zIndex: 50 }}
+            style={{ width: 48, flexShrink: 0, borderLeft: isDark ? '1px solid var(--gold-line)' : '1px solid var(--border)', background: isDark ? 'var(--bg-1)' : 'var(--surface2)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 2, position: 'relative', zIndex: 50 }}
           >
             {RAIL_ICONS.map(({ id, icon, label, dot }) => {
               const isActive = activeRailSection === id
@@ -15358,14 +15358,14 @@ function CommunityPage() {
                   style={{
                     width: 48, height: 48, border: 'none', cursor: 'pointer',
                     background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
-                    color: isActive ? 'var(--gold)' : 'var(--t-3)',
+                    color: isActive ? 'var(--gold)' : (isDark ? 'var(--t-3)' : 'var(--muted)'),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     position: 'relative', flexShrink: 0,
                     transition: 'background 0.15s, color 0.15s',
                     borderLeft: isActive ? '2px solid var(--gold)' : '2px solid transparent',
                   }}
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(201,168,76,0.08)'; e.currentTarget.style.color = 'var(--t-1)' } }}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t-3)' } }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(201,168,76,0.08)'; e.currentTarget.style.color = isDark ? 'var(--t-1)' : 'var(--text)' } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isDark ? 'var(--t-3)' : 'var(--muted)' } }}
                 >
                   {icon}
                   {dot && !RAIL_ICONS.find(r => r.id === id)?.count && (
@@ -15386,8 +15386,8 @@ function CommunityPage() {
                 ref={railFlyoutRef}
                 style={{
                   position: 'fixed', top: 60, right: 48, height: 'calc(100vh - 60px)',
-                  width: 280, background: 'var(--bg-1)',
-                  border: '1px solid var(--gold-line)', borderRight: 'none',
+                  width: 280, background: isDark ? 'var(--bg-1)' : 'var(--surface2)',
+                  border: isDark ? '1px solid var(--gold-line)' : '1px solid var(--border)', borderRight: 'none',
                   borderRadius: '8px 0 0 8px',
                   boxShadow: '-4px 0 20px rgba(0,0,0,0.4)',
                   zIndex: 100, display: 'flex', flexDirection: 'column',
@@ -15395,11 +15395,11 @@ function CommunityPage() {
                 }}
               >
                 {/* Flyout header */}
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--gold-line)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '12px 14px', borderBottom: isDark ? '1px solid var(--gold-line)' : '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: 'var(--gold)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>
                     {RAIL_ICONS.find(r => r.id === activeRailSection)?.label}
                   </span>
-                  <button onClick={() => setActiveRailSection(null)} style={{ background: 'none', border: 'none', color: 'var(--t-4)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px' }}>×</button>
+                  <button onClick={() => setActiveRailSection(null)} style={{ background: 'none', border: 'none', color: isDark ? 'var(--t-4)' : 'var(--muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px' }}>×</button>
                 </div>
 
                 {/* Flyout content */}
