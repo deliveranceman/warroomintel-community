@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Busboy from 'busboy'
 import { requireAdmin2 } from './_shared/access'
+import { mimeFromFilename } from '../../src/lib/mimeFromFilename'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -18,13 +19,6 @@ function supabaseClient() {
   )
 }
 
-function mimeFromFilename(name: string): string {
-  const lower = name.toLowerCase()
-  if (lower.endsWith('.pdf'))  return 'application/pdf'
-  if (lower.endsWith('.txt'))  return 'text/plain'
-  if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  return 'application/octet-stream'
-}
 
 function parseMultipart(_req: Request, bodyBuf: Buffer, contentType: string): Promise<{
   fields: Record<string, string>
