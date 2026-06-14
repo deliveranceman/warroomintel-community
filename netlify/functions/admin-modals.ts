@@ -60,7 +60,7 @@ export default async function handler(req: Request): Promise<Response> {
       title:              title.trim(),
       body:               modalBody.trim(),
       audience:           audience || { kind: 'all' },
-      frequency:          frequency || 'once',
+      frequency:          frequency || 'once_ever',
       requires_acceptance: requires_acceptance ?? false,
       priority:           Number(priority ?? 0),
       active:             active ?? true,
