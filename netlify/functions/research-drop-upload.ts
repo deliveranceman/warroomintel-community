@@ -167,20 +167,10 @@ export default async function handler(req: Request) {
     .update({ research_job_id: jobId })
     .eq('id', resourceId)
 
-  // ── Dispatch worker ────────────────────────────────────────────────────────────
-  const reqUrl  = new URL(req.url)
-  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
-  try {
-    await fetch(`${baseUrl}/api/job-worker-background`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-key': process.env.INTERNAL_API_KEY ?? '' },
-      body:    JSON.stringify({ jobId }),
-      signal:  AbortSignal.timeout(5000),
-    })
-  } catch (err: any) {
-    console.warn('[research-drop-upload] Worker dispatch failed:', err.message, 'jobId:', jobId)
-  }
-
+  // Do NOT await worker dispatch here — this function does ~20s of work before this
+  // point (auth + multipart parse + storage upload + DB inserts), so adding even a
+  // 5s await pushes the total past Netlify's function timeout, killing the response.
+  // job-dispatch-cron runs every minute and picks up any queued job older than 20s.
   console.log(`[research-drop-upload] Created resource ${resourceId} + job ${jobId} for "${title}"`)
   return json({ resourceId, jobId, status: 'queued' }, 202)
 }
